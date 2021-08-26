@@ -36,10 +36,12 @@ from scvi.train import TrainingPlan, TrainRunner
 def test_scvi(save_path):
     n_latent = 5
     adata = synthetic_iid()
-    model = SCVI(adata, n_latent=n_latent)
+    model = SCVI(adata, n_latent=n_latent, use_observed_lib_size=False)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
-    model = SCVI(adata, n_latent=n_latent, var_activation=Softplus())
+    model = SCVI(
+        adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False
+    )
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 

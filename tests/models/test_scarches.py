@@ -128,7 +128,12 @@ def test_scanvi_online_update(save_path):
     new_labels[0] = "Unknown"
     adata1.obs["labels"] = pd.Categorical(new_labels)
     setup_anndata(adata1, batch_key="batch", labels_key="labels")
-    model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
+    model = SCANVI(
+        adata1,
+        "Unknown",
+        n_latent=n_latent,
+        encode_covariates=True,
+    )
     model.train(max_epochs=1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)

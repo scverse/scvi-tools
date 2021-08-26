@@ -552,12 +552,17 @@ class RNASeqMixin:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
 
-            ql_m = outputs["ql_m"]
-            ql_v = outputs["ql_v"]
             library = outputs["library"]
             if give_mean is False:
                 library = torch.exp(library)
             else:
+                ql_m = outputs.get("ql_m", None)
+                ql_v = outputs.get("ql_v", None)
+                if ql_m is None or ql_v is None:
+                    raise RuntimeError(
+                        "The module for this model does not compute the posterior distribution "
+                        "for the library size. Set `give_mean` to False to use the observed library size instead."
+                    )
                 library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
             libraries += [library.cpu()]
         return torch.cat(libraries).numpy()
