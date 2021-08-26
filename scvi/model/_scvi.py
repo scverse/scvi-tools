@@ -4,6 +4,7 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.model._utils import _init_library_size
 from scvi.module import VAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
@@ -88,9 +89,12 @@ class SCVI(
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
+        n_batch = self.summary_stats["n_batch"]
+        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+
         self.module = VAE(
             n_input=self.summary_stats["n_vars"],
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=n_batch,
             n_labels=self.summary_stats["n_labels"],
             n_continuous_cov=self.summary_stats["n_continuous_covs"],
             n_cats_per_cov=n_cats_per_cov,
@@ -101,6 +105,8 @@ class SCVI(
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
             **model_kwargs,
         )
         self._model_summary_string = (

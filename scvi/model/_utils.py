@@ -238,8 +238,8 @@ def _init_library_size(
     data = get_from_registry(adata, _CONSTANTS.X_KEY)
     batch_indices = get_from_registry(adata, _CONSTANTS.BATCH_KEY)
 
-    local_log_means = np.zeros((n_batch, 1))
-    local_log_vars = np.ones((n_batch, 1))
+    library_log_means = np.zeros(n_batch)
+    library_log_vars = np.ones(n_batch)
 
     for i_batch in np.unique(batch_indices):
         idx_batch = np.squeeze(batch_indices == i_batch)
@@ -253,7 +253,7 @@ def _init_library_size(
             )
 
         log_counts = masked_log_sum.filled(0)
-        local_log_means[i_batch] = np.mean(log_counts).astype(np.float32)
-        local_log_vars[i_batch] = np.var(log_counts).astype(np.float32)
+        library_log_means[i_batch] = np.mean(log_counts).astype(np.float32)
+        library_log_vars[i_batch] = np.var(log_counts).astype(np.float32)
 
-    return local_log_means, local_log_vars
+    return library_log_means.reshape(1, -1), library_log_vars.reshape(1, -1)
