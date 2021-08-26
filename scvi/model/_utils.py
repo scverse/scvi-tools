@@ -1,6 +1,7 @@
 import logging
+import warnings
 from collections.abc import Iterable as IterableClass
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import anndata
 import numpy as np
@@ -229,3 +230,30 @@ def _get_batch_code_from_category(
             batch_loc = np.where(batch_mappings == cat)[0][0]
             batch_code.append(batch_loc)
     return batch_code
+
+
+def _init_library_size(
+    adata: anndata.AnnData, n_batch: dict
+) -> Tuple[np.ndarray, np.ndarray]:
+    data = get_from_registry(adata, _CONSTANTS.X_KEY)
+    batch_indices = get_from_registry(adata, _CONSTANTS.BATCH_KEY)
+
+    local_log_means = np.zeros((n_batch, 1))
+    local_log_vars = np.ones((n_batch, 1))
+
+    for i_batch in np.unique(batch_indices):
+        idx_batch = np.squeeze(batch_indices == i_batch)
+        batch_data = data[idx_batch]
+        sum_counts = batch_data.sum(axis=1)
+        masked_log_sum = np.ma.log(sum_counts)
+        if np.ma.is_masked(masked_log_sum):
+            warnings.warn(
+                "This dataset has some empty cells, this might fail inference."
+                "Data should be filtered with `scanpy.pp.filter_cells()`"
+            )
+
+        log_counts = masked_log_sum.filled(0)
+        local_log_means[i_batch] = np.mean(log_counts).astype(np.float32)
+        local_log_vars[i_batch] = np.var(log_counts).astype(np.float32)
+
+    return local_log_means, local_log_vars
