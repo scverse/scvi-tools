@@ -25,11 +25,9 @@ logger = logging.getLogger(__name__)
 
 def _unpack_tensors(tensors):
     x = tensors[_CONSTANTS.X_KEY].squeeze_(0)
-    local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY].squeeze_(0)
-    local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY].squeeze_(0)
     batch_index = tensors[_CONSTANTS.BATCH_KEY].squeeze_(0)
     y = tensors[_CONSTANTS.LABELS_KEY].squeeze_(0)
-    return x, local_l_mean, local_l_var, batch_index, y
+    return x, batch_index, y
 
 
 class GIMVI(VAEMixin, BaseModelClass):
@@ -253,10 +251,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             for tensors in scdl:
                 (
                     sample_batch,
-                    local_l_mean,
-                    local_l_var,
-                    batch_index,
-                    label,
                     *_,
                 ) = _unpack_tensors(tensors)
                 latent.append(
@@ -308,8 +302,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             for tensors in scdl:
                 (
                     sample_batch,
-                    local_l_mean,
-                    local_l_var,
                     batch_index,
                     label,
                     *_,
