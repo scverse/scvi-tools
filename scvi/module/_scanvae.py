@@ -67,7 +67,7 @@ class SCANVAE(VAE):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
-    **kwargs
+    **vae_kwargs
         Keyword args for :class:`~scvi.module.VAE`
     """
 
@@ -91,7 +91,7 @@ class SCANVAE(VAE):
         classifier_parameters: dict = dict(),
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        **kwargs
+        **vae_kwargs
     ):
         super().__init__(
             n_input,
@@ -107,7 +107,7 @@ class SCANVAE(VAE):
             gene_likelihood=gene_likelihood,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
-            **kwargs
+            **vae_kwargs
         )
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
@@ -231,11 +231,8 @@ class SCANVAE(VAE):
         qz1_m = inference_outputs["qz_m"]
         qz1_v = inference_outputs["qz_v"]
         z1 = inference_outputs["z"]
-        ql_m = inference_outputs["ql_m"]
-        ql_v = inference_outputs["ql_v"]
         x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         if feed_labels:
             y = tensors[_CONSTANTS.LABELS_KEY]
@@ -260,9 +257,16 @@ class SCANVAE(VAE):
         loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
         loss_z1_weight = Normal(qz1_m, torch.sqrt(qz1_v)).log_prob(z1).sum(dim=-1)
         if not self.use_observed_lib_size:
+            ql_m = inference_outputs["ql_m"]
+            ql_v = inference_outputs["ql_v"]
+            (
+                local_library_log_means,
+                local_library_log_vars,
+            ) = self._compute_local_library_params(batch_index)
+
             kl_divergence_l = kl(
                 Normal(ql_m, torch.sqrt(ql_v)),
-                Normal(local_l_mean, torch.sqrt(local_l_var)),
+                Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
             kl_divergence_l = 0.0

@@ -235,6 +235,21 @@ class VAE(BaseModuleClass):
         }
         return input_dict
 
+    def _compute_local_library_params(self, batch_index):
+        """
+        Compute two tensors of shape (batch_index.shape[0], 1) where each
+        element corresponds to the mean and variances, respectively, of the
+        log library sizes in the batch the cell corresponds to.
+        """
+        n_batch = self.library_log_means.shape[1]
+        local_library_log_means = F.linear(
+            one_hot(batch_index, n_batch), self.library_log_means
+        )
+        local_library_log_vars = F.linear(
+            one_hot(batch_index, n_batch), self.library_log_vars
+        )
+        return local_library_log_means, local_library_log_vars
+
     @auto_move_data
     def inference(self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1):
         """
@@ -348,13 +363,10 @@ class VAE(BaseModuleClass):
         if not self.use_observed_lib_size:
             ql_m = inference_outputs["ql_m"]
             ql_v = inference_outputs["ql_v"]
-            n_batch = self.library_log_means.shape[1]
-            local_library_log_means = F.linear(
-                one_hot(batch_index, n_batch), self.library_log_means
-            )
-            local_library_log_vars = F.linear(
-                one_hot(batch_index, n_batch), self.library_log_vars
-            )
+            (
+                local_library_log_means,
+                local_library_log_vars,
+            ) = self._compute_local_library_params(batch_index)
 
             kl_divergence_l = kl(
                 Normal(ql_m, ql_v.sqrt()),
@@ -492,13 +504,11 @@ class VAE(BaseModuleClass):
             log_prob_sum -= q_z_x
 
             if not self.use_observed_lib_size:
-                n_batch = self.library_log_means.shape[1]
-                local_library_log_means = F.linear(
-                    one_hot(batch_index, n_batch), self.library_log_means
-                )
-                local_library_log_vars = F.linear(
-                    one_hot(batch_index, n_batch), self.library_log_vars
-                )
+                (
+                    local_library_log_means,
+                    local_library_log_vars,
+                ) = self._compute_local_library_params(batch_index)
+
                 p_l = (
                     Normal(local_library_log_means, local_library_log_vars.sqrt())
                     .log_prob(library)
