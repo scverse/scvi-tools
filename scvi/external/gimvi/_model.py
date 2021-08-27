@@ -13,7 +13,11 @@ from torch.utils.data import DataLoader
 from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import _get_var_names_from_setup_anndata, parse_use_gpu_arg
+from scvi.model._utils import (
+    _get_var_names_from_setup_anndata,
+    parse_use_gpu_arg,
+    _init_library_size,
+)
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
 
@@ -106,7 +110,16 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata_seq_n_batches = adata_seq.uns["_scvi"]["summary_stats"]["n_batch"]
         adata_spatial.obs["_scvi_batch"] += adata_seq_n_batches
 
-        n_batches = sum([s["n_batch"] for s in sum_stats])
+        n_batches = sum(s["n_batch"] for s in sum_stats)
+
+        library_log_means = []
+        library_log_vars = []
+        for adata in self.adatas:
+            adata_library_log_means, adata_library_log_vars = _init_library_size(
+                adata, n_batches
+            )
+            library_log_means.append(adata_library_log_means)
+            library_log_vars.append(adata_library_log_vars)
 
         self.module = JVAE(
             n_inputs,
@@ -114,6 +127,8 @@ class GIMVI(VAEMixin, BaseModelClass):
             gene_mappings,
             generative_distributions,
             model_library_size,
+            library_log_means,
+            library_log_vars,
             n_batch=n_batches,
             n_latent=n_latent,
             **model_kwargs,
