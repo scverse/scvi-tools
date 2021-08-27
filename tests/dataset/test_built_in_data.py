@@ -5,7 +5,7 @@ import pytest
 import scvi
 
 from .utils import unsupervised_training_one_epoch
-
+from scvi.data._anndata import _setup_anndata
 
 class TestPbmcDataset(TestCase):
     def test_populate(self):
@@ -20,29 +20,29 @@ class TestPbmcDataset(TestCase):
 class TestLoomDataset(TestCase):
     def test_retina_load_train_one(self):
         dataset = scvi.data.retina(save_path="tests/data")
-        scvi.data.setup_anndata(dataset, batch_key="batch")
+        _setup_anndata(dataset, batch_key="batch")
         unsupervised_training_one_epoch(dataset)
 
     def test_pfc_starmap_load_train_one(self):
         gene_dataset = scvi.data.prefrontalcortex_starmap(save_path="tests/data")
-        scvi.data.setup_anndata(gene_dataset)
+        _setup_anndata(gene_dataset)
         unsupervised_training_one_epoch(gene_dataset)
 
     def test_fc_dropseq_load_train_one(self):
         gene_dataset = scvi.data.frontalcortex_dropseq(save_path="tests/data")
-        scvi.data.setup_anndata(gene_dataset)
+        _setup_anndata(gene_dataset)
         unsupervised_training_one_epoch(gene_dataset)
 
     def test_smfish_load_train_one(self):
         gene_dataset = scvi.data.smfish(save_path="tests/data")
-        scvi.data.setup_anndata(gene_dataset)
+        _setup_anndata(gene_dataset)
         unsupervised_training_one_epoch(gene_dataset)
 
 
 class TestSeqfishDataset(TestCase):
     def test_populate(self):
         dataset = scvi.data.seqfish(save_path="tests/data")
-        scvi.data.setup_anndata(dataset)
+        _setup_anndata(dataset)
         unsupervised_training_one_epoch(dataset)
 
 
@@ -52,21 +52,21 @@ class TestSeqFishPlusDataset(TestCase):
             dataset = scvi.data.seqfishplus(
                 tissue_region=tissue_region, save_path="tests/data"
             )
-            scvi.data.setup_anndata(dataset)
+            _setup_anndata(dataset)
             unsupervised_training_one_epoch(dataset)
 
 
 class TestSyntheticDataset(TestCase):
     def test_iid(self):
         dataset = scvi.data.synthetic_iid(batch_size=10, n_genes=10)
-        scvi.data.setup_anndata(dataset)
+        _setup_anndata(dataset)
         unsupervised_training_one_epoch(dataset)
 
 
 class TestCortexDataset(TestCase):
     def test_populate(self):
         adata = scvi.data.cortex(save_path="tests/data")
-        scvi.data.setup_anndata(adata, labels_key="cell_type")
+        _setup_anndata(adata, labels_key="cell_type")
         unsupervised_training_one_epoch(adata)
 
 

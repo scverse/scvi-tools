@@ -6,7 +6,7 @@ import anndata
 import numpy as np
 import pandas as pd
 
-from scvi.data._anndata import setup_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ def _load_cortex(
     _download(url, save_path, save_fn)
     adata = _load_cortex_txt(os.path.join(save_path, save_fn))
     if run_setup_anndata:
-        setup_anndata(adata, labels_key="labels")
+        _setup_anndata(adata, labels_key="labels")
     return adata
 
 

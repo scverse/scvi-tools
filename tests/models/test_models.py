@@ -10,7 +10,7 @@ from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
-from scvi.data import setup_anndata, synthetic_iid, transfer_anndata_setup
+from scvi.data._anndata import _setup_anndata, synthetic_iid, transfer_anndata_setup
 from scvi.data._built_in_data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,
@@ -162,7 +162,7 @@ def test_scvi(save_path):
     batch = np.zeros(a.n_obs)
     batch[:64] += 1
     a.obs["batch"] = batch
-    setup_anndata(a, batch_key="batch")
+    _setup_anndata(a, batch_key="batch")
     m = SCVI(a)
     m.train(1, train_size=0.5)
     m.get_normalized_expression(transform_batch=1)
@@ -190,7 +190,7 @@ def test_scvi_sparse(save_path):
     n_latent = 5
     adata = synthetic_iid(run_setup_anndata=False)
     adata.X = csr_matrix(adata.X)
-    setup_anndata(adata)
+    _setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, train_size=0.5)
     assert model.is_trained is True
@@ -289,7 +289,7 @@ def test_backed_anndata_scvi(save_path):
     path = os.path.join(save_path, "test_data.h5ad")
     adata.write_h5ad(path)
     adata = anndata.read_h5ad(path, backed="r+")
-    setup_anndata(adata, batch_key="batch")
+    _setup_anndata(adata, batch_key="batch")
 
     model = SCVI(adata, n_latent=5)
     model.train(1, train_size=0.5)
@@ -491,14 +491,14 @@ def test_scanvi(save_path):
     # test that all data labeled runs
     unknown_label = "asdf"
     a = scvi.data.synthetic_iid()
-    scvi.data.setup_anndata(a, batch_key="batch", labels_key="labels")
+    _setup_anndata(a, batch_key="batch", labels_key="labels")
     m = scvi.model.SCANVI(a, unknown_label)
     m.train(1)
 
     # test mix of labeled and unlabeled data
     unknown_label = "label_0"
     a = scvi.data.synthetic_iid()
-    scvi.data.setup_anndata(a, batch_key="batch", labels_key="labels")
+    _setup_anndata(a, batch_key="batch", labels_key="labels")
     m = scvi.model.SCANVI(a, unknown_label)
     m.train(1, train_size=0.9)
 
@@ -516,7 +516,7 @@ def test_scanvi(save_path):
 def test_linear_scvi(save_path):
     adata = synthetic_iid()
     adata = adata[:, :10].copy()
-    setup_anndata(adata)
+    _setup_anndata(adata)
     model = LinearSCVI(adata, n_latent=10)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     assert len(model.history["elbo_train"]) == 1
@@ -660,7 +660,7 @@ def test_multiple_covariates(save_path):
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    setup_anndata(
+    _setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
