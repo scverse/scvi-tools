@@ -49,14 +49,15 @@ by the following process:
     \ell_n &\sim \mathrm{LogNormal}\left( \ell _\mu ,\ell _\sigma ^2 \right) \\
     \rho _n &= f_w\left( z_n, s_n \right) \\
     \pi_{ng} &= f_h^g(z_n, s_n) \\
-    x_{ng} &\sim \mathrm{ZeroInflatedNegativeBinomial}(\ell_n \rho_n, \theta_g, \pi_{ng})
+    x_{ng} &\sim \mathrm{ObservationModel}(\ell_n \rho_n, \theta_g, \pi_{ng})
     \end{align}
 
 Succintly, the gene expression for each gene depends on a latent variable :math:`z_n` that is cell-specific.
-While by default the data are generated from a ZeroInflatedNegativeBinomial distribution parameterized by its mean, inverse dispersion, and non-zero-inflation probability, respectively,
-users can pass ``gene_likelihood = "negative_binomial"`` to :class:`~scvi.model.SCVI`, for example, to use a simpler NegativeBinomial distribution.
+The expression data are generated from a count-based likelihood distribution, which here, we denote as the :math:`\mathrm{ObservationModel}`.
+While by default the :math:`\mathrm{ObservationModel}` is a :math:`\mathrm{ZeroInflatedNegativeBinomial}` (ZINB) distribution parameterized by its mean, inverse dispersion, and non-zero-inflation probability, respectively,
+users can pass ``gene_likelihood = "negative_binomial"`` to :class:`~scvi.model.SCVI`, for example, to use a simpler :math:`\mathrm{NegativeBinomial}` distribution.
 
-scVI uses two neural networks:
+The generative process of scVI uses two neural networks:
 
 .. math::
    :nowrap:
@@ -66,7 +67,7 @@ scVI uses two neural networks:
       f_h(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to (0, 1)^T \tag{3}
    \end{align}
 
-which respectively decode the denoised gene expression and non-zero-inflation probability.
+which respectively decode the denoised gene expression and non-zero-inflation probability (only if using ZINB).
 
 This generative process is also summarized in the following graphical model:
 
@@ -87,7 +88,7 @@ The latent variables, along with their description are summarized in the followi
      - Description
      - Code variable (if different)
    * - :math:`z_n \in \mathbb{R}^d`
-     - Low-dimensional representation capturing joint state of a cell
+     - Low-dimensional representation capturing state of a cell
      - N/A
    * - :math:`\rho_n \in \Delta^{G-1}`
      - Denoised/normalized gene expression,
@@ -96,7 +97,7 @@ The latent variables, along with their description are summarized in the followi
      - Library size for RNA. Here it is modeled as a latent variable, but the recent default for scVI is to treat library size as observed, equal to the total RNA UMI count of a cell. This can be controlled by passing ``use_observed_lib_size=False`` to :class:`~scvi.model.SCVI`.
      - N/A
    * - :math:`\theta_g \in (0, \infty)`
-     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model intialization.
+     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model intialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
      - ``px_r``
 
 Inference
@@ -109,19 +110,24 @@ neural network params, dispersion params, etc.), and an approximate posterior di
     :nowrap:
 
     \begin{align}
-       q_\eta(z_n, \ell_n \mid x_n, s_n) :=
-       q_\eta(z_n \mid x_n, s_n)q_\eta(\ell_n \mid x_n, s_n).
+       q_\eta(z_n, \ell_n \mid x_n) :=
+       q_\eta(z_n \mid x_n, s_n)q_\eta(\ell_n \mid x_n).
     \end{align}
 
-Here :math:`\eta` is a set of parameters corresponding to inference neural networks, which we do not describe in detail here,
-but are described in the scVI paper.
+Here :math:`\eta` is a set of parameters corresponding to inference neural networks (encoders), which we do not describe in detail here,
+but are described in the scVI paper. The underlying class used as the encoder for scVI is :class:`~scvi.nn.Encoder`.
+
+It it important to note that by default, scVI only
+receives the expression data as input (i.e., not the observed cell-level covariates).
+Empirically, we have not seen much of a difference by having the encoder take as input the concatenation of these items (i.e., :math:`q_\eta(z_n, \ell_n \mid x_n, s_n)`, but users can control it manually by passing
+`encode_covariates=True` to :class:`scvi.model.SCVI`.
 
 Tasks
 =====
 
 Dimensionality reduction
 -------------------------
-For dimensionality reduction, we by default return the mean of the approximate posterior :math:`q_\eta(z_n \mid x_n, s_n)`.
+For dimensionality reduction, the mean of the approximate posterior :math:`q_\eta(z_n \mid x_n, s_n)` is returned by default.
 This is achieved using the method::
 
     >>> latent = model.get_latent_representation()
@@ -134,8 +140,18 @@ The latent representation can be used to create a nearest neighbor graph with sc
     >>> sc.pp.neighbors(adata, use_rep="X_scvi")
     >>> adata.obsp["distances"]
 
-Normalization and denoising of expression
+Normalization/denoising/imputation of expression
 ------------------------------------------
+
+Here scVI returns the expected value of :math:`\rho_n` under the approximate posterior. For one cell :math`n`, this can be written as:
+
+.. math::
+    :nowrap:
+
+    \begin{align}
+       \mathbb{E}_{q_\eta(z_n \mid x_n)}\left[f_w\left( z_n, s_n \right) \right]
+    \end{align}
+
 
 Differential expression
 -----------------------
