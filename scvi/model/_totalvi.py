@@ -19,8 +19,8 @@ from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
-    cite_seq_raw_counts_properties,
     _init_library_size,
+    cite_seq_raw_counts_properties,
 )
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE

@@ -3,8 +3,8 @@ import logging
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.model._utils import _init_library_size
+from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin

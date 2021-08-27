@@ -9,8 +9,8 @@ from torch.distributions import Beta, Normal
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.model._utils import _init_library_size
+from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import AutoZIVAE
 from scvi.module.base import auto_move_data
 

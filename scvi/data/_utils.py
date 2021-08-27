@@ -1,6 +1,5 @@
 import logging
-import warnings
-from typing import Tuple, Union
+from typing import Union
 
 import anndata
 import h5py
