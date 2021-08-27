@@ -11,7 +11,7 @@ from anndata import AnnData
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
-from scvi.data import get_from_registry, setup_anndata, transfer_anndata_setup
+from scvi.data._anndata import get_from_registry, _setup_anndata, transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
@@ -182,7 +182,7 @@ class SOLO(BaseModelClass):
         logger.info("Creating doublets, preparing SOLO model.")
         f = io.StringIO()
         with redirect_stdout(f):
-            setup_anndata(doublet_adata, batch_key=orig_batch_key)
+            _setup_anndata(doublet_adata, batch_key=orig_batch_key)
             doublet_latent_rep = scvi_model.get_latent_representation(doublet_adata)
             doublet_lib_size = scvi_model.get_latent_library_size(
                 doublet_adata, give_mean=give_mean_lib
@@ -193,7 +193,7 @@ class SOLO(BaseModelClass):
             doublet_adata.obs[LABELS_KEY] = "doublet"
 
             full_adata = latent_adata.concatenate(doublet_adata)
-            setup_anndata(full_adata, labels_key=LABELS_KEY)
+            _setup_anndata(full_adata, labels_key=LABELS_KEY)
         return cls(full_adata, **classifier_kwargs)
 
     @staticmethod

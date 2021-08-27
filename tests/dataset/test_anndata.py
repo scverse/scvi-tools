@@ -10,14 +10,14 @@ from scipy.sparse.csr import csr_matrix
 
 import scvi
 from scvi import _CONSTANTS
-from scvi.data import (
+from scvi.data._anndata import (
     register_tensor_from_anndata,
-    setup_anndata,
+    _setup_anndata,
+    get_from_registry,
     synthetic_iid,
     transfer_anndata_setup,
     view_anndata_setup,
 )
-from scvi.data._anndata import get_from_registry
 from scvi.dataloaders import AnnTorchDataset
 
 
@@ -26,7 +26,7 @@ def test_transfer_anndata_setup():
     adata1 = synthetic_iid(run_setup_anndata=False)
     adata2 = synthetic_iid(run_setup_anndata=False)
     adata2.X = adata1.X
-    setup_anndata(adata1)
+    _setup_anndata(adata1)
     transfer_anndata_setup(adata1, adata2)
     np.testing.assert_array_equal(
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
@@ -42,7 +42,7 @@ def test_transfer_anndata_setup():
     ones = np.ones_like(adata1.X)
     adata1.X = zeros
     adata2.X = ones
-    setup_anndata(adata1, layer="raw")
+    _setup_anndata(adata1, layer="raw")
     transfer_anndata_setup(adata1, adata2)
     np.testing.assert_array_equal(
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
@@ -90,7 +90,7 @@ def test_transfer_anndata_setup():
     # test that transfer_anndata_setup assigns same batch and label to cells
     # if the original anndata was also same batch and label
     adata1 = synthetic_iid(run_setup_anndata=False)
-    setup_anndata(adata1)
+    _setup_anndata(adata1)
     adata2 = synthetic_iid(run_setup_anndata=False)
     del adata2.obs["batch"]
     transfer_anndata_setup(adata1, adata2)
@@ -101,7 +101,7 @@ def test_transfer_anndata_setup():
     a1 = scvi.data.synthetic_iid()
     a2 = scvi.data.synthetic_iid(run_setup_anndata=False)
     a2.obs["batch"] = "batch_1"
-    scvi.data.setup_anndata(a2, batch_key="batch")
+    scvi.data._setup_anndata(a2, batch_key="batch")
     m = scvi.model.SCVI(a1)
     m.train(1)
     m.get_latent_representation(a2)
@@ -120,7 +120,7 @@ def test_data_format():
     assert adata.X.flags["C_CONTIGUOUS"] is False
     assert adata.obsm["protein_expression"].flags["C_CONTIGUOUS"] is False
 
-    setup_anndata(adata, protein_expression_obsm_key="protein_expression")
+    _setup_anndata(adata, protein_expression_obsm_key="protein_expression")
     assert adata.X.flags["C_CONTIGUOUS"] is True
     assert adata.obsm["protein_expression"].flags["C_CONTIGUOUS"] is True
 
@@ -139,7 +139,7 @@ def test_data_format():
     pe = np.asfortranarray(adata.obsm["protein_expression"])
     adata.obsm["protein_expression"] = pd.DataFrame(pe, index=adata.obs_names)
     assert adata.obsm["protein_expression"].to_numpy().flags["C_CONTIGUOUS"] is False
-    setup_anndata(adata, protein_expression_obsm_key="protein_expression")
+    _setup_anndata(adata, protein_expression_obsm_key="protein_expression")
     new_pe = get_from_registry(adata, "protein_expression")
     assert new_pe.to_numpy().flags["C_CONTIGUOUS"] is True
     assert np.array_equal(pe, new_pe)
@@ -153,7 +153,7 @@ def test_data_format():
 def test_setup_anndata():
     # test regular setup
     adata = synthetic_iid(run_setup_anndata=False)
-    setup_anndata(
+    _setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
@@ -180,7 +180,7 @@ def test_setup_anndata():
     # test that error is thrown if its a view:
     adata = synthetic_iid()
     with pytest.raises(ValueError):
-        setup_anndata(adata[1])
+        _setup_anndata(adata[1])
 
     # If obsm is a df and protein_names_uns_key is None, protein names should be grabbed from column of df
     adata = synthetic_iid()
@@ -191,7 +191,7 @@ def test_setup_anndata():
         columns=new_protein_names,
     )
     adata.obsm["protein_expression"] = df
-    setup_anndata(adata, protein_expression_obsm_key="protein_expression")
+    _setup_anndata(adata, protein_expression_obsm_key="protein_expression")
     np.testing.assert_array_equal(
         adata.uns["_scvi"]["protein_names"], new_protein_names
     )
@@ -201,12 +201,12 @@ def test_setup_anndata():
     true_x = adata.X
     adata.layers["X"] = true_x
     adata.X = np.ones_like(adata.X)
-    setup_anndata(adata, layer="X")
+    _setup_anndata(adata, layer="X")
     np.testing.assert_array_equal(get_from_registry(adata, "X"), true_x)
 
     # test that it creates layers and batch if no layers_key is passed
     adata = synthetic_iid()
-    setup_anndata(
+    _setup_anndata(
         adata,
         protein_expression_obsm_key="protein_expression",
         protein_names_uns_key="protein_names",
@@ -230,7 +230,7 @@ def test_extra_covariates():
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    setup_anndata(
+    _setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
@@ -252,7 +252,7 @@ def test_extra_covariates_transfer():
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    setup_anndata(
+    _setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
@@ -292,7 +292,7 @@ def test_register_tensor_from_anndata():
 
 def test_anntorchdataset_getitem():
     adata = synthetic_iid()
-    setup_anndata(
+    _setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
@@ -324,7 +324,7 @@ def test_anntorchdataset_getitem():
     # check AnnTorchDataset returns numpy array counts were sparse
     adata = synthetic_iid(run_setup_anndata=False)
     adata.X = sparse.csr_matrix(adata.X)
-    setup_anndata(adata)
+    _setup_anndata(adata)
     bd = AnnTorchDataset(adata)
     for key, value in bd[1].items():
         assert type(value) == np.ndarray
@@ -334,7 +334,7 @@ def test_anntorchdataset_getitem():
     adata.obsm["protein_expression"] = sparse.csr_matrix(
         adata.obsm["protein_expression"]
     )
-    setup_anndata(
+    _setup_anndata(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )
     bd = AnnTorchDataset(adata)
@@ -346,7 +346,7 @@ def test_anntorchdataset_getitem():
     adata.obsm["protein_expression"] = pd.DataFrame(
         adata.obsm["protein_expression"], index=adata.obs_names
     )
-    setup_anndata(
+    _setup_anndata(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )
     bd = AnnTorchDataset(adata)
@@ -366,7 +366,7 @@ def test_view_anndata_setup(save_path):
     adata.obs["cat1"][9] = "f34"
     adata.obs["cat2"] = np.random.randint(0, 7, adata.n_obs)
 
-    setup_anndata(
+    _setup_anndata(
         adata,
         protein_expression_obsm_key="protein_expression",
         batch_key="batch",
@@ -416,7 +416,7 @@ def test_saving(save_path):
     adata.obs["cat1"][2] = "f34"
     adata.obs["cat2"] = np.random.randint(0, 7, adata.n_obs)
 
-    setup_anndata(
+    _setup_anndata(
         adata,
         protein_expression_obsm_key="protein_expression",
         batch_key="batch",
@@ -433,7 +433,7 @@ def test_backed_anndata(save_path):
     path = os.path.join(save_path, "test_data.h5ad")
     adata.write_h5ad(path)
     adata = anndata.read_h5ad(path, backed="r+")
-    setup_anndata(adata, batch_key="batch")
+    _setup_anndata(adata, batch_key="batch")
 
     # test get item
     bd = AnnTorchDataset(adata)
@@ -445,7 +445,7 @@ def test_backed_anndata(save_path):
     path = os.path.join(save_path, "test_data2.h5ad")
     adata.write_h5ad(path)
     adata = anndata.read_h5ad(path, backed="r+")
-    setup_anndata(adata, batch_key="batch")
+    _setup_anndata(adata, batch_key="batch")
 
     # test get item
     bd = AnnTorchDataset(adata)

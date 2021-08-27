@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 
-from scvi.data import setup_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def _load_retina(save_path: str = "data/", run_setup_anndata: bool = True) -> An
     adata.obs["batch"] = pd.Categorical(adata.obs["BatchID"].values.copy())
     del adata.obs["BatchID"]
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
@@ -75,7 +75,7 @@ def _load_prefrontalcortex_starmap(
     adata.obs["x_coord"] = adata.obsm["Spatial_coordinates"][:, 0]
     adata.obs["y_coord"] = adata.obsm["Spatial_coordinates"][:, 1]
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 
@@ -96,7 +96,7 @@ def _load_frontalcortex_dropseq(
     # self.reorder_cell_types(self.cell_types[order_labels])
 
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
@@ -126,7 +126,7 @@ def _load_annotation_simulation(
     del adata.obs["BatchID"]
 
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 

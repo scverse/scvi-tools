@@ -122,3 +122,17 @@ class SCVI(
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
+
+
+    @staticmethod
+    def _setup_anndata(
+        adata: anndata.AnnData,
+        batch_key: Optional[str] = None,
+        labels_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        protein_expression_obsm_key: Optional[str] = None,
+        protein_names_uns_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        copy: bool = False,
+    ) -> Optional[anndata.AnnData]:

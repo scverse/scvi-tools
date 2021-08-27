@@ -70,7 +70,25 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     return data
 
 
-def setup_anndata(
+# def setup_anndata(
+#     adata: anndata.AnnData,
+#     batch_key: Optional[str] = None,
+#     labels_key: Optional[str] = None,
+#     layer: Optional[str] = None,
+#     protein_expression_obsm_key: Optional[str] = None,
+#     protein_names_uns_key: Optional[str] = None,
+#     categorical_covariate_keys: Optional[List[str]] = None,
+#     continuous_covariate_keys: Optional[List[str]] = None,
+#     copy: bool = False,
+# ) -> Optional[anndata.AnnData]:
+#     """
+#     Forwards to the internal implementation of _setup_anndata.
+#     This will eventually be deprecated in favor of static setup_anndata methods on the relevant model classes.
+#     """
+#     return _setup_anndata(adata, batch_key, labels_key, layer, protein_expression_obsm_key, protein_names_uns_key, categorical_covariate_keys, continuous_covariate_keys, copy)
+
+
+def _setup_anndata(
     adata: anndata.AnnData,
     batch_key: Optional[str] = None,
     labels_key: Optional[str] = None,
