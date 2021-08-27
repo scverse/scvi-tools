@@ -237,6 +237,8 @@ class VAE(BaseModuleClass):
 
     def _compute_local_library_params(self, batch_index):
         """
+        Computes local library parameters.
+
         Compute two tensors of shape (batch_index.shape[0], 1) where each
         element corresponds to the mean and variances, respectively, of the
         log library sizes in the batch the cell corresponds to.
