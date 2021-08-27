@@ -243,7 +243,9 @@ def _init_library_size(
 
     for i_batch in np.unique(batch_indices):
         idx_batch = np.squeeze(batch_indices == i_batch)
-        batch_data = data[idx_batch]
+        batch_data = data[
+            idx_batch.nonzero()[0]
+        ]  # h5ad requires integer indexing arrays.
         sum_counts = batch_data.sum(axis=1)
         masked_log_sum = np.ma.log(sum_counts)
         if np.ma.is_masked(masked_log_sum):
