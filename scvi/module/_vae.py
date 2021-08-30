@@ -234,8 +234,8 @@ class VAE(BaseModuleClass):
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
-        qz_m, qz_v, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-        ql_m, ql_v, library_encoded = self.l_encoder(
+        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        ql, library_encoded = self.l_encoder(
             encoder_input, batch_index, *categorical_input
         )
 
@@ -243,21 +243,16 @@ class VAE(BaseModuleClass):
             library = library_encoded
 
         if n_samples > 1:
-            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
-            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
-            # when z is normal, untran_z == z
-            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
+            untran_z = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
-            ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
-            ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             if self.use_observed_lib_size:
                 library = library.unsqueeze(0).expand(
                     (n_samples, library.size(0), library.size(1))
                 )
             else:
-                library = Normal(ql_m, ql_v.sqrt()).sample()
+                library = ql.sample((n_samples,))
 
-        outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, ql_m=ql_m, ql_v=ql_v, library=library)
+        outputs = dict(z=z, qz=qz, ql=ql, library=library)
         return outputs
 
     @auto_move_data
@@ -296,8 +291,20 @@ class VAE(BaseModuleClass):
 
         px_r = torch.exp(px_r)
 
+        if self.gene_likelihood == "zinb":
+            px_latents = ZeroInflatedNegativeBinomial(
+                mu=px_rate, theta=px_r, zi_logits=px_dropout
+            )
+        elif self.gene_likelihood == "nb":
+            px_latents = NegativeBinomial(mu=px_rate, theta=px_r)
+        elif self.gene_likelihood == "poisson":
+            px_latents = Poisson(px_rate)
         return dict(
-            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
+            px_latents=px_latents,
+            px_scale=px_scale,
+            px_r=px_r,
+            px_rate=px_rate,
+            px_dropout=px_dropout,
         )
 
     def loss(
@@ -311,30 +318,22 @@ class VAE(BaseModuleClass):
         local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
 
-        qz_m = inference_outputs["qz_m"]
-        qz_v = inference_outputs["qz_v"]
-        ql_m = inference_outputs["ql_m"]
-        ql_v = inference_outputs["ql_v"]
-        px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px_r"]
-        px_dropout = generative_outputs["px_dropout"]
+        qz = inference_outputs["qz"]
+        ql = inference_outputs["ql"]
 
-        mean = torch.zeros_like(qz_m)
-        scale = torch.ones_like(qz_v)
-
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
-            dim=1
-        )
+        mean = torch.zeros_like(qz.loc)
+        scale = torch.ones_like(qz.scale)
+        kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
 
         if not self.use_observed_lib_size:
             kl_divergence_l = kl(
-                Normal(ql_m, torch.sqrt(ql_v)),
+                ql,
                 Normal(local_l_mean, torch.sqrt(local_l_var)),
             ).sum(dim=1)
         else:
             kl_divergence_l = 0.0
 
-        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
+        reconst_loss = generative_outputs["px_latents"].log_prob(x).sum(-1)
 
         kl_local_for_warmup = kl_divergence_z
         kl_local_no_warmup = kl_divergence_l
@@ -442,11 +441,9 @@ class VAE(BaseModuleClass):
         for i in range(n_mc_samples):
             # Distribution parameters and sampled variables
             inference_outputs, generative_outputs, losses = self.forward(tensors)
-            qz_m = inference_outputs["qz_m"]
-            qz_v = inference_outputs["qz_v"]
+            qz = inference_outputs["qz"]
             z = inference_outputs["z"]
-            ql_m = inference_outputs["ql_m"]
-            ql_v = inference_outputs["ql_v"]
+            ql = inference_outputs["ql"]
             library = inference_outputs["library"]
 
             # Reconstruction Loss
@@ -455,14 +452,13 @@ class VAE(BaseModuleClass):
             # Log-probabilities
             p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
             p_z = (
-                Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
+                Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale))
                 .log_prob(z)
                 .sum(dim=-1)
             )
             p_x_zl = -reconst_loss
-            q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-            q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
-
+            q_z_x = qz.log_prob(z).sum(dim=-1)
+            q_l_x = ql.log_prob(library).sum(dim=-1)
             to_sum[:, i] = p_z + p_l + p_x_zl - q_z_x - q_l_x
 
         batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)

@@ -552,8 +552,8 @@ class RNASeqMixin:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
 
-            ql_m = outputs["ql_m"]
-            ql_v = outputs["ql_v"]
+            ql_m = outputs["ql"].loc
+            ql_v = outputs["ql"].scale
             library = outputs["library"]
             if give_mean is False:
                 library = torch.exp(library)

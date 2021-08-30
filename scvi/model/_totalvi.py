@@ -299,10 +299,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in post:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
-            ql_m = outputs["ql_m"]
-            ql_v = outputs["ql_v"]
+            ql = outputs["ql"]
             if give_mean is True:
-                library = torch.exp(ql_m + 0.5 * ql_v)
+                library = torch.exp(ql.loc + 0.5 * (ql.scale ** 2))
             else:
                 library = outputs["library_gene"]
             libraries += [library.cpu()]

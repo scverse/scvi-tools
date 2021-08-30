@@ -363,10 +363,8 @@ class AutoZIVAE(VAE):
         n_obs: int = 1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # Parameters for z latent distribution
-        qz_m = inference_outputs["qz_m"]
-        qz_v = inference_outputs["qz_v"]
-        ql_m = inference_outputs["ql_m"]
-        ql_v = inference_outputs["ql_v"]
+        qz = inference_outputs["qz"]
+        ql = inference_outputs["ql"]
         px_rate = generative_outputs["px_rate"]
         px_r = generative_outputs["px_r"]
         px_dropout = generative_outputs["px_dropout"]
@@ -376,14 +374,12 @@ class AutoZIVAE(VAE):
         local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
 
         # KL divergences wrt z_n,l_n
-        mean = torch.zeros_like(qz_m)
-        scale = torch.ones_like(qz_v)
+        mean = torch.zeros_like(qz.loc)
+        scale = torch.ones_like(qz.scale)
 
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
-            dim=1
-        )
+        kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
         kl_divergence_l = kl(
-            Normal(ql_m, torch.sqrt(ql_v)),
+            ql,
             Normal(local_l_mean, torch.sqrt(local_l_var)),
         ).sum(dim=1)
 

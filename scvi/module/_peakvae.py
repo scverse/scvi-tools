@@ -227,7 +227,7 @@ class PEAKVAE(BaseModuleClass):
 
     def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
         z = inference_outputs["z"]
-        qz_m = inference_outputs["qz_m"]
+        qz_m = inference_outputs["qz"].loc
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         cont_covs = tensors.get(_CONSTANTS.CONT_COVS_KEY)
@@ -269,7 +269,7 @@ class PEAKVAE(BaseModuleClass):
             encoder_input = x
         # if encode_covariates is False, cat_list to init encoder is None, so
         # batch_index is not used (or categorical_input, but it's empty)
-        qz_m, qz_v, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
         d = (
             self.d_encoder(encoder_input, batch_index, *categorical_input)
             if self.model_depth
@@ -277,13 +277,11 @@ class PEAKVAE(BaseModuleClass):
         )
 
         if n_samples > 1:
-            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
-            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
             # when z is normal, untran_z == z
-            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
+            untran_z = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
 
-        return dict(d=d, qz_m=qz_m, qz_v=qz_v, z=z)
+        return dict(d=d, qz=qz, z=z)
 
     @auto_move_data
     def generative(
@@ -315,13 +313,12 @@ class PEAKVAE(BaseModuleClass):
         self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
     ):
         x = tensors[_CONSTANTS.X_KEY]
-        qz_m = inference_outputs["qz_m"]
-        qz_v = inference_outputs["qz_v"]
+        qz = inference_outputs["qz"]
         d = inference_outputs["d"]
         p = generative_outputs["p"]
 
         kld = kl_divergence(
-            Normal(qz_m, torch.sqrt(qz_v)),
+            qz,
             Normal(0, 1),
         ).sum(dim=1)
 

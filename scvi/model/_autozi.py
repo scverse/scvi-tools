@@ -201,11 +201,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 px_r = gen_outputs["px_r"]
                 px_rate = gen_outputs["px_rate"]
                 px_dropout = gen_outputs["px_dropout"]
-                qz_m = inf_outputs["qz_m"]
-                qz_v = inf_outputs["qz_v"]
+                qz = inf_outputs["qz"]
                 z = inf_outputs["z"]
-                ql_m = inf_outputs["ql_m"]
-                ql_v = inf_outputs["ql_v"]
+                ql = inf_outputs["ql"]
                 library = inf_outputs["library"]
 
                 # Reconstruction Loss
@@ -232,13 +230,13 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                     .sum(dim=-1)
                 )
                 p_z = (
-                    Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
+                    Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale))
                     .log_prob(z)
                     .sum(dim=-1)
                 )
                 p_x_zld = -reconst_loss.to(p_z.device)
-                q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-                q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+                q_z_x = qz.log_prob(z).sum(dim=-1)
+                q_l_x = ql.log_prob(library).sum(dim=-1)
 
                 batch_log_lkl = torch.sum(p_x_zld + p_l + p_z - q_z_x - q_l_x, dim=0)
                 to_sum[i] += batch_log_lkl.cpu()
