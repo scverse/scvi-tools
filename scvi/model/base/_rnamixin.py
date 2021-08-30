@@ -556,13 +556,12 @@ class RNASeqMixin:
             if not give_mean:
                 library = torch.exp(library)
             else:
-                ql_m = outputs["ql_m"]
-                ql_v = outputs["ql_v"]
-                if ql_m is None or ql_v is None:
+                ql = outputs["ql"]
+                if ql is None:
                     raise RuntimeError(
                         "The module for this model does not compute the posterior distribution "
                         "for the library size. Set `give_mean` to False to use the observed library size instead."
                     )
-                library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
+                library = torch.distributions.LogNormal(ql.loc, ql.scale).mean
             libraries += [library.cpu()]
         return torch.cat(libraries).numpy()

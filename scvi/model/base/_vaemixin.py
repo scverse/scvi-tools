@@ -4,7 +4,6 @@ from typing import Dict, Optional, Sequence, Union
 import numpy as np
 import torch
 from anndata import AnnData
-from torch.distributions import Normal
 
 from ._log_likelihood import compute_elbo, compute_reconstruction_error
 
@@ -162,18 +161,17 @@ class VAEMixin:
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
-            qz_m = outputs["qz_m"]
-            qz_v = outputs["qz_v"]
+            qz = outputs["qz"]
             z = outputs["z"]
 
             if give_mean:
                 # does each model need to have this latent distribution param?
                 if self.module.latent_distribution == "ln":
-                    samples = Normal(qz_m, qz_v.sqrt()).sample([mc_samples])
+                    samples = qz.sample([mc_samples])
                     z = torch.nn.functional.softmax(samples, dim=-1)
                     z = z.mean(dim=0)
                 else:
-                    z = qz_m
+                    z = qz.loc
 
             latent += [z.cpu()]
         return torch.cat(latent).numpy()

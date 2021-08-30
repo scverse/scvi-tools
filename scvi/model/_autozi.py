@@ -212,9 +212,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 px_r = gen_outputs["px_r"]
                 px_rate = gen_outputs["px_rate"]
                 px_dropout = gen_outputs["px_dropout"]
-                qz_m = inf_outputs["qz_m"]
-                qz_v = inf_outputs["qz_v"]
+                qz = inf_outputs["qz"]
                 z = inf_outputs["z"]
+                ql = inf_outputs["ql"]
                 library = inf_outputs["library"]
 
                 # Reconstruction Loss
@@ -232,19 +232,16 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
 
                 # Log-probabilities
-                log_prob_sum = torch.zeros(qz_m.shape[0]).to(self.device)
                 p_z = (
-                    Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
+                    Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale))
                     .log_prob(z)
                     .sum(dim=-1)
                 )
-                p_x_zld = -reconst_loss
-                log_prob_sum += p_z + p_x_zld
-
-                q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-                log_prob_sum -= q_z_x
-
+                p_x_zld = -reconst_loss.to(p_z.device)
+                q_z_x = qz.log_prob(z).sum(dim=-1)
+                log_prob_sum = p_x_zld + p_z - q_z_x
                 if not self.use_observed_lib_size:
+                    q_l_x = ql.log_prob(library).sum(dim=-1)
                     (
                         local_library_log_means,
                         local_library_log_vars,
@@ -258,11 +255,6 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                         .log_prob(library)
                         .sum(dim=-1)
                     )
-
-                    ql_m = inf_outputs["ql_m"]
-                    ql_v = inf_outputs["ql_v"]
-                    q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
-
                     log_prob_sum += p_l - q_l_x
 
                 batch_log_lkl = torch.sum(log_prob_sum, dim=0)

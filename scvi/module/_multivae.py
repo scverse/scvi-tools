@@ -291,13 +291,16 @@ class MULTIVAE(BaseModuleClass):
             categorical_input = tuple()
 
         # Z Encoders
-        qzm_acc, qzv_acc, z_acc = self.z_encoder_accessibility(
+        qz_acc, z_acc = self.z_encoder_accessibility(
             encoder_input_accessibility, batch_index, *categorical_input
         )
-        qzm_expr, qzv_expr, z_expr = self.z_encoder_expression(
+        qz_expr, z_expr = self.z_encoder_expression(
             encoder_input_expression, batch_index, *categorical_input
         )
-
+        qzm_acc = qz_acc.loc
+        qzm_expr = qz_expr.loc
+        qzv_acc = qz_acc.scale ** 2
+        qzv_expr = qz_expr.scale ** 2
         # L encoders
         libsize_expr = self.l_encoder_expression(
             encoder_input_expression, batch_index, *categorical_input
@@ -308,22 +311,9 @@ class MULTIVAE(BaseModuleClass):
 
         # ReFormat Outputs
         if n_samples > 1:
-            qzm_acc = qzm_acc.unsqueeze(0).expand(
-                (n_samples, qzm_acc.size(0), qzm_acc.size(1))
-            )
-            qzv_acc = qzv_acc.unsqueeze(0).expand(
-                (n_samples, qzv_acc.size(0), qzv_acc.size(1))
-            )
-            untran_za = Normal(qzm_acc, qzv_acc.sqrt()).sample()
+            untran_za = qz_acc.sample((n_samples,))
             z_acc = self.z_encoder_accessibility.z_transformation(untran_za)
-
-            qzm_expr = qzm_expr.unsqueeze(0).expand(
-                (n_samples, qzm_expr.size(0), qzm_expr.size(1))
-            )
-            qzv_expr = qzv_expr.unsqueeze(0).expand(
-                (n_samples, qzv_expr.size(0), qzv_expr.size(1))
-            )
-            untran_zr = Normal(qzm_expr, qzv_expr.sqrt()).sample()
+            untran_zr = qz_expr.sample((n_samples,))
             z_expr = self.z_encoder_expression.z_transformation(untran_zr)
 
             libsize_expr = libsize_expr.unsqueeze(0).expand(

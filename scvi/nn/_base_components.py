@@ -291,8 +291,9 @@ class Encoder(nn.Module):
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
         q_v = self.var_activation(self.var_encoder(q)) + self.var_eps
-        latent = self.z_transformation(reparameterize_gaussian(q_m, q_v))
-        return q_m, q_v, latent
+        dist = Normal(q_m, q_v.sqrt())
+        latent = self.z_transformation(dist.rsample())
+        return dist, latent
 
 
 # Decoder
@@ -582,8 +583,9 @@ class MultiEncoder(nn.Module):
         q_m = self.mean_encoder(q)
         q_v = torch.exp(self.var_encoder(q))
         latent = reparameterize_gaussian(q_m, q_v)
-
-        return q_m, q_v, latent
+        dist = Normal(q_m, q_v.sqrt())
+        latent = dist.rsample()
+        return dist, latent
 
 
 class MultiDecoder(nn.Module):

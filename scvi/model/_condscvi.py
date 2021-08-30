@@ -142,7 +142,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
                 x = tensors[_CONSTANTS.X_KEY]
                 y = tensors[_CONSTANTS.LABELS_KEY]
                 out = self.module.inference(x, y)
-                mean_, var_ = out["qz_m"], out["qz_v"]
+                mean_, var_ = out["qz"].loc, (out["qz"].scale ** 2)
                 mean += [mean_.cpu()]
                 var += [var_.cpu()]
 
