@@ -143,7 +143,7 @@ The latent representation can be used to create a nearest neighbor graph with sc
 Normalization/denoising/imputation of expression
 ------------------------------------------
 
-Here scVI returns the expected value of :math:`\rho_n` under the approximate posterior. For one cell :math`n`, this can be written as:
+In :func:`~scvi.model.SCVI.get_normalized_expression` scVI returns the expected value of :math:`\rho_n` under the approximate posterior. For one cell :math`n`, this can be written as:
 
 .. math::
     :nowrap:
@@ -151,6 +151,9 @@ Here scVI returns the expected value of :math:`\rho_n` under the approximate pos
     \begin{align}
        \mathbb{E}_{q_\eta(z_n \mid x_n)}\left[f_w\left( z_n, s_n \right) \right]
     \end{align}
+
+
+In the code,
 
 
 Differential expression
