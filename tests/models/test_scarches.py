@@ -120,6 +120,42 @@ def test_scvi_online_update(save_path):
     model3.get_latent_representation()
 
 
+def test_scvi_library_size_update(save_path):
+    n_latent = 5
+    adata1 = synthetic_iid()
+    model = SCVI(adata1, n_latent=n_latent, use_observed_lib_size=False)
+
+    assert (
+        getattr(model.module, "library_log_means", None) is not None
+        and model.module.library_log_means.shape == (1, 2)
+        and model.module.library_log_means.count_nonzero().item() == 2
+    )
+    assert getattr(
+        model.module, "library_log_vars", None
+    ) is not None and model.module.library_log_vars.shape == (1, 2)
+
+    model.train(1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # also test subset var option
+    adata2 = synthetic_iid(run_setup_anndata=False, n_genes=110)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+
+    model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
+    assert (
+        getattr(model2.module, "library_log_means", None) is not None
+        and model2.module.library_log_means.shape == (1, 4)
+        and model2.module.library_log_means[:, :2].equal(model.module.library_log_means)
+        and model2.module.library_log_means.count_nonzero().item() == 4
+    )
+    assert (
+        getattr(model2.module, "library_log_vars", None) is not None
+        and model2.module.library_log_vars.shape == (1, 4)
+        and model2.module.library_log_vars[:, :2].equal(model.module.library_log_vars)
+    )
+
+
 def test_scanvi_online_update(save_path):
     # ref has semi-observed labels
     n_latent = 5
