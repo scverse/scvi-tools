@@ -244,6 +244,7 @@ def _init_library_size(
         AnnData object setup with `scvi`.
     n_batch
         Number of batches.
+
     Returns
     -------
     type
