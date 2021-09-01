@@ -46,3 +46,11 @@ CITE-seq analysis
     models/totalvi
 
 
+
+Background
+-----------------
+
+.. toctree::
+    :maxdepth: 2
+
+    background/variational_inference

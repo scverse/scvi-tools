@@ -1,8 +1,8 @@
-===========
+======
 scVI
-===========
+======
 
-**scVI** [#ref1]_ posits a flexible generative model of scRNA-seq count data that can subsequently
+**scVI** [#ref1]_ (single-cell Variational Inference) posits a flexible generative model of scRNA-seq count data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of scVI are:
@@ -76,7 +76,7 @@ This generative process is also summarized in the following graphical model:
    :align: center
    :alt: scVI graphical model
 
-   scVI graphical model.
+   scVI graphical model for the ZINB likelihood model. Note that this graphical model contains more latent variables than the presentation above. Marganlization of these latent variables leads to the ZINB observation model (math shown in publication supplement).
 
 The latent variables, along with their description are summarized in the following table:
 
@@ -103,7 +103,7 @@ The latent variables, along with their description are summarized in the followi
 Inference
 ========================
 
-scVI uses variational inference, and specifically auto-encoding variational bayes (LINK TO AEVB TUTORIAL), to learn both the model parameters (the
+scVI uses variational inference, and specifically auto-encoding variational bayes (see :doc:`/user_guide/background/variational_inference`), to learn both the model parameters (the
 neural network params, dispersion params, etc.), and an approximate posterior distribution with the following factorization:
 
  .. math::
@@ -116,6 +116,7 @@ neural network params, dispersion params, etc.), and an approximate posterior di
 
 Here :math:`\eta` is a set of parameters corresponding to inference neural networks (encoders), which we do not describe in detail here,
 but are described in the scVI paper. The underlying class used as the encoder for scVI is :class:`~scvi.nn.Encoder`.
+In the case of `use_observed_lib_size=True`, :math:`q_\eta(\ell_n \mid x_n)` can be written as a point mass on the observed library size.
 
 It it important to note that by default, scVI only
 receives the expression data as input (i.e., not the observed cell-level covariates).
@@ -124,6 +125,8 @@ Empirically, we have not seen much of a difference by having the encoder take as
 
 Tasks
 =====
+
+Here we provide an overview of some of the tasks that scVI can perform. Please see :class:`scvi.model.SCVI` for full API reference.
 
 Dimensionality reduction
 -------------------------
@@ -140,27 +143,50 @@ The latent representation can be used to create a nearest neighbor graph with sc
     >>> sc.pp.neighbors(adata, use_rep="X_scvi")
     >>> adata.obsp["distances"]
 
-Normalization/denoising/imputation of expression
-------------------------------------------
 
-In :func:`~scvi.model.SCVI.get_normalized_expression` scVI returns the expected value of :math:`\rho_n` under the approximate posterior. For one cell :math`n`, this can be written as:
+Transfer learning
+-------------------------
+
+A scVI model can be pre-trained on reference data and updated with query data using :func:`~scvi.model.SCVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations. See the transfer learning guide for more information.
+
+
+Normalization/denoising/imputation of expression
+-------------------------------------------------
+
+In :func:`~scvi.model.SCVI.get_normalized_expression` scVI returns the expected value of :math:`\rho_n` under the approximate posterior. For one cell :math:`n`, this can be written as:
 
 .. math::
     :nowrap:
 
     \begin{align}
-       \mathbb{E}_{q_\eta(z_n \mid x_n)}\left[f_w\left( z_n, s_n \right) \right]
+       \mathbb{E}_{q_\eta(z_n \mid x_n)}\left[\ell_n'f_w\left( z_n, s_n \right) \right],
     \end{align}
 
 
-In the code,
+where :math:`\ell_n'` is by default set to 1. See the `library_size` parameter for more details. The expectation is approximated using Monte Carlo, and the number of samples can be passed as an argument in the code::
+
+
+    >>> model.get_normalized_expression(n_samples=10)
+
+
+By default the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
+
+Notably, this function also has the `transform_batch` parameter that allows counterfactual prediction of expression in an unobserved batch. See the COUNTERFACTUAL TUTORIAL FOR MORE DETAIL.
 
 
 Differential expression
 -----------------------
 
+Differential expression analysis is achieved with :func:`~scvi.model.SCVI.differential_expression`. scVI tests differences in magnitude of :math:`f_w\left( z_n, s_n \right)`. More info is in the DE TUTORIAL.
+
+
+
 Data simulation
 ---------------
+
+Data can be generated from the model using the posterior predictive distribution in :func:`~scvi.model.SCVI.posterior_predictive_sample`.
+This is equivalent to feeding a cell through the model, sampling from the posterior
+distributions of the latent variables, retrieving the likelihood parameters, and finally, sampling from this distribution.
 
 
 
