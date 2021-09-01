@@ -188,7 +188,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         log_lkl = 0
-        to_sum = torch.zeros((n_mc_samples,))
+        to_sum = torch.zeros((n_mc_samples,)).to(self.device)
         alphas_betas = self.module.get_alphas_betas(as_numpy=False)
         alpha_prior = alphas_betas["alpha_prior"]
         alpha_posterior = alphas_betas["alpha_posterior"]
@@ -200,9 +200,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 alpha_posterior, beta_posterior
             )
             for tensors in scdl:
-                sample_batch = tensors[_CONSTANTS.X_KEY]
-                batch_index = tensors[_CONSTANTS.BATCH_KEY]
-                labels = tensors[_CONSTANTS.LABELS_KEY]
+                sample_batch = tensors[_CONSTANTS.X_KEY].to(self.device)
+                batch_index = tensors[_CONSTANTS.BATCH_KEY].to(self.device)
+                labels = tensors[_CONSTANTS.LABELS_KEY].to(self.device)
 
                 # Distribution parameters and sampled variables
                 inf_outputs, gen_outputs, _ = self.module.forward(tensors)
@@ -216,14 +216,13 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 library = inf_outputs["library"]
 
                 # Reconstruction Loss
-                current_dev = px_rate.device
                 bernoulli_params_batch = self.module.reshape_bernoulli(
                     bernoulli_params,
-                    batch_index.to(current_dev),
-                    labels.to(current_dev),
+                    batch_index,
+                    labels,
                 )
                 reconst_loss = self.module.get_reconstruction_loss(
-                    sample_batch.to(current_dev),
+                    sample_batch,
                     px_rate,
                     px_r,
                     px_dropout,
@@ -231,8 +230,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
 
                 # Log-probabilities
-                log_prob_sum = torch.zeros(qz_m.shape[0])
-                print(log_prob_sum.device)
+                log_prob_sum = torch.zeros(qz_m.shape[0]).to(self.device)
                 p_z = (
                     Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
                     .log_prob(z)
@@ -266,7 +264,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                     log_prob_sum += p_l - q_l_x
 
                 batch_log_lkl = torch.sum(log_prob_sum, dim=0)
-                to_sum[i] += batch_log_lkl.cpu()
+                to_sum[i] += batch_log_lkl
 
             p_d = Beta(alpha_prior, beta_prior).log_prob(bernoulli_params).sum()
             q_d = Beta(alpha_posterior, beta_posterior).log_prob(bernoulli_params).sum()
