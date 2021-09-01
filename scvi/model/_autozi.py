@@ -250,8 +250,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
                     p_l = (
                         Normal(
-                            local_library_log_means.to(current_dev),
-                            local_library_log_vars.to(current_dev).sqrt(),
+                            local_library_log_means.to(self.device),
+                            local_library_log_vars.to(self.device).sqrt(),
                         )
                         .log_prob(library)
                         .sum(dim=-1)
