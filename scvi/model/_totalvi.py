@@ -131,7 +131,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self.module = TOTALVAE(
             n_input_genes=self.summary_stats["n_vars"],
             n_input_proteins=self.summary_stats["n_proteins"],
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=n_batch,
             n_latent=n_latent,
             n_continuous_cov=self.summary_stats["n_continuous_covs"],
             n_cats_per_cov=n_cats_per_cov,
@@ -309,11 +309,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if give_mean:
                 ql_m = outputs["ql_m"]
                 ql_v = outputs["ql_v"]
-                if ql_m is None or ql_v is None:
-                    raise RuntimeError(
-                        "The module for this model does not compute the posterior distribution "
-                        "for the library size. Set `give_mean` to False to use the observed library size instead."
-                    )
                 library = torch.exp(ql_m + 0.5 * ql_v)
             else:
                 library = outputs["library_gene"]

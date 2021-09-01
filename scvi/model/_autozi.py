@@ -113,7 +113,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         self.module = AutoZIVAE(
             n_input=self.summary_stats["n_vars"],
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=n_batch,
             n_labels=self.summary_stats["n_labels"],
             n_hidden=n_hidden,
             n_latent=n_latent,

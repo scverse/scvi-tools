@@ -235,6 +235,25 @@ def _get_batch_code_from_category(
 def _init_library_size(
     adata: anndata.AnnData, n_batch: dict
 ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Computes and returns library size.
+
+    Parameters
+    ----------
+    adata
+        AnnData object setup with `scvi`.
+    n_batch
+        Number of batches.
+    Returns
+    -------
+    type
+        Tuple of two 1 x n_batch ``np.ndarray`` containing the means and variances
+        of library size in each batch in adata.
+
+        If a certain batch is not present in the adata, the mean defaults to 0,
+        and the variance defaults to 1. These defaults are arbitrary placeholders which
+        should not be used in any downstream computation.
+    """
     data = get_from_registry(adata, _CONSTANTS.X_KEY)
     batch_indices = get_from_registry(adata, _CONSTANTS.BATCH_KEY)
 

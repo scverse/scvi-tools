@@ -84,7 +84,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
 
         self.module = LDVAE(
             n_input=self.summary_stats["n_vars"],
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=n_batch,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers_encoder=n_layers,
