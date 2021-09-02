@@ -95,4 +95,5 @@ If you find a model useful for your research, please consider citing the corresp
    release_notes/index
    references
    contributing/index
+   maintenance/index
    Discussion <https://discourse.scvi-tools.org>
