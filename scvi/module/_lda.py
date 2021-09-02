@@ -5,6 +5,7 @@ import pyro.distributions as dist
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pyro.nn import PyroModule
 from torch.distributions import constraints
 
 from scvi._constants import _CONSTANTS
@@ -25,15 +26,12 @@ class LDAEncoder(nn.Module):
         return self.fcalpha(h).exp()
 
 
-class LDAPyroModule(PyroBaseModuleClass):
-    def __init__(self, n_input: int, n_hidden: int, n_topics: int):
+class LDAPyroModel(PyroModule):
+    def __init__(self, n_input: int, n_topics: int):
         super().__init__()
 
         self.n_input = n_input
-        self.n_hidden = n_hidden
         self.n_topics = n_topics
-
-        self.encoder = LDAEncoder(n_input, n_topics, n_hidden)
 
     @staticmethod
     def _get_fn_args_from_batch(
@@ -44,7 +42,7 @@ class LDAPyroModule(PyroBaseModuleClass):
         library = torch.sum(x, dim=1)
         return (x, library), {}
 
-    def model(self, x: torch.Tensor, library: torch.Tensor):
+    def forward(self, x: torch.Tensor, library: torch.Tensor):
         # Hyperparameters.
         with pyro.plate("topics", self.n_topics):
             alpha = pyro.sample("alpha", dist.Gamma(1.0 / self.n_topics, 1.0))
@@ -64,7 +62,18 @@ class LDAPyroModule(PyroBaseModuleClass):
                 obs=x,
             )
 
-    def guide(self, x: torch.Tensor, _library: torch.Tensor):
+
+class LDAPyroGuide(PyroModule):
+    def __init__(self, n_input: int, n_hidden: int, n_topics: int):
+        super().__init__()
+
+        self.n_input = n_input
+        self.n_hidden = n_hidden
+        self.n_topics = n_topics
+
+        self.encoder = LDAEncoder(n_input, n_topics, n_hidden)
+
+    def forward(self, x: torch.Tensor, _library: torch.Tensor):
         # Hyperparameter guides.
         alpha_posterior = pyro.param(
             "alpha_posterior",
@@ -81,7 +90,27 @@ class LDAPyroModule(PyroBaseModuleClass):
             pyro.sample("beta", dist.Dirichlet(beta_posterior))
 
         # Topic proportions guide.
-        pyro.module("encoder", self.encoder)
         with pyro.plate("cells", x.shape[0]):
             alpha = self.encoder(x)
             pyro.sample("theta", dist.Dirichlet(alpha))
+
+
+class LDAPyroModule(PyroBaseModuleClass):
+    def __init__(self, n_input: int, n_hidden: int, n_topics: int):
+        super().__init__()
+
+        self.n_input = n_input
+        self.n_hidden = n_hidden
+        self.n_topics = n_topics
+
+        self._model = LDAPyroModel(self.n_input, self.n_topics)
+        self._guide = LDAPyroGuide(self.n_input, self.n_hidden, self.n_topics)
+        self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
+
+    @property
+    def model(self):
+        return self._model
+
+    @property
+    def guide(self):
+        return self._guide
