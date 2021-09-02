@@ -3,6 +3,7 @@ from typing import Tuple
 import numpy as np
 import torch
 from torch.distributions import NegativeBinomial, Normal
+from torch.nn.functional import softplus
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
@@ -155,11 +156,11 @@ class SpatialDeconv(BaseModuleClass):
         self.prior_weight = prior_weight
 
         # noise from data
-        self.eta = torch.nn.Parameter(torch.randn(self.n_genes))
+        self.eta = torch.nn.Parameter(torch.randn(self.n_genes, 1))
         # factor loadings
         self.V = torch.nn.Parameter(torch.randn(self.n_labels + 1, self.n_spots))
         # additive gene bias
-        self.beta = torch.nn.Parameter(0.01 * torch.randn(self.n_genes))
+        self.beta = torch.nn.Parameter(0.01 * torch.randn(self.n_genes, 1))
 
     @torch.no_grad()
     def get_proportions(self, keep_noise=False) -> np.ndarray:
@@ -193,19 +194,17 @@ class SpatialDeconv(BaseModuleClass):
     @auto_move_data
     def generative(self, x, ind_x):
         """Build the deconvolution model for every cell in the minibatch."""
-        beta = torch.nn.functional.softplus(self.beta)  # n_genes
-        v = torch.nn.functional.softplus(self.V)  # n_labels + 1, n_spots
-        w = torch.nn.functional.softplus(self.W)  # n_genes, n_labels
-        eps = torch.nn.functional.softplus(self.eta)  # n_genes
+        beta = softplus(self.beta)  # n_genes
+        v = softplus(self.V)  # n_labels + 1, n_spots
+        w = softplus(self.W)  # n_genes, n_labels
+        eps = softplus(self.eta)  # n_genes
 
         # account for gene specific bias and add noise
-        r_hat = torch.cat(
-            [beta.unsqueeze(1) * w, eps.unsqueeze(1)], dim=1
-        )  # n_genes, n_labels + 1
+        r_hat = torch.cat([beta * w, eps], dim=1)  # n_genes, n_labels + 1
         # subsample observations
-        v_ind = v[:, ind_x.long()[:, 0]]  # labels + 1, batch_size
+        v_ind = v[:, ind_x[:, 0].long()]  # labels + 1, batch_size
         px_rate = torch.transpose(
-            torch.matmul(r_hat, v_ind), 0, 1
+            torch.einsum("gz,zs->gs", [r_hat, v_ind]), 0, 1
         )  # batch_size, n_genes
 
         return dict(px_o=self.px_o, px_rate=px_rate, eta=self.eta)
@@ -224,9 +223,7 @@ class SpatialDeconv(BaseModuleClass):
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
         # prior likelihood
-        mean = torch.zeros_like(self.eta)
-        scale = torch.ones_like(self.eta)
-        neg_log_likelihood_prior = -Normal(mean, scale).log_prob(self.eta).sum()
+        neg_log_likelihood_prior = -Normal(0, 1).log_prob(self.eta).sum()
 
         if self.prior_weight == "n_obs":
             # the correct way to reweight observations while performing stochastic optimization
