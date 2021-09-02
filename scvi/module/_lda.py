@@ -80,7 +80,7 @@ class LDAPyroModule(PyroBaseModuleClass):
             pyro.sample("alpha", dist.Gamma(alpha_posterior, 1.0))
             pyro.sample("beta", dist.Dirichlet(beta_posterior))
 
-        # Topic Proportions Guide.
+        # Topic proportions guide.
         pyro.module("encoder", self.encoder)
         with pyro.plate("cells", x.shape[0]):
             alpha = self.encoder(x)
