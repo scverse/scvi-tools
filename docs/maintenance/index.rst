@@ -55,8 +55,8 @@ $ git push -u origin my-recipe
 
 For this, it's easier to look at old scvi-tools PR's.
 
-Write a GitHub release
-~~~~~~~~~~~~~~~~~~~~~~
+Writing a GitHub release
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 On the GitHub page, draft a release. This is important for ReadTheDocs, which uses the last release tag from GitHub as the stable version.
 
@@ -70,7 +70,11 @@ We use the MeeseeksDev GitHub bot for automatic backporting. The way it works, i
 
 For each release, we create a branch [MAJOR].[MINOR].x where MAJOR and MINOR are the Major and Minor version numbers for that release, respectively, and x is the literal “x”. Every time a bug fix PR is merged into master, we evaluate whether it is worthy of being backported into the current release and if so use MeeseeksDev to do it for us if it can. How? Simply leave a comment on the PR that was merged into master that says: “@meeseeksdev backport to [MAJOR].[MINOR].x” (for example “@meeseeksdev backport to 0.14.x” if we are on a release from the 0.14 series.
 
-Note: We can also set a Label or a Milestone the description of which contains “on-merge: backport to [BRANCHNAME]”, and the bot will automatically create the Backport PR once the PR is merged. However, for consistency sake, we should stick to one approach::
+Note: We can also set a Label or a Milestone the description of which contains “on-merge: backport to [BRANCHNAME]”, and the bot will automatically create the Backport PR once the PR is merged. However, for consistency sake, we should stick to one approach.
+
+.. highlight:: none
+
+::
 
     feature foo <- head of branch master, main development branch
     |
@@ -89,5 +93,10 @@ Note: We can also set a Label or a Milestone the description of which contains �
     another bug fix
     |
     my other hotfix
+
+.. highlight:: shell
+
+Manually backporting a patch
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If MeeseeksDev cannot automatically cherry-pick the PR (e.g. due to conflicts requiring manual resolution), it will let us know. In that case we need to cherry-pick the commit ourselves. `Here <https://github.com/search?q=label%3A%22Still+Needs+Manual+Backport%22+is%3Aopen&state=closed&type=Issues>`_ are examples of such cases, and `here <https://github.com/pandas-dev/pandas/wiki/Backporting>`_ is one resource explaining how to do it, but there are probably a lot more on the web.
