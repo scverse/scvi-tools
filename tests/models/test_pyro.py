@@ -13,6 +13,7 @@ from pyro.nn import PyroModule, PyroSample
 from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata, synthetic_iid
 from scvi.dataloaders import AnnDataLoader
+from scvi.model import LDA
 from scvi.model.base import (
     BaseModelClass,
     PyroJitGuideWarmup,
@@ -375,4 +376,16 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
         10,
         adata.n_obs,
         1,
+    )
+
+
+def test_lda_model():
+    use_gpu = torch.cuda.is_available()
+    adata = synthetic_iid()
+    mod = LDA(adata)
+    mod.train(
+        max_epochs=2,
+        batch_size=None,
+        lr=0.01,
+        use_gpu=use_gpu,
     )

@@ -2,14 +2,14 @@ import logging
 
 from anndata import AnnData
 
-from scvi.module import LDAModule
+from scvi.module import LDAPyroModule
 
-from .base import BaseModelClass
+from .base import BaseModelClass, PyroSviTrainMixin
 
 logger = logging.getLogger(__name__)
 
 
-class LDA(BaseModelClass):
+class LDA(PyroSviTrainMixin, BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
@@ -18,7 +18,7 @@ class LDA(BaseModelClass):
     ):
         super().__init__(adata)
 
-        self.module = LDAModule(
+        self.module = LDAPyroModule(
             n_input=self.summary_stats["n_vars"],
             n_topics=n_topics,
             n_hidden=n_hidden,

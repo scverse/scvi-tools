@@ -1,5 +1,6 @@
 from ._autozivae import AutoZIVAE
 from ._classifier import Classifier
+from ._lda import LDAPyroModule
 from ._mrdeconv import MRDeconv
 from ._multivae import MULTIVAE
 from ._peakvae import PEAKVAE
@@ -19,4 +20,5 @@ __all__ = [
     "VAEC",
     "MRDeconv",
     "MULTIVAE",
+    "LDAPyroModule",
 ]

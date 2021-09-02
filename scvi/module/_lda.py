@@ -22,10 +22,10 @@ class LDAEncoder(nn.Module):
     def forward(self, x: torch.Tensor):
         h = F.softplus(self.fc1(x))
         h = F.softplus(self.fc2(h))
-        return F.softmax(self.fcalpha(h), dim=-1)
+        return self.fcalpha(h).exp()
 
 
-class LDAModule(PyroBaseModuleClass):
+class LDAPyroModule(PyroBaseModuleClass):
     def __init__(self, n_input: int, n_hidden: int, n_topics: int):
         super().__init__()
 
@@ -49,17 +49,19 @@ class LDAModule(PyroBaseModuleClass):
         with pyro.plate("topics", self.n_topics):
             alpha = pyro.sample("alpha", dist.Gamma(1.0 / self.n_topics, 1.0))
             beta = pyro.sample(
-                "beta", dist.Dirichlet(torch.ones(self.n_input) / self.n_input)
+                "beta",
+                dist.Dirichlet(torch.ones(self.n_input) / self.n_input),
             )
 
-        # Theta generative model.
-        for cell_idx in pyro.plate("cells", x.shape[0]):
+        # Full generative model.
+        max_library_size = int(torch.max(library).item())
+        with pyro.plate("cells", x.shape[0]):
             theta = pyro.sample("theta", dist.Dirichlet(alpha))
 
             pyro.sample(
-                f"gene_counts_{cell_idx}",
-                dist.Multinomial(library[cell_idx], beta @ theta),
-                obs=x[cell_idx, :],
+                "gene_counts",
+                dist.Multinomial(max_library_size, theta @ beta),
+                obs=x,
             )
 
     def guide(self, x: torch.Tensor, _library: torch.Tensor):
@@ -67,7 +69,7 @@ class LDAModule(PyroBaseModuleClass):
         alpha_posterior = pyro.param(
             "alpha_posterior",
             lambda: torch.ones(self.n_topics),
-            constraint=constraints.postitive,
+            constraint=constraints.positive,
         )
         beta_posterior = pyro.param(
             "beta_posterior",
@@ -78,8 +80,8 @@ class LDAModule(PyroBaseModuleClass):
             pyro.sample("alpha", dist.Gamma(alpha_posterior, 1.0))
             pyro.sample("beta", dist.Dirichlet(beta_posterior))
 
-        # Theta guide.
+        # Topic Proportions Guide.
         pyro.module("encoder", self.encoder)
         with pyro.plate("cells", x.shape[0]):
             alpha = self.encoder(x)
-            pyro.sample("theta", dist.Dirichlet(alpha).to_event(1))
+            pyro.sample("theta", dist.Dirichlet(alpha))
