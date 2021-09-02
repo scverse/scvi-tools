@@ -69,8 +69,7 @@ The mainstream development branch is the master branch. We snap releases off of 
 We use the MeeseeksDev GitHub bot for automatic backporting. The way it works, in a nutshell, is that the bot listens to certain web events - for example commits containing “@meeseeksdev backport to [BRANCHNAME]” on a PR - and automatically opens a PR to that repo/branch. (Note: They open the PR sourced from a fork of the repo under the `MeeseeksMachine <https://github.com/meeseeksmachine>`_ organization, into the repo/branch of interest. That’s why under MeeseeksMachine you see a collection of repo's that are forks of the repo's that use MeeseeksDev).
 
 For each release, we create a branch [MAJOR].[MINOR].x where MAJOR and MINOR are the Major and Minor version numbers for that release, respectively, and x is the literal “x”. Every time a bug fix PR is merged into master, we evaluate whether it is worthy of being backported into the current release and if so use MeeseeksDev to do it for us if it can. How? Simply leave a comment on the PR that was merged into master that says: “@meeseeksdev backport to [MAJOR].[MINOR].x” (for example “@meeseeksdev backport to 0.14.x” if we are on a release from the 0.14 series.
-
-Note: We can also set a Label or a Milestone the description of which contains “on-merge: backport to [BRANCHNAME]”, and the bot will automatically create the Backport PR once the PR is merged. However, for consistency sake, we should stick to one approach.
+The PR also needs to be associated with a Milestone the description of which contains “on-merge: backport to [BRANCHNAME]”.
 
 .. highlight:: none
 
