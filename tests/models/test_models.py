@@ -10,7 +10,8 @@ from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
-from scvi.data._anndata import _setup_anndata, synthetic_iid, transfer_anndata_setup
+from scvi.data import synthetic_iid, transfer_anndata_setup
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,

@@ -1,4 +1,5 @@
-from scvi.data._anndata import _setup_anndata, synthetic_iid
+from scvi.data import synthetic_iid
+from scvi.data._anndata import _setup_anndata
 from scvi.external import SOLO
 from scvi.model import SCVI
 
