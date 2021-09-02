@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import scvi
-from scvi.data._anndata import _setup_anndata, synthetic_iid
+from scvi.data import synthetic_iid
+from scvi.data._anndata import _setup_anndata
 from scvi.model import PEAKVI, SCANVI, SCVI, TOTALVI
 
 

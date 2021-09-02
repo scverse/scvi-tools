@@ -4,10 +4,11 @@ import tarfile
 import pytest
 import scanpy as sc
 
-import scvi
+from scvi.data import dataset_10x, organize_cite_seq_10x
+from scvi.data._anndata import _setup_anndata
 
 from .utils import unsupervised_training_one_epoch
-from scvi.data import (dataset_10x, _setup_anndata, organize_cite_seq_10x)
+
 
 def test_populate_and_train_one_v1(save_path):
     sp = os.path.join(save_path, "10X")
