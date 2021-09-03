@@ -190,8 +190,6 @@ class SpatialDeconv(PyroBaseModuleClass):
 
     @auto_move_data
     def guide(self, x, ind_x):
-        pyro.module("spatial_stereoscope", self)
-
         _, gene_plate = self.create_plates(x, ind_x)
 
         with gene_plate:
@@ -220,14 +218,13 @@ class SpatialDeconv(PyroBaseModuleClass):
 
         # account for gene specific bias and add noise
         r_hat = torch.cat([beta * w, eps], dim=1)  # n_genes, n_labels + 1
+        # subsample observations
+        v_ind = v[:, ind_x]  # labels + 1, batch_size
+        px_rate = torch.transpose(
+            torch.einsum("gz,zs->gs", [r_hat, v_ind]), 0, 1
+        )  # batch_size, n_genes
 
         with obs_plate:
-            # subsample observations
-            v_ind = v[:, ind_x]  # labels + 1, batch_size
-            px_rate = torch.transpose(
-                torch.einsum("gz,zs->gs", [r_hat, v_ind]), 0, 1
-            )  # batch_size, n_genes
-
             x_dist = dist.NegativeBinomial(px_rate, logits=self.px_o)
             pyro.sample("x", x_dist.to_event(1), obs=x)
 
