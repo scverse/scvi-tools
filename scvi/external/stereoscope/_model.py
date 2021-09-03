@@ -4,6 +4,7 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+import pyro
 import torch
 from anndata import AnnData
 
@@ -159,6 +160,8 @@ class SpatialStereoscope(PyroSviTrainMixin, BaseModelClass):
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
     ):
+        pyro.clear_param_store()
+
         st_adata.obs["_indices"] = np.arange(st_adata.n_obs)
         register_tensor_from_anndata(st_adata, "ind_x", "obs", "_indices")
         super().__init__(st_adata)

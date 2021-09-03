@@ -193,7 +193,7 @@ class SpatialDeconv(PyroBaseModuleClass):
         _, gene_plate = self.create_plates(x, ind_x)
 
         with gene_plate:
-            pyro.sample("eta", dist.Delta(self.eta_mean))
+            pyro.sample("eta", dist.Delta(self.eta_map))
 
     def create_plates(self, x, ind_x):
         obs_plate = pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=ind_x)
