@@ -261,48 +261,47 @@ class SpatialStereoscope(PyroSviTrainMixin, BaseModelClass):
         px_scale = self.module.get_ct_specific_expression(torch.tensor(ind_y)[:, None])
         return np.array(px_scale.cpu())
 
-    # def train(
-    #     self,
-    #     max_epochs: int = 400,
-    #     lr: float = 0.01,
-    #     use_gpu: Optional[Union[str, int, bool]] = None,
-    #     batch_size: int = 128,
-    #     plan_kwargs: Optional[dict] = None,
-    #     **kwargs,
-    # ):
-    #     """
-    #     Trains the model using MAP inference.
+    def train(
+        self,
+        max_epochs: int = 400,
+        lr: float = 0.01,
+        use_gpu: Optional[Union[str, int, bool]] = None,
+        batch_size: int = 128,
+        early_stopping: bool = False,
+        plan_kwargs: Optional[dict] = None,
+        **kwargs,
+    ):
+        """
+        Trains the model using MAP inference.
 
-    #     Parameters
-    #     ----------
-    #     max_epochs
-    #         Number of epochs to train for
-    #     lr
-    #         Learning rate for optimization.
-    #     use_gpu
-    #         Use default GPU if available (if None or True), or index of GPU to use (if int),
-    #         or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
-    #     batch_size
-    #         Minibatch size to use during training.
-    #     plan_kwargs
-    #         Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
-    #         `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-    #     **kwargs
-    #         Other keyword args for :class:`~scvi.train.Trainer`.
-    #     """
-    #     update_dict = {
-    #         "lr": lr,
-    #     }
-    #     if plan_kwargs is not None:
-    #         plan_kwargs.update(update_dict)
-    #     else:
-    #         plan_kwargs = update_dict
-    #     super().train(
-    #         max_epochs=max_epochs,
-    #         use_gpu=use_gpu,
-    #         train_size=1,
-    #         validation_size=None,
-    #         batch_size=batch_size,
-    #         plan_kwargs=plan_kwargs,
-    #         **kwargs,
-    #     )
+        Parameters
+        ----------
+        max_epochs
+            Number of epochs to train for
+        lr
+            Learning rate for optimization.
+        use_gpu
+            Use default GPU if available (if None or True), or index of GPU to use (if int),
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        batch_size
+            Minibatch size to use during training.
+        early_stopping
+            Perform early stopping. Additional arguments can be passed in `**kwargs`.
+            See :class:`~scvi.train.Trainer` for further options.
+        plan_kwargs
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        **kwargs
+            Other keyword args for :class:`~scvi.train.Trainer`.
+        """
+        super().train(
+            max_epochs=max_epochs,
+            use_gpu=use_gpu,
+            lr=lr,
+            train_size=1,
+            validation_size=None,
+            batch_size=batch_size,
+            early_stopping=early_stopping,
+            plan_kwargs=plan_kwargs,
+            **kwargs,
+        )
