@@ -1,13 +1,20 @@
 from typing import Tuple
 
 import numpy as np
+import pyro
+import pyro.distributions as dist
 import torch
-from torch.distributions import NegativeBinomial, Normal
+from torch.distributions import NegativeBinomial
 from torch.nn.functional import softplus
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import (
+    BaseModuleClass,
+    LossRecorder,
+    PyroBaseModuleClass,
+    auto_move_data,
+)
 
 
 class RNADeconv(BaseModuleClass):
@@ -79,9 +86,7 @@ class RNADeconv(BaseModuleClass):
     @auto_move_data
     def generative(self, x, y):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
-        px_scale = torch.nn.functional.softplus(self.W)[
-            :, y.long()[:, 0]
-        ].T  # cells per gene
+        px_scale = softplus(self.W)[:, y.long()[:, 0]].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
         px_rate = library * px_scale
         scaling_factor = self.ct_weight[y.long()[:, 0]]
@@ -121,7 +126,7 @@ class RNADeconv(BaseModuleClass):
         raise NotImplementedError("No sampling method for Stereoscope")
 
 
-class SpatialDeconv(BaseModuleClass):
+class SpatialDeconv(PyroBaseModuleClass):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
@@ -145,6 +150,7 @@ class SpatialDeconv(BaseModuleClass):
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
     ):
         super().__init__()
+        self.n_obs = None
         # unpack and copy parameters
         w, px_o = sc_params
         self.register_buffer("W", torch.tensor(w))
@@ -156,7 +162,9 @@ class SpatialDeconv(BaseModuleClass):
         self.prior_weight = prior_weight
 
         # noise from data
-        self.eta = torch.nn.Parameter(torch.randn(self.n_genes, 1))
+        self.eta_map = torch.nn.Parameter(torch.randn(self.n_genes))
+        self.register_buffer("eta_mean", torch.zeros(1))
+        self.register_buffer("eta_scale", torch.ones(1))
         # factor loadings
         self.V = torch.nn.Parameter(torch.randn(self.n_labels + 1, self.n_spots))
         # additive gene bias
@@ -166,9 +174,7 @@ class SpatialDeconv(BaseModuleClass):
     def get_proportions(self, keep_noise=False) -> np.ndarray:
         """Returns the loadings."""
         # get estimated unadjusted proportions
-        res = (
-            torch.nn.functional.softplus(self.V).cpu().numpy().T
-        )  # n_spots, n_labels + 1
+        res = softplus(self.V).cpu().numpy().T  # n_spots, n_labels + 1
         # remove dummy cell type proportion values
         if not keep_noise:
             res = res[:, :-1]
@@ -176,73 +182,54 @@ class SpatialDeconv(BaseModuleClass):
         res = res / res.sum(axis=1).reshape(-1, 1)
         return res
 
-    def _get_inference_input(self, tensors):
-        # we perform MAP here, so there is nothing to infer
-        return {}
-
-    def _get_generative_input(self, tensors, inference_outputs):
-        x = tensors[_CONSTANTS.X_KEY]
-        ind_x = tensors["ind_x"]
-
-        input_dict = dict(x=x, ind_x=ind_x)
-        return input_dict
+    @staticmethod
+    def _get_fn_args_from_batch(tensor_dict):
+        x = tensor_dict[_CONSTANTS.X_KEY]
+        ind_x = tensor_dict["ind_x"].long().squeeze()
+        return (x, ind_x), {}
 
     @auto_move_data
-    def inference(self):
-        return {}
+    def guide(self, x, ind_x):
+        pyro.module("spatial_stereoscope", self)
+
+        _, gene_plate = self.create_plates(x, ind_x)
+
+        with gene_plate:
+            pyro.sample("eta", dist.Delta(self.eta_mean))
+
+    def create_plates(self, x, ind_x):
+        obs_plate = pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=ind_x)
+        gene_plate = pyro.plate("gene_plate", size=self.n_genes)
+
+        return obs_plate, gene_plate
 
     @auto_move_data
-    def generative(self, x, ind_x):
+    def model(self, x, ind_x):
         """Build the deconvolution model for every cell in the minibatch."""
-        beta = softplus(self.beta)  # n_genes
+        pyro.module("spatial_stereoscope", self)
+
+        obs_plate, gene_plate = self.create_plates(x, ind_x)
+
+        with gene_plate:
+            eta = pyro.sample("eta", dist.Normal(self.eta_mean, self.eta_scale))
+
+        beta = softplus(self.beta)  # n_genes, 1
         v = softplus(self.V)  # n_labels + 1, n_spots
         w = softplus(self.W)  # n_genes, n_labels
-        eps = softplus(self.eta)  # n_genes
+        eps = softplus(eta.unsqueeze(1))  # n_genes, 1
 
         # account for gene specific bias and add noise
         r_hat = torch.cat([beta * w, eps], dim=1)  # n_genes, n_labels + 1
-        # subsample observations
-        v_ind = v[:, ind_x[:, 0].long()]  # labels + 1, batch_size
-        px_rate = torch.transpose(
-            torch.einsum("gz,zs->gs", [r_hat, v_ind]), 0, 1
-        )  # batch_size, n_genes
 
-        return dict(px_o=self.px_o, px_rate=px_rate, eta=self.eta)
+        with obs_plate:
+            # subsample observations
+            v_ind = v[:, ind_x]  # labels + 1, batch_size
+            px_rate = torch.transpose(
+                torch.einsum("gz,zs->gs", [r_hat, v_ind]), 0, 1
+            )  # batch_size, n_genes
 
-    def loss(
-        self,
-        tensors,
-        inference_outputs,
-        generative_outputs,
-        kl_weight: float = 1.0,
-        n_obs: int = 1.0,
-    ):
-        x = tensors[_CONSTANTS.X_KEY]
-        px_rate = generative_outputs["px_rate"]
-        px_o = generative_outputs["px_o"]
-
-        reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-        # prior likelihood
-        neg_log_likelihood_prior = -Normal(0, 1).log_prob(self.eta).sum()
-
-        if self.prior_weight == "n_obs":
-            # the correct way to reweight observations while performing stochastic optimization
-            loss = n_obs * torch.mean(reconst_loss) + neg_log_likelihood_prior
-        else:
-            # the original way it is done in Stereoscope; we use this option to show reproducibility of their codebase
-            loss = torch.sum(reconst_loss) + neg_log_likelihood_prior
-        return LossRecorder(
-            loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior
-        )
-
-    @torch.no_grad()
-    def sample(
-        self,
-        tensors,
-        n_samples=1,
-        library_size=1,
-    ):
-        raise NotImplementedError("No sampling method for Stereoscope")
+            x_dist = dist.NegativeBinomial(px_rate, logits=self.px_o)
+            pyro.sample("x", x_dist.to_event(1), obs=x)
 
     @torch.no_grad()
     @auto_move_data
@@ -257,7 +244,7 @@ class SpatialDeconv(BaseModuleClass):
         """
         # cell-type specific gene expression. Conceptually of shape (minibatch, celltype, gene).
         # But in this case, it's the same for all spots with the same cell type
-        beta = torch.nn.functional.softplus(self.beta)  # n_genes
-        w = torch.nn.functional.softplus(self.W)  # n_genes, n_cell_types
+        beta = softplus(self.beta)  # n_genes
+        w = softplus(self.W)  # n_genes, n_cell_types
         px_ct = torch.exp(self.px_o).unsqueeze(1) * beta.unsqueeze(1) * w
         return px_ct[:, y.long()[:, 0]].T  # shape (minibatch, genes)
