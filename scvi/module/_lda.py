@@ -1,37 +1,48 @@
-from typing import Dict, Iterable, Union
+from typing import Dict, Iterable, Optional, Union
 
+import numpy as np
 import pyro
 import pyro.distributions as dist
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from pyro.nn import PyroModule
 from torch.distributions import constraints
 
 from scvi._constants import _CONSTANTS
 from scvi.module.base import PyroBaseModuleClass
+from scvi.nn import FCLayers
 
 
-class LDAEncoder(nn.Module):
-    def __init__(self, n_input: int, n_topics: int, n_hidden: int):
+class CellComponentDistPriorEncoder(nn.Module):
+    def __init__(self, n_input: int, n_components: int, n_hidden: int):
         super().__init__()
 
-        self.fc1 = nn.Linear(n_input, n_hidden)
-        self.fc2 = nn.Linear(n_hidden, n_hidden)
-        self.fcalpha = nn.Linear(n_hidden, n_topics)
+        self.encoder = FCLayers(
+            n_in=n_input,
+            n_out=n_components,
+            n_hidden=n_hidden,
+            n_layers=1,
+            inject_covariates=False,
+        )
 
     def forward(self, x: torch.Tensor):
-        h = F.softplus(self.fc1(x))
-        h = F.softplus(self.fc2(h))
-        return self.fcalpha(h).exp()
+        return self.encoder(x).exp()
 
 
 class LDAPyroModel(PyroModule):
-    def __init__(self, n_input: int, n_topics: int):
+    def __init__(
+        self,
+        n_input: int,
+        n_components: int,
+        cell_component_prior: torch.Tensor,
+        component_gene_prior: torch.Tensor,
+    ):
         super().__init__()
 
         self.n_input = n_input
-        self.n_topics = n_topics
+        self.n_components = n_components
+        self.cell_component_prior = cell_component_prior
+        self.component_gene_prior = component_gene_prior
 
     @staticmethod
     def _get_fn_args_from_batch(
@@ -43,68 +54,89 @@ class LDAPyroModel(PyroModule):
         return (x, library), {}
 
     def forward(self, x: torch.Tensor, library: torch.Tensor):
-        # Hyperparameters.
-        with pyro.plate("topics", self.n_topics):
-            alpha = pyro.sample("alpha", dist.Gamma(1.0 / self.n_topics, 1.0))
-            beta = pyro.sample(
-                "beta",
-                dist.Dirichlet(torch.ones(self.n_input) / self.n_input),
+        # Component gene distributions.
+        with pyro.plate("components", self.n_components):
+            component_gene_dist = pyro.sample(
+                "component_gene_dist",
+                dist.Dirichlet(self.component_gene_prior),
             )
 
-        # Full generative model.
+        # Cell counts generation.
         max_library_size = int(torch.max(library).item())
         with pyro.plate("cells", x.shape[0]):
-            theta = pyro.sample("theta", dist.Dirichlet(alpha))
+            cell_component_dist = pyro.sample(
+                "cell_component_dist", dist.Dirichlet(self.cell_component_prior)
+            )
 
             pyro.sample(
                 "gene_counts",
-                dist.Multinomial(max_library_size, theta @ beta),
+                dist.Multinomial(
+                    max_library_size, cell_component_dist @ component_gene_dist
+                ),
                 obs=x,
             )
 
 
 class LDAPyroGuide(PyroModule):
-    def __init__(self, n_input: int, n_hidden: int, n_topics: int):
+    def __init__(self, n_input: int, n_components: int, n_hidden: int):
         super().__init__()
 
         self.n_input = n_input
+        self.n_components = n_components
         self.n_hidden = n_hidden
-        self.n_topics = n_topics
 
-        self.encoder = LDAEncoder(n_input, n_topics, n_hidden)
+        self.encoder = CellComponentDistPriorEncoder(n_input, n_components, n_hidden)
 
     def forward(self, x: torch.Tensor, _library: torch.Tensor):
-        # Hyperparameter guides.
-        alpha_posterior = pyro.param(
-            "alpha_posterior",
-            lambda: torch.ones(self.n_topics),
-            constraint=constraints.positive,
-        )
-        beta_posterior = pyro.param(
-            "beta_posterior",
-            lambda: torch.ones(self.n_topics, self.n_input),
+        # Component gene distributions.
+        component_gene_dist_posterior = pyro.param(
+            "component_gene_dist_posterior",
+            lambda: torch.ones(self.n_components, self.n_input),
             constraint=constraints.greater_than(0.5),
         )
-        with pyro.plate("topics", self.n_topics):
-            pyro.sample("alpha", dist.Gamma(alpha_posterior, 1.0))
-            pyro.sample("beta", dist.Dirichlet(beta_posterior))
+        with pyro.plate("components", self.n_components):
+            pyro.sample(
+                "component_gene_dist", dist.Dirichlet(component_gene_dist_posterior)
+            )
 
-        # Topic proportions guide.
+        # Cell component distributions guide.
         with pyro.plate("cells", x.shape[0]):
-            alpha = self.encoder(x)
-            pyro.sample("theta", dist.Dirichlet(alpha))
+            cell_component_prior = self.encoder(x)
+            pyro.sample("cell_component_dist", dist.Dirichlet(cell_component_prior))
 
 
 class LDAPyroModule(PyroBaseModuleClass):
-    def __init__(self, n_input: int, n_hidden: int, n_topics: int):
+    def __init__(
+        self,
+        n_input: int,
+        n_components: int,
+        n_hidden: int,
+        cell_component_prior: Optional[np.ndarray] = None,
+        component_gene_prior: Optional[np.ndarray] = None,
+    ):
         super().__init__()
 
         self.n_input = n_input
+        self.n_components = n_components
         self.n_hidden = n_hidden
-        self.n_topics = n_topics
 
-        self._model = LDAPyroModel(self.n_input, self.n_topics)
-        self._guide = LDAPyroGuide(self.n_input, self.n_hidden, self.n_topics)
+        self.cell_component_prior = (
+            torch.from_numpy(cell_component_prior)
+            if cell_component_prior is not None
+            else torch.ones(self.n_components) / self.n_components
+        )
+        self.component_gene_prior = (
+            torch.from_numpy(component_gene_prior)
+            if component_gene_prior is not None
+            else torch.ones(self.n_input) / self.n_input
+        )
+        self._model = LDAPyroModel(
+            self.n_input,
+            self.n_components,
+            self.cell_component_prior,
+            self.component_gene_prior,
+        )
+        self._guide = LDAPyroGuide(self.n_input, self.n_components, self.n_hidden)
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 
     @property
