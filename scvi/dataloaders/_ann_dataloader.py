@@ -5,8 +5,7 @@ from typing import Optional, Union
 import anndata
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
-
+from torch.utils.data import DataLoader, Subset
 from ._anntorchdataset import AnnTorchDataset
 
 logger = logging.getLogger(__name__)
@@ -131,28 +130,33 @@ class AnnDataLoader(DataLoader):
                         )
                     )
 
+        # used by Lightning to re-inject a DistributedSampler
+        self.adata = adata
         self.dataset = AnnTorchDataset(adata, getitem_tensors=data_and_attributes)
 
-        sampler_kwargs = {
+        data_loader_kwargs.update({
             "batch_size": batch_size,
             "shuffle": shuffle,
-            "drop_last": drop_last,
-        }
+            "drop_last": False,
+        })
 
         if indices is None:
             indices = np.arange(len(self.dataset))
-            sampler_kwargs["indices"] = indices
+            # sampler_kwargs["indices"] = indices
         else:
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
             indices = np.asarray(indices)
-            sampler_kwargs["indices"] = indices
+            # sampler_kwargs["indices"] = indices
 
-        self.indices = indices
-        self.sampler_kwargs = sampler_kwargs
-        sampler = BatchSampler(**self.sampler_kwargs)
-        self.data_loader_kwargs = copy.copy(data_loader_kwargs)
+        dataset = Subset(self.dataset, indices)
+        data_loader_kwargs["dataset"] = dataset
+        #self.sampler_kwargs = sampler_kwargs
+
+        #sampler = BatchSampler(**self.sampler_kwargs)
+        #self.data_loader_kwargs = copy.copy(data_loader_kwargs)
         # do not touch batch size here, sampler gives batched indices
-        self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
+        #self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
 
-        super().__init__(self.dataset, **self.data_loader_kwargs)
+        breakpoint()
+        super().__init__(**data_loader_kwargs)

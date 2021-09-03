@@ -8,4 +8,4 @@ def test_save_best_state_callback(save_path):
     adata = synthetic_iid()
     model = SCVI(adata, n_latent=n_latent)
     callbacks = [SaveBestState(verbose=True)]
-    model.train(3, check_val_every_n_epoch=1, train_size=0.5, callbacks=callbacks)
+    model.train(3, check_val_every_n_epoch=1, train_size=0.5, callbacks=callbacks, use_gpu=True, accelerator="ddp")

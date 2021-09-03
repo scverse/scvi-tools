@@ -5,10 +5,10 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 from anndata import AnnData
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 
 from scvi import _CONSTANTS, settings
-from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
+from scvi.dataloaders._ann_dataloader import BatchSampler, AnnTorchDataset
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 
@@ -116,39 +116,63 @@ class DataSplitter(pl.LightningDataModule):
             True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
         )
 
+    @staticmethod
+    def _prepare_dataset(adata: AnnData, indices: np.ndarray, data_and_attributes: Optional[dict] = None) -> Subset:
+        if "_scvi" not in adata.uns.keys():
+            raise ValueError("Please run setup_anndata() on your anndata object first.")
+
+        if data_and_attributes is not None:
+            data_registry = adata.uns["_scvi"]["data_registry"]
+            for key in data_and_attributes.keys():
+                if key not in data_registry.keys():
+                    raise ValueError(
+                        "{} required for model but not included when setup_anndata was run".format(
+                            key
+                        )
+                    )
+
+        # used by Lightning to re-inject a DistributedSampler
+        dataset = AnnTorchDataset(adata, getitem_tensors=data_and_attributes)
+
+        if indices is None:
+            indices = np.arange(len(self.dataset))
+        else:
+            if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
+                indices = np.where(indices)[0].ravel()
+            indices = np.asarray(indices)
+
+        return Subset(dataset, indices)
+
     def train_dataloader(self):
-        return AnnDataLoader(
-            self.adata,
-            indices=self.train_idx,
+        return DataLoader(
+            self._prepare_dataset(self.adata, self.train_idx),
             shuffle=True,
-            drop_last=3,
+            drop_last=True,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
 
     def val_dataloader(self):
         if len(self.val_idx) > 0:
-            return AnnDataLoader(
-                self.adata,
-                indices=self.val_idx,
-                shuffle=True,
-                drop_last=3,
-                pin_memory=self.pin_memory,
-                **self.data_loader_kwargs,
-            )
+            return DataLoader(
+                    self._prepare_dataset(self.adata, self.val_idx),
+                    shuffle=False,
+                    drop_last=False,
+                    pin_memory=self.pin_memory,
+                    **self.data_loader_kwargs,
+                )
         else:
             pass
 
     def test_dataloader(self):
         if len(self.test_idx) > 0:
-            return AnnDataLoader(
-                self.adata,
-                indices=self.test_idx,
-                shuffle=True,
-                drop_last=3,
-                pin_memory=self.pin_memory,
-                **self.data_loader_kwargs,
-            )
+            return DataLoader(
+                    self._prepare_dataset(self.adata, self.test_idx),
+                    shuffle=False,
+                    drop_last=False,
+                    pin_memory=self.pin_memory,
+                    **self.data_loader_kwargs,
+                )
         else:
             pass
 
