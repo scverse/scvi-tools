@@ -39,9 +39,9 @@ class LossRecorder:
         loss: Union[Dict[str, torch.Tensor], torch.Tensor],
         reconstruction_loss: Union[
             Dict[str, torch.Tensor], torch.Tensor
-        ] = torch.Tensor([0]),
-        kl_local: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
-        kl_global: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
+        ] = torch.tensor(0.0),
+        kl_local: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.tensor(0.0),
+        kl_global: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.tensor(0.0),
         **kwargs,
     ):
         self._loss = loss if isinstance(loss, dict) else dict(loss=loss)

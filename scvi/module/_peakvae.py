@@ -330,4 +330,4 @@ class PEAKVAE(BaseModuleClass):
 
         loss = (rl.sum() + kld * kl_weight).sum()
 
-        return LossRecorder(loss, rl, kld, kl_global=0.0)
+        return LossRecorder(loss, rl, kld, kl_global=torch.tensor(0.0))
