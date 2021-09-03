@@ -645,6 +645,9 @@ class PyroTrainingPlan(pl.LightningModule):
                 setattr(self.module.model, "n_obs", n_obs)
             if hasattr(self.module.guide, "n_obs"):
                 setattr(self.module.guide, "n_obs", n_obs)
+            # case where model and guide are implemented in same object
+            if hasattr(self.module, "n_obs"):
+                setattr(self.module, "n_obs", n_obs)
 
         self._n_obs_training = n_obs
 
