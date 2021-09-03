@@ -222,7 +222,7 @@ class SpatialDeconv(PyroBaseModuleClass):
         # subsample observations
         v_ind = v[:, ind_x]  # labels + 1, batch_size
         px_rate = torch.transpose(
-            torch.einsum("gz,zs->gs", [r_hat, v_ind]), 0, 1
+            torch.matmul(r_hat, v_ind), 0, 1
         )  # batch_size, n_genes
 
         with obs_plate:
