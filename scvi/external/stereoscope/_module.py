@@ -190,6 +190,7 @@ class SpatialDeconv(PyroBaseModuleClass):
 
     @auto_move_data
     def guide(self, x, ind_x):
+        pyro.module("spatial_stereoscope", self)
         _, gene_plate = self.create_plates(x, ind_x)
 
         with gene_plate:
