@@ -182,7 +182,7 @@ class VAEC(BaseModuleClass):
         scaling_factor = self.ct_weight[y.long()[:, 0]]
         loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
 
-        return LossRecorder(loss, reconst_loss, kl_divergence_z, torch.tensor(0.0))
+        return LossRecorder(loss, reconst_loss, kl_divergence_z, 0.0)
 
     @torch.no_grad()
     def sample(

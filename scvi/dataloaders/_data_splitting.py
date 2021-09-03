@@ -97,16 +97,12 @@ class DataSplitter(pl.LightningDataModule):
         self.data_loader_kwargs = kwargs
         self.use_gpu = use_gpu
 
-        self.n_train, self.n_val = validate_data_split(
-            self.adata.n_obs, self.train_size, self.validation_size
-        )
-
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
-        n_train = self.n_train
-        n_val = self.n_val
+        n = self.adata.n_obs
+        n_train, n_val = validate_data_split(n, self.train_size, self.validation_size)
         random_state = np.random.RandomState(seed=settings.seed)
-        permutation = random_state.permutation(self.adata.n_obs)
+        permutation = random_state.permutation(n)
         self.val_idx = permutation[:n_val]
         self.train_idx = permutation[n_val : (n_val + n_train)]
         self.test_idx = permutation[(n_val + n_train) :]

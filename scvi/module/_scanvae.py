@@ -280,7 +280,7 @@ class SCANVAE(VAE):
                     loss,
                     reconst_loss,
                     kl_locals,
-                    kl_global=torch.tensor(0.0),
+                    kl_global=0.0,
                     classification_loss=classifier_loss,
                     n_labelled_tensors=labelled_tensors[_CONSTANTS.X_KEY].shape[0],
                 )
@@ -288,7 +288,7 @@ class SCANVAE(VAE):
                 loss,
                 reconst_loss,
                 kl_locals,
-                kl_global=torch.tensor(0.0),
+                kl_global=0.0,
             )
 
         probs = self.classifier(z1)
@@ -314,10 +314,8 @@ class SCANVAE(VAE):
                 loss,
                 reconst_loss,
                 kl_divergence,
-                kl_global=torch.tensor(0.0),
+                kl_global=0.0,
                 classification_loss=classifier_loss,
                 n_labelled_tensors=labelled_tensors[_CONSTANTS.X_KEY].shape[0],
             )
-        return LossRecorder(
-            loss, reconst_loss, kl_divergence, kl_global=torch.tensor(0.0)
-        )
+        return LossRecorder(loss, reconst_loss, kl_divergence, kl_global=0.0)

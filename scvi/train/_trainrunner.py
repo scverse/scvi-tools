@@ -66,16 +66,15 @@ class TrainRunner:
         self.trainer = Trainer(max_epochs=max_epochs, gpus=gpus, **trainer_kwargs)
 
     def __call__(self):
-        if hasattr(self.data_splitter, "n_train"):
-            self.training_plan.n_obs_training = self.data_splitter.n_train
-
-        self.trainer.fit(self.training_plan, self.data_splitter)
-        self._update_history()
-
-        # data splitter only gets these attrs after fit
+        self.data_splitter.setup()
         self.model.train_indices = self.data_splitter.train_idx
         self.model.test_indices = self.data_splitter.test_idx
         self.model.validation_indices = self.data_splitter.val_idx
+
+        self.training_plan.n_obs_training = len(self.model.train_indices)
+
+        self.trainer.fit(self.training_plan, self.data_splitter)
+        self._update_history()
 
         self.model.module.eval()
         self.model.is_trained_ = True

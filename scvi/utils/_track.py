@@ -53,7 +53,7 @@ def track(
                 tqdm_base._decr_instances(instance)
         return tqdm_base(sequence, desc=description, file=sys.stdout, **kwargs)
     else:
-        in_colab = "google.colab" in sys.modules
+        in_colab = "google.colab" in sys.module
         force_jupyter = None if not in_colab else True
         console = Console(force_jupyter=force_jupyter)
         return track_base(sequence, description=description, console=console, **kwargs)

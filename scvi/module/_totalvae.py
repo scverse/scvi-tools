@@ -609,7 +609,7 @@ class TOTALVAE(BaseModuleClass):
             kl_div_back_pro=kl_div_back_pro,
         )
 
-        return LossRecorder(loss, reconst_losses, kl_local, kl_global=torch.tensor(0.0))
+        return LossRecorder(loss, reconst_losses, kl_local, kl_global=0.0)
 
     @torch.no_grad()
     def sample(self, tensors, n_samples=1):

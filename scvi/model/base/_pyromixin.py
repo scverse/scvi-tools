@@ -25,9 +25,9 @@ class PyroJitGuideWarmup(Callback):
     one minibatch through the Pyro model.
     """
 
-    def __init__(self, dataloader: AnnDataLoader = None) -> None:
+    def __init__(self, train_dl: AnnDataLoader) -> None:
         super().__init__()
-        self.dataloader = dataloader
+        self.dl = train_dl
 
     def on_train_start(self, trainer, pl_module):
         """
@@ -37,11 +37,7 @@ class PyroJitGuideWarmup(Callback):
         """
         # warmup guide for JIT
         pyro_guide = pl_module.module.guide
-        if self.dataloader is None:
-            dl = trainer.datamodule.train_dataloader()
-        else:
-            dl = self.dataloader
-        for tensors in dl:
+        for tensors in self.dl:
             tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
             args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
             pyro_guide(*args, **kwargs)
@@ -130,9 +126,12 @@ class PyroSviTrainMixin:
             early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         )
 
+        data_splitter.setup()
         if "callbacks" not in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] = []
-        trainer_kwargs["callbacks"].append(PyroJitGuideWarmup())
+        trainer_kwargs["callbacks"].append(
+            PyroJitGuideWarmup(data_splitter.train_dataloader())
+        )
 
         runner = TrainRunner(
             self,
