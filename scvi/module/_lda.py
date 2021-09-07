@@ -13,22 +13,6 @@ from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import FCLayers
 
 
-class CellComponentDistPriorEncoder(nn.Module):
-    def __init__(self, n_input: int, n_components: int, n_hidden: int):
-        super().__init__()
-
-        self.encoder = FCLayers(
-            n_in=n_input,
-            n_out=n_components,
-            n_hidden=n_hidden,
-            n_layers=1,
-            inject_covariates=False,
-        )
-
-    def forward(self, x: torch.Tensor):
-        return self.encoder(x).exp()
-
-
 class LDAPyroModel(PyroModule):
     def __init__(
         self,
@@ -41,8 +25,8 @@ class LDAPyroModel(PyroModule):
 
         self.n_input = n_input
         self.n_components = n_components
-        self.cell_component_prior = cell_component_prior
-        self.component_gene_prior = component_gene_prior
+        self.register_buffer("cell_component_prior", cell_component_prior)
+        self.register_buffer("component_gene_prior", component_gene_prior)
 
     @staticmethod
     def _get_fn_args_from_batch(
@@ -60,7 +44,7 @@ class LDAPyroModel(PyroModule):
             component_gene_dist = pyro.sample(
                 "component_gene_dist",
                 dist.Dirichlet(self.component_gene_prior),
-            )
+            ).to(x.device)
 
         # Cell counts generation.
         max_library_size = int(torch.max(library).item())
@@ -78,6 +62,22 @@ class LDAPyroModel(PyroModule):
             )
 
 
+class CellComponentDistPriorEncoder(nn.Module):
+    def __init__(self, n_input: int, n_components: int, n_hidden: int):
+        super().__init__()
+
+        self.encoder = FCLayers(
+            n_in=n_input,
+            n_out=n_components,
+            n_hidden=n_hidden,
+            n_layers=1,
+            inject_covariates=False,
+        )
+
+    def forward(self, x: torch.Tensor):
+        return self.encoder(x).exp()
+
+
 class LDAPyroGuide(PyroModule):
     def __init__(self, n_input: int, n_components: int, n_hidden: int):
         super().__init__()
@@ -93,7 +93,7 @@ class LDAPyroGuide(PyroModule):
         # Component gene distributions.
         component_gene_dist_posterior = pyro.param(
             "component_gene_dist_posterior",
-            lambda: torch.ones(self.n_components, self.n_input),
+            lambda: x.new_ones(self.n_components, self.n_input),
             constraint=constraints.greater_than(0.5),
         )
         with pyro.plate("components", self.n_components):
