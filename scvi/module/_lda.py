@@ -74,6 +74,7 @@ class CellComponentDistPriorEncoder(nn.Module):
             inject_covariates=False,
         )
 
+    @auto_move_data
     def forward(self, x: torch.Tensor):
         return self.encoder(x).exp()
 
