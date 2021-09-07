@@ -9,7 +9,7 @@ from pyro.nn import PyroModule
 from torch.distributions import constraints
 
 from scvi._constants import _CONSTANTS
-from scvi.module.base import PyroBaseModuleClass
+from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import FCLayers
 
 
@@ -53,6 +53,7 @@ class LDAPyroModel(PyroModule):
         library = torch.sum(x, dim=1)
         return (x, library), {}
 
+    @auto_move_data
     def forward(self, x: torch.Tensor, library: torch.Tensor):
         # Component gene distributions.
         with pyro.plate("components", self.n_components):
@@ -87,6 +88,7 @@ class LDAPyroGuide(PyroModule):
 
         self.encoder = CellComponentDistPriorEncoder(n_input, n_components, n_hidden)
 
+    @auto_move_data
     def forward(self, x: torch.Tensor, _library: torch.Tensor):
         # Component gene distributions.
         component_gene_dist_posterior = pyro.param(
