@@ -168,7 +168,7 @@ The latent representation can be used to create a nearest neighbor graph with sc
 Normalization and denoising of RNA and protein expression
 ----------------------------------------------------------
 
-In :func:`~scvi.model.TOTALVI.get_normalized_expression` totalVI returns, for RNA, the expected value of :math:`\l_n\rho_n` under the approximate posterior,
+In :func:`~scvi.model.TOTALVI.get_normalized_expression` totalVI returns, for RNA, the expected value of :math:`l_n\rho_n` under the approximate posterior,
 and for proteins, the expected value of :math:`(1 − \pi_{nt})\beta_{nt}\alpha_n`.
 For one cell :math:`n`, in the case of RNA, this can be written as:
 
