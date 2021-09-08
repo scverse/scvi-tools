@@ -147,7 +147,7 @@ The latent representation can be used to create a nearest neighbor graph with sc
 Transfer learning
 -------------------------
 
-A scVI model can be pre-trained on reference data and updated with query data using :func:`~scvi.model.SCVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations. See the transfer learning guide for more information.
+A scVI model can be pre-trained on reference data and updated with query data using :func:`~scvi.model.SCVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations. See the :doc:`/user_guide/background/transfer_learning` guide for more information.
 
 
 Normalization/denoising/imputation of expression
@@ -171,13 +171,13 @@ where :math:`\ell_n'` is by default set to 1. See the `library_size` parameter f
 
 By default the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
 
-Notably, this function also has the `transform_batch` parameter that allows counterfactual prediction of expression in an unobserved batch. See the COUNTERFACTUAL TUTORIAL FOR MORE DETAIL.
+Notably, this function also has the `transform_batch` parameter that allows counterfactual prediction of expression in an unobserved batch. See the :doc:`/user_guide/background/counterfactual_prediction` guide.
 
 
 Differential expression
 -----------------------
 
-Differential expression analysis is achieved with :func:`~scvi.model.SCVI.differential_expression`. scVI tests differences in magnitude of :math:`f_w\left( z_n, s_n \right)`. More info is in the DE TUTORIAL.
+Differential expression analysis is achieved with :func:`~scvi.model.SCVI.differential_expression`. scVI tests differences in magnitude of :math:`f_w\left( z_n, s_n \right)`. More info is in :doc:`/user_guide/background/differential_expression`.
 
 
 

@@ -54,3 +54,7 @@ Background
     :maxdepth: 2
 
     background/variational_inference
+    background/differential_expression
+    background/counterfactual_prediction
+    background/transfer_learning
+
