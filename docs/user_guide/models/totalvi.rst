@@ -70,31 +70,6 @@ First, for each cell :math:`n`,
       l_n &\sim \textrm{LogNormal}(l_\mu^\top s_n, l_{\sigma^2}^\top s_n) \tag{8}\\
    \end{align}
 
-with the interpretation of each variable being
-
-.. list-table::
-   :widths: 20 90 15
-   :header-rows: 1
-
-   * - Latent variable
-     - Description
-     - Code variable (if different)
-   * - :math:`z_n \in \mathbb{R}^d`
-     - Low-dimensional representation capturing joint state of a cell
-     - N/A
-   * - :math:`\rho_n \in \Delta^{G-1}`
-     - Denoised/normalized gene expression,
-     - ``px_["scale"]``
-   * - :math:`\alpha_n \in [1, \infty)^T`
-     - Foreground scaling factor for proteins, identifies the mixture distribution (see below)
-     - ``py_["rate_fore"]``
-   * - :math:`\pi_n \in (0, 1)^T`
-     - Probability of background for each protein
-     - ``py_["mixing"]`` (logits scale).
-   * - :math:`l_n \in (0, \infty)`
-     - Library size for RNA. Here it is modeled as a latent variable, but the recent default for totalVI is to treat library size as observed, equal to the total RNA UMI count of a cell. This can be controlled by passing ``use_observed_lib_size=False`` to :class:`~scvi.model.TOTALVI`.
-     - N/A
-
 Then for each gene :math:`g` in cell :math:`n`,
 
 .. math::
@@ -123,11 +98,37 @@ They are learned parameters during infererence, but are initialized through a pr
 and records the mean and variance of the component with smaller mean, aggregating across all cells. This can be disabled by setting ``empirical_protein_background_prior=False``,
 which then forces a random Initialization.
 
+The latent variables, along with their description are summarized in the following table:
+
+.. list-table::
+   :widths: 20 90 15
+   :header-rows: 1
+
+   * - Latent variable
+     - Description
+     - Code variable (if different)
+   * - :math:`z_n \in \mathbb{R}^d`
+     - Low-dimensional representation capturing joint state of a cell
+     - N/A
+   * - :math:`\rho_n \in \Delta^{G-1}`
+     - Denoised/normalized gene expression,
+     - ``px_["scale"]``
+   * - :math:`\alpha_n \in [1, \infty)^T`
+     - Foreground scaling factor for proteins, identifies the mixture distribution (see below)
+     - ``py_["rate_fore"]``
+   * - :math:`\pi_n \in (0, 1)^T`
+     - Probability of background for each protein
+     - ``py_["mixing"]`` (logits scale).
+   * - :math:`l_n \in (0, \infty)`
+     - Library size for RNA. Here it is modeled as a latent variable, but the recent default for totalVI is to treat library size as observed, equal to the total RNA UMI count of a cell. This can be controlled by passing ``use_observed_lib_size=False`` to :class:`~scvi.model.TOTALVI`.
+     - N/A
+
 Inference
 ==========
 
-totalVI uses variational inference, and specifically auto-encoding variational bayes [#ref2]_, to learn both the model parameters (the
-neural network params, dispersion params), and an approximate posterior distribution with the following factorization:
+totalVI uses variational inference, and specifically auto-encoding variational bayes (see :doc:`/user_guide/background/variational_inference`), to learn both the model parameters (the
+neural network params, dispersion params, etc.), and an approximate posterior distribution with the following factorization:
+
 
  .. math::
     :nowrap:
@@ -161,15 +162,51 @@ The latent representation can be used to create a nearest neighbor graph with sc
     >>> adata.obsp["distances"]
 
 
-Normalization and denoising of expression
-------------------------------------------
+Normalization and denoising of RNA and protein expression
+----------------------------------------------------------
+
+In :func:`~scvi.model.TOTALVI.get_normalized_expression` totalVI returns, for RNA, the expected value of :math:`\l_n\rho_n` under the approximate posterior,
+and for proteins, the expected value of :math:`(1 − \pi_{nt})\beta_{nt}\alpha_n`.
+For one cell :math:`n`, in the case of RNA, this can be written as:
+
+.. math::
+    :nowrap:
+
+    \begin{align}
+       \mathbb{E}_{q_\eta(z_n \mid x_n)}\left[l_n'f_\rho\left( z_n, s_n \right) \right],
+    \end{align}
+
+
+where :math:`l_n'` is by default set to 1. See the `library_size` parameter for more details. The expectation is approximated using Monte Carlo, and the number of samples can be passed as an argument in the code::
+
+
+    >>> rna, protein = model.get_normalized_expression(n_samples=10)
+
+
+By default the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
+
+In the case of proteins, there are a few important options that control what constitues denoised protein expression.
+For example, `include_protein_background=True` will result in estimating the expectation of :math:`(1 − \pi_{nt})\beta_{nt}\alpha_n + \pi_{nt}\beta_{nt}`.
+Setting `sampling_protein_mixing=True` will result in sampling :math:`v_{nt} \sim \textrm{Bernoulli}(\pi_{nt})` and
+replacing :math:`\pi_{nt}` with :math:`v_{nt}`.
+
+Notably, this function also has the `transform_batch` parameter that allows counterfactual prediction of expression in an unobserved batch. See the :doc:`/user_guide/background/counterfactual_prediction` guide.
+
+
 
 Differential expression
 -----------------------
 
+Differential expression analysis is achieved with :func:`~scvi.model.TOTALVI.differential_expression`. totalVI tests differences in magnitude of :math:`f_w\left( z_n, s_n \right)` for RNA.
+More info on the mathematics behind differential expression is in :doc:`/user_guide/background/differential_expression`.
+
+
 Data simulation
 ---------------
 
+Data can be generated from the model using the posterior predictive distribution in :func:`~scvi.model.SCVI.posterior_predictive_sample`.
+This is equivalent to feeding a cell through the model, sampling from the posterior
+distributions of the latent variables, retrieving the likelihood parameters, and finally, sampling from this distribution.
 
 
 .. topic:: References:
