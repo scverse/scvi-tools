@@ -107,6 +107,7 @@ class LDAPyroGuide(PyroModule):
         # Cell component distributions guide.
         with pyro.plate("cells", x.shape[0]):
             cell_component_posterior = self.encoder(x)
+            print(cell_component_posterior)
             pyro.sample("cell_component_dist", dist.Dirichlet(cell_component_posterior))
 
 
