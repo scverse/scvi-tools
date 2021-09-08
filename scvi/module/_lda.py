@@ -80,7 +80,7 @@ class CellComponentDistPriorEncoder(nn.Module):
 
     @auto_move_data
     def forward(self, x: torch.Tensor):
-        return self.encoder(x).exp()
+        return (0.5 * self.encoder(x)).exp()
 
 
 class LDAPyroGuide(PyroModule):
@@ -106,8 +106,8 @@ class LDAPyroGuide(PyroModule):
 
         # Cell component distributions guide.
         with pyro.plate("cells", x.shape[0]):
-            cell_component_prior = self.encoder(x)
-            pyro.sample("cell_component_dist", dist.Dirichlet(cell_component_prior))
+            cell_component_posterior = self.encoder(x)
+            pyro.sample("cell_component_dist", dist.Dirichlet(cell_component_posterior))
 
 
 class LDAPyroModule(PyroBaseModuleClass):
