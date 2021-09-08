@@ -122,7 +122,7 @@ The latent variables, along with their description are summarized in the followi
    * - :math:`l_n \in (0, \infty)`
      - Library size for RNA. Here it is modeled as a latent variable, but the recent default for totalVI is to treat library size as observed, equal to the total RNA UMI count of a cell. This can be controlled by passing ``use_observed_lib_size=False`` to :class:`~scvi.model.TOTALVI`.
      - N/A
-   * - :math:`\beta_{nt} \in \in (0, \infty)`
+   * - :math:`\beta_{nt} \in (0, \infty)`
      - Protein background intensity. Used twice to identify the protein mixture model.
      - ``py_["rate_back"]``
 
@@ -189,7 +189,7 @@ where :math:`l_n'` is by default set to 1. See the `library_size` parameter for 
 By default the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
 
 In the case of proteins, there are a few important options that control what constitues denoised protein expression.
-For example, `include_protein_background=True` will result in estimating the expectation of :math:`(1 − \pi_{nt})\beta_{nt}\alpha_n + \pi_{nt}\beta_{nt}`.
+For example, `include_protein_background=True` will result in estimating the expectation of :math:`(1 − \pi_{nt})\beta_{nt}\alpha_{nt} + \pi_{nt}\beta_{nt}`.
 Setting `sampling_protein_mixing=True` will result in sampling :math:`v_{nt} \sim \textrm{Bernoulli}(\pi_{nt})` and
 replacing :math:`\pi_{nt}` with :math:`v_{nt}`.
 
@@ -200,7 +200,8 @@ Notably, this function also has the `transform_batch` parameter that allows coun
 Differential expression
 -----------------------
 
-Differential expression analysis is achieved with :func:`~scvi.model.TOTALVI.differential_expression`. totalVI tests differences in magnitude of :math:`f_w\left( z_n, s_n \right)` for RNA.
+Differential expression analysis is achieved with :func:`~scvi.model.TOTALVI.differential_expression`. totalVI tests differences in magnitude of :math:`f_\rho\left( z_n, s_n \right)` for RNA,
+and :math:`(1 − \pi_{nt})\beta_{nt}\alpha_{nt}` with similar options to change this quantity as in the normalized expression function.
 More info on the mathematics behind differential expression is in :doc:`/user_guide/background/differential_expression`.
 
 
