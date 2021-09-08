@@ -122,6 +122,9 @@ The latent variables, along with their description are summarized in the followi
    * - :math:`l_n \in (0, \infty)`
      - Library size for RNA. Here it is modeled as a latent variable, but the recent default for totalVI is to treat library size as observed, equal to the total RNA UMI count of a cell. This can be controlled by passing ``use_observed_lib_size=False`` to :class:`~scvi.model.TOTALVI`.
      - N/A
+   * - :math:`\beta_{nt} \in \in (0, \infty)`
+     - Protein background intensity. Used twice to identify the protein mixture model.
+     - ``py_["rate_back"]``
 
 Inference
 ==========
