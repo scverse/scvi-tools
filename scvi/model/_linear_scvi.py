@@ -1,10 +1,12 @@
 import logging
+from typing import Optional
 
 import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.model._utils import _get_var_names_from_setup_anndata, _init_library_size
+from scvi.data._anndata import _setup_anndata
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import LDVAE
 
@@ -125,3 +127,53 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         )
 
         return loadings
+
+    @staticmethod
+    def setup_anndata(
+        adata: AnnData,
+        batch_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        Sets up the :class:`~anndata.AnnData` object for this model.
+
+        A mapping will be created between data fields used by this model to their respective locations in adata.
+        This method will also compute the log mean and log variance per batch for the library size prior.
+
+        None of the data in adata are modified. Only adds fields to adata.
+
+        Parameters
+        ----------
+        adata
+            AnnData object containing raw counts. Rows represent cells, columns represent features.
+        batch_key
+            key in `adata.obs` for batch information. Categories will automatically be converted into integer
+            categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data.
+        layer
+            if not `None`, uses this as the key in `adata.layers` for raw count data.
+        copy
+            if `True`, a copy of adata is returned.
+
+        Returns
+        -------
+        If ``copy``,  will return :class:`~anndata.AnnData`.
+        Adds the following fields to adata:
+
+        .uns['_scvi']
+            `scvi` setup dictionary
+        .obs['_local_l_mean']
+            per batch library size mean
+        .obs['_local_l_var']
+            per batch library size variance
+        .obs['_scvi_labels']
+            labels encoded as integers
+        .obs['_scvi_batch']
+            batch encoded as integers
+        """
+        return _setup_anndata(
+            adata,
+            batch_key=batch_key,
+            layer=layer,
+            copy=copy,
+        )

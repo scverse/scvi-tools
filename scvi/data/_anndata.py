@@ -82,34 +82,6 @@ def setup_anndata(
     copy: bool = False,
 ) -> Optional[anndata.AnnData]:
     """
-    Forwards to the internal implementation of _setup_anndata.
-    This will eventually be deprecated in favor of static setup_anndata methods on the relevant model classes.
-    """
-    return _setup_anndata(
-        adata,
-        batch_key,
-        labels_key,
-        layer,
-        protein_expression_obsm_key,
-        protein_names_uns_key,
-        categorical_covariate_keys,
-        continuous_covariate_keys,
-        copy,
-    )
-
-
-def _setup_anndata(
-    adata: anndata.AnnData,
-    batch_key: Optional[str] = None,
-    labels_key: Optional[str] = None,
-    layer: Optional[str] = None,
-    protein_expression_obsm_key: Optional[str] = None,
-    protein_names_uns_key: Optional[str] = None,
-    categorical_covariate_keys: Optional[List[str]] = None,
-    continuous_covariate_keys: Optional[List[str]] = None,
-    copy: bool = False,
-) -> Optional[anndata.AnnData]:
-    """
     Sets up :class:`~anndata.AnnData` object for models.
 
     A mapping will be created between data fields used by models to their respective locations in adata.
@@ -194,6 +166,30 @@ def _setup_anndata(
     INFO      Registered keys:['X', 'batch_indices', 'labels', 'protein_expression']
     INFO      Successfully registered anndata object containing 400 cells, 100 vars, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
     """
+    return _setup_anndata(
+        adata,
+        batch_key,
+        labels_key,
+        layer,
+        protein_expression_obsm_key,
+        protein_names_uns_key,
+        categorical_covariate_keys,
+        continuous_covariate_keys,
+        copy,
+    )
+
+
+def _setup_anndata(
+    adata: anndata.AnnData,
+    batch_key: Optional[str] = None,
+    labels_key: Optional[str] = None,
+    layer: Optional[str] = None,
+    protein_expression_obsm_key: Optional[str] = None,
+    protein_names_uns_key: Optional[str] = None,
+    categorical_covariate_keys: Optional[List[str]] = None,
+    continuous_covariate_keys: Optional[List[str]] = None,
+    copy: bool = False,
+) -> Optional[anndata.AnnData]:
     if copy:
         adata = adata.copy()
 
