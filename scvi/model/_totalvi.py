@@ -2,7 +2,7 @@ import logging
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Dict, Iterable, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -14,6 +14,7 @@ from scvi._compat import Literal
 from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.data import get_from_registry
+from scvi.data._anndata import _setup_anndata
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
@@ -1036,6 +1037,73 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             b_mean = inference_outputs["py_"]["rate_back"]
             background_mean += [b_mean.cpu().numpy()]
         return np.concatenate(background_mean)
+
+    @staticmethod
+    def setup_anndata(
+        adata: AnnData,
+        batch_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        protein_expression_obsm_key: Optional[str] = None,
+        protein_names_uns_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        Sets up the :class:`~anndata.AnnData` object for this model.
+
+        A mapping will be created between data fields used by this model to their respective locations in adata.
+        This method will also compute the log mean and log variance per batch for the library size prior.
+
+        None of the data in adata are modified. Only adds fields to adata.
+
+        Parameters
+        ----------
+        adata
+            AnnData object containing raw counts. Rows represent cells, columns represent features.
+        batch_key
+            key in `adata.obs` for batch information. Categories will automatically be converted into integer
+            categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data.
+        layer
+            if not `None`, uses this as the key in `adata.layers` for raw count data.
+        protein_expression_obsm_key
+            key in `adata.obsm` for protein expression data.
+        protein_names_uns_key
+            key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
+            if it is a DataFrame, else will assign sequential names to proteins.
+        categorical_covariate_keys
+            keys in `adata.obs` that correspond to categorical data.
+        continuous_covariate_keys
+            keys in `adata.obs` that correspond to continuous data.
+        copy
+            if `True`, a copy of adata is returned.
+
+        Returns
+        -------
+        If ``copy``,  will return :class:`~anndata.AnnData`.
+        Adds the following fields to adata:
+
+        .uns['_scvi']
+            `scvi` setup dictionary
+        .obs['_local_l_mean']
+            per batch library size mean
+        .obs['_local_l_var']
+            per batch library size variance
+        .obs['_scvi_labels']
+            labels encoded as integers
+        .obs['_scvi_batch']
+            batch encoded as integers
+        """
+        return _setup_anndata(
+            adata,
+            batch_key=batch_key,
+            layer=layer,
+            protein_expression_obsm_key=protein_expression_obsm_key,
+            protein_names_uns_key=protein_names_uns_key,
+            categorical_covariate_keys=categorical_covariate_keys,
+            continuous_covariate_keys=continuous_covariate_keys,
+            copy=copy,
+        )
 
 
 def _get_totalvi_protein_priors(adata, n_cells=100):

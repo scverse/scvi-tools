@@ -11,7 +11,7 @@ from anndata import AnnData
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
-from scvi.data._anndata import get_from_registry, _setup_anndata, transfer_anndata_setup
+from scvi.data._anndata import _setup_anndata, get_from_registry, transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
@@ -387,6 +387,51 @@ class SOLO(BaseModelClass):
             preds_df = preds_df.idxmax(axis=1)
 
         return preds_df
+
+    @staticmethod
+    def setup_anndata(
+        adata: AnnData,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        Sets up the :class:`~anndata.AnnData` object for this model.
+
+        A mapping will be created between data fields used by this model to their respective locations in adata.
+        This method will also compute the log mean and log variance per batch for the library size prior.
+
+        None of the data in adata are modified. Only adds fields to adata.
+
+        Parameters
+        ----------
+        adata
+            AnnData object containing raw counts. Rows represent cells, columns represent features.
+        layer
+            if not `None`, uses this as the key in `adata.layers` for raw count data.
+        copy
+            if `True`, a copy of adata is returned.
+
+        Returns
+        -------
+        If ``copy``,  will return :class:`~anndata.AnnData`.
+        Adds the following fields to adata:
+
+        .uns['_scvi']
+            `scvi` setup dictionary
+        .obs['_local_l_mean']
+            per batch library size mean
+        .obs['_local_l_var']
+            per batch library size variance
+        .obs['_scvi_labels']
+            labels encoded as integers
+        .obs['_scvi_batch']
+            batch encoded as integers
+        """
+        return _setup_anndata(
+            adata,
+            layer=layer,
+            copy=copy,
+        )
 
 
 def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):

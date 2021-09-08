@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -11,6 +11,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import scvi
 from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
@@ -217,6 +218,64 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             **kwargs,
         )
         return runner()
+
+    @staticmethod
+    def setup_anndata(
+        adata: AnnData,
+        batch_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        Sets up the :class:`~anndata.AnnData` object for this model.
+
+        A mapping will be created between data fields used by this model to their respective locations in adata.
+        This method will also compute the log mean and log variance per batch for the library size prior.
+
+        None of the data in adata are modified. Only adds fields to adata.
+
+        Parameters
+        ----------
+        adata
+            AnnData object containing raw counts. Rows represent cells, columns represent features.
+        batch_key
+            key in `adata.obs` for batch information. Categories will automatically be converted into integer
+            categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data.
+        layer
+            if not `None`, uses this as the key in `adata.layers` for raw count data.
+        categorical_covariate_keys
+            keys in `adata.obs` that correspond to categorical data.
+        continuous_covariate_keys
+            keys in `adata.obs` that correspond to continuous data.
+        copy
+            if `True`, a copy of adata is returned.
+
+        Returns
+        -------
+        If ``copy``,  will return :class:`~anndata.AnnData`.
+        Adds the following fields to adata:
+
+        .uns['_scvi']
+            `scvi` setup dictionary
+        .obs['_local_l_mean']
+            per batch library size mean
+        .obs['_local_l_var']
+            per batch library size variance
+        .obs['_scvi_labels']
+            labels encoded as integers
+        .obs['_scvi_batch']
+            batch encoded as integers
+        """
+        return _setup_anndata(
+            adata,
+            batch_key=batch_key,
+            layer=layer,
+            categorical_covariate_keys=categorical_covariate_keys,
+            continuous_covariate_keys=continuous_covariate_keys,
+            copy=copy,
+        )
 
 
 class ClampCallback(Callback):
