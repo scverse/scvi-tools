@@ -36,7 +36,9 @@ from scvi.train import TrainingPlan, TrainRunner
 def test_scvi(save_path):
     n_latent = 5
     adata = synthetic_iid()
-    model = SCVI(adata, n_latent=n_latent, use_observed_lib_size=False)
+
+    # Test with observed lib size.
+    model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     model = SCVI(
@@ -544,6 +546,25 @@ def test_autozi():
         autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
         autozivae.get_alphas_betas()
 
+    # Model library size.
+    for disp_zi in ["gene", "gene-label"]:
+        autozivae = AUTOZI(
+            data,
+            dispersion=disp_zi,
+            zero_inflation=disp_zi,
+            use_observed_lib_size=False,
+        )
+        autozivae.train(1, plan_kwargs=dict(lr=1e-2), check_val_every_n_epoch=1)
+        assert hasattr(autozivae.module, "library_log_means") and hasattr(
+            autozivae.module, "library_log_vars"
+        )
+        assert len(autozivae.history["elbo_train"]) == 1
+        assert len(autozivae.history["elbo_validation"]) == 1
+        autozivae.get_elbo(indices=autozivae.validation_indices)
+        autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
+        autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
+        autozivae.get_alphas_betas()
+
 
 def test_totalvi(save_path):
     adata = synthetic_iid()
@@ -552,7 +573,7 @@ def test_totalvi(save_path):
     n_proteins = adata.obsm["protein_expression"].shape[1]
     n_latent = 10
 
-    model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
+    model = TOTALVI(adata, n_latent=n_latent)
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     z = model.get_latent_representation()
@@ -606,7 +627,6 @@ def test_totalvi(save_path):
     assert pro_foreground_prob.shape == (3, 2)
     model.posterior_predictive_sample(adata2)
     model.get_feature_correlation_matrix(adata2)
-    # model.get_likelihood_parameters(adata2)
 
     # test transfer_anndata_setup + view
     adata2 = synthetic_iid(run_setup_anndata=False)
@@ -652,6 +672,125 @@ def test_totalvi(save_path):
     # test with missing proteins
     adata = scvi.data.pbmcs_10x_cite_seq(save_path=save_path, protein_join="outer")
     model = TOTALVI(adata)
+    assert model.module.protein_batch_mask is not None
+    model.train(1, train_size=0.5)
+
+
+def test_totalvi_model_library_size(save_path):
+    adata = synthetic_iid()
+    n_obs = adata.n_obs
+    n_vars = adata.n_vars
+    n_proteins = adata.obsm["protein_expression"].shape[1]
+    n_latent = 10
+
+    model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
+    assert hasattr(model.module, "library_log_means") and hasattr(
+        model.module, "library_log_vars"
+    )
+    model.train(1, train_size=0.5)
+    assert model.is_trained is True
+    z = model.get_latent_representation()
+    assert z.shape == (n_obs, n_latent)
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_reconstruction_error()
+    model.get_normalized_expression()
+    model.get_normalized_expression(transform_batch=["batch_0", "batch_1"])
+    model.get_latent_library_size()
+    model.get_protein_foreground_probability()
+    model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
+    post_pred = model.posterior_predictive_sample(n_samples=2)
+    assert post_pred.shape == (n_obs, n_vars + n_proteins, 2)
+    post_pred = model.posterior_predictive_sample(n_samples=1)
+    assert post_pred.shape == (n_obs, n_vars + n_proteins)
+    feature_correlation_matrix1 = model.get_feature_correlation_matrix(
+        correlation_type="spearman"
+    )
+    feature_correlation_matrix1 = model.get_feature_correlation_matrix(
+        correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
+    )
+    feature_correlation_matrix2 = model.get_feature_correlation_matrix(
+        correlation_type="pearson"
+    )
+    assert feature_correlation_matrix1.shape == (
+        n_vars + n_proteins,
+        n_vars + n_proteins,
+    )
+    assert feature_correlation_matrix2.shape == (
+        n_vars + n_proteins,
+        n_vars + n_proteins,
+    )
+
+    model.get_elbo(indices=model.validation_indices)
+    model.get_marginal_ll(indices=model.validation_indices, n_mc_samples=3)
+    model.get_reconstruction_error(indices=model.validation_indices)
+
+    adata2 = synthetic_iid()
+    norm_exp = model.get_normalized_expression(adata2, indices=[1, 2, 3])
+    assert norm_exp[0].shape == (3, adata2.n_vars)
+    assert norm_exp[1].shape == (3, adata2.obsm["protein_expression"].shape[1])
+
+    latent_lib_size = model.get_latent_library_size(adata2, indices=[1, 2, 3])
+    assert latent_lib_size.shape == (3, 1)
+
+    pro_foreground_prob = model.get_protein_foreground_probability(
+        adata2, indices=[1, 2, 3], protein_list=["1", "2"]
+    )
+    assert pro_foreground_prob.shape == (3, 2)
+    model.posterior_predictive_sample(adata2)
+    model.get_feature_correlation_matrix(adata2)
+    # model.get_likelihood_parameters(adata2)
+
+    # test transfer_anndata_setup + view
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    transfer_anndata_setup(adata, adata2)
+    model.get_elbo(adata2[:10])
+
+    # test automatic transfer_anndata_setup
+    adata = synthetic_iid()
+    model = TOTALVI(adata, use_observed_lib_size=False)
+    assert hasattr(model.module, "library_log_means") and hasattr(
+        model.module, "library_log_vars"
+    )
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    model.get_elbo(adata2)
+
+    # test that we catch incorrect mappings
+    adata = synthetic_iid()
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    transfer_anndata_setup(adata, adata2)
+    adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
+        ["label_1", "label_0", "label_8"]
+    )
+    with pytest.raises(ValueError):
+        model.get_elbo(adata2)
+
+    # test that same mapping different order is okay
+    adata = synthetic_iid()
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    transfer_anndata_setup(adata, adata2)
+    adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
+        ["label_1", "label_0", "label_2"]
+    )
+    model.get_elbo(adata2)  # should automatically transfer setup
+
+    # test that we catch missing proteins
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    del adata2.obsm["protein_expression"]
+    with pytest.raises(KeyError):
+        model.get_elbo(adata2)
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(idx1=[0, 1, 2])
+    model.differential_expression(groupby="labels")
+
+    # test with missing proteins
+    adata = scvi.data.pbmcs_10x_cite_seq(save_path=save_path, protein_join="outer")
+    model = TOTALVI(adata, use_observed_lib_size=False)
+    assert hasattr(model.module, "library_log_means") and hasattr(
+        model.module, "library_log_vars"
+    )
     assert model.module.protein_batch_mask is not None
     model.train(1, train_size=0.5)
 

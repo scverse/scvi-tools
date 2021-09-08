@@ -63,14 +63,14 @@ class AutoZIVAE(VAE):
         beta_prior: Optional[float] = 0.5,
         minimal_dropout: float = 0.01,
         zero_inflation: str = "gene",
-        **args,
+        **kwargs,
     ) -> None:
-        if "reconstruction_loss" in args:
+        if "reconstruction_loss" in kwargs:
             raise ValueError(
                 "No reconstruction loss must be specified for AutoZI : it is 'autozinb'."
             )
 
-        super().__init__(n_input, **args)
+        super().__init__(n_input, **kwargs)
         self.zero_inflation = zero_inflation
         self.reconstruction_loss = "autozinb"
         self.minimal_dropout = minimal_dropout
