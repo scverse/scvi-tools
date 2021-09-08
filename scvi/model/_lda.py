@@ -1,9 +1,15 @@
 import logging
+import warnings
 from typing import Optional
 
 import numpy as np
+import pandas as pd
+import pyro
+import torch
 from anndata import AnnData
 
+from scvi._constants import _CONSTANTS
+from scvi.data._anndata import get_from_registry
 from scvi.module import LDAPyroModule
 
 from .base import BaseModelClass, PyroSviTrainMixin
@@ -20,6 +26,9 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         cell_component_prior: Optional[np.ndarray] = None,
         component_gene_prior: Optional[np.ndarray] = None,
     ):
+        # in case any other model was created before that shares the same parameter names.
+        pyro.clear_param_store()
+
         super().__init__(adata)
 
         self.module = LDAPyroModule(
@@ -28,4 +37,38 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
             n_hidden=n_hidden,
             cell_component_prior=cell_component_prior,
             component_gene_prior=component_gene_prior,
+        )
+
+    def _check_var_equality(self, adata: AnnData):
+        source_var_names = self.adata.var_names.astype(str)
+        user_var_names = adata.var_names.astype(str)
+        if not np.array_equal(user_var_names, source_var_names):
+            raise ValueError(
+                "`adata` passed into `transform` does not have matching var_names "
+                "with the source adata the model was trained with."
+            )
+
+    def get_components(self) -> np.ndarray:
+        if self.is_trained_ is False:
+            warnings.warn(
+                "Trying to query inferred values from an untrained model. Please train the model first."
+            )
+
+        return self.module.components.numpy()
+
+    def transform(self, adata: Optional[AnnData] = None) -> pd.DataFrame:
+        if adata is not None:
+            self._check_var_equality(adata)
+        user_adata = adata or self.adata
+        transformed_X = self.module.transform(
+            torch.from_numpy(get_from_registry(user_adata, _CONSTANTS.X_KEY))
+        ).numpy()
+        return pd.DataFrame(data=transformed_X, index=user_adata.obs_names)
+
+    def perplexity(self, adata: Optional[AnnData] = None) -> float:
+        if adata is not None:
+            self._check_var_equality(adata)
+        user_adata = adata or self.adata
+        return self.module.perplexity(
+            torch.from_numpy(get_from_registry(user_adata, _CONSTANTS.X_KEY))
         )

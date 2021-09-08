@@ -6,11 +6,15 @@ import pyro.distributions as dist
 import torch
 import torch.nn as nn
 from pyro.nn import PyroModule
+from scipy.special import gammaln, logsumexp, psi
 from torch.distributions import constraints
 
 from scvi._constants import _CONSTANTS
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import FCLayers
+
+_LDA_PYRO_MODULE_NAME = "lda"
+_COMPONENT_GENE_POSTERIOR_PARAM = "component_gene_posterior"
 
 
 class LDAPyroModel(PyroModule):
@@ -21,7 +25,7 @@ class LDAPyroModel(PyroModule):
         cell_component_prior: torch.Tensor,
         component_gene_prior: torch.Tensor,
     ):
-        super().__init__()
+        super().__init__(_LDA_PYRO_MODULE_NAME)
 
         self.n_input = n_input
         self.n_components = n_components
@@ -81,7 +85,7 @@ class CellComponentDistPriorEncoder(nn.Module):
 
 class LDAPyroGuide(PyroModule):
     def __init__(self, n_input: int, n_components: int, n_hidden: int):
-        super().__init__()
+        super().__init__(_LDA_PYRO_MODULE_NAME)
 
         self.n_input = n_input
         self.n_components = n_components
@@ -92,15 +96,13 @@ class LDAPyroGuide(PyroModule):
     @auto_move_data
     def forward(self, x: torch.Tensor, _library: torch.Tensor):
         # Component gene distributions.
-        component_gene_dist_posterior = pyro.param(
-            "component_gene_dist_posterior",
+        component_gene_posterior = pyro.param(
+            _COMPONENT_GENE_POSTERIOR_PARAM,
             lambda: x.new_ones(self.n_components, self.n_input),
             constraint=constraints.greater_than(0.5),
         )
         with pyro.plate("components", self.n_components):
-            pyro.sample(
-                "component_gene_dist", dist.Dirichlet(component_gene_dist_posterior)
-            )
+            pyro.sample("component_gene_dist", dist.Dirichlet(component_gene_posterior))
 
         # Cell component distributions guide.
         with pyro.plate("cells", x.shape[0]):
@@ -149,3 +151,70 @@ class LDAPyroModule(PyroBaseModuleClass):
     @property
     def guide(self):
         return self._guide
+
+    @property
+    def components(self) -> torch.Tensor:
+        # components x genes
+        param_store = pyro.get_param_store()
+        return param_store.get_param(_COMPONENT_GENE_POSTERIOR_PARAM).detach().cpu()
+
+    @auto_move_data
+    @torch.no_grad()
+    def _unnormalized_transform(self, x: torch.Tensor) -> torch.Tensor:
+        return self.guide.encoder(x).detach().cpu()
+
+    def transform(self, x: torch.Tensor) -> torch.Tensor:
+        # cells x components
+        cell_component_unnormalized_dist = self._unnormalized_transform(x)
+        return (
+            cell_component_unnormalized_dist
+            / cell_component_unnormalized_dist.sum(axis=1)[:, np.newaxis]
+        )
+
+    def perplexity(self, x: torch.Tensor) -> float:
+        # Based off of https://github.com/scikit-learn/scikit-learn/blob/2beed5584/sklearn/decomposition/_lda.py#L815
+
+        def dirichlet_log_coef(dirichlet_dist: np.ndarray) -> np.ndarray:
+            return (
+                psi(dirichlet_dist) - psi(np.sum(dirichlet_dist, axis=1))[:, np.newaxis]
+            )
+
+        def dirichlet_ll(prior: torch.Tensor, dist: torch.Tensor, size: int) -> float:
+            prior, dist = prior.numpy(), dist.numpy()
+            score = np.sum((prior - dist) * dirichlet_log_coef(dist))
+            score += np.sum(
+                gammaln(dist) - gammaln(np.sum(dist, axis=1))[:, np.newaxis]
+            )
+            score -= np.sum(gammaln(prior) - gammaln(prior * size))
+            return score
+
+        counts = x.numpy()
+        total_count = counts.sum()
+        score = 0.0
+        cell_component_posterior = self._unnormalized_transform(x)
+
+        # E[log p(cells | cell_component_dist, components)]
+        cell_component_posterior_log_coef = dirichlet_log_coef(
+            cell_component_posterior.numpy()
+        )
+        components_log_coef = dirichlet_log_coef(self.components.numpy())
+        norm_phi = logsumexp(
+            np.repeat(
+                cell_component_posterior_log_coef[:, :, np.newaxis],
+                self.n_input,
+                axis=2,
+            )
+            + components_log_coef,
+            axis=1,
+        )
+        score += np.sum(counts * norm_phi)
+
+        # E[log p(cell_component_dist | cell_component_prior) - log q(cell_component_dist | cell_component_posterior)]
+        score += dirichlet_ll(
+            self.cell_component_prior, cell_component_posterior, self.n_components
+        )
+
+        # E[log p(components | component_gene_prior) - log q(components | component_gene_posterior)]
+        score += dirichlet_ll(self.component_gene_prior, self.components, self.n_input)
+
+        return np.exp(-1.0 * score / total_count)

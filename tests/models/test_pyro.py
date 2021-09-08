@@ -381,11 +381,25 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
 
 def test_lda_model():
     use_gpu = torch.cuda.is_available()
+    n_topics = 5
     adata = synthetic_iid()
-    mod = LDA(adata)
+    mod = LDA(adata, n_components=n_topics)
     mod.train(
-        max_epochs=2,
+        max_epochs=100,
         batch_size=None,
         lr=0.01,
         use_gpu=use_gpu,
     )
+    mod.get_components()
+    adata_lda = mod.transform(adata).to_numpy()
+    assert adata_lda.shape == (adata.n_obs, n_topics) and np.all(
+        (adata_lda <= 1) & (adata_lda >= 0)
+    )
+    mod.perplexity()
+
+    adata2 = synthetic_iid()
+    adata2_lda = mod.transform(adata2).to_numpy()
+    assert adata2_lda.shape == (adata2.n_obs, n_topics) and np.all(
+        (adata2_lda <= 1) & (adata2_lda >= 0)
+    )
+    mod.perplexity(adata2)
