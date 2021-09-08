@@ -683,31 +683,37 @@ class TOTALVAE(BaseModuleClass):
             reconst_loss_protein = reconst_loss["reconst_loss_protein"]
 
             # Log-probabilities
-            n_batch = self.library_log_means.shape[1]
-            local_library_log_means = F.linear(
-                one_hot(batch_index, n_batch), self.library_log_means
-            )
-            local_library_log_vars = F.linear(
-                one_hot(batch_index, n_batch), self.library_log_vars
-            )
-            p_l_gene = (
-                Normal(local_library_log_means, local_library_log_vars.sqrt())
-                .log_prob(log_library)
-                .sum(dim=-1)
-            )
+            log_prob_sum = torch.zeros(qz_m.shape[0]).to(self.device)
+
+            if not self.use_observed_lib_size:
+                n_batch = self.library_log_means.shape[1]
+                local_library_log_means = F.linear(
+                    one_hot(batch_index, n_batch), self.library_log_means
+                )
+                local_library_log_vars = F.linear(
+                    one_hot(batch_index, n_batch), self.library_log_vars
+                )
+                p_l_gene = (
+                    Normal(local_library_log_means, local_library_log_vars.sqrt())
+                    .log_prob(log_library)
+                    .sum(dim=-1)
+                )
+                q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(log_library).sum(dim=-1)
+
+                log_prob_sum += p_l_gene - q_l_x
+
             p_z = Normal(0, 1).log_prob(z).sum(dim=-1)
             p_mu_back = self.back_mean_prior.log_prob(log_pro_back_mean).sum(dim=-1)
             p_xy_zl = -(reconst_loss_gene + reconst_loss_protein)
             q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-            q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(log_library).sum(dim=-1)
             q_mu_back = (
                 Normal(py_["back_alpha"], py_["back_beta"])
                 .log_prob(log_pro_back_mean)
                 .sum(dim=-1)
             )
-            to_sum[:, i] = (
-                p_z + p_l_gene + p_mu_back + p_xy_zl - q_z_x - q_l_x - q_mu_back
-            )
+            log_prob_sum += p_z + p_mu_back + p_xy_zl - q_z_x - q_mu_back
+
+            to_sum[:, i] = log_prob_sum
 
         batch_log_lkl = torch.logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
         log_lkl = torch.sum(batch_log_lkl).item()
