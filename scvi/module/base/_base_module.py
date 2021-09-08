@@ -91,6 +91,13 @@ class BaseModuleClass(nn.Module):
     ):
         super().__init__()
 
+    @property
+    def device(self):
+        device = list(set(p.device for p in self.parameters()))
+        if len(device) > 1:
+            raise RuntimeError("Module tensors on multiple devices.")
+        return device[0]
+
     @auto_move_data
     def forward(
         self,

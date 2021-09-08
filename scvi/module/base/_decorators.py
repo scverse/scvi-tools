@@ -33,7 +33,7 @@ def auto_move_data(fn: Callable) -> Callable:
 
         device = list(set(p.device for p in self.parameters()))
         if len(device) > 1:
-            raise RuntimeError("Model tensors on multiple devices.")
+            raise RuntimeError("Module tensors on multiple devices.")
         else:
             device = device[0]
         args = _move_data_to_device(args, device)

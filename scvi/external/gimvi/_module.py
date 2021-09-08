@@ -39,6 +39,12 @@ class JVAE(BaseModuleClass):
         list of distributions to use in the generative process 'zinb', 'nb', 'poisson'
     model_library_bools bool list
         model or not library size with a latent variable or use observed values
+    library_log_means np.ndarray list
+        List of 1 x n_batch array of means of the log library sizes.
+        Parameterizes prior on library size if not using observed library sizes.
+    library_log_vars np.ndarray list
+        List of 1 x n_batch array of variances of the log library sizes.
+        Parameterizes prior on library size if not using observed library sizes.
     n_latent
         dimension of latent space
     n_layers_encoder_individual
@@ -77,6 +83,8 @@ class JVAE(BaseModuleClass):
         indices_mappings: List[Union[np.ndarray, slice]],
         gene_likelihoods: List[str],
         model_library_bools: List[bool],
+        library_log_means: List[Optional[np.ndarray]],
+        library_log_vars: List[Optional[np.ndarray]],
         n_latent: int = 10,
         n_layers_encoder_individual: int = 1,
         n_layers_encoder_shared: int = 1,
@@ -99,6 +107,16 @@ class JVAE(BaseModuleClass):
         self.indices_mappings = indices_mappings
         self.gene_likelihoods = gene_likelihoods
         self.model_library_bools = model_library_bools
+        for mode in range(len(dim_input_list)):
+            if self.model_library_bools[mode]:
+                self.register_buffer(
+                    f"library_log_means_{mode}",
+                    torch.from_numpy(library_log_means[mode]).float(),
+                )
+                self.register_buffer(
+                    f"library_log_vars_{mode}",
+                    torch.from_numpy(library_log_vars[mode]).float(),
+                )
 
         self.n_latent = n_latent
 
@@ -408,12 +426,6 @@ class JVAE(BaseModuleClass):
         x
             tensor of values with shape ``(batch_size, n_input)``
             or ``(batch_size, n_input_fish)`` depending on the mode
-        local_l_mean
-            tensor of means of the prior distribution of latent variable l
-            with shape (batch_size, 1)
-        local_l_var
-            tensor of variances of the prior distribution of latent variable l
-            with shape (batch_size, 1)
         batch_index
             array that indicates which batch the cells belong to with shape ``batch_size``
         y
@@ -433,8 +445,7 @@ class JVAE(BaseModuleClass):
             else:
                 raise Exception("Must provide a mode")
         x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]
@@ -462,9 +473,18 @@ class JVAE(BaseModuleClass):
         )
 
         if self.model_library_bools[mode]:
+            library_log_means = getattr(self, f"library_log_means_{mode}")
+            library_log_vars = getattr(self, f"library_log_vars_{mode}")
+
+            local_library_log_means = F.linear(
+                one_hot(batch_index, self.n_batch), library_log_means
+            )
+            local_library_log_vars = F.linear(
+                one_hot(batch_index, self.n_batch), library_log_vars
+            )
             kl_divergence_l = kl(
                 Normal(ql_m, torch.sqrt(ql_v)),
-                Normal(local_l_mean, torch.sqrt(local_l_var)),
+                Normal(local_library_log_means, local_library_log_vars.sqrt()),
             ).sum(dim=1)
         else:
             kl_divergence_l = torch.zeros_like(kl_divergence_z)
