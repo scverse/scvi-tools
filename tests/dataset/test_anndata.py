@@ -101,7 +101,7 @@ def test_transfer_anndata_setup():
     a1 = scvi.data.synthetic_iid()
     a2 = scvi.data.synthetic_iid(run_setup_anndata=False)
     a2.obs["batch"] = "batch_1"
-    scvi.data._setup_anndata(a2, batch_key="batch")
+    _setup_anndata(a2, batch_key="batch")
     m = scvi.model.SCVI(a1)
     m.train(1)
     m.get_latent_representation(a2)
