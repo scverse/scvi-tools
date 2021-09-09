@@ -5,6 +5,7 @@ import pyro
 import pyro.distributions as dist
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from pyro.nn import PyroModule
 from scipy.special import gammaln, logsumexp, psi
 from torch.distributions import constraints
@@ -80,7 +81,7 @@ class CellComponentDistPriorEncoder(nn.Module):
 
     @auto_move_data
     def forward(self, x: torch.Tensor):
-        return (0.5 * self.encoder(x)).exp()
+        return F.softplus(self.encoder(x))
 
 
 class LDAPyroGuide(PyroModule):
