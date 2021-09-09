@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Union
 
 import numpy as np
-import torch
 import pytorch_lightning as pl
+import torch
 from rich.console import Console
 from rich.logging import RichHandler
 
