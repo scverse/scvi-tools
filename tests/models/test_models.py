@@ -36,9 +36,13 @@ from scvi.train import TrainingPlan, TrainRunner
 
 def test_scvi(save_path):
     n_latent = 5
-    adata = synthetic_iid()
-
     # Test with observed lib size.
+    adata = synthetic_iid(run_setup_anndata=False)
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
@@ -471,7 +475,12 @@ def test_semisupervised_data_splitter():
 
 
 def test_scanvi(save_path):
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
+    SCANVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = SCANVI(adata, "label_0", n_latent=10)
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     logged_keys = model.history.keys()
