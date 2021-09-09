@@ -2,7 +2,7 @@
 Variational Inference
 ==============================
 
-Suppose we have data :math:`x` that we assume are generated via latent variables :math:`z`. In the case of a simplified :class:`scvi.model.SCVI` the data would
+Suppose we have data :math:`x` that we assume are generated via latent variables :math:`z`. In the case of a simplified :class:`scvi.model.SCVI`, the data would
 be gene expression counts and the latent variable would be the low-dimensional representation that corresponds to cellular state.
 
 For many interesting models, including all the models in this package, the posterior distribution of :math:`z`
@@ -29,8 +29,8 @@ Approximating the posterior
 
 With variational inference [#ref1]_, we cast the problem of finding the posterior distribution into an optimization problem by minimizing the KL divergence
 between an approximate posterior distribution :math:`q` that belongs to some *family* of approximate densities
-:math:`Q` and the true posterior. As an example, if :math:`Q` is the family of multivariate Gaussians, then we would like to find the optimal
-mean and covariance matrix.
+:math:`Q` and the true posterior. As an example, if :math:`Q` is the family of multivariate Gaussians, then we would like to find the a
+mean and covariance matrix that best approximate the true posterior.
 
 .. figure:: figures/vi_projection.svg
    :class: img-fluid
@@ -45,10 +45,10 @@ Using Bayes Rule, we may rewrite this problem into something we can actually com
    :nowrap:
 
     \begin{align}
-        q^\star &= \mathop{\arg \min}_{q \in Q} \mathrm{KL}(\,q(z)\, \| \,p(z \mid x)\,)\\
-        &= \mathop{\arg \min}_{q \in Q} \mathbb E_{q} \left[  \log q(z) - \log p(z \mid x) \right]\\
-        &= \mathop{\arg \min}_{q \in Q} \mathbb E_{q} \left[ \log q(z) - \log p(z, x) \right] + \log p(x)\\
-        &= \mathop{\arg \min}_{q \in Q} \mathbb E_{q} \left[ \log q(z) - \log p(z, x) \right].
+        q^\star &= \mathop{\arg \min}_{q \in Q} \; \mathrm{KL}(\,q(z)\, \| \,p(z \mid x)\,)\\
+        &= \mathop{\arg \min}_{q \in Q} \; \mathbb E_{q} \left[  \log q(z) - \log p(z \mid x) \right]\\
+        &= \mathop{\arg \min}_{q \in Q} \; \mathbb E_{q} \left[ \log q(z) - \log p(z, x) \right] + \log p(x)\\
+        &= \mathop{\arg \min}_{q \in Q} \; \mathbb E_{q} \left[ \log q(z) - \log p(z, x) \right].
     \end{align}
 
 
@@ -58,7 +58,7 @@ Manipulation of the last line allows us to rewrite the optimization problem as
    :nowrap:
 
     \begin{align}
-        q^\star &= \mathop{\arg \max}_{q \in Q} \mathbb E_{q} \left[\log p(x \mid z)\right] -  \mathrm{KL}(\,q(z)\, \| \,p(z)\,)
+        q^\star &= \mathop{\arg \max}_{q \in Q} \; \mathbb E_{q} \left[\log p(x \mid z)\right] -  \mathrm{KL}(\,q(z)\, \| \,p(z)\,)
     \end{align}
 
 where the first term is often called the "reconstruction error" and the second term as the KL divergence or "regularizer". Presenting the problem this way reveals that
@@ -69,8 +69,8 @@ End to end learning
 =====================
 
 So far we have an optimization problem that enables us to learn an approximation of the true posterior.
-It is often also the case that we have model parameters :math:`\theta` such that we can write the
-probability of the data as :math:`p_\theta(x)`. In addition, :math:`\theta` may be unknown.
+It is often also the case that we have model parameters :math:`\theta`, which may be unknown, such that we can write the
+probability of the data as :math:`p_\theta(x)`.
 In the case of scVI, :math:`\theta` would include the parameters of the decoder neural networks.
 
 

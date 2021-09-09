@@ -83,7 +83,7 @@ Initialization
 CellAssign initializes parameters as follows:  :math:`\delta_{gc}` is initialized with a :math:`\textrm{LogNormal}(0, 1)`
 draw, :math:`\bar{\delta}` is initialized to 0, :math:`\sigma^2` is initialized to 1, :math:`\pi_i` is
 initialized to :math:`1/C`, :math:`\beta_{gi}` is initialized with a :math:`\mathcal{N}(0, 1)` draw,
-and the inverse dispersion parameter :math:`\log a_i` is initialized to zero. Additionally, :math:`b` is fixed a priori to be
+and the inverse dispersion parameter :math:`\log a_i` is initialized to 0. Additionally, :math:`b` is fixed a priori to be
 
 .. math::
     b = \frac{1}{2(v_2 - v_1)^2}, \tag{7}
@@ -137,7 +137,7 @@ Tasks
 Cell type prediction
 ---------------------
 
-The primary task of CellAssign is to predict cell types for each cell. This is accomplised by::
+The primary task of CellAssign is to predict cell types for each cell. This is accomplished by::
 
     >>> model = CellAssign(adata, marker_gene_matrix, size_factor_key='size_factor')
     >>> model.train()
