@@ -10,7 +10,7 @@ such that CellAssign will scale to very large datasets.
 
 The advantages of CellAssign are:
 
-    + Efficiency.
+    + Lightweight model that can be fit quickly.
 
     + Ability to control for nuisance factors.
 
@@ -75,7 +75,7 @@ further described below.
 
 Inference
 ========================
-CellAssign uses expectation maximization (EM), which optimizes its parameters and provides a cell-type prediction for each cell.
+CellAssign uses expectation maximization (EM) to optimize its parameters and provides a cell-type prediction for each cell.
 
 Initialization
 --------------
