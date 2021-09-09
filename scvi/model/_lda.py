@@ -23,8 +23,8 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         adata: AnnData,
         n_components: int = 20,
         n_hidden: int = 128,
-        cell_component_prior: Optional[np.ndarray] = None,
-        component_gene_prior: Optional[np.ndarray] = None,
+        cell_component_prior: Optional[float] = None,
+        component_gene_prior: Optional[float] = None,
     ):
         # in case any other model was created before that shares the same parameter names.
         pyro.clear_param_store()
@@ -55,7 +55,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
             )
 
         return pd.DataFrame(
-            data=self.module.components.numpy(), index=self.adata.obs_names
+            data=self.module.components.numpy(), columns=self.adata.var_names
         )
 
     def transform(self, adata: Optional[AnnData] = None) -> pd.DataFrame:

@@ -23,15 +23,20 @@ class LDAPyroModel(PyroModule):
         self,
         n_input: int,
         n_components: int,
-        cell_component_prior: torch.Tensor,
-        component_gene_prior: torch.Tensor,
+        cell_component_prior: float,
+        component_gene_prior: float,
     ):
         super().__init__(_LDA_PYRO_MODULE_NAME)
 
         self.n_input = n_input
         self.n_components = n_components
-        self.register_buffer("cell_component_prior", cell_component_prior)
-        self.register_buffer("component_gene_prior", component_gene_prior)
+        self.register_buffer(
+            "cell_component_prior",
+            torch.full((self.n_components,), cell_component_prior),
+        )
+        self.register_buffer(
+            "component_gene_prior", torch.full((self.n_input,), component_gene_prior)
+        )
 
     @staticmethod
     def _get_fn_args_from_batch(
@@ -117,8 +122,8 @@ class LDAPyroModule(PyroBaseModuleClass):
         n_input: int,
         n_components: int,
         n_hidden: int,
-        cell_component_prior: Optional[np.ndarray] = None,
-        component_gene_prior: Optional[np.ndarray] = None,
+        cell_component_prior: Optional[float] = None,
+        component_gene_prior: Optional[float] = None,
     ):
         super().__init__()
 
@@ -126,16 +131,8 @@ class LDAPyroModule(PyroBaseModuleClass):
         self.n_components = n_components
         self.n_hidden = n_hidden
 
-        self.cell_component_prior = (
-            torch.from_numpy(cell_component_prior)
-            if cell_component_prior is not None
-            else torch.ones(self.n_components) / self.n_components
-        )
-        self.component_gene_prior = (
-            torch.from_numpy(component_gene_prior)
-            if component_gene_prior is not None
-            else torch.ones(self.n_input) / self.n_input
-        )
+        self.cell_component_prior = cell_component_prior or 1 / self.n_components
+        self.component_gene_prior = component_gene_prior or 1 / self.n_components
         self._model = LDAPyroModel(
             self.n_input,
             self.n_components,
@@ -180,13 +177,11 @@ class LDAPyroModule(PyroBaseModuleClass):
                 psi(dirichlet_dist) - psi(np.sum(dirichlet_dist, axis=1))[:, np.newaxis]
             )
 
-        def dirichlet_ll(prior: torch.Tensor, dist: torch.Tensor, size: int) -> float:
-            prior, dist = prior.numpy(), dist.numpy()
+        def dirichlet_ll(prior: float, dist: torch.Tensor, size: int) -> float:
+            dist = dist.numpy()
             score = np.sum((prior - dist) * dirichlet_log_coef(dist))
-            score += np.sum(
-                gammaln(dist) - gammaln(np.sum(dist, axis=1))[:, np.newaxis]
-            )
-            score -= np.sum(gammaln(prior) - gammaln(prior * size))
+            score += np.sum(gammaln(dist) - gammaln(prior))
+            score += np.sum(gammaln(prior * size) - gammaln(np.sum(dist, axis=1)))
             return score
 
         counts = x.numpy()
