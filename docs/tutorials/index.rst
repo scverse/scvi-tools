@@ -2,12 +2,8 @@ Tutorials
 ==========
 
 The easiest way to get familiar with scvi-tools is to follow along with our tutorials.
-Many are also designed to work seamlessly in Google Colab, a free cloud computing platform. These tutorials have a Colab badge in their introduction. In general, these tutorials are designed to work with the latest installable version of scvi-tools.
-
-To download the tutorials:
-
-1. Follow the Colab link within the tutorial (if available).
-2. Download it with the option in the file menu.
+Many are also designed to work seamlessly in Google Colab, a free cloud computing platform.
+Tutorials are designed to work with the latest installable version of scvi-tools.
 
 .. note:: For questions about using scvi-tools, or broader questions about modeling data, please use our forum_.
 
@@ -27,20 +23,46 @@ Quick start
 User tutorials
 --------------
 
+scRNA-seq
+^^^^^^^^^^
+
 .. nbgallery::
 
-   notebooks/totalVI
    notebooks/harmonization
    notebooks/seed_labeling
    notebooks/linear_decoder
-   notebooks/cite_scrna_integration_w_totalVI
    notebooks/scarches_scvi_tools
-   notebooks/gimvi_tutorial
    notebooks/AutoZI_tutorial
    notebooks/cellassign_tutorial
-   notebooks/DestVI_tutorial
+
+
+ATAC-seq
+^^^^^^^^
+
+.. nbgallery::
+
    notebooks/PeakVI
+
+
+Spatial transcriptomics
+^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. nbgallery::
+
+   notebooks/DestVI_tutorial
+   notebooks/gimvi_tutorial
+
+
+Multimodal
+^^^^^^^^^^^
+
+.. nbgallery::
+
+   notebooks/totalVI
+   notebooks/cite_scrna_integration_w_totalVI
    notebooks/MultiVI_tutorial
+
 
 
 Contributed tutorials
@@ -64,7 +86,8 @@ Here we feature tutorials to guide you through the construction of a model with 
 .. _template: https://github.com/YosefLab/scvi-tools-skeleton
 
 
-.. nbgallery::
+.. toctree::
+   :maxdepth: 1
 
    notebooks/data_tutorial
    notebooks/module_user_guide

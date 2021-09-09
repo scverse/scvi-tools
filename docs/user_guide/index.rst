@@ -33,6 +33,7 @@ scvi-tools hosts implementations of the following models:
     :hidden:
 
     models/scvi
+    models/linearscvi
     models/cellassign
 
 
