@@ -19,6 +19,21 @@ _COMPONENT_GENE_POSTERIOR_PARAM = "component_gene_posterior"
 
 
 class LDAPyroModel(PyroModule):
+    """
+    A PyroModule that serves as the model for the LDAPyroModule class.
+
+    Parameters
+    ----------
+    n_input
+        Number of input genes.
+    n_components
+        Number of components/topics to model.
+    cell_component_prior
+        Prior of cell component distribution.
+    component_gene_prior
+        Prior of component gene distribution.
+    """
+
     def __init__(
         self,
         n_input: int,
@@ -73,6 +88,20 @@ class LDAPyroModel(PyroModule):
 
 
 class CellComponentDistPriorEncoder(nn.Module):
+    """
+    The neural network encoder used in LDAPyroGuide which takes in counts matrices and
+    outputs cell component posterior estimate.
+
+    Parameters
+    ----------
+    n_input
+        Number of input genes.
+    n_components
+        Number of components/topics to model.
+    n_hidden
+        Number of nodes in the hidden layer of the encoder.
+    """
+
     def __init__(self, n_input: int, n_components: int, n_hidden: int):
         super().__init__()
 
@@ -90,6 +119,19 @@ class CellComponentDistPriorEncoder(nn.Module):
 
 
 class LDAPyroGuide(PyroModule):
+    """
+    A PyroModule that serves as the guide for the LDAPyroModule class.
+
+    Parameters
+    ----------
+    n_input
+        Number of input genes.
+    n_components
+        Number of components/topics to model.
+    n_hidden
+        Number of nodes in the hidden layer of the encoder.
+    """
+
     def __init__(self, n_input: int, n_components: int, n_hidden: int):
         super().__init__(_LDA_PYRO_MODULE_NAME)
 
@@ -117,6 +159,25 @@ class LDAPyroGuide(PyroModule):
 
 
 class LDAPyroModule(PyroBaseModuleClass):
+    """
+    Latent Dirichlet Allocation [Blei03]_ implemented in Pyro.
+
+    This model uses auto encoding variational Bayes to optimize the latent variables in the model.
+
+    Parameters
+    ----------
+    n_input
+        Number of input genes.
+    n_components
+        Number of components/topics to model.
+    n_hidden
+        Number of nodes in the hidden layer of the encoder.
+    cell_component_prior
+        Prior of cell component distribution. If `None`, defaults to `1 / n_components`.
+    component_gene_prior
+        Prior of component gene distribution. If `None`, defaults to `1 / n_components`.
+    """
+
     def __init__(
         self,
         n_input: int,
@@ -152,17 +213,37 @@ class LDAPyroModule(PyroBaseModuleClass):
 
     @property
     def components(self) -> torch.Tensor:
-        # components x genes
+        """
+        Gets the component to gene transition matrix from the Pyro parameter store.
+        Assumes the module has already been trained.
+
+        Returns
+        -------
+        A `n_components x n_input` tensor containing the component to gene transition matrix.
+        """
         param_store = pyro.get_param_store()
         return param_store.get_param(_COMPONENT_GENE_POSTERIOR_PARAM).detach().cpu()
 
     @auto_move_data
     @torch.no_grad()
     def _unnormalized_transform(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Converts `x` to its inferred unnormalized component distribution.
+
+        Returns
+        -------
+        A `x.shape[0] x n_components` tensor containing the unnormalized component distribution.
+        """
         return self.guide.encoder(x).detach().cpu()
 
     def transform(self, x: torch.Tensor) -> torch.Tensor:
-        # cells x components
+        """
+        Converts `x` to its inferred normalized component distribution.
+
+        Returns
+        -------
+        A `x.shape[0] x n_components` tensor containing the normalized component distribution.
+        """
         cell_component_unnormalized_dist = self._unnormalized_transform(x)
         return (
             cell_component_unnormalized_dist
@@ -170,7 +251,16 @@ class LDAPyroModule(PyroBaseModuleClass):
         )
 
     def perplexity(self, x: torch.Tensor) -> float:
-        # Based off of https://github.com/scikit-learn/scikit-learn/blob/2beed5584/sklearn/decomposition/_lda.py#L815
+        """
+        Computes the approximate perplexity of the for `x`, where perplexity is defined
+        as exp(-1 * log-likelihood per count).
+
+        Implementation based off of https://github.com/scikit-learn/scikit-learn/blob/2beed5584/sklearn/decomposition/_lda.py
+
+        Returns
+        -------
+        Perplexity as a float.
+        """
 
         def dirichlet_log_coef(dirichlet_dist: np.ndarray) -> np.ndarray:
             return (
