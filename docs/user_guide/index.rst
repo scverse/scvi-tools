@@ -19,6 +19,9 @@ scvi-tools hosts implementations of the following models:
      - [Lopez18]_
      - :class:`~scvi.model.SCVI`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
+   * - :doc:`/user_guide/models/linearscvi`
+     - :class:`~scvi.model.LinearSCVI`
+     - scVI tasks with linear decoder
    * - :doc:`/user_guide/models/cellassign`
      - [Zhang19]_
      - :class:`~scvi.external.CellAssign`
