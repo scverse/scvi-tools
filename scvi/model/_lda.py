@@ -48,13 +48,15 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
                 "with the source adata the model was trained with."
             )
 
-    def get_components(self) -> np.ndarray:
+    def get_components(self) -> pd.DataFrame:
         if self.is_trained_ is False:
             warnings.warn(
                 "Trying to query inferred values from an untrained model. Please train the model first."
             )
 
-        return self.module.components.numpy()
+        return pd.DataFrame(
+            data=self.module.components.numpy(), index=self.adata.obs_names
+        )
 
     def transform(self, adata: Optional[AnnData] = None) -> pd.DataFrame:
         if adata is not None:
