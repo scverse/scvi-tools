@@ -35,7 +35,7 @@ class SOLO(BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`.
         Object should contain latent representation of real cells and doublets as `adata.X`.
         Object should also be registered, using `.X` and `labels_key="_solo_doub_sim"`.
     **classifier_kwargs
@@ -46,7 +46,7 @@ class SOLO(BaseModelClass):
     In the case of scVI trained with multiple batches:
 
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch")
+    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.SCVI(adata)
     >>> vae.train()
     >>> solo_batch_1 = scvi.external.SOLO.from_scvi_model(vae, restrict_to_batch="batch 1")
@@ -56,7 +56,7 @@ class SOLO(BaseModelClass):
     Otherwise:
 
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata)
+    >>> scvi.model.SCVI.setup_anndata(adata)
     >>> vae = scvi.model.SCVI(adata)
     >>> vae.train()
     >>> solo = scvi.external.SOLO.from_scvi_model(vae)
@@ -208,7 +208,7 @@ class SOLO(BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData object setup with :func:`~scvi.data.setup_anndata`.
+            AnnData object setup with setup_anndata.
         doublet_ratio
             Ratio of generated doublets to produce relative to number of
             cells in adata or length of indices, if not `None`.

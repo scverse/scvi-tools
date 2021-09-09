@@ -23,7 +23,7 @@ class SCVI(
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -56,7 +56,7 @@ class SCVI(
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch")
+    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.SCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()

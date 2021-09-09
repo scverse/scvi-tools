@@ -35,9 +35,7 @@ class BaseModelClass(ABC):
     def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
             if "_scvi" not in adata.uns.keys():
-                raise ValueError(
-                    "Please setup your AnnData with scvi.data.setup_anndata(adata) first"
-                )
+                raise ValueError("Please set up your AnnData with setup_anndata first")
             self.adata = adata
             self.scvi_setup_dict_ = adata.uns["_scvi"]
             self.summary_stats = self.scvi_setup_dict_["summary_stats"]
@@ -319,7 +317,7 @@ class BaseModelClass(ABC):
             Path to saved outputs.
         adata
             AnnData organized in the same way as data used to train model.
-            It is not necessary to run :func:`~scvi.data.setup_anndata`,
+            It is not necessary to run setup_anndata,
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
         use_gpu

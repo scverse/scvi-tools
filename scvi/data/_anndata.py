@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import rich
 from anndata._core.anndata import AnnData
+from deprecate import deprecated
 from pandas.api.types import CategoricalDtype
 from rich.console import Console
 from scipy.sparse import isspmatrix
@@ -30,7 +31,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     Parameters
     ----------
     adata
-        anndata object already setup with `scvi.data.setup_anndata()`
+        anndata object already setup with setup_anndata
     key
         key of object to get from ``adata.uns['_scvi]['data_registry']``
 
@@ -70,6 +71,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     return data
 
 
+@deprecated(target=None, deprecated_in="0.14.0", remove_in="0.15.0")
 def setup_anndata(
     adata: anndata.AnnData,
     batch_key: Optional[str] = None,

@@ -28,7 +28,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.AUTOZI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer
     n_latent
@@ -78,8 +78,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     --------
 
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.model.AutoZIVAE(adata)
+    >>> scvi.model.AUTOZI.setup_anndata(adata, batch_key="batch")
+    >>> vae = scvi.model.AUTOZI(adata)
     >>> vae.train(n_epochs=400)
 
     Notes

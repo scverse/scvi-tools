@@ -22,7 +22,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.LinearSCVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -55,7 +55,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch")
+    >>> scvi.model.LinearSCVI.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.LinearSCVI(adata)
     >>> vae.train()
     >>> adata.var["loadings"] = vae.get_loadings()

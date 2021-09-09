@@ -29,7 +29,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        single-cell AnnData object that has been registered via :meth:`~scvi.external.CellAssign.setup_anndata`.
         The object should be subset to contain the same genes as the cell type marker dataframe.
     cell_type_markers
         Binary marker gene DataFrame of genes by cell types. Gene names corresponding to `adata.var_names`
@@ -46,7 +46,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     >>> adata.obs["size_factor"] = library_size / np.mean(library_size)
     >>> marker_gene_mat = pd.read_csv(path_to_marker_gene_csv)
     >>> bdata = adata[:, adata.var.index.isin(marker_gene_mat.index)].copy()
-    >>> scvi.data.setup_anndata(bdata)
+    >>> CellAssign.setup_anndata(bdata)
     >>> model = CellAssign(bdata, marker_gene_mat, size_factor_key='size_factor')
     >>> model.train()
     >>> predictions = model.predict(bdata)
