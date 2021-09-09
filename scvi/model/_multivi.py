@@ -43,7 +43,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.MULTIVI.setup_anndata`.
     n_genes
         The number of gene expression features (genes).
     n_regions
@@ -82,7 +82,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     >>> adata_atac = scvi.data.read_10x_atac(path_to_atac_anndata)
     >>> adata_multi = scvi.data.read_10x_multiome(path_to_multiomic_anndata)
     >>> adata_mvi = scvi.data.organize_multiome_anndatas(adata_multi, adata_rna, adata_atac)
-    >>> scvi.data.setup_anndata(adata_mvi, batch_key="modality")
+    >>> scvi.model.MULTIVI.setup_anndata(adata_mvi, batch_key="modality")
     >>> vae = scvi.model.MULTIVI(adata_mvi)
     >>> vae.train()
 
@@ -93,7 +93,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
        and 250 genomic regions, the model assumes that the first 100 features are genes, and the
        next 250 are the regions.
 
-    * The main batch annotation, specified in the `scvi.data.setup_anndata`, should correspond to
+    * The main batch annotation, specified in `setup_anndata`, should correspond to
        the modality each cell originated from. This allows the model to focus mixing efforts, using
        an adversarial component, on mixing the modalities. Other covariates can be specified using
        the `categorical_covariate_keys` argument.

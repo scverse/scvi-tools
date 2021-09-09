@@ -25,14 +25,14 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     sc_adata
-        single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        single-cell AnnData object that has been registered via :meth:`~scvi.external.RNAStereoscope.setup_anndata`.
     **model_kwargs
         Keyword args for :class:`~scvi.external.stereoscope.RNADeconv`
 
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
-    >>> scvi.data.setup_anndata(sc_adata, labels_key="labels")
+    >>> scvi.external.RNAStereoscope.setup_anndata(sc_adata, labels_key="labels")
     >>> stereo = scvi.external.stereoscope.RNAStereoscope(sc_adata)
     >>> stereo.train()
     """
@@ -172,7 +172,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     st_adata
-        spatial transcriptomics AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        spatial transcriptomics AnnData object that has been registered via :meth:`~scvi.external.SpatialStereoscope.setup_anndata`.
     sc_params
         parameters of the model learned from the single-cell RNA seq data for deconvolution.
     cell_type_mapping
@@ -186,11 +186,11 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
-    >>> scvi.data.setup_anndata(sc_adata, labels_key="labels")
+    >>> scvi.external.RNAStereoscope.setup_anndata(sc_adata, labels_key="labels")
     >>> sc_model = scvi.external.stereoscope.RNAStereoscope(sc_adata)
     >>> sc_model.train()
     >>> st_adata = anndata.read_h5ad(path_to_st_anndata)
-    >>> scvi.data.setup_anndata(st_adata)
+    >>> scvi.external.SpatialStereoscope.setup_anndata(st_adata)
     >>> stereo = scvi.external.stereoscope.SpatialStereoscope.from_rna_model(st_adata, sc_model)
     >>> stereo.train()
     >>> st_adata.obsm["deconv"] = stereo.get_proportions()

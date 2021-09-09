@@ -35,7 +35,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
     unlabeled_category
         Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
     n_hidden
@@ -65,7 +65,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    >>> scvi.model.SCANVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
     >>> vae = scvi.model.SCANVI(adata, "Unknown")
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
@@ -165,7 +165,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         unlabeled_category
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
-            AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+            AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
         scanvi_kwargs
             kwargs for scanVI model
         """
@@ -255,7 +255,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+            AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
         indices
             Return probabilities for each class label.
         soft

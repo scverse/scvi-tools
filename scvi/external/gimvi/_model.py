@@ -40,10 +40,10 @@ class GIMVI(VAEMixin, BaseModelClass):
     Parameters
     ----------
     adata_seq
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`
+        AnnData object that has been registered via :meth:`~scvi.external.GIMVI.setup_anndata`
         and contains RNA-seq data.
     adata_spatial
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`
+        AnnData object that has been registered via :meth:`~scvi.external.GIMVI.setup_anndata`
         and contains spatial data.
     n_hidden
         Number of nodes per hidden layer.
@@ -60,8 +60,8 @@ class GIMVI(VAEMixin, BaseModelClass):
     --------
     >>> adata_seq = anndata.read_h5ad(path_to_anndata_seq)
     >>> adata_spatial = anndata.read_h5ad(path_to_anndata_spatial)
-    >>> scvi.data.setup_anndata(adata_seq)
-    >>> scvi.data.setup_anndata(adata_spatial)
+    >>> scvi.external.GIMVI.setup_anndata(adata_seq)
+    >>> scvi.external.GIMVI.setup_anndata(adata_spatial)
     >>> vae = scvi.model.GIMVI(adata_seq, adata_spatial)
     >>> vae.train(n_epochs=400)
 
@@ -419,9 +419,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         ----------
         adata_seq
             AnnData organized in the same way as data used to train model.
-            It is not necessary to run :func:`~scvi.data.setup_anndata`,
+            It is not necessary to run :meth:`~scvi.external.GIMVI.setup_anndata`,
             as AnnData is validated against the saved `scvi` setup dictionary.
-            AnnData must be registered via :func:`~scvi.data.setup_anndata`.
+            AnnData must be registered via :meth:`~scvi.external.GIMVI.setup_anndata`.
         adata_spatial
             AnnData organized in the same way as data used to train model.
             If None, will check for and load anndata saved with the model.
