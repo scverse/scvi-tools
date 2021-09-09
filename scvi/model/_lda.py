@@ -9,7 +9,7 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
-from scvi.data._anndata import get_from_registry
+from scvi.dataloaders._anntorchdataset import AnnTorchDataset
 from scvi.module import LDAPyroModule
 
 from .base import BaseModelClass, PyroSviTrainMixin
@@ -60,8 +60,11 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         if adata is not None:
             self._check_var_equality(adata)
         user_adata = adata or self.adata
+        # TODO(jhong): remove jankiness
+        adata_dataset = AnnTorchDataset(user_adata)
+
         transformed_X = self.module.transform(
-            torch.from_numpy(get_from_registry(user_adata, _CONSTANTS.X_KEY))
+            torch.from_numpy(adata_dataset.get_data(_CONSTANTS.X_KEY))
         ).numpy()
         return pd.DataFrame(data=transformed_X, index=user_adata.obs_names)
 
@@ -69,6 +72,8 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         if adata is not None:
             self._check_var_equality(adata)
         user_adata = adata or self.adata
+        adata_dataset = AnnTorchDataset(user_adata)
+
         return self.module.perplexity(
-            torch.from_numpy(get_from_registry(user_adata, _CONSTANTS.X_KEY))
+            torch.from_numpy(adata_dataset.get_data(_CONSTANTS.X_KEY))
         )
