@@ -81,7 +81,7 @@ class CellComponentDistPriorEncoder(nn.Module):
 
     @auto_move_data
     def forward(self, x: torch.Tensor):
-        return F.softplus(self.encoder(x))
+        return F.softplus(self.encoder(torch.log(1 + x)))
 
 
 class LDAPyroGuide(PyroModule):
