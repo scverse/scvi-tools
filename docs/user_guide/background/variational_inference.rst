@@ -116,9 +116,9 @@ Let's think about our high-dimensional single-cell data. If we have a model wher
 mean and variance parameter associated with each single cell. This scales linearly with the number of cells in our dataset.
 
 To amortize the cost of inference, we can tie together all cells using a neural network. Now suppose that we feed each cell's gene expression :math:`x` through a neural network that outputs the mean and variance
-of :math:`q(z)` for that cell. Inference will tend to be more scalable as the variational parameters are global (shared by all cells). On the other hand, we may pay a cost called the *amortization gap* for this sharing.
+of :math:`q(z)` for that cell. Inference will tend to be more scalable as the variational parameters are global (shared by all cells). On the other hand, we may pay a cost called the *amortization gap* [#ref2]_ for this sharing.
 
-Overall, this technique is typicall called *amortized variational inference* and in some cases *auto-encoding variational bayes* [#ref2]_.
+Overall, this technique is typicall called *amortized variational inference* and in some cases *auto-encoding variational bayes* [#ref3]_.
 
 
 .. topic:: References:
@@ -127,7 +127,11 @@ Overall, this technique is typicall called *amortized variational inference* and
         *Variational inference: A review for statisticians.*,
         Journal of the American statistical Association.
 
-   .. [#ref2] Kingma, Diederik P., and Max Welling (2019),
+   .. [#ref2] Cremer, Chris, Xuechen Li, and David Duvenaud.
+        *Inference suboptimality in variational autoencoders.*
+        International Conference on Machine Learning. PMLR, 2018.
+
+   .. [#ref3] Kingma, Diederik P., and Max Welling (2019),
         *An introduction to variational autoencoders.*,
         arXiv preprint arXiv:1906.02691.
 
