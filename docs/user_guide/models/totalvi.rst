@@ -37,11 +37,6 @@ categorical covariate with :math:`B` categories, which represents the common cas
 Generative process
 ========================
 
-.. figure:: figures/totalvi_graphical_model.svg
-   :class: img-fluid
-   :align: center
-   :alt: totalVI graphical model
-
 First we define the neural networks used in generative process:
 
 .. math::
@@ -98,6 +93,12 @@ They are learned parameters during infererence, but are initialized through a pr
 and records the mean and variance of the component with smaller mean, aggregating across all cells. This can be disabled by setting ``empirical_protein_background_prior=False``,
 which then forces a random Initialization.
 
+.. figure:: figures/totalvi_graphical_model.svg
+   :class: img-fluid
+   :align: center
+   :alt: totalVI graphical model
+
+
 The latent variables, along with their description are summarized in the following table:
 
 .. list-table::
@@ -142,7 +143,7 @@ neural network params, dispersion params, etc.), and an approximate posterior di
     \end{align}
 
 Here :math:`\eta` is a set of parameters corresponding to inference neural networks, which we do not describe in detail here,
-but are described in the totalVI paper [#ref1]_. totalVI can also handle missing proteins (i.e., a dataset comprised of
+but are described in the totalVI paper. totalVI can also handle missing proteins (i.e., a dataset comprised of
 multiple batches, where each batch potentially has a different antibody panel, or no protein data at all).
 We refer the reader to the original publication for these details.
 
