@@ -3,9 +3,10 @@ from unittest import TestCase
 import pytest
 
 import scvi
+from scvi.data._anndata import _setup_anndata
 
 from .utils import unsupervised_training_one_epoch
-from scvi.data._anndata import _setup_anndata
+
 
 class TestPbmcDataset(TestCase):
     def test_populate(self):
