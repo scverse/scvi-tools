@@ -5,8 +5,6 @@ User guide
 scRNA-seq analysis
 --------------------
 
-scvi-tools hosts implementations of the following models:
-
 .. list-table::
    :widths: 15 15 15 100
    :header-rows: 1

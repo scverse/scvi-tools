@@ -42,6 +42,7 @@ ATAC-seq
 .. nbgallery::
 
    notebooks/PeakVI
+   notebooks/peakvi_in_R
 
 
 Spatial transcriptomics
