@@ -100,8 +100,8 @@ This quantity is aptly named as it lower bounds the log probability of the data,
    :nowrap:
 
     \begin{align}
-        p_\theta(x) &= \mathrm{KL}(\,q_\phi(z)\, \| \,p_\theta(z \mid x)\,) + \mathrm{ELBO}\\
-        p _\theta(x) &\geq \mathrm{ELBO}
+        \log p_\theta(x) &= \mathrm{KL}(\,q_\phi(z)\, \| \,p_\theta(z \mid x)\,) + \mathrm{ELBO}\\
+        \log p _\theta(x) &\geq \mathrm{ELBO}
     \end{align}
 
 
