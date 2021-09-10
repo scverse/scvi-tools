@@ -542,7 +542,13 @@ def test_linear_scvi(save_path):
 
 
 def test_autozi():
-    data = synthetic_iid(n_batches=1)
+    data = synthetic_iid(n_batches=1, run_setup_anndata=False)
+    AUTOZI.setup_anndata(
+        data,
+        batch_key="batch",
+        labels_key="labels",
+    )
+
     for disp_zi in ["gene", "gene-label"]:
         autozivae = AUTOZI(
             data,
@@ -578,7 +584,14 @@ def test_autozi():
 
 
 def test_totalvi(save_path):
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+
     n_obs = adata.n_obs
     n_vars = adata.n_vars
     n_proteins = adata.obsm["protein_expression"].shape[1]
@@ -623,7 +636,13 @@ def test_totalvi(save_path):
     model.get_marginal_ll(indices=model.validation_indices, n_mc_samples=3)
     model.get_reconstruction_error(indices=model.validation_indices)
 
-    adata2 = synthetic_iid()
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    TOTALVI.setup_anndata(
+        adata2,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
     norm_exp = model.get_normalized_expression(adata2, indices=[1, 2, 3])
     assert norm_exp[0].shape == (3, adata2.n_vars)
     assert norm_exp[1].shape == (3, adata2.obsm["protein_expression"].shape[1])
@@ -728,7 +747,11 @@ def test_multiple_covariates(save_path):
 
 
 def test_peakvi():
-    data = synthetic_iid()
+    data = synthetic_iid(run_setup_anndata=False)
+    PEAKVI.setup_anndata(
+        data,
+        batch_key="batch",
+    )
     vae = PEAKVI(
         data,
         model_depth=False,
@@ -755,7 +778,11 @@ def test_peakvi():
 
 
 def test_condscvi(save_path):
-    dataset = synthetic_iid(n_labels=5)
+    dataset = synthetic_iid(n_labels=5, run_setup_anndata=False)
+    CondSCVI.setup_anndata(
+        dataset,
+        labels_key="labels",
+    )
     model = CondSCVI(dataset)
     model.train(1, train_size=1)
     model.get_latent_representation()
@@ -801,7 +828,11 @@ def test_destvi(save_path):
 
 
 def test_multivi():
-    data = synthetic_iid()
+    data = synthetic_iid(run_setup_anndata=False)
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+    )
     vae = MULTIVI(
         data,
         n_genes=50,
