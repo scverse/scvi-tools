@@ -198,6 +198,7 @@ nbsphinx_thumbnails = {
     "tutorials/notebooks/cellassign_tutorial": "_static/tutorials/cellassign.png",
     "tutorials/notebooks/DestVI_tutorial": "_static/tutorials/destvi.png",
     "tutorials/notebooks/PeakVI": "_static/tutorials/peakvi.png",
+    "tutorials/notebooks/peakvi_in_R": "_static/tutorials/Rlogo.png",
     "tutorials/notebooks/MultiVI_tutorial": "_static/tutorials/multivi_umap.png",
 }
 
