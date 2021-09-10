@@ -14,7 +14,11 @@ from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
 from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import _get_var_names_from_setup_anndata, parse_use_gpu_arg
+from scvi.model._utils import (
+    _get_var_names_from_setup_anndata,
+    _init_library_size,
+    parse_use_gpu_arg,
+)
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
 
@@ -26,11 +30,9 @@ logger = logging.getLogger(__name__)
 
 def _unpack_tensors(tensors):
     x = tensors[_CONSTANTS.X_KEY].squeeze_(0)
-    local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY].squeeze_(0)
-    local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY].squeeze_(0)
     batch_index = tensors[_CONSTANTS.BATCH_KEY].squeeze_(0)
     y = tensors[_CONSTANTS.LABELS_KEY].squeeze_(0)
-    return x, local_l_mean, local_l_var, batch_index, y
+    return x, batch_index, y
 
 
 class GIMVI(VAEMixin, BaseModelClass):
@@ -109,7 +111,16 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata_seq_n_batches = adata_seq.uns["_scvi"]["summary_stats"]["n_batch"]
         adata_spatial.obs["_scvi_batch"] += adata_seq_n_batches
 
-        n_batches = sum([s["n_batch"] for s in sum_stats])
+        n_batches = sum(s["n_batch"] for s in sum_stats)
+
+        library_log_means = []
+        library_log_vars = []
+        for adata in self.adatas:
+            adata_library_log_means, adata_library_log_vars = _init_library_size(
+                adata, n_batches
+            )
+            library_log_means.append(adata_library_log_means)
+            library_log_vars.append(adata_library_log_vars)
 
         self.module = JVAE(
             n_inputs,
@@ -117,6 +128,8 @@ class GIMVI(VAEMixin, BaseModelClass):
             gene_mappings,
             generative_distributions,
             model_library_size,
+            library_log_means,
+            library_log_vars,
             n_batch=n_batches,
             n_latent=n_latent,
             **model_kwargs,
@@ -254,10 +267,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             for tensors in scdl:
                 (
                     sample_batch,
-                    local_l_mean,
-                    local_l_var,
-                    batch_index,
-                    label,
                     *_,
                 ) = _unpack_tensors(tensors)
                 latent.append(
@@ -309,8 +318,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             for tensors in scdl:
                 (
                     sample_batch,
-                    local_l_mean,
-                    local_l_var,
                     batch_index,
                     label,
                     *_,
@@ -554,10 +561,6 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         .uns['_scvi']
             `scvi` setup dictionary
-        .obs['_local_l_mean']
-            per batch library size mean
-        .obs['_local_l_var']
-            per batch library size variance
         .obs['_scvi_labels']
             labels encoded as integers
         .obs['_scvi_batch']

@@ -19,11 +19,7 @@ import scvi
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 
-from ._utils import (
-    _check_nonnegative_integers,
-    _compute_library_size_batch,
-    _get_batch_mask_protein_data,
-)
+from ._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +46,6 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     >>> adata.uns['_scvi']['data_registry']
     {'X': ['_X', None],
     'batch_indices': ['obs', 'batch'],
-    'local_l_mean': ['obs', '_scvi_local_l_mean'],
-    'local_l_var': ['obs', '_scvi_local_l_var'],
     'labels': ['obs', 'labels']}
     >>> batch = get_from_registry(adata, "batch_indices")
     >>> batch
@@ -128,10 +122,6 @@ def setup_anndata(
 
     .uns['_scvi']
         `scvi` setup dictionary
-    .obs['_local_l_mean']
-        per batch library size mean
-    .obs['_local_l_var']
-        per batch library size variance
     .obs['_scvi_labels']
         labels encoded as integers
     .obs['_scvi_batch']
@@ -162,7 +152,7 @@ def setup_anndata(
     INFO      No label_key inputted, assuming all cells have same label
     INFO      Using data from adata.X
     INFO      Computing library size prior per batch
-    INFO      Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels']
+    INFO      Registered keys:['X', 'batch_indices', 'labels']
     INFO      Successfully registered anndata object containing 400 cells, 100 vars, 1 batches, 1 labels, and 0 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
 
     Example setting up scanpy dataset with random gene data, batch, and protein expression
@@ -175,7 +165,7 @@ def setup_anndata(
     INFO      Computing library size prior per batch
     INFO      Using protein expression from adata.obsm['protein_expression']
     INFO      Generating sequential protein names
-    INFO      Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels', 'protein_expression']
+    INFO      Registered keys:['X', 'batch_indices', 'labels', 'protein_expression']
     INFO      Successfully registered anndata object containing 400 cells, 100 vars, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
     """
     return _setup_anndata(
@@ -216,13 +206,10 @@ def _setup_anndata(
     batch_key = _setup_batch(adata, batch_key)
     labels_key = _setup_labels(adata, labels_key)
     x_loc, x_key = _setup_x(adata, layer)
-    local_l_mean_key, local_l_var_key = _setup_library_size(adata, batch_key, layer)
 
     data_registry = {
         _CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key},
         _CONSTANTS.BATCH_KEY: {"attr_name": "obs", "attr_key": batch_key},
-        _CONSTANTS.LOCAL_L_MEAN_KEY: {"attr_name": "obs", "attr_key": local_l_mean_key},
-        _CONSTANTS.LOCAL_L_VAR_KEY: {"attr_name": "obs", "attr_key": local_l_var_key},
         _CONSTANTS.LABELS_KEY: {"attr_name": "obs", "attr_key": labels_key},
     }
 
@@ -459,9 +446,6 @@ def transfer_anndata_setup(
 
     # transfer X
     x_loc, x_key = _setup_x(adata_target, layer)
-    local_l_mean_key, local_l_var_key = _setup_library_size(
-        adata_target, batch_key, layer
-    )
     target_data_registry = data_registry.copy()
     target_data_registry.update(
         {_CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
@@ -843,21 +827,6 @@ def _setup_x(adata, layer):
         )
 
     return x_loc, x_key
-
-
-def _setup_library_size(adata, batch_key, layer):
-    # computes the library size per batch
-    logger.info("Computing library size prior per batch")
-    local_l_mean_key = "_scvi_local_l_mean"
-    local_l_var_key = "_scvi_local_l_var"
-    _compute_library_size_batch(
-        adata,
-        batch_key=batch_key,
-        local_l_mean_key=local_l_mean_key,
-        local_l_var_key=local_l_var_key,
-        layer=layer,
-    )
-    return local_l_mean_key, local_l_var_key
 
 
 def _setup_summary_stats(

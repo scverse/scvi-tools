@@ -238,10 +238,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         .uns['_scvi']
             `scvi` setup dictionary
-        .obs['_local_l_mean']
-            per batch library size mean
-        .obs['_local_l_var']
-            per batch library size variance
         .obs['_scvi_labels']
             labels encoded as integers
         .obs['_scvi_batch']

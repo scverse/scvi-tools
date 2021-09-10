@@ -65,7 +65,7 @@ class AnnTorchDataset(Dataset):
         --------
         >>> sd = AnnTorchDataset(adata)
 
-        # following will only return the X and batch_indices both by defualt as np.float32
+        # following will only return the X and batch_indices both by default as np.float32
         >>> sd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])
 
         # This will return X as an integer and batch_indices as np.float32

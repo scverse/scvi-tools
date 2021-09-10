@@ -10,6 +10,7 @@ from torch.distributions import Beta, Normal
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.data._anndata import _setup_anndata
+from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import AutoZIVAE
 
@@ -68,6 +69,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different batches
         * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different labels
         * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every cell
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution
     **model_kwargs
         Keyword args for :class:`~scvi.module.AutoZIVAE`
 
@@ -99,13 +102,18 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         beta_prior: Optional[float] = 0.5,
         minimal_dropout: float = 0.01,
         zero_inflation: str = "gene",
+        use_observed_lib_size: bool = True,
         **model_kwargs,
     ):
         super(AUTOZI, self).__init__(adata)
 
+        self.use_observed_lib_size = use_observed_lib_size
+        n_batch = self.summary_stats["n_batch"]
+        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+
         self.module = AutoZIVAE(
             n_input=self.summary_stats["n_vars"],
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=n_batch,
             n_labels=self.summary_stats["n_labels"],
             n_hidden=n_hidden,
             n_latent=n_latent,
@@ -117,6 +125,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             alpha_prior=alpha_prior,
             beta_prior=beta_prior,
             minimal_dropout=minimal_dropout,
+            use_observed_lib_size=use_observed_lib_size,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
             **model_kwargs,
         )
         self.model_summary_string = (
@@ -178,7 +189,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         log_lkl = 0
-        to_sum = torch.zeros((n_mc_samples,))
+        to_sum = torch.zeros((n_mc_samples,)).to(self.device)
         alphas_betas = self.module.get_alphas_betas(as_numpy=False)
         alpha_prior = alphas_betas["alpha_prior"]
         alpha_posterior = alphas_betas["alpha_posterior"]
@@ -190,14 +201,12 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 alpha_posterior, beta_posterior
             )
             for tensors in scdl:
-                sample_batch = tensors[_CONSTANTS.X_KEY]
-                local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-                local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-                batch_index = tensors[_CONSTANTS.BATCH_KEY]
-                labels = tensors[_CONSTANTS.LABELS_KEY]
+                sample_batch = tensors[_CONSTANTS.X_KEY].to(self.device)
+                batch_index = tensors[_CONSTANTS.BATCH_KEY].to(self.device)
+                labels = tensors[_CONSTANTS.LABELS_KEY].to(self.device)
 
                 # Distribution parameters and sampled variables
-                inf_outputs, gen_outputs, losses = self.module.forward(tensors)
+                inf_outputs, gen_outputs, _ = self.module.forward(tensors)
 
                 px_r = gen_outputs["px_r"]
                 px_rate = gen_outputs["px_rate"]
@@ -205,19 +214,16 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 qz_m = inf_outputs["qz_m"]
                 qz_v = inf_outputs["qz_v"]
                 z = inf_outputs["z"]
-                ql_m = inf_outputs["ql_m"]
-                ql_v = inf_outputs["ql_v"]
                 library = inf_outputs["library"]
 
                 # Reconstruction Loss
-                current_dev = px_rate.device
                 bernoulli_params_batch = self.module.reshape_bernoulli(
                     bernoulli_params,
-                    batch_index.to(current_dev),
-                    labels.to(current_dev),
+                    batch_index,
+                    labels,
                 )
                 reconst_loss = self.module.get_reconstruction_loss(
-                    sample_batch.to(current_dev),
+                    sample_batch,
                     px_rate,
                     px_r,
                     px_dropout,
@@ -225,29 +231,46 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
 
                 # Log-probabilities
-                p_l = (
-                    Normal(
-                        local_l_mean.to(current_dev), local_l_var.to(current_dev).sqrt()
-                    )
-                    .log_prob(library)
-                    .sum(dim=-1)
-                )
+                log_prob_sum = torch.zeros(qz_m.shape[0]).to(self.device)
                 p_z = (
                     Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
                     .log_prob(z)
                     .sum(dim=-1)
                 )
-                p_x_zld = -reconst_loss.to(p_z.device)
-                q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-                q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+                p_x_zld = -reconst_loss
+                log_prob_sum += p_z + p_x_zld
 
-                batch_log_lkl = torch.sum(p_x_zld + p_l + p_z - q_z_x - q_l_x, dim=0)
-                to_sum[i] += batch_log_lkl.cpu()
+                q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
+                log_prob_sum -= q_z_x
+
+                if not self.use_observed_lib_size:
+                    (
+                        local_library_log_means,
+                        local_library_log_vars,
+                    ) = self.module._compute_local_library_params(batch_index)
+
+                    p_l = (
+                        Normal(
+                            local_library_log_means.to(self.device),
+                            local_library_log_vars.to(self.device).sqrt(),
+                        )
+                        .log_prob(library)
+                        .sum(dim=-1)
+                    )
+
+                    ql_m = inf_outputs["ql_m"]
+                    ql_v = inf_outputs["ql_v"]
+                    q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+
+                    log_prob_sum += p_l - q_l_x
+
+                batch_log_lkl = torch.sum(log_prob_sum, dim=0)
+                to_sum[i] += batch_log_lkl
 
             p_d = Beta(alpha_prior, beta_prior).log_prob(bernoulli_params).sum()
             q_d = Beta(alpha_posterior, beta_posterior).log_prob(bernoulli_params).sum()
 
-            to_sum[i] += (p_d - q_d).cpu()
+            to_sum[i] += p_d - q_d
 
         log_lkl = logsumexp(to_sum, dim=-1).item() - np.log(n_mc_samples)
         n_samples = len(scdl.indices)
@@ -291,10 +314,6 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         .uns['_scvi']
             `scvi` setup dictionary
-        .obs['_local_l_mean']
-            per batch library size mean
-        .obs['_local_l_var']
-            per batch library size variance
         .obs['_scvi_labels']
             labels encoded as integers
         .obs['_scvi_batch']
