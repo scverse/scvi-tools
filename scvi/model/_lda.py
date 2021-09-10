@@ -8,7 +8,6 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
-from scvi.dataloaders._anntorchdataset import AnnTorchDataset
 from scvi.module import LDAPyroModule
 
 from .base import BaseModelClass, PyroSviTrainMixin
@@ -120,13 +119,17 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         self._check_if_not_trained()
 
         user_adata = adata or self.adata
-        # TODO(jhong): remove jankiness
-        adata_dataset = AnnTorchDataset(user_adata)
+        dl = self._make_data_loader(
+            adata=user_adata, indices=np.arange(user_adata.n_obs)
+        )
 
-        transformed_X = self.module.transform(
-            torch.from_numpy(adata_dataset.get_data(_CONSTANTS.X_KEY))
-        ).numpy()
-        return pd.DataFrame(data=transformed_X, index=user_adata.obs_names)
+        transformed_xs = []
+        for tensors in dl:
+            x = tensors[_CONSTANTS.X_KEY]
+            transformed_xs.append(self.module.transform(x))
+
+        transformed_x = torch.cat(transformed_xs).numpy()
+        return pd.DataFrame(data=transformed_x, index=user_adata.obs_names)
 
     def perplexity(self, adata: Optional[AnnData] = None) -> float:
         """
@@ -147,8 +150,17 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         self._check_if_not_trained()
 
         user_adata = adata or self.adata
-        adata_dataset = AnnTorchDataset(user_adata)
-
-        return self.module.perplexity(
-            torch.from_numpy(adata_dataset.get_data(_CONSTANTS.X_KEY))
+        dl = self._make_data_loader(
+            adata=user_adata, indices=np.arange(user_adata.n_obs)
         )
+
+        perplexities = []
+        batch_counts = []
+        for tensors in dl:
+            x = tensors[_CONSTANTS.X_KEY]
+            x_counts = x.sum().item()
+            batch_counts.append(x_counts)
+            perplexities.append(self.module.perplexity(x))
+
+        normalized_batch_counts = np.array(batch_counts) / np.sum(batch_counts)
+        return np.prod(np.power(perplexities, normalized_batch_counts))
