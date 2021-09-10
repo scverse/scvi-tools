@@ -45,6 +45,9 @@ class LDAPyroModel(PyroModule):
 
         self.n_input = n_input
         self.n_components = n_components
+        # Populated by PyroTrainingPlan.
+        self.n_obs = None
+
         self.register_buffer(
             "cell_component_prior",
             torch.full((self.n_components,), cell_component_prior),
@@ -52,6 +55,9 @@ class LDAPyroModel(PyroModule):
         self.register_buffer(
             "component_gene_prior", torch.full((self.n_input,), component_gene_prior)
         )
+
+        # Hack: to allow auto_move_data to infer device.
+        self._dummy = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
 
     @staticmethod
     def _get_fn_args_from_batch(
@@ -73,7 +79,7 @@ class LDAPyroModel(PyroModule):
 
         # Cell counts generation.
         max_library_size = int(torch.max(library).item())
-        with pyro.plate("cells", x.shape[0]):
+        with pyro.plate("cells", size=self.n_obs, subsample=x):
             cell_component_dist = pyro.sample(
                 "cell_component_dist", dist.Dirichlet(self.cell_component_prior)
             )
@@ -140,6 +146,8 @@ class LDAPyroGuide(PyroModule):
         self.n_input = n_input
         self.n_components = n_components
         self.n_hidden = n_hidden
+        # Populated by PyroTrainingPlan.
+        self.n_obs = None
 
         self.encoder = CellComponentDistPriorEncoder(n_input, n_components, n_hidden)
 
@@ -155,7 +163,7 @@ class LDAPyroGuide(PyroModule):
             pyro.sample("component_gene_dist", dist.Dirichlet(component_gene_posterior))
 
         # Cell component distributions guide.
-        with pyro.plate("cells", x.shape[0]):
+        with pyro.plate("cells", size=self.n_obs, subsample=x):
             cell_component_posterior = self.encoder(x)
             pyro.sample("cell_component_dist", dist.Dirichlet(cell_component_posterior))
 
@@ -265,6 +273,18 @@ class LDAPyroModule(PyroBaseModuleClass):
         Perplexity as a float.
         """
 
+        def simple_elbo(model, guide, *args, **kwargs):
+            # run the guide and trace its execution
+            guide_trace = pyro.poutine.trace(guide).get_trace(*args, **kwargs)
+            # run the model and replay it against the samples from the guide
+            model_trace = pyro.poutine.trace(
+                pyro.poutine.replay(model, trace=guide_trace)
+            ).get_trace(*args, **kwargs)
+            # construct the elbo loss function
+            return -1 * (model_trace.log_prob_sum() - guide_trace.log_prob_sum())
+
+        print(simple_elbo(self.model, self.guide, x, x.sum(dim=1)))
+
         def dirichlet_log_coef(dirichlet_dist: np.ndarray) -> np.ndarray:
             return (
                 psi(dirichlet_dist) - psi(np.sum(dirichlet_dist, axis=1))[:, np.newaxis]
@@ -306,4 +326,5 @@ class LDAPyroModule(PyroBaseModuleClass):
         # E[log p(components | component_gene_prior) - log q(components | component_gene_posterior)]
         score += dirichlet_ll(self.component_gene_prior, self.components, self.n_input)
 
+        print(score)
         return np.exp(-1.0 * score / total_count)
