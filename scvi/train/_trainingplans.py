@@ -121,11 +121,12 @@ class TrainingPlan(pl.LightningModule):
         reconstruction_loss = scvi_loss.reconstruction_loss
         # pytorch lightning automatically backprops on "loss"
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
+        # lightning wants non loss keys detached
         return {
             "loss": scvi_loss.loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_loss.kl_local.sum(),
-            "kl_global": scvi_loss.kl_global,
+            "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
+            "kl_local_sum": scvi_loss.kl_local.sum().detach(),
+            "kl_global": scvi_loss.kl_global.detach(),
             "n_obs": reconstruction_loss.shape[0],
         }
 
@@ -223,8 +224,6 @@ class AdversarialTrainingPlan(TrainingPlan):
     ----------
     module
         A module instance from class ``BaseModuleClass``.
-    n_obs_training
-        Number of observations in the training set.
     lr
         Learning rate used for optimization :class:`~torch.optim.Adam`.
     weight_decay
@@ -346,9 +345,9 @@ class AdversarialTrainingPlan(TrainingPlan):
             self.log("train_loss", loss, on_epoch=True)
             return {
                 "loss": loss,
-                "reconstruction_loss_sum": reconstruction_loss.sum(),
-                "kl_local_sum": scvi_loss.kl_local.sum(),
-                "kl_global": scvi_loss.kl_global,
+                "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
+                "kl_local_sum": scvi_loss.kl_local.sum().detach(),
+                "kl_global": scvi_loss.kl_global.detach(),
                 "n_obs": reconstruction_loss.shape[0],
             }
 
@@ -504,13 +503,13 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.log("train_loss", loss, on_epoch=True)
         loss_dict = {
             "loss": loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_losses.kl_local.sum(),
-            "kl_global": scvi_losses.kl_global,
+            "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
+            "kl_local_sum": scvi_losses.kl_local.sum().detach(),
+            "kl_global": scvi_losses.kl_global.detach(),
             "n_obs": reconstruction_loss.shape[0],
         }
         if hasattr(scvi_losses, "classification_loss"):
-            loss_dict["classification_loss"] = scvi_losses.classification_loss
+            loss_dict["classification_loss"] = scvi_losses.classification_loss.detach()
             loss_dict["n_labelled_tensors"] = scvi_losses.n_labelled_tensors
         return loss_dict
 
@@ -655,7 +654,8 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         args, kwargs = self.module._get_fn_args_from_batch(batch)
-        loss = self.svi.step(*args, **kwargs)
+        # pytorch lightning requires a Tensor object for loss
+        loss = torch.Tensor([self.svi.step(*args, **kwargs)])
 
         return {"loss": loss}
 

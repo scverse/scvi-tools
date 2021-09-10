@@ -1,6 +1,7 @@
 import logging
 import warnings
-from typing import Dict, Optional, OrderedDict, Sequence, Union
+from collections import OrderedDict
+from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd

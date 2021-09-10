@@ -4,7 +4,7 @@ import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.model._utils import _get_var_names_from_setup_anndata
+from scvi.model._utils import _get_var_names_from_setup_anndata, _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import LDVAE
 
@@ -78,9 +78,13 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         **model_kwargs,
     ):
         super(LinearSCVI, self).__init__(adata)
+
+        n_batch = self.summary_stats["n_batch"]
+        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+
         self.module = LDVAE(
             n_input=self.summary_stats["n_vars"],
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=n_batch,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers_encoder=n_layers,
@@ -88,6 +92,8 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
             **model_kwargs,
         )
         self._model_summary_string = (
