@@ -7,7 +7,11 @@ from scvi.external import GIMVI
 
 
 def test_saving_and_loading(save_path):
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
+    GIMVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
 
     # GIMVI
     model = GIMVI(adata, adata)
