@@ -89,8 +89,7 @@ class LDAPyroModel(PyroModule):
 
 class CellComponentDistPriorEncoder(nn.Module):
     """
-    The neural network encoder used in LDAPyroGuide which takes in counts matrices and
-    outputs cell component posterior estimate.
+    The neural network encoder used in LDAPyroGuide which outputs cell component posterior estimate.
 
     Composed of a single hidden layer fully connected neural network followed by a
     log transformation and softplus.
@@ -218,6 +217,7 @@ class LDAPyroModule(PyroBaseModuleClass):
     def components(self) -> torch.Tensor:
         """
         Gets the component to gene transition matrix from the Pyro parameter store.
+
         Assumes the module has already been trained.
 
         Returns
@@ -255,9 +255,9 @@ class LDAPyroModule(PyroBaseModuleClass):
 
     def perplexity(self, x: torch.Tensor) -> float:
         """
-        Computes the approximate perplexity of the for `x`, where perplexity is defined
-        as exp(-1 * log-likelihood per count).
+        Computes the approximate perplexity of the for `x`.
 
+        Perplexity is defined as exp(-1 * log-likelihood per count).
         Implementation based off of https://github.com/scikit-learn/scikit-learn/blob/2beed5584/sklearn/decomposition/_lda.py
 
         Returns

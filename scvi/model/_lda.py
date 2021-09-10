@@ -75,9 +75,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
             )
 
     def _check_if_not_trained(self):
-        """
-        Check if the model is not trained. Raises a ValueError if not.
-        """
+        """Check if the model is not trained. Raises a ValueError if not."""
         if not self.is_trained_:
             raise ValueError(
                 "Trying to query inferred values from an untrained model. Please train the model first."
@@ -136,8 +134,9 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
 
     def perplexity(self, adata: Optional[AnnData] = None) -> float:
         """
-        Computes the approximate perplexity of the for `adata`, where perplexity is defined
-        as exp(-1 * log-likelihood per count).
+        Computes approximate perplexity for `adata`.
+
+        Perplexity is defined as exp(-1 * log-likelihood per count).
 
         Parameters
         ----------
