@@ -56,8 +56,10 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
 
     def _check_var_equality(self, adata: AnnData):
         """
+        Preliminary check for var name equality between AnnData objects.
+
         Checks that the var names are equivalent between the source AnnData object and
-        the AnnData passed in. Throws a ValueError if not.
+        the AnnData passed in. Raises a ValueError if not.
 
         Parameters
         ----------
@@ -74,11 +76,12 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
 
     def _check_if_not_trained(self):
         """
-        Check if the model is not trained. Throws an AssertionError if not.
+        Check if the model is not trained. Raises a ValueError if not.
         """
-        assert (
-            self.is_trained_
-        ), "Trying to query inferred values from an untrained model. Please train the model first."
+        if not self.is_trained_:
+            raise ValueError(
+                "Trying to query inferred values from an untrained model. Please train the model first."
+            )
 
     def get_components(self) -> pd.DataFrame:
         """

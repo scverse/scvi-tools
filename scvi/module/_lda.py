@@ -92,6 +92,9 @@ class CellComponentDistPriorEncoder(nn.Module):
     The neural network encoder used in LDAPyroGuide which takes in counts matrices and
     outputs cell component posterior estimate.
 
+    Composed of a single hidden layer fully connected neural network followed by a
+    log transformation and softplus.
+
     Parameters
     ----------
     n_input
