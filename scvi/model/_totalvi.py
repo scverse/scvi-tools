@@ -19,6 +19,7 @@ from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
+    _init_library_size,
     cite_seq_raw_counts_properties,
 )
 from scvi.model.base._utils import _de_core
@@ -123,10 +124,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
+
+        n_batch = self.summary_stats["n_batch"]
+        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+
         self.module = TOTALVAE(
             n_input_genes=self.summary_stats["n_vars"],
             n_input_proteins=self.summary_stats["n_proteins"],
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=n_batch,
             n_latent=n_latent,
             n_continuous_cov=self.summary_stats["n_continuous_covs"],
             n_cats_per_cov=n_cats_per_cov,
@@ -137,6 +142,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             protein_batch_mask=batch_mask,
             protein_background_prior_mean=prior_mean,
             protein_background_prior_scale=prior_scale,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -288,7 +295,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
-        if self.is_trained_ is False:
+        if not self.is_trained_:
             raise RuntimeError("Please train the model first.")
 
         adata = self._validate_anndata(adata)
@@ -299,9 +306,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in post:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
-            ql_m = outputs["ql_m"]
-            ql_v = outputs["ql_v"]
-            if give_mean is True:
+            if give_mean:
+                ql_m = outputs["ql_m"]
+                ql_v = outputs["ql_v"]
                 library = torch.exp(ql_m + 0.5 * ql_v)
             else:
                 library = outputs["library_gene"]
