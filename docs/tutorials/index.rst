@@ -62,6 +62,7 @@ Multimodal
 
    notebooks/totalVI
    notebooks/cite_scrna_integration_w_totalVI
+   notebooks/totalvi_in_R
    notebooks/MultiVI_tutorial
 
 
