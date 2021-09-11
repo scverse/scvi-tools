@@ -62,7 +62,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/linear_decoder`
+    1. :doc:`/tutorials/notebooks/linear_decoder`
     """
 
     def __init__(
