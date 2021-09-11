@@ -2,7 +2,7 @@
 totalVI
 ===========
 
-**totalVI** [#ref1]_ posits a flexible generative model of CITE-seq RNA and protein data that can subsequently
+**totalVI** [#ref1]_ (total Variational Inference; Python class :class:`~scvi.model.TOTALVI`) posits a flexible generative model of CITE-seq RNA and protein data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of totalVI are:

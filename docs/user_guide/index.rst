@@ -6,24 +6,20 @@ scRNA-seq analysis
 --------------------
 
 .. list-table::
-   :widths: 15 15 15 100
+   :widths: 15 15 100
    :header-rows: 1
 
    * - Model
      - Reference
-     - Class
      - Tasks
    * - :doc:`/user_guide/models/scvi`
      - [Lopez18]_
-     - :class:`~scvi.model.SCVI`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
    * - :doc:`/user_guide/models/linearscvi`
      - [Svensson20]_
-     - :class:`~scvi.model.LinearSCVI`
      - scVI tasks with linear decoder
    * - :doc:`/user_guide/models/cellassign`
      - [Zhang19]_
-     - :class:`~scvi.external.CellAssign`
      - Marker-based automated annotation
 
 .. toctree::
@@ -39,16 +35,14 @@ CITE-seq analysis
 -----------------
 
 .. list-table::
-   :widths: 15 15 15 100
+   :widths: 15 15 100
    :header-rows: 1
 
    * - Model
      - Reference
-     - Class
      - Tasks
    * - :doc:`/user_guide/models/totalvi`
      - [GayosoSteier21]_
-     - :class:`~scvi.model.TOTALVI`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, protein imputation, imputation, normalization of other cell- and sample-level confounding factors
 
 .. toctree::

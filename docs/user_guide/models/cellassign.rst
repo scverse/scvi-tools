@@ -2,7 +2,7 @@
 CellAssign
 ===========
 
-**CellAssign** [#ref1]_ is a simple yet, efficient
+**CellAssign** [#ref1]_ (Python class :class:`~scvi.external.CellAssign`) is a simple yet, efficient
 approach for annotating scRNA-seq data in the scenario in which cell-type-specific
 gene markers are known. The method also allows users to control for nuisance covariates
 like batch or donor. The scvi-tools implementation of CellAssign uses stochastic inference,

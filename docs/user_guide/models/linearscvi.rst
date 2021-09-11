@@ -2,7 +2,7 @@
 LDVAE
 ======
 
-**LDVAE** [#ref1]_ (Linearly-decoded Variational Auto-encoder, also called Linear scVI)
+**LDVAE** [#ref1]_ (Linearly-decoded Variational Auto-encoder, also called Linear scVI; Python class :class:`~scvi.model.LinearSCVI`)
 is a flavor of scVI with a linear decoder.
 
 The advantages of LDVAE are:

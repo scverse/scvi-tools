@@ -2,7 +2,7 @@
 scVI
 ======
 
-**scVI** [#ref1]_ (single-cell Variational Inference) posits a flexible generative model of scRNA-seq count data that can subsequently
+**scVI** [#ref1]_ (single-cell Variational Inference; Python class :class:`~scvi.model.SCVI`) posits a flexible generative model of scRNA-seq count data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of scVI are:
