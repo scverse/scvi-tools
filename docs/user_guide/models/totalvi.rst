@@ -11,7 +11,7 @@ The advantages of totalVI are:
 
     + Scalable to very large datasets (>1 million cells).
 
-The disadvantages of totalVI include:
+The limitations of totalVI include:
 
     + Effectively requires a GPU for fast inference.
 

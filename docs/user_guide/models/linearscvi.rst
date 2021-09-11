@@ -11,11 +11,11 @@ The advantages of LDVAE are:
 
     + Scalable to very large datasets (>1 million cells).
 
-The disadvantages of LDVAE include:
+The limitations of LDVAE include:
 
     + Less capacity than scVI, which uses a neural network decoder.
 
-    + Less capable of integrating with complex batch effects.
+    + Less capable of integrating data with complex batch effects.
 
 
 .. topic:: Tutorials:

@@ -37,7 +37,7 @@ mean and covariance matrix that best approximate the true posterior.
    :align: center
    :alt: Abstraction of the variational inference problem.
 
-   Abstraction of the variational inference problem. We seek to find an approximate posterior distribution that minimizes the KL divergence.
+   Abstraction of the variational inference problem. We seek to find an approximate posterior distribution that minimizes the KL divergence. Figure credit: Jeffrey Regier.
 
 Using Bayes Rule, we may rewrite this problem into something we can actually compute.
 
@@ -118,7 +118,7 @@ mean and variance parameter associated with each single cell. This scales linear
 To amortize the cost of inference, we can tie together all cells using a neural network. Now suppose that we feed each cell's gene expression :math:`x` through a neural network that outputs the mean and variance
 of :math:`q(z)` for that cell. Inference will tend to be more scalable as the variational parameters are global (shared by all cells). On the other hand, we may pay a cost called the *amortization gap* [#ref2]_ for this sharing.
 
-Overall, this technique is typicall called *amortized variational inference* and in some cases *auto-encoding variational bayes* [#ref3]_.
+Overall, this technique is typically called *amortized variational inference* and in some cases *auto-encoding variational bayes* [#ref3]_.
 
 
 .. topic:: References:

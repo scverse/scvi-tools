@@ -11,7 +11,7 @@ The advantages of scVI are:
 
     + Scalable to very large datasets (>1 million cells).
 
-The disadvantages of scVI include:
+The limitations of scVI include:
 
     + Effectively requires a GPU for fast inference.
 

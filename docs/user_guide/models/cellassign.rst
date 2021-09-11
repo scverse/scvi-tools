@@ -14,7 +14,7 @@ The advantages of CellAssign are:
 
     + Ability to control for nuisance factors.
 
-The disadvantages of CellAssign include:
+The limitations of CellAssign include:
 
     + Requirement for a cell types by gene markers binary matrix.
 
