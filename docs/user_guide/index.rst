@@ -58,6 +58,28 @@ CITE-seq analysis
     models/totalvi
 
 
+Spatial Transcriptomics analysis
+--------------------------------
+
+.. list-table::
+   :widths: 15 15 15 100
+   :header-rows: 1
+
+   * - Model
+     - Reference
+     - Class
+     - Tasks
+   * - :doc:`/user_guide/models/destvi`
+     - [Lopez21]_
+     - :class:`~scvi.model.DestVI`
+     - Multi-resolution deconvolution, cell-type-specific gene expression imputation, comparative analysis
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+
+    models/destvi
+
 
 Background
 -----------------
