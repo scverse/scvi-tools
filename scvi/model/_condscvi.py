@@ -43,7 +43,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.CondSCVI.setup_anndata(adata, batch_key="batch")
+    >>> scvi.model.CondSCVI.setup_anndata(adata, labels_key="labels")
     >>> vae = scvi.model.CondSCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_CondSCVI"] = vae.get_latent_representation()
