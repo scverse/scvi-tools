@@ -52,6 +52,7 @@ First, for each cell :math:`n`,
       l_n &\sim \textrm{LogNormal}(l_\mu^\top s_n, l_{\sigma^2}^\top s_n) \tag{8}\\
    \end{align}
 
+The prior parameters are computed per batch as the mean and variance of the log library size over cells.
 The generative process of totalVI uses neural networks:
 
 .. math::

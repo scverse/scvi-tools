@@ -46,13 +46,14 @@ by the following process:
 
    \begin{align}
     z_n &\sim {\mathrm{Normal}}\left( {0,I} \right) \\
-    \ell_n &\sim \mathrm{LogNormal}\left( \ell _\mu ,\ell _\sigma ^2 \right) \\
+    \ell_n &\sim \mathrm{LogNormal}\left( \ell _\mu ,\ell _{\sigma^2} \right) \\
     \rho _n &= f_w\left( z_n, s_n \right) \\
     \pi_{ng} &= f_h^g(z_n, s_n) \\
     x_{ng} &\sim \mathrm{ObservationModel}(\ell_n \rho_n, \theta_g, \pi_{ng})
     \end{align}
 
 Succintly, the gene expression for each gene depends on a latent variable :math:`z_n` that is cell-specific.
+The prior parameters :math:`\ell_\mu` and :math:`\ell_{\sigma^2}` are computed per batch as the mean and variance of the log library size over cells.
 The expression data are generated from a count-based likelihood distribution, which here, we denote as the :math:`\mathrm{ObservationModel}`.
 While by default the :math:`\mathrm{ObservationModel}` is a :math:`\mathrm{ZeroInflatedNegativeBinomial}` (ZINB) distribution parameterized by its mean, inverse dispersion, and non-zero-inflation probability, respectively,
 users can pass ``gene_likelihood = "negative_binomial"`` to :class:`~scvi.model.SCVI`, for example, to use a simpler :math:`\mathrm{NegativeBinomial}` distribution.
