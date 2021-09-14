@@ -132,6 +132,30 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         transformed_x = torch.cat(transformed_xs).numpy()
         return pd.DataFrame(data=transformed_x, index=user_adata.obs_names)
 
+    def test_perplexity(self, adata: Optional[AnnData] = None) -> float:
+        if adata is not None:
+            self._check_var_equality(adata)
+        self._check_if_not_trained()
+
+        user_adata = adata or self.adata
+        dl = self._make_data_loader(
+            adata=user_adata, indices=np.arange(user_adata.n_obs)
+        )
+
+        perplexities = []
+        total_counts = 0
+        # batch_counts = []
+        for tensors in dl:
+            x = tensors[_CONSTANTS.X_KEY]
+            x_counts = x.sum().item()
+            total_counts += x_counts
+            perplexities.append(self.module.elbo(x))
+
+        return np.exp(np.mean(perplexities) / total_counts)
+
+        # normalized_batch_counts = np.array(batch_counts) / np.sum(batch_counts)
+        # return np.prod(np.power(perplexities, normalized_batch_counts))
+
     def perplexity(self, adata: Optional[AnnData] = None) -> float:
         """
         Computes approximate perplexity for `adata`.

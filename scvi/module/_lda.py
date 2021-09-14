@@ -6,6 +6,7 @@ import pyro.distributions as dist
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 from scipy.special import gammaln, logsumexp, psi
 from torch.distributions import constraints
@@ -261,6 +262,12 @@ class LDAPyroModule(PyroBaseModuleClass):
             / cell_component_unnormalized_dist.sum(axis=1)[:, np.newaxis]
         )
 
+    def elbo(self, x: torch.Tensor) -> float:
+        elbo = Trace_ELBO().loss(self.model, self.guide, x, x.sum(dim=1))
+        print("elbo")
+        print(elbo)
+        return elbo
+
     def perplexity(self, x: torch.Tensor) -> float:
         """
         Computes the approximate perplexity of the for `x`.
@@ -272,18 +279,6 @@ class LDAPyroModule(PyroBaseModuleClass):
         -------
         Perplexity as a float.
         """
-
-        def simple_elbo(model, guide, *args, **kwargs):
-            # run the guide and trace its execution
-            guide_trace = pyro.poutine.trace(guide).get_trace(*args, **kwargs)
-            # run the model and replay it against the samples from the guide
-            model_trace = pyro.poutine.trace(
-                pyro.poutine.replay(model, trace=guide_trace)
-            ).get_trace(*args, **kwargs)
-            # construct the elbo loss function
-            return -1 * (model_trace.log_prob_sum() - guide_trace.log_prob_sum())
-
-        print(simple_elbo(self.model, self.guide, x, x.sum(dim=1)))
 
         def dirichlet_log_coef(dirichlet_dist: np.ndarray) -> np.ndarray:
             return (
@@ -326,5 +321,7 @@ class LDAPyroModule(PyroBaseModuleClass):
         # E[log p(components | component_gene_prior) - log q(components | component_gene_posterior)]
         score += dirichlet_ll(self.component_gene_prior, self.components, self.n_input)
 
+        print("score")
         print(score)
+
         return np.exp(-1.0 * score / total_count)
