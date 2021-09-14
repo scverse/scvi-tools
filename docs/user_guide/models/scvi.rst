@@ -77,7 +77,7 @@ This generative process is also summarized in the following graphical model:
    :align: center
    :alt: scVI graphical model
 
-   scVI graphical model for the ZINB likelihood model. Note that this graphical model contains more latent variables than the presentation above. Marganlization of these latent variables leads to the ZINB observation model (math shown in publication supplement).
+   scVI graphical model for the ZINB likelihood model. Note that this graphical model contains more latent variables than the presentation above. Marginalization of these latent variables leads to the ZINB observation model (math shown in publication supplement).
 
 The latent variables, along with their description are summarized in the following table:
 

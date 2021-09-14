@@ -62,6 +62,15 @@ a given gene :math:`g`.
     negative binomial modeling the expression counts for a given gene and spot is equivalent to the sum of the rate
     parameters for each contributing cell.
 
+This generative process is also summarized in the following graphical model:
+
+.. figure:: figures/scLVM_graphical_model.svg
+   :class: img-fluid
+   :align: center
+   :alt: scLVM graphical model
+
+   scLVM graphical model.
+
 The latent variables for the scLVM, along with their description are summarized in the following table:
 
 .. list-table::
@@ -118,6 +127,14 @@ as a dummy cell type to represent gene specific noise. The dummy cell type's exp
 as :math:`\epsilon_g := \mathrm{Softplus}(\eta_g)` where :math:`\eta_g \sim \mathrm{Normal}(0, 1)`.
 Like the other cell types, there is an associated cell type abundance parameter :math:`\beta_{sc}` associated with :math:`\eta`.
 
+This generative process is also summarized in the following graphical model:
+
+.. figure:: figures/stLVM_graphical_model.svg
+   :class: img-fluid
+   :align: center
+   :alt: stLVM graphical model
+
+   scLVM graphical model.
 
 The latent variables for the stLVM, along with their description are summarized in the following table:
 
