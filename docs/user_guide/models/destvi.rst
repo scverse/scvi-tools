@@ -99,7 +99,8 @@ is generated from the latent variables :math:`(c_{ns}, \gamma_{ns})` by the foll
     :nowrap:
 
     \begin{align}
-        x_{sg} &\sim \mathrm{NegativeBinomial}(l_s\alpha_g\sum_{c=1}^{C}\beta_{sc}f^g(c, \gamma_s^c), p_g) \tag{4} \\
+        \gamma_x^c &\sim \frac{1}{K} \sum_{k=1}^K q_\Phi(\gamma^c \mid u_{kc}, c) \tag{4} \\
+        x_{sg} &\sim \mathrm{NegativeBinomial}(l_s\alpha_g\sum_{c=1}^{C}\beta_{sc}f^g(c, \gamma_s^c), p_g) \tag{5} \\
     \end{align}
 
 where :math:`l_s` is the library size and :math:`\alpha_g` is a correction term for
@@ -108,16 +109,8 @@ difference in experimental assays. Like the scLVM, :math:`f` is a decoder neural
 
 To avoid the latent variable :math:`\gamma_s^c` from incorporating variation attributed to experimental
 assay differences, we assign an empirical prior informed by the scLVM and a corresponding set of
-cells of the same cell type in the scRNA-seq dataset. Specifically, :math:`\gamma_s^c` is set as follows:
-
-.. math::
-    :nowrap:
-
-    \begin{align}
-        \gamma_x^c \sim \frac{1}{K} \sum_{k=1}^K q_\Phi(\gamma^c \mid u_{kc}, c) \tag{5} \\
-    \end{align}
-
-where :math:`\{u_{kc}\}_{k=1}^K` designates a set of cells from cell type :math:`c` in the scRNA-seq dataset, and
+cells of the same cell type in the scRNA-seq dataset.
+Above, :math:`\{u_{kc}\}_{k=1}^K` designates a set of cells from cell type :math:`c` in the scRNA-seq dataset, and
 :math:`q_\Phi` designates the variational distrbution from the scLVM.
 In literature, the prior is referred to as a VampPrior ("variational aggregated mixture of posteriors" prior) [#ref2]_.
 More can be read on this prior in the DestVI paper.
