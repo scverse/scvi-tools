@@ -132,6 +132,23 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         transformed_x = torch.cat(transformed_xs).numpy()
         return pd.DataFrame(data=transformed_x, index=user_adata.obs_names)
 
+    def get_elbo(self, adata: Optional[AnnData] = None) -> float:
+        if adata is not None:
+            self._check_var_equality(adata)
+        self._check_if_not_trained()
+
+        user_adata = adata or self.adata
+        dl = self._make_data_loader(
+            adata=user_adata, indices=np.arange(user_adata.n_obs)
+        )
+
+        elbos = []
+        for tensors in dl:
+            x = tensors[_CONSTANTS.X_KEY]
+            library = x.sum(dim=1)
+            elbos.append(self.module.get_elbo(x, library))
+        return np.mean(elbos)
+
     def test_perplexity(self, adata: Optional[AnnData] = None) -> float:
         if adata is not None:
             self._check_var_equality(adata)
@@ -149,7 +166,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
             x = tensors[_CONSTANTS.X_KEY]
             x_counts = x.sum().item()
             total_counts += x_counts
-            perplexities.append(self.module.elbo(x))
+            perplexities.append(self.module.elbo(x, x.sum(dim=1)))
 
         return np.exp(np.mean(perplexities) / total_counts)
 

@@ -264,11 +264,8 @@ class LDAPyroModule(PyroBaseModuleClass):
             / cell_component_unnormalized_dist.sum(axis=1)[:, np.newaxis]
         )
 
-    def elbo(self, x: torch.Tensor) -> float:
-        elbo = Trace_ELBO().loss(self.model, self.guide, x, x.sum(dim=1))
-        print("elbo")
-        print(elbo)
-        return elbo
+    def elbo(self, x: torch.Tensor, library: torch.Tensor) -> float:
+        return Trace_ELBO().loss(self.model, self.guide, x, library)
 
     def perplexity(self, x: torch.Tensor) -> float:
         """
