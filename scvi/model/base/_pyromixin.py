@@ -297,6 +297,7 @@ class PyroSampleMixin:
                 and not isinstance(
                     site.get("fn", None), poutine.subsample_messenger._Subsample
                 )  # don't save plates
+            )
             if any(f.name == plate_name for f in site["cond_indep_stack"])
         }
 
