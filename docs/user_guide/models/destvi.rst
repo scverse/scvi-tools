@@ -52,8 +52,15 @@ The scLVM posits that the observed UMI counts for cell :math:`n` are generated b
 
 where :math:`l_n` is the library size, :math:`f` is a two-layer neural network which outputs a :math:`G`
 dimensional vector, and :math:`p_g` is the rate parameter of the negative binomial distribution for
-a given gene :math:`g`. Note that we are using the standard rate-shape parametrization of the
-negative binomial here, rather than the mean-dispersian parametrization used in :doc:`/user_guide/models/scvi`.
+a given gene :math:`g`.
+
+
+.. note::
+    We are using the standard rate-shape parametrization of the negative binomial here, rather than the mean-dispersion
+    parametrization used in :doc:`/user_guide/models/scvi`. This is to take advantage of the additive property of
+    negative binomial distributions sharing the same shape parameter. In this case, the rate parameter for the
+    negative binomial modeling the expression counts for a given gene and spot is equivalent to the sum of the rate
+    parameters for each contributing cell.
 
 The latent variables for the scLVM, along with their description are summarized in the following table:
 
@@ -68,29 +75,16 @@ The latent variables for the scLVM, along with their description are summarized 
      - Low-dimensional representation of sub-cell-type covariates.
      - ``z``
    * - :math:`p_g \in \mathbb{R}^{+}`
-     - Rate parameter for negative binomial distribution.
+     - Rate parameter for the negative binomial distribution.
      - ``px_r``
 
 stLVM
 -----
 
 For the stLVM, we also model the expression counts with a :math:`\mathrm{NegativeBinomial}`. However,
-for spatial data, we assume that each spot :math:`s` has expression :math:`x_s` composed of gene expression
-counts of :math:`C(s)` individual cells. We assume that cell :math:`n` in spot :math:`s` is generated from
-the latent variables :math:`(c_{ns}, \gamma_{ns})` by the following process:
-
-.. math::
-    :nowrap:
-
-    \begin{align}
-        x_{sg} &\sim \mathrm{NegativeBinomial}(l_s\alpha_g\sum_{n=1}^{C(s)}f^g(c_{ns}, \gamma_{ns}), p_g) \tag{3} \\
-    \end{align}
-
-where :math:`l_s` is the library size and :math:`\alpha_g` is a correction term for
-difference in experimental assays. Like the scLVM, :math:`f` is a decoder neural network, and
-:math:`p_g` is the rate parameter for the negative binomial distribution. So, we can model
-the cell type abundances :math:`\beta_{sc}` per spot rather than :math:`C(n)` and the
-corresponding cell types for each cell, we parametrize the sum from :math:`(3)` over cell types.
+for spatial data, we assume that each spot :math:`s` has expression :math:`x_s` composed of a bulk of cell types, with
+cell type abundance, :math:`\beta_{sc}`, for each cell type :math:`c`. We assume that cell :math:`n` in spot :math:`s`
+is generated from the latent variables :math:`(c_{ns}, \gamma_{ns})` by the following process:
 
 .. math::
     :nowrap:
@@ -99,11 +93,30 @@ corresponding cell types for each cell, we parametrize the sum from :math:`(3)` 
         x_{sg} &\sim \mathrm{NegativeBinomial}(l_s\alpha_g\sum_{c=1}^{C}\beta_{sc}f^g(c, \gamma_s^c), p_g) \tag{4} \\
     \end{align}
 
+where :math:`l_s` is the library size and :math:`\alpha_g` is a correction term for
+difference in experimental assays. Like the scLVM, :math:`f` is a decoder neural network, and
+:math:`p_g` is the rate parameter for the negative binomial distribution.
+
 To avoid the latent variable :math:`\gamma_s^c` from incorporating variation attributed to experimental
 assay differences, we assign an empirical prior informed by the scLVM and a corresponding set of
-cells of the same cell type in the scRNA-seq dataset. In literature, the prior is referred to as
-a VampPrior ("variational aggregated mixture of posteriors" prior) [#ref2]_. More can be read on this prior 
-in the DestVI paper.
+cells of the same cell type in the scRNA-seq dataset. Specifically, :math:`\gamma_s^c` is set as follows:
+
+.. math::
+    :nowrap:
+
+    \begin{align}
+        \gamma_x^c \sim \frac{1}{K} \sum_{k=1}^K q_\Phi(\gamma^c \mid u_{kc}, c) \tag{5} \\
+    \end{align}
+
+where :math:`\{u_{kc}\}_{k=1}^K` designates a set of cells from cell type :math:`c` in the scRNA-seq dataset, and
+:math:`q_\Phi` designates the variational distrbution from the scLVM.
+In literature, the prior is referred to as a VampPrior ("variational aggregated mixture of posteriors" prior) [#ref2]_.
+More can be read on this prior in the DestVI paper.
+
+Lastly, an additional latent variable, :math:`\eta_g`, is incorporated into the aggregated cell expression profile
+as a dummy cell type to represent gene specific noise. The dummy cell type's expression profile is distributed
+as :math:`\epsilon_g := \mathrm{Softplus}(\eta_g)` where :math:`\eta_g \sim \mathrm{Normal}(0, 1)`.
+Like the other cell types, there is an associated cell type abundance parameter :math:`\beta_{sc}` associated with :math:`\eta`.
 
 
 The latent variables for the stLVM, along with their description are summarized in the following table:
@@ -121,34 +134,44 @@ The latent variables for the stLVM, along with their description are summarized 
    * - :math:`\beta_{sc} \in \mathbb{R}^{+}`
      - Spot-specific cell type abundance.
      - ``v_ind``
-   * - :math:`\gamma_s^c \in `
-     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model intialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
+   * - :math:`\gamma_s^c \in \mathbb{R}^{+}`
+     - Low-dimensional representation of sub-cell-type covariates for a given spot and cell type.
      - ``gamma``
+   * - :math:`\eta_{g} \in \mathbb{R}^{+}`
+     - Gene-specific noise.
+     - ``eta``
    * - :math:`p_g \in \mathbb{R}^{+}`
-     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model intialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
+     - Rate parameter for the negative binomial distribution.
      - ``px_o``
 
 
 Inference
 =========
 
+scLVM
+-----
+
 DestVI uses variational inference and specifically auto-encoding variational bayes (see :doc:`/user_guide/background/variational_inference`)
 to learn both the model parameters (the neural network params, rate params, etc.) and an approximate posterior distribution
-for the scLVM with the following factorization:
+for the scLVM. Like :class:`scvi.model.SCVI`, the underlying class used as the encoder for DestVI is :class:`~scvi.nn.Encoder`.
 
- .. math::
+stLVM
+-----
+
+For the stLVM, DestVI infers point estimates for latent variables :math:`\gamma^c, \alpha, \beta` using a penalized
+likelihood method. Beyond vanilla MAP inference, to regularize :math:`\alpha` a variance penalty is applied across all genes.
+Additionally, rather than having just :math:`C` parameters per spot to denote the estimated cell type abundances per spot, the stLVM
+has :math:`dC` parameters per spot as well to account for the latent space learned by the scLVM.
+
+The loss is defined as:
+
+.. math::
     :nowrap:
 
     \begin{align}
-       q_\eta(z_n, \ell_n \mid x_n) :=
-       q_\eta(z_n \mid x_n, s_n)q_\eta(\ell_n \mid x_n).
+         \mathrm{L(l, \alpha, \beta, f^g, \gamma, p, \eta)} := -\log p(X \mid l, \alpha, \beta, f^g, \gamma, p, \eta) - \log p(\eta) + \mathrm{Var}(\alpha) - \log p(\gamma \mid \mathrm{VampPrior}) \tag{6} \\
     \end{align}
 
-Here :math:`\eta` is a set of parameters corresponding to inference neural networks (encoders), which we do not describe in detail here,
-but are described in the DestVI paper. Like :class:`scvi.model.SCVI`, the underlying class used as the encoder for DestVI is :class:`~scvi.nn.Encoder`.
-
-For the stLVM, DestVI infers point estimates for latent variables :math:`\gamma^c, \alpha, \beta` using a penalized
-likelihood method. To regularize :math:`\alpha` a variance penalty is applied across all genes.
 To avoid overfitting, DestVI amortizes inference using a neural network to parametrize the latent variables.
 Via the ``amortization`` parameter of :class:`scvi.module.MRDeconv`, the user can specify which of
 :math:`\beta` and :math:`\gamma^c` will be parametrized by the neural network.
@@ -158,11 +181,14 @@ Tasks
 =====
 
 Cell type deconvolution
--------------
-Once the model is trained, one get retrieve the estimated cell type proportions in each spot using the method::
+-----------------------
+Once the model is trained, one can retrieve the estimated cell type proportions in each spot using the method::
 
     >>> proportions = st_model.get_proportions()
     >>> st_adata.obsm["proportions"] = proportions
+
+These proportions are computed by normalizing across all learned cell type abundances, :math:`\beta_{sc}`, for a given spot :math:`s`.
+I.e. the estimated proportion of cell type :math:`c` for spot :math:`s` is :math:`\frac{\beta_{sc}}{\sum_c \beta_{sc}}`.
 
 Subsequently for a given cell type, users can plot a heatmap of the cell type proportions spatially using scanpy with::
 
