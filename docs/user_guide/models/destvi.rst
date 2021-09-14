@@ -83,7 +83,7 @@ The latent variables for the scLVM, along with their description are summarized 
    * - :math:`\gamma_n \in \mathbb{R}^d`
      - Low-dimensional representation of sub-cell-type covariates.
      - ``z``
-   * - :math:`p_g \in \mathbb{R}^{+}`
+   * - :math:`p_g \in (0, \infty)`
      - Rate parameter for the negative binomial distribution.
      - ``px_r``
 
@@ -145,19 +145,19 @@ The latent variables for the stLVM, along with their description are summarized 
    * - Latent variable
      - Description
      - Code variable (if different)
-   * - :math:`\alpha_{g} \in \mathbb{R}^{+}`
-     - Correction term for technological differences.
-     - ``beta``
-   * - :math:`\beta_{sc} \in \mathbb{R}^{+}`
+   * - :math:`\beta_{sc} \in (0, \infty)`
      - Spot-specific cell type abundance.
      - ``v_ind``
-   * - :math:`\gamma_s^c \in \mathbb{R}^{+}`
+   * - :math:`\gamma_s^c \in (0, \infty)`
      - Low-dimensional representation of sub-cell-type covariates for a given spot and cell type.
      - ``gamma``
-   * - :math:`\eta_{g} \in \mathbb{R}^{+}`
+   * - :math:`\eta_g \in (0, \infty)`
      - Gene-specific noise.
      - ``eta``
-   * - :math:`p_g \in \mathbb{R}^{+}`
+   * - :math:`\alpha_g \in (0, \infty)`
+     - Correction term for technological differences.
+     - ``beta``
+   * - :math:`p_g \in (0,\infty)`
      - Rate parameter for the negative binomial distribution.
      - ``px_o``
 
@@ -186,7 +186,8 @@ The loss is defined as:
     :nowrap:
 
     \begin{align}
-         \mathrm{L(l, \alpha, \beta, f^g, \gamma, p, \eta)} := -\log p(X \mid l, \alpha, \beta, f^g, \gamma, p, \eta) - \log p(\eta) + \mathrm{Var}(\alpha) - \log p(\gamma \mid \mathrm{VampPrior}) \tag{6} \\
+         L(l, \alpha, \beta, f^g, \gamma, p, \eta) := &-\log p(X \mid l, \alpha, \beta, f^g, \gamma, p, \eta) - \log p(\eta) \\
+         &+ \mathrm{Var}(\alpha) - \log p(\gamma \mid \mathrm{VampPrior}) \tag{6} \\
     \end{align}
 
 To avoid overfitting, DestVI amortizes inference using a neural network to parametrize the latent variables.
