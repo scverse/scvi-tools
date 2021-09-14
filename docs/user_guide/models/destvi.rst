@@ -12,7 +12,7 @@ The advantages of DestVI are:
 
     + Scalable to very large datasets (>1 million cells).
 
-The disadvantages of DestVI include:
+The limitations of DestVI include:
 
     + Effectively requires a GPU for fast inference.
 
