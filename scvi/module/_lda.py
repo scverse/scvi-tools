@@ -7,16 +7,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pyro.infer import Trace_ELBO
-from pyro.nn import PyroModule, PyroParam
+from pyro.nn import PyroModule
 from scipy.special import gammaln, logsumexp, psi
-from torch.distributions import constraints
 
 from scvi._constants import _CONSTANTS
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import FCLayers
 
 _LDA_PYRO_MODULE_NAME = "lda"
-_COMPONENT_GENE_POSTERIOR_PARAM = "component_gene_posterior_unconstrained"
+_COMPONENT_GENE_POSTERIOR_PARAM = "component_gene_posterior"
 
 
 class LDAPyroModel(PyroModule):
@@ -151,9 +150,8 @@ class LDAPyroGuide(PyroModule):
         self.n_obs = None
 
         self.encoder = CellComponentDistPriorEncoder(n_input, n_components, n_hidden)
-        self.component_gene_posterior = PyroParam(
-            lambda: torch.ones(self.n_components, self.n_input),
-            constraint=constraints.positive,
+        self.component_gene_posterior = torch.nn.Parameter(
+            torch.ones(self.n_components, self.n_input),
         )
 
     @auto_move_data
@@ -161,7 +159,8 @@ class LDAPyroGuide(PyroModule):
         # Component gene distributions.
         with pyro.plate("components", self.n_components):
             pyro.sample(
-                "component_gene_dist", dist.Dirichlet(self.component_gene_posterior)
+                "component_gene_dist",
+                dist.Dirichlet(F.softplus(self.component_gene_posterior)),
             )
 
         # Cell component distributions guide.
@@ -234,9 +233,7 @@ class LDAPyroModule(PyroBaseModuleClass):
         -------
         A `n_components x n_input` tensor containing the component to gene transition matrix.
         """
-        return F.softplus(
-            self.guide.state_dict()[_COMPONENT_GENE_POSTERIOR_PARAM].detach().cpu(),
-        )
+        return self.guide.state_dict()[_COMPONENT_GENE_POSTERIOR_PARAM].detach().cpu()
 
     @auto_move_data
     @torch.no_grad()
@@ -264,7 +261,7 @@ class LDAPyroModule(PyroBaseModuleClass):
             / cell_component_unnormalized_dist.sum(axis=1)[:, np.newaxis]
         )
 
-    def elbo(self, x: torch.Tensor, library: torch.Tensor) -> float:
+    def get_elbo(self, x: torch.Tensor, library: torch.Tensor) -> float:
         return Trace_ELBO().loss(self.model, self.guide, x, library)
 
     def perplexity(self, x: torch.Tensor) -> float:

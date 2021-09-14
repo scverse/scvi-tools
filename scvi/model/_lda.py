@@ -166,7 +166,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
             x = tensors[_CONSTANTS.X_KEY]
             x_counts = x.sum().item()
             total_counts += x_counts
-            perplexities.append(self.module.elbo(x, x.sum(dim=1)))
+            perplexities.append(self.module.get_elbo(x, x.sum(dim=1)))
 
         return np.exp(np.mean(perplexities) / total_counts)
 
