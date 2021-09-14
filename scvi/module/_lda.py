@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pyro.infer import Trace_ELBO
-from pyro.nn import PyroModule
+from pyro.nn import PyroModule, PyroParam
 from scipy.special import gammaln, logsumexp, psi
 from torch.distributions import constraints
 
@@ -16,7 +16,7 @@ from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import FCLayers
 
 _LDA_PYRO_MODULE_NAME = "lda"
-_COMPONENT_GENE_POSTERIOR_PARAM = "component_gene_posterior"
+_COMPONENT_GENE_POSTERIOR_PARAM = "component_gene_posterior_unconstrained"
 
 
 class LDAPyroModel(PyroModule):
@@ -151,17 +151,18 @@ class LDAPyroGuide(PyroModule):
         self.n_obs = None
 
         self.encoder = CellComponentDistPriorEncoder(n_input, n_components, n_hidden)
+        self.component_gene_posterior = PyroParam(
+            lambda: torch.ones(self.n_components, self.n_input),
+            constraint=constraints.positive,
+        )
 
     @auto_move_data
     def forward(self, x: torch.Tensor, _library: torch.Tensor):
         # Component gene distributions.
-        component_gene_posterior = pyro.param(
-            _COMPONENT_GENE_POSTERIOR_PARAM,
-            lambda: x.new_ones(self.n_components, self.n_input),
-            constraint=constraints.greater_than(0.5),
-        )
         with pyro.plate("components", self.n_components):
-            pyro.sample("component_gene_dist", dist.Dirichlet(component_gene_posterior))
+            pyro.sample(
+                "component_gene_dist", dist.Dirichlet(self.component_gene_posterior)
+            )
 
         # Cell component distributions guide.
         with pyro.plate("cells", size=self.n_obs, subsample=x):
@@ -233,8 +234,9 @@ class LDAPyroModule(PyroBaseModuleClass):
         -------
         A `n_components x n_input` tensor containing the component to gene transition matrix.
         """
-        param_store = pyro.get_param_store()
-        return param_store.get_param(_COMPONENT_GENE_POSTERIOR_PARAM).detach().cpu()
+        return F.softplus(
+            self.guide.state_dict()[_COMPONENT_GENE_POSTERIOR_PARAM].detach().cpu(),
+        )
 
     @auto_move_data
     @torch.no_grad()
