@@ -45,23 +45,23 @@ First, for each cell :math:`n`,
    :nowrap:
 
    \begin{align}
-      z_n &\sim \textrm{Normal}(0, I)   \tag{4} \\
-      \rho_{n} &= f_\rho(z_n, s_n)  \tag{5} \\
-      \alpha_n &= g_\alpha(z_n, s_n)  \tag{6} \\
-      \pi_n &= h_\pi(z_n, s_n)  \tag{7} \\
-      l_n &\sim \textrm{LogNormal}(l_\mu^\top s_n, l_{\sigma^2}^\top s_n) \tag{8}\\
+      z_n &\sim \textrm{Normal}(0, I)   \tag{1} \\
+      \rho_{n} &= f_\rho(z_n, s_n)  \tag{2} \\
+      \alpha_n &= g_\alpha(z_n, s_n)  \tag{3} \\
+      \pi_n &= h_\pi(z_n, s_n)  \tag{4} \\
+      l_n &\sim \textrm{LogNormal}(l_\mu^\top s_n, l_{\sigma^2}^\top s_n) \tag{5}\\
    \end{align}
 
-The prior parameters are computed per batch as the mean and variance of the log library size over cells.
+The prior parameters :math:`l_\mu` and :math:`l_{\sigma^2}` are computed per batch as the mean and variance of the log library size over cells.
 The generative process of totalVI uses neural networks:
 
 .. math::
    :nowrap:
 
    \begin{align}
-      f_\rho(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to \Delta^{G-1}   \tag{1} \\
-      g_\alpha(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to [1, \infty)^T \tag{2}\\
-      h_\pi(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to (0, 1)^T \tag{3}
+      f_\rho(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to \Delta^{G-1}   \tag{6} \\
+      g_\alpha(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to [1, \infty)^T \tag{7}\\
+      h_\pi(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to (0, 1)^T \tag{8}
    \end{align}
 
 where :math:`d` is the dimension of the latent space (associated with latent variable :math:`z`).

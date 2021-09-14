@@ -64,8 +64,8 @@ The generative process of scVI uses two neural networks:
    :nowrap:
 
    \begin{align}
-      f_w(z_n, s_n) &: \mathbb{R}^{d} \times \{0, 1\}^K \to \Delta^{G-1}   \tag{1} \\
-      f_h(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to (0, 1)^T \tag{3}
+      f_w(z_n, s_n) &: \mathbb{R}^{d} \times \{0, 1\}^K \to \Delta^{G-1}\\
+      f_h(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to (0, 1)^T
    \end{align}
 
 which respectively decode the denoised gene expression and non-zero-inflation probability (only if using ZINB).
