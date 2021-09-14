@@ -344,9 +344,7 @@ class PyroSampleMixin:
             self.to_device(device)
 
             if i == 0:
-                sample_observed = sample_kwargs["sample_observed"]
-                if sample_observed is None:
-                    sample_observed = False
+                sample_observed = getattr(sample_kwargs, "sample_observed", False)
                 obs_plate_sites = self._get_obs_plate_sites(
                     args, kwargs, sample_observed=sample_observed
                 )
