@@ -262,7 +262,7 @@ class PyroSampleMixin:
         else:
             return obs_plate_sites
 
-    def _get_obs_plate_sites(self, args, kwargs):
+    def _get_obs_plate_sites(self, args, kwargs, sample_observed):
         """
         Automatically guess which model sites belong to observation/minibatch plate.
 
@@ -286,7 +286,17 @@ class PyroSampleMixin:
         obs_plate = {
             name: site["cond_indep_stack"][0].dim
             for name, site in trace.nodes.items()
-            if site["type"] == "sample"
+            if (
+                (site["type"] == "sample")  # sample statement
+                and (
+                    (
+                        (not site.get("is_observed", True)) or sample_observed
+                    )  # don't save observed unless requested
+                    or (site.get("infer", False).get("_deterministic", False))
+                )  # unless it is deterministic
+                and not isinstance(
+                    site.get("fn", None), poutine.subsample_messenger._Subsample
+                )  # don't save plates
             if any(f.name == plate_name for f in site["cond_indep_stack"])
         }
 
@@ -333,7 +343,10 @@ class PyroSampleMixin:
             self.to_device(device)
 
             if i == 0:
-                obs_plate_sites = self._get_obs_plate_sites(args, kwargs)
+                sample_observed = sample_kwargs["sample_observed"]
+                if sample_observed is None:
+                    sample_observed = False
+                obs_plate_sites = self._get_obs_plate_sites(args, kwargs, sample_observed=sample_observed)
                 if len(obs_plate_sites) == 0:
                     # if no local variables - don't sample
                     break
