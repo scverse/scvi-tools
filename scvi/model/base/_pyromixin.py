@@ -347,7 +347,9 @@ class PyroSampleMixin:
                 sample_observed = sample_kwargs["sample_observed"]
                 if sample_observed is None:
                     sample_observed = False
-                obs_plate_sites = self._get_obs_plate_sites(args, kwargs, sample_observed=sample_observed)
+                obs_plate_sites = self._get_obs_plate_sites(
+                    args, kwargs, sample_observed=sample_observed
+                )
                 if len(obs_plate_sites) == 0:
                     # if no local variables - don't sample
                     break
