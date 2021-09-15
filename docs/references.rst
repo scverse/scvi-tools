@@ -2,7 +2,7 @@ References
 ----------
 
 .. [Lotfollahi21] Mohammad Lotfollahi, Mohsen Naghipourfar, Malte D. Luecken, Matin Khajavi, Maren Büttner, Marco Wagenstetter, Ziga Avsec, Adam Gayoso, Nir Yosef, Marta Interlandi, Sergei Rybakov, Alexander V. Misharin, and Fabian J. Theis (2021),
-   *Query to reference single-cell integration with transfer learning*,
+   *Mapping single-cell data to reference atlases by transfer learning*,
    `Nature Biotechnology <https://www.nature.com/articles/s41587-021-01001-7>`__.
 
 .. [Lopez21] Romain Lopez*, Baoguo Li*, Hadas Keren-Shaul*, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Eyal David, Allon Wagner, Yoseph Addadi, Michael I Jordan, Ido Amit, Nir Yosef. (2021),
