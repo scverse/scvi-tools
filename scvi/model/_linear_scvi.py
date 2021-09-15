@@ -132,6 +132,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     def setup_anndata(
         adata: AnnData,
         batch_key: Optional[str] = None,
+        labels_key: Optional[str] = None,
         layer: Optional[str] = None,
         copy: bool = False,
     ) -> Optional[AnnData]:
@@ -150,6 +151,9 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         batch_key
             key in `adata.obs` for batch information. Categories will automatically be converted into integer
             categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data.
+        labels_key
+            key in `adata.obs` for label information. Categories will automatically be converted into integer
+            categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data.
         layer
             if not `None`, uses this as the key in `adata.layers` for raw count data.
         copy
@@ -174,6 +178,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         return _setup_anndata(
             adata,
             batch_key=batch_key,
+            labels_key=labels_key,
             layer=layer,
             copy=copy,
         )

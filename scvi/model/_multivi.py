@@ -93,7 +93,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
        and 250 genomic regions, the model assumes that the first 100 features are genes, and the
        next 250 are the regions.
 
-    * The main batch annotation, specified in `setup_anndata`, should correspond to
+    * The main batch annotation, specified in ``setup_anndata``, should correspond to
        the modality each cell originated from. This allows the model to focus mixing efforts, using
        an adversarial component, on mixing the modalities. Other covariates can be specified using
        the `categorical_covariate_keys` argument.

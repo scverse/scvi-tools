@@ -3,7 +3,6 @@ from unittest import TestCase
 import pytest
 
 import scvi
-from scvi.data._anndata import _setup_anndata
 
 from .utils import unsupervised_training_one_epoch
 
@@ -15,35 +14,30 @@ class TestPbmcDataset(TestCase):
             remove_extracted_data=True,
             run_setup_anndata=True,
         )
-        unsupervised_training_one_epoch(dataset)
+        unsupervised_training_one_epoch(dataset, run_setup_anndata=False)
 
 
 class TestLoomDataset(TestCase):
     def test_retina_load_train_one(self):
         dataset = scvi.data.retina(save_path="tests/data")
-        _setup_anndata(dataset, batch_key="batch")
-        unsupervised_training_one_epoch(dataset)
+        unsupervised_training_one_epoch(dataset, batch_key="batch")
 
     def test_pfc_starmap_load_train_one(self):
         gene_dataset = scvi.data.prefrontalcortex_starmap(save_path="tests/data")
-        _setup_anndata(gene_dataset)
         unsupervised_training_one_epoch(gene_dataset)
 
     def test_fc_dropseq_load_train_one(self):
         gene_dataset = scvi.data.frontalcortex_dropseq(save_path="tests/data")
-        _setup_anndata(gene_dataset)
         unsupervised_training_one_epoch(gene_dataset)
 
     def test_smfish_load_train_one(self):
         gene_dataset = scvi.data.smfish(save_path="tests/data")
-        _setup_anndata(gene_dataset)
         unsupervised_training_one_epoch(gene_dataset)
 
 
 class TestSeqfishDataset(TestCase):
     def test_populate(self):
         dataset = scvi.data.seqfish(save_path="tests/data")
-        _setup_anndata(dataset)
         unsupervised_training_one_epoch(dataset)
 
 
@@ -53,22 +47,19 @@ class TestSeqFishPlusDataset(TestCase):
             dataset = scvi.data.seqfishplus(
                 tissue_region=tissue_region, save_path="tests/data"
             )
-            _setup_anndata(dataset)
             unsupervised_training_one_epoch(dataset)
 
 
 class TestSyntheticDataset(TestCase):
     def test_iid(self):
         dataset = scvi.data.synthetic_iid(batch_size=10, n_genes=10)
-        _setup_anndata(dataset)
         unsupervised_training_one_epoch(dataset)
 
 
 class TestCortexDataset(TestCase):
     def test_populate(self):
         adata = scvi.data.cortex(save_path="tests/data")
-        _setup_anndata(adata, labels_key="cell_type")
-        unsupervised_training_one_epoch(adata)
+        unsupervised_training_one_epoch(adata, labels_key="cell_type")
 
 
 class TestBrainLargeDataset(TestCase):
@@ -79,7 +70,7 @@ class TestBrainLargeDataset(TestCase):
             n_genes_to_keep=10,
             max_cells_to_keep=128,
         )
-        unsupervised_training_one_epoch(adata)
+        unsupervised_training_one_epoch(adata, run_setup_anndata=False)
 
 
 class TestCsvDataset(TestCase):
@@ -87,13 +78,13 @@ class TestCsvDataset(TestCase):
         adata = scvi.data.breast_cancer_dataset(
             save_path="tests/data",
         )
-        unsupervised_training_one_epoch(adata)
+        unsupervised_training_one_epoch(adata, run_setup_anndata=False)
 
     def test_mouse_ob(self):
         adata = scvi.data.mouse_ob_dataset(
             save_path="tests/data",
         )
-        unsupervised_training_one_epoch(adata)
+        unsupervised_training_one_epoch(adata, run_setup_anndata=False)
 
 
 @pytest.mark.internet

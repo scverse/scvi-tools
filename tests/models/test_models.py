@@ -199,7 +199,7 @@ def test_scvi_sparse(save_path):
     n_latent = 5
     adata = synthetic_iid(run_setup_anndata=False)
     adata.X = csr_matrix(adata.X)
-    _setup_anndata(adata)
+    SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, train_size=0.5)
     assert model.is_trained is True
@@ -505,14 +505,14 @@ def test_scanvi(save_path):
     # test that all data labeled runs
     unknown_label = "asdf"
     a = scvi.data.synthetic_iid()
-    _setup_anndata(a, batch_key="batch", labels_key="labels")
+    scvi.model.SCANVI.setup_anndata(a, batch_key="batch", labels_key="labels")
     m = scvi.model.SCANVI(a, unknown_label)
     m.train(1)
 
     # test mix of labeled and unlabeled data
     unknown_label = "label_0"
     a = scvi.data.synthetic_iid()
-    _setup_anndata(a, batch_key="batch", labels_key="labels")
+    scvi.model.SCANVI.setup_anndata(a, batch_key="batch", labels_key="labels")
     m = scvi.model.SCANVI(a, unknown_label)
     m.train(1, train_size=0.9)
 
@@ -530,7 +530,7 @@ def test_scanvi(save_path):
 def test_linear_scvi(save_path):
     adata = synthetic_iid()
     adata = adata[:, :10].copy()
-    _setup_anndata(adata)
+    LinearSCVI.setup_anndata(adata)
     model = LinearSCVI(adata, n_latent=10)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     assert len(model.history["elbo_train"]) == 1

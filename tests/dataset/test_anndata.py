@@ -101,7 +101,7 @@ def test_transfer_anndata_setup():
     a1 = scvi.data.synthetic_iid()
     a2 = scvi.data.synthetic_iid(run_setup_anndata=False)
     a2.obs["batch"] = "batch_1"
-    _setup_anndata(a2, batch_key="batch")
+    scvi.model.SCVI.setup_anndata(a2, batch_key="batch")
     m = scvi.model.SCVI(a1)
     m.train(1)
     m.get_latent_representation(a2)
@@ -230,12 +230,10 @@ def test_extra_covariates():
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    _setup_anndata(
+    scvi.model.SCVI.setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
