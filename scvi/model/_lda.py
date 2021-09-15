@@ -131,6 +131,18 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         return pd.DataFrame(data=transformed_x, index=user_adata.obs_names)
 
     def get_elbo(self, adata: Optional[AnnData] = None) -> float:
+        """
+        Computes ELBO.
+
+        Parameters
+        ----------
+        adata
+            AnnData to compute ELBO for. If None, returns the ELBO for the source AnnData.
+
+        Returns
+        -------
+        The negative ELBO.
+        """
         if adata is not None:
             self._check_var_equality(adata)
         self._check_if_not_trained()
@@ -149,7 +161,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         """
         Computes approximate perplexity for `adata`.
 
-        Perplexity is defined as exp(-1 * log-likelihood per count).
+        Perplexity is defined as exp(-1 * log-likelihood per cunt).
 
         Parameters
         ----------

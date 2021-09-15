@@ -280,4 +280,20 @@ class LDAPyroModule(PyroBaseModuleClass):
         )
 
     def get_elbo(self, x: torch.Tensor, library: torch.Tensor, n_obs: int) -> float:
+        """
+        Computes ELBO.
+
+        Parameters
+        ----------
+        x
+            Counts tensor.
+        library
+            Library sizes for each cell.
+        n_obs
+            Size of full batch. If n_obs < x.shape[0], ELBO is scaled by (n_obs / x.shape[0]).
+
+        Returns
+        -------
+        The negative ELBO.
+        """
         return -Trace_ELBO().loss(self.model, self.guide, x, library, n_obs=n_obs)
