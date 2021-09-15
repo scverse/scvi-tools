@@ -32,7 +32,9 @@ class BaseModelClass(ABC):
     def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
             if "_scvi" not in adata.uns.keys():
-                raise ValueError("Please set up your AnnData with setup_anndata first")
+                raise ValueError(
+                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first"
+                )
             self.adata = adata
             self.scvi_setup_dict_ = adata.uns["_scvi"]
             self.summary_stats = self.scvi_setup_dict_["summary_stats"]

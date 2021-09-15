@@ -525,8 +525,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata: AnnData,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
         copy: bool = False,
     ) -> Optional[AnnData]:
         """
@@ -547,10 +545,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         labels_key
             key in `adata.obs` for label information. Categories will automatically be converted into integer
             categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data.
-        categorical_covariate_keys
-            keys in `adata.obs` that correspond to categorical data.
-        continuous_covariate_keys
-            keys in `adata.obs` that correspond to continuous data.
         copy
             if `True`, a copy of adata is returned.
 
@@ -570,8 +564,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             adata,
             batch_key=batch_key,
             labels_key=labels_key,
-            categorical_covariate_keys=categorical_covariate_keys,
-            continuous_covariate_keys=continuous_covariate_keys,
             copy=copy,
         )
 

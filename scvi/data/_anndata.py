@@ -10,10 +10,10 @@ import numpy as np
 import pandas as pd
 import rich
 from anndata._core.anndata import AnnData
-from deprecate import deprecated
 from pandas.api.types import CategoricalDtype
 from rich.console import Console
 from scipy.sparse import isspmatrix
+from sklearn.utils import deprecated
 
 import scvi
 from scvi import _CONSTANTS
@@ -71,7 +71,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     return data
 
 
-@deprecated(target=None, deprecated_in="0.14.0", remove_in="0.15.0")
+@deprecated(extra="Please use the model-specific setup_anndata methods instead.")
 def setup_anndata(
     adata: anndata.AnnData,
     batch_key: Optional[str] = None,
@@ -141,7 +141,7 @@ def setup_anndata(
         uns: 'protein_names'
         obsm: 'protein_expression'
 
-    Filter cells and run preprocessing before `setup_anndata`
+    Filter cells and run preprocessing before ``setup_anndata``
 
     >>> sc.pp.filter_cells(adata, min_counts = 0)
 

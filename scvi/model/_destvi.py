@@ -363,7 +363,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     @staticmethod
     def setup_anndata(
         adata: AnnData,
-        labels_key: Optional[str] = None,
         layer: Optional[str] = None,
         copy: bool = False,
     ) -> Optional[AnnData]:
@@ -379,9 +378,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         adata
             AnnData object containing raw counts. Rows represent cells, columns represent features.
-        labels_key
-            key in `adata.obs` for label information. Categories will automatically be converted into integer
-            categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data.
         layer
             if not `None`, uses this as the key in `adata.layers` for raw count data.
         copy
@@ -401,7 +397,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         """
         return _setup_anndata(
             adata,
-            labels_key=labels_key,
             layer=layer,
             copy=copy,
         )
