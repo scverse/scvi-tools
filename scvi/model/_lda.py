@@ -50,8 +50,8 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
             n_input=self.summary_stats["n_vars"],
             n_components=n_components,
             n_hidden=n_hidden,
-            cell_component_prior=cell_component_prior,
-            component_gene_prior=component_gene_prior,
+            cell_component_prior=cell_component_prior or 1 / n_components,
+            component_gene_prior=component_gene_prior or 1 / n_components,
         )
 
     def _check_var_equality(self, adata: AnnData):
