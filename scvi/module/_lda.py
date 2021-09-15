@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
-from scipy.special import gammaln, logsumexp, psi
 
 from scvi._constants import _CONSTANTS
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
@@ -282,47 +281,3 @@ class LDAPyroModule(PyroBaseModuleClass):
 
     def get_elbo(self, x: torch.Tensor, library: torch.Tensor, n_obs: int) -> float:
         return -Trace_ELBO().loss(self.model, self.guide, x, library, n_obs=n_obs)
-
-    def get_sklearn_elbo(
-        self, x: torch.Tensor, _library: torch.Tensor, n_obs: int
-    ) -> float:
-        def dirichlet_log_coef(dirichlet_dist: np.ndarray) -> np.ndarray:
-            return (
-                psi(dirichlet_dist) - psi(np.sum(dirichlet_dist, axis=1))[:, np.newaxis]
-            )
-
-        def dirichlet_ll(prior: float, dist: torch.Tensor, size: int) -> float:
-            dist = dist.numpy()
-            score = np.sum((prior - dist) * dirichlet_log_coef(dist))
-            score += np.sum(gammaln(dist) - gammaln(prior))
-            score += np.sum(gammaln(prior * size) - gammaln(np.sum(dist, axis=1)))
-            return score
-
-        counts = x.numpy()
-        score = 0.0
-        cell_component_posterior = self._unnormalized_transform(x)
-
-        # E[log p(cells | cell_component_dist, components)]
-        cell_component_posterior_log_coef = dirichlet_log_coef(
-            cell_component_posterior.numpy()
-        )
-        components_log_coef = dirichlet_log_coef(self.components.numpy())
-        norm_phi = logsumexp(
-            np.repeat(
-                cell_component_posterior_log_coef[:, :, np.newaxis],
-                self.n_input,
-                axis=2,
-            )
-            + components_log_coef,
-            axis=1,
-        )
-        score += np.sum(counts * norm_phi) * (n_obs / counts.shape[0])
-
-        # E[log p(cell_component_dist | cell_component_prior) - log q(cell_component_dist | cell_component_posterior)]
-        score += dirichlet_ll(
-            self.cell_component_prior, cell_component_posterior, self.n_components
-        )
-
-        # E[log p(components | component_gene_prior) - log q(components | component_gene_posterior)]
-        score += dirichlet_ll(self.component_gene_prior, self.components, self.n_input)
-        return score
