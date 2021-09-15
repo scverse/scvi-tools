@@ -15,7 +15,6 @@ from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import FCLayers
 
 _LDA_PYRO_MODULE_NAME = "lda"
-_COMPONENT_GENE_POSTERIOR_PARAM = "component_gene_posterior"
 
 
 class LDAPyroModel(PyroModule):
@@ -150,9 +149,13 @@ class LDAPyroGuide(PyroModule):
         self.n_obs = None
 
         self.encoder = CellComponentDistPriorEncoder(n_input, n_components, n_hidden)
-        self.component_gene_posterior = torch.nn.Parameter(
+        self.unconstrained_component_gene_posterior = torch.nn.Parameter(
             torch.ones(self.n_components, self.n_input),
         )
+
+    @property
+    def component_gene_posterior(self):
+        return F.softplus(self.unconstrained_component_gene_posterior)
 
     @auto_move_data
     def forward(self, x: torch.Tensor, _library: torch.Tensor):
@@ -160,7 +163,7 @@ class LDAPyroGuide(PyroModule):
         with pyro.plate("components", self.n_components):
             pyro.sample(
                 "component_gene_dist",
-                dist.Dirichlet(F.softplus(self.component_gene_posterior)),
+                dist.Dirichlet(self.component_gene_posterior),
             )
 
         # Cell component distributions guide.
@@ -233,7 +236,7 @@ class LDAPyroModule(PyroBaseModuleClass):
         -------
         A `n_components x n_input` tensor containing the component to gene transition matrix.
         """
-        return self.guide.state_dict()[_COMPONENT_GENE_POSTERIOR_PARAM].detach().cpu()
+        return self.guide.component_gene_posterior.detach().cpu()
 
     @auto_move_data
     @torch.no_grad()
@@ -262,20 +265,9 @@ class LDAPyroModule(PyroBaseModuleClass):
         )
 
     def get_elbo(self, x: torch.Tensor, library: torch.Tensor) -> float:
-        return Trace_ELBO().loss(self.model, self.guide, x, library)
+        return -Trace_ELBO().loss(self.model, self.guide, x, library)
 
-    def perplexity(self, x: torch.Tensor) -> float:
-        """
-        Computes the approximate perplexity of the for `x`.
-
-        Perplexity is defined as exp(-1 * log-likelihood per count).
-        Implementation based off of https://github.com/scikit-learn/scikit-learn/blob/2beed5584/sklearn/decomposition/_lda.py
-
-        Returns
-        -------
-        Perplexity as a float.
-        """
-
+    def get_sklearn_elbo(self, x: torch.Tensor) -> float:
         def dirichlet_log_coef(dirichlet_dist: np.ndarray) -> np.ndarray:
             return (
                 psi(dirichlet_dist) - psi(np.sum(dirichlet_dist, axis=1))[:, np.newaxis]
@@ -289,7 +281,6 @@ class LDAPyroModule(PyroBaseModuleClass):
             return score
 
         counts = x.numpy()
-        total_count = counts.sum()
         score = 0.0
         cell_component_posterior = self._unnormalized_transform(x)
 
@@ -307,7 +298,7 @@ class LDAPyroModule(PyroBaseModuleClass):
             + components_log_coef,
             axis=1,
         )
-        score += np.sum(counts * norm_phi)
+        score += np.sum(counts * norm_phi) * (self.model.n_obs / counts.shape[0])
 
         # E[log p(cell_component_dist | cell_component_prior) - log q(cell_component_dist | cell_component_posterior)]
         score += dirichlet_ll(
@@ -316,8 +307,19 @@ class LDAPyroModule(PyroBaseModuleClass):
 
         # E[log p(components | component_gene_prior) - log q(components | component_gene_posterior)]
         score += dirichlet_ll(self.component_gene_prior, self.components, self.n_input)
+        return score
 
-        print("score")
-        print(score)
+    def perplexity(self, x: torch.Tensor) -> float:
+        """
+        Computes the approximate perplexity of the for `x`.
 
+        Perplexity is defined as exp(-1 * log-likelihood per count).
+        Implementation based off of https://github.com/scikit-learn/scikit-learn/blob/2beed5584/sklearn/decomposition/_lda.py
+
+        Returns
+        -------
+        Perplexity as a float.
+        """
+        score = self.get_sklearn_elbo(x)
+        total_count = x.sum().item()
         return np.exp(-1.0 * score / total_count)

@@ -395,13 +395,13 @@ def test_lda_model():
     assert adata_lda.shape == (adata.n_obs, n_topics) and np.all(
         (adata_lda <= 1) & (adata_lda >= 0)
     )
-    print(mod.perplexity())
-    print(mod.test_perplexity())
+    print(mod.get_elbo(use_sklearn=True))
+    print(mod.get_elbo())
 
     adata2 = synthetic_iid()
     adata2_lda = mod.transform(adata2).to_numpy()
     assert adata2_lda.shape == (adata2.n_obs, n_topics) and np.all(
         (adata2_lda <= 1) & (adata2_lda >= 0)
     )
-    print(mod.perplexity(adata2))
-    print(mod.test_perplexity(adata2))
+    print(mod.get_elbo(adata2, use_sklearn=True))
+    print(mod.get_elbo(adata2))
