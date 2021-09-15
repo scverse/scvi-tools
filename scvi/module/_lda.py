@@ -1,3 +1,4 @@
+import math
 from typing import Dict, Iterable, Optional, Union
 
 import numpy as np
@@ -15,6 +16,17 @@ from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import FCLayers
 
 _LDA_PYRO_MODULE_NAME = "lda"
+
+
+class CategoricalBoW(dist.Multinomial):
+    def log_prob(self, value):
+        if self._validate_args:
+            self._validate_sample(value)
+        logits, value = dist.util.broadcast_all(self.logits, value)
+        logits = logits.clone(memory_format=torch.contiguous_format)
+        logits[(value == 0) & (logits == -math.inf)] = 0
+        log_powers = (logits * value).sum(-1)
+        return log_powers
 
 
 class LDAPyroModel(PyroModule):
@@ -68,7 +80,9 @@ class LDAPyroModel(PyroModule):
         return (x, library), {}
 
     @auto_move_data
-    def forward(self, x: torch.Tensor, library: torch.Tensor):
+    def forward(
+        self, x: torch.Tensor, library: torch.Tensor, n_obs: Optional[int] = None
+    ):
         # Component gene distributions.
         with pyro.plate("components", self.n_components):
             component_gene_dist = pyro.sample(
@@ -78,14 +92,14 @@ class LDAPyroModel(PyroModule):
 
         # Cell counts generation.
         max_library_size = int(torch.max(library).item())
-        with pyro.plate("cells", size=self.n_obs, subsample=x):
+        with pyro.plate("cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]):
             cell_component_dist = pyro.sample(
                 "cell_component_dist", dist.Dirichlet(self.cell_component_prior)
             )
 
             pyro.sample(
                 "gene_counts",
-                dist.Multinomial(
+                CategoricalBoW(
                     max_library_size, cell_component_dist @ component_gene_dist
                 ),
                 obs=x,
@@ -158,7 +172,9 @@ class LDAPyroGuide(PyroModule):
         return F.softplus(self.unconstrained_component_gene_posterior)
 
     @auto_move_data
-    def forward(self, x: torch.Tensor, _library: torch.Tensor):
+    def forward(
+        self, x: torch.Tensor, _library: torch.Tensor, n_obs: Optional[int] = None
+    ):
         # Component gene distributions.
         with pyro.plate("components", self.n_components):
             pyro.sample(
@@ -167,7 +183,7 @@ class LDAPyroGuide(PyroModule):
             )
 
         # Cell component distributions guide.
-        with pyro.plate("cells", size=self.n_obs, subsample=x):
+        with pyro.plate("cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]):
             cell_component_posterior = self.encoder(x)
             pyro.sample("cell_component_dist", dist.Dirichlet(cell_component_posterior))
 
@@ -264,10 +280,12 @@ class LDAPyroModule(PyroBaseModuleClass):
             / cell_component_unnormalized_dist.sum(axis=1)[:, np.newaxis]
         )
 
-    def get_elbo(self, x: torch.Tensor, library: torch.Tensor) -> float:
-        return -Trace_ELBO().loss(self.model, self.guide, x, library)
+    def get_elbo(self, x: torch.Tensor, library: torch.Tensor, n_obs: int) -> float:
+        return -Trace_ELBO().loss(self.model, self.guide, x, library, n_obs=n_obs)
 
-    def get_sklearn_elbo(self, x: torch.Tensor) -> float:
+    def get_sklearn_elbo(
+        self, x: torch.Tensor, _library: torch.Tensor, n_obs: int
+    ) -> float:
         def dirichlet_log_coef(dirichlet_dist: np.ndarray) -> np.ndarray:
             return (
                 psi(dirichlet_dist) - psi(np.sum(dirichlet_dist, axis=1))[:, np.newaxis]
@@ -298,7 +316,7 @@ class LDAPyroModule(PyroBaseModuleClass):
             + components_log_coef,
             axis=1,
         )
-        score += np.sum(counts * norm_phi) * (self.model.n_obs / counts.shape[0])
+        score += np.sum(counts * norm_phi) * (n_obs / counts.shape[0])
 
         # E[log p(cell_component_dist | cell_component_prior) - log q(cell_component_dist | cell_component_posterior)]
         score += dirichlet_ll(
@@ -308,18 +326,3 @@ class LDAPyroModule(PyroBaseModuleClass):
         # E[log p(components | component_gene_prior) - log q(components | component_gene_posterior)]
         score += dirichlet_ll(self.component_gene_prior, self.components, self.n_input)
         return score
-
-    def perplexity(self, x: torch.Tensor) -> float:
-        """
-        Computes the approximate perplexity of the for `x`.
-
-        Perplexity is defined as exp(-1 * log-likelihood per count).
-        Implementation based off of https://github.com/scikit-learn/scikit-learn/blob/2beed5584/sklearn/decomposition/_lda.py
-
-        Returns
-        -------
-        Perplexity as a float.
-        """
-        score = self.get_sklearn_elbo(x)
-        total_count = x.sum().item()
-        return np.exp(-1.0 * score / total_count)

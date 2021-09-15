@@ -50,8 +50,8 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
             n_input=self.summary_stats["n_vars"],
             n_components=n_components,
             n_hidden=n_hidden,
-            cell_component_prior=cell_component_prior or 1 / n_components,
-            component_gene_prior=component_gene_prior or 1 / n_components,
+            cell_component_prior=cell_component_prior,
+            component_gene_prior=component_gene_prior,
         )
 
     def _check_var_equality(self, adata: AnnData):
@@ -120,9 +120,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         self._check_if_not_trained()
 
         user_adata = adata or self.adata
-        dl = self._make_data_loader(
-            adata=user_adata, indices=np.arange(user_adata.n_obs)
-        )
+        dl = self._make_data_loader(adata=user_adata)
 
         transformed_xs = []
         for tensors in dl:
@@ -138,44 +136,18 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         self._check_if_not_trained()
 
         user_adata = adata or self.adata
-        dl = self._make_data_loader(
-            adata=user_adata, indices=np.arange(user_adata.n_obs)
-        )
+        dl = self._make_data_loader(adata=user_adata)
 
         elbos = []
         for tensors in dl:
             x = tensors[_CONSTANTS.X_KEY]
             library = x.sum(dim=1)
             elbos.append(
-                self.module.get_elbo(x, library)
+                self.module.get_elbo(x, library, user_adata.n_obs)
                 if not use_sklearn
-                else self.module.get_sklearn_elbo(x)
+                else self.module.get_sklearn_elbo(x, library, user_adata.n_obs)
             )
         return np.mean(elbos)
-
-    def test_perplexity(self, adata: Optional[AnnData] = None) -> float:
-        if adata is not None:
-            self._check_var_equality(adata)
-        self._check_if_not_trained()
-
-        user_adata = adata or self.adata
-        dl = self._make_data_loader(
-            adata=user_adata, indices=np.arange(user_adata.n_obs)
-        )
-
-        perplexities = []
-        total_counts = 0
-        # batch_counts = []
-        for tensors in dl:
-            x = tensors[_CONSTANTS.X_KEY]
-            x_counts = x.sum().item()
-            total_counts += x_counts
-            perplexities.append(self.module.get_elbo(x, x.sum(dim=1)))
-
-        return np.exp(-np.mean(perplexities) / total_counts)
-
-        # normalized_batch_counts = np.array(batch_counts) / np.sum(batch_counts)
-        # return np.prod(np.power(perplexities, normalized_batch_counts))
 
     def perplexity(self, adata: Optional[AnnData] = None) -> float:
         """
@@ -197,17 +169,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         self._check_if_not_trained()
 
         user_adata = adata or self.adata
-        dl = self._make_data_loader(
-            adata=user_adata, indices=np.arange(user_adata.n_obs)
-        )
+        dl = self._make_data_loader(adata=user_adata)
+        total_counts = np.sum(tensors[_CONSTANTS.X_KEY].sum().item() for tensors in dl)
 
-        perplexities = []
-        batch_counts = []
-        for tensors in dl:
-            x = tensors[_CONSTANTS.X_KEY]
-            x_counts = x.sum().item()
-            batch_counts.append(x_counts)
-            perplexities.append(self.module.perplexity(x))
-
-        normalized_batch_counts = np.array(batch_counts) / np.sum(batch_counts)
-        return np.prod(np.power(perplexities, normalized_batch_counts))
+        return np.exp(-self.get_elbo(adata=adata) / total_counts)

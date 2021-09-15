@@ -397,6 +397,7 @@ def test_lda_model():
     )
     print(mod.get_elbo(use_sklearn=True))
     print(mod.get_elbo())
+    print(mod.perplexity())
 
     adata2 = synthetic_iid()
     adata2_lda = mod.transform(adata2).to_numpy()
@@ -405,3 +406,4 @@ def test_lda_model():
     )
     print(mod.get_elbo(adata2, use_sklearn=True))
     print(mod.get_elbo(adata2))
+    print(mod.perplexity(adata2))
