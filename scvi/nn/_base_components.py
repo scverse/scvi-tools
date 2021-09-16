@@ -993,12 +993,17 @@ class EncoderTOTALVI(nn.Module):
         q = self.encoder(data, *cat_list)
         qz_m = self.z_mean_encoder(q)
         qz_v = torch.exp(self.z_var_encoder(q)) + 1e-4
-        z, untran_z = self.reparameterize_transformation(qz_m, qz_v)
+        q_z = Normal(qz_m, qz_v.sqrt())
+        untran_z = q_z.rsample()
+        z = self.z_transformation(untran_z)
 
         ql_gene = self.l_gene_encoder(data, *cat_list)
         ql_m = self.l_gene_mean_encoder(ql_gene)
         ql_v = torch.exp(self.l_gene_var_encoder(ql_gene)) + 1e-4
         log_library_gene = torch.clamp(reparameterize_gaussian(ql_m, ql_v), max=15)
+        q_l = Normal(ql_m, ql_v.sqrt())
+        log_library_gene = q_l.rsample()
+        log_library_gene = torch.clamp(log_library_gene, max=15)
         library_gene = self.l_transformation(log_library_gene)
 
         latent = {}
@@ -1008,4 +1013,4 @@ class EncoderTOTALVI(nn.Module):
         untran_latent["z"] = untran_z
         untran_latent["l"] = log_library_gene
 
-        return qz_m, qz_v, ql_m, ql_v, latent, untran_latent
+        return q_z, q_l, latent, untran_latent
