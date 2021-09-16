@@ -29,7 +29,7 @@ def test_transfer_anndata_setup():
     setup_anndata(adata1)
     transfer_anndata_setup(adata1, adata2)
     np.testing.assert_array_equal(
-        adata1.obs["_scvi_local_l_mean"], adata2.obs["_scvi_local_l_mean"]
+        adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
 
     # test if layer was used initially, again used in transfer setup
@@ -45,7 +45,7 @@ def test_transfer_anndata_setup():
     setup_anndata(adata1, layer="raw")
     transfer_anndata_setup(adata1, adata2)
     np.testing.assert_array_equal(
-        adata1.obs["_scvi_local_l_mean"], adata2.obs["_scvi_local_l_mean"]
+        adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
 
     # test that an unknown batch throws an error
@@ -300,16 +300,14 @@ def test_anntorchdataset_getitem():
         protein_names_uns_key="protein_names",
     )
     # check that we can successfully pass in a list of tensors to get
-    tensors_to_get = ["batch_indices", "local_l_var"]
+    tensors_to_get = ["batch_indices", "labels"]
     bd = AnnTorchDataset(adata, getitem_tensors=tensors_to_get)
     np.testing.assert_array_equal(tensors_to_get, list(bd[1].keys()))
 
     # check that we can successfully pass in a dict of tensors and their associated types
-    bd = AnnTorchDataset(
-        adata, getitem_tensors={"X": np.int, "local_l_var": np.float64}
-    )
+    bd = AnnTorchDataset(adata, getitem_tensors={"X": np.int, "labels": np.int64})
     assert bd[1]["X"].dtype == np.int64
-    assert bd[1]["local_l_var"].dtype == np.float64
+    assert bd[1]["labels"].dtype == np.int64
 
     # check that by default we get all the registered tensors
     bd = AnnTorchDataset(adata)

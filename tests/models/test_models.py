@@ -36,10 +36,14 @@ from scvi.train import TrainingPlan, TrainRunner
 def test_scvi(save_path):
     n_latent = 5
     adata = synthetic_iid()
+
+    # Test with observed lib size.
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
-    model = SCVI(adata, n_latent=n_latent, var_activation=Softplus())
+    model = SCVI(
+        adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False
+    )
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
@@ -542,6 +546,25 @@ def test_autozi():
         autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
         autozivae.get_alphas_betas()
 
+    # Model library size.
+    for disp_zi in ["gene", "gene-label"]:
+        autozivae = AUTOZI(
+            data,
+            dispersion=disp_zi,
+            zero_inflation=disp_zi,
+            use_observed_lib_size=False,
+        )
+        autozivae.train(1, plan_kwargs=dict(lr=1e-2), check_val_every_n_epoch=1)
+        assert hasattr(autozivae.module, "library_log_means") and hasattr(
+            autozivae.module, "library_log_vars"
+        )
+        assert len(autozivae.history["elbo_train"]) == 1
+        assert len(autozivae.history["elbo_validation"]) == 1
+        autozivae.get_elbo(indices=autozivae.validation_indices)
+        autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
+        autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
+        autozivae.get_alphas_betas()
+
 
 def test_totalvi(save_path):
     adata = synthetic_iid()
@@ -584,7 +607,6 @@ def test_totalvi(save_path):
         n_vars + n_proteins,
         n_vars + n_proteins,
     )
-    # model.get_likelihood_parameters()
 
     model.get_elbo(indices=model.validation_indices)
     model.get_marginal_ll(indices=model.validation_indices, n_mc_samples=3)
@@ -604,7 +626,6 @@ def test_totalvi(save_path):
     assert pro_foreground_prob.shape == (3, 2)
     model.posterior_predictive_sample(adata2)
     model.get_feature_correlation_matrix(adata2)
-    # model.get_likelihood_parameters(adata2)
 
     # test transfer_anndata_setup + view
     adata2 = synthetic_iid(run_setup_anndata=False)
@@ -652,6 +673,21 @@ def test_totalvi(save_path):
     model = TOTALVI(adata)
     assert model.module.protein_batch_mask is not None
     model.train(1, train_size=0.5)
+
+
+def test_totalvi_model_library_size(save_path):
+    adata = synthetic_iid()
+    n_latent = 10
+
+    model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
+    assert hasattr(model.module, "library_log_means") and hasattr(
+        model.module, "library_log_vars"
+    )
+    model.train(1, train_size=0.5)
+    assert model.is_trained is True
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_latent_library_size()
 
 
 def test_multiple_covariates(save_path):

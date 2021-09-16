@@ -3,6 +3,7 @@ import logging
 from anndata import AnnData
 
 from scvi._compat import Literal
+from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
 
@@ -63,10 +64,10 @@ class SCVI(
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/api_overview`
-    2. :doc:`/user_guide/notebooks/harmonization`
-    3. :doc:`/user_guide/notebooks/scarches_scvi_tools`
-    4. :doc:`/user_guide/notebooks/scvi_in_R`
+    1. :doc:`/tutorials/notebooks/api_overview`
+    2. :doc:`/tutorials/notebooks/harmonization`
+    3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
+    4. :doc:`/tutorials/notebooks/scvi_in_R`
     """
 
     def __init__(
@@ -88,9 +89,12 @@ class SCVI(
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
+        n_batch = self.summary_stats["n_batch"]
+        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+
         self.module = VAE(
             n_input=self.summary_stats["n_vars"],
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=n_batch,
             n_labels=self.summary_stats["n_labels"],
             n_continuous_cov=self.summary_stats["n_continuous_covs"],
             n_cats_per_cov=n_cats_per_cov,
@@ -101,6 +105,8 @@ class SCVI(
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
             **model_kwargs,
         )
         self._model_summary_string = (

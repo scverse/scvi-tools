@@ -67,7 +67,7 @@ class SCANVAE(VAE):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
-    **kwargs
+    **vae_kwargs
         Keyword args for :class:`~scvi.module.VAE`
     """
 
@@ -91,7 +91,7 @@ class SCANVAE(VAE):
         classifier_parameters: dict = dict(),
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        **kwargs
+        **vae_kwargs
     ):
         super().__init__(
             n_input,
@@ -107,7 +107,7 @@ class SCANVAE(VAE):
             gene_likelihood=gene_likelihood,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
-            **kwargs
+            **vae_kwargs
         )
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
@@ -232,8 +232,7 @@ class SCANVAE(VAE):
         z1 = inference_outputs["z"]
         ql = inference_outputs["ql"]
         x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         if feed_labels:
             y = tensors[_CONSTANTS.LABELS_KEY]
@@ -256,9 +255,14 @@ class SCANVAE(VAE):
         loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
         loss_z1_weight = qz1.log_prob(z1).sum(dim=-1)
         if not self.use_observed_lib_size:
+            (
+                local_library_log_means,
+                local_library_log_vars,
+            ) = self._compute_local_library_params(batch_index)
+
             kl_divergence_l = kl(
                 ql,
-                Normal(local_l_mean, torch.sqrt(local_l_var)),
+                Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
             kl_divergence_l = 0.0
@@ -276,7 +280,7 @@ class SCANVAE(VAE):
                     loss,
                     reconst_loss,
                     kl_locals,
-                    kl_global=0.0,
+                    kl_global=torch.tensor(0.0),
                     classification_loss=classifier_loss,
                     n_labelled_tensors=labelled_tensors[_CONSTANTS.X_KEY].shape[0],
                 )
@@ -284,7 +288,7 @@ class SCANVAE(VAE):
                 loss,
                 reconst_loss,
                 kl_locals,
-                kl_global=0.0,
+                kl_global=torch.tensor(0.0),
             )
 
         probs = self.classifier(z1)
@@ -310,8 +314,10 @@ class SCANVAE(VAE):
                 loss,
                 reconst_loss,
                 kl_divergence,
-                kl_global=0.0,
+                kl_global=torch.tensor(0.0),
                 classification_loss=classifier_loss,
                 n_labelled_tensors=labelled_tensors[_CONSTANTS.X_KEY].shape[0],
             )
-        return LossRecorder(loss, reconst_loss, kl_divergence, kl_global=0.0)
+        return LossRecorder(
+            loss, reconst_loss, kl_divergence, kl_global=torch.tensor(0.0)
+        )

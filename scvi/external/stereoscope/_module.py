@@ -108,7 +108,7 @@ class RNADeconv(BaseModuleClass):
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
         loss = torch.mean(scaling_factor * reconst_loss)
 
-        return LossRecorder(loss, reconst_loss, torch.zeros((1,)), 0.0)
+        return LossRecorder(loss, reconst_loss, torch.zeros((1,)), torch.tensor(0.0))
 
     @torch.no_grad()
     def sample(

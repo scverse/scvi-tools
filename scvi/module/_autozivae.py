@@ -63,14 +63,14 @@ class AutoZIVAE(VAE):
         beta_prior: Optional[float] = 0.5,
         minimal_dropout: float = 0.01,
         zero_inflation: str = "gene",
-        **args,
+        **kwargs,
     ) -> None:
-        if "reconstruction_loss" in args:
+        if "reconstruction_loss" in kwargs:
             raise ValueError(
                 "No reconstruction loss must be specified for AutoZI : it is 'autozinb'."
             )
 
-        super().__init__(n_input, **args)
+        super().__init__(n_input, **kwargs)
         self.zero_inflation = zero_inflation
         self.reconstruction_loss = "autozinb"
         self.minimal_dropout = minimal_dropout
@@ -370,18 +370,25 @@ class AutoZIVAE(VAE):
         px_dropout = generative_outputs["px_dropout"]
         bernoulli_params = generative_outputs["bernoulli_params"]
         x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         # KL divergences wrt z_n,l_n
         mean = torch.zeros_like(qz.loc)
         scale = torch.ones_like(qz.scale)
 
         kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
-        kl_divergence_l = kl(
-            ql,
-            Normal(local_l_mean, torch.sqrt(local_l_var)),
-        ).sum(dim=1)
+        if not self.use_observed_lib_size:
+            (
+                local_library_log_means,
+                local_library_log_vars,
+            ) = self._compute_local_library_params(batch_index)
+
+            kl_divergence_l = kl(
+                ql,
+                Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
+            ).sum(dim=1)
+        else:
+            kl_divergence_l = 0.0
 
         # KL divergence wrt Bernoulli parameters
         kl_divergence_bernoulli = self.compute_global_kl_divergence()
