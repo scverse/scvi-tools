@@ -50,22 +50,30 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
 
         n_input = self.summary_stats["n_vars"]
 
-        assert (
-            cell_topic_prior is None
-            or isinstance(cell_topic_prior, float)
-            or (
-                isinstance(cell_topic_prior, collections.Sequence)
-                and len(cell_topic_prior) == n_topics
+        if (
+            cell_topic_prior is not None
+            and not isinstance(cell_topic_prior, float)
+            and (
+                not isinstance(cell_topic_prior, collections.Sequence)
+                or len(cell_topic_prior) != n_topics
             )
-        )
-        assert (
-            topic_gene_prior is None
-            or isinstance(topic_gene_prior, float)
-            or (
-                isinstance(topic_gene_prior, collections.Sequence)
-                and len(topic_gene_prior) == n_input
+        ):
+            raise ValueError(
+                f"cell_topic_prior, {cell_topic_prior}, must be None, "
+                f"a float or a Sequence of length n_topics."
             )
-        )
+        if (
+            topic_gene_prior is not None
+            and not isinstance(topic_gene_prior, float)
+            and (
+                not isinstance(topic_gene_prior, collections.Sequence)
+                or len(topic_gene_prior) != n_input
+            )
+        ):
+            raise ValueError(
+                f"topic_gene_prior, {topic_gene_prior}, must be None, "
+                f"a float or a Sequence of length n_input."
+            )
 
         self.module = LDAPyroModule(
             n_input=n_input,

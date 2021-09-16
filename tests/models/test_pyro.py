@@ -383,6 +383,28 @@ def test_lda_model():
     use_gpu = torch.cuda.is_available()
     n_topics = 5
     adata = synthetic_iid(batch_size=5000)
+
+    # Test with float and Sequence priors.
+    mod1 = LDA(adata, n_topics=n_topics, cell_topic_prior=1.5, topic_gene_prior=1.5)
+    mod1.train(
+        max_epochs=1,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+    mod2 = LDA(
+        adata,
+        n_topics=n_topics,
+        cell_topic_prior=[1.5 for _ in range(n_topics)],
+        topic_gene_prior=[1.5 for _ in range(adata.n_vars)],
+    )
+    mod2.train(
+        max_epochs=1,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+
     mod = LDA(adata, n_topics=n_topics)
     mod.train(
         max_epochs=20,
@@ -405,3 +427,30 @@ def test_lda_model():
     )
     mod.get_elbo(adata2)
     mod.get_perplexity(adata2)
+
+
+def test_lda_model_save_load(save_path):
+    use_gpu = torch.cuda.is_available()
+    n_topics = 5
+    adata = synthetic_iid(batch_size=5000)
+    mod = LDA(adata, n_topics=n_topics)
+    mod.train(
+        max_epochs=20,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+
+    gene_by_topics_1 = mod.get_gene_by_topics()
+    latent_1 = mod.get_latent_representation()
+
+    save_path = os.path.join(save_path, "tmp")
+    mod.save(save_path, overwrite=True, save_anndata=True)
+    mod = LDA.load(save_path)
+
+    gene_by_topics_2 = mod.get_gene_by_topics()
+    latent_2 = mod.get_latent_representation()
+    np.testing.assert_array_equal(
+        gene_by_topics_1.to_numpy(), gene_by_topics_2.to_numpy()
+    )
+    np.testing.assert_array_equal(latent_1.to_numpy(), latent_2.to_numpy())
