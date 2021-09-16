@@ -274,9 +274,9 @@ class VAE(BaseModuleClass):
         else:
             categorical_input = tuple()
         qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-        ql_m, ql_v = None, None
+        ql = None
         if not self.use_observed_lib_size:
-            ql_m, ql_v, library_encoded = self.l_encoder(
+            ql, library_encoded = self.l_encoder(
                 encoder_input, batch_index, *categorical_input
             )
             library = library_encoded
@@ -289,9 +289,6 @@ class VAE(BaseModuleClass):
                     (n_samples, library.size(0), library.size(1))
                 )
             else:
-                ql, library_encoded = self.l_encoder(
-                    encoder_input, batch_index, *categorical_input
-                )
                 library = ql.sample((n_samples,))
         outputs = dict(z=z, qz=qz, ql=ql, library=library)
         return outputs
@@ -359,9 +356,6 @@ class VAE(BaseModuleClass):
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         qz = inference_outputs["qz"]
-        px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px_r"]
-        px_dropout = generative_outputs["px_dropout"]
 
         mean = torch.zeros_like(qz.loc)
         scale = torch.ones_like(qz.scale)

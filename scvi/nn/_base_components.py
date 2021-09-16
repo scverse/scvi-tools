@@ -582,9 +582,8 @@ class MultiEncoder(nn.Module):
 
         q_m = self.mean_encoder(q)
         q_v = torch.exp(self.var_encoder(q))
-        latent = reparameterize_gaussian(q_m, q_v)
         dist = Normal(q_m, q_v.sqrt())
-        latent = dist.rsample()
+        latent = reparameterize_gaussian(dist.rsample())
         return dist, latent
 
 

@@ -674,7 +674,7 @@ class TOTALVAE(BaseModuleClass):
             reconst_loss_protein = reconst_loss["reconst_loss_protein"]
 
             # Log-probabilities
-            log_prob_sum = torch.zeros(qz_m.shape[0]).to(self.device)
+            log_prob_sum = torch.zeros(ql.loc.shape[0]).to(self.device)
 
             if not self.use_observed_lib_size:
                 n_batch = self.library_log_means.shape[1]
@@ -689,7 +689,7 @@ class TOTALVAE(BaseModuleClass):
                     .log_prob(log_library)
                     .sum(dim=-1)
                 )
-                q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(log_library).sum(dim=-1)
+                q_l_x = ql.log_prob(log_library).sum(dim=-1)
 
                 log_prob_sum += p_l_gene - q_l_x
 
