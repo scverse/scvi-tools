@@ -34,8 +34,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     cell_type_markers
         Binary marker gene DataFrame of genes by cell types. Gene names corresponding to `adata.var_names`
         should be in DataFrame index, and cell type labels should be the columns.
-    size_factor_key
-        Key in `adata.obs` with continuous valued size factors.
     **model_kwargs
         Keyword args for :class:`~scvi.external.cellassign.CellAssignModule`
 
@@ -46,8 +44,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     >>> adata.obs["size_factor"] = library_size / np.mean(library_size)
     >>> marker_gene_mat = pd.read_csv(path_to_marker_gene_csv)
     >>> bdata = adata[:, adata.var.index.isin(marker_gene_mat.index)].copy()
-    >>> CellAssign.setup_anndata(bdata)
-    >>> model = CellAssign(bdata, marker_gene_mat, size_factor_key='size_factor')
+    >>> CellAssign.setup_anndata(bdata, size_factor_key="size_factor")
+    >>> model = CellAssign(bdata, marker_gene_mat)
     >>> model.train()
     >>> predictions = model.predict(bdata)
 
@@ -61,7 +59,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: AnnData,
         cell_type_markers: pd.DataFrame,
-        size_factor_key: str,
         **model_kwargs,
     ):
         try:
@@ -71,8 +68,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
                 "Anndata and cell type markers do not contain the same genes."
             )
         super().__init__(adata)
-
-        register_tensor_from_anndata(adata, "_size_factor", "obs", size_factor_key)
 
         self.n_genes = self.summary_stats["n_vars"]
         self.cell_type_markers = cell_type_markers
@@ -222,6 +217,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     @staticmethod
     def setup_anndata(
         adata: AnnData,
+        size_factor_key: str,
         batch_key: Optional[str] = None,
         layer: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
@@ -240,6 +236,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         adata
             AnnData object containing raw counts. Rows represent cells, columns represent features.
+        size_factor_key
+            key in `adata.obs` with continuous valued size factors.
         batch_key
             key in `adata.obs` for batch information. Categories will automatically be converted into integer
             categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data.
@@ -264,7 +262,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         .obs['_scvi_batch']
             batch encoded as integers
         """
-        return _setup_anndata(
+
+        setup_data = _setup_anndata(
             adata,
             batch_key=batch_key,
             layer=layer,
@@ -272,6 +271,13 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             continuous_covariate_keys=continuous_covariate_keys,
             copy=copy,
         )
+        register_tensor_from_anndata(
+            adata if setup_data is None else setup_data,
+            "_size_factor",
+            "obs",
+            size_factor_key,
+        )
+        return setup_data
 
 
 class ClampCallback(Callback):

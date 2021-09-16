@@ -25,7 +25,7 @@ def _load_pbmcs_10x_cite_seq(
     protein_join
         Whether to take an inner join or outer join of proteins
     run_setup_anndata
-        If true, runs _setup_anndata() on dataset before returning
+        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
