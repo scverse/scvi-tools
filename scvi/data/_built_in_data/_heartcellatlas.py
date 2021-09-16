@@ -22,7 +22,7 @@ def _load_heart_cell_atlas_subsampled(
     save_path
         Location to use when saving/loading the data.
     run_setup_anndata
-        If true, runs _setup_anndata() on dataset before returning
+        If true, runs setup_anndata() on dataset before returning
     remove_nuisance_clusters
         Remove doublets and unsassigned cells
 
