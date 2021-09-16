@@ -407,7 +407,7 @@ def test_lda_model():
 
     mod = LDA(adata, n_topics=n_topics)
     mod.train(
-        max_epochs=20,
+        max_epochs=5,
         batch_size=256,
         lr=0.01,
         use_gpu=use_gpu,
@@ -435,7 +435,7 @@ def test_lda_model_save_load(save_path):
     adata = synthetic_iid(batch_size=5000)
     mod = LDA(adata, n_topics=n_topics)
     mod.train(
-        max_epochs=20,
+        max_epochs=5,
         batch_size=256,
         lr=0.01,
         use_gpu=use_gpu,

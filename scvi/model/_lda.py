@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 import logging
 from typing import Optional, Sequence, Union
 
@@ -54,7 +54,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
             cell_topic_prior is not None
             and not isinstance(cell_topic_prior, float)
             and (
-                not isinstance(cell_topic_prior, collections.Sequence)
+                not isinstance(cell_topic_prior, collections.abc.Sequence)
                 or len(cell_topic_prior) != n_topics
             )
         ):
@@ -66,7 +66,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
             topic_gene_prior is not None
             and not isinstance(topic_gene_prior, float)
             and (
-                not isinstance(topic_gene_prior, collections.Sequence)
+                not isinstance(topic_gene_prior, collections.abc.Sequence)
                 or len(topic_gene_prior) != n_input
             )
         ):

@@ -60,9 +60,9 @@ class LDAPyroModel(PyroModule):
 
         self.register_buffer(
             "cell_topic_prior",
-            torch.tensor(cell_topic_prior),
+            torch.FloatTensor(cell_topic_prior),
         )
-        self.register_buffer("topic_gene_prior", torch.tensor(topic_gene_prior))
+        self.register_buffer("topic_gene_prior", torch.FloatTensor(topic_gene_prior))
 
         # Hack: to allow auto_move_data to infer device.
         self._dummy = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
@@ -84,14 +84,15 @@ class LDAPyroModel(PyroModule):
         with pyro.plate("topics", self.n_topics):
             topic_gene_dist = pyro.sample(
                 "topic_gene_dist",
-                dist.Dirichlet(self.topic_gene_prior),
+                dist.Dirichlet(torch.clamp(self.topic_gene_prior, min=1e-8)),
             )
 
         # Cell counts generation.
         max_library_size = int(torch.max(library).item())
         with pyro.plate("cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]):
             cell_topic_dist = pyro.sample(
-                "cell_topic_dist", dist.Dirichlet(self.cell_topic_prior)
+                "cell_topic_dist",
+                dist.Dirichlet(torch.clamp(self.cell_topic_prior, min=1e-8)),
             )
 
             pyro.sample(
@@ -174,13 +175,16 @@ class LDAPyroGuide(PyroModule):
         with pyro.plate("topics", self.n_topics):
             pyro.sample(
                 "topic_gene_dist",
-                dist.Dirichlet(self.topic_gene_posterior),
+                dist.Dirichlet(torch.clamp(self.topic_gene_posterior, min=1e-8)),
             )
 
         # Cell topic distributions guide.
         with pyro.plate("cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]):
             cell_topic_posterior = self.encoder(x)
-            pyro.sample("cell_topic_dist", dist.Dirichlet(cell_topic_posterior))
+            pyro.sample(
+                "cell_topic_dist",
+                dist.Dirichlet(torch.clamp(cell_topic_posterior, min=1e-8)),
+            )
 
 
 class LDAPyroModule(PyroBaseModuleClass):
