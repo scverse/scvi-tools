@@ -358,7 +358,6 @@ class VAE(BaseModuleClass):
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
         qz = inference_outputs["qz"]
-        ql = inference_outputs["ql"]
         mean = torch.zeros_like(qz.loc)
         scale = torch.ones_like(qz.scale)
         kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
