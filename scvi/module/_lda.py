@@ -125,7 +125,7 @@ class CellTopicDistPriorEncoder(nn.Module):
             n_in=n_input,
             n_out=n_topics,
             n_hidden=n_hidden,
-            n_layers=1,
+            n_layers=2,
             inject_covariates=False,
         )
 
