@@ -583,7 +583,7 @@ class MultiEncoder(nn.Module):
         q_m = self.mean_encoder(q)
         q_v = torch.exp(self.var_encoder(q))
         dist = Normal(q_m, q_v.sqrt())
-        latent = reparameterize_gaussian(dist.rsample())
+        latent = dist.rsample()
         return dist, latent
 
 
@@ -999,7 +999,6 @@ class EncoderTOTALVI(nn.Module):
         ql_gene = self.l_gene_encoder(data, *cat_list)
         ql_m = self.l_gene_mean_encoder(ql_gene)
         ql_v = torch.exp(self.l_gene_var_encoder(ql_gene)) + 1e-4
-        log_library_gene = torch.clamp(reparameterize_gaussian(ql_m, ql_v), max=15)
         q_l = Normal(ql_m, ql_v.sqrt())
         log_library_gene = q_l.rsample()
         log_library_gene = torch.clamp(log_library_gene, max=15)
