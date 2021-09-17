@@ -201,9 +201,9 @@ class BaseModelClass(ABC):
 
     def _get_init_params(self, locals):
         """
-        Returns the model init signiture with associated passed in values.
+        Returns the model init signature with associated passed in values.
 
-        Ignores the inital AnnData.
+        Ignores the initial AnnData.
         """
         init = self.__init__
         sig = inspect.signature(init)
