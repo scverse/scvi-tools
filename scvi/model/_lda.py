@@ -92,7 +92,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
                 "Trying to query inferred values from an untrained model. Please train the model first."
             )
 
-    def get_gene_by_topics(self, give_mean=True) -> pd.DataFrame:
+    def get_gene_by_topic(self, give_mean=True) -> pd.DataFrame:
         """
         Gets the gene by topic matrix.
 
@@ -110,18 +110,18 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         """
         self._check_if_not_trained()
 
-        topics_by_gene = self.module.topic_by_gene
+        topic_by_gene = self.module.topic_by_gene
         if give_mean:
             return pd.DataFrame(
-                data=topics_by_gene.numpy().T, index=self.adata.var_names
+                data=topic_by_gene.numpy().T, index=self.adata.var_names
             )
 
-        topics_by_gene_sample = Dirichlet(topics_by_gene).sample()
+        topic_by_gene_sample = Dirichlet(topic_by_gene).sample()
 
         return pd.DataFrame(
-            data=topics_by_gene_sample.numpy().T,
+            data=topic_by_gene_sample.numpy().T,
             index=self.adata.var_names,
-            columns=[f"topic_{i}" for i in range(topics_by_gene.shape[0])],
+            columns=[f"topic_{i}" for i in range(topic_by_gene.shape[0])],
         )
 
     def get_latent_representation(

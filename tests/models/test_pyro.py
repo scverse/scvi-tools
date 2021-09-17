@@ -432,7 +432,7 @@ def test_lda_model():
 def test_lda_model_save_load(save_path):
     use_gpu = torch.cuda.is_available()
     n_topics = 5
-    adata = synthetic_iid(batch_size=5000)
+    adata = synthetic_iid()
     mod = LDA(adata, n_topics=n_topics)
     mod.train(
         max_epochs=5,
