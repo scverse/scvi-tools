@@ -376,7 +376,7 @@ class VAE(BaseModuleClass):
         else:
             kl_divergence_l = 0.0
 
-        reconst_loss = generative_outputs["px_latents"].log_prob(x).sum(-1)
+        reconst_loss = -generative_outputs["px_latents"].log_prob(x).sum(-1)
 
         kl_local_for_warmup = kl_divergence_z
         kl_local_no_warmup = kl_divergence_l

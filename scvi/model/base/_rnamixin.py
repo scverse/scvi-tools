@@ -552,12 +552,12 @@ class RNASeqMixin:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
 
-            ql_m = outputs["ql"].loc
-            ql_v = outputs["ql"].scale
             library = outputs["library"]
             if not give_mean:
                 library = torch.exp(library)
             else:
+                ql_m = outputs["ql"].loc
+                ql_v = outputs["ql"].scale
                 if ql_m is None or ql_v is None:
                     raise RuntimeError(
                         "The module for this model does not compute the posterior distribution "
