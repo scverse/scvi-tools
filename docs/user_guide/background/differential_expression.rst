@@ -97,19 +97,40 @@ Notations and model assumptions
 ======================================================================
 While considering different modalities, scVI, TOTALVI, and PeakVI share similar properties, allowing us to perform differential expression of transcripts, surface proteins, or chromatin accessibility, similarly.
 We first introduce some notations that will be useful in the remainder of this guide.
+In particular, we consider a deep generative model where a latent variable with prior :math:`z_n \sim \mathcal{N}_d(0, I_d)` represents cell :math:`n`'s identity.
+In turn, a neural network :math:`f^h_\theta` maps this low-dimensional representation to normalized, expression levels.
+The following table recaps which names are used in the scVI-tools codebase.
 
-[COMPLETE]
+.. list-table::
+   :widths: 20 50 15 15
+   :header-rows: 1
 
- 
+   * - Model
+     - Type of expression
+     - latent variable name
+     - Normaled expression name
+   * - scVI
+     - Gene expression.
+     - ``z``
+     - ``px_scale``
+   * - TOTALVI
+     - Gene & surface protein expression.
+     - ``z``
+     - ``px_scale`` (gene) and ``py_scale`` (surface protein)
+   * - PEAKVI
+     - Chromatin accessibility.
+     - ``z``
+     - ``p``
+
 
 Approximating population-specific normalized expression levels
 ====================================================================================
 
 A first step to characterize differences in expression consists in estimating state-specific expression levels.
-Most ``scVI-tools`` models do not explicitly model discrete cell types for several reasons. 
-The most obvious one is that states often are unknown at the beginning of the analysis.
-In some cases, states may have an intricate structure that would be difficult to model.
-Instead, the class of models we consider here assumes that a latent variable :math:`z` characterizes cells' biological identity.
+For several reasons, most ``scVI-tools`` models do not explicitly model discrete cell types. 
+The most obvious one is that states often are unknown at the beginning of the analysis, and inferred with ``scvi-tools``.
+In some cases, states may also have an intricate structure that would be difficult to model.
+The class of models we consider here assumes that a latent variable :math:`z` characterizes cells' biological identity.
 A key component of our differential expression module is to aggregate the information carried by individual cells to estimate population-wide expression levels.
 The strategy to do so is as follows.
 First, we estimate latent representations of the two compared states :math:`A` and :math:`B`, using aggregate variational posteriors.
@@ -131,11 +152,46 @@ In particular, we will represent state :math:`C` latent representation with the 
       p_\theta(z \mid x_n),
    \end{align}
 
-``idx1`` and``idx2`` specify which observations to use to approximate these quantities.
+where ``idx1`` and``idx2`` specify which observations to use to approximate these quantities.
+
+Once established latent distributions for each state, the vector of expression levels :math:`h_{n} \in \mathbb{R}^F` (:math:`F` being the total number of features) can obtained using the neural network :math:`h_n = f^h_\theta(z_n)` from the decoder.
+We will note :math:`h^A_f, h^B_f` the respective expression levels in states :math:`A, B` obtained using this sampling procedure.
+
+
+
 
 Detecting biologically relevant features
 ========================================================
+Once we have expression levels distributions for each condition, scvi-tools constructs an effect-size, which will characterize differences of expression.
+When considering gene or surface protein expression, the normalized expresssion levels can be viewed as normalized counts. Consequently, the canonical effect size for feature :math:`f` is the log fold-change, defined as the differences of between log expression levels between conditions,
 
+.. math::
+   :nowrap:
+
+   \begin{align}
+      \beta_f
+      = 
+      \log_2 h_^B{f} - \log_2 h_^A{f}.
+   \end{align}
+As chromatin accessibility cannot be interpreted in the same way, we instead take :math:`\beta_f = h_^B{f}
+- \log_2 h_^A{f}`.
+
+To detect differentially expressed features from the effect sizes, scVI-tools provides several ways to formulate the competing hypotheses.
+When ``mode = "vanilla"``, we consider point null hypotheses of the form :math:`\mathcal{H}_{0f}: \beta_f = 0`.
+To avoid detecting features of little practical interest, e.g., when expression differences between conditions are significant but very subtle,we recommand users to use ``mode = "change"`` instead.
+In this formulation, we consider null hypotheses instead, such that 
+
+.. math::
+   :nowrap:
+
+   \begin{align}
+      \lvert \beta_f \rvert
+      \leq 
+      \delta.
+   \end{align}
+
+Here, :math:`\delta` is an hyperparameter specified by ``delta``.
+Note that when ``delta=None``, we estimate this parameter in a data-driven fashion.
 
 Providing easy-to-interpret predictions
 ========================================================
