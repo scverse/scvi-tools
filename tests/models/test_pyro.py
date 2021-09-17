@@ -412,7 +412,7 @@ def test_lda_model():
         lr=0.01,
         use_gpu=use_gpu,
     )
-    mod.get_gene_by_topics()
+    mod.get_gene_by_topic()
     adata_lda = mod.get_latent_representation(adata).to_numpy()
     assert adata_lda.shape == (adata.n_obs, n_topics) and np.all(
         (adata_lda <= 1) & (adata_lda >= 0)
@@ -441,16 +441,16 @@ def test_lda_model_save_load(save_path):
         use_gpu=use_gpu,
     )
 
-    gene_by_topics_1 = mod.get_gene_by_topics()
+    gene_by_topic_1 = mod.get_gene_by_topic()
     latent_1 = mod.get_latent_representation()
 
     save_path = os.path.join(save_path, "tmp")
     mod.save(save_path, overwrite=True, save_anndata=True)
     mod = LDA.load(save_path)
 
-    gene_by_topics_2 = mod.get_gene_by_topics()
+    gene_by_topic_2 = mod.get_gene_by_topic()
     latent_2 = mod.get_latent_representation()
     np.testing.assert_array_equal(
-        gene_by_topics_1.to_numpy(), gene_by_topics_2.to_numpy()
+        gene_by_topic_1.to_numpy(), gene_by_topic_2.to_numpy()
     )
     np.testing.assert_array_equal(latent_1.to_numpy(), latent_2.to_numpy())

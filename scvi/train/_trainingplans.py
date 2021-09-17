@@ -1,4 +1,4 @@
-from inspect import getfullargspec
+from inspect import getfullargspec, signature
 from typing import Callable, Optional, Union
 
 import pyro
@@ -631,6 +631,10 @@ class PyroTrainingPlan(pl.LightningModule):
         self.pyro_guide = self.module.guide
         self.pyro_model = self.module.model
 
+        self.use_kl_weight = (
+            "kl_weight" in signature(self.pyro_model.forward).parameters
+        )
+
         self.svi = pyro.infer.SVI(
             model=self.pyro_model,
             guide=self.pyro_guide,
@@ -665,8 +669,9 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         args, kwargs = self.module._get_fn_args_from_batch(batch)
-        # Set KL weight.
-        kwargs["kl_weight"] = self.kl_weight
+        # Set KL weight if necessary.
+        if self.use_kl_weight:
+            kwargs.update({"kl_weight": self.kl_weight})
         # pytorch lightning requires a Tensor object for loss
         loss = torch.Tensor([self.svi.step(*args, **kwargs)])
 
