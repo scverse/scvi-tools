@@ -108,7 +108,7 @@ class LDAPyroModel(PyroModule):
             log_topic_gene_dist = pyro.sample(
                 "log_topic_gene_dist",
                 dist.Normal(
-                    self.topic_gene_prior_mu, self.topic_gene_prior_sigma
+                    self.topic_gene_prior_mu, F.softplus(self.topic_gene_prior_sigma)
                 ).to_event(1),
             )
             topic_gene_dist = F.softmax(log_topic_gene_dist, dim=1)
@@ -121,7 +121,7 @@ class LDAPyroModel(PyroModule):
             log_cell_topic_dist = pyro.sample(
                 "log_cell_topic_dist",
                 dist.Normal(
-                    self.cell_topic_prior_mu, self.cell_topic_prior_sigma
+                    self.cell_topic_prior_mu, F.softplus(self.cell_topic_prior_sigma)
                 ).to_event(1),
             )
             cell_topic_dist = F.softmax(log_cell_topic_dist, dim=1)
@@ -182,7 +182,7 @@ class LDAPyroGuide(PyroModule):
                 "log_topic_gene_dist",
                 dist.Normal(
                     self.topic_gene_posterior_mu,
-                    self.topic_gene_posterior_sigma,
+                    F.softplus(self.topic_gene_posterior_sigma),
                 ).to_event(1),
             )
 
@@ -194,7 +194,7 @@ class LDAPyroGuide(PyroModule):
             pyro.sample(
                 "log_cell_topic_dist",
                 dist.Normal(
-                    cell_topic_posterior_mu, cell_topic_posterior_sigma
+                    cell_topic_posterior_mu, F.softplus(cell_topic_posterior_sigma)
                 ).to_event(1),
             )
 

@@ -382,7 +382,7 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
 def test_lda_model():
     use_gpu = torch.cuda.is_available()
     n_topics = 5
-    adata = synthetic_iid(batch_size=5000)
+    adata = synthetic_iid()
 
     # Test with float and Sequence priors.
     mod1 = LDA(adata, n_topics=n_topics, cell_topic_prior=1.5, topic_gene_prior=1.5)
