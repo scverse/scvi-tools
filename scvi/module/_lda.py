@@ -49,8 +49,8 @@ class LDAPyroModel(PyroModule):
         self,
         n_input: int,
         n_topics: int,
-        cell_topic_prior: Sequence[float],
-        topic_gene_prior: Sequence[float],
+        cell_topic_prior: torch.Tensor,
+        topic_gene_prior: torch.Tensor,
     ):
         super().__init__(_LDA_PYRO_MODULE_NAME)
 
@@ -61,9 +61,9 @@ class LDAPyroModel(PyroModule):
 
         self.register_buffer(
             "cell_topic_prior",
-            torch.FloatTensor(cell_topic_prior),
+            cell_topic_prior.clone().detach(),
         )
-        self.register_buffer("topic_gene_prior", torch.FloatTensor(topic_gene_prior))
+        self.register_buffer("topic_gene_prior", topic_gene_prior.clone().detach())
 
         # Hack: to allow auto_move_data to infer device.
         self._dummy = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
@@ -166,9 +166,13 @@ class LDAPyroGuide(PyroModule):
         self.n_obs = None
 
         self.encoder = CellTopicDistPriorEncoder(n_input, n_topics, n_hidden)
-        self.topic_gene_posterior = torch.nn.Parameter(
+        self.unconstrained_topic_gene_posterior = torch.nn.Parameter(
             torch.ones(self.n_topics, self.n_input),
         )
+
+    @property
+    def topic_gene_posterior(self):
+        return F.softmax(self.unconstrained_topic_gene_posterior, dim=1)
 
     @auto_move_data
     def forward(
@@ -182,7 +186,7 @@ class LDAPyroGuide(PyroModule):
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             pyro.sample(
                 "topic_gene_dist",
-                dist.Delta(F.softmax(self.topic_gene_posterior, dim=1), event_dim=1),
+                dist.Delta(self.topic_gene_posterior, event_dim=1),
             )
 
         # Cell topic distributions guide.
