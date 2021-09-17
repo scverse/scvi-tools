@@ -168,7 +168,7 @@ class PyroSampleMixin:
         args
             arguments to model and guide
         kwargs
-            arguments to model and guide 
+            arguments to model and guide
         return_sites
             List of variables for which to generate posterior samples, defaults to all variables.
         return_observed
@@ -222,7 +222,7 @@ class PyroSampleMixin:
         args
             arguments to model and guide
         kwargs
-            keyword arguments to model and guide  
+            keyword arguments to model and guide
         return_sites
             List of variables for which to generate posterior samples, defaults to all variables.
         return_observed
@@ -271,10 +271,10 @@ class PyroSampleMixin:
             return obs_plate_sites
 
     def _get_obs_plate_sites(
-        self, 
-        args: Optional[list], 
+        self,
+        args: Optional[list],
         kwargs: Optional[dict],
-        return_observed: bool = False
+        return_observed: bool = False,
     ):
         """
         Automatically guess which model sites belong to observation/minibatch plate.
@@ -286,7 +286,7 @@ class PyroSampleMixin:
         args
             Arguments to the model.
         kwargs
-            Keyword arguments to the model.   
+            Keyword arguments to the model.
         return_observed
             Record samples of observed variables.
 
