@@ -186,7 +186,7 @@ class LDAPyroGuide(PyroModule):
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             pyro.sample(
                 "topic_gene_dist",
-                dist.Delta(F.softmax(self.topic_gene_posterior)),
+                dist.Delta(F.softmax(self.topic_gene_posterior), event_dim=1),
             )
 
         # Cell topic distributions guide.
