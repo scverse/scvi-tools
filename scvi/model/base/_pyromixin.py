@@ -236,7 +236,7 @@ class PyroSampleMixin:
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
         samples = self._get_one_posterior_sample(
-            args, kwargs, return_sites=return_sites, sample_observed=return_observed
+            args, kwargs, return_sites=return_sites, return_observed=return_observed
         )
         samples = {k: [v] for k, v in samples.items()}
 
@@ -249,7 +249,7 @@ class PyroSampleMixin:
 
             # generate new sample
             samples_ = self._get_one_posterior_sample(
-                args, kwargs, return_sites=return_sites, sample_observed=return_observed
+                args, kwargs, return_sites=return_sites, return_observed=return_observed
             )
 
             # add new sample
