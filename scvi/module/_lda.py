@@ -4,6 +4,7 @@ from typing import Dict, Iterable, Optional, Sequence, Union
 import numpy as np
 import pyro
 import pyro.distributions as dist
+import pyro.poutine as poutine
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -78,21 +79,27 @@ class LDAPyroModel(PyroModule):
 
     @auto_move_data
     def forward(
-        self, x: torch.Tensor, library: torch.Tensor, n_obs: Optional[int] = None
+        self,
+        x: torch.Tensor,
+        library: torch.Tensor,
+        n_obs: Optional[int] = None,
+        kl_weight: float = 1.0,
     ):
         # Topic gene distributions.
-        with pyro.plate("topics", self.n_topics):
+        with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             topic_gene_dist = pyro.sample(
                 "topic_gene_dist",
-                dist.Dirichlet(torch.clamp(self.topic_gene_prior, min=1e-8)),
+                dist.Dirichlet(self.topic_gene_prior),
             )
 
         # Cell counts generation.
         max_library_size = int(torch.max(library).item())
-        with pyro.plate("cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]):
+        with pyro.plate(
+            "cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]
+        ), poutine.scale(None, kl_weight):
             cell_topic_dist = pyro.sample(
                 "cell_topic_dist",
-                dist.Dirichlet(torch.clamp(self.cell_topic_prior, min=1e-8)),
+                dist.Dirichlet(self.cell_topic_prior),
             )
 
             pyro.sample(
@@ -169,21 +176,27 @@ class LDAPyroGuide(PyroModule):
 
     @auto_move_data
     def forward(
-        self, x: torch.Tensor, _library: torch.Tensor, n_obs: Optional[int] = None
+        self,
+        x: torch.Tensor,
+        _library: torch.Tensor,
+        n_obs: Optional[int] = None,
+        kl_weight: float = 1.0,
     ):
         # Topic gene distributions.
-        with pyro.plate("topics", self.n_topics):
+        with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             pyro.sample(
                 "topic_gene_dist",
-                dist.Dirichlet(torch.clamp(self.topic_gene_posterior, min=1e-8)),
+                dist.Dirichlet(self.topic_gene_posterior),
             )
 
         # Cell topic distributions guide.
-        with pyro.plate("cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]):
+        with pyro.plate(
+            "cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]
+        ), poutine.scale(None, kl_weight):
             cell_topic_posterior = self.encoder(x)
             pyro.sample(
                 "cell_topic_dist",
-                dist.Dirichlet(torch.clamp(cell_topic_posterior, min=1e-8)),
+                dist.Dirichlet(cell_topic_posterior),
             )
 
 
