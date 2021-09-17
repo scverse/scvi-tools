@@ -474,7 +474,7 @@ class TOTALVAE(BaseModuleClass):
             library_gene = latent["l"]
 
         if n_samples > 1:
-            z = qz.sample((n_samples,))
+            untran_z = qz.sample((n_samples,))
             z = self.encoder.z_transformation(untran_z)
 
             untran_l = ql.sample((n_samples,))
