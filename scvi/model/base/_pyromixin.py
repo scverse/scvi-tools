@@ -158,7 +158,7 @@ class PyroSampleMixin:
         args,
         kwargs,
         return_sites: Optional[list] = None,
-        sample_observed: bool = False,
+        return_observed: bool = False,
     ):
         """
         Get one sample from posterior distribution.
@@ -168,7 +168,11 @@ class PyroSampleMixin:
         args
             arguments to model and guide
         kwargs
-            arguments to model and guide
+            arguments to model and guide 
+        return_sites
+            List of variables for which to generate posterior samples, defaults to all variables.
+        return_observed
+            Record samples of observed variables.
 
         Returns
         -------
@@ -189,7 +193,7 @@ class PyroSampleMixin:
                 )  # selected in return_sites list
                 and (
                     (
-                        (not site.get("is_observed", True)) or sample_observed
+                        (not site.get("is_observed", True)) or return_observed
                     )  # don't save observed unless requested
                     or (site.get("infer", False).get("_deterministic", False))
                 )  # unless it is deterministic
@@ -218,7 +222,11 @@ class PyroSampleMixin:
         args
             arguments to model and guide
         kwargs
-            keyword arguments to model and guide
+            keyword arguments to model and guide  
+        return_sites
+            List of variables for which to generate posterior samples, defaults to all variables.
+        return_observed
+            Record samples of observed variables.
         show_progress
             show progress bar
 
@@ -262,7 +270,12 @@ class PyroSampleMixin:
         else:
             return obs_plate_sites
 
-    def _get_obs_plate_sites(self, args, kwargs, sample_observed):
+    def _get_obs_plate_sites(
+        self, 
+        args: Optional[list], 
+        kwargs: Optional[dict],
+        return_observed: bool = False
+    ):
         """
         Automatically guess which model sites belong to observation/minibatch plate.
 
@@ -273,7 +286,9 @@ class PyroSampleMixin:
         args
             Arguments to the model.
         kwargs
-            Keyword arguments to the model.
+            Keyword arguments to the model.   
+        return_observed
+            Record samples of observed variables.
 
         Returns
         -------
@@ -290,7 +305,7 @@ class PyroSampleMixin:
                 (site["type"] == "sample")  # sample statement
                 and (
                     (
-                        (not site.get("is_observed", True)) or sample_observed
+                        (not site.get("is_observed", True)) or return_observed
                     )  # don't save observed unless requested
                     or (site.get("infer", False).get("_deterministic", False))
                 )  # unless it is deterministic
@@ -344,9 +359,9 @@ class PyroSampleMixin:
             self.to_device(device)
 
             if i == 0:
-                sample_observed = getattr(sample_kwargs, "sample_observed", False)
+                return_observed = getattr(sample_kwargs, "return_observed", False)
                 obs_plate_sites = self._get_obs_plate_sites(
-                    args, kwargs, sample_observed=sample_observed
+                    args, kwargs, return_observed=return_observed
                 )
                 if len(obs_plate_sites) == 0:
                     # if no local variables - don't sample
@@ -420,7 +435,7 @@ class PyroSampleMixin:
         ----------
         num_samples
             Number of posterior samples to generate.
-        return_site
+        return_sites
             List of variables for which to generate posterior samples, defaults to all variables.
         use_gpu
             Load model on default GPU if available (if None or True),
@@ -430,7 +445,7 @@ class PyroSampleMixin:
         return_observed
             Return observed sites/variables? Observed count matrix can be very large so not returned by default.
         return_samples
-            Return samples in addition to sample mean, 5%/95% quantile and SD?
+            Return all generated posterior samples in addition to sample mean, 5%/95% quantile and SD?
         summary_fun
              a dict in the form {"means": np.mean, "std": np.std} which specifies posterior distribution
              summaries to compute and which names to use. See below for default returns.
