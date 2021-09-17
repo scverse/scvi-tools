@@ -166,13 +166,9 @@ class LDAPyroGuide(PyroModule):
         self.n_obs = None
 
         self.encoder = CellTopicDistPriorEncoder(n_input, n_topics, n_hidden)
-        self.unconstrained_topic_gene_posterior = torch.nn.Parameter(
+        self.topic_gene_posterior = torch.nn.Parameter(
             torch.ones(self.n_topics, self.n_input),
         )
-
-    @property
-    def topic_gene_posterior(self):
-        return F.softplus(self.unconstrained_topic_gene_posterior)
 
     @auto_move_data
     def forward(
@@ -186,7 +182,7 @@ class LDAPyroGuide(PyroModule):
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             pyro.sample(
                 "topic_gene_dist",
-                dist.Delta(F.softmax(self.topic_gene_posterior), event_dim=1),
+                dist.Delta(F.softmax(self.topic_gene_posterior, dim=1), event_dim=1),
             )
 
         # Cell topic distributions guide.
