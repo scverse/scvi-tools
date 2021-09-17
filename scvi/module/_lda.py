@@ -108,7 +108,7 @@ class LDAPyroModel(PyroModule):
             log_topic_gene_dist = pyro.sample(
                 "log_topic_gene_dist",
                 dist.Normal(
-                    self.topic_gene_prior_mu, F.softplus(self.topic_gene_prior_sigma)
+                    self.topic_gene_prior_mu, self.topic_gene_prior_sigma
                 ).to_event(1),
             )
             topic_gene_dist = F.softmax(log_topic_gene_dist, dim=1)
@@ -121,7 +121,7 @@ class LDAPyroModel(PyroModule):
             log_cell_topic_dist = pyro.sample(
                 "log_cell_topic_dist",
                 dist.Normal(
-                    self.cell_topic_prior_mu, F.softplus(self.cell_topic_prior_sigma)
+                    self.cell_topic_prior_mu, self.cell_topic_prior_sigma
                 ).to_event(1),
             )
             cell_topic_dist = F.softmax(log_cell_topic_dist, dim=1)
@@ -164,9 +164,13 @@ class LDAPyroGuide(PyroModule):
         self.topic_gene_posterior_mu = torch.nn.Parameter(
             topic_gene_posterior_mu.repeat(self.n_topics, 1)
         )
-        self.topic_gene_posterior_sigma = torch.nn.Parameter(
+        self.unconstrained_topic_gene_posterior_sigma = torch.nn.Parameter(
             topic_gene_posterior_sigma.repeat(self.n_topics, 1)
         )
+
+    @property
+    def topic_gene_posterior_sigma(self):
+        return F.softplus(self.unconstrained_topic_gene_posterior_sigma)
 
     @auto_move_data
     def forward(
@@ -182,7 +186,7 @@ class LDAPyroGuide(PyroModule):
                 "log_topic_gene_dist",
                 dist.Normal(
                     self.topic_gene_posterior_mu,
-                    F.softplus(self.topic_gene_posterior_sigma),
+                    self.topic_gene_posterior_sigma,
                 ).to_event(1),
             )
 
@@ -286,7 +290,8 @@ class LDAPyroModule(PyroBaseModuleClass):
         if give_mean:
             return F.softmax(topic_gene_posterior_mu, dim=1)
         return F.softmax(
-            torch.normal(topic_gene_posterior_mu, topic_gene_posterior_sigma), dim=1
+            torch.normal(topic_gene_posterior_mu, topic_gene_posterior_sigma),
+            dim=1,
         )
 
     @auto_move_data
