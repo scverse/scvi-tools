@@ -7,7 +7,6 @@ import pandas as pd
 import pyro
 import torch
 from anndata import AnnData
-from torch.distributions import Dirichlet
 
 from scvi._constants import _CONSTANTS
 from scvi.module import LDAPyroModule
@@ -110,16 +109,10 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         """
         self._check_if_not_trained()
 
-        topic_by_gene = self.module.topic_by_gene
-        if give_mean:
-            return pd.DataFrame(
-                data=topic_by_gene.numpy().T, index=self.adata.var_names
-            )
-
-        topic_by_gene_sample = Dirichlet(topic_by_gene).sample()
+        topic_by_gene = self.module.topic_by_gene(give_mean=give_mean)
 
         return pd.DataFrame(
-            data=topic_by_gene_sample.numpy().T,
+            data=topic_by_gene.numpy().T,
             index=self.adata.var_names,
             columns=[f"topic_{i}" for i in range(topic_by_gene.shape[0])],
         )
@@ -129,6 +122,7 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
+        give_mean: bool = True,
     ) -> pd.DataFrame:
         """
         Converts a count matrix to an inferred topic distribution.
@@ -142,6 +136,8 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        give_mean
+            Give mean of distribution or sample from it.
 
         Returns
         -------
@@ -156,7 +152,9 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         transformed_xs = []
         for tensors in dl:
             x = tensors[_CONSTANTS.X_KEY]
-            transformed_xs.append(self.module.get_topic_distribution(x))
+            transformed_xs.append(
+                self.module.get_topic_distribution(x, give_mean=give_mean)
+            )
         transformed_x = torch.cat(transformed_xs).numpy()
 
         return pd.DataFrame(

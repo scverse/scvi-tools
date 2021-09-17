@@ -1,19 +1,17 @@
 import math
-from typing import Dict, Iterable, Optional, Sequence, Union
+from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
 
-import numpy as np
 import pyro
 import pyro.distributions as dist
 import pyro.poutine as poutine
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 
 from scvi._constants import _CONSTANTS
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
-from scvi.nn import FCLayers
+from scvi.nn import Encoder
 
 _LDA_PYRO_MODULE_NAME = "lda"
 
@@ -27,6 +25,15 @@ class CategoricalBoW(dist.Multinomial):
         logits[(value == 0) & (logits == -math.inf)] = 0
         log_powers = (logits * value).sum(-1)
         return log_powers
+
+
+def logistic_normal_approximation(
+    alpha: torch.Tensor,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    K = alpha.shape[0]
+    mu = torch.log(alpha) - torch.log(alpha).sum() / K
+    sigma = (1 - 2 / K) / alpha + torch.sum(1 / alpha) / K ** 2
+    return mu, sigma
 
 
 class LDAPyroModel(PyroModule):
@@ -59,11 +66,22 @@ class LDAPyroModel(PyroModule):
         # Populated by PyroTrainingPlan.
         self.n_obs = None
 
-        self.register_buffer(
-            "cell_topic_prior",
-            cell_topic_prior.clone().detach(),
+        cell_topic_prior_mu, cell_topic_prior_sigma = logistic_normal_approximation(
+            cell_topic_prior
         )
-        self.register_buffer("topic_gene_prior", topic_gene_prior.clone().detach())
+        self.register_buffer(
+            "cell_topic_prior_mu",
+            cell_topic_prior_mu,
+        )
+        self.register_buffer(
+            "cell_topic_prior_sigma",
+            cell_topic_prior_sigma,
+        )
+        topic_gene_prior_mu, topic_gene_prior_sigma = logistic_normal_approximation(
+            topic_gene_prior
+        )
+        self.register_buffer("topic_gene_prior_mu", topic_gene_prior_mu)
+        self.register_buffer("topic_gene_prior_sigma", topic_gene_prior_sigma)
 
         # Hack: to allow auto_move_data to infer device.
         self._dummy = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
@@ -87,59 +105,32 @@ class LDAPyroModel(PyroModule):
     ):
         # Topic gene distributions.
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
-            topic_gene_dist = pyro.sample(
-                "topic_gene_dist",
-                dist.Dirichlet(self.topic_gene_prior),
+            log_topic_gene_dist = pyro.sample(
+                "log_topic_gene_dist",
+                dist.Normal(
+                    self.topic_gene_prior_mu, self.topic_gene_prior_sigma
+                ).to_event(1),
             )
+            topic_gene_dist = F.softmax(log_topic_gene_dist, dim=1)
 
         # Cell counts generation.
         max_library_size = int(torch.max(library).item())
         with pyro.plate(
             "cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]
         ), poutine.scale(None, kl_weight):
-            cell_topic_dist = pyro.sample(
-                "cell_topic_dist",
-                dist.Dirichlet(self.cell_topic_prior),
+            log_cell_topic_dist = pyro.sample(
+                "log_cell_topic_dist",
+                dist.Normal(
+                    self.cell_topic_prior_mu, self.cell_topic_prior_sigma
+                ).to_event(1),
             )
+            cell_topic_dist = F.softmax(log_cell_topic_dist, dim=1)
 
             pyro.sample(
                 "gene_counts",
                 CategoricalBoW(max_library_size, cell_topic_dist @ topic_gene_dist),
                 obs=x,
             )
-
-
-class CellTopicDistPriorEncoder(nn.Module):
-    """
-    The neural network encoder used in LDAPyroGuide which outputs cell topic posterior estimate.
-
-    Composed of a single hidden layer fully connected neural network followed by a
-    log transformation and softplus.
-
-    Parameters
-    ----------
-    n_input
-        Number of input genes.
-    n_topics
-        Number of topics to model.
-    n_hidden
-        Number of nodes in the hidden layer of the encoder.
-    """
-
-    def __init__(self, n_input: int, n_topics: int, n_hidden: int):
-        super().__init__()
-
-        self.encoder = FCLayers(
-            n_in=n_input,
-            n_out=n_topics,
-            n_hidden=n_hidden,
-            n_layers=2,
-            inject_covariates=False,
-        )
-
-    @auto_move_data
-    def forward(self, x: torch.Tensor):
-        return F.softplus(self.encoder(torch.log(1 + x)))
 
 
 class LDAPyroGuide(PyroModule):
@@ -165,14 +156,17 @@ class LDAPyroGuide(PyroModule):
         # Populated by PyroTrainingPlan.
         self.n_obs = None
 
-        self.encoder = CellTopicDistPriorEncoder(n_input, n_topics, n_hidden)
-        self.unconstrained_topic_gene_posterior = torch.nn.Parameter(
-            torch.ones(self.n_topics, self.n_input),
+        self.encoder = Encoder(n_input, n_topics, distribution="ln")
+        (
+            topic_gene_posterior_mu,
+            topic_gene_posterior_sigma,
+        ) = logistic_normal_approximation(torch.ones(self.n_input))
+        self.topic_gene_posterior_mu = torch.nn.Parameter(
+            topic_gene_posterior_mu.repeat(self.n_topics, 1)
         )
-
-    @property
-    def topic_gene_posterior(self):
-        return F.softmax(self.unconstrained_topic_gene_posterior, dim=1)
+        self.topic_gene_posterior_sigma = torch.nn.Parameter(
+            topic_gene_posterior_sigma.repeat(self.n_topics, 1)
+        )
 
     @auto_move_data
     def forward(
@@ -185,18 +179,23 @@ class LDAPyroGuide(PyroModule):
         # Topic gene distributions.
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             pyro.sample(
-                "topic_gene_dist",
-                dist.Delta(self.topic_gene_posterior, event_dim=1),
+                "log_topic_gene_dist",
+                dist.Normal(
+                    self.topic_gene_posterior_mu,
+                    self.topic_gene_posterior_sigma,
+                ).to_event(1),
             )
 
         # Cell topic distributions guide.
         with pyro.plate(
             "cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]
         ), poutine.scale(None, kl_weight):
-            cell_topic_posterior = self.encoder(x)
+            cell_topic_posterior_mu, cell_topic_posterior_sigma, _ = self.encoder(x)
             pyro.sample(
-                "cell_topic_dist",
-                dist.Dirichlet(cell_topic_posterior),
+                "log_cell_topic_dist",
+                dist.Normal(
+                    cell_topic_posterior_mu, cell_topic_posterior_sigma
+                ).to_event(1),
             )
 
 
@@ -265,44 +264,56 @@ class LDAPyroModule(PyroBaseModuleClass):
     def guide(self):
         return self._guide
 
-    @property
-    def topic_by_gene(self) -> torch.Tensor:
+    def topic_by_gene(self, give_mean: bool = True) -> torch.Tensor:
         """
         Gets the topic by gene matrix.
 
         Assumes the module has already been trained.
 
+        Parameters
+        ----------
+        give_mean
+            Give mean of distribution if True or sample from it.
+
         Returns
         -------
         A `n_topics x n_input` tensor containing the topic by gene matrix.
         """
-        return self.guide.topic_gene_posterior.detach().cpu()
+        topic_gene_posterior_mu, topic_gene_posterior_sigma = (
+            self.guide.topic_gene_posterior_mu.detach().cpu(),
+            self.guide.topic_gene_posterior_sigma.detach().cpu(),
+        )
+        if give_mean:
+            return F.softmax(topic_gene_posterior_mu, dim=1)
+        return F.softmax(
+            torch.normal(topic_gene_posterior_mu, topic_gene_posterior_sigma), dim=1
+        )
 
     @auto_move_data
     @torch.no_grad()
-    def _get_unnormalized_topic_distribution(self, x: torch.Tensor) -> torch.Tensor:
+    def get_topic_distribution(
+        self, x: torch.Tensor, give_mean: bool = True
+    ) -> torch.Tensor:
         """
-        Converts `x` to its inferred unnormalized topic distribution.
+        Converts `x` to its inferred topic distribution.
 
-        Returns
-        -------
-        A `x.shape[0] x n_topics` tensor containing the unnormalized topic distribution.
-        """
-        return self.guide.encoder(x).detach().cpu()
-
-    def get_topic_distribution(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Converts `x` to its inferred normalized topic distribution.
+        Parameters
+        ----------
+        give_mean
+            Give mean of distribution or sample from it.
 
         Returns
         -------
         A `x.shape[0] x n_topics` tensor containing the normalized topic distribution.
         """
-        cell_topic_unnormalized_dist = self._get_unnormalized_topic_distribution(x)
-        return (
-            cell_topic_unnormalized_dist
-            / cell_topic_unnormalized_dist.sum(axis=1)[:, np.newaxis]
-        )
+        (
+            cell_topic_dist_mu,
+            _,
+            cell_topic_dist_sample,
+        ) = self.guide.encoder(x)
+        if give_mean:
+            return F.softmax(cell_topic_dist_mu.detach().cpu(), dim=1)
+        return cell_topic_dist_sample.detach().cpu()
 
     @auto_move_data
     @torch.no_grad()
