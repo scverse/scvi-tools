@@ -115,15 +115,14 @@ class LDAPyroModel(PyroModule):
 
         # Cell counts generation.
         max_library_size = int(torch.max(library).item())
-        with pyro.plate(
-            "cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]
-        ), poutine.scale(None, kl_weight):
-            log_cell_topic_dist = pyro.sample(
-                "log_cell_topic_dist",
-                dist.Normal(
-                    self.cell_topic_prior_mu, self.cell_topic_prior_sigma
-                ).to_event(1),
-            )
+        with pyro.plate("cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]):
+            with poutine.scale(None, kl_weight):
+                log_cell_topic_dist = pyro.sample(
+                    "log_cell_topic_dist",
+                    dist.Normal(
+                        self.cell_topic_prior_mu, self.cell_topic_prior_sigma
+                    ).to_event(1),
+                )
             cell_topic_dist = F.softmax(log_cell_topic_dist, dim=1)
 
             pyro.sample(
