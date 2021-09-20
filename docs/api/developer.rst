@@ -90,7 +90,7 @@ Existing module classes with respective generative and inference procedures.
    module.TOTALVAE
    module.VAE
    module.VAEC
-   module.LDAPyroModule
+   module.AmortizedLDAPyroModule
 
 
 External module

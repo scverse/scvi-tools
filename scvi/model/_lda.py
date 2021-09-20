@@ -16,9 +16,9 @@ from .base import BaseModelClass, PyroSviTrainMixin
 logger = logging.getLogger(__name__)
 
 
-class LDA(PyroSviTrainMixin, BaseModelClass):
+class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     """
-    Latent Dirichlet Allocation [Blei03]_.
+    Amortized Latent Dirichlet Allocation [Blei03]_.
 
     Parameters
     ----------
@@ -32,6 +32,15 @@ class LDA(PyroSviTrainMixin, BaseModelClass):
         Prior of cell topic distribution. If `None`, defaults to `1 / n_topics`.
     topic_gene_prior
         Prior of topic gene distribution. If `None`, defaults to `1 / n_topics`.
+
+    Examples
+    --------
+    >>> adata = anndata.read_h5ad(path_to_anndata)
+    >>> scvi.data.setup_anndata(adata)
+    >>> model = scvi.model.AmortizedLDA(adata)
+    >>> model.train()
+    >>> gene_by_topic = model.get_gene_by_topic()
+    >>> adata.obsm["X_LDA"] = model.get_latent_representation()
     """
 
     def __init__(

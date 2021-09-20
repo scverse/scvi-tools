@@ -202,11 +202,17 @@ class LDAPyroGuide(PyroModule):
             )
 
 
-class LDAPyroModule(PyroBaseModuleClass):
+class AmortizedLDAPyroModule(PyroBaseModuleClass):
     """
-    Latent Dirichlet Allocation [Blei03]_ implemented in Pyro.
+    An amortized implementation of Latent Dirichlet Allocation [Blei03]_ implemented in Pyro.
 
-    This model uses auto encoding variational Bayes to optimize the latent variables in the model.
+    This module uses auto encoding variational Bayes to optimize the latent variables in the model.
+    In particular, a fully-connected neural network is used as an encoder, which takes in gene counts
+    as input and outputs the parameters of cell topic distribution. To employ the reparametrization trick
+    stably, the Dirichlet priors are approximated by a Logistic-Normal distribution.
+    The input gene counts tensor is a cell by genes Bag-of-Words(BoW) representation
+    of the counts. I.e. the model treats each cell's gene expression profile as ordered, not
+    as unordered as in a Multinomial distribution.
 
     Parameters
     ----------
