@@ -13,7 +13,7 @@ from scvi._constants import _CONSTANTS
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import Encoder
 
-_LDA_PYRO_MODULE_NAME = "lda"
+_AMORTIZED_LDA_PYRO_MODULE_NAME = "amortized_lda"
 
 
 class CategoricalBoW(dist.Multinomial):
@@ -36,9 +36,9 @@ def logistic_normal_approximation(
     return mu, sigma
 
 
-class LDAPyroModel(PyroModule):
+class AmortizedLDAPyroModel(PyroModule):
     """
-    A PyroModule that serves as the model for the LDAPyroModule class.
+    A PyroModule that serves as the model for the AmortizedLDAPyroModule class.
 
     Parameters
     ----------
@@ -59,7 +59,7 @@ class LDAPyroModel(PyroModule):
         cell_topic_prior: torch.Tensor,
         topic_gene_prior: torch.Tensor,
     ):
-        super().__init__(_LDA_PYRO_MODULE_NAME)
+        super().__init__(_AMORTIZED_LDA_PYRO_MODULE_NAME)
 
         self.n_input = n_input
         self.n_topics = n_topics
@@ -132,9 +132,9 @@ class LDAPyroModel(PyroModule):
             )
 
 
-class LDAPyroGuide(PyroModule):
+class AmortizedLDAPyroGuide(PyroModule):
     """
-    A PyroModule that serves as the guide for the LDAPyroModule class.
+    A PyroModule that serves as the guide for the AmortizedLDAPyroModule class.
 
     Parameters
     ----------
@@ -147,7 +147,7 @@ class LDAPyroGuide(PyroModule):
     """
 
     def __init__(self, n_input: int, n_topics: int, n_hidden: int):
-        super().__init__(_LDA_PYRO_MODULE_NAME)
+        super().__init__(_AMORTIZED_LDA_PYRO_MODULE_NAME)
 
         self.n_input = n_input
         self.n_topics = n_topics
@@ -256,13 +256,13 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         else:
             self.topic_gene_prior = torch.tensor(topic_gene_prior)
 
-        self._model = LDAPyroModel(
+        self._model = AmortizedLDAPyroModel(
             self.n_input,
             self.n_topics,
             self.cell_topic_prior,
             self.topic_gene_prior,
         )
-        self._guide = LDAPyroGuide(self.n_input, self.n_topics, self.n_hidden)
+        self._guide = AmortizedLDAPyroGuide(self.n_input, self.n_topics, self.n_hidden)
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 
     @property

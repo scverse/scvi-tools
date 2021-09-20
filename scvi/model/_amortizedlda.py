@@ -9,7 +9,7 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
-from scvi.module import LDAPyroModule
+from scvi.module import AmortizedLDAPyroModule
 
 from .base import BaseModelClass, PyroSviTrainMixin
 
@@ -83,7 +83,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
                 f"a float or a Sequence of length n_input."
             )
 
-        self.module = LDAPyroModule(
+        self.module = AmortizedLDAPyroModule(
             n_input=n_input,
             n_topics=n_topics,
             n_hidden=n_hidden,

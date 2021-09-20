@@ -13,7 +13,7 @@ from pyro.nn import PyroModule, PyroSample
 from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata, synthetic_iid
 from scvi.dataloaders import AnnDataLoader
-from scvi.model import LDA
+from scvi.model import AmortizedLDA
 from scvi.model.base import (
     BaseModelClass,
     PyroJitGuideWarmup,
@@ -385,14 +385,16 @@ def test_lda_model():
     adata = synthetic_iid()
 
     # Test with float and Sequence priors.
-    mod1 = LDA(adata, n_topics=n_topics, cell_topic_prior=1.5, topic_gene_prior=1.5)
+    mod1 = AmortizedLDA(
+        adata, n_topics=n_topics, cell_topic_prior=1.5, topic_gene_prior=1.5
+    )
     mod1.train(
         max_epochs=1,
         batch_size=256,
         lr=0.01,
         use_gpu=use_gpu,
     )
-    mod2 = LDA(
+    mod2 = AmortizedLDA(
         adata,
         n_topics=n_topics,
         cell_topic_prior=[1.5 for _ in range(n_topics)],
@@ -405,7 +407,7 @@ def test_lda_model():
         use_gpu=use_gpu,
     )
 
-    mod = LDA(adata, n_topics=n_topics)
+    mod = AmortizedLDA(adata, n_topics=n_topics)
     mod.train(
         max_epochs=5,
         batch_size=256,
@@ -433,7 +435,7 @@ def test_lda_model_save_load(save_path):
     use_gpu = torch.cuda.is_available()
     n_topics = 5
     adata = synthetic_iid()
-    mod = LDA(adata, n_topics=n_topics)
+    mod = AmortizedLDA(adata, n_topics=n_topics)
     mod.train(
         max_epochs=5,
         batch_size=256,
@@ -446,7 +448,7 @@ def test_lda_model_save_load(save_path):
 
     save_path = os.path.join(save_path, "tmp")
     mod.save(save_path, overwrite=True, save_anndata=True)
-    mod = LDA.load(save_path)
+    mod = AmortizedLDA.load(save_path)
 
     gene_by_topic_2 = mod.get_gene_by_topic()
     latent_2 = mod.get_latent_representation()
