@@ -13,6 +13,23 @@ from scvi.module.base import BaseModuleClass, PyroBaseModuleClass
 from scvi.nn import one_hot
 
 
+def _compute_kl_weight(
+    epoch: int,
+    step: int,
+    n_epochs_kl_warmup: Optional[int],
+    n_steps_kl_warmup: Optional[int],
+) -> float:
+    epoch_criterion = n_epochs_kl_warmup is not None
+    step_criterion = n_steps_kl_warmup is not None
+    if epoch_criterion:
+        kl_weight = min(1.0, epoch / n_epochs_kl_warmup)
+    elif step_criterion:
+        kl_weight = min(1.0, step / n_steps_kl_warmup)
+    else:
+        kl_weight = 1.0
+    return max(kl_weight, 1e-3)
+
+
 class TrainingPlan(pl.LightningModule):
     """
     Lightning module task to train scvi-tools modules.
@@ -205,15 +222,12 @@ class TrainingPlan(pl.LightningModule):
     @property
     def kl_weight(self):
         """Scaling factor on KL divergence during training."""
-        epoch_criterion = self.n_epochs_kl_warmup is not None
-        step_criterion = self.n_steps_kl_warmup is not None
-        if epoch_criterion:
-            kl_weight = min(1.0, self.current_epoch / self.n_epochs_kl_warmup)
-        elif step_criterion:
-            kl_weight = min(1.0, self.global_step / self.n_steps_kl_warmup)
-        else:
-            kl_weight = 1.0
-        return kl_weight
+        return _compute_kl_weight(
+            self.current_epoch,
+            self.global_step,
+            self.n_epochs_kl_warmup,
+            self.n_steps_kl_warmup,
+        )
 
 
 class AdversarialTrainingPlan(TrainingPlan):
@@ -699,15 +713,12 @@ class PyroTrainingPlan(pl.LightningModule):
     @property
     def kl_weight(self):
         """Scaling factor on KL divergence during training."""
-        epoch_criterion = self.n_epochs_kl_warmup is not None
-        step_criterion = self.n_steps_kl_warmup is not None
-        if epoch_criterion:
-            kl_weight = min(1.0, self.current_epoch / self.n_epochs_kl_warmup)
-        elif step_criterion:
-            kl_weight = min(1.0, self.global_step / self.n_steps_kl_warmup)
-        else:
-            kl_weight = 1.0
-        return max(kl_weight, 1e-3)
+        return _compute_kl_weight(
+            self.current_epoch,
+            self.global_step,
+            self.n_epochs_kl_warmup,
+            self.n_steps_kl_warmup,
+        )
 
 
 class ClassifierTrainingPlan(pl.LightningModule):
