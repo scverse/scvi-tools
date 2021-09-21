@@ -32,7 +32,7 @@ Motivations to use scVI-tools for differential expression
 
 In the particular case of single-cell RNA-seq data, existing differential expression models often model that the mean expression level 
 :math:`\log h_{g}^C`.
-as linear functions of the cell-state and batch assignments.
+as a linear function of the cell-state and batch assignments.
 These models face two notable limitations to detect differences in expression between cell-states in large-scale scRNA-seq datasets.
 First, such linear assumptions may not capture complex batch effects existing in such datasets accurately.
 When comparing two given states :math:`A`
@@ -99,7 +99,7 @@ While considering different modalities, scVI, TOTALVI, and PeakVI share similar 
 We first introduce some notations that will be useful in the remainder of this guide.
 In particular, we consider a deep generative model where a latent variable with prior :math:`z_n \sim \mathcal{N}_d(0, I_d)` represents cell :math:`n`'s identity.
 In turn, a neural network :math:`f^h_\theta` maps this low-dimensional representation to normalized, expression levels.
-The following table recaps which names are used in the scVI-tools codebase.
+The following table recaps which names the scVI-tools codebase uses.
 
 .. list-table::
    :widths: 20 50 15 15
@@ -128,7 +128,7 @@ Approximating population-specific normalized expression levels
 
 A first step to characterize differences in expression consists in estimating state-specific expression levels.
 For several reasons, most ``scVI-tools`` models do not explicitly model discrete cell types. 
-The most obvious one is that states often are unknown at the beginning of the analysis, and inferred with ``scvi-tools``.
+A given cell's state often is unknown in the first place, and inferred with ``scvi-tools``.
 In some cases, states may also have an intricate structure that would be difficult to model.
 The class of models we consider here assumes that a latent variable :math:`z` characterizes cells' biological identity.
 A key component of our differential expression module is to aggregate the information carried by individual cells to estimate population-wide expression levels.
@@ -154,16 +154,17 @@ In particular, we will represent state :math:`C` latent representation with the 
 
 where ``idx1`` and``idx2`` specify which observations to use to approximate these quantities.
 
-Once established latent distributions for each state, the vector of expression levels :math:`h_{n} \in \mathbb{R}^F` (:math:`F` being the total number of features) can obtained using the neural network :math:`h_n = f^h_\theta(z_n)` from the decoder.
-We will note :math:`h^A_f, h^B_f` the respective expression levels in states :math:`A, B` obtained using this sampling procedure.
+Once established latent distributions for each state, expression vectors :math:`h_{n} \in \mathbb{R}^F` (:math:`F` being the total number of features) are obtained as neural network outputs :math:`h_n = f^h_\theta(z_n)`.
+We note :math:`h^A_f, h^B_f` the respective expression levels in states :math:`A, B` obtained using this sampling procedure.
 
 
 
 
 Detecting biologically relevant features
 ========================================================
-Once we have expression levels distributions for each condition, scvi-tools constructs an effect-size, which will characterize differences of expression.
-When considering gene or surface protein expression, the normalized expresssion levels can be viewed as normalized counts. Consequently, the canonical effect size for feature :math:`f` is the log fold-change, defined as the differences of between log expression levels between conditions,
+Once we have expression levels distributions for each condition, scvi-tools constructs an effect-size, which will characterize expression differences.
+When considering gene or surface protein expression, log-normalized counts are a traditional choice to characterize expression levels.
+. Consequently, the canonical effect size for feature :math:`f` is the log fold-change, defined as the difference between log expression between conditions,
 
 .. math::
    :nowrap:
@@ -173,12 +174,11 @@ When considering gene or surface protein expression, the normalized expresssion 
       = 
       \log_2 h_^B{f} - \log_2 h_^A{f}.
    \end{align}
-As chromatin accessibility cannot be interpreted in the same way, we instead take :math:`\beta_f = h_^B{f}
-- \log_2 h_^A{f}`.
+As chromatin accessibility cannot be interpreted in the same way, we instead take :math:`\beta_f = h_^B{f}- h_^A{f}`.
 
-To detect differentially expressed features from the effect sizes, scVI-tools provides several ways to formulate the competing hypotheses.
+scVI-tools provides several ways to formulate the competing hypotheses from the effect sizes to detect DE features.
 When ``mode = "vanilla"``, we consider point null hypotheses of the form :math:`\mathcal{H}_{0f}: \beta_f = 0`.
-To avoid detecting features of little practical interest, e.g., when expression differences between conditions are significant but very subtle,we recommand users to use ``mode = "change"`` instead.
+To avoid detecting features of little practical interest, e.g., when expression differences between conditions are significant but very subtle, we recommend users to use ``mode = "change"`` instead.
 In this formulation, we consider null hypotheses instead, such that 
 
 .. math::
@@ -192,10 +192,19 @@ In this formulation, we consider null hypotheses instead, such that
 
 Here, :math:`\delta` is an hyperparameter specified by ``delta``.
 Note that when ``delta=None``, we estimate this parameter in a data-driven fashion.
+A straightforward decision consists in detecting genes for which the posterior distribution of the event :math:`\lvert \beta_f \rvert \leq \delta`, that we denote :math:`p_f`, is above a threshold :math:`1 - \epsilon`.
+
 
 Providing easy-to-interpret predictions
 ========================================================
+The obtained gene sets may be difficult to interpret for some users.
+For this reason, the differential expression module can detect a more interpretable number of genes. 
+To do so, we focus on decision rules 
+[WRITE DOWN ASSOCIATED EQUATIONS]
+[INTRODUCE FIGURE]
+ 
 
 
 Understanding the differential expression output
 ========================================================
+[INTRODUCE TABLE]
