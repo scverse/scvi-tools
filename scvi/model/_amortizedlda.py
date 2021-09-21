@@ -93,13 +93,6 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         self.init_params_ = self._get_init_params(locals())
 
-    def _check_if_not_trained(self):
-        """Check if the model is not trained. Raises a ValueError if not."""
-        if not self.is_trained_:
-            raise ValueError(
-                "Trying to query inferred values from an untrained model. Please train the model first."
-            )
-
     def get_gene_by_topic(self, give_mean=True) -> pd.DataFrame:
         """
         Gets the gene by topic matrix.
@@ -116,7 +109,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         -------
         A `n_var x n_topics` Pandas DataFrame containing the gene by topic matrix.
         """
-        self._check_if_not_trained()
+        self._check_if_trained(warn=False)
 
         topic_by_gene = self.module.topic_by_gene(give_mean=give_mean)
 
@@ -153,7 +146,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         A `n_obs x n_topics` Pandas DataFrame containing the normalized estimate
         of the topic distribution for each observation.
         """
-        self._check_if_not_trained()
+        self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
 
         dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
@@ -198,7 +191,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         -------
         The positive ELBO.
         """
-        self._check_if_not_trained()
+        self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
 
         dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
@@ -235,7 +228,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         -------
         Perplexity.
         """
-        self._check_if_not_trained()
+        self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
 
         dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)

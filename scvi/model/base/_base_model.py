@@ -26,6 +26,9 @@ from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 logger = logging.getLogger(__name__)
 
 
+_UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained model. Please train the model first."
+
+
 class BaseModelClass(ABC):
     """Abstract class for scvi-tools models."""
 
@@ -152,6 +155,20 @@ class BaseModelClass(ABC):
             transfer_anndata_setup(self.scvi_setup_dict_, adata)
 
         return adata
+
+    def _check_if_trained(
+        self, warn: bool = True, message: str = _UNTRAINED_WARNING_MESSAGE
+    ):
+        """
+        Check if the model is trained.
+
+        If not trained and `warn` is True, raise a warning, else raise a RuntimeError.
+        """
+        if not self.is_trained_:
+            if warn:
+                warnings.warn(message)
+            else:
+                raise RuntimeError(message)
 
     @property
     def is_trained(self):
