@@ -309,6 +309,8 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
 
         Parameters
         ----------
+        x
+            Counts tensor.
         give_mean
             Give mean of distribution or sample from it.
 
