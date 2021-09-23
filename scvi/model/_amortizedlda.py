@@ -9,6 +9,7 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
+from scvi.data._anndata import _setup_anndata
 from scvi.module import AmortizedLDAPyroModule
 
 from .base import BaseModelClass, PyroSviTrainMixin
@@ -23,7 +24,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.AmortizedLDA.setup_anndata`.
     n_topics
         Number of topics to model.
     n_hidden
@@ -36,7 +37,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata)
+    >>> scvi.model.AmortizedLDA.setup_anndata(adata)
     >>> model = scvi.model.AmortizedLDA(adata)
     >>> model.train()
     >>> gene_by_topic = model.get_gene_by_topic()
@@ -92,6 +93,47 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         )
 
         self.init_params_ = self._get_init_params(locals())
+
+    @staticmethod
+    def setup_anndata(
+        adata: AnnData,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        Sets up the :class:`~anndata.AnnData` object for this model.
+
+        A mapping will be created between data fields used by this model to their respective locations in adata.
+        This method will also compute the log mean and log variance per batch for the library size prior.
+
+        None of the data in adata are modified. Only adds fields to adata.
+
+        Parameters
+        ----------
+        adata
+            AnnData object containing raw counts. Rows represent cells, columns represent features.
+        layer
+            if not `None`, uses this as the key in `adata.layers` for raw count data.
+        copy
+            if `True`, a copy of adata is returned.
+
+        Returns
+        -------
+        If ``copy``,  will return :class:`~anndata.AnnData`.
+        Adds the following fields to adata:
+
+        .uns['_scvi']
+            `scvi` setup dictionary
+        .obs['_scvi_labels']
+            labels encoded as integers
+        .obs['_scvi_batch']
+            batch encoded as integers
+        """
+        return _setup_anndata(
+            adata,
+            layer=layer,
+            copy=copy,
+        )
 
     def get_gene_by_topic(self, give_mean=True) -> pd.DataFrame:
         """
