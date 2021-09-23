@@ -414,18 +414,23 @@ def test_lda_model():
         lr=0.01,
         use_gpu=use_gpu,
     )
-    mod.get_gene_by_topic()
+    adata_gbt = mod.get_gene_by_topic().to_numpy()
+    assert np.allclose(adata_gbt.sum(axis=0), 1)
     adata_lda = mod.get_latent_representation(adata).to_numpy()
-    assert adata_lda.shape == (adata.n_obs, n_topics) and np.all(
-        (adata_lda <= 1) & (adata_lda >= 0)
+    assert (
+        adata_lda.shape == (adata.n_obs, n_topics)
+        and np.all((adata_lda <= 1) & (adata_lda >= 0))
+        and np.allclose(adata_lda.sum(axis=1), 1)
     )
     mod.get_elbo()
     mod.get_perplexity()
 
     adata2 = synthetic_iid()
     adata2_lda = mod.get_latent_representation(adata2).to_numpy()
-    assert adata2_lda.shape == (adata2.n_obs, n_topics) and np.all(
-        (adata2_lda <= 1) & (adata2_lda >= 0)
+    assert (
+        adata2_lda.shape == (adata2.n_obs, n_topics)
+        and np.all((adata2_lda <= 1) & (adata2_lda >= 0))
+        and np.allclose(adata2_lda.sum(axis=1), 1)
     )
     mod.get_elbo(adata2)
     mod.get_perplexity(adata2)
@@ -443,16 +448,16 @@ def test_lda_model_save_load(save_path):
         use_gpu=use_gpu,
     )
 
-    gene_by_topic_1 = mod.get_gene_by_topic()
-    latent_1 = mod.get_latent_representation()
+    gene_by_topic_1 = mod.get_gene_by_topic(n_samples=5000)
+    latent_1 = mod.get_latent_representation(n_samples=5000)
 
     save_path = os.path.join(save_path, "tmp")
     mod.save(save_path, overwrite=True, save_anndata=True)
     mod = AmortizedLDA.load(save_path)
 
-    gene_by_topic_2 = mod.get_gene_by_topic()
-    latent_2 = mod.get_latent_representation()
-    np.testing.assert_array_equal(
-        gene_by_topic_1.to_numpy(), gene_by_topic_2.to_numpy()
+    gene_by_topic_2 = mod.get_gene_by_topic(n_samples=5000)
+    latent_2 = mod.get_latent_representation(n_samples=5000)
+    np.testing.assert_almost_equal(
+        gene_by_topic_1.to_numpy(), gene_by_topic_2.to_numpy(), decimal=2
     )
-    np.testing.assert_array_equal(latent_1.to_numpy(), latent_2.to_numpy())
+    np.testing.assert_almost_equal(latent_1.to_numpy(), latent_2.to_numpy(), decimal=2)

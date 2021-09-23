@@ -279,16 +279,16 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
     def guide(self):
         return self._guide
 
-    def topic_by_gene(self, give_mean: bool = True) -> torch.Tensor:
+    def topic_by_gene(self, n_samples: int) -> torch.Tensor:
         """
-        Gets the topic by gene matrix.
+        Gets a Monte-Carlo estimate of the expectation of the topic by gene matrix.
 
         Assumes the module has already been trained.
 
         Parameters
         ----------
-        give_mean
-            Give mean of distribution if True or sample from it.
+        n_samples
+            Number of samples to take for the Monte-Carlo estimate of the mean.
 
         Returns
         -------
@@ -298,18 +298,20 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
             self.guide.topic_gene_posterior_mu.detach().cpu(),
             self.guide.topic_gene_posterior_sigma.detach().cpu(),
         )
-        if give_mean:
-            return F.softmax(topic_gene_posterior_mu, dim=1)
-        return F.softmax(
-            torch.normal(topic_gene_posterior_mu, topic_gene_posterior_sigma),
-            dim=1,
+        return torch.mean(
+            F.softmax(
+                torch.normal(
+                    topic_gene_posterior_mu.unsqueeze(2).repeat(1, 1, n_samples),
+                    topic_gene_posterior_sigma.unsqueeze(2).repeat(1, 1, n_samples),
+                ),
+                dim=1,
+            ),
+            dim=2,
         )
 
     @auto_move_data
     @torch.no_grad()
-    def get_topic_distribution(
-        self, x: torch.Tensor, give_mean: bool = True
-    ) -> torch.Tensor:
+    def get_topic_distribution(self, x: torch.Tensor, n_samples: int) -> torch.Tensor:
         """
         Converts `x` to its inferred topic distribution.
 
@@ -317,8 +319,8 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         ----------
         x
             Counts tensor.
-        give_mean
-            Give mean of distribution or sample from it.
+        n_samples
+            Number of samples to take for the Monte-Carlo estimate of the mean.
 
         Returns
         -------
@@ -326,12 +328,21 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         """
         (
             cell_topic_dist_mu,
+            cell_topic_dist_sigma,
             _,
-            cell_topic_dist_sample,
         ) = self.guide.encoder(x)
-        if give_mean:
-            return F.softmax(cell_topic_dist_mu.detach().cpu(), dim=1)
-        return cell_topic_dist_sample.detach().cpu()
+        cell_topic_dist_mu = cell_topic_dist_mu.detach().cpu()
+        cell_topic_dist_sigma = F.softplus(cell_topic_dist_sigma.detach().cpu())
+        return torch.mean(
+            F.softmax(
+                torch.normal(
+                    cell_topic_dist_mu.unsqueeze(2).repeat(1, 1, n_samples),
+                    cell_topic_dist_sigma.unsqueeze(2).repeat(1, 1, n_samples),
+                ),
+                dim=1,
+            ),
+            dim=2,
+        )
 
     @auto_move_data
     @torch.no_grad()
