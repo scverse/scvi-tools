@@ -274,7 +274,6 @@ class VAE(BaseModuleClass):
         else:
             categorical_input = tuple()
         qz_m, qz_v, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-
         ql_m, ql_v = None, None
         if not self.use_observed_lib_size:
             ql_m, ql_v, library_encoded = self.l_encoder(

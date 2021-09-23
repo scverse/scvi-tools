@@ -8,6 +8,7 @@ from torch.nn import ModuleList
 
 from ._utils import one_hot
 
+import pdb
 
 def reparameterize_gaussian(mu, var):
     return Normal(mu, var.sqrt()).rsample()
@@ -69,6 +70,7 @@ class FCLayers(nn.Module):
         super().__init__()
         self.inject_covariates = inject_covariates
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
+        self.embeddings = nn.Embedding(n_in,5)
 
         if n_cat_list is not None:
             # n_cat = 1 will be ignored
@@ -84,7 +86,8 @@ class FCLayers(nn.Module):
                         "Layer {}".format(i),
                         nn.Sequential(
                             nn.Linear(
-                                n_in + cat_dim * self.inject_into_layer(i),
+                                # n_in + cat_dim * self.inject_into_layer(i),
+                                5,
                                 n_out,
                                 bias=bias,
                             ),
@@ -192,6 +195,7 @@ class FCLayers(nn.Module):
                             else:
                                 one_hot_cat_list_layer = one_hot_cat_list
                             x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
+                            x = self.embeddings(x.long())
                         x = layer(x)
         return x
 
