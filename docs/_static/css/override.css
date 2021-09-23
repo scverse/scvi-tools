@@ -118,3 +118,7 @@ div.nbinput.container, div.nboutput.container {
     padding-top: 0px
     width: 100%;
 }
+
+p.topic-title {
+  margin-top: 0;
+}
