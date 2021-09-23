@@ -136,7 +136,7 @@ class SCVI(
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:  # noqa: D415
+    ) -> Optional[AnnData]:  # noqa: D400,D415
         """
         %(setup_anndata_summary)s
 

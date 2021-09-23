@@ -409,4 +409,3 @@ class BaseModelClass(ABC):
         Each model class deriving from this class provides parameters to this method
         according to its needs.
         """
-        pass

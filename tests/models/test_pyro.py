@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import numpy as np
 import pyro
@@ -153,6 +154,12 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         )
         self._model_summary_string = "BayesianRegressionModel"
         self.init_params_ = self._get_init_params(locals())
+
+    @staticmethod
+    def setup_anndata(
+        adata: AnnData,
+    ) -> Optional[AnnData]:
+        pass
 
 
 def test_pyro_bayesian_regression(save_path):
