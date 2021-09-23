@@ -13,6 +13,7 @@ from pyro.nn import PyroModule, PyroSample
 from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata, synthetic_iid
 from scvi.dataloaders import AnnDataLoader
+from scvi.model import AmortizedLDA
 from scvi.model.base import (
     BaseModelClass,
     PyroJitGuideWarmup,
@@ -376,3 +377,82 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
         adata.n_obs,
         1,
     )
+
+
+def test_lda_model():
+    use_gpu = torch.cuda.is_available()
+    n_topics = 5
+    adata = synthetic_iid()
+
+    # Test with float and Sequence priors.
+    mod1 = AmortizedLDA(
+        adata, n_topics=n_topics, cell_topic_prior=1.5, topic_gene_prior=1.5
+    )
+    mod1.train(
+        max_epochs=1,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+    mod2 = AmortizedLDA(
+        adata,
+        n_topics=n_topics,
+        cell_topic_prior=[1.5 for _ in range(n_topics)],
+        topic_gene_prior=[1.5 for _ in range(adata.n_vars)],
+    )
+    mod2.train(
+        max_epochs=1,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+
+    mod = AmortizedLDA(adata, n_topics=n_topics)
+    mod.train(
+        max_epochs=5,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+    mod.get_gene_by_topic()
+    adata_lda = mod.get_latent_representation(adata).to_numpy()
+    assert adata_lda.shape == (adata.n_obs, n_topics) and np.all(
+        (adata_lda <= 1) & (adata_lda >= 0)
+    )
+    mod.get_elbo()
+    mod.get_perplexity()
+
+    adata2 = synthetic_iid()
+    adata2_lda = mod.get_latent_representation(adata2).to_numpy()
+    assert adata2_lda.shape == (adata2.n_obs, n_topics) and np.all(
+        (adata2_lda <= 1) & (adata2_lda >= 0)
+    )
+    mod.get_elbo(adata2)
+    mod.get_perplexity(adata2)
+
+
+def test_lda_model_save_load(save_path):
+    use_gpu = torch.cuda.is_available()
+    n_topics = 5
+    adata = synthetic_iid()
+    mod = AmortizedLDA(adata, n_topics=n_topics)
+    mod.train(
+        max_epochs=5,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+
+    gene_by_topic_1 = mod.get_gene_by_topic()
+    latent_1 = mod.get_latent_representation()
+
+    save_path = os.path.join(save_path, "tmp")
+    mod.save(save_path, overwrite=True, save_anndata=True)
+    mod = AmortizedLDA.load(save_path)
+
+    gene_by_topic_2 = mod.get_gene_by_topic()
+    latent_2 = mod.get_latent_representation()
+    np.testing.assert_array_equal(
+        gene_by_topic_1.to_numpy(), gene_by_topic_2.to_numpy()
+    )
+    np.testing.assert_array_equal(latent_1.to_numpy(), latent_2.to_numpy())

@@ -1,3 +1,4 @@
+from ._amortizedlda import AmortizedLDAPyroModule
 from ._autozivae import AutoZIVAE
 from ._classifier import Classifier
 from ._mrdeconv import MRDeconv
@@ -19,4 +20,5 @@ __all__ = [
     "VAEC",
     "MRDeconv",
     "MULTIVAE",
+    "AmortizedLDAPyroModule",
 ]

@@ -541,8 +541,8 @@ class RNASeqMixin:
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
-        if not self.is_trained_:
-            raise RuntimeError("Please train the model first.")
+        self._check_if_trained(warn=False)
+
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
