@@ -85,9 +85,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/totalVI`
-    2. :doc:`/user_guide/notebooks/cite_scrna_integration_w_totalVI`
-    3. :doc:`/user_guide/notebooks/scarches_scvi_tools`
+    1. :doc:`/tutorials/notebooks/totalVI`
+    2. :doc:`/tutorials/notebooks/cite_scrna_integration_w_totalVI`
+    3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
     """
 
     def __init__(
@@ -296,8 +296,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
-        if not self.is_trained_:
-            raise RuntimeError("Please train the model first.")
+        self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
         post = self._make_data_loader(
@@ -1060,7 +1059,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Sets up the :class:`~anndata.AnnData` object for this model.
 
         A mapping will be created between data fields used by this model to their respective locations in adata.
-        This method will also compute the log mean and log variance per batch for the library size prior.
 
         None of the data in adata are modified. Only adds fields to adata.
 

@@ -35,7 +35,7 @@ class ArchesMixin:
         freeze_classifier: bool = True,
     ):
         """
-        Online update of a reference model with scArches algorithm [Lotfollahi20]_.
+        Online update of a reference model with scArches algorithm [Lotfollahi21]_.
 
         Parameters
         ----------

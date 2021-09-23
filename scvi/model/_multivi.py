@@ -725,7 +725,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Sets up the :class:`~anndata.AnnData` object for this model.
 
         A mapping will be created between data fields used by this model to their respective locations in adata.
-        This method will also compute the log mean and log variance per batch for the library size prior.
 
         None of the data in adata are modified. Only adds fields to adata.
 

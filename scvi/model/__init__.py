@@ -1,3 +1,4 @@
+from ._amortizedlda import AmortizedLDA
 from ._autozi import AUTOZI
 from ._condscvi import CondSCVI
 from ._destvi import DestVI
@@ -18,4 +19,5 @@ __all__ = [
     "CondSCVI",
     "DestVI",
     "MULTIVI",
+    "AmortizedLDA",
 ]

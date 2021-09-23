@@ -176,8 +176,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scanvi_kwargs
             kwargs for scanVI model
         """
-        if scvi_model.is_trained_ is False:
-            warnings.warn("Passed in scvi model hasn't been trained yet.")
+        scvi_model._check_if_trained(
+            message="Passed in scvi model hasn't been trained yet."
+        )
 
         scanvi_kwargs = dict(scanvi_kwargs)
         init_params = scvi_model.init_params_
@@ -404,7 +405,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Sets up the :class:`~anndata.AnnData` object for this model.
 
         A mapping will be created between data fields used by this model to their respective locations in adata.
-        This method will also compute the log mean and log variance per batch for the library size prior.
 
         None of the data in adata are modified. Only adds fields to adata.
 

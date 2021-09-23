@@ -44,6 +44,12 @@ def test_scvi(save_path):
     )
 
     # Test with observed lib size.
+    adata = synthetic_iid(run_setup_anndata=False)
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 

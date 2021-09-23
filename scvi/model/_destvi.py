@@ -1,5 +1,4 @@
 import logging
-import warnings
 from collections import OrderedDict
 from typing import Dict, Optional, Sequence, Union
 
@@ -162,10 +161,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
         """
-        if self.is_trained_ is False:
-            warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
-            )
+        self._check_if_trained()
 
         column_names = self.cell_type_mapping
         index_names = self.adata.obs.index
@@ -217,10 +213,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         return_numpy
             if activated, will return a numpy array of shape is n_spots x n_latent x n_labels.
         """
-        if self.is_trained_ is False:
-            warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
-            )
+        self._check_if_trained()
 
         column_names = np.arange(self.module.n_latent)
         index_names = self.adata.obs.index
@@ -277,10 +270,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         -------
         Pandas dataframe of gene_expression
         """
-        if self.is_trained_ is False:
-            warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
-            )
+        self._check_if_trained()
 
         if label not in self.cell_type_mapping:
             raise ValueError("Unknown cell type")
@@ -370,7 +360,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Sets up the :class:`~anndata.AnnData` object for this model.
 
         A mapping will be created between data fields used by this model to their respective locations in adata.
-        This method will also compute the log mean and log variance per batch for the library size prior.
 
         None of the data in adata are modified. Only adds fields to adata.
 
