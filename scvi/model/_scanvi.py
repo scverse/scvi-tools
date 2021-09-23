@@ -176,8 +176,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scanvi_kwargs
             kwargs for scanVI model
         """
-        if scvi_model.is_trained_ is False:
-            warnings.warn("Passed in scvi model hasn't been trained yet.")
+        scvi_model._check_if_trained(
+            message="Passed in scvi model hasn't been trained yet."
+        )
 
         scanvi_kwargs = dict(scanvi_kwargs)
         init_params = scvi_model.init_params_
