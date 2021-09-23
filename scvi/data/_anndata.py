@@ -87,7 +87,6 @@ def setup_anndata(
     Sets up :class:`~anndata.AnnData` object for models.
 
     A mapping will be created between data fields used by models to their respective locations in adata.
-    This method will also compute the log mean and log variance per batch for the library size prior.
 
     None of the data in adata are modified. Only adds fields to adata.
 

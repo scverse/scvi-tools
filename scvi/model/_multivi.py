@@ -725,7 +725,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Sets up the :class:`~anndata.AnnData` object for this model.
 
         A mapping will be created between data fields used by this model to their respective locations in adata.
-        This method will also compute the log mean and log variance per batch for the library size prior.
 
         None of the data in adata are modified. Only adds fields to adata.
 
@@ -752,10 +751,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         .uns['_scvi']
             `scvi` setup dictionary
-        .obs['_local_l_mean']
-            per batch library size mean
-        .obs['_local_l_var']
-            per batch library size variance
         .obs['_scvi_labels']
             labels encoded as integers
         .obs['_scvi_batch']
