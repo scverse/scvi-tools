@@ -1,3 +1,5 @@
+from docrep import DocstringProcessor
+
 """Shared docstrings."""
 
 doc_differential_expression = """\
@@ -50,3 +52,64 @@ fdr_target
 silent
     If True, disables the progress bar. Default: False.
 """
+
+setup_anndata_summary = """\
+Sets up the :class:`~anndata.AnnData` object for this model.
+
+A mapping will be created between data fields used by this model to their respective locations in adata.
+This method will also compute the log mean and log variance per batch for the library size prior.
+
+None of the data in adata are modified. Only adds fields to adata."""
+
+setup_anndata_param_adata = """\
+adata
+    AnnData object containing raw counts. Rows represent cells, columns represent features."""
+
+setup_anndata_param_batch_key = """\
+batch_key
+    key in `adata.obs` for batch information. Categories will automatically be converted into integer
+    categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data."""
+
+setup_anndata_param_labels_key = """\
+labels_key
+    key in `adata.obs` for label information. Categories will automatically be converted into integer
+    categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data."""
+
+setup_anndata_param_layer = """\
+layer
+    if not `None`, uses this as the key in `adata.layers` for raw count data."""
+
+setup_anndata_param_cat_cov_keys = """\
+categorical_covariate_keys
+    keys in `adata.obs` that correspond to categorical data."""
+
+setup_anndata_param_cont_cov_keys = """\
+continuous_covariate_keys
+    keys in `adata.obs` that correspond to continuous data."""
+
+setup_anndata_param_copy = """\
+copy
+    if `True`, a copy of adata is returned."""
+
+setup_anndata_returns = """\
+If ``copy``,  will return :class:`~anndata.AnnData`.
+Adds the following fields to adata:
+
+.uns['_scvi']
+    `scvi` setup dictionary
+.obs['_scvi_labels']
+    labels encoded as integers
+.obs['_scvi_batch']
+    batch encoded as integers"""
+
+dsp = DocstringProcessor(
+    setup_anndata_summary=setup_anndata_summary,
+    setup_anndata_param_adata=setup_anndata_param_adata,
+    setup_anndata_param_batch_key=setup_anndata_param_batch_key,
+    setup_anndata_param_labels_key=setup_anndata_param_labels_key,
+    setup_anndata_param_layer=setup_anndata_param_layer,
+    setup_anndata_param_cat_cov_keys=setup_anndata_param_cat_cov_keys,
+    setup_anndata_param_cont_cov_keys=setup_anndata_param_cont_cov_keys,
+    setup_anndata_param_copy=setup_anndata_param_copy,
+    setup_anndata_returns=setup_anndata_returns,
+)

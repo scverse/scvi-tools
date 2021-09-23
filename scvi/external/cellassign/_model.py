@@ -10,6 +10,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 import scvi
 from scvi import _CONSTANTS
+from scvi._docs import dsp
 from scvi.data import register_tensor_from_anndata
 from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
@@ -215,6 +216,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         return runner()
 
     @staticmethod
+    @dsp.dedent
     def setup_anndata(
         adata: AnnData,
         size_factor_key: str,
@@ -225,44 +227,23 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         copy: bool = False,
     ) -> Optional[AnnData]:
         """
-        Sets up the :class:`~anndata.AnnData` object for this model.
-
-        A mapping will be created between data fields used by this model to their respective locations in adata.
-        This method will also compute the log mean and log variance per batch for the library size prior.
-
-        None of the data in adata are modified. Only adds fields to adata.
+        %(setup_anndata_summary)s
 
         Parameters
         ----------
-        adata
-            AnnData object containing raw counts. Rows represent cells, columns represent features.
+        %(setup_anndata_param_adata)s
         size_factor_key
             key in `adata.obs` with continuous valued size factors.
-        batch_key
-            key in `adata.obs` for batch information. Categories will automatically be converted into integer
-            categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data.
-        layer
-            if not `None`, uses this as the key in `adata.layers` for raw count data.
-        categorical_covariate_keys
-            keys in `adata.obs` that correspond to categorical data.
-        continuous_covariate_keys
-            keys in `adata.obs` that correspond to continuous data.
-        copy
-            if `True`, a copy of adata is returned.
+        %(setup_anndata_param_batch_key)s
+        %(setup_anndata_param_layer)s
+        %(setup_anndata_param_cat_cov_keys)s
+        %(setup_anndata_param_cont_cov_keys)s
+        %(setup_anndata_param_copy)s
 
         Returns
         -------
-        If ``copy``,  will return :class:`~anndata.AnnData`.
-        Adds the following fields to adata:
-
-        .uns['_scvi']
-            `scvi` setup dictionary
-        .obs['_scvi_labels']
-            labels encoded as integers
-        .obs['_scvi_batch']
-            batch encoded as integers
+        %(setup_anndata_returns)s
         """
-
         setup_data = _setup_anndata(
             adata,
             batch_key=batch_key,

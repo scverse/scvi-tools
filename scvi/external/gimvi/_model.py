@@ -11,6 +11,7 @@ from anndata import AnnData, read
 from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS
+from scvi._docs import dsp
 from scvi.data import transfer_anndata_setup
 from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
@@ -521,6 +522,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         return model
 
     @staticmethod
+    @dsp.dedent
     def setup_anndata(
         adata: AnnData,
         batch_key: Optional[str] = None,
@@ -528,37 +530,18 @@ class GIMVI(VAEMixin, BaseModelClass):
         copy: bool = False,
     ) -> Optional[AnnData]:
         """
-        Sets up the :class:`~anndata.AnnData` object for this model.
-
-        A mapping will be created between data fields used by this model to their respective locations in adata.
-        This method will also compute the log mean and log variance per batch for the library size prior.
-
-        None of the data in adata are modified. Only adds fields to adata.
+        %(setup_anndata_summary)s
 
         Parameters
         ----------
-        adata
-            AnnData object containing raw counts. Rows represent cells, columns represent features.
-        batch_key
-            key in `adata.obs` for batch information. Categories will automatically be converted into integer
-            categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data.
-        labels_key
-            key in `adata.obs` for label information. Categories will automatically be converted into integer
-            categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data.
-        copy
-            if `True`, a copy of adata is returned.
+        %(setup_anndata_param_adata)s
+        %(setup_anndata_param_batch_key)s
+        %(setup_anndata_param_labels_key)s
+        %(setup_anndata_param_copy)s
 
         Returns
         -------
-        If ``copy``,  will return :class:`~anndata.AnnData`.
-        Adds the following fields to adata:
-
-        .uns['_scvi']
-            `scvi` setup dictionary
-        .obs['_scvi_labels']
-            labels encoded as integers
-        .obs['_scvi_batch']
-            batch encoded as integers
+        %(setup_anndata_returns)s
         """
         return _setup_anndata(
             adata,
