@@ -14,6 +14,7 @@ from anndata import AnnData
 from rich.text import Text
 
 from scvi import _CONSTANTS, settings
+from scvi._docs import dsp
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
@@ -393,3 +394,19 @@ class BaseModelClass(ABC):
         console = rich.console.Console()
         console.print(text)
         return ""
+
+    @staticmethod
+    @abstractmethod
+    @dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        *args,
+        **kwargs,
+    ) -> Optional[AnnData]:
+        """
+        %(setup_anndata_summary)s
+
+        Each model class deriving from this class provides parameters to this method
+        according to its needs.
+        """
+        pass

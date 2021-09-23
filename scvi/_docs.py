@@ -1,7 +1,5 @@
 from docrep import DocstringProcessor
 
-"""Shared docstrings."""
-
 doc_differential_expression = """\
 adata
     AnnData object with equivalent structure to initial AnnData.
