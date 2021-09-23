@@ -300,13 +300,13 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         )
         return torch.mean(
             F.softmax(
-                torch.normal(
-                    topic_gene_posterior_mu.unsqueeze(2).repeat(1, 1, n_samples),
-                    topic_gene_posterior_sigma.unsqueeze(2).repeat(1, 1, n_samples),
-                ),
-                dim=1,
+                dist.Normal(
+                    topic_gene_posterior_mu,
+                    topic_gene_posterior_sigma,
+                ).sample(sample_shape=torch.Size((n_samples,))),
+                dim=2,
             ),
-            dim=2,
+            dim=0,
         )
 
     @auto_move_data
@@ -335,13 +335,12 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         cell_topic_dist_sigma = F.softplus(cell_topic_dist_sigma.detach().cpu())
         return torch.mean(
             F.softmax(
-                torch.normal(
-                    cell_topic_dist_mu.unsqueeze(2).repeat(1, 1, n_samples),
-                    cell_topic_dist_sigma.unsqueeze(2).repeat(1, 1, n_samples),
+                dist.Normal(cell_topic_dist_mu, cell_topic_dist_sigma).sample(
+                    sample_shape=torch.Size((n_samples,))
                 ),
-                dim=1,
+                dim=2,
             ),
-            dim=2,
+            dim=0,
         )
 
     @auto_move_data
