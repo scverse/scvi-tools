@@ -9,6 +9,7 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
+from scvi._docs import dsp
 from scvi.data._anndata import _setup_anndata
 from scvi.module import AmortizedLDAPyroModule
 
@@ -95,39 +96,24 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @staticmethod
+    @dsp.dedent
     def setup_anndata(
         adata: AnnData,
         layer: Optional[str] = None,
         copy: bool = False,
     ) -> Optional[AnnData]:
         """
-        Sets up the :class:`~anndata.AnnData` object for this model.
-
-        A mapping will be created between data fields used by this model to their respective locations in adata.
-        This method will also compute the log mean and log variance per batch for the library size prior.
-
-        None of the data in adata are modified. Only adds fields to adata.
+        %(setup_anndata_summary)s
 
         Parameters
         ----------
-        adata
-            AnnData object containing raw counts. Rows represent cells, columns represent features.
-        layer
-            if not `None`, uses this as the key in `adata.layers` for raw count data.
-        copy
-            if `True`, a copy of adata is returned.
+        %(setup_anndata_param_adata)s
+        %(setup_anndata_param_layer)s
+        %(setup_anndata_param_copy)s
 
         Returns
         -------
-        If ``copy``,  will return :class:`~anndata.AnnData`.
-        Adds the following fields to adata:
-
-        .uns['_scvi']
-            `scvi` setup dictionary
-        .obs['_scvi_labels']
-            labels encoded as integers
-        .obs['_scvi_batch']
-            batch encoded as integers
+        %(setup_anndata_returns)s
         """
         return _setup_anndata(
             adata,
