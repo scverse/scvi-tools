@@ -55,7 +55,6 @@ silent
 
 setup_anndata_summary = """\
 Sets up the :class:`~anndata.AnnData` object for this model.
-
 A mapping will be created between data fields used by this model to their respective locations in adata.
 
 None of the data in adata are modified. Only adds fields to adata."""

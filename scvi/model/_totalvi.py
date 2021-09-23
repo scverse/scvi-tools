@@ -11,7 +11,7 @@ from anndata import AnnData
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi._docs import doc_differential_expression
+from scvi._docs import doc_differential_expression, dsp
 from scvi._utils import _doc_params
 from scvi.data import get_from_registry
 from scvi.data._anndata import _setup_anndata
@@ -1045,6 +1045,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         return np.concatenate(background_mean)
 
     @staticmethod
+    @dsp.dedent
     def setup_anndata(
         adata: AnnData,
         batch_key: Optional[str] = None,
@@ -1056,44 +1057,25 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         copy: bool = False,
     ) -> Optional[AnnData]:
         """
-        Sets up the :class:`~anndata.AnnData` object for this model.
-
-        A mapping will be created between data fields used by this model to their respective locations in adata.
-
-        None of the data in adata are modified. Only adds fields to adata.
+        %(setup_anndata_summary)s
 
         Parameters
         ----------
-        adata
-            AnnData object containing raw counts. Rows represent cells, columns represent features.
-        batch_key
-            key in `adata.obs` for batch information. Categories will automatically be converted into integer
-            categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data.
-        layer
-            if not `None`, uses this as the key in `adata.layers` for raw count data.
+        %(setup_anndata_param_adata)s
+        %(setup_anndata_param_batch_key)s
+        %(setup_anndata_param_layer)s
         protein_expression_obsm_key
             key in `adata.obsm` for protein expression data.
         protein_names_uns_key
             key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
             if it is a DataFrame, else will assign sequential names to proteins.
-        categorical_covariate_keys
-            keys in `adata.obs` that correspond to categorical data.
-        continuous_covariate_keys
-            keys in `adata.obs` that correspond to continuous data.
-        copy
-            if `True`, a copy of adata is returned.
+        %(setup_anndata_param_cat_cov_keys)s
+        %(setup_anndata_param_cont_cov_keys)s
+        %(setup_anndata_param_copy)s
 
         Returns
         -------
-        If ``copy``,  will return :class:`~anndata.AnnData`.
-        Adds the following fields to adata:
-
-        .uns['_scvi']
-            `scvi` setup dictionary
-        .obs['_scvi_labels']
-            labels encoded as integers
-        .obs['_scvi_batch']
-            batch encoded as integers
+        %(setup_anndata_returns)s
         """
         return _setup_anndata(
             adata,

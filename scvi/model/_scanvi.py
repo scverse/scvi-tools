@@ -10,6 +10,7 @@ from pandas.api.types import CategoricalDtype
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
+from scvi._docs import dsp
 from scvi.data._anndata import _make_obs_column_categorical, _setup_anndata
 from scvi.dataloaders import (
     AnnDataLoader,
@@ -392,6 +393,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         return runner()
 
     @staticmethod
+    @dsp.dedent
     def setup_anndata(
         adata: AnnData,
         batch_key: Optional[str] = None,
@@ -402,42 +404,21 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         copy: bool = False,
     ) -> Optional[AnnData]:
         """
-        Sets up the :class:`~anndata.AnnData` object for this model.
-
-        A mapping will be created between data fields used by this model to their respective locations in adata.
-
-        None of the data in adata are modified. Only adds fields to adata.
+        %(setup_anndata_summary)s
 
         Parameters
         ----------
-        adata
-            AnnData object containing raw counts. Rows represent cells, columns represent features.
-        batch_key
-            key in `adata.obs` for batch information. Categories will automatically be converted into integer
-            categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data.
-        labels_key
-            key in `adata.obs` for label information. Categories will automatically be converted into integer
-            categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data.
-        layer
-            if not `None`, uses this as the key in `adata.layers` for raw count data.
-        categorical_covariate_keys
-            keys in `adata.obs` that correspond to categorical data.
-        continuous_covariate_keys
-            keys in `adata.obs` that correspond to continuous data.
-        copy
-            if `True`, a copy of adata is returned.
+        %(setup_anndata_param_adata)s
+        %(setup_anndata_param_batch_key)s
+        %(setup_anndata_param_labels_key)s
+        %(setup_anndata_param_layer)s
+        %(setup_anndata_param_cat_cov_keys)s
+        %(setup_anndata_param_cont_cov_keys)s
+        %(setup_anndata_param_copy)s
 
         Returns
         -------
-        If ``copy``,  will return :class:`~anndata.AnnData`.
-        Adds the following fields to adata:
-
-        .uns['_scvi']
-            `scvi` setup dictionary
-        .obs['_scvi_labels']
-            labels encoded as integers
-        .obs['_scvi_batch']
-            batch encoded as integers
+        %(setup_anndata_returns)s
         """
         return _setup_anndata(
             adata,
