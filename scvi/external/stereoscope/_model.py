@@ -133,7 +133,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         Returns
         -------
         %(setup_anndata_returns)s
-        """
+        """  # noqa
         return _setup_anndata(
             adata,
             labels_key=labels_key,
@@ -350,7 +350,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         Returns
         -------
         %(setup_anndata_returns)s
-        """
+        """  # noqa
         return _setup_anndata(
             adata,
             layer=layer,

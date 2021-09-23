@@ -194,7 +194,7 @@ class SOLO(BaseModelClass):
             doublet_adata.obs[LABELS_KEY] = "doublet"
 
             full_adata = latent_adata.concatenate(doublet_adata)
-            _setup_anndata(full_adata, labels_key=LABELS_KEY)
+            cls.setup_anndata(full_adata, labels_key=LABELS_KEY)
         return cls(full_adata, **classifier_kwargs)
 
     @staticmethod
@@ -393,7 +393,7 @@ class SOLO(BaseModelClass):
     @dsp.dedent
     def setup_anndata(
         adata: AnnData,
-        labels_key: Optional[str] = None,
+        labels_key: str,
         layer: Optional[str] = None,
         copy: bool = False,
     ) -> Optional[AnnData]:
@@ -410,7 +410,7 @@ class SOLO(BaseModelClass):
         Returns
         -------
         %(setup_anndata_returns)s
-        """
+        """  # noqa
         return _setup_anndata(
             adata,
             labels_key=labels_key,

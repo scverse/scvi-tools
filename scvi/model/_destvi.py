@@ -370,7 +370,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Returns
         -------
         %(setup_anndata_returns)s
-        """
+        """  # noqa
         return _setup_anndata(
             adata,
             layer=layer,

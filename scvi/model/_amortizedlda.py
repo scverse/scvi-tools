@@ -114,7 +114,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         Returns
         -------
         %(setup_anndata_returns)s
-        """
+        """  # noqa
         return _setup_anndata(
             adata,
             layer=layer,

@@ -419,7 +419,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Returns
         -------
         %(setup_anndata_returns)s
-        """
+        """  # noqa
         return _setup_anndata(
             adata,
             batch_key=batch_key,

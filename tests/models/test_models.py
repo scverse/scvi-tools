@@ -305,7 +305,7 @@ def test_backed_anndata_scvi(save_path):
     path = os.path.join(save_path, "test_data.h5ad")
     adata.write_h5ad(path)
     adata = anndata.read_h5ad(path, backed="r+")
-    _setup_anndata(adata, batch_key="batch")
+    SCVI.setup_anndata(adata, batch_key="batch")
 
     model = SCVI(adata, n_latent=5)
     model.train(1, train_size=0.5)
@@ -726,28 +726,34 @@ def test_totalvi_model_library_size(save_path):
     model.get_latent_library_size()
 
 
-def test_multiple_covariates(save_path):
+def test_multiple_covariates_scvi(save_path):
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    _setup_anndata(
+
+    SCVI.setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
-
     m = SCVI(adata)
     m.train(1)
 
     m = SCANVI(adata, unlabeled_category="Unknown")
     m.train(1)
 
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
     m = TOTALVI(adata)
     m.train(1)
 
@@ -787,7 +793,7 @@ def test_condscvi(save_path):
     dataset = synthetic_iid(n_labels=5, run_setup_anndata=False)
     CondSCVI.setup_anndata(
         dataset,
-        labels_key="labels",
+        "labels",
     )
     model = CondSCVI(dataset)
     model.train(1, train_size=1)

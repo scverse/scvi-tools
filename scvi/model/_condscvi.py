@@ -44,7 +44,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.CondSCVI.setup_anndata(adata, labels_key="labels")
+    >>> scvi.model.CondSCVI.setup_anndata(adata, "labels")
     >>> vae = scvi.model.CondSCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_CondSCVI"] = vae.get_latent_representation()
@@ -209,7 +209,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     @dsp.dedent
     def setup_anndata(
         adata: AnnData,
-        labels_key: Optional[str] = None,
+        labels_key: str,
         layer: Optional[str] = None,
         copy: bool = False,
     ) -> Optional[AnnData]:
@@ -226,7 +226,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         Returns
         -------
         %(setup_anndata_returns)s
-        """
+        """  # noqa
         return _setup_anndata(
             adata,
             labels_key=labels_key,
