@@ -357,7 +357,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         adata: AnnData,
         layer: Optional[str] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:
+    ) -> Optional[AnnData]:  # noqa: D415
         """
         %(setup_anndata_summary)s
 
@@ -370,7 +370,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Returns
         -------
         %(setup_anndata_returns)s
-        """  # noqa
+        """
         return _setup_anndata(
             adata,
             layer=layer,

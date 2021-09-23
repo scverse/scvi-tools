@@ -721,7 +721,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:
+    ) -> Optional[AnnData]:  # noqa: D415
         """
         %(setup_anndata_summary)s
 
@@ -737,7 +737,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Returns
         -------
         %(setup_anndata_returns)s
-        """  # noqa
+        """
         return _setup_anndata(
             adata,
             batch_key=batch_key,

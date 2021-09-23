@@ -137,7 +137,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         labels_key: Optional[str] = None,
         layer: Optional[str] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:
+    ) -> Optional[AnnData]:  # noqa: D415
         """
         %(setup_anndata_summary)s
 
@@ -152,7 +152,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         Returns
         -------
         %(setup_anndata_returns)s
-        """  # noqa
+        """
         return _setup_anndata(
             adata,
             batch_key=batch_key,

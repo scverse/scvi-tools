@@ -225,7 +225,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:
+    ) -> Optional[AnnData]:  # noqa: D415
         """
         %(setup_anndata_summary)s
 

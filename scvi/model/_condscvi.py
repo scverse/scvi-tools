@@ -212,7 +212,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         labels_key: str,
         layer: Optional[str] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:
+    ) -> Optional[AnnData]:  # noqa: D415
         """
         %(setup_anndata_summary)s
 
@@ -226,7 +226,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         Returns
         -------
         %(setup_anndata_returns)s
-        """  # noqa
+        """
         return _setup_anndata(
             adata,
             labels_key=labels_key,
