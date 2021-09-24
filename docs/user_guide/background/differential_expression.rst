@@ -162,7 +162,7 @@ We note :math:`h^A_f, h^B_f` the respective expression levels in states :math:`A
 
 Detecting biologically relevant features
 ========================================================
-Once we have expression levels distributions for each condition, scvi-tools constructs an effect-size, which will characterize expression differences.
+Once we have expression levels distributions for each condition, scvi-tools constructs an effect size, which will characterize expression differences.
 When considering gene or surface protein expression, log-normalized counts are a traditional choice to characterize expression levels.
 . Consequently, the canonical effect size for feature :math:`f` is the log fold-change, defined as the difference between log expression between conditions,
 
@@ -174,7 +174,7 @@ When considering gene or surface protein expression, log-normalized counts are a
       = 
       \log_2 h_^B{f} - \log_2 h_^A{f}.
    \end{align}
-As chromatin accessibility cannot be interpreted in the same way, we instead take :math:`\beta_f = h_^B{f}- h_^A{f}`.
+As chromatin accessibility cannot be interpreted in the same way, we take :math:`\beta_f = h_^B{f}- h_^A{f}` instead.
 
 scVI-tools provides several ways to formulate the competing hypotheses from the effect sizes to detect DE features.
 When ``mode = "vanilla"``, we consider point null hypotheses of the form :math:`\mathcal{H}_{0f}: \beta_f = 0`.
@@ -198,13 +198,60 @@ A straightforward decision consists in detecting genes for which the posterior d
 Providing easy-to-interpret predictions
 ========================================================
 The obtained gene sets may be difficult to interpret for some users.
-For this reason, the differential expression module can detect a more interpretable number of genes. 
-To do so, we focus on decision rules 
-[WRITE DOWN ASSOCIATED EQUATIONS]
-[INTRODUCE FIGURE]
- 
+For this reason, we provide a data-supported way to select :math:`\epsilon`, such that the posterior expected False Discovery Proportion (FDP) is below a significance level :math:`\alpha`.
+To clarify how to compute the posterior expectation, we introduce two notations.
+We denote
+
+.. math::
+   :nowrap:
+
+   \begin{align}
+      \mu^k_f
+      =
+      \begin{cases}
+        1 ~~\textrm{if feature $g$ is tagged DE} \\
+        0 ~~\textrm{otherwise}
+      \end{cases},
+   \end{align}
+the decision rule tagging :math:`k` features of highest :math:`p_f` as DE.
+We also note :math:`d^f` the binary random variable taking value 1 if feature :math:`f` is differentially expressed.
+
+The False Discovery Proportion is a random variable corresponding to the ratio of the number of false positives over the total number of predicted positives.
+For the specific family of decision rules :math:`\mu^k, k` that we consider here, the FDP can be written as 
+
+.. math::
+   :nowrap:
+
+   \begin{align}
+      FDP_{\mu^k}
+      =
+      \frac
+      {\sum_f (1 - d^f) \mu_f^k}
+      {\sum_f \mu_f^k}
+      .
+   \end{align}
+  
+However, note that the posterior expectation of :math:`d^f`, denoted as :math:`\mathbb{E}_{post}[]`, verifies :math:`\mathbb{E}_{post}[FDP_{d^f}] = p^f`.
+Hence, by linearity of the expectation, we can estimate the false discovery rate corresponding to :math:`k` detected features as 
+
+.. math::
+   :nowrap:
+
+   \begin{align}
+      \mathbb{E}_{post}[FDP_{\mu^k}]
+      =
+      \frac
+      {\sum_f (1 - p^f) \mu_f^k}
+      {\sum_f \mu_f^k}
+      .
+   \end{align}
+
+ Hence, for a given significance level :math:`\alpha`, we select the maximum detections :math:`k^*`, such that :math:`\mathbb{E}_{post}[FDP_{\mu^k}] \leq \alpha`, as illustrated below.
 
 
-Understanding the differential expression output
-========================================================
-[INTRODUCE TABLE]
+ .. figure:: figures/fdr_control.png
+   :class: img-fluid
+   :align: center
+   :alt: FDR control
+
+
