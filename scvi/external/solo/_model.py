@@ -351,6 +351,7 @@ class SOLO(BaseModelClass):
             Return probabilities instead of class label
         include_simulated_doublets
             Return probabilities for simulated doublets as well.
+
         Returns
         -------
         DataFrame with prediction, index corresponding to cell barcode.

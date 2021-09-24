@@ -295,8 +295,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
-        if not self.is_trained_:
-            raise RuntimeError("Please train the model first.")
+        self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
         post = self._make_data_loader(

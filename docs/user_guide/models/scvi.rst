@@ -46,7 +46,7 @@ by the following process:
 
    \begin{align}
     z_n &\sim {\mathrm{Normal}}\left( {0,I} \right) \\
-    \ell_n &\sim \mathrm{LogNormal}\left( \ell _\mu ,\ell _{\sigma^2} \right) \\
+    \ell_n &\sim \mathrm{LogNormal}\left( \ell_\mu^\top s_n ,\ell_{\sigma^2}^\top s_n \right) \\
     \rho _n &= f_w\left( z_n, s_n \right) \\
     \pi_{ng} &= f_h^g(z_n, s_n) \\
     x_{ng} &\sim \mathrm{ObservationModel}(\ell_n \rho_n, \theta_g, \pi_{ng})

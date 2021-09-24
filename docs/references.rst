@@ -1,10 +1,14 @@
 References
 ----------
 
+.. [Lotfollahi21] Mohammad Lotfollahi, Mohsen Naghipourfar, Malte D. Luecken, Matin Khajavi, Maren Büttner, Marco Wagenstetter, Ziga Avsec, Adam Gayoso, Nir Yosef, Marta Interlandi, Sergei Rybakov, Alexander V. Misharin, and Fabian J. Theis (2021),
+   *Mapping single-cell data to reference atlases by transfer learning*,
+   `Nature Biotechnology <https://www.nature.com/articles/s41587-021-01001-7>`__.
+
 .. [Lopez21] Romain Lopez*, Baoguo Li*, Hadas Keren-Shaul*, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Eyal David, Allon Wagner, Yoseph Addadi, Michael I Jordan, Ido Amit, Nir Yosef. (2021),
    *Multi-resolution deconvolution of spatial transcriptomics data reveals continuous patterns of inflammation*,
    `biorxiv <https://www.biorxiv.org/content/10.1101/2021.04.28.441833v1>`__.
-   
+
 .. [Gayoso21] Adam Gayoso*, Romain Lopez*, Galen Xing*, Pierre Boyeau, Katherine Wu, Michael Jayasuriya, Edouard Mehlman, Maxime Langevin, Yining Liu, Jules Samaran, Gabriel Misrachi, Achille Nazaret, Oscar Clivio, Chenling Xu, Tal Ashuach, Mohammad Lotfollahi, Valentine Svensson, Eduardo da Veiga Beltrame, Carlos Talavera-Lopez, Lior Pachter, Fabian J. Theis, Aaron Streets, Michael I. Jordan, Jeffrey Regier, Nir Yosef. (2021),
    *scvi-tools: a library for deep probabilistic analysis of single-cell omics data*,
    `biorxiv <https://www.biorxiv.org/content/10.1101/2021.04.28.441833v1>`__.
@@ -28,10 +32,6 @@ References
 .. [Andersson20] Alma Andersson, Joseph Bergenstråhle, Michaela Asp, Ludvig Bergenstråhle, Aleksandra Jurek, José Fernández Navarro & Joakim Lundeberg (2020),
    *Single-cell and spatial transcriptomics enables probabilistic inference of cell type topography*,
    `Communications Biology <https://www.nature.com/articles/s42003-020-01247-y>`__.
-
-.. [Lotfollahi20] Mohammad Lotfollahi*, Mohsen Naghipourfar*, Malte D. Luecken, Matin Khajavi, Maren Büttner, Ziga Avsec, Alexander V. Misharin, Fabian J. Theis (2020),
-   *Query to reference single-cell integration with transfer learning*,
-   `bioRxiv <https://www.biorxiv.org/content/10.1101/2020.07.16.205997v1>`__.
 
 .. [Svensson20] Valentine Svensson, Adam Gayoso, Nir Yosef, Lior Pachter (2020),
    *Interpretable factor models of single-cell RNA-seq via variational autoencoders*,
@@ -60,3 +60,7 @@ References
 .. [Lopez18] Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef (2018),
    *Deep generative modeling for single-cell transcriptomics*,
    `Nature Methods <https://www.nature.com/articles/s41592-018-0229-2.epdf?author_access_token=5sMbnZl1iBFitATlpKkddtRgN0jAjWel9jnR3ZoTv0P1-tTjoP-mBfrGiMqpQx63aBtxToJssRfpqQ482otMbBw2GIGGeinWV4cULBLPg4L4DpCg92dEtoMaB1crCRDG7DgtNrM_1j17VfvHfoy1cQ%3D%3D>`__.
+
+.. [Blei03] David M. Blei, Andrew Y. Ng, Michael I. Jordan (2003),
+   *Latent Dirichlet Allocation*,
+   `Journal of Machine Learning Research <https://www.jmlr.org/papers/volume3/blei03a/blei03a.pdf>`__.
