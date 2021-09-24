@@ -21,6 +21,9 @@ scRNA-seq analysis
    * - :doc:`/user_guide/models/cellassign`
      - [Zhang19]_
      - Marker-based automated annotation
+   * - :doc:`/user_guide/models/solo`
+     - [Bernstein19]_
+     - Doublet detection
 
 .. toctree::
     :maxdepth: 2
