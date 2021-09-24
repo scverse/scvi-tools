@@ -10,7 +10,7 @@ from pandas.api.types import CategoricalDtype
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi._docs import dsp
+from scvi._docs import setup_anndata_dsp
 from scvi.data._anndata import _make_obs_column_categorical, _setup_anndata
 from scvi.dataloaders import (
     AnnDataLoader,
@@ -393,7 +393,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         return runner()
 
     @staticmethod
-    @dsp.dedent
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
         batch_key: Optional[str] = None,
@@ -402,23 +402,23 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:  # noqa: D415
+    ) -> Optional[AnnData]:
         """
-        %(setup_anndata_summary)s
+        %(summary)s.
 
         Parameters
         ----------
-        %(setup_anndata_param_adata)s
-        %(setup_anndata_param_batch_key)s
-        %(setup_anndata_param_labels_key)s
-        %(setup_anndata_param_layer)s
-        %(setup_anndata_param_cat_cov_keys)s
-        %(setup_anndata_param_cont_cov_keys)s
-        %(setup_anndata_param_copy)s
+        %(param_adata)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cat_cov_keys)s
+        %(param_copy)s
 
         Returns
         -------
-        %(setup_anndata_returns)s
+        %(returns)s
         """
         return _setup_anndata(
             adata,

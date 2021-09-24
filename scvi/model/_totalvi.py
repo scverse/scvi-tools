@@ -11,7 +11,7 @@ from anndata import AnnData
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi._docs import doc_differential_expression, dsp
+from scvi._docs import doc_differential_expression, setup_anndata_dsp
 from scvi._utils import _doc_params
 from scvi.data import get_from_registry
 from scvi.data._anndata import _setup_anndata
@@ -1045,7 +1045,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         return np.concatenate(background_mean)
 
     @staticmethod
-    @dsp.dedent
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
         batch_key: Optional[str] = None,
@@ -1055,27 +1055,27 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:  # noqa: D415
+    ) -> Optional[AnnData]:
         """
-        %(setup_anndata_summary)s
+        %(summary)s.
 
         Parameters
         ----------
-        %(setup_anndata_param_adata)s
-        %(setup_anndata_param_batch_key)s
-        %(setup_anndata_param_layer)s
+        %(param_adata)s
+        %(param_batch_key)s
+        %(param_layer)s
         protein_expression_obsm_key
             key in `adata.obsm` for protein expression data.
         protein_names_uns_key
             key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
             if it is a DataFrame, else will assign sequential names to proteins.
-        %(setup_anndata_param_cat_cov_keys)s
-        %(setup_anndata_param_cont_cov_keys)s
-        %(setup_anndata_param_copy)s
+        %(param_cat_cov_keys)s
+        %(param_cat_cov_keys)s
+        %(param_copy)s
 
         Returns
         -------
-        %(setup_anndata_returns)s
+        %(returns)s
         """
         return _setup_anndata(
             adata,

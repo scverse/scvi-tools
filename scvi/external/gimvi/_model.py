@@ -11,7 +11,7 @@ from anndata import AnnData, read
 from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS
-from scvi._docs import dsp
+from scvi._docs import setup_anndata_dsp
 from scvi.data import transfer_anndata_setup
 from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
@@ -522,26 +522,26 @@ class GIMVI(VAEMixin, BaseModelClass):
         return model
 
     @staticmethod
-    @dsp.dedent
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:  # noqa: D415
+    ) -> Optional[AnnData]:
         """
-        %(setup_anndata_summary)s
+        %(summary)s.
 
         Parameters
         ----------
-        %(setup_anndata_param_adata)s
-        %(setup_anndata_param_batch_key)s
-        %(setup_anndata_param_labels_key)s
-        %(setup_anndata_param_copy)s
+        %(param_adata)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_copy)s
 
         Returns
         -------
-        %(setup_anndata_returns)s
+        %(returns)s
         """
         return _setup_anndata(
             adata,

@@ -11,7 +11,7 @@ from anndata import AnnData
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
-from scvi._docs import dsp
+from scvi._docs import setup_anndata_dsp
 from scvi.data._anndata import _setup_anndata, get_from_registry, transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
@@ -390,26 +390,26 @@ class SOLO(BaseModelClass):
         return preds_df
 
     @staticmethod
-    @dsp.dedent
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
         labels_key: str,
         layer: Optional[str] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:  # noqa: D415
+    ) -> Optional[AnnData]:
         """
-        %(setup_anndata_summary)s
+        %(summary)s.
 
         Parameters
         ----------
-        %(setup_anndata_param_adata)s
-        %(setup_anndata_param_labels_key)s
-        %(setup_anndata_param_layer)s
-        %(setup_anndata_param_copy)s
+        %(param_adata)s
+        %(param_labels_key)s
+        %(param_layer)s
+        %(param_copy)s
 
         Returns
         -------
-        %(setup_anndata_returns)s
+        %(returns)s
         """
         return _setup_anndata(
             adata,

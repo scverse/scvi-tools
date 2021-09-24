@@ -5,7 +5,7 @@ import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi._docs import dsp
+from scvi._docs import setup_anndata_dsp
 from scvi.data._anndata import _setup_anndata
 from scvi.model._utils import _get_var_names_from_setup_anndata, _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
@@ -130,28 +130,28 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         return loadings
 
     @staticmethod
-    @dsp.dedent
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
         layer: Optional[str] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:  # noqa: D415
+    ) -> Optional[AnnData]:
         """
-        %(setup_anndata_summary)s
+        %(summary)s.
 
         Parameters
         ----------
-        %(setup_anndata_param_adata)s
-        %(setup_anndata_param_batch_key)s
-        %(setup_anndata_param_labels_key)s
-        %(setup_anndata_param_layer)s
-        %(setup_anndata_param_copy)s
+        %(param_adata)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_layer)s
+        %(param_copy)s
 
         Returns
         -------
-        %(setup_anndata_returns)s
+        %(returns)s
         """
         return _setup_anndata(
             adata,

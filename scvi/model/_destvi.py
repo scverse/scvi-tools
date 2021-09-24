@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi._docs import dsp
+from scvi._docs import setup_anndata_dsp
 from scvi.data import register_tensor_from_anndata
 from scvi.data._anndata import _setup_anndata
 from scvi.model import CondSCVI
@@ -352,24 +352,24 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         )
 
     @staticmethod
-    @dsp.dedent
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
         layer: Optional[str] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:  # noqa: D415
+    ) -> Optional[AnnData]:
         """
-        %(setup_anndata_summary)s
+        %(summary)s.
 
         Parameters
         ----------
-        %(setup_anndata_param_adata)s
-        %(setup_anndata_param_layer)s
-        %(setup_anndata_param_copy)s
+        %(param_adata)s
+        %(param_layer)s
+        %(param_copy)s
 
         Returns
         -------
-        %(setup_anndata_returns)s
+        %(returns)s
         """
         return _setup_anndata(
             adata,

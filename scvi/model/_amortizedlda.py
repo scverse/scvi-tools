@@ -9,7 +9,7 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
-from scvi._docs import dsp
+from scvi._docs import setup_anndata_dsp
 from scvi.data._anndata import _setup_anndata
 from scvi.module import AmortizedLDAPyroModule
 
@@ -96,24 +96,24 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @staticmethod
-    @dsp.dedent
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
         layer: Optional[str] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:  # noqa: D415
+    ) -> Optional[AnnData]:
         """
-        %(setup_anndata_summary)s
+        %(summary)s.
 
         Parameters
         ----------
-        %(setup_anndata_param_adata)s
-        %(setup_anndata_param_layer)s
-        %(setup_anndata_param_copy)s
+        %(param_adata)s
+        %(param_layer)s
+        %(param_copy)s
 
         Returns
         -------
-        %(setup_anndata_returns)s
+        %(returns)s
         """
         return _setup_anndata(
             adata,

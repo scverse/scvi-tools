@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 import scvi
 from scvi import _CONSTANTS
-from scvi._docs import dsp
+from scvi._docs import setup_anndata_dsp
 from scvi.data import register_tensor_from_anndata
 from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
@@ -216,7 +216,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         return runner()
 
     @staticmethod
-    @dsp.dedent
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
         size_factor_key: str,
@@ -225,24 +225,24 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:  # noqa: D415
+    ) -> Optional[AnnData]:
         """
-        %(setup_anndata_summary)s
+        %(summary)s.
 
         Parameters
         ----------
-        %(setup_anndata_param_adata)s
+        %(param_adata)s
         size_factor_key
             key in `adata.obs` with continuous valued size factors.
-        %(setup_anndata_param_batch_key)s
-        %(setup_anndata_param_layer)s
-        %(setup_anndata_param_cat_cov_keys)s
-        %(setup_anndata_param_cont_cov_keys)s
-        %(setup_anndata_param_copy)s
+        %(param_batch_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cat_cov_keys)s
+        %(param_copy)s
 
         Returns
         -------
-        %(setup_anndata_returns)s
+        %(returns)s
         """
         setup_data = _setup_anndata(
             adata,

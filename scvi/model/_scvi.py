@@ -4,7 +4,7 @@ from typing import List, Optional
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi._docs import dsp
+from scvi._docs import setup_anndata_dsp
 from scvi.data._anndata import _setup_anndata
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
@@ -127,7 +127,7 @@ class SCVI(
         self.init_params_ = self._get_init_params(locals())
 
     @staticmethod
-    @dsp.dedent
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
         batch_key: Optional[str] = None,
@@ -136,23 +136,23 @@ class SCVI(
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         copy: bool = False,
-    ) -> Optional[AnnData]:  # noqa: D400,D415
+    ) -> Optional[AnnData]:
         """
-        %(setup_anndata_summary)s
+        %(summary)s.
 
         Parameters
         ----------
-        %(setup_anndata_param_adata)s
-        %(setup_anndata_param_batch_key)s
-        %(setup_anndata_param_labels_key)s
-        %(setup_anndata_param_layer)s
-        %(setup_anndata_param_cat_cov_keys)s
-        %(setup_anndata_param_cont_cov_keys)s
-        %(setup_anndata_param_copy)s
+        %(param_adata)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cat_cov_keys)s
+        %(param_copy)s
 
         Returns
         -------
-        %(setup_anndata_returns)s
+        %(returns)s
         """
         return _setup_anndata(
             adata,
