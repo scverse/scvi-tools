@@ -489,8 +489,7 @@ class MULTIVAE(BaseModuleClass):
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
-        mask_pro = 1
-        # TO DO adjust mask protein
+        mask_pro = y.sum(dim=1) > 0
 
         if cont_covs is not None and self.encode_covariates:
             encoder_input_expression = torch.cat((x_rna, cont_covs), dim=-1)
@@ -705,8 +704,7 @@ class MULTIVAE(BaseModuleClass):
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
-        mask_pro = 1
-        # TO DO adjust mask protein
+        mask_pro = y.sum(dim=1) > 0
 
         pro_batch_mask_minibatch = None
         if self.protein_batch_mask is not None:
