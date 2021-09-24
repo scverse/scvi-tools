@@ -157,7 +157,7 @@ Tasks
 
 Dimensionality reduction
 -------------------------
-For dimensionality reduction, we by default return the mean of the approximate posterior :math:`q_\eta(z_n \mid C_n)`.
+For dimensionality reduction, we by default return the mean of the approximate posterior :math:`q_\eta(z_n \mid x_n, y_n,s_n)`.
 This is achieved using the method::
 
     >>> latent = model.get_latent_representation()
@@ -182,7 +182,7 @@ For one cell :math:`n`, in the case of RNA, this can be written as:
     :nowrap:
 
     \begin{align}
-       \mathbb{E}_{q_\eta(z_n \mid x_n)}\left[l_n'f_\rho\left( z_n, s_n \right) \right],
+       \mathbb{E}_{q_\eta(z_n \mid x_n, y_n,s_n)}\left[l_n'f_\rho\left( z_n, s_n \right) \right],
     \end{align}
 
 
