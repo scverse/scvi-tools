@@ -497,7 +497,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         %(param_batch_key)s
         %(param_layer)s
         %(param_cat_cov_keys)s
-        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
         %(param_copy)s
 
         Returns

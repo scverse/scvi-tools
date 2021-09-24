@@ -413,7 +413,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         %(param_labels_key)s
         %(param_layer)s
         %(param_cat_cov_keys)s
-        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
         %(param_copy)s
 
         Returns

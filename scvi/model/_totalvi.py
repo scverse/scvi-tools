@@ -1070,7 +1070,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
             if it is a DataFrame, else will assign sequential names to proteins.
         %(param_cat_cov_keys)s
-        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
         %(param_copy)s
 
         Returns
