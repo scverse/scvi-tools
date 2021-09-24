@@ -38,7 +38,7 @@ A simulated doublet :math:`d_n` is generated via the following process:
 
 
 where :math:`x_{1}` and :math:`x_{2}` are drawn i.i.d from the
-empirical data distribution :math:`p_{\textrm{data}(x)` over single-cell
+empirical data distribution :math:`p_{\textrm{data}}(x)` over single-cell
 transcriptomes (count data).
 
 The number of doublets to generate is controlled by the ``doublet_ratio`` parameter of
@@ -50,7 +50,7 @@ Classifier training
 After doublet simulation, the doublets are encoded through the scVI encoder, which outputs latent
 representations :math:`z'_{1:D}` if there are :math:`D` doublets.
 
-These vectors are assigned a label of 1, while the latent representations of the original data :math:`z_{1:N` are
+These vectors are assigned a label of 1, while the latent representations of the original data :math:`z_{1:N}` are
 assigned a label of 0. A simple multilayer perceptron classifier (:class:`scvi.module.Classifier`) is trained
 and the doublet score for each originally observed cell is the doublet probability according to this classifier.
 
