@@ -103,6 +103,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: AnnData,
         n_genes: int,
         n_regions: int,
+        n_proteins=0,
         n_hidden: Optional[int] = None,
         n_latent: Optional[int] = None,
         n_layers_encoder: int = 2,
@@ -116,6 +117,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
         fully_paired: bool = False,
+        empirical_protein_background_prior: bool = True,
+        protein_dispersion: Literal[
+            "protein", "protein-batch", "protein-label"
+        ] = "protein",
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -126,9 +131,19 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             else []
         )
 
+        if "totalvi_batch_mask" in self.scvi_setup_dict_.keys():
+            batch_mask = self.scvi_setup_dict_["totalvi_batch_mask"]
+        else:
+            batch_mask = None
+        if empirical_protein_background_prior:
+            prior_mean, prior_scale = None, None
+        else:
+            prior_mean, prior_scale = None, None
+
         self.module = MULTIVAE(
             n_input_genes=n_genes,
             n_input_regions=n_regions,
+            n_input_proteins=n_proteins,
             n_batch=self.summary_stats["n_batch"],
             n_hidden=n_hidden,
             n_latent=n_latent,
@@ -144,16 +159,20 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             latent_distribution=latent_distribution,
             deeply_inject_covariates=deeply_inject_covariates,
             encode_covariates=encode_covariates,
+
+            # protein_dispersion=protein_dispersion,
+            protein_batch_mask=batch_mask,
             **model_kwargs,
         )
         self._model_summary_string = (
-            "MultiVI Model with INPUTS: n_genes:{}, n_regions:{}\n"
+            "MultiVI Model with INPUTS: n_genes:{}, n_regions:{}, n_proteins:{},\n"
             "n_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
             "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
             "gene_likelihood: {}"
         ).format(
             n_genes,
             n_regions,
+            n_proteins,
             self.module.n_hidden,
             self.module.n_latent,
             n_layers_encoder,
@@ -330,9 +349,11 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 keys = {"z": "z_expr", "qz_m": "qzm_expr", "qz_v": "qzv_expr"}
             elif modality == "accessibility":
                 keys = {"z": "z_acc", "qz_m": "qzm_acc", "qz_v": "qzv_acc"}
+            elif modality == "protein":
+                keys = {"z": "z_pro", "qz_m": "qzm_pro", "qz_v": "qzv_pro"}
             else:
                 raise RuntimeError(
-                    "modality must be 'joint', 'expression', or 'accessibility'."
+                    "modality must be 'joint', 'expression', or 'accessibility', 'protein'."
                 )
 
         adata = self._validate_anndata(adata)
@@ -518,6 +539,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if n_samples > 1 and return_mean:
             exprs = exprs.mean(0)
         return exprs
+
+    # TO DO: EDIT GETS TO INCLUDE PROTEINS AND CREATE GET_NORMALIZED_PROTEIN
 
     @_doc_params(doc_differential_expression=doc_differential_expression)
     def differential_accessibility(
