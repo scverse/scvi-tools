@@ -93,17 +93,17 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         self.init_params_ = self._get_init_params(locals())
 
-    def get_gene_by_topic(self, give_mean=True) -> pd.DataFrame:
+    def get_gene_by_topic(self, n_samples=5000) -> pd.DataFrame:
         """
-        Gets the gene by topic matrix.
+        Gets a Monte-Carlo estimate of the expectation of the gene by topic matrix.
 
         Parameters
         ----------
         adata
             AnnData to transform. If None, returns the gene by topic matrix for
             the source AnnData.
-        give_mean
-            Give mean of distribution if True or sample from it.
+        n_samples
+            Number of samples to take for the Monte-Carlo estimate of the mean.
 
         Returns
         -------
@@ -111,7 +111,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         """
         self._check_if_trained(warn=False)
 
-        topic_by_gene = self.module.topic_by_gene(give_mean=give_mean)
+        topic_by_gene = self.module.topic_by_gene(n_samples=n_samples)
 
         return pd.DataFrame(
             data=topic_by_gene.numpy().T,
@@ -124,7 +124,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
-        give_mean: bool = True,
+        n_samples: int = 5000,
     ) -> pd.DataFrame:
         """
         Converts a count matrix to an inferred topic distribution.
@@ -138,8 +138,8 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        give_mean
-            Give mean of distribution or sample from it.
+        n_samples
+            Number of samples to take for the Monte-Carlo estimate of the mean.
 
         Returns
         -------
@@ -155,7 +155,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         for tensors in dl:
             x = tensors[_CONSTANTS.X_KEY]
             transformed_xs.append(
-                self.module.get_topic_distribution(x, give_mean=give_mean)
+                self.module.get_topic_distribution(x, n_samples=n_samples)
             )
         transformed_x = torch.cat(transformed_xs).numpy()
 
