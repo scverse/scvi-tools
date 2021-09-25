@@ -26,8 +26,8 @@ Preliminaries
 DestVI requires training two models, the scLVM (single-cell latent variable model) and the
 stLVM (spatial transcriptomic latent variable model). The scLVM takes in as input a scRNA-seq gene
 expression matrix of UMI counts :math:`X` with :math:`N` cells and :math:`G` genes, along with
-a vector of cell type labels :math:`\vec{c}`. Subsequently, the stLVM takes in the trained scLVM
-model, along a spatial gene expression matrix :math:`Y` with :math:`S` spots and :math:`G` genes.
+a vector of cell type labels :math:`\vec{c}`. Subsequently, the stLVM takes in the trained scLVM,
+along a spatial gene expression matrix :math:`Y` with :math:`S` spots and :math:`G` genes.
 Optionally, the user can specify the number of components used for the mixture model underlying the
 emprical prior.
 
@@ -92,8 +92,8 @@ stLVM
 
 For the stLVM, we also model the expression counts with a :math:`\mathrm{NegativeBinomial}`. However,
 for spatial data, we assume that each spot :math:`s` has expression :math:`x_s` composed of a bulk of cell types, with
-cell type abundance, :math:`\beta_{sc}`, for each cell type :math:`c`. We assume that cell :math:`n` in spot :math:`s`
-is generated from the latent variables :math:`(c_{ns}, \gamma_{ns})` by the following process:
+cell type abundance, :math:`\beta_{sc}`, for each cell type :math:`c`. We assume that for a given spot :math:`s`
+and gene :math:`g`, the observation is generated as a function of the latent variables :math:`(c, \gamma_s^c)` by the following process:
 
 .. math::
     :nowrap:
