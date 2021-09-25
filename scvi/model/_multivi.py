@@ -365,13 +365,14 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
         n_samples_overall: Optional[int] = None,
-        region_indices: Sequence[int] = None,
+        region_list: Optional[Sequence[str]] = None,
         transform_batch: Optional[Union[str, int]] = None,
         use_z_mean: bool = True,
         threshold: Optional[float] = None,
         normalize_cells: bool = False,
         normalize_regions: bool = False,
         batch_size: int = 128,
+        return_numpy: bool = False,
     ) -> Union[np.ndarray, csr_matrix]:
         adata = self._validate_anndata(adata)
         if indices is None:
@@ -382,6 +383,13 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size
         )
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
+        if region_list is None:
+            region_mask = slice(None)
+        else:
+            region_mask = [
+                region in region_list for region in adata.var_names[self.n_genes :]
+            ]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -405,8 +413,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if threshold:
                 p[p < threshold] = 0
                 p = csr_matrix(p.numpy())
-            if region_indices is not None:
-                p = p[:, region_indices]
+            if region_mask is not None:
+                p = p[:, region_mask]
             imputed.append(p)
 
         if threshold:  # imputed is a list of csr_matrix objects
@@ -414,7 +422,20 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
 
-        return imputed
+        if return_numpy:
+            return imputed
+        elif threshold:
+            return pd.DataFrame.sparse.from_spmatrix(
+                imputed,
+                index=adata.obs_names[indices],
+                columns=adata.var_names[self.n_genes :][region_mask],
+            )
+        else:
+            return pd.DataFrame(
+                imputed,
+                index=adata.obs_names[indices],
+                columns=adata.var_names[self.n_genes :][region_mask],
+            )
 
     @torch.no_grad()
     def get_normalized_expression(
@@ -428,6 +449,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_samples: int = 1,
         batch_size: Optional[int] = None,
         return_mean: bool = True,
+        return_numpy: bool = False,
     ) -> Union[np.ndarray, pd.DataFrame]:
         r"""
         Returns the normalized (decoded) gene expression.
@@ -483,7 +505,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = _get_var_names_from_setup_anndata(adata)
+            all_genes = adata.var_names[: self.n_genes]
             gene_mask = [gene in gene_list for gene in all_genes]
 
         exprs = []
@@ -517,7 +539,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             exprs = np.concatenate(exprs, axis=0)
         if n_samples > 1 and return_mean:
             exprs = exprs.mean(0)
-        return exprs
+
+        if return_numpy:
+            return exprs
+        else:
+            return pd.DataFrame(
+                exprs,
+                columns=adata.var_names[: self.n_genes][gene_mask],
+                index=adata.obs_names[indices],
+            )
 
     @_doc_params(doc_differential_expression=doc_differential_expression)
     def differential_accessibility(
@@ -639,6 +669,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 "emp_prob1": result.emp_mean1,
                 "emp_prob2": result.emp_mean2,
             },
+            index=col_names,
         )
         return result
 
