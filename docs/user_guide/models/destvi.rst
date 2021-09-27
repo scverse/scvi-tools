@@ -127,7 +127,7 @@ This generative process is also summarized in the following graphical model:
    :align: center
    :alt: stLVM graphical model
 
-   scLVM graphical model.
+   stLVM graphical model.
 
 The latent variables for the stLVM, along with their description are summarized in the following table:
 
@@ -144,7 +144,7 @@ The latent variables for the stLVM, along with their description are summarized 
    * - :math:`\gamma_s^c \in (0, \infty)`
      - Low-dimensional representation of sub-cell-type covariates for a given spot and cell type.
      - ``gamma``
-   * - :math:`\eta_g \in (0, \infty)`
+   * - :math:`\eta_g \in (-\infty, \infty)`
      - Gene-specific noise.
      - ``eta``
    * - :math:`\alpha_g \in (0, \infty)`
