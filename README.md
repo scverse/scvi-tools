@@ -16,10 +16,13 @@ tools) is a package for probabilistic modeling of single-cell omics
 data, built on top of [PyTorch](https://pytorch.org) and
 [AnnData](https://anndata.readthedocs.io/en/latest/).
 
-# Available implementations of single-cell omics models
+# Analysis of single-cell omics data
 
-scvi-tools contains scalable implementations of several models that
-facilitate a broad number of tasks across many omics, including:
+<img src="https://github.com/YosefLab/scvi-tools/blob/master/docs/_static/tasks.png?raw=true" width="900" alt="scvi-tools tasks">
+
+
+
+## Available implementations of single-cell omics models
 
 -   [scVI](https://rdcu.be/bdHYQ) for analysis of single-cell RNA-seq
     data, as well as its improved differential expression

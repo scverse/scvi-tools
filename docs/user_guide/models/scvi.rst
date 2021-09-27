@@ -46,13 +46,14 @@ by the following process:
 
    \begin{align}
     z_n &\sim {\mathrm{Normal}}\left( {0,I} \right) \\
-    \ell_n &\sim \mathrm{LogNormal}\left( \ell _\mu ,\ell _\sigma ^2 \right) \\
+    \ell_n &\sim \mathrm{LogNormal}\left( \ell_\mu^\top s_n ,\ell_{\sigma^2}^\top s_n \right) \\
     \rho _n &= f_w\left( z_n, s_n \right) \\
     \pi_{ng} &= f_h^g(z_n, s_n) \\
     x_{ng} &\sim \mathrm{ObservationModel}(\ell_n \rho_n, \theta_g, \pi_{ng})
     \end{align}
 
 Succintly, the gene expression for each gene depends on a latent variable :math:`z_n` that is cell-specific.
+The prior parameters :math:`\ell_\mu` and :math:`\ell_{\sigma^2}` are computed per batch as the mean and variance of the log library size over cells.
 The expression data are generated from a count-based likelihood distribution, which here, we denote as the :math:`\mathrm{ObservationModel}`.
 While by default the :math:`\mathrm{ObservationModel}` is a :math:`\mathrm{ZeroInflatedNegativeBinomial}` (ZINB) distribution parameterized by its mean, inverse dispersion, and non-zero-inflation probability, respectively,
 users can pass ``gene_likelihood = "negative_binomial"`` to :class:`~scvi.model.SCVI`, for example, to use a simpler :math:`\mathrm{NegativeBinomial}` distribution.
@@ -63,8 +64,8 @@ The generative process of scVI uses two neural networks:
    :nowrap:
 
    \begin{align}
-      f_w(z_n, s_n) &: \mathbb{R}^{d} \times \{0, 1\}^K \to \Delta^{G-1}   \tag{1} \\
-      f_h(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to (0, 1)^T \tag{3}
+      f_w(z_n, s_n) &: \mathbb{R}^{d} \times \{0, 1\}^K \to \Delta^{G-1}\\
+      f_h(z_n, s_n) &: \mathbb{R}^d \times \{0, 1\}^K \to (0, 1)^T
    \end{align}
 
 which respectively decode the denoised gene expression and non-zero-inflation probability (only if using ZINB).
@@ -76,7 +77,7 @@ This generative process is also summarized in the following graphical model:
    :align: center
    :alt: scVI graphical model
 
-   scVI graphical model for the ZINB likelihood model. Note that this graphical model contains more latent variables than the presentation above. Marganlization of these latent variables leads to the ZINB observation model (math shown in publication supplement).
+   scVI graphical model for the ZINB likelihood model. Note that this graphical model contains more latent variables than the presentation above. Marginalization of these latent variables leads to the ZINB observation model (math shown in publication supplement).
 
 The latent variables, along with their description are summarized in the following table:
 
