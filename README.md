@@ -21,7 +21,7 @@ data, built on top of [PyTorch](https://pytorch.org) and
 scvi-tools contains scalable implementations of several models that
 facilitate a broad number of tasks across many omics, including:
 
-<img src="https://github.com/YosefLab/scvi-tools/blob/new_user_guide/docs/_static/tasks.svg?raw=true" width="1000" alt="scvi-tools tasks">
+<img src="https://github.com/YosefLab/scvi-tools/blob/new_user_guide/docs/_static/tasks.png?raw=true" width="900" alt="scvi-tools tasks">
 
 
 
