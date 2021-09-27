@@ -12,7 +12,7 @@ Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://gith
 [![Join the chat at https://gitter.im/scvi-tools/development](https://badges.gitter.im/scvi-tools/development.svg)](https://gitter.im/scvi-tools/development?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 [scvi-tools](https://scvi-tools.org/) (single-cell variational inference
-tools) is a package for probabilistic modeling of single-cell omics
+tools) is a package for probabilistic modeling and analysis of single-cell omics
 data, built on top of [PyTorch](https://pytorch.org) and
 [AnnData](https://anndata.readthedocs.io/en/latest/).
 
