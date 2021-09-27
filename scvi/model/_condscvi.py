@@ -108,7 +108,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         mean_vprior: np.ndarray
             (n_labels, p, D) array
         var_vprior
-            (n_labels, p, 3) array
+            (n_labels, p, D) array
         """
         if self.is_trained_ is False:
             warnings.warn(
