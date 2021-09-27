@@ -71,7 +71,9 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     return data
 
 
-@deprecated(extra="Please use the model-specific setup_anndata methods instead.")
+@deprecated(
+    extra="Please use the model-specific setup_anndata methods instead. The global method will be removed in version 0.15.0."
+)
 def setup_anndata(
     adata: anndata.AnnData,
     batch_key: Optional[str] = None,
