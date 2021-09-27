@@ -33,6 +33,7 @@ version = "0.13.0"
 anndata = ">=0.7.5"
 black = {version = ">=20.8b1", optional = true}
 codecov = {version = ">=2.0.8", optional = true}
+docrep = ">=0.3.2"
 flake8 = {version = ">=3.7.7", optional = true}
 h5py = ">=2.9.0"
 importlib-metadata = {version = "^1.0", python = "<3.8"}

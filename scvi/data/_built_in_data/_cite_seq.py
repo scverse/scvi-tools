@@ -3,7 +3,7 @@ import os
 import anndata
 import pandas as pd
 
-from scvi.data import setup_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 
 
@@ -65,7 +65,7 @@ def _load_pbmcs_10x_cite_seq(
     dataset.obsm["protein_expression"] = dataset.obsm["protein_expression"].fillna(0)
 
     if run_setup_anndata:
-        setup_anndata(
+        _setup_anndata(
             dataset,
             batch_key="batch",
             protein_expression_obsm_key="protein_expression",
@@ -94,7 +94,7 @@ def _load_spleen_lymph_cite_seq(
     remove_outliers
         Whether to remove clusters annotated as doublet or low quality
     run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
+        If true, runs _setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -135,7 +135,7 @@ def _load_spleen_lymph_cite_seq(
         dataset = dataset[include_cells].copy()
 
     if run_setup_anndata:
-        setup_anndata(
+        _setup_anndata(
             dataset,
             batch_key="batch",
             labels_key="cell_types",

@@ -5,7 +5,7 @@ import anndata
 import numpy as np
 import pandas as pd
 
-from scvi.data import setup_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._dataset_10x import _load_dataset_10x
 from scvi.data._built_in_data._download import _download
 
@@ -44,7 +44,7 @@ def _load_purified_pbmc_dataset(
         adata = adata[row_indices].copy()
 
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
@@ -126,5 +126,5 @@ def _load_pbmc_dataset(
     adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata.X, axis=0)))
 
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata

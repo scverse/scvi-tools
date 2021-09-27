@@ -11,7 +11,8 @@ from anndata import AnnData
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
-from scvi.data import get_from_registry, setup_anndata, transfer_anndata_setup
+from scvi._docs import setup_anndata_dsp
+from scvi.data._anndata import _setup_anndata, get_from_registry, transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
@@ -35,7 +36,7 @@ class SOLO(BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`.
         Object should contain latent representation of real cells and doublets as `adata.X`.
         Object should also be registered, using `.X` and `labels_key="_solo_doub_sim"`.
     **classifier_kwargs
@@ -46,7 +47,7 @@ class SOLO(BaseModelClass):
     In the case of scVI trained with multiple batches:
 
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch")
+    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.SCVI(adata)
     >>> vae.train()
     >>> solo_batch_1 = scvi.external.SOLO.from_scvi_model(vae, restrict_to_batch="batch 1")
@@ -56,7 +57,7 @@ class SOLO(BaseModelClass):
     Otherwise:
 
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata)
+    >>> scvi.model.SCVI.setup_anndata(adata)
     >>> vae = scvi.model.SCVI(adata)
     >>> vae.train()
     >>> solo = scvi.external.SOLO.from_scvi_model(vae)
@@ -182,7 +183,7 @@ class SOLO(BaseModelClass):
         logger.info("Creating doublets, preparing SOLO model.")
         f = io.StringIO()
         with redirect_stdout(f):
-            setup_anndata(doublet_adata, batch_key=orig_batch_key)
+            scvi_model.setup_anndata(doublet_adata, batch_key=orig_batch_key)
             doublet_latent_rep = scvi_model.get_latent_representation(doublet_adata)
             doublet_lib_size = scvi_model.get_latent_library_size(
                 doublet_adata, give_mean=give_mean_lib
@@ -193,7 +194,7 @@ class SOLO(BaseModelClass):
             doublet_adata.obs[LABELS_KEY] = "doublet"
 
             full_adata = latent_adata.concatenate(doublet_adata)
-            setup_anndata(full_adata, labels_key=LABELS_KEY)
+            cls.setup_anndata(full_adata, labels_key=LABELS_KEY)
         return cls(full_adata, **classifier_kwargs)
 
     @staticmethod
@@ -208,7 +209,7 @@ class SOLO(BaseModelClass):
         Parameters
         ----------
         adata
-            AnnData object setup with :func:`~scvi.data.setup_anndata`.
+            AnnData object setup with setup_anndata.
         doublet_ratio
             Ratio of generated doublets to produce relative to number of
             cells in adata or length of indices, if not `None`.
@@ -388,6 +389,35 @@ class SOLO(BaseModelClass):
             preds_df = preds_df.idxmax(axis=1)
 
         return preds_df
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        labels_key: str,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_labels_key)s
+        %(param_layer)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            labels_key=labels_key,
+            layer=layer,
+            copy=copy,
+        )
 
 
 def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):

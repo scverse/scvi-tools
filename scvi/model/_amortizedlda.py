@@ -9,6 +9,8 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
+from scvi._docs import setup_anndata_dsp
+from scvi.data._anndata import _setup_anndata
 from scvi.module import AmortizedLDAPyroModule
 
 from .base import BaseModelClass, PyroSviTrainMixin
@@ -23,7 +25,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.AmortizedLDA.setup_anndata`.
     n_topics
         Number of topics to model.
     n_hidden
@@ -36,7 +38,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata)
+    >>> scvi.model.AmortizedLDA.setup_anndata(adata)
     >>> model = scvi.model.AmortizedLDA(adata)
     >>> model.train()
     >>> gene_by_topic = model.get_gene_by_topic()
@@ -92,6 +94,32 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         )
 
         self.init_params_ = self._get_init_params(locals())
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_layer)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            layer=layer,
+            copy=copy,
+        )
 
     def get_gene_by_topic(self, n_samples=5000) -> pd.DataFrame:
         """

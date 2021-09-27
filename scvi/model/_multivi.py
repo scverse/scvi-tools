@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Iterable, Optional, Sequence, Union
+from typing import Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -11,8 +11,9 @@ from torch.distributions import Normal
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi._docs import doc_differential_expression
+from scvi._docs import doc_differential_expression, setup_anndata_dsp
 from scvi._utils import _doc_params
+from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -42,7 +43,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.MULTIVI.setup_anndata`.
     n_genes
         The number of gene expression features (genes).
     n_regions
@@ -81,7 +82,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     >>> adata_atac = scvi.data.read_10x_atac(path_to_atac_anndata)
     >>> adata_multi = scvi.data.read_10x_multiome(path_to_multiomic_anndata)
     >>> adata_mvi = scvi.data.organize_multiome_anndatas(adata_multi, adata_rna, adata_atac)
-    >>> scvi.data.setup_anndata(adata_mvi, batch_key="modality")
+    >>> scvi.model.MULTIVI.setup_anndata(adata_mvi, batch_key="modality")
     >>> vae = scvi.model.MULTIVI(adata_mvi)
     >>> vae.train()
 
@@ -92,7 +93,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
        and 250 genomic regions, the model assumes that the first 100 features are genes, and the
        next 250 are the regions.
 
-    * The main batch annotation, specified in the `scvi.data.setup_anndata`, should correspond to
+    * The main batch annotation, specified in ``setup_anndata``, should correspond to
        the modality each cell originated from. This allows the model to focus mixing efforts, using
        an adversarial component, on mixing the modalities. Other covariates can be specified using
        the `categorical_covariate_keys` argument.
@@ -710,3 +711,38 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         return result
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        batch_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_batch_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            batch_key=batch_key,
+            layer=layer,
+            categorical_covariate_keys=categorical_covariate_keys,
+            continuous_covariate_keys=continuous_covariate_keys,
+            copy=copy,
+        )
