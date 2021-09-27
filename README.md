@@ -18,7 +18,7 @@ data, built on top of [PyTorch](https://pytorch.org) and
 
 # Analysis of single-cell omics data
 
-<img src="https://github.com/YosefLab/scvi-tools/blob/new_user_guide/docs/_static/tasks.png?raw=true" width="900" alt="scvi-tools tasks">
+<img src="https://github.com/YosefLab/scvi-tools/blob/master/docs/_static/tasks.png?raw=true" width="900" alt="scvi-tools tasks">
 
 
 
