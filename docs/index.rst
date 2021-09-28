@@ -1,5 +1,5 @@
 Documentation
-~~~~~~~~~~~~~
+********************
 ``scvi-tools`` (single-cell variational inference tools) [Gayoso21]_ is a package for end-to-end analysis of single-cell omics data primarily developed and maintained by the `Yosef Lab
 <https://yoseflab.github.io/>`_ at UC Berkeley. ``scvi-tools`` has two components
 
@@ -66,8 +66,8 @@ If you find a model useful for your research, please consider citing the corresp
     Tutorials
     ^^^^^^^^^^^
 
-    The tutorials will help you see real-world use cases of scvi-tools models
-    as well as provide a walkthrough for developing new probabilistic models.
+    The tutorials walk you through real-world applications of scvi-tools models.
+    Developer tutorials help you build new probabilistic models.
 
     +++
 
