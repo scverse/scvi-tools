@@ -128,6 +128,7 @@ p.topic-title {
 
 /* Main index page overview cards */
 /* https://github.com/pandas-dev/pandas/blob/059c8bac51e47d6eaaa3e36d6a293a22312925e6/doc/source/_static/css/pandas.css */
+/* with custom changes */
 .intro-card {
     background: #fff;
     border-radius: 0;
@@ -161,4 +162,10 @@ p.topic-title {
     max-width: 220px;
     margin-left: auto;
     margin-right: auto;
+  }
+
+  .intro-card .btn-secondary {
+      background-color: #dcdcdc;
+      border-color: #dcdcdc;
+      color: #484848;
   }
