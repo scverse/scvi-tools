@@ -66,6 +66,7 @@ scikit-misc = {version = ">=0.1.3", optional = true}
 sphinx = {version = ">=3.4", optional = true}
 sphinx-autodoc-typehints = {version = "*", optional = true}
 sphinx-gallery = {version = ">0.6", optional = true}
+sphinx-panels = {version = "*", optional = true}
 sphinx-tabs = {version = "*", optional = true}
 sphinx_copybutton = {version = "<=0.3.1", optional = true}
 torch = ">=1.8.0"
@@ -86,6 +87,7 @@ docs = [
   "sphinx_copybutton",
   "sphinx_gallery",
   "sphinx-tabs",
+  "sphinx-panels",
 ]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc"]
 

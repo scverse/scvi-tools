@@ -8,80 +8,74 @@ Documentation
 
 If you find a model useful for your research, please consider citing the corresponding publication, which can be found in the corresponding model documentation.
 
+.. panels::
+    :card: + intro-card text-center
+    :column: col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex
 
-.. raw:: html
+    ---
+    :img-top: _static/computer-24px.svg
 
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
-                <img src="_static/computer-24px.svg" class="card-img-top" alt="installation with scvi action icon" height="52">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">Installation</h5>
-                    <p class="card-text">New to <em>scvi-tools</em>? Check out the installation guide.
-                    </p>
+    Installation
+    ^^^^^^^^^^^^^^^
 
-.. container:: custom-button
+    New to *scvi-tools*? Check out the installation guide.
 
-    :doc:`To the installation guide<installation>`
+    +++
 
-.. raw:: html
+    .. link-button:: installation
+            :type: ref
+            :text: To the installation guide
+            :classes: btn-block btn-secondary stretched-link
 
-                </div>
-                </div>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
-                <img src="_static/play_circle_outline-24px.svg" class="card-img-top" alt="scvi user guide action icon" height="52">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">User guide</h5>
-                    <p class="card-text">The tutorials provide in-depth information on running scvi-tools models.</p>
+    ---
+    :img-top: _static/play_circle_outline-24px.svg
 
-.. container:: custom-button
+    User guide
+    ^^^^^^^^^^
 
-    :doc:`To the user guide<user_guide/user>`
+    The user guide provides distilled mathematical descriptions of
+    the models implemented in scvi-tools, as well as connects the code
+    to the math.
 
-.. raw:: html
+    +++
 
-                </div>
-                </div>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
-                <img src="_static/library_books-24px.svg" class="card-img-top" alt="api of scvi action icon" height="52">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">API reference</h5>
-                    <p class="card-text">The API reference contains a detailed description of
-                    the scvi-tools API.</p>
+    .. link-button:: user_guide/index
+            :type: ref
+            :text: To the user guide
+            :classes: btn-block btn-secondary stretched-link
 
-.. container:: custom-button
+    ---
+    :img-top: _static/library_books-24px.svg
 
-    :doc:`To the API reference<api/index>`
+    API reference
+    ^^^^^^^^^^^^^
 
-.. raw:: html
+    The API reference contains a detailed description of
+    the scvi-tools API.
 
-                </div>
-                </div>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
-                <img src="_static/code-24px.svg" class="card-img-top" alt="contribute to scvi-tools action icon" height="52">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">Developer guide</h5>
-                    <p class="card-text">Want to develop new models with scvi-tools? The developer guide
-                    will help you through the process.</p>
+    +++
 
-.. container:: custom-button
+    .. link-button:: api/index
+            :type: ref
+            :text: To the API reference
+            :classes: btn-block btn-secondary stretched-link
 
-    :doc:`To the developer guide<user_guide/developer>`
+    ---
+    :img-top: _static/code-24px.svg
 
-.. raw:: html
+    Tutorials
+    ^^^^^^^^^^^
 
-                </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    The tutorials will help you see real-world use cases of scvi-tools models
+    as well as provide a walkthrough for developing new probabilistic models.
+
+    +++
+
+    .. link-button:: tutorials/index
+            :type: ref
+            :text: To the tutorials
+            :classes: btn-block btn-secondary stretched-link
+
 
 .. toctree::
    :maxdepth: 3
