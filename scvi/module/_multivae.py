@@ -292,6 +292,7 @@ class MULTIVAE(BaseModuleClass):
         self.deeply_inject_covariates = deeply_inject_covariates
 
         # PROTEIN
+        self.protein_dispersion = protein_dispersion
         self.protein_batch_mask = protein_batch_mask
         if protein_background_prior_mean is None:
             if n_batch > 0:
@@ -582,7 +583,7 @@ class MULTIVAE(BaseModuleClass):
                                        mask_expr, mask_acc, mask_pro)
         qz_v = self._mix_modalities123(qzp_v123, qzp_v12, qzp_v13, qzp_v23, qzv_expr, qzv_acc, qzv_pro,
                                        mask_expr, mask_acc, mask_pro)
-        z = self._mix_modalities(zp123, zp12, zp13, zp23, z_expr, z_acc, z_pro,
+        z = self._mix_modalities123(zp123, zp12, zp13, zp23, z_expr, z_acc, z_pro,
                                  mask_expr, mask_acc, mask_pro)
 
         if self.n_batch > 0:
@@ -738,12 +739,12 @@ class MULTIVAE(BaseModuleClass):
         rl_protein = self.get_reconstruction_loss_protein(y, py_, pro_batch_mask_minibatch)
 
         # mix losses to get the correct loss for each cell
-        recon_loss = self._mix_modalities(rl_accessibility + rl_expression + rl_protein,
-                                          rl_accessibility + rl_expression,
-                                          rl_accessibility + rl_protein,
-                                          rl_expression + rl_protein,
-                                          rl_expression, rl_accessibility, rl_protein,
-                                          mask_expr, mask_acc, mask_pro)
+        recon_loss = self._mix_modalities123(rl_accessibility + rl_expression + rl_protein,
+                                             rl_accessibility + rl_expression,
+                                             rl_accessibility + rl_protein,
+                                             rl_expression + rl_protein,
+                                             rl_expression, rl_accessibility, rl_protein,
+                                             mask_expr, mask_acc, mask_pro)
 
         # Compute KLD between Z and N(0,I)
         qz_m = inference_outputs["qz_m"]

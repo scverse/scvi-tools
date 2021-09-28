@@ -103,7 +103,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: AnnData,
         n_genes: int,
         n_regions: int,
-        n_proteins=0,
+        n_proteins: int,
         n_hidden: Optional[int] = None,
         n_latent: Optional[int] = None,
         n_layers_encoder: int = 2,
@@ -159,9 +159,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             latent_distribution=latent_distribution,
             deeply_inject_covariates=deeply_inject_covariates,
             encode_covariates=encode_covariates,
-
-            # protein_dispersion=protein_dispersion,
             protein_batch_mask=batch_mask,
+            protein_dispersion=protein_dispersion,
             **model_kwargs,
         )
         self._model_summary_string = (
