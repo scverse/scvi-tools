@@ -34,8 +34,8 @@ If you find a model useful for your research, please consider citing the corresp
     ^^^^^^^^^^
 
     The user guide provides distilled mathematical descriptions of
-    the models implemented in scvi-tools, as well as connects the code
-    to the math.
+    the models implemented in scvi-tools and connects the math
+    with the code.
 
     +++
 
