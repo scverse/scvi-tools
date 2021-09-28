@@ -296,6 +296,7 @@ class MULTIVAE(BaseModuleClass):
         self.use_size_factor_key = use_size_factor_key
 
         # PROTEIN
+        self.protein_dispersion = protein_dispersion
         self.protein_batch_mask = protein_batch_mask
         if protein_background_prior_mean is None:
             if n_batch > 0:
@@ -616,7 +617,7 @@ class MULTIVAE(BaseModuleClass):
             mask_acc,
             mask_pro,
         )
-        z = self._mix_modalities(
+        z = self._mix_modalities123(
             zp123, zp12, zp13, zp23, z_expr, z_acc, z_pro, mask_expr, mask_acc, mask_pro
         )
 
@@ -783,7 +784,7 @@ class MULTIVAE(BaseModuleClass):
         )
 
         # mix losses to get the correct loss for each cell
-        recon_loss = self._mix_modalities(
+        recon_loss = self._mix_modalities123(
             rl_accessibility + rl_expression + rl_protein,
             rl_accessibility + rl_expression,
             rl_accessibility + rl_protein,
