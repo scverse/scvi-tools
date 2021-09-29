@@ -17,6 +17,7 @@ from ._datasets import (
     heart_cell_atlas_subsampled,
     mouse_ob_dataset,
     pbmc_dataset,
+    pbmc_seurat_v4_cite_seq,
     pbmcs_10x_cite_seq,
     prefrontalcortex_starmap,
     purified_pbmc_dataset,
@@ -67,4 +68,5 @@ __all__ = [
     "read_10x_multiome",
     "heart_cell_atlas_subsampled",
     "organize_multiome_anndatas",
+    "pbmc_seurat_v4_cite_seq",
 ]
