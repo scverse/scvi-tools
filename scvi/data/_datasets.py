@@ -689,7 +689,7 @@ def pbmc_seurat_v4_cite_seq(
     run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
-    PBMCs measured with CITE-seq (161764 cells, ~228 antibodies).
+    Dataset of PBMCs measured with CITE-seq (161764 cells).
 
     This dataset was first presented in the Seurat v4 paper:
 
