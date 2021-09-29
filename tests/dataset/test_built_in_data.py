@@ -96,3 +96,8 @@ def test_download_spleen_lymph_data(save_path):
 @pytest.mark.internet
 def test_download_heart_cell_atlas(save_path):
     scvi.data.heart_cell_atlas_subsampled(save_path=save_path)
+
+
+@pytest.mark.internet
+def test_download_seurat_v4_pbmc(save_path):
+    scvi.data.pbmc_seurat_v4_cite_seq(save_path=save_path, mask_protein_batches=5)

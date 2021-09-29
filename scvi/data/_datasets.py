@@ -4,6 +4,7 @@ import anndata
 
 from ._built_in_data._brain_large import _load_brainlarge_dataset
 from ._built_in_data._cite_seq import (
+    _load_pbmc_seurat_v4_cite_seq,
     _load_pbmcs_10x_cite_seq,
     _load_spleen_lymph_cite_seq,
 )
@@ -676,5 +677,70 @@ def heart_cell_atlas_subsampled(
     return _load_heart_cell_atlas_subsampled(
         save_path=save_path,
         remove_nuisance_clusters=remove_nuisance_clusters,
+        run_setup_anndata=run_setup_anndata,
+    )
+
+
+def pbmc_seurat_v4_cite_seq(
+    save_path: str = "data/",
+    apply_filters: bool = True,
+    aggregate_proteins: bool = True,
+    mask_protein_batches: int = 0,
+    run_setup_anndata: bool = True,
+) -> anndata.AnnData:
+    """
+    PBMCs measured with CITE-seq (161764 cells, ~228 antibodies).
+
+    This dataset was first presented in the Seurat v4 paper:
+
+    https://doi.org/10.1016/j.cell.2021.04.048
+
+    It contains 8 volunteers in an HIV vaccine trial measured
+    at 3 time points; thus, there are 24 batches in this dataset.
+
+
+    Parameters
+    ----------
+    save_path
+        Location to use when saving/loading the data.
+    apply_filters
+        Apply filters at cell and protein level. At the cell level,
+        this filters on protein library size, number proteins detected,
+        percent mito, and removes cells labeled as doublets.
+    aggregate_proteins
+        Antibodies targeting the same surface protein are added together,
+        and isotype controls are removed. See the source code for full details.
+    mask_protein_subset
+        Set proteins in this many batches to be all zero (considered missing
+        for :class:`~scvi.model.TOTALVI`.). This improves transfer learning
+        with this dataset.
+    run_setup_anndata
+        If true, runs setup_anndata() on dataset before returning.
+
+    Returns
+    -------
+    AnnData
+
+    Notes
+    -----
+    This is not the same exact dataset as can be downloaded from:
+
+    https://satijalab.org/seurat/articles/multimodal_reference_mapping.html
+
+    This is due to the fact that the object linked in the tutorial above does
+    not contain the actual UMI count data for RNA. UMI counts had to be separately
+    downloaded from GEO (GSE164378). The counts in that object are an output of the
+    scTransform method and should not be treated like UMI counts.
+
+    Examples
+    --------
+    >>> import scvi
+    >>> adata = scvi.data.pbmc_seurat_v4_cite_seq()
+    """
+    return _load_pbmc_seurat_v4_cite_seq(
+        save_path=save_path,
+        apply_filters=apply_filters,
+        aggregate_proteins=aggregate_proteins,
+        mask_protein_batches=mask_protein_batches,
         run_setup_anndata=run_setup_anndata,
     )
