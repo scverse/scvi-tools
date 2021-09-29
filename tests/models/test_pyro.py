@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import numpy as np
 import pyro
@@ -153,6 +154,12 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         )
         self._model_summary_string = "BayesianRegressionModel"
         self.init_params_ = self._get_init_params(locals())
+
+    @staticmethod
+    def setup_anndata(
+        adata: AnnData,
+    ) -> Optional[AnnData]:
+        pass
 
 
 def test_pyro_bayesian_regression(save_path):
@@ -382,9 +389,10 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
 def test_lda_model():
     use_gpu = torch.cuda.is_available()
     n_topics = 5
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
 
     # Test with float and Sequence priors.
+    AmortizedLDA.setup_anndata(adata)
     mod1 = AmortizedLDA(
         adata, n_topics=n_topics, cell_topic_prior=1.5, topic_gene_prior=1.5
     )
@@ -425,7 +433,8 @@ def test_lda_model():
     mod.get_elbo()
     mod.get_perplexity()
 
-    adata2 = synthetic_iid()
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    AmortizedLDA.setup_anndata(adata2)
     adata2_lda = mod.get_latent_representation(adata2).to_numpy()
     assert (
         adata2_lda.shape == (adata2.n_obs, n_topics)
@@ -439,7 +448,8 @@ def test_lda_model():
 def test_lda_model_save_load(save_path):
     use_gpu = torch.cuda.is_available()
     n_topics = 5
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
+    AmortizedLDA.setup_anndata(adata)
     mod = AmortizedLDA(adata, n_topics=n_topics)
     mod.train(
         max_epochs=5,

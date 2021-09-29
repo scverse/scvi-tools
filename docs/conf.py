@@ -51,6 +51,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_gallery.load_style",
     "sphinx_tabs.tabs",
+    "sphinx_panels",
 ]
 
 # nbsphinx specific settings
@@ -72,6 +73,10 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
+
+# sphinx-panels shouldn't add bootstrap css since the pydata-sphinx-theme
+# already loads it
+panels_add_bootstrap_css = False
 
 # The master toctree document.
 master_doc = "index"

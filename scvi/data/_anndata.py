@@ -13,6 +13,7 @@ from anndata._core.anndata import AnnData
 from pandas.api.types import CategoricalDtype
 from rich.console import Console
 from scipy.sparse import isspmatrix
+from sklearn.utils import deprecated
 
 import scvi
 from scvi import _CONSTANTS
@@ -30,7 +31,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     Parameters
     ----------
     adata
-        anndata object already setup with `scvi.data.setup_anndata()`
+        anndata object already setup with setup_anndata
     key
         key of object to get from ``adata.uns['_scvi]['data_registry']``
 
@@ -70,6 +71,9 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     return data
 
 
+@deprecated(
+    extra="Please use the model-specific setup_anndata methods instead. The global method will be removed in version 0.15.0."
+)
 def setup_anndata(
     adata: anndata.AnnData,
     batch_key: Optional[str] = None,
@@ -85,7 +89,6 @@ def setup_anndata(
     Sets up :class:`~anndata.AnnData` object for models.
 
     A mapping will be created between data fields used by models to their respective locations in adata.
-    This method will also compute the log mean and log variance per batch for the library size prior.
 
     None of the data in adata are modified. Only adds fields to adata.
 
@@ -139,7 +142,7 @@ def setup_anndata(
         uns: 'protein_names'
         obsm: 'protein_expression'
 
-    Filter cells and run preprocessing before `setup_anndata`
+    Filter cells and run preprocessing before ``setup_anndata``
 
     >>> sc.pp.filter_cells(adata, min_counts = 0)
 
@@ -166,6 +169,30 @@ def setup_anndata(
     INFO      Registered keys:['X', 'batch_indices', 'labels', 'protein_expression']
     INFO      Successfully registered anndata object containing 400 cells, 100 vars, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
     """
+    return _setup_anndata(
+        adata,
+        batch_key,
+        labels_key,
+        layer,
+        protein_expression_obsm_key,
+        protein_names_uns_key,
+        categorical_covariate_keys,
+        continuous_covariate_keys,
+        copy,
+    )
+
+
+def _setup_anndata(
+    adata: anndata.AnnData,
+    batch_key: Optional[str] = None,
+    labels_key: Optional[str] = None,
+    layer: Optional[str] = None,
+    protein_expression_obsm_key: Optional[str] = None,
+    protein_names_uns_key: Optional[str] = None,
+    categorical_covariate_keys: Optional[List[str]] = None,
+    continuous_covariate_keys: Optional[List[str]] = None,
+    copy: bool = False,
+) -> Optional[anndata.AnnData]:
     if copy:
         adata = adata.copy()
 

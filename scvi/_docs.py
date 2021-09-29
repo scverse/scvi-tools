@@ -1,4 +1,4 @@
-"""Shared docstrings."""
+from docrep import DocstringProcessor
 
 doc_differential_expression = """\
 adata
@@ -37,7 +37,7 @@ all_stats
 batch_correction
     Whether to correct for batch effects in DE inference.
 batchid1
-    Subset of categories from `batch_key` registered in :func:`~scvi.data.setup_anndata`,
+    Subset of categories from `batch_key` registered in ``setup_anndata``,
     e.g. [`'batch1'`, `'batch2'`, `'batch3'`], for `group1`. Only used if `batch_correction` is `True`, and
     by default all categories are used.
 batchid2
@@ -50,3 +50,62 @@ fdr_target
 silent
     If True, disables the progress bar. Default: False.
 """
+
+summary = """\
+Sets up the :class:`~anndata.AnnData` object for this model.
+A mapping will be created between data fields used by this model to their respective locations in adata.
+
+None of the data in adata are modified. Only adds fields to adata"""
+
+param_adata = """\
+adata
+    AnnData object containing raw counts. Rows represent cells, columns represent features."""
+
+param_batch_key = """\
+batch_key
+    key in `adata.obs` for batch information. Categories will automatically be converted into integer
+    categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data."""
+
+param_labels_key = """\
+labels_key
+    key in `adata.obs` for label information. Categories will automatically be converted into integer
+    categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data."""
+
+param_layer = """\
+layer
+    if not `None`, uses this as the key in `adata.layers` for raw count data."""
+
+param_cat_cov_keys = """\
+categorical_covariate_keys
+    keys in `adata.obs` that correspond to categorical data."""
+
+param_cont_cov_keys = """\
+continuous_covariate_keys
+    keys in `adata.obs` that correspond to continuous data."""
+
+param_copy = """\
+copy
+    if `True`, a copy of adata is returned."""
+
+returns = """\
+If ``copy``,  will return :class:`~anndata.AnnData`.
+Adds the following fields to adata:
+
+.uns['_scvi']
+    `scvi` setup dictionary
+.obs['_scvi_labels']
+    labels encoded as integers
+.obs['_scvi_batch']
+    batch encoded as integers"""
+
+setup_anndata_dsp = DocstringProcessor(
+    summary=summary,
+    param_adata=param_adata,
+    param_batch_key=param_batch_key,
+    param_labels_key=param_labels_key,
+    param_layer=param_layer,
+    param_cat_cov_keys=param_cat_cov_keys,
+    param_cont_cov_keys=param_cont_cov_keys,
+    param_copy=param_copy,
+    returns=returns,
+)

@@ -21,6 +21,9 @@ scRNA-seq analysis
    * - :doc:`/user_guide/models/cellassign`
      - [Zhang19]_
      - Marker-based automated annotation
+   * - :doc:`/user_guide/models/solo`
+     - [Bernstein19]_
+     - Doublet detection
 
 .. toctree::
     :maxdepth: 2
@@ -73,6 +76,27 @@ CITE-seq analysis
     models/totalvi
 
 
+Spatial Transcriptomics analysis
+--------------------------------
+
+.. list-table::
+   :widths: 15 15 100
+   :header-rows: 1
+
+   * - Model
+     - Reference
+     - Tasks
+   * - :doc:`/user_guide/models/destvi`
+     - [Lopez21]_
+     - Multi-resolution deconvolution, cell-type-specific gene expression imputation, comparative analysis
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+
+    models/destvi
+
+
 
 Background
 -----------------
@@ -84,4 +108,5 @@ Background
     background/differential_expression
     background/counterfactual_prediction
     background/transfer_learning
+
 
