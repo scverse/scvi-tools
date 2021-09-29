@@ -159,7 +159,7 @@ def _load_pbmc_seurat_v4_cite_seq(
     _download(url, save_path, save_fn)
     adata = anndata.read_h5ad(os.path.join(save_path, save_fn))
 
-    if aggregate_proteins is True:
+    if aggregate_proteins:
         protein_df = pd.DataFrame(index=adata.obsm["protein_counts"].index)
         ref_proteins = adata.obsm["protein_counts"].columns
         for p in ref_proteins:
@@ -206,6 +206,9 @@ def _load_pbmc_seurat_v4_cite_seq(
         # MT
         adata = adata[adata.obs["pct_counts_mt"] < 12].copy()
 
+    if mask_protein_batches > 24:
+        raise ValueError("mask_protein_batches must be less than 24")
+
     if mask_protein_batches > 0:
         random_state = np.random.RandomState(seed=settings.seed)
         rand_cats = random_state.permutation(
@@ -214,7 +217,7 @@ def _load_pbmc_seurat_v4_cite_seq(
         for r in rand_cats:
             adata.obsm["protein_counts"][adata.obs["orig.ident"] == r] = 0.0
 
-    if run_setup_anndata is True:
+    if run_setup_anndata:
         _setup_anndata(
             adata,
             batch_key="orig.ident",
