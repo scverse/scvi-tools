@@ -68,12 +68,16 @@ Spatial Transcriptomics analysis
    * - :doc:`/user_guide/models/destvi`
      - [Lopez21]_
      - Multi-resolution deconvolution, cell-type-specific gene expression imputation, comparative analysis
+   * - :doc:`/user_guide/models/stereoscope`
+     - [Andersson20]_
+     - Deconvolution
 
 .. toctree::
     :maxdepth: 2
     :hidden:
 
     models/destvi
+    models/stereoscope
 
 
 
