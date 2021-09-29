@@ -206,6 +206,7 @@ nbsphinx_thumbnails = {
     "tutorials/notebooks/peakvi_in_R": "_static/tutorials/Rlogo.png",
     "tutorials/notebooks/totalvi_in_R": "_static/tutorials/Rlogo.png",
     "tutorials/notebooks/MultiVI_tutorial": "_static/tutorials/multivi_umap.png",
+    "tutorials/totalVI_reference_mapping": "_static/tutorials/totalvi_cell.svg",
 }
 
 
