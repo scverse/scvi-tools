@@ -29,6 +29,27 @@ scRNA-seq analysis
     models/scvi
     models/linearscvi
     models/cellassign
+    
+    
+ATAC-seq analysis
+-----------------
+
+.. list-table::
+   :widths: 15 15 100
+   :header-rows: 1
+
+   * - Model
+     - Reference
+     - Tasks
+   * - :doc:`/user_guide/models/peakvi`
+     - [Ashuach21]_
+     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+
+    models/peakvi
 
 
 CITE-seq analysis
