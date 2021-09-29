@@ -81,7 +81,7 @@ The latent variables for the single-cell reference LVM, along with their descrip
      - ``px_scale``
    * - :math:`p_g \in [0, 1]`
      - Shape parameter for the negative binomial distribution.
-     - ``px_o`` :math:`\coloneqq \log \( \frac{p_g}{1 - p_g} \)`
+     - ``px_o`` :math:`:= \log \left( \frac{p_g}{1 - p_g} \right)`
 
 Spatial transcriptomics LVM
 ---------------------------
@@ -140,7 +140,7 @@ The latent variables for the spatial transcriptomics LVM, along with their descr
      - ``w``
    * - :math:`p_g \in [0,1]`
      - Shape parameter for the negative binomial distribution shared from the single-cell reference LVM.
-     - ``px_o`` :math:`\coloneqq \log \( \frac{p_g}{1 - p_g} \)`
+     - ``px_o`` :math:`:= \log \left( \frac{p_g}{1 - p_g} \right)`
 
 
 Inference
