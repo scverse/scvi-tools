@@ -363,7 +363,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,
-        modality: Literal["joint", "expression", "accessibility"] = "joint",
+        modality: Literal["joint", "expression", "accessibility", "protein"] = "joint",
         indices: Optional[Sequence[int]] = None,
         give_mean: bool = True,
         batch_size: Optional[int] = None,
