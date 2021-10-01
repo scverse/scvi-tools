@@ -272,8 +272,8 @@ class PyroSampleMixin:
 
     def _get_obs_plate_sites(
         self,
-        args: Optional[list],
-        kwargs: Optional[dict],
+        args: list,
+        kwargs: dict,
         return_observed: bool = False,
     ):
         """
