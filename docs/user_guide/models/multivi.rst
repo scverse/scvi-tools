@@ -88,15 +88,6 @@ The generative process of MultiVI uses neural networks to produce:
 which respectively decode the denoised gene expression, non-zero-inflation probability (only if using ZINB) and
 estimates the probability of accessibility.
 
-This generative process is also summarized in the following graphical model:
-
-.. figure:: figures/multivi_annotated_graphical_model.png
-   :class: img-fluid
-   :align: center
-   :alt: scVI graphical model
-
-   MultiVI graphical model.
-
 The latent variables, along with their description are summarized in the following table:
 
 .. list-table::
@@ -124,7 +115,7 @@ The latent variables, along with their description are summarized in the followi
      - ``d``
    * - :math:`r_j \in \left[0,1\right]`
      - Region-wise scaling factor
-     - ``f`
+     - ``f``
 
 Inference
 ========================
