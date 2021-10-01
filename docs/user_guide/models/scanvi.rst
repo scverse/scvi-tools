@@ -27,7 +27,8 @@ The limitations of scANVI include:
 Preliminaries
 ==============
 scANVI takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` genes,
-as well as a vector :math:`c` containing the partially observed cell type annotations.
+as well as a vector :math:`\mathbf{c}` containing the partially observed cell type annotations.
+Let :math:`C` be the number of observed cell types in the data.
 Additionally, a design matrix :math:`S` containing :math:`p` observed covariates, such as day, donor, etc, is an optional input.
 While :math:`S` can include both categorical covariates and continuous covariates, in the following, we assume it contains only one
 categorical covariate with :math:`K` categories, which represents the common case of having multiple batches of data.
@@ -37,33 +38,42 @@ categorical covariate with :math:`K` categories, which represents the common cas
 Generative process
 ============================
 
-While scVI, scANVI directly models discrete cell types in its generative model, and uses this knowledge to better structure cell states :math:`z_n`, following a graphical model inspired by works on semi-supervised VAEs [#ref2]_.
-:math:`z_n` is characterized by its discrete type :math:`c_n` and its within-type identity :math:`u_n`.
-The following figure illustrates these dependencies.
+scANVI extends the scVI model by making use of observed cell types :math:`c_n` following a
+graphical model inspired by works on semi-supervised VAEs [#ref2]_.
+
+
+.. math::
+   :nowrap:
+
+   \begin{align}
+    c_n &\sim \mathrm{Categorical}(1/C, ..., 1/C) \\
+    u_n &\sim \mathcal{N}(0, I) \\
+    z_n &\sim \mathcal{N}(f_z^\mu(c_n, u_n), f_z^\sigma(c_n, u_n) \odot I) \\
+    \ell_n &\sim \mathrm{LogNormal}\left( \ell_\mu^\top s_n ,\ell_{\sigma^2}^\top s_n \right) \\
+    \rho _n &= f_w\left( z_n, s_n \right) \\
+    \pi_{ng} &= f_h^g(z_n, s_n) \\
+    x_{ng} &\sim \mathrm{ObservationModel}(\ell_n \rho_n, \theta_g, \pi_{ng})
+    \end{align}
 
 .. figure:: figures/scanvi_pgm.png
    :class: img-fluid
    :align: center
    :alt: scANVI graphical model
 
-we assume a categorical distribution for cell types, such that :math:`c \sim \textrm{Discrete}(\pi)`, where :math:`\pi` is in the simplex.
-scANVI does not use empirical Bayes to determine :math:`\pi` to avoid exacerbating type proportion bias.
+   scANVI graphical model for the ZINB likelihood model. Note that this graphical model contains more latent variables than the presentation above. Marginalization of these latent variables leads to the ZINB observation model (math shown in publication supplement).
 
+
+We assume no knowledge over the distribution of cell types in the data (i.e.,
+uniform probabilities for categorical distribution on :math:`c_n`).
+This modeling choice helps ensure a proper handling of rare cell types in the data.
 We assume that the within-cell-type characterization of the cell follows a  Normal distribution, s.t. :math:`u_n \sim \mathcal{N}(0, I_d)`.
-
-The continuous cell state :math:`z_n` follow a learnable prior
-
-.. math::
-   :nowrap:
-
-   \begin{align}
-      z_n \sim \mathcal{N}(\mu_\theta(c_n, u_n), \sigma_\theta(c_n, u_n) \odot I_d)
-   \end{align}
+The random vector :math:`z_n` contains learnable parameters in the form of the neural networks :math:`f_z^\mu`, :math:`f_z^\sigma`.
+Qualitatively, :math:`z_n` characterizes each cell cellular state as a continuous, low-dimensional random variable, and has the same interpretation as in the scVI model.
+However, the prior for this variable takes into account the partial cell-type information to better structure the latent space.
 
 The rest of the model closely follows scVI.
 In particular, it represents the library size as a random variable, and gene expression likelihoods as negative binomial distributions parameterized by functions of :math:`z_n, l_n`, condition to the batch assignments :math:`s_n`.
 
-However, for the sake of clarity, we ignore the library size and batch sizes from the following arguments.
 
 
 Inference
@@ -75,23 +85,28 @@ scANVI assumes the following factorization for the inference model
    :nowrap:
 
    \begin{align}
-      q_\phi(z_n, u_n, c_n \mid x_n)
+      q_\eta(z_n, l_n, u_n, c_n \mid x_n)
       =
-      q_\phi(z_n, x_n)
-      q_\phi(c_n \mid z_n)
-      q_\phi(u_n \mid c_n, z_n)
+      q_\eta(z_n \mid x_n)
+      q_\eta(l_n \mid x_n)
+      q_\eta(c_n \mid z_n)
+      q_\eta(u_n \mid c_n, z_n)
    \end{align}
 
 We make several observations here.
 First, each of those variational distributions will be parameterized by neural networks.
-Second, while :math:`q_\phi(z_n, x_n)` and :math:`q_\phi(u_n \mid c_n, z_n)` are assumed Gaussian, :math:`q_\phi(c_n \mid z_n)` corresponds to a Categorical distribution over cell types.
-In particular, the variational distribution :math:`q_\phi(c_n \mid z_n)` can predict cell types for any cell.
+Second, while :math:`q_\eta(z_n, x_n)` and :math:`q_\eta(u_n \mid c_n, z_n)` are assumed Gaussian, :math:`q_\eta(c_n \mid z_n)` corresponds to a Categorical distribution over cell types.
+In particular, the variational distribution :math:`q_\eta(c_n \mid z_n)` can predict cell types for any cell.
+
+Behind the scenes, scANVI's classifier uses the mean of a cell's variational distribution :math:`q_\eta(z_n \mid x_n)`
+for classification.
 
 Training details
-^^^^^^^^^^^^^^^^
+----------------
 
 scANVI optimizes evidence lower bounds (ELBO) on the log evidence.
-However, the evidence and hence the ELBO have a different expression for cells with observed and unobserved cell types.
+However, for the sake of clarity, we ignore the library size and batch assignments below.
+We note that the evidence and hence the ELBO have a different expression for cells with observed and unobserved cell types.
 
 First, assume that we observe both gene expressions :math:`x_n` and type assignments :math:`c_n`.
 In that case, we bound the log evidence as
@@ -102,8 +117,8 @@ In that case, we bound the log evidence as
    \begin{align}
     p_\theta(x_n, c_n)
     \geq
-    \mathbb{E}_{q_\phi(z_n \mid x_n)
-        q_\phi(u_n \mid z_n, c_n)}
+    \mathbb{E}_{q_\eta(z_n \mid x_n)
+        q_\eta(u_n \mid z_n, c_n)}
     \left[
         \log
         \frac
@@ -111,21 +126,21 @@ In that case, we bound the log evidence as
         p_\theta(x_n, c_n, z_n, u_n)
         }
         {
-        q_\phi(z_n \mid x_n)
-        q_\phi(u_n \mid z_n, c_n)
+        q_\eta(z_n \mid x_n)
+        q_\eta(u_n \mid z_n, c_n)
         }
     \right]
     =: \mathcal{L}_S
    \end{align}
 
-We aim to optimize for :math:`\theta, \phi` the right-hand side of this equation using stochastic gradient descent.
+We aim to optimize for :math:`\theta, \eta` the right-hand side of this equation using stochastic gradient descent.
 Gradient updates for the generative model parameters :math:`\theta` are easy to get.
 In that case, the gradient of the expectation corresponds to the expectation of the gradients.
 
-However, this is not the case when we differentiate for :math:`\phi`.
-The reparameterization trick solves this issue and applies to the (Gaussian) distributions associated with :math:`q_\phi(z_n \mid x_n)
-,q_\phi(u_n \mid z_n, c_n)`.
-In particular, we can write :math:`\mathcal{L}_S` as an expectation under noise distributions independent of :math:`\phi`.
+However, this is not the case when we differentiate for :math:`\eta`.
+The reparameterization trick solves this issue and applies to the (Gaussian) distributions associated with :math:`q_\eta(z_n \mid x_n)
+,q_\eta(u_n \mid z_n, c_n)`.
+In particular, we can write :math:`\mathcal{L}_S` as an expectation under noise distributions independent of :math:`\eta`.
 For convenience, we will write expectations of the form :math:`\mathbb{E}_{\epsilon_v}` to denote expectation under the variational distribution using the reparameterization trick.
 We refer the reader to [#ref3]_ for additional insight on the reparameterization trick.
 
@@ -133,19 +148,19 @@ We refer the reader to [#ref3]_ for additional insight on the reparameterization
    :nowrap:
 
    \begin{align}
-    \nabla_\phi \mathcal{L}_S
+    \nabla_\eta \mathcal{L}_S
     :=
     \mathbb{E}_{\epsilon_z, \epsilon_u}
     \left[
-        \nabla_\phi
+        \nabla_\eta
         \log
         \frac
         {
         p_\theta(x_n, c_n, z_n, u_n)
         }
         {
-        q_\phi(z_n \mid x_n)
-        q_\phi(u_n \mid z_n, c_n)
+        q_\eta(z_n \mid x_n)
+        q_\eta(u_n \mid z_n, c_n)
         }
     \right]
     =: \mathcal{L}_S
@@ -161,9 +176,9 @@ In this setup, the ELBO corresponds to the right-hand side of
     p_\theta(x_n)
     \geq
     \mathbb{E}_{
-        q_\phi(z_n \mid x_n)
-        q_\phi(c_n \mid z_n)
-        q_\phi(u_n \mid z_n, c_n)
+        q_\eta(z_n \mid x_n)
+        q_\eta(c_n \mid z_n)
+        q_\eta(u_n \mid z_n, c_n)
     }
     \left[
         \log
@@ -172,14 +187,14 @@ In this setup, the ELBO corresponds to the right-hand side of
         p_\theta(x_n, c_n, z_n, u_n)
         }
         {
-        q_\phi(z_n \mid x_n)
-        q_\phi(c_n \mid z_n)
-        q_\phi(u_n \mid z_n, c_n)
+        q_\eta(z_n \mid x_n)
+        q_\eta(c_n \mid z_n)
+        q_\eta(u_n \mid z_n, c_n)
         }
     \right]=:\mathcal{L}_u
    \end{align}
 
-Unfortunately, the reparameterization trick does not apply naturally to :math:`q_\phi(c_n \mid z_n)`.
+Unfortunately, the reparameterization trick does not apply naturally to :math:`q_\eta(c_n \mid z_n)`.
 As an alternative, we observe that
 
 .. math::
@@ -193,7 +208,7 @@ As an alternative, we observe that
     }
     \left[
         \sum_{c=1}^C
-        q_\phi(c_n=c \mid z_n)
+        q_\eta(c_n=c \mid z_n)
         \mathbb{E}_{\epsilon_u}
             \left[
             \log
@@ -202,9 +217,9 @@ As an alternative, we observe that
             p_\theta(x_n, c_n=c, z_n, u_n)
             }
             {
-            q_\phi(z_n \mid x_n)
-            q_\phi(c_n \mid z_n)
-            q_\phi(u_n \mid z_n, c_n=c)
+            q_\eta(z_n \mid x_n)
+            q_\eta(c_n \mid z_n)
+            q_\eta(u_n \mid z_n, c_n=c)
             }
         \right]
     \right]
@@ -216,16 +231,16 @@ In this form, we can differentiate :math:`\mathcal{L}_u` with respect to the inf
    :nowrap:
 
    \begin{align}
-    \nabla_\phi \mathcal{L}_u
+    \nabla_\eta \mathcal{L}_u
     =
     \mathbb{E}_{
         \epsilon_z
     }
     \left[
         \sum_{c=1}^C
-        \nabla_\phi
+        \nabla_\eta
         \left(
-            q_\phi(c_n=c \mid z_n)
+            q_\eta(c_n=c \mid z_n)
             \mathbb{E}_{\epsilon_u}
                 \left[
                 \log
@@ -234,9 +249,9 @@ In this form, we can differentiate :math:`\mathcal{L}_u` with respect to the inf
                 p_\theta(x_n, c_n=c, z_n, u_n)
                 }
                 {
-                q_\phi(z_n \mid x_n)
-                q_\phi(c_n \mid z_n)
-                q_\phi(u_n \mid z_n, c_n=c)
+                q_\eta(z_n \mid x_n)
+                q_\eta(c_n \mid z_n)
+                q_\eta(u_n \mid z_n, c_n=c)
                 }
         \right)
         \right]
@@ -247,6 +262,24 @@ In other words, we will need to marginalize :math:`c_n` out to circumvent the fa
 
 
 Overall, we optimize :math:`\mathcal{L}_U + \mathcal{L}_S` to train the model on both labeled and unlabelled data.
+
+
+
+
+Tasks
+=====
+
+scANVI can perform all the same tasks as scVI (see :doc:`/user_guide/models/scvi`). In addition,
+scANVI can do the following:
+
+
+Prediction
+----------
+
+For prediction, scANVI returns :math:`q_\eta(c_n \mid z_n)` in the following function:
+
+
+    >>> adata.obs["scanvi_prediction"] = model.predict()
 
 
 
