@@ -1,4 +1,4 @@
-from inspect import getfullargspec
+from inspect import getfullargspec, signature
 from typing import Callable, Optional, Union
 
 import pyro
@@ -11,6 +11,23 @@ from scvi._compat import Literal
 from scvi.module import Classifier
 from scvi.module.base import BaseModuleClass, PyroBaseModuleClass
 from scvi.nn import one_hot
+
+
+def _compute_kl_weight(
+    epoch: int,
+    step: int,
+    n_epochs_kl_warmup: Optional[int],
+    n_steps_kl_warmup: Optional[int],
+) -> float:
+    epoch_criterion = n_epochs_kl_warmup is not None
+    step_criterion = n_steps_kl_warmup is not None
+    if epoch_criterion:
+        kl_weight = min(1.0, epoch / n_epochs_kl_warmup)
+    elif step_criterion:
+        kl_weight = min(1.0, step / n_steps_kl_warmup)
+    else:
+        kl_weight = 1.0
+    return max(kl_weight, 1e-3)
 
 
 class TrainingPlan(pl.LightningModule):
@@ -205,15 +222,12 @@ class TrainingPlan(pl.LightningModule):
     @property
     def kl_weight(self):
         """Scaling factor on KL divergence during training."""
-        epoch_criterion = self.n_epochs_kl_warmup is not None
-        step_criterion = self.n_steps_kl_warmup is not None
-        if epoch_criterion:
-            kl_weight = min(1.0, self.current_epoch / self.n_epochs_kl_warmup)
-        elif step_criterion:
-            kl_weight = min(1.0, self.global_step / self.n_steps_kl_warmup)
-        else:
-            kl_weight = 1.0
-        return kl_weight
+        return _compute_kl_weight(
+            self.current_epoch,
+            self.global_step,
+            self.n_epochs_kl_warmup,
+            self.n_steps_kl_warmup,
+        )
 
 
 class AdversarialTrainingPlan(TrainingPlan):
@@ -594,6 +608,12 @@ class PyroTrainingPlan(pl.LightningModule):
         defaults to :class:`pyro.optim.Adam` optimizer with a learning rate of `1e-3`.
     optim_kwargs
         Keyword arguments for **default** optimiser :class:`pyro.optim.Adam`.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+        Only activated when `n_epochs_kl_warmup` is set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from 0 to 1.
+        Overrides `n_steps_kl_warmup` when both are not `None`.
     """
 
     def __init__(
@@ -602,6 +622,8 @@ class PyroTrainingPlan(pl.LightningModule):
         loss_fn: Optional[pyro.infer.ELBO] = None,
         optim: Optional[pyro.optim.PyroOptim] = None,
         optim_kwargs: Optional[dict] = None,
+        n_steps_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = 400,
     ):
         super().__init__()
         self.module = pyro_module
@@ -616,9 +638,16 @@ class PyroTrainingPlan(pl.LightningModule):
             pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         )
 
+        self.n_steps_kl_warmup = n_steps_kl_warmup
+        self.n_epochs_kl_warmup = n_epochs_kl_warmup
+
         self.automatic_optimization = False
         self.pyro_guide = self.module.guide
         self.pyro_model = self.module.model
+
+        self.use_kl_weight = (
+            "kl_weight" in signature(self.pyro_model.forward).parameters
+        )
 
         self.svi = pyro.infer.SVI(
             model=self.pyro_model,
@@ -654,6 +683,10 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         args, kwargs = self.module._get_fn_args_from_batch(batch)
+        # Set KL weight if necessary.
+        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
+        if self.use_kl_weight:
+            kwargs.update({"kl_weight": self.kl_weight})
         # pytorch lightning requires a Tensor object for loss
         loss = torch.Tensor([self.svi.step(*args, **kwargs)])
 
@@ -676,6 +709,16 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def backward(self, *args, **kwargs):
         pass
+
+    @property
+    def kl_weight(self):
+        """Scaling factor on KL divergence during training."""
+        return _compute_kl_weight(
+            self.current_epoch,
+            self.global_step,
+            self.n_epochs_kl_warmup,
+            self.n_steps_kl_warmup,
+        )
 
 
 class ClassifierTrainingPlan(pl.LightningModule):

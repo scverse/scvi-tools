@@ -4,7 +4,7 @@ import os
 import anndata
 import numpy as np
 
-from scvi.data._anndata import setup_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ def _load_breast_cancer_dataset(
     adata.obs["labels"] = np.zeros(adata.shape[0]).astype(int)
 
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 
@@ -40,7 +40,7 @@ def _load_mouse_ob_dataset(save_path: str = "data/", run_setup_anndata: bool = T
     adata.obs["labels"] = np.zeros(adata.shape[0]).astype(int)
 
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 

@@ -10,7 +10,8 @@ from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
-from scvi.data import setup_anndata, synthetic_iid, transfer_anndata_setup
+from scvi.data import synthetic_iid, transfer_anndata_setup
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,
@@ -35,9 +36,20 @@ from scvi.train import TrainingPlan, TrainRunner
 
 def test_scvi(save_path):
     n_latent = 5
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
 
     # Test with observed lib size.
+    adata = synthetic_iid(run_setup_anndata=False)
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
@@ -166,7 +178,7 @@ def test_scvi(save_path):
     batch = np.zeros(a.n_obs)
     batch[:64] += 1
     a.obs["batch"] = batch
-    setup_anndata(a, batch_key="batch")
+    _setup_anndata(a, batch_key="batch")
     m = SCVI(a)
     m.train(1, train_size=0.5)
     m.get_normalized_expression(transform_batch=1)
@@ -194,7 +206,7 @@ def test_scvi_sparse(save_path):
     n_latent = 5
     adata = synthetic_iid(run_setup_anndata=False)
     adata.X = csr_matrix(adata.X)
-    setup_anndata(adata)
+    SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, train_size=0.5)
     assert model.is_trained is True
@@ -293,7 +305,7 @@ def test_backed_anndata_scvi(save_path):
     path = os.path.join(save_path, "test_data.h5ad")
     adata.write_h5ad(path)
     adata = anndata.read_h5ad(path, backed="r+")
-    setup_anndata(adata, batch_key="batch")
+    SCVI.setup_anndata(adata, batch_key="batch")
 
     model = SCVI(adata, n_latent=5)
     model.train(1, train_size=0.5)
@@ -470,7 +482,12 @@ def test_semisupervised_data_splitter():
 
 
 def test_scanvi(save_path):
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
+    SCANVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = SCANVI(adata, "label_0", n_latent=10)
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     logged_keys = model.history.keys()
@@ -495,14 +512,14 @@ def test_scanvi(save_path):
     # test that all data labeled runs
     unknown_label = "asdf"
     a = scvi.data.synthetic_iid()
-    scvi.data.setup_anndata(a, batch_key="batch", labels_key="labels")
+    scvi.model.SCANVI.setup_anndata(a, batch_key="batch", labels_key="labels")
     m = scvi.model.SCANVI(a, unknown_label)
     m.train(1)
 
     # test mix of labeled and unlabeled data
     unknown_label = "label_0"
     a = scvi.data.synthetic_iid()
-    scvi.data.setup_anndata(a, batch_key="batch", labels_key="labels")
+    scvi.model.SCANVI.setup_anndata(a, batch_key="batch", labels_key="labels")
     m = scvi.model.SCANVI(a, unknown_label)
     m.train(1, train_size=0.9)
 
@@ -520,7 +537,7 @@ def test_scanvi(save_path):
 def test_linear_scvi(save_path):
     adata = synthetic_iid()
     adata = adata[:, :10].copy()
-    setup_anndata(adata)
+    LinearSCVI.setup_anndata(adata)
     model = LinearSCVI(adata, n_latent=10)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     assert len(model.history["elbo_train"]) == 1
@@ -531,7 +548,13 @@ def test_linear_scvi(save_path):
 
 
 def test_autozi():
-    data = synthetic_iid(n_batches=1)
+    data = synthetic_iid(n_batches=1, run_setup_anndata=False)
+    AUTOZI.setup_anndata(
+        data,
+        batch_key="batch",
+        labels_key="labels",
+    )
+
     for disp_zi in ["gene", "gene-label"]:
         autozivae = AUTOZI(
             data,
@@ -567,7 +590,14 @@ def test_autozi():
 
 
 def test_totalvi(save_path):
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+
     n_obs = adata.n_obs
     n_vars = adata.n_vars
     n_proteins = adata.obsm["protein_expression"].shape[1]
@@ -612,7 +642,13 @@ def test_totalvi(save_path):
     model.get_marginal_ll(indices=model.validation_indices, n_mc_samples=3)
     model.get_reconstruction_error(indices=model.validation_indices)
 
-    adata2 = synthetic_iid()
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    TOTALVI.setup_anndata(
+        adata2,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
     norm_exp = model.get_normalized_expression(adata2, indices=[1, 2, 3])
     assert norm_exp[0].shape == (3, adata2.n_vars)
     assert norm_exp[1].shape == (3, adata2.obsm["protein_expression"].shape[1])
@@ -690,34 +726,44 @@ def test_totalvi_model_library_size(save_path):
     model.get_latent_library_size()
 
 
-def test_multiple_covariates(save_path):
+def test_multiple_covariates_scvi(save_path):
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    setup_anndata(
+
+    SCVI.setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
-
     m = SCVI(adata)
     m.train(1)
 
     m = SCANVI(adata, unlabeled_category="Unknown")
     m.train(1)
 
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
     m = TOTALVI(adata)
     m.train(1)
 
 
 def test_peakvi():
-    data = synthetic_iid()
+    data = synthetic_iid(run_setup_anndata=False)
+    PEAKVI.setup_anndata(
+        data,
+        batch_key="batch",
+    )
     vae = PEAKVI(
         data,
         model_depth=False,
@@ -744,7 +790,11 @@ def test_peakvi():
 
 
 def test_condscvi(save_path):
-    dataset = synthetic_iid(n_labels=5)
+    dataset = synthetic_iid(n_labels=5, run_setup_anndata=False)
+    CondSCVI.setup_anndata(
+        dataset,
+        "labels",
+    )
     model = CondSCVI(dataset)
     model.train(1, train_size=1)
     model.get_latent_representation()
@@ -790,7 +840,11 @@ def test_destvi(save_path):
 
 
 def test_multivi():
-    data = synthetic_iid()
+    data = synthetic_iid(run_setup_anndata=False)
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+    )
     vae = MULTIVI(
         data,
         n_genes=50,
