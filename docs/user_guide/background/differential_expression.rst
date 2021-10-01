@@ -97,28 +97,6 @@ While considering different modalities, scVI, TOTALVI, and PeakVI share similar 
 We first introduce some notations that will be useful in the remainder of this guide.
 In particular, we consider a deep generative model where a latent variable with prior :math:`z_n \sim \mathcal{N}_d(0, I_d)` represents cell :math:`n`'s identity.
 In turn, a neural network :math:`f^h_\theta` maps this low-dimensional representation to normalized, expression levels.
-The following table recaps which names the scVI-tools codebase uses.
-
-.. list-table::
-   :widths: 20 50 15 15
-   :header-rows: 1
-
-   * - Model
-     - Type of expression
-     - latent variable name
-     - Normaled expression name
-   * - scVI
-     - Gene expression.
-     - ``z``
-     - ``px_scale``
-   * - TOTALVI
-     - Gene & surface protein expression.
-     - ``z``
-     - ``px_scale`` (gene) and ``py_scale`` (surface protein)
-   * - PEAKVI
-     - Chromatin accessibility.
-     - ``z``
-     - ``p``
 
 
 Approximating population-specific normalized expression levels
@@ -170,9 +148,10 @@ When considering gene or surface protein expression, log-normalized counts are a
    \begin{align}
       \beta_f
       =
-      \log_2 h_^B{f} - \log_2 h_^A{f}.
+      \log_2 h_{f}^B - \log_2 h_{f}^A.
    \end{align}
-As chromatin accessibility cannot be interpreted in the same way, we take :math:`\beta_f = h_^B{f}- h_^A{f}` instead.
+
+As chromatin accessibility cannot be interpreted in the same way, we take :math:`\beta_f = h_{f}^B- h_{f}^A` instead.
 
 scVI-tools provides several ways to formulate the competing hypotheses from the effect sizes to detect DE features.
 When ``mode = "vanilla"``, we consider point null hypotheses of the form :math:`\mathcal{H}_{0f}: \beta_f = 0`.
@@ -229,19 +208,14 @@ For the specific family of decision rules :math:`\mu^k, k` that we consider here
       .
    \end{align}
 
-However, note that the posterior expectation of :math:`d^f`, denoted as :math:`\mathbb{E}_{post}[]`, verifies :math:`\mathbb{E}_{post}[FDP_{d^f}] = p^f`.
+However, note that the posterior expectation of :math:`d^f`, denoted as :math:`\mathbb{E}_{post}[.]`, verifies :math:`\mathbb{E}_{post}[FDP_{d^f}] = p^f`.
 Hence, by linearity of the expectation, we can estimate the false discovery rate corresponding to :math:`k` detected features as
 
 .. math::
    :nowrap:
 
    \begin{align}
-      \mathbb{E}_{post}[FDP_{\mu^k}]
-      =
-      \frac
-      {\sum_f (1 - p^f) \mu_f^k}
-      {\sum_f \mu_f^k}
-      .
+      \mathbb{E}_{post}[FDP_{\mu^k}] = \frac{\sum_f (1 - p^f) \mu_f^k}{\sum_f \mu_f^k}.
    \end{align}
 
  Hence, for a given significance level :math:`\alpha`, we select the maximum detections :math:`k^*`, such that :math:`\mathbb{E}_{post}[FDP_{\mu^k}] \leq \alpha`, as illustrated below.
