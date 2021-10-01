@@ -228,5 +228,5 @@ Differential accessibility analysis is achieved with :func:`~scvi.model.MULTIVI.
 
    .. [#ref1] Tal Ashuach\*, Mariano I. Gabitto\*, Michael I. Jordan, Nir Yosef (2021),
         *MultiVI: deep generative model for the integration of multi-modal data*,
-        `Bioarxiv, under review `__.
+        `Biorxiv`.
 
