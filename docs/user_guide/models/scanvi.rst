@@ -55,14 +55,6 @@ graphical model inspired by works on semi-supervised VAEs [#ref2]_.
     x_{ng} &\sim \mathrm{ObservationModel}(\ell_n \rho_n, \theta_g, \pi_{ng})
     \end{align}
 
-.. figure:: figures/scanvi_pgm.png
-   :class: img-fluid
-   :align: center
-   :alt: scANVI graphical model
-
-   scANVI graphical model for the ZINB likelihood model. Note that this graphical model contains more latent variables than the presentation above. Marginalization of these latent variables leads to the ZINB observation model (math shown in publication supplement).
-
-
 We assume no knowledge over the distribution of cell types in the data (i.e.,
 uniform probabilities for categorical distribution on :math:`c_n`).
 This modeling choice helps ensure a proper handling of rare cell types in the data.
@@ -75,6 +67,15 @@ However, the prior for this variable takes into account the partial cell-type in
 The rest of the model closely follows scVI. In particular, it represents the library size as a random variable,
 and gene expression likelihoods as negative binomial distributions parameterized by functions of :math:`z_n, l_n`,
 condition to the batch assignments :math:`s_n`.
+
+.. figure:: figures/scanvi_pgm.png
+   :class: img-fluid
+   :align: center
+   :alt: scANVI graphical model
+
+   scANVI graphical model for the ZINB likelihood model. Note that this graphical model contains more latent variables than the presentation above. Marginalization of these latent variables leads to the ZINB observation model (math shown in publication supplement).
+
+
 In addition to the table in :doc:`/user_guide/models/scvi`,
 we have the following in scANVI.
 
