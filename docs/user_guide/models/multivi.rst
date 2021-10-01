@@ -48,7 +48,7 @@ MultiVI posits that the observed UMI counts for cell :math:`n`, gene :math:`g`, 
    \begin{align}
     z^{acc}_n &\sim {\mathrm{Normal}}\left( {0,I} \right) \\
     z^{rna}_n &\sim {\mathrm{Normal}}\left( {0,I} \right) \\
-    z_n &\eq \frac{\left( z^{rna}_n + z^{acc}_n \right)}{2} \\
+    z_n &= \frac{\left( z^{rna}_n + z^{acc}_n \right)}{2} \\
     \ell_n &\sim \mathrm{LogNormal}\left( \ell_\mu^\top s_n ,\ell_{\sigma^2}^\top s_n \right) \\
     \rho _n &= f_w\left( z_n, s_n \right) \\
     \pi_{ng} &= f_h^g(z_n, s_n) \\
@@ -157,13 +157,13 @@ For dimensionality reduction, the mean of the approximate posterior :math:`q_\et
 This is achieved using the method::
 
     >>> latent = model.get_latent_representation()
-    >>> adata.obsm["X_scvi"] = latent
+    >>> adata.obsm["X_mvi"] = latent
 
 Users may also return samples from this distribution, as opposed to the mean by passing the argument ``give_mean=False``.
 The latent representation can be used to create a nearest neighbor graph with scanpy with::
 
     >>> import scanpy as sc
-    >>> sc.pp.neighbors(adata, use_rep="X_scvi")
+    >>> sc.pp.neighbors(adata, use_rep="X_mvi")
     >>> adata.obsp["distances"]
 
 
