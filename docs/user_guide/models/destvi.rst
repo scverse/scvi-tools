@@ -8,13 +8,12 @@ can be used to explore the spatial organization of a tissue and understanding ge
 
 The advantages of DestVI are:
 
-    + Can stratify cells into discrete cell types and model continuous sub-cell-type variation.
-
-    + Scalable to very large datasets (>1 million cells).
+- Can stratify cells into discrete cell types and model continuous sub-cell-type variation.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of DestVI include:
 
-    + Effectively requires a GPU for fast inference.
+- Effectively requires a GPU for fast inference.
 
 .. topic:: Tutorial:
 

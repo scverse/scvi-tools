@@ -7,15 +7,13 @@ be used for many common downstream tasks.
 
 The advantages of totalVI are:
 
-    + Comprehensive in capabilities.
-
-    + Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of totalVI include:
 
-    + Effectively requires a GPU for fast inference.
-
-    + Difficult to understand the balance between RNA and protein data in the low-dimensional representation of cells.
+- Effectively requires a GPU for fast inference.
+- Difficult to understand the balance between RNA and protein data in the low-dimensional representation of cells.
 
 .. topic:: Tutorials:
 
