@@ -5,10 +5,36 @@ scANVI
 **scANVI** [#ref1]_ (single-cell ANnotation using Variational Inference; Python class :class:`~scvi.model.SCANVI`) is a semi-supervised model for single-cell transcriptomics data.
 In a sense, it can be seen as a scVI extension that can leverage the cell type knowledge for a subset of the cells present in the data sets to infer the states of the rest of the cells.
 For this reason, scANVI can help annotate a data set of unlabelled cells from manually annotated atlases, e.g., Tabula Sapiens [#refTS]_.
-We refer the reader to :doc:`/tutorials/notebooks/harmonization` for a use-case application of this model.
+
+The advantages of scANVI are:
+
+    + Comprehensive in capabilities.
+
+    + Scalable to very large datasets (>1 million cells).
+
+The limitations of scANVI include:
+
+    + Effectively requires a GPU for fast inference.
+
+    + Latent space is not interpretable, unlike that of a linear method.
 
 
-Generative and inference models
+.. topic:: Tutorials:
+
+ - :doc:`/tutorials/notebooks/harmonization`
+ - :doc:`/tutorials/notebooks/scarches_scvi_tools`
+
+
+Preliminaries
+==============
+scVI takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` genes.
+Additionally, a design matrix :math:`S` containing :math:`p` observed covariates, such as day, donor, etc, is an optional input.
+While :math:`S` can include both categorical covariates and continuous covariates, in the following, we assume it contains only one
+categorical covariate with :math:`K` categories, which represents the common case of having multiple batches of data.
+
+
+
+Generative process
 ============================
 
 While scVI, scANVI directly models discrete cell types in its generative model, and uses this knowledge to better structure cell states :math:`z_n`, following a graphical model inspired by works on semi-supervised VAEs [#ref2]_.
@@ -34,10 +60,14 @@ The continuous cell state :math:`z_n` follow a learnable prior
       z_n \sim \mathcal{N}(\mu_\theta(c_n, u_n), \sigma_\theta(c_n, u_n) \odot I_d)
    \end{align}
 
-The rest of the model closely follows scVI. 
+The rest of the model closely follows scVI.
 In particular, it represents the library size as a random variable, and gene expression likelihoods as negative binomial distributions parameterized by functions of :math:`z_n, l_n`, condition to the batch assignments :math:`s_n`.
 
 However, for the sake of clarity, we ignore the library size and batch sizes from the following arguments.
+
+
+Inference
+========================
 
 scANVI assumes the following factorization for the inference model
 
@@ -57,8 +87,8 @@ First, each of those variational distributions will be parameterized by neural n
 Second, while :math:`q_\phi(z_n, x_n)` and :math:`q_\phi(u_n \mid c_n, z_n)` are assumed Gaussian, :math:`q_\phi(c_n \mid z_n)` corresponds to a Categorical distribution over cell types.
 In particular, the variational distribution :math:`q_\phi(c_n \mid z_n)` can predict cell types for any cell.
 
-Model training
-============================
+Training details
+^^^^^^^^^^^^^^^^
 
 scANVI optimizes evidence lower bounds (ELBO) on the log evidence.
 However, the evidence and hence the ELBO have a different expression for cells with observed and unobserved cell types.
@@ -71,11 +101,11 @@ In that case, we bound the log evidence as
 
    \begin{align}
     p_\theta(x_n, c_n)
-    \geq 
+    \geq
     \mathbb{E}_{q_\phi(z_n \mid x_n)
         q_\phi(u_n \mid z_n, c_n)}
     \left[
-        \log 
+        \log
         \frac
         {
         p_\theta(x_n, c_n, z_n, u_n)
@@ -108,7 +138,7 @@ We refer the reader to [#ref3]_ for additional insight on the reparameterization
     \mathbb{E}_{\epsilon_z, \epsilon_u}
     \left[
         \nabla_\phi
-        \log 
+        \log
         \frac
         {
         p_\theta(x_n, c_n, z_n, u_n)
@@ -136,7 +166,7 @@ In this setup, the ELBO corresponds to the right-hand side of
         q_\phi(u_n \mid z_n, c_n)
     }
     \left[
-        \log 
+        \log
         \frac
         {
         p_\theta(x_n, c_n, z_n, u_n)
@@ -150,7 +180,7 @@ In this setup, the ELBO corresponds to the right-hand side of
    \end{align}
 
 Unfortunately, the reparameterization trick does not apply naturally to :math:`q_\phi(c_n \mid z_n)`.
-As an alternative, we observe that 
+As an alternative, we observe that
 
 .. math::
    :nowrap:
@@ -163,10 +193,10 @@ As an alternative, we observe that
     }
     \left[
         \sum_{c=1}^C
-        q_\phi(c_n=c \mid z_n)    
+        q_\phi(c_n=c \mid z_n)
         \mathbb{E}_{\epsilon_u}
             \left[
-            \log 
+            \log
             \frac
             {
             p_\theta(x_n, c_n=c, z_n, u_n)
@@ -180,7 +210,7 @@ As an alternative, we observe that
     \right]
    \end{align}
 
-In this form, we can differentiate :math:`\mathcal{L}_u` with respect to the inference network parameters, as 
+In this form, we can differentiate :math:`\mathcal{L}_u` with respect to the inference network parameters, as
 
 .. math::
    :nowrap:
@@ -195,10 +225,10 @@ In this form, we can differentiate :math:`\mathcal{L}_u` with respect to the inf
         \sum_{c=1}^C
         \nabla_\phi
         \left(
-            q_\phi(c_n=c \mid z_n)    
+            q_\phi(c_n=c \mid z_n)
             \mathbb{E}_{\epsilon_u}
                 \left[
-                \log 
+                \log
                 \frac
                 {
                 p_\theta(x_n, c_n=c, z_n, u_n)

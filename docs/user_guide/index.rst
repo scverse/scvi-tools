@@ -15,6 +15,9 @@ scRNA-seq analysis
    * - :doc:`/user_guide/models/scvi`
      - [Lopez18]_
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
+   * - :doc:`/user_guide/models/scanvi`
+     - [Xu21]_
+     - scVI tasks with cell type transfer from reference, seed labeling
    * - :doc:`/user_guide/models/linearscvi`
      - [Svensson20]_
      - scVI tasks with linear decoder
