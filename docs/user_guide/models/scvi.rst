@@ -7,15 +7,13 @@ be used for many common downstream tasks.
 
 The advantages of scVI are:
 
-    + Comprehensive in capabilities.
-
-    + Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of scVI include:
 
-    + Effectively requires a GPU for fast inference.
-
-    + Latent space is not interpretable, unlike that of a linear method.
+- Effectively requires a GPU for fast inference.
+- Latent space is not interpretable, unlike that of a linear method.
 
 
 .. topic:: Tutorials:

@@ -8,13 +8,14 @@ For this reason, scANVI can help annotate a data set of unlabelled cells from ma
 
 The advantages of scANVI are:
 
-    + Comprehensive in capabilities.
-    + Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of scANVI include:
 
-    + Effectively requires a GPU for fast inference.
-    + Latent space is not interpretable, unlike that of a linear method.
+- Effectively requires a GPU for fast inference.
+- Latent space is not interpretable, unlike that of a linear method.
+- May not scale to very large number of cell types.
 
 
 .. topic:: Tutorials:
@@ -25,7 +26,8 @@ The limitations of scANVI include:
 
 Preliminaries
 ==============
-scVI takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` genes.
+scANVI takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` genes,
+as well as a vector :math:`c` containing the partially observed cell type annotations.
 Additionally, a design matrix :math:`S` containing :math:`p` observed covariates, such as day, donor, etc, is an optional input.
 While :math:`S` can include both categorical covariates and continuous covariates, in the following, we assume it contains only one
 categorical covariate with :math:`K` categories, which represents the common case of having multiple batches of data.
