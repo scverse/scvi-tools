@@ -67,14 +67,33 @@ We assume no knowledge over the distribution of cell types in the data (i.e.,
 uniform probabilities for categorical distribution on :math:`c_n`).
 This modeling choice helps ensure a proper handling of rare cell types in the data.
 We assume that the within-cell-type characterization of the cell follows a  Normal distribution, s.t. :math:`u_n \sim \mathcal{N}(0, I_d)`.
-The random vector :math:`z_n` contains learnable parameters in the form of the neural networks :math:`f_z^\mu`, :math:`f_z^\sigma`.
-Qualitatively, :math:`z_n` characterizes each cell cellular state as a continuous, low-dimensional random variable, and has the same interpretation as in the scVI model.
+The distribution over the random vector :math:`z_n` contains learnable parameters in the form of
+the neural networks :math:`f_z^\mu`, :math:`f_z^\sigma`. Qualitatively, :math:`z_n` characterizes each cell
+cellular state as a continuous, low-dimensional random variable, and has the same interpretation as in the scVI model.
 However, the prior for this variable takes into account the partial cell-type information to better structure the latent space.
 
-The rest of the model closely follows scVI.
-In particular, it represents the library size as a random variable, and gene expression likelihoods as negative binomial distributions parameterized by functions of :math:`z_n, l_n`, condition to the batch assignments :math:`s_n`.
+The rest of the model closely follows scVI. In particular, it represents the library size as a random variable,
+and gene expression likelihoods as negative binomial distributions parameterized by functions of :math:`z_n, l_n`,
+condition to the batch assignments :math:`s_n`.
+In addition to the table in :doc:`/user_guide/models/scvi`,
+we have the following in scANVI.
 
+.. list-table::
+   :widths: 20 90 15
+   :header-rows: 1
 
+   * - Latent variable
+     - Description
+     - Code variable (if different)
+   * - :math:`c_n \in \Delta^{C-1}`
+     - Cell type.
+     - ``y``
+   * - :math:`\z_n \in \mathbb{R}^{d}`
+     - Latent cell state
+     - ``z_1``
+   * - :math:`\u_n \in \mathbb{R}^{d}`
+     - Latent cell-type specific state
+     - ``z_2``
 
 Inference
 ========================
@@ -105,7 +124,7 @@ Training details
 ----------------
 
 scANVI optimizes evidence lower bounds (ELBO) on the log evidence.
-However, for the sake of clarity, we ignore the library size and batch assignments below.
+For the sake of clarity, we ignore the library size and batch assignments below.
 We note that the evidence and hence the ELBO have a different expression for cells with observed and unobserved cell types.
 
 First, assume that we observe both gene expressions :math:`x_n` and type assignments :math:`c_n`.
@@ -115,7 +134,7 @@ In that case, we bound the log evidence as
    :nowrap:
 
    \begin{align}
-    p_\theta(x_n, c_n)
+    \log p_\theta(x_n, c_n)
     \geq
     \mathbb{E}_{q_\eta(z_n \mid x_n)
         q_\eta(u_n \mid z_n, c_n)}
@@ -261,7 +280,7 @@ In this form, we can differentiate :math:`\mathcal{L}_u` with respect to the inf
 In other words, we will need to marginalize :math:`c_n` out to circumvent the fact that categorical distributions cannot use the reparameterization trick.
 
 
-Overall, we optimize :math:`\mathcal{L}_U + \mathcal{L}_S` to train the model on both labeled and unlabelled data.
+Overall, we optimize :math:`\mathcal{L} = \mathcal{L}_U + \mathcal{L}_S` to train the model on both labeled and unlabelled data.
 
 
 
