@@ -9,13 +9,11 @@ For this reason, scANVI can help annotate a data set of unlabelled cells from ma
 The advantages of scANVI are:
 
     + Comprehensive in capabilities.
-
     + Scalable to very large datasets (>1 million cells).
 
 The limitations of scANVI include:
 
     + Effectively requires a GPU for fast inference.
-
     + Latent space is not interpretable, unlike that of a linear method.
 
 
