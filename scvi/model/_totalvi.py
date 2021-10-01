@@ -1048,10 +1048,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
+        protein_expression_obsm_key: str,
+        protein_names_uns_key: Optional[str] = None,
         batch_key: Optional[str] = None,
         layer: Optional[str] = None,
-        protein_expression_obsm_key: Optional[str] = None,
-        protein_names_uns_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         copy: bool = False,
@@ -1062,13 +1062,13 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Parameters
         ----------
         %(param_adata)s
-        %(param_batch_key)s
-        %(param_layer)s
         protein_expression_obsm_key
             key in `adata.obsm` for protein expression data.
         protein_names_uns_key
             key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
             if it is a DataFrame, else will assign sequential names to proteins.
+        %(param_batch_key)s
+        %(param_layer)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         %(param_copy)s

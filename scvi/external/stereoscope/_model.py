@@ -116,7 +116,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     @setup_anndata_dsp.dedent
     def setup_anndata(
         adata: AnnData,
-        labels_key: Optional[str] = None,
+        labels_key: str,
         layer: Optional[str] = None,
         copy: bool = False,
     ) -> Optional[AnnData]:
