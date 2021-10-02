@@ -89,10 +89,10 @@ we have the following in scANVI.
    * - :math:`c_n \in \Delta^{C-1}`
      - Cell type.
      - ``y``
-   * - :math:`\z_n \in \mathbb{R}^{d}`
+   * - :math:`z_n \in \mathbb{R}^{d}`
      - Latent cell state
      - ``z_1``
-   * - :math:`\u_n \in \mathbb{R}^{d}`
+   * - :math:`u_n \in \mathbb{R}^{d}`
      - Latent cell-type specific state
      - ``z_2``
 
