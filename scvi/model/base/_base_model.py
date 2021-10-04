@@ -14,6 +14,7 @@ from anndata import AnnData
 from rich.text import Text
 
 from scvi import _CONSTANTS, settings
+from scvi._docs import setup_anndata_dsp
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
@@ -26,6 +27,9 @@ from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 logger = logging.getLogger(__name__)
 
 
+_UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained model. Please train the model first."
+
+
 class BaseModelClass(ABC):
     """Abstract class for scvi-tools models."""
 
@@ -33,7 +37,7 @@ class BaseModelClass(ABC):
         if adata is not None:
             if "_scvi" not in adata.uns.keys():
                 raise ValueError(
-                    "Please setup your AnnData with scvi.data.setup_anndata(adata) first"
+                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first"
                 )
             self.adata = adata
             self.scvi_setup_dict_ = adata.uns["_scvi"]
@@ -153,6 +157,20 @@ class BaseModelClass(ABC):
 
         return adata
 
+    def _check_if_trained(
+        self, warn: bool = True, message: str = _UNTRAINED_WARNING_MESSAGE
+    ):
+        """
+        Check if the model is trained.
+
+        If not trained and `warn` is True, raise a warning, else raise a RuntimeError.
+        """
+        if not self.is_trained_:
+            if warn:
+                warnings.warn(message)
+            else:
+                raise RuntimeError(message)
+
     @property
     def is_trained(self):
         return self.is_trained_
@@ -201,9 +219,9 @@ class BaseModelClass(ABC):
 
     def _get_init_params(self, locals):
         """
-        Returns the model init signiture with associated passed in values.
+        Returns the model init signature with associated passed in values.
 
-        Ignores the inital AnnData.
+        Ignores the initial AnnData.
         """
         init = self.__init__
         sig = inspect.signature(init)
@@ -302,7 +320,7 @@ class BaseModelClass(ABC):
             Path to saved outputs.
         adata
             AnnData organized in the same way as data used to train model.
-            It is not necessary to run :func:`~scvi.data.setup_anndata`,
+            It is not necessary to run setup_anndata,
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
         use_gpu
@@ -376,3 +394,18 @@ class BaseModelClass(ABC):
         console = rich.console.Console()
         console.print(text)
         return ""
+
+    @staticmethod
+    @abstractmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        *args,
+        **kwargs,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Each model class deriving from this class provides parameters to this method
+        according to its needs.
+        """

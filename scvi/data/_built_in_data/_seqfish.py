@@ -6,7 +6,7 @@ import anndata
 import numpy as np
 import pandas as pd
 
-from scvi.data import setup_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ def _load_seqfishplus(
     adata.obs["labels"] = np.zeros(adata.shape[0], dtype=np.int64)
 
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 
@@ -81,7 +81,7 @@ def _load_seqfish(
     adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
     adata.obs["labels"] = np.zeros(adata.shape[0], dtype=np.int64)
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 

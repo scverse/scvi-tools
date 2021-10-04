@@ -1,5 +1,84 @@
-Developer guide
-===============
+Tutorials
+==========
+
+The easiest way to get familiar with scvi-tools is to follow along with our tutorials.
+Many are also designed to work seamlessly in Google Colab, a free cloud computing platform.
+Tutorials are designed to work with the latest installable version of scvi-tools.
+
+.. note:: For questions about using scvi-tools, or broader questions about modeling data, please use our forum_.
+
+.. _forum: https://discourse.scvi-tools.org/
+
+
+Quick start
+-----------
+
+.. nbgallery::
+
+   notebooks/api_overview
+   notebooks/data_loading
+   notebooks/scvi_in_R
+
+
+User tutorials
+--------------
+
+scRNA-seq
+^^^^^^^^^^
+
+.. nbgallery::
+
+   notebooks/harmonization
+   notebooks/seed_labeling
+   notebooks/linear_decoder
+   notebooks/scarches_scvi_tools
+   notebooks/AutoZI_tutorial
+   notebooks/cellassign_tutorial
+
+
+ATAC-seq
+^^^^^^^^
+
+.. nbgallery::
+
+   notebooks/PeakVI
+   notebooks/peakvi_in_R
+
+
+Spatial transcriptomics
+^^^^^^^^^^^^^^^^^^^^^^^
+
+
+.. nbgallery::
+
+   notebooks/DestVI_tutorial
+   notebooks/gimvi_tutorial
+
+
+Multimodal
+^^^^^^^^^^^
+
+.. nbgallery::
+
+   notebooks/totalVI
+   notebooks/cite_scrna_integration_w_totalVI
+   notebooks/totalVI_reference_mapping
+   notebooks/totalvi_in_R
+   notebooks/MultiVI_tutorial
+
+
+
+Contributed tutorials
+---------------------
+
+.. nbgallery::
+
+   notebooks/scVI_DE_worm
+   notebooks/stereoscope_heart_LV_tutorial
+
+
+Developer tutorials
+---------------------
 
 Here we feature tutorials to guide you through the construction of a model with scvi-tools. For an example of how scvi-tools can be used in an independent package, see our GitHub template_.
 
@@ -10,10 +89,8 @@ Here we feature tutorials to guide you through the construction of a model with 
 .. _template: https://github.com/YosefLab/scvi-tools-skeleton
 
 
-Model development tutorials
----------------------------
-
-.. nbgallery::
+.. toctree::
+   :maxdepth: 1
 
    notebooks/data_tutorial
    notebooks/module_user_guide
@@ -21,7 +98,7 @@ Model development tutorials
 
 
 Glossary
---------
+^^^^^^^^^
 
 .. tabs::
 

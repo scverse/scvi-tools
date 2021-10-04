@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 import scipy.sparse as sp_sparse
 
-from scvi.data._anndata import setup_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def _load_brainlarge_dataset(
         loading_batch_size=loading_batch_size,
     )
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 

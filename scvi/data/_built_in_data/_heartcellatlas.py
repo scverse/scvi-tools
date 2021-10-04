@@ -2,7 +2,7 @@ import os
 
 import anndata
 
-from scvi.data import setup_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 
 
@@ -50,7 +50,7 @@ def _load_heart_cell_atlas_subsampled(
         dataset = dataset[keep, :].copy()
 
     if run_setup_anndata:
-        setup_anndata(
+        _setup_anndata(
             dataset,
         )
 

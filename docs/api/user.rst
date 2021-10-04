@@ -30,6 +30,7 @@ Model
    model.SCVI
    model.TOTALVI
    model.MULTIVI
+   model.AmortizedLDA
 
 
 

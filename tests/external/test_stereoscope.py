@@ -5,7 +5,11 @@ from scvi.external import RNAStereoscope, SpatialStereoscope
 
 
 def test_stereoscope(save_path):
-    dataset = synthetic_iid(n_labels=5)
+    dataset = synthetic_iid(n_labels=5, run_setup_anndata=False)
+    RNAStereoscope.setup_anndata(
+        dataset,
+        labels_key="labels",
+    )
 
     # train with no proportions
     sc_model = RNAStereoscope(dataset)

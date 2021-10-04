@@ -35,13 +35,13 @@ class ArchesMixin:
         freeze_classifier: bool = True,
     ):
         """
-        Online update of a reference model with scArches algorithm [Lotfollahi20]_.
+        Online update of a reference model with scArches algorithm [Lotfollahi21]_.
 
         Parameters
         ----------
         adata
             AnnData organized in the same way as data used to train model.
-            It is not necessary to run :func:`~scvi.data.setup_anndata`,
+            It is not necessary to run setup_anndata,
             as AnnData is validated against the saved `scvi` setup dictionary.
         reference_model
             Either an already instantiated model of the same class, or a path to
