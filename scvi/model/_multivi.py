@@ -414,7 +414,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         normalize_regions: bool = False,
         batch_size: int = 128,
         return_numpy: bool = False,
-    ) -> Union[np.ndarray, csr_matrix]:
+    ) -> Union[np.ndarray, csr_matrix, pd.DataFrame]:
         """
         Impute the full accessibility matrix.
 
