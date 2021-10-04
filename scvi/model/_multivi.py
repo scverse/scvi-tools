@@ -415,12 +415,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
 
-        # TO DO: This needs to be validates
-        if n_samples_overall > 1:
-            # The -2 axis correspond to cells.
-            imputed = np.concatenate(imputed, axis=-2)
-            imputed = imputed.mean(0)
-
         return imputed
 
     @torch.no_grad()
