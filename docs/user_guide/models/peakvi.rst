@@ -7,15 +7,13 @@ be used for many common downstream tasks.
 
 The advantages of peakVI are:
 
-    + Comprehensive in capabilities.
-
-    + Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of peakVI include:
 
-    + Effectively requires a GPU for fast inference.
-
-    + Latent space is not interpretable, unlike that of a linear method.
+- Effectively requires a GPU for fast inference.
+- Latent space is not interpretable, unlike that of a linear method.
 
 .. topic:: Tutorials:
 
