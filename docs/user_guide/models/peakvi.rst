@@ -143,7 +143,7 @@ In :func:`~scvi.model.PEAKVI.get_accessibility_estimates` PeakVI returns the exp
        \mathbb{E}_{q_\eta(z_i \mid x_i)}\left[g_z\left( z_i, s_i \right) \right],
     \end{align}
 
-The expectation is computed using the mean of :math:`z_i` by default, but this behaviour can be changed by setting ``use_z_mean=False`` argument.
+As the expectation can be expensive to compute, by default, PeakVI uses the mean of :math:`z_i` as a point estimate, but this behaviour can be changed by setting ``use_z_mean=False`` argument.
 
 Notably, this function also has the ``transform_batch`` parameter that allows counterfactual prediction of accessibility in an unobserved batch. See the :doc:`/user_guide/background/counterfactual_prediction` guide.
 
