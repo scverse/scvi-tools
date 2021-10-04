@@ -134,7 +134,7 @@ A PeakVI model can be pre-trained on reference data and updated with query data 
 
 
 Estimation of accessibility
-------------------------------------------------
+---------------------------
 
 In :func:`~scvi.model.PEAKVI.get_accessibility_estimates` PeakVI returns the expected value of :math:`y_i` under the approximate posterior. For one cell :math:`i`, this can be written as:
 
@@ -145,13 +145,7 @@ In :func:`~scvi.model.PEAKVI.get_accessibility_estimates` PeakVI returns the exp
        \mathbb{E}_{q_\eta(z_i \mid x_i)}\left[g_z\left( z_i, s_i \right) \right],
     \end{align}
 
-
-The expectation is approximated using Monte Carlo, and the number of samples can be passed as an argument in the code::
-
-    >>> model.get_accessibility_estimates(n_samples=10)
-
-
-By default the mean over these samples is returned, but users may pass ``return_mean=False`` to retrieve all the samples.
+The expectation is computed using the mean of :math:`z_i` by default, but this behaviour can be changed by setting ``use_z_mean=False`` argument.
 
 Notably, this function also has the ``transform_batch`` parameter that allows counterfactual prediction of accessibility in an unobserved batch. See the :doc:`/user_guide/background/counterfactual_prediction` guide.
 
