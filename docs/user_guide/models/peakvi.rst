@@ -91,13 +91,13 @@ Inference
 
 PeakVI uses variational inference, specifically auto-encoding variational Bayes (see :doc:`/user_guide/background/variational_inference`) to learn both the model parameters (the neural network params, scaling factors, etc.) and an approximate posterior distribution with the following factorization:
 
- .. math::
-    :nowrap:
+.. math::
+   :nowrap:
 
-    \begin{align}
-       q_\eta(z_i, \ell_i \mid x_i) :=
-       q_\eta(z_i \mid x_i)q_\eta(\ell_i \mid x_i).
-    \end{align}
+   \begin{align}
+      q_\eta(z_i, \ell_i \mid x_i) :=
+      q_\eta(z_i \mid x_i)q_\eta(\ell_i \mid x_i).
+   \end{align}
 
 Here :math:`\eta` is a set of parameters corresponding to inference neural networks (encoders), which we do not describe in detail here. The underlying class used as the encoder for PeakVI is :class:`~scvi.nn.Encoder`.
 
