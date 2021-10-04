@@ -11,7 +11,7 @@ Changes
 - Restricted PyTorch Lightning version to <1.4 (`#1145`_)
 - Made ``setup_anndata`` a static method on model classes rather than one global function (`#1150`_)
 - Used Pytorch Lightning's ``seed_everything`` method to set seed (`#1151`_)
-- Fixed a bug in :class:`~PyroMixin` for posterior sampling (`#1158`_)
+- Fixed a bug in :class:`~scvi.model.base.PyroSampleMixin` for posterior sampling (`#1158`_)
 - Added CITE-Seq datasets (`#1182`_)
 - Added user guides to our documentation (`#1127`_, `#1157`_, `#1180`_, `#1193`_, `#1183`_)
 
