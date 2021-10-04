@@ -128,7 +128,7 @@ In particular, we will represent state :math:`C` latent representation with the 
       p_\theta(z \mid x_n),
    \end{align}
 
-where ``idx1`` and``idx2`` specify which observations to use to approximate these quantities.
+where ``idx1`` and ``idx2`` specify which observations to use to approximate these quantities.
 
 Once established latent distributions for each state, expression vectors :math:`h_{n} \in \mathbb{R}^F` (:math:`F` being the total number of features) are obtained as neural network outputs :math:`h_n = f^h_\theta(z_n)`.
 We note :math:`h^A_f, h^B_f` the respective expression levels in states :math:`A, B` obtained using this sampling procedure.
