@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Iterable, List, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -285,7 +285,24 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
         batch_size: int = 128,
-    ):
+    ) -> Dict[str, np.ndarray]:
+        """
+        Return library size factors.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+
+        Returns
+        -------
+        Library size factor for expression and accessibility
+        """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -305,6 +322,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     @torch.no_grad()
     def get_region_factors(self) -> np.ndarray:
+        """Return region-specific factors."""
         if self.module.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
         return torch.sigmoid(self.module.region_factors).cpu().numpy()
@@ -318,6 +336,28 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         give_mean: bool = True,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
+        r"""
+        Return the latent representation for each cell.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        modality
+            Return modality specific or joint latent representation.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        give_mean
+            Give mean of distribution or sample from it.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+
+        Returns
+        -------
+        latent_representation : np.ndarray
+            Low-dimensional representation for each cell
+        """
         if not self.is_trained_:
             raise RuntimeError("Please train the model first.")
 
@@ -374,6 +414,45 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         normalize_regions: bool = False,
         batch_size: int = 128,
     ) -> Union[np.ndarray, csr_matrix]:
+        """
+        Impute the full accessibility matrix.
+
+        Returns a matrix of accessibility probabilities for each cell and genomic region in the input
+        (for return matrix A, A[i,j] is the probability that region j is accessible in cell i).
+
+        Parameters
+        ----------
+        adata
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        n_samples_overall
+            Number of samples to return in total
+        region_indices
+            Indices of regions to use. if `None`, all regions are used.
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+        use_z_mean
+            If True (default), use the distribution mean. Otherwise, sample from the distribution.
+        threshold
+            If provided, values below the threshold are replaced with 0 and a sparse matrix
+            is returned instead. This is recommended for very large matrices. Must be between 0 and 1.
+        normalize_cells
+            Whether to reintroduce library size factors to scale the normalized probabilities.
+            This makes the estimates closer to the input, but removes the library size correction.
+            False by default.
+        normalize_regions
+            Whether to reintroduce region factors to scale the normalized probabilities. This makes
+            the estimates closer to the input, but removes the region-level bias correction. False by
+            default.
+        batch_size
+            Minibatch size for data loading into model
+        """
         adata = self._validate_anndata(adata)
         if indices is None:
             indices = np.arange(adata.n_obs)
