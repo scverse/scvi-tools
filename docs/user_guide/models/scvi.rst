@@ -7,15 +7,13 @@ be used for many common downstream tasks.
 
 The advantages of scVI are:
 
-    + Comprehensive in capabilities.
-
-    + Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of scVI include:
 
-    + Effectively requires a GPU for fast inference.
-
-    + Latent space is not interpretable, unlike that of a linear method.
+- Effectively requires a GPU for fast inference.
+- Latent space is not interpretable, unlike that of a linear method.
 
 
 .. topic:: Tutorials:
@@ -107,13 +105,13 @@ Inference
 scVI uses variational inference and specifically auto-encoding variational bayes (see :doc:`/user_guide/background/variational_inference`) to learn both the model parameters (the
 neural network params, dispersion params, etc.) and an approximate posterior distribution with the following factorization:
 
- .. math::
-    :nowrap:
+.. math::
+   :nowrap:
 
-    \begin{align}
-       q_\eta(z_n, \ell_n \mid x_n) :=
-       q_\eta(z_n \mid x_n, s_n)q_\eta(\ell_n \mid x_n).
-    \end{align}
+   \begin{align}
+      q_\eta(z_n, \ell_n \mid x_n) :=
+      q_\eta(z_n \mid x_n, s_n)q_\eta(\ell_n \mid x_n).
+   \end{align}
 
 Here :math:`\eta` is a set of parameters corresponding to inference neural networks (encoders), which we do not describe in detail here,
 but are described in the scVI paper. The underlying class used as the encoder for scVI is :class:`~scvi.nn.Encoder`.

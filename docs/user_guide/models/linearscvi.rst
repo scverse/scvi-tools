@@ -7,15 +7,13 @@ is a flavor of scVI with a linear decoder.
 
 The advantages of LDVAE are:
 
-    + Can be used to interpret latent dimensions with factor loading matrix.
-
-    + Scalable to very large datasets (>1 million cells).
+- Can be used to interpret latent dimensions with factor loading matrix.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of LDVAE include:
 
-    + Less capacity than scVI, which uses a neural network decoder.
-
-    + Less capable of integrating data with complex batch effects.
+- Less capacity than scVI, which uses a neural network decoder.
+- Less capable of integrating data with complex batch effects.
 
 
 .. topic:: Tutorials:

@@ -10,15 +10,13 @@ such that CellAssign will scale to very large datasets.
 
 The advantages of CellAssign are:
 
-    + Lightweight model that can be fit quickly.
-
-    + Ability to control for nuisance factors.
+- Lightweight model that can be fit quickly.
+- Ability to control for nuisance factors.
 
 The limitations of CellAssign include:
 
-    + Requirement for a cell types by gene markers binary matrix.
-
-    + The simple linear model may not handle non-linear batch effects.
+- Requirement for a cell types by gene markers binary matrix.
+- The simple linear model may not handle non-linear batch effects.
 
 
 .. topic:: Tutorials:

@@ -7,13 +7,12 @@ method for the deconvoluton of cell type profiles using a single-cell RNA sequen
 
 The advantages of Stereoscope are:
 
-    + Can stratify cells into discrete cell types.
-
-    + Scalable to very large datasets (>1 million cells).
+- Can stratify cells into discrete cell types.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of Stereoscope include:
 
-    + Effectively requires a GPU for fast inference.
+- Effectively requires a GPU for fast inference.
 
 .. topic:: Tutorial:
 
@@ -23,7 +22,7 @@ The limitations of Stereoscope include:
 Preliminaries
 =============
 Stereoscope requires training two latent variable models (LVMs): one for the single-cell reference
-dataset and one for the spatial transcriptomics dataset, which incorporates the learned parameters of the 
+dataset and one for the spatial transcriptomics dataset, which incorporates the learned parameters of the
 single-cell reference LVM. The first LVM takes in as input a scRNA-seq gene expression matrix of UMI counts
 :math:`Y` with :math:`N` cells and :math:`G` genes, along with a vector of cell type labels :math:`\vec{z}`.
 Subsequently, the second LVM takes in the learned parameters of the first LVM, along with a spatial gene
