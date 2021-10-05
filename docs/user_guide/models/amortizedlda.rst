@@ -25,7 +25,7 @@ The limitations of amortized LDA include:
 
 Preliminaries
 ==============
-Amortized LDA takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` features.
+Amortized LDA takes as input a cell-by-feature matrix :math:`X` with :math:`N` cells and :math:`F` features.
 Because the LDA model assumes the input is ordered, we refer to this format as the bag-of-words (BoW) representation
 of the feature counts.
 Additionally, the number of topics to model must be manually set by the user prior to fitting the model.
@@ -78,13 +78,13 @@ The latent variables, along with their description are summarized in the followi
      - ``cell_topic_prior``
    * - :math:`\eta \in (0, \infty)^K`
      - Parameter for the Dirichlet prior on the topic feature distribution, :math:`\beta_k`. Approximated by a logistic-Normal distribution.
-     - ``topic_gene_prior``
+     - ``topic_feature_prior``
    * - :math:`\theta_c \in \Delta^{K-1}`
      - Cell topic distribution for a given cell :math:`c`.
      - ``cell_topic_dist``
-   * - :math:`\beta_k \in \Delta^{G-1}`
+   * - :math:`\beta_k \in \Delta^{F-1}`
      - Topic feature distribution for a given topic :math:`k`.
-     - ``topic_gene_dist``
+     - ``topic_feature_dist``
 
 Inference
 =========
@@ -116,12 +116,12 @@ with the same format as the dataset used to train the model:
 If the learned topics generalize well to other datasets, this can serve as a dimensionality reduction method
 to the learned topic latent space.
 
-Gene module discovery
+Feautre module discovery
 ---------------------
 
 Once the model has been fitted, one can retrieve the estimated feature-by-topic distribution:
 
-    >>> gene_by_topic = model.get_gene_by_topic()
+    >>> feature_by_topic = model.get_feature_by_topic()
 
 Like the ``get_latent_representation()`` method, this returns a Monte Carlo estimate of the logistic-Normal expectation.
 Similarly, we can configure the number of samples with ``n_samples``.
