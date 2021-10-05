@@ -69,18 +69,18 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
 
 9. Add tests to the `/tests` directory. These files start with `test_` and contain functions that start similarly with `test_`.
 
-10.  When you're done making changes, run the tests using pytest::
+10. When you're done making changes, run the tests using pytest::
 
     $ pytest tests/models/test_my_new_feature.py
     $ pytest tests/models/test_my_new_feature.py::test_particular_function_in_file
 
-11.  Commit your changes and push your branch to GitHub::
+11. Commit your changes and push your branch to GitHub::
 
     $ git add <file> ...
     $ git commit -m "Your detailed description of your changes."
     $ git push origin name-of-your-bugfix-or-feature
 
-12.  Submit a pull request through the GitHub website.
+12. Submit a pull request through the GitHub website.
 
 
 Coding Standards
