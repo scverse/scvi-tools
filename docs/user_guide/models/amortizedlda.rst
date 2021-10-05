@@ -1,6 +1,6 @@
-======
+=============
 Amortized LDA
-======
+=============
 
 **LDA** [#ref1]_ (Latent Dirichlet Allocation; Python class :class:`~scvi.model.AmortizedLDA`) posits a generative model where
 a set of latent topics generates collections of elements. In the case of single-cell RNA sequencing, we can think
