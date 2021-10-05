@@ -2,7 +2,7 @@
 Differential Expression
 ==============================
 
-Under construction.
+.. note:: This page is under construction.
 
 Problem statement
 ==================
@@ -128,7 +128,7 @@ In particular, we will represent state :math:`C` latent representation with the 
       p_\theta(z \mid x_n),
    \end{align}
 
-where ``idx1`` and``idx2`` specify which observations to use to approximate these quantities.
+where ``idx1`` and ``idx2`` specify which observations to use to approximate these quantities.
 
 Once established latent distributions for each state, expression vectors :math:`h_{n} \in \mathbb{R}^F` (:math:`F` being the total number of features) are obtained as neural network outputs :math:`h_n = f^h_\theta(z_n)`.
 We note :math:`h^A_f, h^B_f` the respective expression levels in states :math:`A, B` obtained using this sampling procedure.
@@ -212,16 +212,14 @@ However, note that the posterior expectation of :math:`d^f`, denoted as :math:`\
 Hence, by linearity of the expectation, we can estimate the false discovery rate corresponding to :math:`k` detected features as
 
 .. math::
-   :nowrap:
 
-   \begin{align}
-      \mathbb{E}_{post}[FDP_{\mu^k}] = \frac{\sum_f (1 - p^f) \mu_f^k}{\sum_f \mu_f^k}.
-   \end{align}
-
- Hence, for a given significance level :math:`\alpha`, we select the maximum detections :math:`k^*`, such that :math:`\mathbb{E}_{post}[FDP_{\mu^k}] \leq \alpha`, as illustrated below.
+   \mathbb{E}_{post}[FDP_{\mu^k}] = \frac{\sum_f (1 - p^f) \mu_f^k}{\sum_f \mu_f^k}.
 
 
- .. figure:: figures/fdr_control.png
+Hence, for a given significance level :math:`\alpha`, we select the maximum detections :math:`k^*`, such that :math:`\mathbb{E}_{post}[FDP_{\mu^k}] \leq \alpha`, as illustrated below.
+
+
+.. figure:: figures/fdr_control.png
    :class: img-fluid
    :align: center
    :alt: FDR control
