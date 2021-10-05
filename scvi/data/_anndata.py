@@ -386,6 +386,9 @@ def register_tensor_from_anndata(
     _verify_and_correct_data_format(adata, data_registry)
 
 
+@deprecated(
+    extra="This method will be removed in 0.15.0. Please avoid building any new dependencies on it."
+)
 def transfer_anndata_setup(
     adata_source: Union[anndata.AnnData, dict],
     adata_target: anndata.AnnData,
@@ -900,6 +903,9 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
     adata.uns["_scvi"]["data_registry"] = data_registry_dict.copy()
 
 
+@deprecated(
+    extra="This method will be removed in 0.15.0. Please avoid building any new dependencies on it."
+)
 def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
     """
     Prints setup anndata.
