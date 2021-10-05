@@ -119,13 +119,13 @@ MultiVI uses variational inference and specifically auto-encoding variational ba
 (see :doc:`/user_guide/background/variational_inference`) to learn both the model parameters (the
 neural network params, dispersion params, etc.) and an approximate posterior distribution with the following factorization:
 
- .. math::
-    :nowrap:
+.. math::
+   :nowrap:
 
-    \begin{align}
-       q_\eta(z_n, \ell_n \mid x_n) :=
-       q_\eta(z_n \mid x_n, y_n, s_n)q_\eta(\ell_n \mid x_n).
-    \end{align}
+   \begin{align}
+      q_\eta(z_n, \ell_n \mid x_n) :=
+      q_\eta(z_n \mid x_n, y_n, s_n)q_\eta(\ell_n \mid x_n).
+   \end{align}
 
 Here :math:`\eta` is a set of parameters corresponding to inference neural networks (encoders), which we do not describe
 in detail here, but are described in the MultiVI paper. The underlying class used as the encoder for MultiVI is
