@@ -216,7 +216,7 @@ Hence, by linearity of the expectation, we can estimate the false discovery rate
    \mathbb{E}_{post}[FDP_{\mu^k}] = \frac{\sum_f (1 - p^f) \mu_f^k}{\sum_f \mu_f^k}.
 
 
- Hence, for a given significance level :math:`\alpha`, we select the maximum detections :math:`k^*`, such that :math:`\mathbb{E}_{post}[FDP_{\mu^k}] \leq \alpha`, as illustrated below.
+Hence, for a given significance level :math:`\alpha`, we select the maximum detections :math:`k^*`, such that :math:`\mathbb{E}_{post}[FDP_{\mu^k}] \leq \alpha`, as illustrated below.
 
 
 .. figure:: figures/fdr_control.png
