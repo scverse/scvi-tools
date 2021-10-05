@@ -42,10 +42,10 @@ the feature observed, :math:`x_{cn}` is produced according to the following gene
 
    \begin{align}
     \text{For each topic $k$:} \\
-      &\beta_k \sim \mathrm{Dir}(\eta) \\
-    \theta_c &\sim \mathrm{Dir}(\alpha) \\
+    \quad \beta_k \sim \mathrm{Dir}(\eta) \\
+    \theta_c \sim \mathrm{Dir}(\alpha) \\
     \text{For each UMI count $n$:} \\
-      &x_{cn} \sim \mathrm{Cat}(\theta_c \beta_{z_{cn}})
+    \quad x_{cn} \sim \mathrm{Cat}(\theta_c \beta_{z_{cn}})
    \end{align}
 
 where :math:`\eta` denotes the prior on the Dirichlet distribution for the topic feature distribution :math:`\beta`,
@@ -58,7 +58,7 @@ which has a diagonal covariance matrix [#ref2]_:
    :nowrap:
 
    \begin{align}
-    \mu_k &= \mathrm{log}\alpha_k - \frac{1}{K}\sum_i \mathrm{log} \alpha_i \\
+    \mu_k &= \log\alpha_k - \frac{1}{K}\sum_i \log\alpha_i \\
     \Sigma_{kk} &= \frac{1}{\alpha_k} \left(1 - \frac{2}{K}\right) + \frac{1}{K^2} \sum_i \frac{1}{\alpha_k}
    \end{align}
 
