@@ -29,50 +29,58 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     # If you have pyenv-virtualenv
     pyenv virtualenv scvi-tools-dev
     pyenv activate scvi-tools-dev
-    # If you have conda
-    conda create -n scvi-tools-dev
+    # If you have conda (omit the python parameter if you already have the relevant python version installed)
+    conda create -n scvi-tools-dev python=3.8.8 # or any python >3.7 that is available (conda search python)
     conda activate scvi-tools-dev
-    # Enter the cloned repository
+    # Enter the cloned repository and install the package in editable mode
     cd scvi-tools
     pip install -e ".[dev,docs,tutorials]"
 
-4. **[Advanced users]** Install your local copy into a virtualenv with Poetry. Our preferred local installation method consists of using `pyenv-virtualenv` to create a virtualenv, and using `poetry` to create an editable local installation. If using this approach, please be sure to install `poetry` the `recommended <https://python-poetry.org/docs/#installation>`_ way. Once `poetry` is installed::
+To confirm that scvi-tools was successfully installed::
+
+    # This should find the package. Note that other metadata (such as Version, Summary, etc.) might be missing. This is expected
+    # because we use poetry instead of setup-tools. On a non-editable install, these would be populated.
+    pip show scvi-tools
+
+1. **[Advanced users]** Install your local copy into a virtualenv with Poetry. Our preferred local installation method consists of using `pyenv-virtualenv` to create a virtualenv, and using `poetry` to create an editable local installation. If using this approach, please be sure to install `poetry` the `recommended <https://python-poetry.org/docs/#installation>`_ way. Once `poetry` is installed::
 
     pyenv virtualenv scvi-tools-dev
     pyenv activate scvi-tools-dev
     cd scvi-tools
     poetry install --extras "dev docs tutorials"
 
-5. **[Optional]** Install a version of PyTorch that supports your GPU. This will even be the case if you use Poetry.
+To confirm that scvi-tools was successfully installed, proceed in the same way as above. This time, ``pip show scvi-tools`` should show all other metadata as well (Version, Summary, etc.).
 
-6. Create an ipykernel so you can use your environment with a Jupyter notebook. This will make this developement environment available through Jupyter notebook/lab. Inside your virtualenv::
+1. **[Optional]** Install a version of PyTorch that supports your GPU. This will be the case even if you use Poetry.
+
+2. Create an ipykernel so you can use your environment with a Jupyter notebook. This will make this developement environment available through Jupyter notebook/lab. Inside your virtualenv::
 
     python -m ipykernel install --user --name=scvi-tools-dev
 
-7. Install pre-commit, which will enforce the scvi-tools code style (black, flake8) on each of your commits::
+3. Install pre-commit, which will enforce the scvi-tools code style (black, flake8) on each of your commits::
 
     $ pre-commit install
 
-8. Create a branch for local development::
+4. Create a branch for local development::
 
     $ git checkout -b {your-branch-name}
 
    Now you can make your changes locally.
 
-9. Add tests to the `/tests` directory. These files start with `test_` and contain functions that start similarly with `test_`.
+5. Add tests to the `/tests` directory. These files start with `test_` and contain functions that start similarly with `test_`.
 
-10. When you're done making changes, run the tests using pytest::
+6.  When you're done making changes, run the tests using pytest::
 
     $ pytest tests/models/test_my_new_feature.py
     $ pytest tests/models/test_my_new_feature.py::test_particular_function_in_file
 
-11. Commit your changes and push your branch to GitHub::
+7.  Commit your changes and push your branch to GitHub::
 
     $ git add <file> ...
     $ git commit -m "Your detailed description of your changes."
     $ git push origin name-of-your-bugfix-or-feature
 
-12. Submit a pull request through the GitHub website.
+8.  Submit a pull request through the GitHub website.
 
 
 Coding Standards
