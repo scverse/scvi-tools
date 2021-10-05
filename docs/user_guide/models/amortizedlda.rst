@@ -2,22 +2,21 @@
 Amortized LDA
 =============
 
-**LDA** [#ref1]_ (Latent Dirichlet Allocation; Python class :class:`~scvi.model.AmortizedLDA`) posits a generative model where
+**LDA** [#ref1]_ (Latent Dirichlet Allocation) posits a generative model where
 a set of latent topics generates collections of elements. In the case of single-cell RNA sequencing, we can think
-of these topics as gene modules and each cell as a collection of UMI counts. This implementation of LDA amortizes the
-cost of performing variational inference for each cell by training a common encoder.
+of these topics as gene modules and each cell as a collection of UMI counts. Other features that can be ascribed to these
+topics include surface proteins and accessible chromatin regions, all of which have discrete count values.
+This implementation (Python class :class:`~scvi.model.AmortizedLDA`) of LDA amortizes the
+cost of performing variational inference for each cell by training a common encoder. Note: this is not an exact implementation
+of the model described in the original LDA paper [#ref1]_.
 
 The advantages of amortized LDA are:
-
-    + Can learn underlying topics without a reference.
-
-    + Scalable to very large datasets (>1 million cells).
+- Can learn underlying topics without a reference.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of amortized LDA include:
-
-    + Optimal selection of the number of topics is unclear.
-
-    + Amortization gap in optimizing variational parameters.
+- Optimal selection of the number of topics is unclear.
+- Amortization gap in optimizing variational parameters.
 
 .. topic:: Tutorials:
 
@@ -26,17 +25,17 @@ The limitations of amortized LDA include:
 
 Preliminaries
 ==============
-Amortized LDA takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` genes.
+Amortized LDA takes as input a scRNA-seq gene expression matrix :math:`X` with :math:`N` cells and :math:`G` features.
 Because the LDA model assumes the input is ordered, we refer to this format as the bag-of-words (BoW) representation
-of the gene expression UMI counts.
+of the feature counts.
 Additionally, the number of topics to model must be manually set by the user prior to fitting the model.
 
 
 Generative process
 ==================
 
-Amortized LDA posits that the :math:`N` observed UMI counts for cell :math:`c` are treated as ordered. For the :math:`n`th UMI count,
-the gene expressed, :math:`x_{cn}` is produced according to the following generative process:
+Amortized LDA posits that the :math:`N` observed feature counts for cell :math:`c` are treated as ordered. For the :math:`n`th feature count,
+the feature observed, :math:`x_{cn}` is produced according to the following generative process:
 
 .. math::
    :nowrap:
@@ -49,7 +48,7 @@ the gene expressed, :math:`x_{cn}` is produced according to the following genera
       &x_{cn} \sim \mathrm{Cat}(\theta_c \beta_{z_{cn}})
    \end{align}
 
-where :math:`\eta` denotes the prior on the Dirichlet distribution for the topic gene distribution :math:`\beta`,
+where :math:`\eta` denotes the prior on the Dirichlet distribution for the topic feature distribution :math:`\beta`,
 and :math:`\alpha` denotes the prior on the Dirichlet distribution for the cell topic distribution :math:`\theta_c`.
 In order to compute reparametrization gradients stably, we approximate the Dirichlet distribution with a logistic-Normal
 distribution, followed by a softmax operation. Specifically, we use the Laplace approximation
@@ -78,20 +77,20 @@ The latent variables, along with their description are summarized in the followi
      - Parameter for the Dirichlet prior on the cell topic distribution, :math:`\theta_c`. Approximated by a logistic-Normal distribution.
      - ``cell_topic_prior``
    * - :math:`\eta \in (0, \infty)^K`
-     - Parameter for the Dirichlet prior on the topic gene distribution, :math:`\beta_k`. Approximated by a logistic-Normal distribution.
+     - Parameter for the Dirichlet prior on the topic feature distribution, :math:`\beta_k`. Approximated by a logistic-Normal distribution.
      - ``topic_gene_prior``
    * - :math:`\theta_c \in \Delta^{K-1}`
      - Cell topic distribution for a given cell :math:`c`.
      - ``cell_topic_dist``
    * - :math:`\beta_k \in \Delta^{G-1}`
-     - Topic gene distribution for a given topic :math:`k`.
+     - Topic feature distribution for a given topic :math:`k`.
      - ``topic_gene_dist``
 
 Inference
 =========
 
 Amortized LDA uses variational inference and specifically auto-encoding variational bayes (see :doc:`/user_guide/background/variational_inference`)
-to learn both the model parameters (the neural network params, topic gene distributions, etc.) and an approximate posterior distribution.
+to learn both the model parameters (the neural network params, topic feature distributions, etc.) and an approximate posterior distribution.
 Like :class:`scvi.model.SCVI`, the underlying class used as the encoder for Amortized LDA is :class:`~scvi.nn.Encoder`.
 
 Tasks
@@ -120,7 +119,7 @@ to the learned topic latent space.
 Gene module discovery
 ---------------------
 
-Once the model has been fitted, one can retrieve the estimated gene-by-topic distribution:
+Once the model has been fitted, one can retrieve the estimated feature-by-topic distribution:
 
     >>> gene_by_topic = model.get_gene_by_topic()
 
