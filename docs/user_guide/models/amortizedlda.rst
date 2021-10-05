@@ -47,7 +47,7 @@ the feature observed, :math:`x_{cn}` is produced according to the following gene
     &\quad \beta_k \sim \mathrm{Dir}(\eta) \\
     &\theta_c \sim \mathrm{Dir}(\alpha) \\
     &\text{For each UMI count $n$:} \\
-    &\quad x_{cn} \sim \mathrm{Cat}(\theta_c \beta_{z_{cn}})
+    &\quad x_{cn} \sim \mathrm{Cat}(\theta_c \beta)
    \end{align}
 
 where :math:`\eta` denotes the prior on the Dirichlet distribution for the topic feature distribution :math:`\beta`,
