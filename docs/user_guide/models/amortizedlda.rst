@@ -8,13 +8,15 @@ of these topics as gene modules and each cell as a collection of UMI counts. Oth
 topics include surface proteins and accessible chromatin regions, all of which have discrete count values.
 This implementation (Python class :class:`~scvi.model.AmortizedLDA`) of LDA amortizes the
 cost of performing variational inference for each cell by training a common encoder. Note: this is not an exact implementation
-of the model described in the original LDA paper [#ref1]_.
+of the model described in the original LDA paper.
 
 The advantages of amortized LDA are:
+
 - Can learn underlying topics without a reference.
 - Scalable to very large datasets (>1 million cells).
 
 The limitations of amortized LDA include:
+
 - Optimal selection of the number of topics is unclear.
 - Amortization gap in optimizing variational parameters.
 
@@ -41,11 +43,11 @@ the feature observed, :math:`x_{cn}` is produced according to the following gene
    :nowrap:
 
    \begin{align}
-    \text{For each topic $k$:} \\
-    \quad \beta_k \sim \mathrm{Dir}(\eta) \\
-    \theta_c \sim \mathrm{Dir}(\alpha) \\
-    \text{For each UMI count $n$:} \\
-    \quad x_{cn} \sim \mathrm{Cat}(\theta_c \beta_{z_{cn}})
+    &\text{For each topic $k$:} \\
+    &\quad \beta_k \sim \mathrm{Dir}(\eta) \\
+    &\theta_c \sim \mathrm{Dir}(\alpha) \\
+    &\text{For each UMI count $n$:} \\
+    &\quad x_{cn} \sim \mathrm{Cat}(\theta_c \beta_{z_{cn}})
    \end{align}
 
 where :math:`\eta` denotes the prior on the Dirichlet distribution for the topic feature distribution :math:`\beta`,
