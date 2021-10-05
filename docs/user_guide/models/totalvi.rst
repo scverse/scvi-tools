@@ -7,15 +7,13 @@ be used for many common downstream tasks.
 
 The advantages of totalVI are:
 
-    + Comprehensive in capabilities.
-
-    + Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of totalVI include:
 
-    + Effectively requires a GPU for fast inference.
-
-    + Difficult to understand the balance between RNA and protein data in the low-dimensional representation of cells.
+- Effectively requires a GPU for fast inference.
+- Difficult to understand the balance between RNA and protein data in the low-dimensional representation of cells.
 
 .. topic:: Tutorials:
 
@@ -139,13 +137,13 @@ totalVI uses variational inference, and specifically auto-encoding variational b
 neural network params, dispersion params, etc.), and an approximate posterior distribution with the following factorization:
 
 
- .. math::
-    :nowrap:
+.. math::
+  :nowrap:
 
-    \begin{align}
-       q_\eta(\beta_n, z_n, l_n \mid x_n, y_n, s_n) :=
-       q_\eta(\beta_n \mid z_n,s_n)q_\eta(z_n \mid x_n, y_n,s_n)q_\eta(l_n \mid x_n, y_n, s_n).
-    \end{align}
+  \begin{align}
+     q_\eta(\beta_n, z_n, l_n \mid x_n, y_n, s_n) :=
+     q_\eta(\beta_n \mid z_n,s_n)q_\eta(z_n \mid x_n, y_n,s_n)q_\eta(l_n \mid x_n, y_n, s_n).
+  \end{align}
 
 Here :math:`\eta` is a set of parameters corresponding to inference neural networks, which we do not describe in detail here,
 but are described in the totalVI paper. totalVI can also handle missing proteins (i.e., a dataset comprised of
