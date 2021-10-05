@@ -8,15 +8,13 @@ and also for imputation of a missing modality.
 
 The advantages of multiVI are:
 
-    + Comprehensive in capabilities. Able to perform DE gene, DA region analysis.
+- Comprehensive in capabilities. Able to perform DE gene, DA region analysis.
+- Scalable to very large datasets (>1 million cells).
+- Once trained with sufficient multimodal data, able to accurately input missing modalities.
 
-    + Scalable to very large datasets (>1 million cells).
+The limitations of MultiVI include:
 
-    + Once trained with sufficient multimodal data, able to accurately input missing modalities.
-
-The limitations of scVI include:
-
-    + Effectively requires a GPU for fast inference.
+- Effectively requires a GPU for fast inference.
 
 .. topic:: Tutorials:
 
