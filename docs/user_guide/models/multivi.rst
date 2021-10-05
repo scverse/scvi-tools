@@ -44,7 +44,7 @@ MultiVI posits that the observed UMI counts for cell :math:`n`, gene :math:`g`, 
    :nowrap:
 
    \begin{align}
-    z_n &= &\sim {\mathrm{Normal}}\left( {0,I} \right) \\
+    z_n &\sim {\mathrm{Normal}}\left( {0,I} \right) \\
     \ell_n &\sim \mathrm{LogNormal}\left( \ell_\mu^\top s_n ,\ell_{\sigma^2}^\top s_n \right) \\
     \rho _n &= f_w\left( z_n, s_n \right) \\
     \pi_{ng} &= f_h^g(z_n, s_n) \\
