@@ -34,8 +34,11 @@ scRNA-seq analysis
     models/cellassign
 
 
-CITE-seq analysis
------------------
+Multimodal analysis
+--------------------
+
+CITE-seq
+^^^^^^^^^
 
 .. list-table::
    :widths: 15 15 100
@@ -53,6 +56,26 @@ CITE-seq analysis
     :hidden:
 
     models/totalvi
+    
+Multiome
+^^^^^^^^^
+
+.. list-table::
+   :widths: 15 15 100
+   :header-rows: 1
+
+   * - Model
+     - Reference
+     - Tasks
+   * - :doc:`/user_guide/models/multivi`
+     - [AshuachGabitto21]_
+     - Integration of paired/unpaired multiome data, missing modality imputation, normalization of other cell- and sample-level confounding factors
+     
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+
+    models/multivi
 
 
 Spatial Transcriptomics analysis
