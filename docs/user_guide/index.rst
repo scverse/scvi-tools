@@ -127,6 +127,26 @@ Spatial Transcriptomics analysis
     models/stereoscope
 
 
+General Purpose analysis
+------------------------
+
+.. list-table::
+   :widths: 15 15 100
+   :header-rows: 1
+
+   * - Model
+     - Reference
+     - Tasks
+   * - :doc:`/user_guide/models/amortizedlda`
+     - [Blei03]_
+     - Topic modeling 
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+
+    models/amortizedlda
+
 
 Background
 -----------------
