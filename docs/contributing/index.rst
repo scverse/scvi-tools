@@ -36,7 +36,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     cd scvi-tools
     pip install -e ".[dev,docs,tutorials]"
 
-    To confirm that scvi-tools was successfully installed::
+   To confirm that scvi-tools was successfully installed::
 
     # This should find the package. Note that other metadata (such as Version, Summary, etc.) might be missing. This
     # is expected because we use poetry instead of setup-tools. On a non-editable install, these would be populated.
@@ -49,7 +49,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     cd scvi-tools
     poetry install --extras "dev docs tutorials"
 
-To confirm that scvi-tools was successfully installed, proceed in the same way as above. This time, ``pip show scvi-tools`` should show all other metadata as well (Version, Summary, etc.).
+   To confirm that scvi-tools was successfully installed, proceed in the same way as above. This time, ``pip show scvi-tools`` should show all other metadata as well (Version, Summary, etc.).
 
 5. **[Optional]** Install a version of PyTorch that supports your GPU. This will be the case even if you use Poetry.
 
