@@ -34,6 +34,7 @@ scRNA-seq
    notebooks/scarches_scvi_tools
    notebooks/AutoZI_tutorial
    notebooks/cellassign_tutorial
+   notebooks/amortized_lda
 
 
 ATAC-seq
@@ -65,14 +66,6 @@ Multimodal
    notebooks/totalVI_reference_mapping
    notebooks/totalvi_in_R
    notebooks/MultiVI_tutorial
-
-
-General purpose
-^^^^^^^^^^^^^^^
-
-.. nbgallery::
-
-   notebooks/amortized_lda
 
 
 Contributed tutorials
