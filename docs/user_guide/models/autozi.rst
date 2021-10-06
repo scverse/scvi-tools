@@ -15,7 +15,7 @@ AUTOZI is very similar to scVI but employs a spike-and-slab prior for the zero-i
 Whether the zero-inflation rate (:math:`\pi_{ng}` in the original scVI model) is sampled from a set of 
 non-negligible values (the "slab" component) or the set of negligible values (the "spike" component) is defined by
 :math:`m_g \sim Bernoulli(\delta_g)` where :math:`\delta_g \sim Beta(\alpha, \beta)`.
-Thus, for the each gene :math:`g`, the zero-inflation rate is defined, 
+Thus, for each gene :math:`g`, the zero-inflation rate is defined, 
 :math:`\pi_{ng} = (1-m_g)\pi_{ng}^{slab} + m_g \pi_{ng}^{spike}`.
 
 The full generative model is as follows:
