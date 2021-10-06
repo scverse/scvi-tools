@@ -34,6 +34,16 @@ class TrainingPlan(pl.LightningModule):
     """
     Lightning module task to train scvi-tools modules.
 
+    The training plan is a PyTorch Lightning Module that is initialized
+    with a scvi-tools module object. It configures the optimizers, defines
+    the training step and validation step, and computes metrics to be recorded
+    during training. The training step and validation step are functions that
+    take data, run it through the model and return the loss, which will then
+    be used to optimize the model parameters in the Trainer. Overall, custom
+    training plans can be used to develop complex inference schemes on top of
+    modules.
+    [This](https://docs.scvi-tools.org/en/stable/tutorials/notebooks/model_user_guide.html) developer tutorial will familiarize you more with training plans and how to use them.
+
     Parameters
     ----------
     module
