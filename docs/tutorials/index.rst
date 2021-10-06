@@ -48,15 +48,15 @@ ATAC-seq
 Spatial transcriptomics
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-
 .. nbgallery::
 
    notebooks/DestVI_tutorial
+   notebooks/DestVI_in_R
    notebooks/gimvi_tutorial
 
 
 Multimodal
-^^^^^^^^^^^
+^^^^^^^^^^
 
 .. nbgallery::
 
@@ -66,6 +66,13 @@ Multimodal
    notebooks/totalvi_in_R
    notebooks/MultiVI_tutorial
 
+
+General purpose
+^^^^^^^^^^^^^^^
+
+.. nbgallery::
+
+   notebooks/amortized_lda
 
 
 Contributed tutorials
