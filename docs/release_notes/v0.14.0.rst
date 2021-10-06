@@ -1,4 +1,4 @@
-New in 0.14.0 (2021-10-06)
+New in 0.14.0 (2021-10-07)
 --------------------------
 
 In this release, we have completely revamped the scvi-tools documentation website by creating a new set of user guides that provide: 
