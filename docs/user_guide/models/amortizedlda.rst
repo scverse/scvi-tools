@@ -36,18 +36,16 @@ Additionally, the number of topics to model must be manually set by the user pri
 Generative process
 ==================
 
-Amortized LDA posits that the :math:`N` observed feature counts for cell :math:`c` are treated as ordered. For the :math:`n`th feature count,
-the feature observed, :math:`x_{cn}` is produced according to the following generative process:
+Amortized LDA posits that the :math:`N` observed feature counts for cell :math:`c` are treated as ordered. For all :math:`n \in [N]` feature counts
+for cell :math:`c`, the observed feature counts :math:`x_{cn}` are produced according to the following generative process:
 
 .. math::
    :nowrap:
 
    \begin{align}
-    &\text{For each topic $k$:} \\
-    &\quad \beta_k \sim \mathrm{Dir}(\eta) \\
-    &\theta_c \sim \mathrm{Dir}(\alpha) \\
-    &\text{For each UMI count $n$:} \\
-    &\quad x_{cn} \sim \mathrm{Cat}(\theta_c \beta)
+    \beta_k &\sim \mathrm{Dir}(\eta)  &\forall k \in [K]\\
+    \theta_c &\sim \mathrm{Dir}(\alpha) &\\
+    x_{cn} &\sim \mathrm{Cat}(\theta_c \beta) &\forall n \in [N] \\
    \end{align}
 
 where :math:`\eta` denotes the prior on the Dirichlet distribution for the topic feature distribution :math:`\beta`,

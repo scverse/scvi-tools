@@ -82,7 +82,7 @@ CITE-seq
     models/totalvi
     
 Multiome
-^^^^^^^^^
+^^^^^^^^
 
 .. list-table::
    :widths: 15 15 100
@@ -102,7 +102,7 @@ Multiome
     models/multivi
 
 
-Spatial Transcriptomics analysis
+Spatial transcriptomics analysis
 --------------------------------
 
 .. list-table::
@@ -127,7 +127,7 @@ Spatial Transcriptomics analysis
     models/stereoscope
 
 
-General Purpose analysis
+General purpose analysis
 ------------------------
 
 .. list-table::
