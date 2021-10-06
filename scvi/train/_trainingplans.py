@@ -42,7 +42,9 @@ class TrainingPlan(pl.LightningModule):
     be used to optimize the model parameters in the Trainer. Overall, custom
     training plans can be used to develop complex inference schemes on top of
     modules.
-    [This](https://docs.scvi-tools.org/en/stable/tutorials/notebooks/model_user_guide.html) developer tutorial will familiarize you more with training plans and how to use them.
+    [This](https://docs.scvi-tools.org/en/stable/tutorials/notebooks/model_user_guide.html)
+    developer tutorial will familiarize you more with training plans and how to
+    use them.
 
     Parameters
     ----------
