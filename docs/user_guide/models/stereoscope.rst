@@ -1,6 +1,6 @@
-======
+===========
 Stereoscope
-======
+===========
 
 **Stereoscope** [#ref1]_ posits a probabilistic model of spatial transcriptomics and an associated
 method for the deconvoluton of cell type profiles using a single-cell RNA sequencing reference dataset.

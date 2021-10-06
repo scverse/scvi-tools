@@ -1947,6 +1947,24 @@ python-versions = ">=3.6"
 sphinx = ">=1.8.3"
 
 [[package]]
+name = "sphinx-panels"
+version = "0.6.0"
+description = "A sphinx extension for creating panels in a grid layout."
+category = "main"
+optional = true
+python-versions = "*"
+
+[package.dependencies]
+docutils = "*"
+sphinx = ">=2,<5"
+
+[package.extras]
+code_style = ["pre-commit (>=2.7.0,<2.8.0)"]
+live-dev = ["sphinx-autobuild", "web-compile (>=0.2.0,<0.3.0)"]
+testing = ["pytest (>=6.0.1,<6.1.0)", "pytest-regressions (>=2.0.1,<2.1.0)"]
+themes = ["sphinx-rtd-theme", "pydata-sphinx-theme (>=0.4.0,<0.5.0)", "sphinx-book-theme (>=0.0.36,<0.1.0)", "myst-parser (>=0.12.9,<0.13.0)"]
+
+[[package]]
 name = "sphinx-tabs"
 version = "2.1.0"
 description = "Tabbed views for Sphinx"
@@ -2356,7 +2374,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 
 [extras]
 dev = ["black", "pytest", "flake8", "codecov", "scanpy", "loompy", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort"]
-docs = ["sphinx", "scanpydoc", "nbsphinx", "nbsphinx-link", "ipython", "pydata-sphinx-theme", "typing_extensions", "sphinx-autodoc-typehints", "sphinx_copybutton", "sphinx-gallery", "sphinx-tabs"]
+docs = ["sphinx", "scanpydoc", "nbsphinx", "nbsphinx-link", "ipython", "pydata-sphinx-theme", "typing_extensions", "sphinx-autodoc-typehints", "sphinx_copybutton", "sphinx-gallery", "sphinx-tabs", "sphinx-panels"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc"]
 
 [metadata]
@@ -3724,6 +3742,10 @@ sphinx-copybutton = [
 ]
 sphinx-gallery = [
     {file = "sphinx-gallery-0.9.0.tar.gz", hash = "sha256:14a2ecbfc172a5623f11d1cb9a5a9e21d5e2e65b76bb6f2174ca8a544f86fe93"},
+]
+sphinx-panels = [
+    {file = "sphinx-panels-0.6.0.tar.gz", hash = "sha256:d36dcd26358117e11888f7143db4ac2301ebe90873ac00627bf1fe526bf0f058"},
+    {file = "sphinx_panels-0.6.0-py3-none-any.whl", hash = "sha256:bd64afaf85c07f8096d21c8247fc6fd757e339d1be97832c8832d6ae5ed2e61d"},
 ]
 sphinx-tabs = [
     {file = "sphinx-tabs-2.1.0.tar.gz", hash = "sha256:0b5a8dd71d87197a01eef3b9d1e1a70513f4dd45e8af7783d1ab74c3fb2cbc6c"},

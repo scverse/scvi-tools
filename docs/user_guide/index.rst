@@ -35,8 +35,8 @@ scRNA-seq analysis
     models/scvi
     models/linearscvi
     models/cellassign
-    
-    
+
+
 ATAC-seq analysis
 -----------------
 
@@ -80,7 +80,7 @@ CITE-seq
     :hidden:
 
     models/totalvi
-    
+
 Multiome
 ^^^^^^^^
 
@@ -94,7 +94,7 @@ Multiome
    * - :doc:`/user_guide/models/multivi`
      - [AshuachGabitto21]_
      - Integration of paired/unpaired multiome data, missing modality imputation, normalization of other cell- and sample-level confounding factors
-     
+
 .. toctree::
     :maxdepth: 2
     :hidden:
@@ -118,6 +118,9 @@ Spatial transcriptomics analysis
    * - :doc:`/user_guide/models/stereoscope`
      - [Andersson20]_
      - Deconvolution
+   * - :doc:`/user_guide/models/gimvi`
+     - [Lopez19]_
+     - Imputation of missing spatial genes
 
 .. toctree::
     :maxdepth: 2
@@ -125,6 +128,7 @@ Spatial transcriptomics analysis
 
     models/destvi
     models/stereoscope
+    model/gimvi
 
 
 General purpose analysis
