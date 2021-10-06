@@ -82,7 +82,7 @@ CITE-seq
     models/totalvi
 
 Multiome
-^^^^^^^^^
+^^^^^^^^
 
 .. list-table::
    :widths: 15 15 100
@@ -102,7 +102,7 @@ Multiome
     models/multivi
 
 
-Spatial Transcriptomics analysis
+Spatial transcriptomics analysis
 --------------------------------
 
 .. list-table::
@@ -130,6 +130,26 @@ Spatial Transcriptomics analysis
     models/stereoscope
     model/gimvi
 
+
+General purpose analysis
+------------------------
+
+.. list-table::
+   :widths: 15 15 100
+   :header-rows: 1
+
+   * - Model
+     - Reference
+     - Tasks
+   * - :doc:`/user_guide/models/amortizedlda`
+     - [Blei03]_
+     - Topic modeling 
+
+.. toctree::
+    :maxdepth: 2
+    :hidden:
+
+    models/amortizedlda
 
 
 Background
