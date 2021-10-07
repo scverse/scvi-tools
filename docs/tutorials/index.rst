@@ -34,6 +34,7 @@ scRNA-seq
    notebooks/scarches_scvi_tools
    notebooks/AutoZI_tutorial
    notebooks/cellassign_tutorial
+   notebooks/amortized_lda
 
 
 ATAC-seq
@@ -48,15 +49,15 @@ ATAC-seq
 Spatial transcriptomics
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-
 .. nbgallery::
 
    notebooks/DestVI_tutorial
+   notebooks/DestVI_in_R
    notebooks/gimvi_tutorial
 
 
 Multimodal
-^^^^^^^^^^^
+^^^^^^^^^^
 
 .. nbgallery::
 
@@ -65,7 +66,6 @@ Multimodal
    notebooks/totalVI_reference_mapping
    notebooks/totalvi_in_R
    notebooks/MultiVI_tutorial
-
 
 
 Contributed tutorials
