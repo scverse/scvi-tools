@@ -258,7 +258,7 @@ def test_scanvi_online_update(save_path):
     query = synthetic_iid()  # has labels 0 and 2. 2 is unknown
     m_q = SCANVI.load_query_data(query, save_path)
     m_q.save(save_path, overwrite=True)
-    m_q = SCANVI.load(save_path, query)
+    m_q = SCANVI.load(save_path, adata=query)
     m_q.predict()
     m_q.get_elbo()
 

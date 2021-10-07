@@ -294,10 +294,10 @@ def test_backwards_compatible_loading(save_path):
     download_080_models(save_path)
     pretrained_scvi_path = os.path.join(save_path, "testing_models/080_scvi")
     a = scvi.data.synthetic_iid()
-    m = scvi.model.SCVI.load(pretrained_scvi_path, a)
+    m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a)
     m.train(1)
     pretrained_totalvi_path = os.path.join(save_path, "testing_models/080_totalvi")
-    m = scvi.model.TOTALVI.load(pretrained_totalvi_path, a)
+    m = scvi.model.TOTALVI.load(pretrained_totalvi_path, adata=a)
     m.train(1)
 
 
