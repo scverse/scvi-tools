@@ -202,13 +202,11 @@ nbsphinx_thumbnails = {
     "tutorials/notebooks/seed_labeling": "_static/tutorials/seed.png",
     "tutorials/notebooks/cellassign_tutorial": "_static/tutorials/cellassign.png",
     "tutorials/notebooks/DestVI_tutorial": "_static/tutorials/destvi.png",
-    "tutorials/notebooks/DestVI_in_R": "_static/tutorials/Rlogo.png",
     "tutorials/notebooks/PeakVI": "_static/tutorials/peakvi.png",
     "tutorials/notebooks/peakvi_in_R": "_static/tutorials/Rlogo.png",
     "tutorials/notebooks/totalvi_in_R": "_static/tutorials/Rlogo.png",
     "tutorials/notebooks/MultiVI_tutorial": "_static/tutorials/multivi_umap.png",
     "tutorials/notebooks/totalVI_reference_mapping": "_static/tutorials/totalvi_cell.svg",
-    "tutorials/notebooks/amortized_lda": "_static/tutorials/lda.png",
 }
 
 
