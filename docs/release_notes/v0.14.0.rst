@@ -32,6 +32,7 @@ Changes
 - Fixed a bug in :class:`~scvi.model.base.PyroSampleMixin` for posterior sampling (`#1158`_)
 - Added CITE-Seq datasets (`#1182`_)
 - Added user guides to our documentation (`#1127`_, `#1157`_, `#1180`_, `#1193`_, `#1183`_)
+- Early stopping now prints the reason for stopping when applicable (`#1208`_)
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -69,3 +70,4 @@ Contributors
 .. _`#1182`: https://github.com/YosefLab/scvi-tools/pull/1182
 .. _`#1183`: https://github.com/YosefLab/scvi-tools/pull/1183
 .. _`#1193`: https://github.com/YosefLab/scvi-tools/pull/1193
+.. _`#1208`: https://github.com/YosefLab/scvi-tools/pull/1208

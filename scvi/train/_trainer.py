@@ -4,12 +4,12 @@ from typing import Optional, Union
 
 import numpy as np
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import LightningLoggerBase
 
 from scvi import settings
 from scvi._compat import Literal
 
+from ._callbacks import LoudEarlyStopping
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
@@ -112,7 +112,8 @@ class Trainer(pl.Trainer):
             [] if "callbacks" not in kwargs.keys() else kwargs["callbacks"]
         )
         if early_stopping:
-            early_stopping_callback = EarlyStopping(
+            early_stopping_callback = LoudEarlyStopping(
+                verbose=True,
                 monitor=early_stopping_monitor,
                 min_delta=early_stopping_min_delta,
                 patience=early_stopping_patience,

@@ -6,7 +6,6 @@ import pandas as pd
 import torch
 from anndata import AnnData
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 import scvi
 from scvi import _CONSTANTS
@@ -16,7 +15,7 @@ from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
-from scvi.train import TrainingPlan, TrainRunner
+from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +177,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
 
         if early_stopping:
             early_stopping_callback = [
-                EarlyStopping(
+                LoudEarlyStopping(
                     monitor="elbo_validation",
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
