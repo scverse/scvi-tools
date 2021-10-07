@@ -32,8 +32,8 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         Number of nodes in the hidden layer of the encoder.
     cell_topic_prior
         Prior of cell topic distribution. If `None`, defaults to `1 / n_topics`.
-    topic_gene_prior
-        Prior of topic gene distribution. If `None`, defaults to `1 / n_topics`.
+    topic_feature_prior
+        Prior of topic feature distribution. If `None`, defaults to `1 / n_topics`.
 
     Examples
     --------
@@ -41,7 +41,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     >>> scvi.model.AmortizedLDA.setup_anndata(adata)
     >>> model = scvi.model.AmortizedLDA(adata)
     >>> model.train()
-    >>> gene_by_topic = model.get_gene_by_topic()
+    >>> feature_by_topic = model.get_feature_by_topic()
     >>> adata.obsm["X_LDA"] = model.get_latent_representation()
     """
 
@@ -51,7 +51,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         n_topics: int = 20,
         n_hidden: int = 128,
         cell_topic_prior: Optional[Union[float, Sequence[float]]] = None,
-        topic_gene_prior: Optional[Union[float, Sequence[float]]] = None,
+        topic_feature_prior: Optional[Union[float, Sequence[float]]] = None,
     ):
         # in case any other model was created before that shares the same parameter names.
         pyro.clear_param_store()
@@ -73,15 +73,15 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
                 f"a float or a Sequence of length n_topics."
             )
         if (
-            topic_gene_prior is not None
-            and not isinstance(topic_gene_prior, float)
+            topic_feature_prior is not None
+            and not isinstance(topic_feature_prior, float)
             and (
-                not isinstance(topic_gene_prior, collections.abc.Sequence)
-                or len(topic_gene_prior) != n_input
+                not isinstance(topic_feature_prior, collections.abc.Sequence)
+                or len(topic_feature_prior) != n_input
             )
         ):
             raise ValueError(
-                f"topic_gene_prior, {topic_gene_prior}, must be None, "
+                f"topic_feature_prior, {topic_feature_prior}, must be None, "
                 f"a float or a Sequence of length n_input."
             )
 
@@ -90,7 +90,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
             n_topics=n_topics,
             n_hidden=n_hidden,
             cell_topic_prior=cell_topic_prior,
-            topic_gene_prior=topic_gene_prior,
+            topic_feature_prior=topic_feature_prior,
         )
 
         self.init_params_ = self._get_init_params(locals())
@@ -121,30 +121,30 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
             copy=copy,
         )
 
-    def get_gene_by_topic(self, n_samples=5000) -> pd.DataFrame:
+    def get_feature_by_topic(self, n_samples=5000) -> pd.DataFrame:
         """
-        Gets a Monte-Carlo estimate of the expectation of the gene by topic matrix.
+        Gets a Monte-Carlo estimate of the expectation of the feature by topic matrix.
 
         Parameters
         ----------
         adata
-            AnnData to transform. If None, returns the gene by topic matrix for
+            AnnData to transform. If None, returns the feature by topic matrix for
             the source AnnData.
         n_samples
             Number of samples to take for the Monte-Carlo estimate of the mean.
 
         Returns
         -------
-        A `n_var x n_topics` Pandas DataFrame containing the gene by topic matrix.
+        A `n_var x n_topics` Pandas DataFrame containing the feature by topic matrix.
         """
         self._check_if_trained(warn=False)
 
-        topic_by_gene = self.module.topic_by_gene(n_samples=n_samples)
+        topic_by_feature = self.module.topic_by_feature(n_samples=n_samples)
 
         return pd.DataFrame(
-            data=topic_by_gene.numpy().T,
+            data=topic_by_feature.numpy().T,
             index=self.adata.var_names,
-            columns=[f"topic_{i}" for i in range(topic_by_gene.shape[0])],
+            columns=[f"topic_{i}" for i in range(topic_by_feature.shape[0])],
         )
 
     def get_latent_representation(

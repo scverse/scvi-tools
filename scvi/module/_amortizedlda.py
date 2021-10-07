@@ -49,13 +49,13 @@ class AmortizedLDAPyroModel(PyroModule):
     Parameters
     ----------
     n_input
-        Number of input genes.
+        Number of input features.
     n_topics
         Number of topics/topics to model.
     cell_topic_prior
         Prior of cell topic distribution.
-    topic_gene_prior
-        Prior of topic gene distribution.
+    topic_feature_prior
+        Prior of topic feature distribution.
     """
 
     def __init__(
@@ -63,7 +63,7 @@ class AmortizedLDAPyroModel(PyroModule):
         n_input: int,
         n_topics: int,
         cell_topic_prior: torch.Tensor,
-        topic_gene_prior: torch.Tensor,
+        topic_feature_prior: torch.Tensor,
     ):
         super().__init__(_AMORTIZED_LDA_PYRO_MODULE_NAME)
 
@@ -83,11 +83,12 @@ class AmortizedLDAPyroModel(PyroModule):
             "cell_topic_prior_sigma",
             cell_topic_prior_sigma,
         )
-        topic_gene_prior_mu, topic_gene_prior_sigma = logistic_normal_approximation(
-            topic_gene_prior
-        )
-        self.register_buffer("topic_gene_prior_mu", topic_gene_prior_mu)
-        self.register_buffer("topic_gene_prior_sigma", topic_gene_prior_sigma)
+        (
+            topic_feature_prior_mu,
+            topic_feature_prior_sigma,
+        ) = logistic_normal_approximation(topic_feature_prior)
+        self.register_buffer("topic_feature_prior_mu", topic_feature_prior_mu)
+        self.register_buffer("topic_feature_prior_sigma", topic_feature_prior_sigma)
 
         # Hack: to allow auto_move_data to infer device.
         self._dummy = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
@@ -109,15 +110,15 @@ class AmortizedLDAPyroModel(PyroModule):
         n_obs: Optional[int] = None,
         kl_weight: float = 1.0,
     ):
-        # Topic gene distributions.
+        # Topic feature distributions.
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
-            log_topic_gene_dist = pyro.sample(
-                "log_topic_gene_dist",
+            log_topic_feature_dist = pyro.sample(
+                "log_topic_feature_dist",
                 dist.Normal(
-                    self.topic_gene_prior_mu, self.topic_gene_prior_sigma
+                    self.topic_feature_prior_mu, self.topic_feature_prior_sigma
                 ).to_event(1),
             )
-            topic_gene_dist = F.softmax(log_topic_gene_dist, dim=1)
+            topic_feature_dist = F.softmax(log_topic_feature_dist, dim=1)
 
         # Cell counts generation.
         max_library_size = int(torch.max(library).item())
@@ -132,8 +133,8 @@ class AmortizedLDAPyroModel(PyroModule):
             cell_topic_dist = F.softmax(log_cell_topic_dist, dim=1)
 
             pyro.sample(
-                "gene_counts",
-                CategoricalBoW(max_library_size, cell_topic_dist @ topic_gene_dist),
+                "feature_counts",
+                CategoricalBoW(max_library_size, cell_topic_dist @ topic_feature_dist),
                 obs=x,
             )
 
@@ -145,7 +146,7 @@ class AmortizedLDAPyroGuide(PyroModule):
     Parameters
     ----------
     n_input
-        Number of input genes.
+        Number of input features.
     n_topics
         Number of topics/topics to model.
     n_hidden
@@ -163,19 +164,19 @@ class AmortizedLDAPyroGuide(PyroModule):
 
         self.encoder = Encoder(n_input, n_topics, distribution="ln")
         (
-            topic_gene_posterior_mu,
-            topic_gene_posterior_sigma,
+            topic_feature_posterior_mu,
+            topic_feature_posterior_sigma,
         ) = logistic_normal_approximation(torch.ones(self.n_input))
-        self.topic_gene_posterior_mu = torch.nn.Parameter(
-            topic_gene_posterior_mu.repeat(self.n_topics, 1)
+        self.topic_feature_posterior_mu = torch.nn.Parameter(
+            topic_feature_posterior_mu.repeat(self.n_topics, 1)
         )
-        self.unconstrained_topic_gene_posterior_sigma = torch.nn.Parameter(
-            topic_gene_posterior_sigma.repeat(self.n_topics, 1)
+        self.unconstrained_topic_feature_posterior_sigma = torch.nn.Parameter(
+            topic_feature_posterior_sigma.repeat(self.n_topics, 1)
         )
 
     @property
-    def topic_gene_posterior_sigma(self):
-        return F.softplus(self.unconstrained_topic_gene_posterior_sigma)
+    def topic_feature_posterior_sigma(self):
+        return F.softplus(self.unconstrained_topic_feature_posterior_sigma)
 
     @auto_move_data
     def forward(
@@ -185,13 +186,13 @@ class AmortizedLDAPyroGuide(PyroModule):
         n_obs: Optional[int] = None,
         kl_weight: float = 1.0,
     ):
-        # Topic gene distributions.
+        # Topic feature distributions.
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             pyro.sample(
-                "log_topic_gene_dist",
+                "log_topic_feature_dist",
                 dist.Normal(
-                    self.topic_gene_posterior_mu,
-                    self.topic_gene_posterior_sigma,
+                    self.topic_feature_posterior_mu,
+                    self.topic_feature_posterior_sigma,
                 ).to_event(1),
             )
 
@@ -213,25 +214,25 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
     An amortized implementation of Latent Dirichlet Allocation [Blei03]_ implemented in Pyro.
 
     This module uses auto encoding variational Bayes to optimize the latent variables in the model.
-    In particular, a fully-connected neural network is used as an encoder, which takes in gene counts
+    In particular, a fully-connected neural network is used as an encoder, which takes in feature counts
     as input and outputs the parameters of cell topic distribution. To employ the reparametrization trick
     stably, the Dirichlet priors are approximated by a Logistic-Normal distribution.
-    The input gene counts tensor is a cell by genes Bag-of-Words(BoW) representation
-    of the counts. I.e. the model treats each cell's gene expression profile as ordered, not
+    The input feature counts tensor is a cell by features Bag-of-Words(BoW) representation
+    of the counts. I.e. the model treats each cell's feature vector as ordered, not
     as unordered as in a Multinomial distribution.
 
     Parameters
     ----------
     n_input
-        Number of input genes.
+        Number of input features.
     n_topics
         Number of topics/topics to model.
     n_hidden
         Number of nodes in the hidden layer of the encoder.
     cell_topic_prior
         Prior of cell topic distribution. If `None`, defaults to `1 / n_topics`.
-    topic_gene_prior
-        Prior of topic gene distribution. If `None`, defaults to `1 / n_topics`.
+    topic_feature_prior
+        Prior of topic feature distribution. If `None`, defaults to `1 / n_topics`.
     """
 
     def __init__(
@@ -240,7 +241,7 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         n_topics: int,
         n_hidden: int,
         cell_topic_prior: Optional[Union[float, Sequence[float]]] = None,
-        topic_gene_prior: Optional[Union[float, Sequence[float]]] = None,
+        topic_feature_prior: Optional[Union[float, Sequence[float]]] = None,
     ):
         super().__init__()
 
@@ -255,18 +256,18 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         else:
             self.cell_topic_prior = torch.tensor(cell_topic_prior)
 
-        if topic_gene_prior is None:
-            self.topic_gene_prior = torch.full((n_input,), 1 / self.n_topics)
-        elif isinstance(topic_gene_prior, float):
-            self.topic_gene_prior = torch.full((n_input,), topic_gene_prior)
+        if topic_feature_prior is None:
+            self.topic_feature_prior = torch.full((n_input,), 1 / self.n_topics)
+        elif isinstance(topic_feature_prior, float):
+            self.topic_feature_prior = torch.full((n_input,), topic_feature_prior)
         else:
-            self.topic_gene_prior = torch.tensor(topic_gene_prior)
+            self.topic_feature_prior = torch.tensor(topic_feature_prior)
 
         self._model = AmortizedLDAPyroModel(
             self.n_input,
             self.n_topics,
             self.cell_topic_prior,
-            self.topic_gene_prior,
+            self.topic_feature_prior,
         )
         self._guide = AmortizedLDAPyroGuide(self.n_input, self.n_topics, self.n_hidden)
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
@@ -279,9 +280,9 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
     def guide(self):
         return self._guide
 
-    def topic_by_gene(self, n_samples: int) -> torch.Tensor:
+    def topic_by_feature(self, n_samples: int) -> torch.Tensor:
         """
-        Gets a Monte-Carlo estimate of the expectation of the topic by gene matrix.
+        Gets a Monte-Carlo estimate of the expectation of the topic by feature matrix.
 
         Assumes the module has already been trained.
 
@@ -292,17 +293,17 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
 
         Returns
         -------
-        A `n_topics x n_input` tensor containing the topic by gene matrix.
+        A `n_topics x n_input` tensor containing the topic by feature matrix.
         """
-        topic_gene_posterior_mu, topic_gene_posterior_sigma = (
-            self.guide.topic_gene_posterior_mu.detach().cpu(),
-            self.guide.topic_gene_posterior_sigma.detach().cpu(),
+        topic_feature_posterior_mu, topic_feature_posterior_sigma = (
+            self.guide.topic_feature_posterior_mu.detach().cpu(),
+            self.guide.topic_feature_posterior_sigma.detach().cpu(),
         )
         return torch.mean(
             F.softmax(
                 dist.Normal(
-                    topic_gene_posterior_mu,
-                    topic_gene_posterior_sigma,
+                    topic_feature_posterior_mu,
+                    topic_feature_posterior_sigma,
                 ).sample(sample_shape=torch.Size((n_samples,))),
                 dim=2,
             ),
