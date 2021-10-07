@@ -42,7 +42,7 @@ by default are both set to 0.5 to enforce sparsity while maintaining symmetry. F
 Inference Procedure
 ===================
 
-To learn the parameters, we employ variational inference with the following approximate posterior
+To learn the parameters, we employ variational inference (see :doc:`/user_guide/background/variational_inference`) with the following approximate posterior
 distribution:
 
 .. math::
