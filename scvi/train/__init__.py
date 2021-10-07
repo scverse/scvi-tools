@@ -1,3 +1,4 @@
+from ._earlystopping import LoudEarlyStopping
 from ._trainer import Trainer
 from ._trainingplans import (
     AdversarialTrainingPlan,
@@ -16,4 +17,5 @@ __all__ = [
     "AdversarialTrainingPlan",
     "ClassifierTrainingPlan",
     "TrainRunner",
+    "LoudEarlyStopping",
 ]

@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from scvi import _CONSTANTS
 from scvi._docs import setup_anndata_dsp
@@ -18,7 +17,7 @@ from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
 from scvi.module import Classifier
 from scvi.module.base import auto_move_data
-from scvi.train import ClassifierTrainingPlan, TrainRunner
+from scvi.train import ClassifierTrainingPlan, LoudEarlyStopping, TrainRunner
 
 logger = logging.getLogger(__name__)
 
@@ -302,7 +301,7 @@ class SOLO(BaseModelClass):
 
         if early_stopping:
             early_stopping_callback = [
-                EarlyStopping(
+                LoudEarlyStopping(
                     monitor="validation_loss",
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
