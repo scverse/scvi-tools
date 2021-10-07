@@ -31,7 +31,7 @@ Changes
 - Used Pytorch Lightning's ``seed_everything`` method to set seed (`#1151`_)
 - Fixed a bug in :class:`~scvi.model.base.PyroSampleMixin` for posterior sampling (`#1158`_)
 - Added CITE-Seq datasets (`#1182`_)
-- Added user guides to our documentation (`#1127`_, `#1157`_, `#1180`_, `#1193`_, `#1183`_)
+- Added user guides to our documentation (`#1127`_, `#1157`_, `#1180`_, `#1193`_, `#1183`_, `#1204`_)
 - Early stopping now prints the reason for stopping when applicable (`#1208`_)
 
 Breaking changes
@@ -47,6 +47,7 @@ Contributors
 - `@watiss`_
 - `@mjayasur`_
 - `@vitkl`_
+- `@galenxing`_
 
 .. _`@adamgayoso`: https://github.com/adamgayoso
 .. _`@PierreBoyeau`: https://github.com/PierreBoyeau
@@ -55,6 +56,7 @@ Contributors
 .. _`@watiss`: https://github.com/watiss
 .. _`@mjayasur`: https://github.com/mjayasur
 .. _`@vitkl`: https://github.com/vitkl
+.. _`@galenxing`: https://github.com/galenxing
 
 .. _`#1103`: https://github.com/YosefLab/scvi-tools/pull/1103
 .. _`#1122`: https://github.com/YosefLab/scvi-tools/pull/1122
@@ -70,4 +72,5 @@ Contributors
 .. _`#1182`: https://github.com/YosefLab/scvi-tools/pull/1182
 .. _`#1183`: https://github.com/YosefLab/scvi-tools/pull/1183
 .. _`#1193`: https://github.com/YosefLab/scvi-tools/pull/1193
+.. _`#1204`: https://github.com/YosefLab/scvi-tools/pull/1204
 .. _`#1208`: https://github.com/YosefLab/scvi-tools/pull/1208
