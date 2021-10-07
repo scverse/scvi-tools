@@ -9,7 +9,7 @@ from pytorch_lightning.loggers import LightningLoggerBase
 from scvi import settings
 from scvi._compat import Literal
 
-from ._earlystopping import LoudEarlyStopping
+from ._callbacks import LoudEarlyStopping
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
