@@ -20,13 +20,16 @@ logger = logging.getLogger(__name__)
 def _load_saved_files(
     dir_path: str,
     load_adata: bool,
+    prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
 ):
     """Helper to load saved files."""
-    setup_dict_path = os.path.join(dir_path, "attr.pkl")
-    adata_path = os.path.join(dir_path, "adata.h5ad")
-    varnames_path = os.path.join(dir_path, "var_names.csv")
-    model_path = os.path.join(dir_path, "model_params.pt")
+    file_name_prefix = prefix or ""
+    setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+    adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
+    varnames_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
+    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+    print(adata_path)
 
     if os.path.exists(adata_path) and load_adata:
         adata = read(adata_path)
@@ -158,7 +161,7 @@ def _de_core(
     batch_correction,
     fdr,
     silent,
-    **kwargs
+    **kwargs,
 ):
     """Internal function for DE interface."""
     if group1 is None and idx1 is None:

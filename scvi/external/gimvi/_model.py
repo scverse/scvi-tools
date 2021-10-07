@@ -354,6 +354,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     def save(
         self,
         dir_path: str,
+        prefix: Optional[str] = None,
         overwrite: bool = False,
         save_anndata: bool = False,
         **anndata_write_kwargs,
@@ -369,6 +370,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         ----------
         dir_path
             Path to a directory.
+        prefix
+            Prefix to prepend to saved file names.
         overwrite
             Overwrite existing data or not. If `False` and directory
             already exists at `dir_path`, error will be raised.
@@ -390,23 +393,27 @@ class GIMVI(VAEMixin, BaseModelClass):
                     dir_path
                 )
             )
+
+        file_name_prefix = prefix or ""
+
         if save_anndata:
             dataset_names = ["seq", "spatial"]
             for i in range(len(self.adatas)):
+                dataset_name = dataset_names[i]
                 save_path = os.path.join(
-                    dir_path, "adata_{}.h5ad".format(dataset_names[i])
+                    dir_path, f"{file_name_prefix}adata_{dataset_name}.h5ad"
                 )
                 self.adatas[i].write(save_path)
                 varnames_save_path = os.path.join(
-                    dir_path, "var_names_{}.csv".format(dataset_names[i])
+                    dir_path, f"{file_name_prefix}var_names_{dataset_name}.csv"
                 )
 
                 var_names = self.adatas[i].var_names.astype(str)
                 var_names = var_names.to_numpy()
                 np.savetxt(varnames_save_path, var_names, fmt="%s")
 
-        model_save_path = os.path.join(dir_path, "model_params.pt")
-        attr_save_path = os.path.join(dir_path, "attr.pkl")
+        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+        attr_save_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
 
         torch.save(self.module.state_dict(), model_save_path)
         with open(attr_save_path, "wb") as f:
@@ -416,6 +423,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     def load(
         cls,
         dir_path: str,
+        prefix: Optional[str] = None,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
@@ -425,6 +433,10 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         Parameters
         ----------
+        dir_path
+            Path to saved outputs.
+        prefix
+            Prefix of saved file names.
         adata_seq
             AnnData organized in the same way as data used to train model.
             It is not necessary to run :meth:`~scvi.external.GIMVI.setup_anndata`,
@@ -433,8 +445,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata_spatial
             AnnData organized in the same way as data used to train model.
             If None, will check for and load anndata saved with the model.
-        dir_path
-            Path to saved outputs.
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
@@ -448,12 +458,19 @@ class GIMVI(VAEMixin, BaseModelClass):
         >>> vae = GIMVI.load(adata_seq, adata_spatial, save_path)
         >>> vae.get_latent_representation()
         """
-        model_path = os.path.join(dir_path, "model_params.pt")
-        setup_dict_path = os.path.join(dir_path, "attr.pkl")
-        seq_data_path = os.path.join(dir_path, "adata_seq.h5ad")
-        spatial_data_path = os.path.join(dir_path, "adata_spatial.h5ad")
-        seq_var_names_path = os.path.join(dir_path, "var_names_seq.csv")
-        spatial_var_names_path = os.path.join(dir_path, "var_names_spatial.csv")
+        file_name_prefix = prefix or ""
+        model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+        setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+        seq_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_seq.h5ad")
+        spatial_data_path = os.path.join(
+            dir_path, f"{file_name_prefix}adata_spatial.h5ad"
+        )
+        seq_var_names_path = os.path.join(
+            dir_path, f"{file_name_prefix}var_names_seq.csv"
+        )
+        spatial_var_names_path = os.path.join(
+            dir_path, f"{file_name_prefix}var_names_spatial.csv"
+        )
 
         if adata_seq is None and os.path.exists(seq_data_path):
             adata_seq = read(seq_data_path)

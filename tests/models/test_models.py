@@ -220,18 +220,18 @@ def test_scvi_sparse(save_path):
 
 
 def test_saving_and_loading(save_path):
-    def test_save_load_model(cls, adata, save_path):
+    def test_save_load_model(cls, adata, save_path, prefix=None):
         model = cls(adata, latent_distribution="normal")
         model.train(1, train_size=0.2)
         z1 = model.get_latent_representation(adata)
         test_idx1 = model.validation_indices
-        model.save(save_path, overwrite=True, save_anndata=True)
-        model = cls.load(save_path)
+        model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+        model = cls.load(save_path, prefix=prefix)
         model.get_latent_representation()
         tmp_adata = scvi.data.synthetic_iid(n_genes=200)
         with pytest.raises(ValueError):
-            cls.load(save_path, tmp_adata)
-        model = cls.load(save_path, adata)
+            cls.load(save_path, adata=tmp_adata, prefix=prefix)
+        model = cls.load(save_path, adata=adata, prefix=prefix)
         z2 = model.get_latent_representation()
         test_idx2 = model.validation_indices
         np.testing.assert_array_equal(z1, z2)
@@ -244,6 +244,7 @@ def test_saving_and_loading(save_path):
     for cls in [SCVI, LinearSCVI, TOTALVI, PEAKVI]:
         print(cls)
         test_save_load_model(cls, adata, save_path)
+        test_save_load_model(cls, adata, save_path, "prefix_")
 
     # AUTOZI
     model = AUTOZI(adata, latent_distribution="normal")
@@ -254,8 +255,8 @@ def test_saving_and_loading(save_path):
     model.get_latent_representation()
     tmp_adata = scvi.data.synthetic_iid(n_genes=200)
     with pytest.raises(ValueError):
-        AUTOZI.load(save_path, tmp_adata)
-    model = AUTOZI.load(save_path, adata)
+        AUTOZI.load(save_path, adata=tmp_adata)
+    model = AUTOZI.load(save_path, adata=adata)
     ab2 = model.get_alphas_betas()
     np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
     np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
@@ -270,8 +271,8 @@ def test_saving_and_loading(save_path):
     model.get_latent_representation()
     tmp_adata = scvi.data.synthetic_iid(n_genes=200)
     with pytest.raises(ValueError):
-        SCANVI.load(save_path, tmp_adata)
-    model = SCANVI.load(save_path, adata)
+        SCANVI.load(save_path, adata=tmp_adata)
+    model = SCANVI.load(save_path, adata=adata)
     p2 = model.predict()
     np.testing.assert_array_equal(p1, p2)
     assert model.is_trained is True
