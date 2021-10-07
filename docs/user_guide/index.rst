@@ -21,6 +21,9 @@ scRNA-seq analysis
    * - :doc:`/user_guide/models/linearscvi`
      - [Svensson20]_
      - scVI tasks with linear decoder
+   * - :doc:`/user_guide/models/autozi`
+     - [Clivio19]_
+     -  for assessing gene-specific levels of zero-inflation in scRNA-seq data 
    * - :doc:`/user_guide/models/cellassign`
      - [Zhang19]_
      - Marker-based automated annotation
