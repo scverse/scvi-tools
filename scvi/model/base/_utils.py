@@ -29,7 +29,6 @@ def _load_saved_files(
     adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
     varnames_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
     model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-    print(adata_path)
 
     if os.path.exists(adata_path) and load_adata:
         adata = read(adata_path)
