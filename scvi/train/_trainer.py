@@ -113,7 +113,6 @@ class Trainer(pl.Trainer):
         )
         if early_stopping:
             early_stopping_callback = LoudEarlyStopping(
-                verbose=True,
                 monitor=early_stopping_monitor,
                 min_delta=early_stopping_min_delta,
                 patience=early_stopping_patience,
