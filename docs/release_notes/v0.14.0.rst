@@ -36,7 +36,7 @@ Changes
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
-None!
+- ``setup_anndata`` is now an abstract method on model classes. Any model inheriting from :class:`~scvi.model.base.BaseModelClass` will need to implement this method (`#1150`_)
 
 Contributors
 ~~~~~~~~~~~~
