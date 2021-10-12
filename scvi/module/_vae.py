@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Main module."""
+import pdb
 from typing import Callable, Iterable, Optional
 
 import numpy as np
@@ -154,20 +155,20 @@ class VAE(BaseModuleClass):
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
         use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
-
+        # pdb.set_trace()
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
         cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
         encoder_cat_list = cat_list if encode_covariates else None
         self.z_encoder = Encoder(
-            n_input_encoder,
-            n_latent,
-            n_cat_list=encoder_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
-            dropout_rate=dropout_rate,
-            distribution=latent_distribution,
+            n_input_encoder, # 100
+            n_latent, # 5
+            n_cat_list=encoder_cat_list, # [2]
+            n_layers=n_layers, # 1
+            n_hidden=n_hidden, # 128
+            dropout_rate=dropout_rate, # 0. 1
+            distribution=latent_distribution, # normal
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
@@ -187,7 +188,7 @@ class VAE(BaseModuleClass):
             var_activation=var_activation,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
-        n_input_decoder = n_latent + n_continuous_cov
+        n_input_decoder = n_latent + n_continuous_cov # 5
         self.decoder = DecoderSCVI(
             n_input_decoder,
             n_input,

@@ -1,5 +1,5 @@
 import logging
-
+import pdb
 from anndata import AnnData
 
 from scvi._compat import Literal
@@ -91,7 +91,7 @@ class SCVI(
         )
         n_batch = self.summary_stats["n_batch"]
         library_log_means, library_log_vars = _init_library_size(adata, n_batch)
-
+        # pdb.set_trace()
         self.module = VAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=n_batch,
