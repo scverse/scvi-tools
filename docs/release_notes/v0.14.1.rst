@@ -1,0 +1,23 @@
+New in 0.14.1 (2021-10-11)
+--------------------------
+
+Minor hotfixes.
+
+Changes
+~~~~~~~
+- Filter out mitochrondrial genes as a preprocessing step in the Amortized LDA tutorial (`#1213`_)
+- Remove ``verbose=True`` argument from early stopping callback (`#1216`_)
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+None!
+
+Contributors
+~~~~~~~~~~~~
+- `@adamgayoso`_
+- `@jjhong922`_
+- `@watiss`_
+
+.. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@jjhong922`: https://github.com/jjhong922
+.. _`@watiss`: https://github.com/watiss
