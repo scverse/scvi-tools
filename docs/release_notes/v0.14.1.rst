@@ -8,10 +8,6 @@ Changes
 - Filter out mitochrondrial genes as a preprocessing step in the Amortized LDA tutorial (`#1213`_)
 - Remove ``verbose=True`` argument from early stopping callback (`#1216`_)
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-None!
-
 Contributors
 ~~~~~~~~~~~~
 - `@adamgayoso`_
