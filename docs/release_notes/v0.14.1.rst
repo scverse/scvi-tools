@@ -8,10 +8,6 @@ Changes
 - Filter out mitochrondrial genes as a preprocessing step in the Amortized LDA tutorial (`#1213`_)
 - Remove ``verbose=True`` argument from early stopping callback (`#1216`_)
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-None!
-
 Contributors
 ~~~~~~~~~~~~
 - `@adamgayoso`_
@@ -21,3 +17,6 @@ Contributors
 .. _`@adamgayoso`: https://github.com/adamgayoso
 .. _`@jjhong922`: https://github.com/jjhong922
 .. _`@watiss`: https://github.com/watiss
+
+.. _`#1213`: https://github.com/YosefLab/scvi-tools/pull/1213
+.. _`#1216`: https://github.com/YosefLab/scvi-tools/pull/1216
