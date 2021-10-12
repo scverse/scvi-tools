@@ -9,6 +9,8 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
+from scvi._docs import setup_anndata_dsp
+from scvi.data._anndata import _setup_anndata
 from scvi.module import AmortizedLDAPyroModule
 
 from .base import BaseModelClass, PyroSviTrainMixin
@@ -23,23 +25,23 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.AmortizedLDA.setup_anndata`.
     n_topics
         Number of topics to model.
     n_hidden
         Number of nodes in the hidden layer of the encoder.
     cell_topic_prior
         Prior of cell topic distribution. If `None`, defaults to `1 / n_topics`.
-    topic_gene_prior
-        Prior of topic gene distribution. If `None`, defaults to `1 / n_topics`.
+    topic_feature_prior
+        Prior of topic feature distribution. If `None`, defaults to `1 / n_topics`.
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata)
+    >>> scvi.model.AmortizedLDA.setup_anndata(adata)
     >>> model = scvi.model.AmortizedLDA(adata)
     >>> model.train()
-    >>> gene_by_topic = model.get_gene_by_topic()
+    >>> feature_by_topic = model.get_feature_by_topic()
     >>> adata.obsm["X_LDA"] = model.get_latent_representation()
     """
 
@@ -49,7 +51,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         n_topics: int = 20,
         n_hidden: int = 128,
         cell_topic_prior: Optional[Union[float, Sequence[float]]] = None,
-        topic_gene_prior: Optional[Union[float, Sequence[float]]] = None,
+        topic_feature_prior: Optional[Union[float, Sequence[float]]] = None,
     ):
         # in case any other model was created before that shares the same parameter names.
         pyro.clear_param_store()
@@ -71,15 +73,15 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
                 f"a float or a Sequence of length n_topics."
             )
         if (
-            topic_gene_prior is not None
-            and not isinstance(topic_gene_prior, float)
+            topic_feature_prior is not None
+            and not isinstance(topic_feature_prior, float)
             and (
-                not isinstance(topic_gene_prior, collections.abc.Sequence)
-                or len(topic_gene_prior) != n_input
+                not isinstance(topic_feature_prior, collections.abc.Sequence)
+                or len(topic_feature_prior) != n_input
             )
         ):
             raise ValueError(
-                f"topic_gene_prior, {topic_gene_prior}, must be None, "
+                f"topic_feature_prior, {topic_feature_prior}, must be None, "
                 f"a float or a Sequence of length n_input."
             )
 
@@ -88,35 +90,61 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
             n_topics=n_topics,
             n_hidden=n_hidden,
             cell_topic_prior=cell_topic_prior,
-            topic_gene_prior=topic_gene_prior,
+            topic_feature_prior=topic_feature_prior,
         )
 
         self.init_params_ = self._get_init_params(locals())
 
-    def get_gene_by_topic(self, give_mean=True) -> pd.DataFrame:
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
         """
-        Gets the gene by topic matrix.
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_layer)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            layer=layer,
+            copy=copy,
+        )
+
+    def get_feature_by_topic(self, n_samples=5000) -> pd.DataFrame:
+        """
+        Gets a Monte-Carlo estimate of the expectation of the feature by topic matrix.
 
         Parameters
         ----------
         adata
-            AnnData to transform. If None, returns the gene by topic matrix for
+            AnnData to transform. If None, returns the feature by topic matrix for
             the source AnnData.
-        give_mean
-            Give mean of distribution if True or sample from it.
+        n_samples
+            Number of samples to take for the Monte-Carlo estimate of the mean.
 
         Returns
         -------
-        A `n_var x n_topics` Pandas DataFrame containing the gene by topic matrix.
+        A `n_var x n_topics` Pandas DataFrame containing the feature by topic matrix.
         """
         self._check_if_trained(warn=False)
 
-        topic_by_gene = self.module.topic_by_gene(give_mean=give_mean)
+        topic_by_feature = self.module.topic_by_feature(n_samples=n_samples)
 
         return pd.DataFrame(
-            data=topic_by_gene.numpy().T,
+            data=topic_by_feature.numpy().T,
             index=self.adata.var_names,
-            columns=[f"topic_{i}" for i in range(topic_by_gene.shape[0])],
+            columns=[f"topic_{i}" for i in range(topic_by_feature.shape[0])],
         )
 
     def get_latent_representation(
@@ -124,7 +152,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
-        give_mean: bool = True,
+        n_samples: int = 5000,
     ) -> pd.DataFrame:
         """
         Converts a count matrix to an inferred topic distribution.
@@ -138,8 +166,8 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        give_mean
-            Give mean of distribution or sample from it.
+        n_samples
+            Number of samples to take for the Monte-Carlo estimate of the mean.
 
         Returns
         -------
@@ -155,7 +183,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         for tensors in dl:
             x = tensors[_CONSTANTS.X_KEY]
             transformed_xs.append(
-                self.module.get_topic_distribution(x, give_mean=give_mean)
+                self.module.get_topic_distribution(x, n_samples=n_samples)
             )
         transformed_x = torch.cat(transformed_xs).numpy()
 

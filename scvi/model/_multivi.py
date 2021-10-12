@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Iterable, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -11,8 +11,9 @@ from torch.distributions import Normal
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi._docs import doc_differential_expression
+from scvi._docs import doc_differential_expression, setup_anndata_dsp
 from scvi._utils import _doc_params
+from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -42,7 +43,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.MULTIVI.setup_anndata`.
     n_genes
         The number of gene expression features (genes).
     n_regions
@@ -81,7 +82,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     >>> adata_atac = scvi.data.read_10x_atac(path_to_atac_anndata)
     >>> adata_multi = scvi.data.read_10x_multiome(path_to_multiomic_anndata)
     >>> adata_mvi = scvi.data.organize_multiome_anndatas(adata_multi, adata_rna, adata_atac)
-    >>> scvi.data.setup_anndata(adata_mvi, batch_key="modality")
+    >>> scvi.model.MULTIVI.setup_anndata(adata_mvi, batch_key="modality")
     >>> vae = scvi.model.MULTIVI(adata_mvi)
     >>> vae.train()
 
@@ -92,7 +93,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
        and 250 genomic regions, the model assumes that the first 100 features are genes, and the
        next 250 are the regions.
 
-    * The main batch annotation, specified in the `scvi.data.setup_anndata`, should correspond to
+    * The main batch annotation, specified in ``setup_anndata``, should correspond to
        the modality each cell originated from. This allows the model to focus mixing efforts, using
        an adversarial component, on mixing the modalities. Other covariates can be specified using
        the `categorical_covariate_keys` argument.
@@ -284,7 +285,24 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
         batch_size: int = 128,
-    ):
+    ) -> Dict[str, np.ndarray]:
+        """
+        Return library size factors.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+
+        Returns
+        -------
+        Library size factor for expression and accessibility
+        """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -304,6 +322,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     @torch.no_grad()
     def get_region_factors(self) -> np.ndarray:
+        """Return region-specific factors."""
         if self.module.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
         return torch.sigmoid(self.module.region_factors).cpu().numpy()
@@ -317,6 +336,28 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         give_mean: bool = True,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
+        r"""
+        Return the latent representation for each cell.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        modality
+            Return modality specific or joint latent representation.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        give_mean
+            Give mean of distribution or sample from it.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+
+        Returns
+        -------
+        latent_representation : np.ndarray
+            Low-dimensional representation for each cell
+        """
         if not self.is_trained_:
             raise RuntimeError("Please train the model first.")
 
@@ -365,14 +406,54 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
         n_samples_overall: Optional[int] = None,
-        region_indices: Sequence[int] = None,
+        region_list: Optional[Sequence[str]] = None,
         transform_batch: Optional[Union[str, int]] = None,
         use_z_mean: bool = True,
         threshold: Optional[float] = None,
         normalize_cells: bool = False,
         normalize_regions: bool = False,
         batch_size: int = 128,
-    ) -> Union[np.ndarray, csr_matrix]:
+        return_numpy: bool = False,
+    ) -> Union[np.ndarray, csr_matrix, pd.DataFrame]:
+        """
+        Impute the full accessibility matrix.
+
+        Returns a matrix of accessibility probabilities for each cell and genomic region in the input
+        (for return matrix A, A[i,j] is the probability that region j is accessible in cell i).
+
+        Parameters
+        ----------
+        adata
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        n_samples_overall
+            Number of samples to return in total
+        region_indices
+            Indices of regions to use. if `None`, all regions are used.
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+        use_z_mean
+            If True (default), use the distribution mean. Otherwise, sample from the distribution.
+        threshold
+            If provided, values below the threshold are replaced with 0 and a sparse matrix
+            is returned instead. This is recommended for very large matrices. Must be between 0 and 1.
+        normalize_cells
+            Whether to reintroduce library size factors to scale the normalized probabilities.
+            This makes the estimates closer to the input, but removes the library size correction.
+            False by default.
+        normalize_regions
+            Whether to reintroduce region factors to scale the normalized probabilities. This makes
+            the estimates closer to the input, but removes the region-level bias correction. False by
+            default.
+        batch_size
+            Minibatch size for data loading into model
+        """
         adata = self._validate_anndata(adata)
         if indices is None:
             indices = np.arange(adata.n_obs)
@@ -382,6 +463,13 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size
         )
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
+        if region_list is None:
+            region_mask = slice(None)
+        else:
+            region_mask = [
+                region in region_list for region in adata.var_names[self.n_genes :]
+            ]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -405,8 +493,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if threshold:
                 p[p < threshold] = 0
                 p = csr_matrix(p.numpy())
-            if region_indices is not None:
-                p = p[:, region_indices]
+            if region_mask is not None:
+                p = p[:, region_mask]
             imputed.append(p)
 
         if threshold:  # imputed is a list of csr_matrix objects
@@ -414,7 +502,20 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
 
-        return imputed
+        if return_numpy:
+            return imputed
+        elif threshold:
+            return pd.DataFrame.sparse.from_spmatrix(
+                imputed,
+                index=adata.obs_names[indices],
+                columns=adata.var_names[self.n_genes :][region_mask],
+            )
+        else:
+            return pd.DataFrame(
+                imputed,
+                index=adata.obs_names[indices],
+                columns=adata.var_names[self.n_genes :][region_mask],
+            )
 
     @torch.no_grad()
     def get_normalized_expression(
@@ -428,6 +529,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_samples: int = 1,
         batch_size: Optional[int] = None,
         return_mean: bool = True,
+        return_numpy: bool = False,
     ) -> Union[np.ndarray, pd.DataFrame]:
         r"""
         Returns the normalized (decoded) gene expression.
@@ -483,7 +585,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = _get_var_names_from_setup_anndata(adata)
+            all_genes = adata.var_names[: self.n_genes]
             gene_mask = [gene in gene_list for gene in all_genes]
 
         exprs = []
@@ -517,7 +619,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             exprs = np.concatenate(exprs, axis=0)
         if n_samples > 1 and return_mean:
             exprs = exprs.mean(0)
-        return exprs
+
+        if return_numpy:
+            return exprs
+        else:
+            return pd.DataFrame(
+                exprs,
+                columns=adata.var_names[: self.n_genes][gene_mask],
+                index=adata.obs_names[indices],
+            )
 
     @_doc_params(doc_differential_expression=doc_differential_expression)
     def differential_accessibility(
@@ -639,6 +749,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 "emp_prob1": result.emp_mean1,
                 "emp_prob2": result.emp_mean2,
             },
+            index=col_names,
         )
         return result
 
@@ -710,3 +821,38 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         return result
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        batch_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_batch_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            batch_key=batch_key,
+            layer=layer,
+            categorical_covariate_keys=categorical_covariate_keys,
+            continuous_covariate_keys=continuous_covariate_keys,
+            copy=copy,
+        )

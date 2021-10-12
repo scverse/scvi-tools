@@ -81,7 +81,7 @@ the family of multivariate Gaussians). Using the derivation above, we can expres
    :nowrap:
 
     \begin{align}
-        p_\theta(x) &= \mathrm{KL}(\,q_\phi(z)\, \| \,p_\theta(z \mid x)\,) + \mathbb E_{q} \left[\log p_\theta(x \mid z)\right] -  \mathrm{KL}(\,q_\phi(z)\, \| \,p_\theta(z)\,)\\
+        \log p_\theta(x) &= \mathrm{KL}(\,q_\phi(z)\, \| \,p_\theta(z \mid x)\,) + \mathbb E_{q} \left[\log p_\theta(x \mid z)\right] -  \mathrm{KL}(\,q_\phi(z)\, \| \,p_\theta(z)\,)\\
         &= \mathrm{KL}(\,q_\phi(z)\, \| \,p_\theta(z \mid x)\,) + \mathrm{ELBO}.
     \end{align}
 
@@ -101,7 +101,7 @@ This quantity is aptly named as it lower bounds the log probability of the data,
 
     \begin{align}
         \log p_\theta(x) &= \mathrm{KL}(\,q_\phi(z)\, \| \,p_\theta(z \mid x)\,) + \mathrm{ELBO}\\
-        \log p _\theta(x) &\geq \mathrm{ELBO}
+        \log p_\theta(x) &\geq \mathrm{ELBO}
     \end{align}
 
 

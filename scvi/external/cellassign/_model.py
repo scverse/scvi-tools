@@ -1,20 +1,21 @@
 import logging
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 import scvi
 from scvi import _CONSTANTS
+from scvi._docs import setup_anndata_dsp
 from scvi.data import register_tensor_from_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
-from scvi.train import TrainingPlan, TrainRunner
+from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +29,11 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        single-cell AnnData object that has been registered via :meth:`~scvi.external.CellAssign.setup_anndata`.
         The object should be subset to contain the same genes as the cell type marker dataframe.
     cell_type_markers
         Binary marker gene DataFrame of genes by cell types. Gene names corresponding to `adata.var_names`
         should be in DataFrame index, and cell type labels should be the columns.
-    size_factor_key
-        Key in `adata.obs` with continuous valued size factors.
     **model_kwargs
         Keyword args for :class:`~scvi.external.cellassign.CellAssignModule`
 
@@ -45,8 +44,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     >>> adata.obs["size_factor"] = library_size / np.mean(library_size)
     >>> marker_gene_mat = pd.read_csv(path_to_marker_gene_csv)
     >>> bdata = adata[:, adata.var.index.isin(marker_gene_mat.index)].copy()
-    >>> scvi.data.setup_anndata(bdata)
-    >>> model = CellAssign(bdata, marker_gene_mat, size_factor_key='size_factor')
+    >>> CellAssign.setup_anndata(bdata, size_factor_key="size_factor")
+    >>> model = CellAssign(bdata, marker_gene_mat)
     >>> model.train()
     >>> predictions = model.predict(bdata)
 
@@ -60,7 +59,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: AnnData,
         cell_type_markers: pd.DataFrame,
-        size_factor_key: str,
         **model_kwargs,
     ):
         try:
@@ -70,8 +68,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
                 "Anndata and cell type markers do not contain the same genes."
             )
         super().__init__(adata)
-
-        register_tensor_from_anndata(adata, "_size_factor", "obs", size_factor_key)
 
         self.n_genes = self.summary_stats["n_vars"]
         self.cell_type_markers = cell_type_markers
@@ -181,7 +177,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
 
         if early_stopping:
             early_stopping_callback = [
-                EarlyStopping(
+                LoudEarlyStopping(
                     monitor="elbo_validation",
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
@@ -217,6 +213,51 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             **kwargs,
         )
         return runner()
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        size_factor_key: str,
+        batch_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        size_factor_key
+            key in `adata.obs` with continuous valued size factors.
+        %(param_batch_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cat_cov_keys)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        setup_data = _setup_anndata(
+            adata,
+            batch_key=batch_key,
+            layer=layer,
+            categorical_covariate_keys=categorical_covariate_keys,
+            continuous_covariate_keys=continuous_covariate_keys,
+            copy=copy,
+        )
+        register_tensor_from_anndata(
+            adata if setup_data is None else setup_data,
+            "_size_factor",
+            "obs",
+            size_factor_key,
+        )
+        return setup_data
 
 
 class ClampCallback(Callback):

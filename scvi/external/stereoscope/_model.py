@@ -7,7 +7,9 @@ import torch
 from anndata import AnnData
 
 from scvi._compat import Literal
+from scvi._docs import setup_anndata_dsp
 from scvi.data import register_tensor_from_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 
@@ -23,14 +25,14 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     sc_adata
-        single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        single-cell AnnData object that has been registered via :meth:`~scvi.external.RNAStereoscope.setup_anndata`.
     **model_kwargs
         Keyword args for :class:`~scvi.external.stereoscope.RNADeconv`
 
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
-    >>> scvi.data.setup_anndata(sc_adata, labels_key="labels")
+    >>> scvi.external.RNAStereoscope.setup_anndata(sc_adata, labels_key="labels")
     >>> stereo = scvi.external.stereoscope.RNAStereoscope(sc_adata)
     >>> stereo.train()
     """
@@ -110,6 +112,35 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             **kwargs,
         )
 
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        labels_key: str,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_labels_key)s
+        %(param_layer)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            labels_key=labels_key,
+            layer=layer,
+            copy=copy,
+        )
+
 
 class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
@@ -120,7 +151,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     st_adata
-        spatial transcriptomics AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        spatial transcriptomics AnnData object that has been registered via :meth:`~scvi.external.SpatialStereoscope.setup_anndata`.
     sc_params
         parameters of the model learned from the single-cell RNA seq data for deconvolution.
     cell_type_mapping
@@ -134,11 +165,11 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
-    >>> scvi.data.setup_anndata(sc_adata, labels_key="labels")
+    >>> scvi.external.RNAStereoscope.setup_anndata(sc_adata, labels_key="labels")
     >>> sc_model = scvi.external.stereoscope.RNAStereoscope(sc_adata)
     >>> sc_model.train()
     >>> st_adata = anndata.read_h5ad(path_to_st_anndata)
-    >>> scvi.data.setup_anndata(st_adata)
+    >>> scvi.external.SpatialStereoscope.setup_anndata(st_adata)
     >>> stereo = scvi.external.stereoscope.SpatialStereoscope.from_rna_model(st_adata, sc_model)
     >>> stereo.train()
     >>> st_adata.obsm["deconv"] = stereo.get_proportions()
@@ -298,4 +329,30 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             batch_size=batch_size,
             plan_kwargs=plan_kwargs,
             **kwargs,
+        )
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_layer)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            layer=layer,
+            copy=copy,
         )

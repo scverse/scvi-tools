@@ -29,12 +29,18 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     # If you have pyenv-virtualenv
     pyenv virtualenv scvi-tools-dev
     pyenv activate scvi-tools-dev
-    # If you have conda
-    conda create -n scvi-tools-dev
+    # If you have conda (omit the python parameter if you already have the relevant python version installed)
+    conda create -n scvi-tools-dev python=3.8.8 # or any python >3.7 that is available (conda search python)
     conda activate scvi-tools-dev
-    # Enter the cloned repository
+    # Enter the cloned repository and install the package in editable mode
     cd scvi-tools
     pip install -e ".[dev,docs,tutorials]"
+
+   To confirm that scvi-tools was successfully installed::
+
+    # This should find the package. Note that other metadata (such as Version, Summary, etc.) might be missing. This
+    # is expected because we use poetry instead of setup-tools. On a non-editable install, these would be populated.
+    pip show scvi-tools
 
 4. **[Advanced users]** Install your local copy into a virtualenv with Poetry. Our preferred local installation method consists of using `pyenv-virtualenv` to create a virtualenv, and using `poetry` to create an editable local installation. If using this approach, please be sure to install `poetry` the `recommended <https://python-poetry.org/docs/#installation>`_ way. Once `poetry` is installed::
 
@@ -43,7 +49,9 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     cd scvi-tools
     poetry install --extras "dev docs tutorials"
 
-5. **[Optional]** Install a version of PyTorch that supports your GPU. This will even be the case if you use Poetry.
+   To confirm that scvi-tools was successfully installed, proceed in the same way as above. This time, ``pip show scvi-tools`` should show all other metadata as well (Version, Summary, etc.).
+
+5. **[Optional]** Install a version of PyTorch that supports your GPU. This will be the case even if you use Poetry.
 
 6. Create an ipykernel so you can use your environment with a Jupyter notebook. This will make this developement environment available through Jupyter notebook/lab. Inside your virtualenv::
 
@@ -175,7 +183,7 @@ The mainstream development branch is the master branch. We snap releases off of 
 We use the MeeseeksDev GitHub bot for automatic backporting. The way it works, in a nutshell, is that the bot listens to certain web events - for example commits containing “@meeseeksdev backport to [BRANCHNAME]” on a PR - and automatically opens a PR to that repo/branch. (Note: They open the PR sourced from a fork of the repo under the `MeeseeksMachine <https://github.com/meeseeksmachine>`_ organization, into the repo/branch of interest. That’s why under MeeseeksMachine you see a collection of repo's that are forks of the repo's that use MeeseeksDev).
 
 For each release, we create a branch [MAJOR].[MINOR].x where MAJOR and MINOR are the Major and Minor version numbers for that release, respectively, and x is the literal “x”. Every time a bug fix PR is merged into master, we evaluate whether it is worthy of being backported into the current release and if so use MeeseeksDev to do it for us if it can. How? Simply leave a comment on the PR that was merged into master that says: “@meeseeksdev backport to [MAJOR].[MINOR].x” (for example “@meeseeksdev backport to 0.14.x” if we are on a release from the 0.14 series.
-The PR also needs to be associated with a Milestone the description of which contains “on-merge: backport to [BRANCHNAME]”.
+Note: Auto backporting can also be triggered if you associate the PR with a Milestone or Label the description of which contains “on-merge: backport to [BRANCHNAME]”.
 
 .. highlight:: none
 

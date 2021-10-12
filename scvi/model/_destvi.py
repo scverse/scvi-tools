@@ -7,7 +7,9 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
+from scvi._docs import setup_anndata_dsp
 from scvi.data import register_tensor_from_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
@@ -22,7 +24,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     st_adata
-        spatial transcriptomics AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        spatial transcriptomics AnnData object that has been registered via :meth:`~scvi.model.DestVI.setup_anndata`.
     cell_type_mapping
         mapping between numerals and cell type labels
     decoder_state_dict
@@ -43,10 +45,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_scRNA_anndata)
-    >>> scvi.data.setup_anndata(sc_adata)
-    >>> sc_model = scvi.CondSCVI(sc_adata)
+    >>> scvi.model.CondSCVI.setup_anndata(sc_adata)
+    >>> sc_model = scvi.model.CondSCVI(sc_adata)
     >>> st_adata = anndata.read_h5ad(path_to_ST_anndata)
-    >>> scvi.data.setup_anndata(st_adata)
+    >>> DestVI.setup_anndata(st_adata)
     >>> spatial_model = DestVI.from_rna_model(st_adata, sc_model)
     >>> spatial_model.train(max_epochs=2000)
     >>> st_adata.obsm["proportions"] = spatial_model.get_proportions(st_adata)
@@ -347,4 +349,30 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             batch_size=batch_size,
             plan_kwargs=plan_kwargs,
             **kwargs,
+        )
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_layer)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            layer=layer,
+            copy=copy,
         )

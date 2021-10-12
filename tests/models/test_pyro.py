@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import numpy as np
 import pyro
@@ -153,6 +154,12 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         )
         self._model_summary_string = "BayesianRegressionModel"
         self.init_params_ = self._get_init_params(locals())
+
+    @staticmethod
+    def setup_anndata(
+        adata: AnnData,
+    ) -> Optional[AnnData]:
+        pass
 
 
 def test_pyro_bayesian_regression(save_path):
@@ -382,11 +389,12 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
 def test_lda_model():
     use_gpu = torch.cuda.is_available()
     n_topics = 5
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
 
     # Test with float and Sequence priors.
+    AmortizedLDA.setup_anndata(adata)
     mod1 = AmortizedLDA(
-        adata, n_topics=n_topics, cell_topic_prior=1.5, topic_gene_prior=1.5
+        adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5
     )
     mod1.train(
         max_epochs=1,
@@ -398,7 +406,7 @@ def test_lda_model():
         adata,
         n_topics=n_topics,
         cell_topic_prior=[1.5 for _ in range(n_topics)],
-        topic_gene_prior=[1.5 for _ in range(adata.n_vars)],
+        topic_feature_prior=[1.5 for _ in range(adata.n_vars)],
     )
     mod2.train(
         max_epochs=1,
@@ -414,18 +422,24 @@ def test_lda_model():
         lr=0.01,
         use_gpu=use_gpu,
     )
-    mod.get_gene_by_topic()
+    adata_gbt = mod.get_feature_by_topic().to_numpy()
+    assert np.allclose(adata_gbt.sum(axis=0), 1)
     adata_lda = mod.get_latent_representation(adata).to_numpy()
-    assert adata_lda.shape == (adata.n_obs, n_topics) and np.all(
-        (adata_lda <= 1) & (adata_lda >= 0)
+    assert (
+        adata_lda.shape == (adata.n_obs, n_topics)
+        and np.all((adata_lda <= 1) & (adata_lda >= 0))
+        and np.allclose(adata_lda.sum(axis=1), 1)
     )
     mod.get_elbo()
     mod.get_perplexity()
 
-    adata2 = synthetic_iid()
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    AmortizedLDA.setup_anndata(adata2)
     adata2_lda = mod.get_latent_representation(adata2).to_numpy()
-    assert adata2_lda.shape == (adata2.n_obs, n_topics) and np.all(
-        (adata2_lda <= 1) & (adata2_lda >= 0)
+    assert (
+        adata2_lda.shape == (adata2.n_obs, n_topics)
+        and np.all((adata2_lda <= 1) & (adata2_lda >= 0))
+        and np.allclose(adata2_lda.sum(axis=1), 1)
     )
     mod.get_elbo(adata2)
     mod.get_perplexity(adata2)
@@ -434,7 +448,8 @@ def test_lda_model():
 def test_lda_model_save_load(save_path):
     use_gpu = torch.cuda.is_available()
     n_topics = 5
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
+    AmortizedLDA.setup_anndata(adata)
     mod = AmortizedLDA(adata, n_topics=n_topics)
     mod.train(
         max_epochs=5,
@@ -443,16 +458,16 @@ def test_lda_model_save_load(save_path):
         use_gpu=use_gpu,
     )
 
-    gene_by_topic_1 = mod.get_gene_by_topic()
-    latent_1 = mod.get_latent_representation()
+    feature_by_topic_1 = mod.get_feature_by_topic(n_samples=5000)
+    latent_1 = mod.get_latent_representation(n_samples=5000)
 
     save_path = os.path.join(save_path, "tmp")
     mod.save(save_path, overwrite=True, save_anndata=True)
     mod = AmortizedLDA.load(save_path)
 
-    gene_by_topic_2 = mod.get_gene_by_topic()
-    latent_2 = mod.get_latent_representation()
-    np.testing.assert_array_equal(
-        gene_by_topic_1.to_numpy(), gene_by_topic_2.to_numpy()
+    feature_by_topic_2 = mod.get_feature_by_topic(n_samples=5000)
+    latent_2 = mod.get_latent_representation(n_samples=5000)
+    np.testing.assert_almost_equal(
+        feature_by_topic_1.to_numpy(), feature_by_topic_2.to_numpy(), decimal=2
     )
-    np.testing.assert_array_equal(latent_1.to_numpy(), latent_2.to_numpy())
+    np.testing.assert_almost_equal(latent_1.to_numpy(), latent_2.to_numpy(), decimal=2)
