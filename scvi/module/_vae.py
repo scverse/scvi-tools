@@ -162,13 +162,13 @@ class VAE(BaseModuleClass):
         cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
         encoder_cat_list = cat_list if encode_covariates else None
         self.z_encoder = Encoder(
-            n_input_encoder, # 100
-            n_latent, # 5
-            n_cat_list=encoder_cat_list, # [2]
-            n_layers=n_layers, # 1
-            n_hidden=n_hidden, # 128
-            dropout_rate=dropout_rate, # 0. 1
-            distribution=latent_distribution, # normal
+            n_input_encoder,  # 100
+            n_latent,  # 5
+            n_cat_list=encoder_cat_list,  # [2]
+            n_layers=n_layers,  # 1
+            n_hidden=n_hidden,  # 128
+            dropout_rate=dropout_rate,  # 0. 1
+            distribution=latent_distribution,  # normal
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
@@ -188,7 +188,7 @@ class VAE(BaseModuleClass):
             var_activation=var_activation,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
-        n_input_decoder = n_latent + n_continuous_cov # 5
+        n_input_decoder = n_latent + n_continuous_cov  # 5
         self.decoder = DecoderSCVI(
             n_input_decoder,
             n_input,

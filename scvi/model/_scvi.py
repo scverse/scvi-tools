@@ -1,6 +1,6 @@
 import logging
-
 from typing import List, Optional
+
 from anndata import AnnData
 
 from scvi._compat import Literal

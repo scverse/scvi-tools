@@ -1,4 +1,5 @@
 import collections
+import pdb
 from typing import Callable, Iterable, List, Optional
 
 import torch
@@ -8,7 +9,6 @@ from torch.nn import ModuleList
 
 from ._utils import one_hot
 
-import pdb
 
 def reparameterize_gaussian(mu, var):
     return Normal(mu, var.sqrt()).rsample()
@@ -70,8 +70,8 @@ class FCLayers(nn.Module):
         super().__init__()
         self.inject_covariates = inject_covariates
         # layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out] # 100 128
-        layers_dim = [5] + (n_layers - 1) * [n_hidden] + [n_out] # 5 128
-        self.embeddings = nn.Embedding(n_in,5) # 100 5
+        layers_dim = [5] + (n_layers - 1) * [n_hidden] + [n_out]  # 5 128
+        self.embeddings = nn.Embedding(n_in, 5)  # 100 5
 
         if n_cat_list is not None:
             # n_cat = 1 will be ignored
@@ -87,7 +87,7 @@ class FCLayers(nn.Module):
                         "Layer {}".format(i),
                         nn.Sequential(
                             nn.Linear(
-                                # n_in + cat_dim * self.inject_into_layer(i), 
+                                # n_in + cat_dim * self.inject_into_layer(i),
                                 5 + cat_dim * self.inject_into_layer(i),
                                 n_out,
                                 bias=bias,
@@ -160,7 +160,7 @@ class FCLayers(nn.Module):
 
         """
         # 128 100
-        
+
         x = self.embeddings(x.type(torch.LongTensor))
         # 128 100 5
         one_hot_cat_list = []  # for generality in this list many indices useless.
@@ -200,9 +200,9 @@ class FCLayers(nn.Module):
                             else:
                                 one_hot_cat_list_layer = one_hot_cat_list
                             x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
-                    x = layer(x) # 128 100 128
+                    x = layer(x)  # 128 100 128
         print(x.shape)
-        return x # want 128 128
+        return x  # want 128 128
 
 
 # Encoder

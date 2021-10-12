@@ -1,8 +1,9 @@
+import pdb
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import pdb
 
 CONTEXT_SIZE = 3
 EMBEDDING_DIM = 10
@@ -25,10 +26,7 @@ And see thy blood warm when thou feel'st it cold.""".split()
 # build a list of tuples.
 # Each tuple is ([ word_i-CONTEXT_SIZE, ..., word_i-1 ], target word)
 ngrams = [
-    (
-        [test_sentence[i - j - 1] for j in range(CONTEXT_SIZE)],
-        test_sentence[i]
-    )
+    ([test_sentence[i - j - 1] for j in range(CONTEXT_SIZE)], test_sentence[i])
     for i in range(CONTEXT_SIZE, len(test_sentence))
 ]
 # Print the first 3, just so you can see what they look like.
@@ -39,15 +37,16 @@ word_to_ix = {word: i for i, word in enumerate(vocab)}
 
 
 class NGramLanguageModeler(nn.Module):
-
-    def __init__(self, vocab_size, embedding_dim, context_size): # 97 10 3
+    def __init__(self, vocab_size, embedding_dim, context_size):  # 97 10 3
         super(NGramLanguageModeler, self).__init__()
-        self.embeddings = nn.Embedding(vocab_size, embedding_dim) # 97 10 -> 3 10 -> 1 30
-        self.linear1 = nn.Linear(context_size * embedding_dim, 128) # 30 128
+        self.embeddings = nn.Embedding(
+            vocab_size, embedding_dim
+        )  # 97 10 -> 3 10 -> 1 30
+        self.linear1 = nn.Linear(context_size * embedding_dim, 128)  # 30 128
         self.linear2 = nn.Linear(128, vocab_size)
 
-    def forward(self, inputs): # inputs = 3
-        #pdb.set_trace()
+    def forward(self, inputs):  # inputs = 3
+        # pdb.set_trace()
         # 3 10 -> 1 30
         embeds = self.embeddings(inputs).view((1, -1))
         out = F.relu(self.linear1(embeds))
@@ -79,7 +78,9 @@ for epoch in range(10):
 
         # Step 4. Compute your loss function. (Again, Torch wants the target
         # word wrapped in a tensor)
-        loss = loss_function(log_probs, torch.tensor([word_to_ix[target]], dtype=torch.long))
+        loss = loss_function(
+            log_probs, torch.tensor([word_to_ix[target]], dtype=torch.long)
+        )
 
         # Step 5. Do the backward pass and update the gradient
         loss.backward()
