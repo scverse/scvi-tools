@@ -250,6 +250,7 @@ class BaseModelClass(ABC):
     def save(
         self,
         dir_path: str,
+        prefix: Optional[str] = None,
         overwrite: bool = False,
         save_anndata: bool = False,
         **anndata_write_kwargs,
@@ -265,6 +266,8 @@ class BaseModelClass(ABC):
         ----------
         dir_path
             Path to a directory.
+        prefix
+            Prefix to prepend to saved file names.
         overwrite
             Overwrite existing data or not. If `False` and directory
             already exists at `dir_path`, error will be raised.
@@ -287,14 +290,17 @@ class BaseModelClass(ABC):
                 )
             )
 
+        file_name_prefix = prefix or ""
+
         if save_anndata:
             self.adata.write(
-                os.path.join(dir_path, "adata.h5ad"), **anndata_write_kwargs
+                os.path.join(dir_path, f"{file_name_prefix}adata.h5ad"),
+                **anndata_write_kwargs,
             )
 
-        model_save_path = os.path.join(dir_path, "model_params.pt")
-        attr_save_path = os.path.join(dir_path, "attr.pkl")
-        varnames_save_path = os.path.join(dir_path, "var_names.csv")
+        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+        attr_save_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+        varnames_save_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
 
         var_names = self.adata.var_names.astype(str)
         var_names = var_names.to_numpy()
@@ -308,6 +314,7 @@ class BaseModelClass(ABC):
     def load(
         cls,
         dir_path: str,
+        prefix: Optional[str] = None,
         adata: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
     ):
@@ -318,6 +325,8 @@ class BaseModelClass(ABC):
         ----------
         dir_path
             Path to saved outputs.
+        prefix
+            Prefix of saved file names.
         adata
             AnnData organized in the same way as data used to train model.
             It is not necessary to run setup_anndata,
@@ -345,7 +354,7 @@ class BaseModelClass(ABC):
             var_names,
             model_state_dict,
             new_adata,
-        ) = _load_saved_files(dir_path, load_adata, map_location=device)
+        ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
         adata = new_adata if new_adata is not None else adata
 
         _validate_var_names(adata, var_names)
