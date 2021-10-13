@@ -865,3 +865,19 @@ def test_multivi():
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
     vae.differential_expression(groupby="labels", group1="label_1")
+
+
+def test_early_stopping():
+    n_epochs = 100
+
+    adata = synthetic_iid(
+        run_setup_anndata=False,
+    )
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    model.train(n_epochs, early_stopping=True, plan_kwargs=dict(lr=0))
+    assert len(model.history["elbo_train"]) < n_epochs

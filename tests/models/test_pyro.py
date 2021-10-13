@@ -394,7 +394,7 @@ def test_lda_model():
     # Test with float and Sequence priors.
     AmortizedLDA.setup_anndata(adata)
     mod1 = AmortizedLDA(
-        adata, n_topics=n_topics, cell_topic_prior=1.5, topic_gene_prior=1.5
+        adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5
     )
     mod1.train(
         max_epochs=1,
@@ -406,7 +406,7 @@ def test_lda_model():
         adata,
         n_topics=n_topics,
         cell_topic_prior=[1.5 for _ in range(n_topics)],
-        topic_gene_prior=[1.5 for _ in range(adata.n_vars)],
+        topic_feature_prior=[1.5 for _ in range(adata.n_vars)],
     )
     mod2.train(
         max_epochs=1,
@@ -422,7 +422,7 @@ def test_lda_model():
         lr=0.01,
         use_gpu=use_gpu,
     )
-    adata_gbt = mod.get_gene_by_topic().to_numpy()
+    adata_gbt = mod.get_feature_by_topic().to_numpy()
     assert np.allclose(adata_gbt.sum(axis=0), 1)
     adata_lda = mod.get_latent_representation(adata).to_numpy()
     assert (
@@ -458,16 +458,16 @@ def test_lda_model_save_load(save_path):
         use_gpu=use_gpu,
     )
 
-    gene_by_topic_1 = mod.get_gene_by_topic(n_samples=5000)
+    feature_by_topic_1 = mod.get_feature_by_topic(n_samples=5000)
     latent_1 = mod.get_latent_representation(n_samples=5000)
 
     save_path = os.path.join(save_path, "tmp")
     mod.save(save_path, overwrite=True, save_anndata=True)
     mod = AmortizedLDA.load(save_path)
 
-    gene_by_topic_2 = mod.get_gene_by_topic(n_samples=5000)
+    feature_by_topic_2 = mod.get_feature_by_topic(n_samples=5000)
     latent_2 = mod.get_latent_representation(n_samples=5000)
     np.testing.assert_almost_equal(
-        gene_by_topic_1.to_numpy(), gene_by_topic_2.to_numpy(), decimal=2
+        feature_by_topic_1.to_numpy(), feature_by_topic_2.to_numpy(), decimal=2
     )
     np.testing.assert_almost_equal(latent_1.to_numpy(), latent_2.to_numpy(), decimal=2)
