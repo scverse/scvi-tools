@@ -1,11 +1,13 @@
 import os
 import pickle
-from typing import Literal, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
 from anndata import AnnData, read
 from sklearn.utils import deprecated
+
+from scvi._compat import Literal
 
 
 def _should_use_legacy_saved_gimvi_files(dir_path: str, file_name_prefix: str) -> bool:
