@@ -12,10 +12,44 @@ from anndata import AnnData, read
 from sklearn.utils import deprecated
 
 from scvi._compat import Literal
-from scvi._constants import _CONSTANTS
 from scvi.utils import DifferentialComputation, track
 
 logger = logging.getLogger(__name__)
+
+
+def _should_use_legacy_saved_files(dir_path: str, file_name_prefix: str) -> bool:
+    new_model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
+    attr_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+    return (
+        not os.path.exists(new_model_path)
+        and os.path.exists(model_path)
+        and os.path.exists(var_names_path)
+        and os.path.exists(attr_dict_path)
+    )
+
+
+@deprecated(
+    extra="Please update your saved models to use the latest version. The legacy save and load scheme will be removed in version 0.16.0."
+)
+def _load_legacy_saved_files(
+    dir_path: str,
+    file_name_prefix: str,
+    map_location: Optional[Literal["cpu", "cuda"]],
+) -> Tuple[dict, np.ndarray, dict]:
+    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
+    setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+
+    model_params = torch.load(model_path, map_location=map_location)
+
+    var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
+
+    with open(setup_dict_path, "rb") as handle:
+        attr_dict = pickle.load(handle)
+
+    return model_params, var_names, attr_dict
 
 
 def _load_saved_files(
@@ -23,7 +57,7 @@ def _load_saved_files(
     load_adata: bool,
     prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
-) -> Tuple[dict, dict, np.ndarray, dict, AnnData]:
+) -> Tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
     adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
@@ -50,49 +84,7 @@ def _load_saved_files(
         var_names = model["var_names"]
         attr_dict = model["attr_dict"]
 
-    scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-    # Only retain keys in the data_registry that exist in _CONSTANTS.
-    # TODO(jhong): Remove once data registry refactored.
-    scvi_setup_dict["data_registry"] = {
-        k: v for k, v in scvi_setup_dict["data_registry"].items() if k in _CONSTANTS
-    }
-
-    return scvi_setup_dict, attr_dict, var_names, model_params, adata
-
-
-def _should_use_legacy_saved_files(dir_path: str, file_name_prefix: str) -> bool:
-    new_model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
-    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-    varnames_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
-    setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
-    return (
-        not os.path.exists(new_model_path)
-        and os.path.exists(model_path)
-        and os.path.exists(varnames_path)
-        and os.path.exists(setup_dict_path)
-    )
-
-
-@deprecated(
-    extra="Please update your saved models to use the latest version. The legacy save and load scheme will be removed in version 0.16.0."
-)
-def _load_legacy_saved_files(
-    dir_path: str,
-    file_name_prefix: str,
-    map_location: Optional[Literal["cpu", "cuda"]] = None,
-) -> Tuple[dict, np.ndarray, dict]:
-    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-    varnames_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
-    setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
-
-    model_params = torch.load(model_path, map_location=map_location)
-
-    var_names = np.genfromtxt(varnames_path, delimiter=",", dtype=str)
-
-    with open(setup_dict_path, "rb") as handle:
-        attr_dict = pickle.load(handle)
-
-    return model_params, var_names, attr_dict
+    return attr_dict, var_names, model_params, adata
 
 
 def _initialize_model(cls, adata, attr_dict):

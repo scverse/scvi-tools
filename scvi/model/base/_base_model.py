@@ -353,13 +353,19 @@ class BaseModelClass(ABC):
         use_gpu, device = parse_use_gpu_arg(use_gpu)
 
         (
-            scvi_setup_dict,
             attr_dict,
             var_names,
             model_state_dict,
             new_adata,
         ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
         adata = new_adata if new_adata is not None else adata
+
+        scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+        # Only retain keys in the data_registry that exist in _CONSTANTS.
+        # TODO(jhong): Remove once data registry refactored.
+        scvi_setup_dict["data_registry"] = {
+            k: v for k, v in scvi_setup_dict["data_registry"].items() if k in _CONSTANTS
+        }
 
         _validate_var_names(adata, var_names)
         transfer_anndata_setup(scvi_setup_dict, adata)
