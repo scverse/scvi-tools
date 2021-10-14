@@ -70,3 +70,7 @@ def _get_batch_mask_protein_data(
         batch_mask[b] = ~all_zero
 
     return batch_mask
+
+
+def _assert_key_in_obs(adata, key):
+    assert key in adata.obs.keys(), "{} is not a valid key for in adata.obs".format(key)

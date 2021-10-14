@@ -19,7 +19,11 @@ import scvi
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 
-from ._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
+from ._utils import (
+    _assert_key_in_obs,
+    _check_nonnegative_integers,
+    _get_batch_mask_protein_data,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +227,7 @@ def _setup_anndata(
             "attr_key": protein_expression_obsm_key,
         }
 
+    # Stopped here
     if categorical_covariate_keys is not None:
         cat_loc, cat_key = _setup_extra_categorical_covs(
             adata, categorical_covariate_keys
@@ -572,10 +577,6 @@ def _transfer_protein_expression(_scvi_dict, adata_target, batch_key):
         protein_expression_obsm_key = None
 
     return protein_expression_obsm_key
-
-
-def _assert_key_in_obs(adata, key):
-    assert key in adata.obs.keys(), "{} is not a valid key for in adata.obs".format(key)
 
 
 def _setup_labels(adata, labels_key):
