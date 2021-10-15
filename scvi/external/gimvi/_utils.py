@@ -42,7 +42,7 @@ def _load_legacy_saved_gimvi_files(
         dir_path, f"{file_name_prefix}var_names_spatial.csv"
     )
 
-    model_params = torch.load(model_path, map_location=map_location)
+    model_state_dict = torch.load(model_path, map_location=map_location)
 
     seq_var_names = np.genfromtxt(seq_var_names_path, delimiter=",", dtype=str)
     spatial_var_names = np.genfromtxt(spatial_var_names_path, delimiter=",", dtype=str)
@@ -50,7 +50,7 @@ def _load_legacy_saved_gimvi_files(
     with open(setup_dict_path, "rb") as handle:
         attr_dict = pickle.load(handle)
 
-    return model_params, seq_var_names, spatial_var_names, attr_dict
+    return model_state_dict, seq_var_names, spatial_var_names, attr_dict
 
 
 def _load_saved_gimvi_files(
@@ -79,7 +79,7 @@ def _load_saved_gimvi_files(
     # TODO(jhong): Remove once legacy load is deprecated.
     if use_legacy:
         (
-            model_params,
+            model_state_dict,
             seq_var_names,
             spatial_var_names,
             attr_dict,
@@ -88,7 +88,7 @@ def _load_saved_gimvi_files(
         model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
 
         model = torch.load(model_path, map_location=map_location)
-        model_params = model["model_params"]
+        model_state_dict = model["model_state_dict"]
         seq_var_names = model["seq_var_names"]
         spatial_var_names = model["spatial_var_names"]
         attr_dict = model["attr_dict"]
@@ -97,7 +97,7 @@ def _load_saved_gimvi_files(
         attr_dict,
         seq_var_names,
         spatial_var_names,
-        model_params,
+        model_state_dict,
         adata_seq,
         adata_spatial,
     )

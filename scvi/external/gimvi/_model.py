@@ -403,7 +403,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             spatial_adata.write(spatial_save_path)
 
         # save the model state dict and the trainer state dict only
-        model_params = self.module.state_dict()
+        model_state_dict = self.module.state_dict()
 
         seq_var_names = seq_adata.var_names.astype(str).to_numpy()
         spatial_var_names = spatial_adata.var_names.astype(str).to_numpy()
@@ -417,7 +417,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         torch.save(
             dict(
-                model_params=model_params,
+                model_state_dict=model_state_dict,
                 seq_var_names=seq_var_names,
                 spatial_var_names=spatial_var_names,
                 attr_dict=user_attributes,
@@ -470,7 +470,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             attr_dict,
             seq_var_names,
             spatial_var_names,
-            model_params,
+            model_state_dict,
             loaded_adata_seq,
             loaded_adata_spatial,
         ) = _load_saved_gimvi_files(
@@ -522,7 +522,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        model.module.load_state_dict(model_params)
+        model.module.load_state_dict(model_state_dict)
         model.module.eval()
         model.to_device(device)
         return model

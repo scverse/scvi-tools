@@ -42,14 +42,14 @@ def _load_legacy_saved_files(
     var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
     setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
 
-    model_params = torch.load(model_path, map_location=map_location)
+    model_state_dict = torch.load(model_path, map_location=map_location)
 
     var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
 
     with open(setup_dict_path, "rb") as handle:
         attr_dict = pickle.load(handle)
 
-    return model_params, var_names, attr_dict
+    return model_state_dict, var_names, attr_dict
 
 
 def _load_saved_files(
@@ -73,18 +73,18 @@ def _load_saved_files(
 
     # TODO(jhong): Remove once legacy load is deprecated.
     if use_legacy:
-        model_params, var_names, attr_dict = _load_legacy_saved_files(
+        model_state_dict, var_names, attr_dict = _load_legacy_saved_files(
             dir_path, file_name_prefix, map_location
         )
     else:
         model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
 
         model = torch.load(model_path, map_location=map_location)
-        model_params = model["model_params"]
+        model_state_dict = model["model_state_dict"]
         var_names = model["var_names"]
         attr_dict = model["attr_dict"]
 
-    return attr_dict, var_names, model_params, adata
+    return attr_dict, var_names, model_state_dict, adata
 
 
 def _initialize_model(cls, adata, attr_dict):

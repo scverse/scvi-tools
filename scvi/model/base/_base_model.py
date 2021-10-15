@@ -295,7 +295,7 @@ class BaseModelClass(ABC):
         model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
 
         # save the model state dict and the trainer state dict only
-        model_params = self.module.state_dict()
+        model_state_dict = self.module.state_dict()
 
         var_names = self.adata.var_names.astype(str)
         var_names = var_names.to_numpy()
@@ -307,7 +307,7 @@ class BaseModelClass(ABC):
 
         torch.save(
             dict(
-                model_params=model_params,
+                model_state_dict=model_state_dict,
                 var_names=var_names,
                 attr_dict=user_attributes,
             ),
