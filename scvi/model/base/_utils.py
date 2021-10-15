@@ -3,30 +3,64 @@ import os
 import pickle
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData, read
+from sklearn.utils import deprecated
 
 from scvi._compat import Literal
-from scvi._constants import _CONSTANTS
 from scvi.utils import DifferentialComputation, track
 
 logger = logging.getLogger(__name__)
 
 
+def _should_use_legacy_saved_files(dir_path: str, file_name_prefix: str) -> bool:
+    new_model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
+    attr_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+    return (
+        not os.path.exists(new_model_path)
+        and os.path.exists(model_path)
+        and os.path.exists(var_names_path)
+        and os.path.exists(attr_dict_path)
+    )
+
+
+@deprecated(
+    extra="Please update your saved models to use the latest version. The legacy save and load scheme will be removed in version 0.16.0."
+)
+def _load_legacy_saved_files(
+    dir_path: str,
+    file_name_prefix: str,
+    map_location: Optional[Literal["cpu", "cuda"]],
+) -> Tuple[dict, np.ndarray, dict]:
+    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
+    setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+
+    model_state_dict = torch.load(model_path, map_location=map_location)
+
+    var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
+
+    with open(setup_dict_path, "rb") as handle:
+        attr_dict = pickle.load(handle)
+
+    return model_state_dict, var_names, attr_dict
+
+
 def _load_saved_files(
     dir_path: str,
     load_adata: bool,
+    prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
-):
+) -> Tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
-    setup_dict_path = os.path.join(dir_path, "attr.pkl")
-    adata_path = os.path.join(dir_path, "adata.h5ad")
-    varnames_path = os.path.join(dir_path, "var_names.csv")
-    model_path = os.path.join(dir_path, "model_params.pt")
+    file_name_prefix = prefix or ""
+    adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
 
     if os.path.exists(adata_path) and load_adata:
         adata = read(adata_path)
@@ -35,21 +69,22 @@ def _load_saved_files(
     else:
         adata = None
 
-    var_names = np.genfromtxt(varnames_path, delimiter=",", dtype=str)
+    use_legacy = _should_use_legacy_saved_files(dir_path, file_name_prefix)
 
-    with open(setup_dict_path, "rb") as handle:
-        attr_dict = pickle.load(handle)
+    # TODO(jhong): Remove once legacy load is deprecated.
+    if use_legacy:
+        model_state_dict, var_names, attr_dict = _load_legacy_saved_files(
+            dir_path, file_name_prefix, map_location
+        )
+    else:
+        model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
 
-    scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-    # Only retain keys in the data_registry that exist in _CONSTANTS.
-    # TODO(jhong): Remove once data registry refactored.
-    scvi_setup_dict["data_registry"] = {
-        k: v for k, v in scvi_setup_dict["data_registry"].items() if k in _CONSTANTS
-    }
+        model = torch.load(model_path, map_location=map_location)
+        model_state_dict = model["model_state_dict"]
+        var_names = model["var_names"]
+        attr_dict = model["attr_dict"]
 
-    model_state_dict = torch.load(model_path, map_location=map_location)
-
-    return scvi_setup_dict, attr_dict, var_names, model_state_dict, adata
+    return attr_dict, var_names, model_state_dict, adata
 
 
 def _initialize_model(cls, adata, attr_dict):
@@ -158,7 +193,7 @@ def _de_core(
     batch_correction,
     fdr,
     silent,
-    **kwargs
+    **kwargs,
 ):
     """Internal function for DE interface."""
     if group1 is None and idx1 is None:
