@@ -5,9 +5,13 @@ name: scvi-tools
 
 on:
   push:
-    branches: [master]
+    branches:
+      - master
+      - 0.14.x
   pull_request:
-    branches: [master]
+    branches:
+      - master
+      - 0.14.x
 
 jobs:
   build:
