@@ -3,7 +3,7 @@ import os
 import pickle
 import sys
 import warnings
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import anndata
 import numpy as np
@@ -19,62 +19,24 @@ import scvi
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 
+from ._anndata_manager import AnnDataManager
 from ._utils import (
     _assert_key_in_obs,
     _check_nonnegative_integers,
     _get_batch_mask_protein_data,
+    _is_equal_mapping,
+    _is_similar_mapping,
 )
 
 logger = logging.getLogger(__name__)
 
 
+# TODO remove this and replace call sites with the call to AnnDataManager
 def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
-    """
-    Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``.
-
-    Parameters
-    ----------
-    adata
-        anndata object already setup with setup_anndata
-    key
-        key of object to get from ``adata.uns['_scvi]['data_registry']``
-
-    Returns
-    -------
-    The requested data
-
-    Examples
-    --------
-    >>> import scvi
-    >>> adata = scvi.data.cortex()
-    >>> adata.uns['_scvi']['data_registry']
-    {'X': ['_X', None],
-    'batch_indices': ['obs', 'batch'],
-    'labels': ['obs', 'labels']}
-    >>> batch = get_from_registry(adata, "batch_indices")
-    >>> batch
-    array([[0],
-           [0],
-           [0],
-           ...,
-           [0],
-           [0],
-           [0]])
-    """
-    data_loc = adata.uns["_scvi"]["data_registry"][key]
-    attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
-
-    data = getattr(adata, attr_name)
-    if attr_key != "None":
-        if isinstance(data, pd.DataFrame):
-            data = data.loc[:, attr_key]
-        else:
-            data = data[attr_key]
-    if isinstance(data, pd.Series):
-        data = data.to_numpy().reshape(-1, 1)
-    return data
+    AnnDataManager.get_from_registry(adata, key)
 
 
+# TODO remove this (clean up any export or remaining call sites)
 @deprecated(
     extra="Please use the model-specific setup_anndata methods instead. The global method will be removed in version 0.15.0."
 )
@@ -197,70 +159,35 @@ def _setup_anndata(
     continuous_covariate_keys: Optional[List[str]] = None,
     copy: bool = False,
 ) -> Optional[anndata.AnnData]:
+    """This method provides a convenient helper to set up most common
+    fields in anndata. You can also set up the anndata component by component
+    for the components you are interested in (which may be different than the
+    ones this function uses)."""
+
     if copy:
         adata = adata.copy()
-
-    if adata.is_view:
+    elif adata.is_view:
         raise ValueError(
             "Please run `adata = adata.copy()` or use the copy option in this function."
         )
 
-    adata.uns["_scvi"] = {}
-    adata.uns["_scvi"]["scvi_version"] = scvi.__version__
-
-    batch_key = _setup_batch(adata, batch_key)
-    labels_key = _setup_labels(adata, labels_key)
-    x_loc, x_key = _setup_x(adata, layer)
-
-    data_registry = {
-        _CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key},
-        _CONSTANTS.BATCH_KEY: {"attr_name": "obs", "attr_key": batch_key},
-        _CONSTANTS.LABELS_KEY: {"attr_name": "obs", "attr_key": labels_key},
-    }
+    adata_mgr = AnnDataManager(adata)
+    adata_mgr.setup_batch(batch_key)
+    adata_mgr.setup_labels(labels_key)
+    adata_mgr.setup_x(layer)
 
     if protein_expression_obsm_key is not None:
-        protein_expression_obsm_key = _setup_protein_expression(
-            adata, protein_expression_obsm_key, protein_names_uns_key, batch_key
-        )
-        data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = {
-            "attr_name": "obsm",
-            "attr_key": protein_expression_obsm_key,
-        }
+        adata_mgr.setup_protein_expression(protein_expression_obsm_key, batch_key)
 
-    # Stopped here
     if categorical_covariate_keys is not None:
-        cat_loc, cat_key = _setup_extra_categorical_covs(
-            adata, categorical_covariate_keys
-        )
-        data_registry[_CONSTANTS.CAT_COVS_KEY] = {
-            "attr_name": cat_loc,
-            "attr_key": cat_key,
-        }
+        adata_mgr.record_extra_categorical_covariates(categorical_covariate_keys)
 
     if continuous_covariate_keys is not None:
-        cont_loc, cont_key = _setup_extra_continuous_covs(
-            adata, continuous_covariate_keys
-        )
-        data_registry[_CONSTANTS.CONT_COVS_KEY] = {
-            "attr_name": cont_loc,
-            "attr_key": cont_key,
-        }
+        adata_mgr.record_extra_continuous_covariates(continuous_covariate_keys)
 
-    # add the data_registry to anndata
-    _register_anndata(adata, data_registry_dict=data_registry)
-    logger.debug("Registered keys:{}".format(list(data_registry.keys())))
-    _setup_summary_stats(
-        adata,
-        batch_key,
-        labels_key,
-        protein_expression_obsm_key,
-        categorical_covariate_keys,
-        continuous_covariate_keys,
+    logger.info(
+        "anndata setup is completed. Please do not further modify adata until model is trained."
     )
-
-    logger.info("Please do not further modify adata until model is trained.")
-
-    _verify_and_correct_data_format(adata, data_registry)
 
     if copy:
         return adata
@@ -496,7 +423,7 @@ def transfer_anndata_setup(
         obs_keys_names = None
 
     # add the data_registry to anndata
-    _register_anndata(adata_target, data_registry_dict=target_data_registry)
+    adata_target.uns["_scvi"]["data_registry"] = target_data_registry.copy()
     logger.info("Registered keys:{}".format(list(target_data_registry.keys())))
     _setup_summary_stats(
         adata_target,
@@ -577,40 +504,6 @@ def _transfer_protein_expression(_scvi_dict, adata_target, batch_key):
         protein_expression_obsm_key = None
 
     return protein_expression_obsm_key
-
-
-def _setup_labels(adata, labels_key):
-    # checking labels
-    if labels_key is None:
-        logger.info("No label_key inputted, assuming all cells have same label")
-        labels_key = "_scvi_labels"
-        adata.obs[labels_key] = np.zeros(adata.shape[0], dtype=np.int64)
-        alt_key = labels_key
-    else:
-        _assert_key_in_obs(adata, labels_key)
-        logger.info('Using labels from adata.obs["{}"]'.format(labels_key))
-        alt_key = "_scvi_labels"
-    labels_key = _make_obs_column_categorical(
-        adata, column_key=labels_key, alternate_column_key=alt_key
-    )
-    return labels_key
-
-
-def _setup_batch(adata, batch_key):
-    # checking batch
-    if batch_key is None:
-        logger.info("No batch_key inputted, assuming all cells are same batch")
-        batch_key = "_scvi_batch"
-        adata.obs[batch_key] = np.zeros(adata.shape[0], dtype=np.int64)
-        alt_key = batch_key
-    else:
-        _assert_key_in_obs(adata, batch_key)
-        logger.info('Using batches from adata.obs["{}"]'.format(batch_key))
-        alt_key = "_scvi_batch"
-    batch_key = _make_obs_column_categorical(
-        adata, column_key=batch_key, alternate_column_key=alt_key
-    )
-    return batch_key
 
 
 def _setup_extra_categorical_covs(
@@ -754,58 +647,6 @@ def _make_obs_column_categorical(
     return alternate_column_key
 
 
-def _setup_protein_expression(
-    adata, protein_expression_obsm_key, protein_names_uns_key, batch_key
-):
-    assert (
-        protein_expression_obsm_key in adata.obsm.keys()
-    ), "{} is not a valid key in adata.obsm".format(protein_expression_obsm_key)
-
-    logger.info(
-        "Using protein expression from adata.obsm['{}']".format(
-            protein_expression_obsm_key
-        )
-    )
-    pro_exp = adata.obsm[protein_expression_obsm_key]
-    if _check_nonnegative_integers(pro_exp) is False:
-        warnings.warn(
-            "adata.obsm[{}] does not contain unnormalized count data. Are you sure this is what you want?".format(
-                protein_expression_obsm_key
-            )
-        )
-    # setup protein names
-    if protein_names_uns_key is None and isinstance(
-        adata.obsm[protein_expression_obsm_key], pd.DataFrame
-    ):
-        logger.info(
-            "Using protein names from columns of adata.obsm['{}']".format(
-                protein_expression_obsm_key
-            )
-        )
-        protein_names = list(adata.obsm[protein_expression_obsm_key].columns)
-    elif protein_names_uns_key is not None:
-        logger.info(
-            "Using protein names from adata.uns['{}']".format(protein_names_uns_key)
-        )
-        protein_names = adata.uns[protein_names_uns_key]
-    else:
-        logger.info("Generating sequential protein names")
-        protein_names = np.arange(adata.obsm[protein_expression_obsm_key].shape[1])
-
-    adata.uns["_scvi"]["protein_names"] = protein_names
-
-    # batch mask totalVI
-    batch_mask = _get_batch_mask_protein_data(
-        adata, protein_expression_obsm_key, batch_key
-    )
-
-    # check if it's actually needed
-    if np.sum([~b[1] for b in batch_mask.items()]) > 0:
-        logger.info("Found batches with missing protein expression")
-        adata.uns["_scvi"]["totalvi_batch_mask"] = batch_mask
-    return protein_expression_obsm_key
-
-
 def _setup_x(adata, layer):
     if layer is not None:
         assert (
@@ -881,27 +722,6 @@ def _setup_summary_stats(
     )
 
     return summary_stats
-
-
-def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
-    """
-    Registers the AnnData object by adding data_registry_dict to adata.uns['_scvi']['data_registry'].
-
-    Format of data_registry_dict is: {<scvi_key>: (<anndata dataframe>, <dataframe key> )}
-
-    Parameters
-    ----------
-    adata
-        anndata object
-    data_registry_dict
-        dictionary mapping keys used by scvi.model to their respective location in adata.
-
-    Examples
-    --------
-    >>> data_dict = {"batch" :("obs", "batch_idx"), "X": ("_X", None)}
-    >>> _register_anndata(adata, data_dict)
-    """
-    adata.uns["_scvi"]["data_registry"] = data_registry_dict.copy()
 
 
 @deprecated(
@@ -1236,15 +1056,3 @@ def _needs_transfer(mapping1, mapping2, category):
     else:
         raise ValueError(error_msg.format(category, mapping1, mapping2))
     return needs_transfer
-
-
-def _is_similar_mapping(mapping1, mapping2):
-    """Returns True if mapping2 is a subset of mapping1."""
-    if len(set(mapping2) - set(mapping1)) == 0:
-        return True
-    else:
-        return False
-
-
-def _is_equal_mapping(mapping1, mapping2):
-    return pd.Index(mapping1).equals(pd.Index(mapping2))

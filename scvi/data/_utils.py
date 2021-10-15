@@ -73,4 +73,20 @@ def _get_batch_mask_protein_data(
 
 
 def _assert_key_in_obs(adata, key):
-    assert key in adata.obs.keys(), "{} is not a valid key for in adata.obs".format(key)
+    assert key in adata.obs.keys(), "{} is not a valid key in adata.obs".format(key)
+
+
+def _assert_key_in_obsm(adata, key):
+    assert key in adata.obsm.keys(), "{} is not a valid key in adata.obsm".format(key)
+
+
+def _is_similar_mapping(mapping1, mapping2):
+    """Returns True if mapping2 is a subset of mapping1."""
+    if len(set(mapping2) - set(mapping1)) == 0:
+        return True
+    else:
+        return False
+
+
+def _is_equal_mapping(mapping1, mapping2):
+    return pd.Index(mapping1).equals(pd.Index(mapping2))

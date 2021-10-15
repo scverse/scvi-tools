@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -13,6 +13,7 @@ from scvi import _CONSTANTS
 
 from ._utils import (
     _assert_key_in_obs,
+    _assert_key_in_obsm,
     _check_nonnegative_integers,
     _get_batch_mask_protein_data,
 )
@@ -40,9 +41,6 @@ class AnnDataField:
         "obs_batch" is stored in the scvi data registry as ``'obs_batch' : {'attr_name': 'obs', 'attr_key': '_scvi_batch'}``.
     is_categorical
         ``True`` if this is a categorical field, ``False`` otherwise
-    default_same_cat
-        Ignore ``key`` and store the same value (same category, typically 0) under ``recorded_key``. Only applicable
-        if ``is_categorical == True``
     categorical_dtype
         The type to cast the data into. Only applicable if ``is_categorical == True``
     check_data_format
@@ -55,7 +53,6 @@ class AnnDataField:
         recorded_key: Optional[str],
         registry_key: str,
         is_categorical: bool = True,
-        default_same_cat: bool = True,
         categorical_dtype: Optional[CategoricalDtype] = None,
         check_data_format: bool = True,
     ) -> None:
@@ -63,7 +60,6 @@ class AnnDataField:
         self.recorded_key = recorded_key
         self.registry_key = registry_key
         self.is_categorical = is_categorical
-        self.default_same_cat = default_same_cat
         self.categorical_dtype = categorical_dtype
         self.check_data_format = check_data_format
 
@@ -79,7 +75,8 @@ class AnnDataManager:
 
     Parameters
     ----------
-    TODO
+    adata
+        The AnnData object containing the data
     """
 
     def __init__(self, adata: AnnData):
@@ -115,6 +112,7 @@ class AnnDataManager:
         self.setup_dict["data_registry"][registry_key] = dict(
             attr_name=adata_attr_name, attr_key=adata_attr_key
         )
+        logger.debug("Registered key: {}".format(registry_key))
 
     def _add_to_summary_stats(self, key: str, val: Union[int, float]):
         self.setup_dict["summary_stats"][key] = val
@@ -142,7 +140,7 @@ class AnnDataManager:
 
     def setup_labels(
         self,
-        labels_key: str,
+        labels_key: Optional[str],
     ):
         """
         Wrapper of ``setup_obs_field`` to setup label data.
@@ -176,7 +174,7 @@ class AnnDataManager:
         if not field.is_categorical:
             raise NotImplementedError
 
-        if field.default_same_cat:
+        if field.key is None:
             logger.info(
                 "No obs key inputted, assuming all cells are same category in {}".format(
                     field.recorded_key
@@ -253,6 +251,7 @@ class AnnDataManager:
                     protein_expression_obsm_key
                 )
             )
+
         field = AnnDataField(
             protein_expression_obsm_key, None, _CONSTANTS.PROTEIN_EXP_KEY
         )
@@ -304,9 +303,7 @@ class AnnDataManager:
         field
             ``AnnDataField`` to set up
         """
-        # TODO merge this with _assert_key_in_obs
-        if field.key not in self.adata.obsm.keys():
-            raise KeyError("{} is not a valid key in adata.obsm".format(field.key))
+        _assert_key_in_obsm(self.adata, field.key)
 
         self._add_to_data_registry(field.registry_key, "obsm", field.key)
         if field.check_data_format:
@@ -340,112 +337,130 @@ class AnnDataManager:
         self._add_to_data_registry(_CONSTANTS.X_KEY, x_loc, x_key)
         self._verify_and_correct_data_format(_CONSTANTS.X_KEY)
 
-    # def setup_categorical_obs_key_iterable(
-    #     self,
-    #     categorical_covariate_keys: List[str],
-    #     recorded_key: str,
-    #     category_dict: Dict[str, List[str]] = None,
-    #     registry_key: Optional[str] = None,
-    # ):
-    #     """
-    #     Setup obsm df for extra categorical covariates.
-    #     This helps setup a series of obs keys that will be loaded into
-    #     models as one tensor.
-    #     Parameters
-    #     ----------
-    #     categorical_covariate_keys
-    #         List of keys in adata.obs with categorical data
-    #     recorded_key
-    #         New df added to `.obsm` with copied data from `categorical_covariate_keys`
-    #     category_dict
-    #         Optional dictionary with keys being keys of categorical data in obs
-    #         and values being precomputed categories for each obs vector
-    #     registry_key
-    #         Key to add to registry
-    #     """
-    #     adata = self.adata
-    #     for key in categorical_covariate_keys:
-    #         _assert_key_in_obs(adata, key)
+    def record_extra_categorical_covariates(
+        self,
+        categorical_covariate_keys: List[str],
+        recorded_key: str = "_scvi_extra_categoricals",
+        category_dict: Dict[str, List[str]] = None,
+        registry_key: str = _CONSTANTS.CAT_COVS_KEY,
+    ):
+        """
+        Records extra categorical covariates (which are obs keys) in
+        an ``adata.obsm`` dataframe.
 
-    #     info_store = {}
-    #     categories = {}
-    #     df = pd.DataFrame(index=adata.obs_names)
-    #     for key in categorical_covariate_keys:
-    #         if category_dict is None:
-    #             categorical_obs = adata.obs[key].astype("category")
-    #             mapping = categorical_obs.cat.categories.to_numpy(copy=True)
-    #             categories[key] = mapping
-    #         else:
-    #             possible_cats = category_dict[key]
-    #             categorical_obs = adata.obs[key].astype(
-    #                 CategoricalDtype(categories=possible_cats)
-    #             )
-    #         codes = categorical_obs.cat.codes
-    #         df[key] = codes
+        This helps set up a series of obs keys that will be loaded into
+        models as one tensor.
 
-    #     adata.obsm[recorded_key] = df
+        Parameters
+        ----------
+        categorical_covariate_keys
+            List of keys in ``adata.obs`` with categorical data
+        recorded_key
+            Key in ``adata.obsm`` where we record the dataframe with copied data
+            from ``adata.obs[categorical_covariate_keys]``
+        category_dict
+            Optional dictionary with keys being keys of categorical data in obs
+            and values being precomputed categories for each obs vector
+        registry_key
+            Keys under which to register the corresponding obsm field in the scvi
+            data registry
+        """
+        adata = self.adata
+        for key in categorical_covariate_keys:
+            _assert_key_in_obs(adata, key)
 
-    #     store_cats = categories if category_dict is None else category_dict
-    #     info_store["mappings"] = store_cats
-    #     # this preserves the order of the keys added to the df
-    #     info_store["keys"] = categorical_covariate_keys
+        categories = {}
+        df = pd.DataFrame(index=adata.obs_names)
+        for key in categorical_covariate_keys:
+            if category_dict is None:
+                categorical_obs = adata.obs[key].astype("category")
+                mapping = categorical_obs.cat.categories.to_numpy(copy=True)
+                categories[key] = mapping
+            else:
+                possible_cats = category_dict[key]
+                categorical_obs = adata.obs[key].astype(
+                    CategoricalDtype(categories=possible_cats)
+                )
+            codes = categorical_obs.cat.codes
+            df[key] = codes
 
-    #     # how many cats per key, in the preserved order
-    #     n_cats_per_key = []
-    #     for k in categorical_covariate_keys:
-    #         n_cats_per_key.append(len(store_cats[k]))
-    #     info_store["n_cats_per_key"] = n_cats_per_key
+        adata.obsm[recorded_key] = df
 
-    #     self.categorical_obsm_keys[recorded_key] = info_store
+        store_cats = categories if category_dict is None else category_dict
+        info_store = {}
+        info_store["mappings"] = store_cats
+        # this preserves the order of the keys added to the df
+        info_store["keys"] = categorical_covariate_keys
 
-    #     self.add_to_data_registry(
-    #         _CONSTANTS.CAT_COVS_KEY if registry_key is None else registry_key,
-    #         "obsm",
-    #         recorded_key,
-    #     )
-    #     self.set_setup_dict()
+        # how many categories per key, in the preserved order
+        n_cats_per_key = []
+        for k in categorical_covariate_keys:
+            n_cats_per_key.append(len(store_cats[k]))
+        info_store["n_cats_per_key"] = n_cats_per_key
 
-    # def setup_continuous_obs_key_iterable(
-    #     self,
-    #     continuous_covariate_keys: List[str],
-    #     recorded_key: str,
-    #     registry_key: Optional[str] = None,
-    # ):
-    #     """
-    #     Setup obsm df for extra continuous covariates.
-    #     This helps setup a series of obs keys that will be loaded into
-    #     models as one tensor.
-    #     Parameters
-    #     ----------
-    #     continuous_covariate_keys
-    #         List of keys in adata.obs with continuous data
-    #     recorded_key
-    #         New df added to `.obsm` with copied data from `continuous_covariate_keys`
-    #     registry_key
-    #         Key to add to registry
-    #     """
-    #     adata = self.adata
-    #     for key in continuous_covariate_keys:
-    #         _assert_key_in_obs(adata, key)
+        self.setup_dict["extra_categoricals"] = info_store
 
-    #     info_store = {}
+        field = AnnDataField(
+            recorded_key,
+            None,
+            registry_key,
+            check_data_format=False,
+        )
+        self.setup_obsm_field(field)
 
-    #     series = []
-    #     for key in continuous_covariate_keys:
-    #         s = adata.obs[key]
-    #         series.append(s)
+        self._add_to_summary_stats(
+            "n_categorical_covs", len(categorical_covariate_keys)
+        )
 
-    #     adata.obsm[recorded_key] = pd.concat(series, axis=1)
-    #     info_store["keys"] = adata.obsm[recorded_key].columns.to_numpy()
+    def record_extra_continuous_covariates(
+        self,
+        continuous_covariate_keys: List[str],
+        recorded_key: str = "_scvi_extra_continuous",
+        registry_key: str = _CONSTANTS.CAT_COVS_KEY,
+    ):
+        """
+        Records extra continuous covariates (which are obs keys) in
+        an ``adata.obsm`` dataframe.
 
-    #     # add info to setup dict
-    #     self.continuous_obsm_keys[recorded_key] = info_store
-    #     self.add_to_data_registry(
-    #         _CONSTANTS.CONT_COVS_KEY if registry_key is None else registry_key,
-    #         "obsm",
-    #         recorded_key,
-    #     )
-    #     self.set_setup_dict()
+        This helps set up a series of obs keys that will be loaded into
+        models as one tensor.
+
+        Parameters
+        ----------
+        continuous_covariate_keys
+            List of keys in ``adata.obs`` with continuous data
+        recorded_key
+            Key in ``adata.obsm`` where we record the dataframe with copied data
+            from ``adata.obs[continuous_covariate_keys]``
+        registry_key
+            Keys under which to register the corresponding obsm field in the scvi
+            data registry
+        """
+        adata = self.adata
+        for key in continuous_covariate_keys:
+            _assert_key_in_obs(adata, key)
+
+        series = []
+        for key in continuous_covariate_keys:
+            s = adata.obs[key]
+            series.append(s)
+
+        adata.obsm[recorded_key] = pd.concat(series, axis=1)
+
+        # add info to setup dict
+        self.setup_dict["extra_continuous_keys"] = adata.obsm[
+            recorded_key
+        ].columns.to_numpy()
+
+        field = AnnDataField(
+            recorded_key,
+            None,
+            registry_key,
+            check_data_format=False,
+        )
+        self.setup_obsm_field(field)
+
+        self._add_to_summary_stats("n_continuous_covs", len(continuous_covariate_keys))
 
     def _verify_and_correct_data_format(self, registry_key: str):
         """
@@ -483,14 +498,15 @@ class AnnDataManager:
             )
             self._set_data_in_anndata(adata, data, k)
 
-    def get_from_registry(self, adata: AnnData, key: str) -> np.ndarray:
+    @staticmethod
+    def get_from_registry(adata: AnnData, key: str) -> np.ndarray:
         """
         Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``.
 
         Parameters
         ----------
         adata
-            anndata object already setup with setup_anndata
+            anndata object already setup with ``setup_anndata``
         key
             key of object to get from ``adata.uns['_scvi]['data_registry']``
 
@@ -529,7 +545,7 @@ class AnnDataManager:
             data = data.to_numpy().reshape(-1, 1)
         return data
 
-    def _set_data_in_anndata(self, adata, data, key):
+    def _set_data_in_anndata(self, data, key):
         """
         Sets the data associated with key in adata.uns['_scvi']['data_registry'].keys() to data.
 
@@ -546,12 +562,12 @@ class AnnDataManager:
         key
             key in adata.uns['_scvi]['data_registry'].keys() associated with the data
         """
+        adata = self.adata
         data_loc = adata.uns["_scvi"]["data_registry"][key]
         attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
 
         if attr_key == "None":
             setattr(adata, attr_name, data)
-
         elif attr_key != "None":
             attribute = getattr(adata, attr_name)
             if isinstance(attribute, pd.DataFrame):
