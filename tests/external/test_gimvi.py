@@ -7,31 +7,48 @@ from scvi.external import GIMVI
 
 
 def test_saving_and_loading(save_path):
-    adata = synthetic_iid(run_setup_anndata=False)
-    GIMVI.setup_anndata(
-        adata,
-        batch_key="batch",
-    )
+    def test_save_and_load(save_path, prefix=None):
+        adata = synthetic_iid(run_setup_anndata=False)
+        GIMVI.setup_anndata(
+            adata,
+            batch_key="batch",
+        )
 
-    # GIMVI
-    model = GIMVI(adata, adata)
-    model.train(3, train_size=0.5)
-    z1 = model.get_latent_representation([adata])
-    z2 = model.get_latent_representation([adata])
-    np.testing.assert_array_equal(z1, z2)
-    model.save(save_path, overwrite=True, save_anndata=True)
-    model = GIMVI.load(save_path)
-    model.get_latent_representation()
-    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
-    with pytest.raises(ValueError):
-        GIMVI.load(save_path, tmp_adata, tmp_adata)
-    model = GIMVI.load(save_path, adata, adata)
-    z2 = model.get_latent_representation([adata])
-    np.testing.assert_array_equal(z1, z2)
-    model = GIMVI.load(save_path, adata, adata, use_gpu=False)
-    z2 = model.get_latent_representation([adata])
-    np.testing.assert_almost_equal(z1, z2, decimal=3)
-    assert model.is_trained is True
+        # GIMVI
+        model = GIMVI(adata, adata)
+        model.train(3, train_size=0.5)
+        z1 = model.get_latent_representation([adata])
+        z2 = model.get_latent_representation([adata])
+        np.testing.assert_array_equal(z1, z2)
+        model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+        model = GIMVI.load(save_path, prefix=prefix)
+        model.get_latent_representation()
+        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+        with pytest.raises(ValueError):
+            GIMVI.load(
+                save_path, adata_seq=tmp_adata, adata_spatial=tmp_adata, prefix=prefix
+            )
+        model = GIMVI.load(
+            save_path, adata_seq=adata, adata_spatial=adata, prefix=prefix
+        )
+        z2 = model.get_latent_representation([adata])
+        np.testing.assert_array_equal(z1, z2)
+        model = GIMVI.load(
+            save_path,
+            adata_seq=adata,
+            adata_spatial=adata,
+            use_gpu=False,
+            prefix=prefix,
+        )
+        z2 = model.get_latent_representation([adata])
+        np.testing.assert_almost_equal(z1, z2, decimal=3)
+        assert model.is_trained is True
+
+    # Test without prefix.
+    test_save_and_load(save_path)
+
+    # Test with prefix.
+    test_save_and_load(save_path, prefix="prefix_")
 
 
 def test_gimvi():
