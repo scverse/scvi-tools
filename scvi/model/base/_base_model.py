@@ -1,7 +1,6 @@
 import inspect
 import logging
 import os
-import pickle
 import warnings
 from abc import ABC, abstractmethod
 from typing import Optional, Sequence, Union
@@ -276,11 +275,6 @@ class BaseModelClass(ABC):
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
-        # get all the user attributes
-        user_attributes = self._get_user_attributes()
-        # only save the public attributes with _ at the very end
-        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
-        # save the model state dict and the trainer state dict only
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
@@ -298,17 +292,27 @@ class BaseModelClass(ABC):
                 **anndata_write_kwargs,
             )
 
-        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-        attr_save_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
-        varnames_save_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
+        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+
+        # save the model state dict and the trainer state dict only
+        model_state_dict = self.module.state_dict()
 
         var_names = self.adata.var_names.astype(str)
         var_names = var_names.to_numpy()
-        np.savetxt(varnames_save_path, var_names, fmt="%s")
 
-        torch.save(self.module.state_dict(), model_save_path)
-        with open(attr_save_path, "wb") as f:
-            pickle.dump(user_attributes, f)
+        # get all the user attributes
+        user_attributes = self._get_user_attributes()
+        # only save the public attributes with _ at the very end
+        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
+
+        torch.save(
+            dict(
+                model_state_dict=model_state_dict,
+                var_names=var_names,
+                attr_dict=user_attributes,
+            ),
+            model_save_path,
+        )
 
     @classmethod
     def load(
@@ -349,13 +353,19 @@ class BaseModelClass(ABC):
         use_gpu, device = parse_use_gpu_arg(use_gpu)
 
         (
-            scvi_setup_dict,
             attr_dict,
             var_names,
             model_state_dict,
             new_adata,
         ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
         adata = new_adata if new_adata is not None else adata
+
+        scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+        # Only retain keys in the data_registry that exist in _CONSTANTS.
+        # TODO(jhong): Remove once data registry refactored.
+        scvi_setup_dict["data_registry"] = {
+            k: v for k, v in scvi_setup_dict["data_registry"].items() if k in _CONSTANTS
+        }
 
         _validate_var_names(adata, var_names)
         transfer_anndata_setup(scvi_setup_dict, adata)

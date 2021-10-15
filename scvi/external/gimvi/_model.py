@@ -1,13 +1,12 @@
 import logging
 import os
-import pickle
 import warnings
 from itertools import cycle
 from typing import List, Optional, Union
 
 import numpy as np
 import torch
-from anndata import AnnData, read
+from anndata import AnnData
 from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS
@@ -25,6 +24,7 @@ from scvi.train import Trainer
 
 from ._module import JVAE
 from ._task import GIMVITrainingPlan
+from ._utils import _load_saved_gimvi_files
 
 logger = logging.getLogger(__name__)
 
@@ -380,11 +380,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         anndata_write_kwargs
             Kwargs for anndata write function
         """
-        # get all the user attributes
-        user_attributes = self._get_user_attributes()
-        # only save the public attributes with _ at the very end
-        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
-        # save the model state dict and the trainer state dict only
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
@@ -396,28 +391,39 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         file_name_prefix = prefix or ""
 
+        seq_adata = self.adatas[0]
+        spatial_adata = self.adatas[1]
         if save_anndata:
-            dataset_names = ["seq", "spatial"]
-            for i in range(len(self.adatas)):
-                dataset_name = dataset_names[i]
-                save_path = os.path.join(
-                    dir_path, f"{file_name_prefix}adata_{dataset_name}.h5ad"
-                )
-                self.adatas[i].write(save_path)
-                varnames_save_path = os.path.join(
-                    dir_path, f"{file_name_prefix}var_names_{dataset_name}.csv"
-                )
+            seq_save_path = os.path.join(dir_path, f"{file_name_prefix}adata_seq.h5ad")
+            seq_adata.write(seq_save_path)
 
-                var_names = self.adatas[i].var_names.astype(str)
-                var_names = var_names.to_numpy()
-                np.savetxt(varnames_save_path, var_names, fmt="%s")
+            spatial_save_path = os.path.join(
+                dir_path, f"{file_name_prefix}adata_spatial.h5ad"
+            )
+            spatial_adata.write(spatial_save_path)
 
-        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-        attr_save_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+        # save the model state dict and the trainer state dict only
+        model_state_dict = self.module.state_dict()
 
-        torch.save(self.module.state_dict(), model_save_path)
-        with open(attr_save_path, "wb") as f:
-            pickle.dump(user_attributes, f)
+        seq_var_names = seq_adata.var_names.astype(str).to_numpy()
+        spatial_var_names = spatial_adata.var_names.astype(str).to_numpy()
+
+        # get all the user attributes
+        user_attributes = self._get_user_attributes()
+        # only save the public attributes with _ at the very end
+        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
+
+        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+
+        torch.save(
+            dict(
+                model_state_dict=model_state_dict,
+                seq_var_names=seq_var_names,
+                spatial_var_names=spatial_var_names,
+                attr_dict=user_attributes,
+            ),
+            model_save_path,
+        )
 
     @classmethod
     def load(
@@ -458,38 +464,25 @@ class GIMVI(VAEMixin, BaseModelClass):
         >>> vae = GIMVI.load(adata_seq, adata_spatial, save_path)
         >>> vae.get_latent_representation()
         """
-        file_name_prefix = prefix or ""
-        model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-        setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
-        seq_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_seq.h5ad")
-        spatial_data_path = os.path.join(
-            dir_path, f"{file_name_prefix}adata_spatial.h5ad"
-        )
-        seq_var_names_path = os.path.join(
-            dir_path, f"{file_name_prefix}var_names_seq.csv"
-        )
-        spatial_var_names_path = os.path.join(
-            dir_path, f"{file_name_prefix}var_names_spatial.csv"
-        )
+        _, device = parse_use_gpu_arg(use_gpu)
 
-        if adata_seq is None and os.path.exists(seq_data_path):
-            adata_seq = read(seq_data_path)
-        elif adata_seq is None and not os.path.exists(seq_data_path):
-            raise ValueError(
-                "Save path contains no saved anndata and no adata was passed."
-            )
-        if adata_spatial is None and os.path.exists(spatial_data_path):
-            adata_spatial = read(spatial_data_path)
-        elif adata_spatial is None and not os.path.exists(spatial_data_path):
-            raise ValueError(
-                "Save path contains no saved anndata and no adata was passed."
-            )
+        (
+            attr_dict,
+            seq_var_names,
+            spatial_var_names,
+            model_state_dict,
+            loaded_adata_seq,
+            loaded_adata_spatial,
+        ) = _load_saved_gimvi_files(
+            dir_path,
+            adata_seq is None,
+            adata_spatial is None,
+            prefix=prefix,
+            map_location=device,
+        )
+        adata_seq = loaded_adata_seq or adata_seq
+        adata_spatial = loaded_adata_spatial or adata_spatial
         adatas = [adata_seq, adata_spatial]
-
-        seq_var_names = np.genfromtxt(seq_var_names_path, delimiter=",", dtype=str)
-        spatial_var_names = np.genfromtxt(
-            spatial_var_names_path, delimiter=",", dtype=str
-        )
         var_names = [seq_var_names, spatial_var_names]
 
         for i, adata in enumerate(adatas):
@@ -501,9 +494,6 @@ class GIMVI(VAEMixin, BaseModelClass):
                     "adata used to train the model. For valid results, the vars "
                     "need to be the same and in the same order as the adata used to train the model."
                 )
-
-        with open(setup_dict_path, "rb") as handle:
-            attr_dict = pickle.load(handle)
 
         scvi_setup_dicts = attr_dict.pop("scvi_setup_dicts_")
         transfer_anndata_setup(scvi_setup_dicts["seq"], adata_seq)
@@ -532,8 +522,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
 
-        _, device = parse_use_gpu_arg(use_gpu)
-        model.module.load_state_dict(torch.load(model_path, map_location=device))
+        model.module.load_state_dict(model_state_dict)
         model.module.eval()
         model.to_device(device)
         return model
