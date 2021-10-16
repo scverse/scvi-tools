@@ -79,6 +79,13 @@ pip install scvi-tools
 ```
 Please be sure to install a version of [PyTorch](https://pytorch.org/) that is compatible with your GPU (if applicable).
 
+# Overview of the scvi-tools codebase 
+
+Below is a static view of the scvi-tools codebase shown at the abstraction of discrete layers of components. Only select
+components are shown for each layer and only a single model is presented (scVI).
+
+<img src="https://github.com/YosefLab/scvi-tools/blob/master/docs/_static/codebase_overview.svg?raw=true" width="400" alt="Overview of the scvi-tools codebase">
+
 # Resources
 
 -   Tutorials, API reference, and installation guides are available in
