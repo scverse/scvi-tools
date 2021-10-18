@@ -209,6 +209,7 @@ nbsphinx_thumbnails = {
     "tutorials/notebooks/MultiVI_tutorial": "_static/tutorials/multivi_umap.png",
     "tutorials/notebooks/totalVI_reference_mapping": "_static/tutorials/totalvi_cell.svg",
     "tutorials/notebooks/amortized_lda": "_static/tutorials/lda.png",
+    "tutorials/notebooks/cell2location_lymph_node_spatial_tutorial": "_static/tutorials/cell2location.png",
 }
 
 

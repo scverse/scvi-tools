@@ -74,6 +74,7 @@ Contributed tutorials
 .. nbgallery::
 
    notebooks/stereoscope_heart_LV_tutorial
+   notebooks/cell2location_lymph_node_spatial_tutorial
 
 
 Developer tutorials
