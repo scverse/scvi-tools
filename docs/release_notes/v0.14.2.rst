@@ -16,7 +16,7 @@ Contributors
 
 .. _`@adamgayoso`: https://github.com/adamgayoso
 .. _`@jjhong922`: https://github.com/jjhong922
-.. _`@watiss`: https://github.com/vitkl
+.. _`@vitkl`: https://github.com/vitkl
 
 .. _`#1228`: https://github.com/YosefLab/scvi-tools/pull/1228
 .. _`#1232`: https://github.com/YosefLab/scvi-tools/pull/1232
