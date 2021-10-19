@@ -362,6 +362,7 @@ class BaseModelClass(ABC):
 
         scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
 
+        # Filter out keys that are no longer populated by setup_anndata.
         # TODO(jhong): remove hack with setup_anndata refactor.
         deprecated_keys = {"local_l_mean", "local_l_var"}
         scvi_setup_dict["data_registry"] = {
