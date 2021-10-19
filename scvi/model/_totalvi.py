@@ -11,12 +11,12 @@ from anndata import AnnData
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi._docs import doc_differential_expression, setup_anndata_dsp
 from scvi._utils import _doc_params
 from scvi.data import get_from_registry
 from scvi.data._anndata import _setup_anndata
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
+from scvi.docstrings._docstrings import doc_differential_expression, setup_anndata_dsp
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,

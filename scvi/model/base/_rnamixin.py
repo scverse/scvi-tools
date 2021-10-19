@@ -11,8 +11,8 @@ from anndata import AnnData
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
+from scvi.docstrings._docstrings import doc_differential_expression
 
 from .._utils import (
     _get_batch_code_from_category,
