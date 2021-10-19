@@ -4,8 +4,8 @@ from typing import List, Optional
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi._docs import setup_anndata_dsp
 from scvi.data._anndata import _setup_anndata
+from scvi.docstrings import setup_anndata_dsp
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE

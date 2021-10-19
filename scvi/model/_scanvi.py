@@ -10,13 +10,13 @@ from pandas.api.types import CategoricalDtype
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi._docs import setup_anndata_dsp
 from scvi.data._anndata import _make_obs_column_categorical, _setup_anndata
 from scvi.dataloaders import (
     AnnDataLoader,
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
+from scvi.docstrings import setup_anndata_dsp
 from scvi.model._utils import _init_library_size
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner

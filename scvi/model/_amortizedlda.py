@@ -9,8 +9,8 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
-from scvi._docs import setup_anndata_dsp
 from scvi.data._anndata import _setup_anndata
+from scvi.docstrings import setup_anndata_dsp
 from scvi.module import AmortizedLDAPyroModule
 
 from .base import BaseModelClass, PyroSviTrainMixin
