@@ -10,14 +10,14 @@ from scipy.sparse.csr import csr_matrix
 
 import scvi
 from scvi import _CONSTANTS
-from scvi.data import (
+from scvi.data import synthetic_iid
+from scvi.data.anndata import (
     get_from_registry,
     register_tensor_from_anndata,
-    synthetic_iid,
     transfer_anndata_setup,
     view_anndata_setup,
 )
-from scvi.data._anndata import _setup_anndata
+from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import AnnTorchDataset
 
 

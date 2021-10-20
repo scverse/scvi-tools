@@ -6,7 +6,7 @@ from typing import Optional, Union
 import torch
 from anndata import AnnData
 
-from scvi.data import transfer_anndata_setup
+from scvi.data.anndata import transfer_anndata_setup
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.nn import FCLayers
 

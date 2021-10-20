@@ -7,8 +7,8 @@ import torch
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.data import register_tensor_from_anndata
-from scvi.data._anndata import _setup_anndata
+from scvi.data.anndata import register_tensor_from_anndata
+from scvi.data.anndata._utils import _setup_anndata
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.utils import setup_anndata_dsp

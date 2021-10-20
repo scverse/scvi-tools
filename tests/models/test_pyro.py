@@ -12,7 +12,8 @@ from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
 
 from scvi import _CONSTANTS
-from scvi.data import register_tensor_from_anndata, synthetic_iid
+from scvi.data import synthetic_iid
+from scvi.data.anndata import register_tensor_from_anndata
 from scvi.dataloaders import AnnDataLoader
 from scvi.model import AmortizedLDA
 from scvi.model.base import (

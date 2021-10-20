@@ -14,8 +14,9 @@ from rich.text import Text
 
 from scvi import _CONSTANTS, settings
 from scvi.data import get_from_registry, transfer_anndata_setup
-from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
+from scvi.data.anndata import get_from_registry, transfer_anndata_setup
+from scvi.data.anndata._utils import _check_anndata_setup_equivalence
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass

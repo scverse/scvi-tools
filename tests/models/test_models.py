@@ -17,8 +17,9 @@ from scvi.data import (
     synthetic_iid,
     transfer_anndata_setup,
 )
-from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
+from scvi.data.anndata import transfer_anndata_setup
+from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,

@@ -18,8 +18,7 @@ from sklearn.utils import deprecated
 import scvi
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-
-from ._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
+from scvi.data._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
 
 logger = logging.getLogger(__name__)
 
