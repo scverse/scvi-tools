@@ -67,7 +67,8 @@ These classes should be used to construct user-facing model classes.
     model.base.PyroSviTrainMixin
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
-
+    model.base.DifferentialComputation
+    
 Module
 ------
 
@@ -181,4 +182,3 @@ Utility functions used by scvi-tools.
 
    utils.track
    utils.setup_anndata_dsp
-      
