@@ -12,7 +12,11 @@ from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
-from scvi.data import synthetic_iid, transfer_anndata_setup
+from scvi.data import (
+    register_tensor_from_anndata,
+    synthetic_iid,
+    transfer_anndata_setup,
+)
 from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 from scvi.dataloaders import (
@@ -282,6 +286,11 @@ def test_saving_and_loading(save_path):
         with pytest.raises(ValueError):
             cls.load(save_path, adata=tmp_adata, prefix=prefix)
         model = cls.load(save_path, adata=adata, prefix=prefix)
+        assert "test" in adata.uns["_scvi"]["data_registry"]
+        assert adata.uns["_scvi"]["data_registry"]["test"] == dict(
+            attr_name="obs", attr_key="cont1"
+        )
+
         z2 = model.get_latent_representation()
         test_idx2 = model.validation_indices
         np.testing.assert_array_equal(z1, z2)
@@ -290,6 +299,11 @@ def test_saving_and_loading(save_path):
 
     save_path = os.path.join(save_path, "tmp")
     adata = synthetic_iid()
+    # Test custom tensors are loaded properly.
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    register_tensor_from_anndata(
+        adata, registry_key="test", adata_attr_name="obs", adata_key_name="cont1"
+    )
 
     for cls in [SCVI, LinearSCVI, TOTALVI, PEAKVI]:
         print(cls)
@@ -321,6 +335,11 @@ def test_saving_and_loading(save_path):
         with pytest.raises(ValueError):
             AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
         model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
+        assert "test" in adata.uns["_scvi"]["data_registry"]
+        assert adata.uns["_scvi"]["data_registry"]["test"] == dict(
+            attr_name="obs", attr_key="cont1"
+        )
+
         ab2 = model.get_alphas_betas()
         np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
         np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
@@ -350,6 +369,11 @@ def test_saving_and_loading(save_path):
         with pytest.raises(ValueError):
             SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
         model = SCANVI.load(save_path, adata=adata, prefix=prefix)
+        assert "test" in adata.uns["_scvi"]["data_registry"]
+        assert adata.uns["_scvi"]["data_registry"]["test"] == dict(
+            attr_name="obs", attr_key="cont1"
+        )
+
         p2 = model.predict()
         np.testing.assert_array_equal(p1, p2)
         assert model.is_trained is True

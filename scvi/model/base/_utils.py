@@ -12,7 +12,9 @@ from anndata import AnnData, read
 from sklearn.utils import deprecated
 
 from scvi._compat import Literal
-from scvi.utils import DifferentialComputation, track
+from scvi.utils import track
+
+from ._differential import DifferentialComputation
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,6 @@ from anndata import AnnData
 from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS
-from scvi._docs import setup_anndata_dsp
 from scvi.data import transfer_anndata_setup
 from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
@@ -21,6 +20,7 @@ from scvi.model._utils import (
 )
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
+from scvi.utils import setup_anndata_dsp
 
 from ._module import JVAE
 from ._task import GIMVITrainingPlan
