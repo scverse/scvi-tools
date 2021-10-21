@@ -9,10 +9,10 @@ from anndata import AnnData
 
 from scvi.data import register_tensor_from_anndata
 from scvi.data._anndata import _setup_anndata
-from scvi.docstrings import setup_anndata_dsp
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
+from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 

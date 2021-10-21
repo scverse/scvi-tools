@@ -16,7 +16,6 @@ from scvi.data import get_from_registry
 from scvi.data._anndata import _setup_anndata
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
-from scvi.docstrings._docstrings import doc_differential_expression, setup_anndata_dsp
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
@@ -26,6 +25,7 @@ from scvi.model._utils import (
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -701,7 +701,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         include_protein_background
             Include the protein background component as part of the protein expression
         **kwargs
-            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------

@@ -8,7 +8,6 @@ from anndata import AnnData
 
 from scvi import _CONSTANTS
 from scvi.data._anndata import _setup_anndata
-from scvi.docstrings import setup_anndata_dsp
 from scvi.model.base import (
     BaseModelClass,
     RNASeqMixin,
@@ -16,6 +15,7 @@ from scvi.model.base import (
     VAEMixin,
 )
 from scvi.module import VAEC
+from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 

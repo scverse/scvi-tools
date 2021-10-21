@@ -12,7 +12,7 @@ from anndata import AnnData
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._utils import _doc_params
-from scvi.docstrings._docstrings import doc_differential_expression
+from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import (
     _get_batch_code_from_category,
@@ -193,7 +193,7 @@ class RNASeqMixin:
         ----------
         {doc_differential_expression}
         **kwargs
-            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------

@@ -13,7 +13,6 @@ from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
 from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
-from scvi.docstrings import setup_anndata_dsp
 from scvi.model._utils import (
     _get_var_names_from_setup_anndata,
     _init_library_size,
@@ -21,6 +20,7 @@ from scvi.model._utils import (
 )
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
+from scvi.utils import setup_anndata_dsp
 
 from ._module import JVAE
 from ._task import GIMVITrainingPlan

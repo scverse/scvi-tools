@@ -16,11 +16,11 @@ from scvi.dataloaders import (
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
-from scvi.docstrings import setup_anndata_dsp
 from scvi.model._utils import _init_library_size
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
+from scvi.utils import setup_anndata_dsp
 
 from ._scvi import SCVI
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin

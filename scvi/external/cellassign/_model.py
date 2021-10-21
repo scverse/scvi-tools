@@ -12,10 +12,10 @@ from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata
 from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
-from scvi.docstrings import setup_anndata_dsp
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
+from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,6 @@ from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.data._anndata import _setup_anndata
 from scvi.dataloaders import DataSplitter
-from scvi.docstrings._docstrings import doc_differential_expression, setup_anndata_dsp
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
@@ -25,6 +24,7 @@ from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.train._callbacks import SaveBestState
+from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
 from .base import BaseModelClass, VAEMixin
 from .base._utils import _de_core
@@ -661,7 +661,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         two_sided
             Whether to perform a two-sided test, or a one-sided test.
         **kwargs
-            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------
@@ -782,7 +782,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         {doc_differential_expression}
         **kwargs
-            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------

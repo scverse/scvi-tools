@@ -179,18 +179,6 @@ Utility functions used by scvi-tools.
    :toctree: reference/
    :nosignatures:
 
-   utils.DifferentialComputation
    utils.track
-
-
-Docstrings
-----------
-
-Re-usable scvi-tools docstrings.
-
-.. autosummary::
-   :toctree: reference/
-   :nosignatures:
-
-   docstrings.setup_anndata_dsp
-   
+   utils.setup_anndata_dsp
+      
