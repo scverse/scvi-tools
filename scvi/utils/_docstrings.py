@@ -53,10 +53,8 @@ silent
 
 
 class SetupAnnDataDocstringProcessor(DocstringProcessor):
-    """
-    A derived class of the ``DocstringProcessor`` class which provides useful parameters for
-    the documentation of ``setup_anndata`` methods.
-    """
+
+    """A derived class of the ``DocstringProcessor`` class which provides useful parameters for the documentation of ``setup_anndata`` methods."""
 
     summary = """\
     Sets up the :class:`~anndata.AnnData` object for this model.
