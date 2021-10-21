@@ -21,7 +21,7 @@ class BaseAnnDataField(ABC):
 
     @abstractmethod
     def register_field(self, adata: AnnData) -> None:
-        self.validate(adata)
+        self.validate_field(adata)
         self.registered = True
 
     @abstractmethod
@@ -83,7 +83,7 @@ class BaseObsField(BaseAnnDataField):
         self.attr_key = attr_key
 
     def validate_field(self, adata: AnnData) -> None:
-        super().validate(adata)
+        super().validate_field(adata)
         _assert_key_in_obs(adata, self.attr_key)
 
 
@@ -92,7 +92,7 @@ class CategoricalObsField(BaseObsField):
         super().__init__(scvi_key, attr_key)
         self.is_default = attr_key is None
         self.attr_key = attr_key or self.scvi_key
-        self.category_code_key = f"{self.attr_key}_scvi"
+        self.category_code_key = f"_scvi_{self.attr_key}"
 
     def _setup_default_attr(self, adata: AnnData) -> None:
         adata.obs[self.attr_key] = np.zeros(adata.shape[0], dtype=np.int64)
@@ -116,12 +116,14 @@ class CategoricalObsField(BaseObsField):
         }
 
     def compute_summary_stats(self, adata: AnnData) -> dict:
-        super().get_summary_stats(adata)
-        categorical_mappings = self.adata.uns[_constants._SETUP_DICT_KEY][
+        super().compute_summary_stats(adata)
+        categorical_mappings = adata.uns[_constants._SETUP_DICT_KEY][
             _constants._CATEGORICAL_MAPPINGS_KEY
         ]
         n_categories = len(
-            np.unique(categorical_mappings[self.scvi_key][_constants._CM_MAPPING_KEY])
+            np.unique(
+                categorical_mappings[self.category_code_key][_constants._CM_MAPPING_KEY]
+            )
         )
         stat_name = f"n_{self.scvi_key}"
         return {stat_name: n_categories}

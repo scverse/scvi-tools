@@ -19,7 +19,7 @@ from scvi.data import (
 )
 from scvi.data._built_in_data._download import _download
 from scvi.data.anndata import transfer_anndata_setup
-from scvi.data.anndata._utils import _setup_anndata
+from scvi.data.anndata._utils import _check_anndata_setup_equivalence, _setup_anndata
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -39,6 +39,19 @@ from scvi.model import (
     LinearSCVI,
 )
 from scvi.train import TrainingPlan, TrainRunner
+
+
+def test_new_setup():
+    adata = synthetic_iid(run_setup_anndata=False)
+    adata2 = adata.copy()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+
+    SCVI.test_setup_anndata(adata2, batch_key="batch", labels_key="labels")
+    assert not _check_anndata_setup_equivalence(adata, adata2)
 
 
 def test_scvi(save_path):

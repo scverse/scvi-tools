@@ -30,7 +30,7 @@ _CM_MAPPING_KEY = "mapping"
 
 
 class _ADATA_ATTRS_NT(NamedTuple):
-    X: str = "x"
+    X: str = "X"
     LAYERS: str = "layers"
     OBS: str = "obs"
     OBSM: str = "obsm"

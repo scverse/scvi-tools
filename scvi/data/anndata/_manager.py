@@ -29,7 +29,7 @@ class AnnDataManager:
             data_registry_dict.update(field.data_registry_mapping())
 
         if update:
-            _register_anndata(data_registry_dict)
+            _register_anndata(self.adata, data_registry_dict)
 
         return deepcopy(data_registry_dict)
 
@@ -37,7 +37,7 @@ class AnnDataManager:
         n_cells, n_vars = self.adata.shape
         summary_stats_dict = dict(n_cells=n_cells, n_vars=n_vars)
         for field in self.fields:
-            summary_stats_dict.update(field.compute_summary_stats)
+            summary_stats_dict.update(field.compute_summary_stats(self.adata))
 
         if update:
             self.adata.uns[_constants._SETUP_DICT_KEY][
