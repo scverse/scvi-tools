@@ -3,7 +3,8 @@ import os
 import pickle
 import sys
 import warnings
-from typing import Dict, List, Optional, Tuple, Union
+from copy import deepcopy
+from typing import Dict, List, Optional, Union
 
 import anndata
 import numpy as np
@@ -19,6 +20,8 @@ import scvi
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.data._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
+
+from . import _constants
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +59,11 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
            [0],
            [0]])
     """
-    data_loc = adata.uns["_scvi"]["data_registry"][key]
-    attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
+    data_loc = adata.uns[_constants._SETUP_DICT_KEY][_constants._DATA_REGISTRY_KEY][key]
+    attr_name, attr_key = (
+        data_loc[_constants._DR_ATTR_NAME],
+        data_loc[_constants._DR_ATTR_KEY],
+    )
 
     data = getattr(adata, attr_name)
     if attr_key != "None":
@@ -707,8 +713,9 @@ def _make_obs_column_categorical(
     """
     Makes the data in column_key in obs all categorical.
 
-    If adata.obs[column_key] is not categorical, will categorize
-    and save to .obs[alternate_column_key]
+    Categorizes adata.obs[column_key], then saves category codes to
+    .obs[alternate_column_key] and the category mappings
+    to .uns["scvi"]["categorical_mappings"].
     """
     if categorical_dtype is None:
         categorical_obs = adata.obs[column_key].astype("category")
@@ -731,9 +738,8 @@ def _make_obs_column_categorical(
         alternate_column_key: {"original_key": column_key, "mapping": mapping}
     }
     if "categorical_mappings" not in adata.uns["_scvi"].keys():
-        adata.uns["_scvi"].update({"categorical_mappings": store_dict})
-    else:
-        adata.uns["_scvi"]["categorical_mappings"].update(store_dict)
+        adata.uns["_scvi"]["categorical_mappings"] = dict()
+    adata.uns["_scvi"]["categorical_mappings"].update(store_dict)
 
     # make sure each category contains enough cells
     unique, counts = np.unique(adata.obs[alternate_column_key], return_counts=True)
@@ -881,11 +887,11 @@ def _setup_summary_stats(
     return summary_stats
 
 
-def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
+def _register_anndata(adata, data_registry_dict: Dict[str, Dict[str, str]]):
     """
     Registers the AnnData object by adding data_registry_dict to adata.uns['_scvi']['data_registry'].
 
-    Format of data_registry_dict is: {<scvi_key>: (<anndata dataframe>, <dataframe key> )}
+    Format of data_registry_dict is: {<scvi_key>: {"attr_name": <anndata dataframe>, "attr_key": <dataframe key> }}
 
     Parameters
     ----------
@@ -896,10 +902,10 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
 
     Examples
     --------
-    >>> data_dict = {"batch" :("obs", "batch_idx"), "X": ("_X", None)}
+    >>> data_dict = {"batch" : {"attr_name": "obs", "attr_key": "batch_idx"}, "X": {"attr_name": "_X", "attr_key": None}}
     >>> _register_anndata(adata, data_dict)
     """
-    adata.uns["_scvi"]["data_registry"] = data_registry_dict.copy()
+    adata.uns["_scvi"]["data_registry"] = deepcopy(data_registry_dict)
 
 
 @deprecated(
