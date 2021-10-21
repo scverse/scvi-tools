@@ -810,11 +810,15 @@ def _setup_protein_expression(
     return protein_expression_obsm_key
 
 
+def _assert_key_in_layers(adata, layer):
+    assert layer in adata.layers.keys(), "{} is not a valid key in adata.layers".format(
+        layer
+    )
+
+
 def _setup_x(adata, layer):
     if layer is not None:
-        assert (
-            layer in adata.layers.keys()
-        ), "{} is not a valid key in adata.layers".format(layer)
+        _assert_key_in_layers(layer)
         logger.info('Using data from adata.layers["{}"]'.format(layer))
         x_loc = "layers"
         x_key = layer

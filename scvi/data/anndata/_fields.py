@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -5,7 +6,12 @@ import numpy as np
 from anndata import AnnData
 
 from . import _constants
-from ._utils import _assert_key_in_obs, _make_obs_column_categorical
+from ._utils import (
+    _assert_key_in_layers,
+    _assert_key_in_obs,
+    _check_nonnegative_integers,
+    _make_obs_column_categorical,
+)
 
 
 class BaseAnnDataField(ABC):
@@ -28,6 +34,43 @@ class BaseAnnDataField(ABC):
 
     def compute_summary_stats(self, adata: AnnData) -> dict:
         assert self.registered
+        return dict()
+
+
+class LayerField(BaseAnnDataField):
+    def __init__(self, layer: Optional[str] = None) -> None:
+        super().__init__()
+        self.attr_name = (
+            _constants._ADATA_ATTRS.X
+            if layer is None
+            else _constants._ADATA_ATTRS.LAYERS
+        )
+        self.attr_key = layer
+
+    def register_field(self, adata: AnnData) -> None:
+        super().register_field(adata)
+
+    def validate_field(self, adata: AnnData) -> None:
+        super().validate_field(adata)
+        adata_attr = getattr(adata, self.attr_name)
+        if self.attr_key is None:
+            x = adata_attr
+        else:
+            _assert_key_in_layers(self.attr_key)
+            x = getattr(adata, self.attr_key)
+
+        if _check_nonnegative_integers(x) is False:
+            logger_data_loc = (
+                "adata.X" if self.attr_key is None else f"adata.layers[{self.attr_key}]"
+            )
+            warnings.warn(
+                "{} does not contain unnormalized count data. Are you sure this is what you want?".format(
+                    logger_data_loc
+                )
+            )
+
+    def data_registry_mapping(self) -> dict:
+        super().data_registry_mapping()
         return dict()
 
 
