@@ -10,7 +10,7 @@ from pandas.api.types import CategoricalDtype
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.data._anndata import _make_obs_column_categorical, _setup_anndata
+from scvi.data.anndata._utils import _make_obs_column_categorical, _setup_anndata
 from scvi.dataloaders import (
     AnnDataLoader,
     SemiSupervisedDataLoader,

@@ -11,7 +11,8 @@ from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS
 from scvi.data import transfer_anndata_setup
-from scvi.data._anndata import _setup_anndata
+from scvi.data.anndata import transfer_anndata_setup
+from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_var_names_from_setup_anndata,

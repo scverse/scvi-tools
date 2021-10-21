@@ -4,7 +4,9 @@ from typing import List, Optional
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.data._anndata import _setup_anndata
+from scvi.data.anndata._fields import CategoricalObsField, LayerField
+from scvi.data.anndata._manager import AnnDataManager
+from scvi.data.anndata._utils import _setup_anndata
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
@@ -163,3 +165,14 @@ class SCVI(
             continuous_covariate_keys=continuous_covariate_keys,
             copy=copy,
         )
+
+    def test_setup_anndata(
+        adata, batch_key=None, labels_key=None, layer=None, copy=False
+    ):
+        adata_manager = AnnDataManager(adata)
+        adata_manager.add_field(LayerField(layer))
+        adata_manager.add_field(CategoricalObsField("batch", batch_key))
+        adata_manager.add_field(CategoricalObsField("labels", labels_key))
+        adata_manager.register_fields()
+        if copy:
+            return adata.copy()
