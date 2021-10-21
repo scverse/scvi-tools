@@ -5,11 +5,11 @@ import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi._docs import setup_anndata_dsp
 from scvi.data._anndata import _setup_anndata
 from scvi.model._utils import _get_var_names_from_setup_anndata, _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import LDVAE
+from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, RNASeqMixin, VAEMixin
 

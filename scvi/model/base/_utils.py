@@ -11,8 +11,9 @@ import torch
 from anndata import AnnData, read
 
 from scvi._compat import Literal
-from scvi._constants import _CONSTANTS
-from scvi.utils import DifferentialComputation, track
+from scvi.utils import track
+
+from ._differential import DifferentialComputation
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +42,6 @@ def _load_saved_files(
         attr_dict = pickle.load(handle)
 
     scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-    # Only retain keys in the data_registry that exist in _CONSTANTS.
-    # TODO(jhong): Remove once data registry refactored.
-    scvi_setup_dict["data_registry"] = {
-        k: v for k, v in scvi_setup_dict["data_registry"].items() if k in _CONSTANTS
-    }
 
     model_state_dict = torch.load(model_path, map_location=map_location)
 

@@ -10,7 +10,6 @@ import torch
 from anndata import AnnData
 
 from scvi import _CONSTANTS
-from scvi._docs import setup_anndata_dsp
 from scvi.data._anndata import _setup_anndata, get_from_registry, transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
@@ -18,6 +17,7 @@ from scvi.model.base import BaseModelClass
 from scvi.module import Classifier
 from scvi.module.base import auto_move_data
 from scvi.train import ClassifierTrainingPlan, LoudEarlyStopping, TrainRunner
+from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 
