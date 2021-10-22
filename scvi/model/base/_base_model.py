@@ -14,13 +14,13 @@ from anndata import AnnData
 from rich.text import Text
 
 from scvi import _CONSTANTS, settings
-from scvi._docs import setup_anndata_dsp
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass
+from scvi.utils import setup_anndata_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -347,6 +347,15 @@ class BaseModelClass(ABC):
             new_adata,
         ) = _load_saved_files(dir_path, load_adata, map_location=device)
         adata = new_adata if new_adata is not None else adata
+
+        # Filter out keys that are no longer populated by setup_anndata.
+        # TODO(jhong): remove hack with setup_anndata refactor.
+        deprecated_keys = {"local_l_mean", "local_l_var"}
+        scvi_setup_dict["data_registry"] = {
+            k: v
+            for k, v in scvi_setup_dict["data_registry"].items()
+            if k not in deprecated_keys
+        }
 
         _validate_var_names(adata, var_names)
         transfer_anndata_setup(scvi_setup_dict, adata)

@@ -10,7 +10,11 @@ from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
-from scvi.data import synthetic_iid, transfer_anndata_setup
+from scvi.data import (
+    register_tensor_from_anndata,
+    synthetic_iid,
+    transfer_anndata_setup,
+)
 from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 from scvi.dataloaders import (
@@ -230,8 +234,13 @@ def test_saving_and_loading(save_path):
         model.get_latent_representation()
         tmp_adata = scvi.data.synthetic_iid(n_genes=200)
         with pytest.raises(ValueError):
-            cls.load(save_path, tmp_adata)
-        model = cls.load(save_path, adata)
+            cls.load(save_path, adata=tmp_adata)
+        model = cls.load(save_path, adata=adata)
+        assert "test" in adata.uns["_scvi"]["data_registry"]
+        assert adata.uns["_scvi"]["data_registry"]["test"] == dict(
+            attr_name="obs", attr_key="cont1"
+        )
+
         z2 = model.get_latent_representation()
         test_idx2 = model.validation_indices
         np.testing.assert_array_equal(z1, z2)
@@ -240,41 +249,62 @@ def test_saving_and_loading(save_path):
 
     save_path = os.path.join(save_path, "tmp")
     adata = synthetic_iid()
+    # Test custom tensors are loaded properly.
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    register_tensor_from_anndata(
+        adata, registry_key="test", adata_attr_name="obs", adata_key_name="cont1"
+    )
 
     for cls in [SCVI, LinearSCVI, TOTALVI, PEAKVI]:
         print(cls)
         test_save_load_model(cls, adata, save_path)
 
     # AUTOZI
-    model = AUTOZI(adata, latent_distribution="normal")
-    model.train(1, train_size=0.5)
-    ab1 = model.get_alphas_betas()
-    model.save(save_path, overwrite=True, save_anndata=True)
-    model = AUTOZI.load(save_path)
-    model.get_latent_representation()
-    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
-    with pytest.raises(ValueError):
-        AUTOZI.load(save_path, tmp_adata)
-    model = AUTOZI.load(save_path, adata)
-    ab2 = model.get_alphas_betas()
-    np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
-    np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
-    assert model.is_trained is True
+    def test_save_load_autozi():
+        model = AUTOZI(adata, latent_distribution="normal")
+        model.train(1, train_size=0.5)
+        ab1 = model.get_alphas_betas()
+        model.save(save_path, overwrite=True, save_anndata=True)
+        model = AUTOZI.load(save_path)
+        model.get_latent_representation()
+        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+        with pytest.raises(ValueError):
+            AUTOZI.load(save_path, adata=tmp_adata)
+        model = AUTOZI.load(save_path, adata=adata)
+        assert "test" in adata.uns["_scvi"]["data_registry"]
+        assert adata.uns["_scvi"]["data_registry"]["test"] == dict(
+            attr_name="obs", attr_key="cont1"
+        )
+
+        ab2 = model.get_alphas_betas()
+        np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
+        np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
+        assert model.is_trained is True
+
+    test_save_load_autozi()
 
     # SCANVI
-    model = SCANVI(adata, "label_0")
-    model.train(max_epochs=1, train_size=0.5)
-    p1 = model.predict()
-    model.save(save_path, overwrite=True, save_anndata=True)
-    model = SCANVI.load(save_path)
-    model.get_latent_representation()
-    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
-    with pytest.raises(ValueError):
-        SCANVI.load(save_path, tmp_adata)
-    model = SCANVI.load(save_path, adata)
-    p2 = model.predict()
-    np.testing.assert_array_equal(p1, p2)
-    assert model.is_trained is True
+    def test_save_load_scanvi():
+        model = SCANVI(adata, "label_0")
+        model.train(max_epochs=1, train_size=0.5)
+        p1 = model.predict()
+        model.save(save_path, overwrite=True, save_anndata=True)
+        model = SCANVI.load(save_path)
+        model.get_latent_representation()
+        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+        with pytest.raises(ValueError):
+            SCANVI.load(save_path, adata=tmp_adata)
+        model = SCANVI.load(save_path, adata=adata)
+        assert "test" in adata.uns["_scvi"]["data_registry"]
+        assert adata.uns["_scvi"]["data_registry"]["test"] == dict(
+            attr_name="obs", attr_key="cont1"
+        )
+
+        p2 = model.predict()
+        np.testing.assert_array_equal(p1, p2)
+        assert model.is_trained is True
+
+    test_save_load_scanvi()
 
 
 @pytest.mark.internet
