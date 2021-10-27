@@ -5,7 +5,6 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi.data.anndata._fields import CategoricalObsField, LayerField
-from scvi.data.anndata._manager import AnnDataManager
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
@@ -130,7 +129,7 @@ class SCVI(
 
     @staticmethod
     @setup_anndata_dsp.dedent
-    def setup_anndata(
+    def old_setup_anndata(
         adata: AnnData,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
@@ -166,13 +165,9 @@ class SCVI(
             copy=copy,
         )
 
-    def test_setup_anndata(
-        adata, batch_key=None, labels_key=None, layer=None, copy=False
-    ):
-        adata_manager = AnnDataManager(adata)
-        adata_manager.add_field(LayerField(layer))
-        adata_manager.add_field(CategoricalObsField("batch", batch_key))
-        adata_manager.add_field(CategoricalObsField("labels", labels_key))
-        adata_manager.register_fields()
-        if copy:
-            return adata.copy()
+    def anndata_fields(batch_key=None, labels_key=None, layer=None, copy=False):
+        return [
+            LayerField(layer),
+            CategoricalObsField("batch", batch_key),
+            CategoricalObsField("labels", labels_key),
+        ]

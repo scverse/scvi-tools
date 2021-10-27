@@ -2,8 +2,8 @@ import inspect
 import logging
 import os
 import warnings
-from abc import ABC, abstractmethod
-from typing import Optional, Sequence, Union
+from abc import ABCMeta, abstractmethod
+from typing import List, Optional, Sequence, Type, Union
 
 import numpy as np
 import pyro
@@ -16,6 +16,8 @@ from scvi import _CONSTANTS, settings
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.data.anndata import get_from_registry, transfer_anndata_setup
+from scvi.data.anndata._fields import BaseAnnDataField
+from scvi.data.anndata._manager import AnnDataManager
 from scvi.data.anndata._utils import _check_anndata_setup_equivalence
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -30,7 +32,13 @@ logger = logging.getLogger(__name__)
 _UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained model. Please train the model first."
 
 
-class BaseModelClass(ABC):
+class BaseModelMetaClass(ABCMeta):
+    def __init__(cls, name, bases, dct):
+        cls.manager_store = dict()
+        return super().__init__(name, bases, dct)
+
+
+class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnData] = None):
@@ -421,9 +429,20 @@ class BaseModelClass(ABC):
 
     @staticmethod
     @abstractmethod
+    def anndata_fields(*args, **kwargs) -> List[Type[BaseAnnDataField]]:
+        pass
+
+    @classmethod
+    def _register_manager(cls, adata_manager: AnnDataManager):
+        adata_uuid = adata_manager.get_adata_uuid()
+        cls.manager_store[adata_uuid] = adata_manager
+
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
+        copy: bool = False,
         *args,
         **kwargs,
     ) -> Optional[AnnData]:
@@ -433,3 +452,11 @@ class BaseModelClass(ABC):
         Each model class deriving from this class provides parameters to this method
         according to its needs.
         """
+        adata_manager = AnnDataManager()
+        for field in cls.anndata_fields(*args, **kwargs):
+            adata_manager._add_field(field)
+        adata_manager._register_fields(adata)
+        cls._register_manager(adata_manager)
+
+        if copy:
+            return adata

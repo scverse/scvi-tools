@@ -1,5 +1,11 @@
 from typing import NamedTuple
 
+################################
+# scVI Manager Store Constants #
+################################
+
+_SCVI_UUID_KEY = "_scvi_uuid"
+
 #############################
 # scVI Setup Dict Constants #
 #############################
@@ -22,7 +28,6 @@ _DR_ATTR_KEY = "attr_key"
 
 _CM_ORIGINAL_KEY = "original_key"
 _CM_MAPPING_KEY = "mapping"
-
 
 ############################
 # AnnData Object Constants #

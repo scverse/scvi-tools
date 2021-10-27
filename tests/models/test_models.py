@@ -44,13 +44,13 @@ from scvi.train import TrainingPlan, TrainRunner
 def test_new_setup():
     adata = synthetic_iid(run_setup_anndata=False)
     adata2 = adata.copy()
-    SCVI.setup_anndata(
+    SCVI.old_setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
     )
 
-    SCVI.test_setup_anndata(adata2, batch_key="batch", labels_key="labels")
+    SCVI.setup_anndata(adata2, batch_key="batch", labels_key="labels")
     assert not _check_anndata_setup_equivalence(adata, adata2)
 
 
