@@ -28,21 +28,28 @@ class AnnDataManager:
             self.adata is not None
         ), "AnnData object not registered. Please call register_fields."
 
+    def _add_field(self, field: Type[BaseAnnDataField]) -> None:
+        self.fields.append(field)
+
+    @staticmethod
+    def _validate_anndata_object(adata: AnnData):
+        if adata.is_view:
+            raise ValueError("Please run `adata = adata.copy()`")
+
     def _assign_uuid(self):
         self._assert_anndata_registered()
 
         if not hasattr(self.adata.uns, _constants._SCVI_UUID_KEY):
             self.adata.uns[_constants._SCVI_UUID_KEY] = uuid4()
 
-    def _add_field(self, field: Type[BaseAnnDataField]) -> None:
-        self.fields.append(field)
-
     def _register_fields(self, adata: AnnData):
         assert (
             self.adata is None
         ), "Existing AnnData object registered with this Manager instance."
 
+        self._validate_anndata_object(adata)
         self.adata = adata
+
         self._init_setup_dict()
 
         for field in self.fields:

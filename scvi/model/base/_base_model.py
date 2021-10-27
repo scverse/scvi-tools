@@ -16,6 +16,7 @@ from scvi import _CONSTANTS, settings
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.data.anndata import get_from_registry, transfer_anndata_setup
+from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SUMMARY_STATS_KEY
 from scvi.data.anndata._fields import BaseAnnDataField
 from scvi.data.anndata._manager import AnnDataManager
 from scvi.data.anndata._utils import _check_anndata_setup_equivalence
@@ -43,14 +44,21 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
-            if "_scvi" not in adata.uns.keys():
+            if not hasattr(adata.uns, _SCVI_UUID_KEY):
                 raise ValueError(
-                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first"
+                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first."
                 )
+            adata_uuid = getattr(adata.uns, _SCVI_UUID_KEY)
+            if adata_uuid not in self.manager_store:
+                raise ValueError(
+                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first. "
+                    "It appears the AnnData object has been setup with a different model."
+                )
+
             self.adata = adata
-            self.scvi_setup_dict_ = adata.uns["_scvi"]
-            self.summary_stats = self.scvi_setup_dict_["summary_stats"]
-            self._validate_anndata(adata, copy_if_view=False)
+            self.adata_manager = self.manager_store[adata_uuid]
+            self.scvi_setup_dict_ = self.adata_manager.get_setup_dict()
+            self.summary_stats = self.scvi_setup_dict_[_SUMMARY_STATS_KEY]
 
         self.is_trained_ = False
         self._model_summary_string = ""
@@ -383,10 +391,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         _validate_var_names(adata, var_names)
         transfer_anndata_setup(scvi_setup_dict, adata)
         model = _initialize_model(cls, adata, attr_dict)
-
-        # set saved attrs for loaded model
-        for attr, val in attr_dict.items():
-            setattr(model, attr, val)
 
         # some Pyro modules with AutoGuides may need one training step
         try:

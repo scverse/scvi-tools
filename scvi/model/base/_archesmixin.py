@@ -95,10 +95,6 @@ class ArchesMixin:
 
         model = _initialize_model(cls, adata, attr_dict)
 
-        # set saved attrs for loaded model
-        for attr, val in attr_dict.items():
-            setattr(model, attr, val)
-
         model.to_device(device)
 
         # model tweaking
