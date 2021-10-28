@@ -21,6 +21,28 @@ from . import _constants
 logger = logging.getLogger(__name__)
 
 
+def _get_field(
+    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+) -> np.ndarray:
+    adata_attr = getattr(adata, attr_name)
+    if attr_key is None:
+        field = adata_attr
+    else:
+        if isinstance(adata_attr, pd.DataFrame):
+            if attr_key not in adata_attr.columns:
+                raise ValueError(
+                    f"{attr_key} is not a valid column in adata.{attr_name}."
+                )
+            field = adata_attr.loc[:, attr_key]
+        else:
+            if attr_key not in adata_attr.keys():
+                raise ValueError(f"{attr_key} is not a valid key in adata.{attr_name}.")
+            field = getattr(adata_attr, attr_key)
+    if isinstance(field, pd.Series):
+        field = field.to_numpy().reshape(-1, 1)
+    return field
+
+
 def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     """
     Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``.
@@ -60,15 +82,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
         data_loc[_constants._DR_ATTR_KEY],
     )
 
-    data = getattr(adata, attr_name)
-    if attr_key != "None":
-        if isinstance(data, pd.DataFrame):
-            data = data.loc[:, attr_key]
-        else:
-            data = data[attr_key]
-    if isinstance(data, pd.Series):
-        data = data.to_numpy().reshape(-1, 1)
-    return data
+    return _get_field(adata, attr_name, attr_key)
 
 
 @deprecated(
@@ -821,7 +835,7 @@ def _setup_x(adata, layer):
     else:
         logger.info("Using data from adata.X")
         x_loc = "X"
-        x_key = "None"
+        x_key = None
         x = adata.X
 
     if _check_nonnegative_integers(x) is False:
@@ -946,12 +960,14 @@ def _check_anndata_setup_equivalence(
     adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
 
     # check if mappings are equal or needs transfer
-    transfer_setup = _needs_transfer(self_batch_mapping, adata_batch_mapping, "batch")
+    transfer_setup = _mapping_needs_transfer(
+        self_batch_mapping, adata_batch_mapping, "batch"
+    )
 
     self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
     adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
 
-    transfer_setup = transfer_setup or _needs_transfer(
+    transfer_setup = transfer_setup or _mapping_needs_transfer(
         self_labels_mapping, adata_labels_mapping, "label"
     )
 
@@ -971,7 +987,9 @@ def _check_anndata_setup_equivalence(
         target_extra_cat_maps = adata.uns["_scvi"]["extra_categoricals"]["mappings"]
         for key, val in source_dict["mappings"].items():
             target_map = target_extra_cat_maps[key]
-            transfer_setup = transfer_setup or _needs_transfer(val, target_map, key)
+            transfer_setup = transfer_setup or _mapping_needs_transfer(
+                val, target_map, key
+            )
     # validate any extra continuous covs
     if "extra_continuous_keys" in _scvi_dict.keys():
         if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
@@ -985,7 +1003,7 @@ def _check_anndata_setup_equivalence(
     return transfer_setup
 
 
-def _needs_transfer(mapping1, mapping2, category):
+def _mapping_needs_transfer(mapping1, mapping2, category):
     needs_transfer = False
     error_msg = (
         "Categorial encoding for {} is not the same between "

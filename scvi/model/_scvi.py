@@ -167,7 +167,7 @@ class SCVI(
 
     def anndata_fields(batch_key=None, labels_key=None, layer=None, copy=False):
         return [
-            LayerField(layer),
+            LayerField("X", layer),
             CategoricalObsField("batch", batch_key),
             CategoricalObsField("labels", labels_key),
         ]

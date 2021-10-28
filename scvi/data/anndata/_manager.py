@@ -16,7 +16,6 @@ class AnnDataManager:
         self.fields = []
         self.adata = None
         self.setup_dict_key = _constants._SETUP_DICT_KEY
-        # self.setup_dict_key = f"{_constants._SETUP_DICT_KEY}_{model_cls.__name__}"
 
     def _init_setup_dict(self) -> dict:
         self._assert_anndata_registered()

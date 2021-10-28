@@ -10,7 +10,6 @@ import pyro
 import rich
 import torch
 from anndata import AnnData
-from rich.text import Text
 
 from scvi import _CONSTANTS, settings
 from scvi.data import get_from_registry, transfer_anndata_setup
@@ -420,15 +419,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         )
         rich.print(summary_string)
 
-        command = "scvi.data.view_anndata_setup(model.adata)"
-        command_len = len(command)
-        print_adata_str = "\n\nTo print summary of associated AnnData, use: " + command
-        text = Text(print_adata_str)
-        text.stylize(
-            "dark_violet", len(print_adata_str) - command_len, len(print_adata_str)
-        )
-        console = rich.console.Console()
-        console.print(text)
         return ""
 
     @staticmethod
