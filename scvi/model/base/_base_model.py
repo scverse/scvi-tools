@@ -445,9 +445,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Each model class deriving from this class provides parameters to this method
         according to its needs.
         """
-        adata_manager = AnnDataManager()
-        for field in cls.anndata_fields(*args, **kwargs):
-            adata_manager.add_field(field)
+        adata_manager = AnnDataManager(fields=cls.anndata_fields(*args, **kwargs))
         adata_manager.register_fields(adata)
         cls._register_manager(adata_manager)
 

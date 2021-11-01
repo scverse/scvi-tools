@@ -59,9 +59,11 @@ class CategoricalObsField(BaseObsField):
         self,
         adata_source: AnnData,
         adata_target: AnnData,
-        extend_categories: bool = False,
+        **kwargs,
     ) -> None:
-        super().transfer_field(adata_source, adata_target)
+        super().transfer_field(adata_source, adata_target, **kwargs)
+
+        extend_categories = kwargs["extend_categories"]
 
         if self.is_default:
             self._setup_default_attr(adata_target)

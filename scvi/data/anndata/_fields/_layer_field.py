@@ -48,7 +48,9 @@ class LayerField(BaseAnnDataField):
     def register_field(self, adata: AnnData) -> None:
         super().register_field(adata)
 
-    def transfer_field(self, adata_source: AnnData, adata_target: AnnData) -> None:
+    def transfer_field(
+        self, adata_source: AnnData, adata_target: AnnData, **_kwargs
+    ) -> None:
         super().transfer_field(adata_source, adata_target)
         summary_stats = adata_source.uns[_constants._SETUP_DICT_KEY][
             _constants._SUMMARY_STATS_KEY

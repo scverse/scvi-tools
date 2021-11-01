@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import Type
+from typing import List, Optional, Type
 from uuid import UUID, uuid4
 
 from anndata import AnnData
@@ -12,8 +14,8 @@ from ._utils import _register_anndata, _verify_and_correct_data_format
 
 
 class AnnDataManager:
-    def __init__(self) -> None:
-        self.fields = []
+    def __init__(self, fields: Optional[List[Type[BaseAnnDataField]]] = None) -> None:
+        self.fields = fields or []
         self.adata = None
         self.setup_dict_key = _constants._SETUP_DICT_KEY
 
@@ -38,7 +40,13 @@ class AnnDataManager:
         if not hasattr(self.adata.uns, _constants._SCVI_UUID_KEY):
             self.adata.uns[_constants._SCVI_UUID_KEY] = uuid4()
 
+    def _freeze_fields(self):
+        self.fields = tuple(self.fields)
+
     def add_field(self, field: Type[BaseAnnDataField]) -> None:
+        assert isinstance(
+            self.fields, list
+        ), "Fields have been frozen. Create a new AnnDataManager object for additional fields."
         self.fields.append(field)
 
     def register_fields(self, adata: AnnData):
@@ -53,6 +61,7 @@ class AnnDataManager:
 
         for field in self.fields:
             field.register_field(self.adata)
+        self._freeze_fields()
 
         data_registry = self.get_data_registry(update=True)
         _verify_and_correct_data_format(self.adata, data_registry)
@@ -60,6 +69,19 @@ class AnnDataManager:
         self.get_summary_stats(update=True)
 
         self._assign_uuid()
+
+    @classmethod
+    def transfer_setup(
+        cls, adata_manager: AnnDataManager, adata_target: AnnData, **kwargs
+    ) -> AnnDataManager:
+        assert adata_manager._assert_anndata_registered()
+
+        adata_source = adata_manager.adata
+        fields = adata_manager.fields
+        new_adata_manager = cls(fields)
+        for field in fields:
+            field.transfer_field(adata_source, adata_target, **kwargs)
+        return new_adata_manager
 
     def get_adata_uuid(self) -> UUID:
         self._assert_anndata_registered()

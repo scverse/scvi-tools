@@ -31,7 +31,7 @@ class BaseAnnDataField(ABC):
         pass
 
     @abstractmethod
-    def register_field(self, adata: AnnData, **kwargs) -> None:
+    def register_field(self, adata: AnnData) -> None:
         self.validate_field(adata)
 
     @abstractmethod
