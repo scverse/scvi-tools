@@ -1,12 +1,16 @@
+import logging
 from typing import Optional
 
 import numpy as np
 from anndata import AnnData
+from pandas.api.types import CategoricalDtype
 
 from scvi.data.anndata import _constants
 from scvi.data.anndata._utils import _make_obs_column_categorical
 
 from ._base_field import BaseAnnDataField
+
+logger = logging.getLogger(__name__)
 
 
 class BaseObsField(BaseAnnDataField):
@@ -49,8 +53,37 @@ class CategoricalObsField(BaseObsField):
             self._setup_default_attr(adata)
 
         super().register_field(adata)
+        _make_obs_column_categorical(adata, self.attr_key, self.category_code_key)
+
+    def transfer_field(
+        self,
+        adata_source: AnnData,
+        adata_target: AnnData,
+        extend_categories: bool = False,
+    ) -> None:
+        super().transfer_field(adata_source, adata_target)
+
+        if self.is_default:
+            self._setup_default_attr(adata_target)
+
+        self.validate_field(adata_target)
+
+        categorical_mappings = adata_source[_constants._SETUP_DICT_KEY][
+            _constants._CATEGORICAL_MAPPINGS_KEY
+        ]
+        mapping = categorical_mappings[self.scvi_key]["mapping"].copy()
+
+        # extend mapping for new categories
+        if extend_categories:
+            for c in np.unique(self.get_field(adata_target)):
+                if c not in mapping:
+                    mapping = np.concatenate([mapping, [c]])
+        cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
         _make_obs_column_categorical(
-            adata, self.attr_key, alternate_column_key=self.category_code_key
+            adata_target,
+            self.attr_key,
+            self.category_code_key,
+            categorical_dtype=cat_dtype,
         )
 
     def compute_summary_stats(self, adata: AnnData) -> dict:

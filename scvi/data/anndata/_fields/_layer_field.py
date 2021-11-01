@@ -47,3 +47,22 @@ class LayerField(BaseAnnDataField):
 
     def register_field(self, adata: AnnData) -> None:
         super().register_field(adata)
+
+    def transfer_field(self, adata_source: AnnData, adata_target: AnnData) -> None:
+        super().transfer_field(adata_source, adata_target)
+        summary_stats = adata_source.uns[_constants._SETUP_DICT_KEY][
+            _constants._SUMMARY_STATS_KEY
+        ]
+        target_n_vars = adata_target.n_vars
+        if target_n_vars != summary_stats["n_vars"]:
+            raise ValueError(
+                "Number of vars in adata_target not the same as source. "
+                + "Expected: {} Received: {}".format(
+                    target_n_vars, summary_stats["n_vars"]
+                )
+            )
+
+        self.register_field(adata_target)
+
+    def compute_summary_stats(self, adata: AnnData) -> dict:
+        return dict(n_cells=adata.n_obs, n_vars=adata.n_vars)

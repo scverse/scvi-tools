@@ -12,7 +12,6 @@ import torch
 from anndata import AnnData
 
 from scvi import _CONSTANTS, settings
-from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.data.anndata import get_from_registry, transfer_anndata_setup
 from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SUMMARY_STATS_KEY
@@ -448,8 +447,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """
         adata_manager = AnnDataManager()
         for field in cls.anndata_fields(*args, **kwargs):
-            adata_manager._add_field(field)
-        adata_manager._register_fields(adata)
+            adata_manager.add_field(field)
+        adata_manager.register_fields(adata)
         cls._register_manager(adata_manager)
 
         if copy:

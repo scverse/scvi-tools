@@ -27,9 +27,6 @@ class AnnDataManager:
             self.adata is not None
         ), "AnnData object not registered. Please call register_fields."
 
-    def _add_field(self, field: Type[BaseAnnDataField]) -> None:
-        self.fields.append(field)
-
     @staticmethod
     def _validate_anndata_object(adata: AnnData):
         if adata.is_view:
@@ -41,7 +38,10 @@ class AnnDataManager:
         if not hasattr(self.adata.uns, _constants._SCVI_UUID_KEY):
             self.adata.uns[_constants._SCVI_UUID_KEY] = uuid4()
 
-    def _register_fields(self, adata: AnnData):
+    def add_field(self, field: Type[BaseAnnDataField]) -> None:
+        self.fields.append(field)
+
+    def register_fields(self, adata: AnnData):
         assert (
             self.adata is None
         ), "Existing AnnData object registered with this Manager instance."
@@ -86,8 +86,7 @@ class AnnDataManager:
     def get_summary_stats(self, update: bool = False) -> dict:
         self._assert_anndata_registered()
 
-        n_cells, n_vars = self.adata.shape
-        summary_stats_dict = dict(n_cells=n_cells, n_vars=n_vars)
+        summary_stats_dict = dict()
         for field in self.fields:
             summary_stats_dict.update(field.compute_summary_stats(self.adata))
 

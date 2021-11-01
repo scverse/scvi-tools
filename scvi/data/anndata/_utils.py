@@ -436,6 +436,7 @@ def transfer_anndata_setup(
     # transfer version
     adata_target.uns["_scvi"]["scvi_version"] = _scvi_dict["scvi_version"]
 
+    # transfer X
     x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
     if x_loc == "layers":
         layer = data_registry[_CONSTANTS.X_KEY]["attr_key"]
@@ -450,6 +451,12 @@ def transfer_anndata_setup(
             + "Expected: {} Received: {}".format(target_n_vars, summary_stats["n_vars"])
         )
 
+    x_loc, x_key = _setup_x(adata_target, layer)
+    target_data_registry = data_registry.copy()
+    target_data_registry.update(
+        {_CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
+    )
+
     # transfer batch and labels
     categorical_mappings = _scvi_dict["categorical_mappings"]
     _transfer_batch_and_labels(adata_target, categorical_mappings, extend_categories)
@@ -462,12 +469,6 @@ def transfer_anndata_setup(
         _scvi_dict, adata_target, batch_key
     )
 
-    # transfer X
-    x_loc, x_key = _setup_x(adata_target, layer)
-    target_data_registry = data_registry.copy()
-    target_data_registry.update(
-        {_CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
-    )
     # transfer extra categorical covs
     has_cat_cov = True if _CONSTANTS.CAT_COVS_KEY in data_registry.keys() else False
     if has_cat_cov:
