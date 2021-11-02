@@ -14,36 +14,55 @@ from ._utils import _register_anndata, _verify_and_correct_data_format
 
 
 class AnnDataManager:
+    """
+    Provides an interface to validate and process an AnnData object for use in scvi-tools.
+
+    A class which wraps a collection of AnnDataField instances and provides an interface
+    to validate and process an AnnData object with respect to the fields.
+
+    Parameters
+    ----------
+    fields
+        List of AnnDataFields to intialize with. Additional fields can be added
+        via the method `add_field`.
+    """
+
     def __init__(self, fields: Optional[List[Type[BaseAnnDataField]]] = None) -> None:
         self.fields = fields or []
         self.adata = None
         self.setup_dict_key = _constants._SETUP_DICT_KEY
 
     def _init_setup_dict(self) -> dict:
+        """Creates a setup dictionary and intializes it with the current scvi-tools version."""
         self._assert_anndata_registered()
 
         self.adata.uns[self.setup_dict_key] = {"scvi_version": scvi.__version__}
 
     def _assert_anndata_registered(self):
+        """Asserts that an AnnData object has been registered with this instance."""
         assert (
             self.adata is not None
         ), "AnnData object not registered. Please call register_fields."
 
     @staticmethod
     def _validate_anndata_object(adata: AnnData):
+        """For a given AnnData object, runs general scvi-tools compatibility checks."""
         if adata.is_view:
             raise ValueError("Please run `adata = adata.copy()`")
 
     def _assign_uuid(self):
+        """Assigns a UUID unique to the AnnData object. If already present, the UUID is left alone."""
         self._assert_anndata_registered()
 
         if not hasattr(self.adata.uns, _constants._SCVI_UUID_KEY):
             self.adata.uns[_constants._SCVI_UUID_KEY] = uuid4()
 
     def _freeze_fields(self):
+        """Freezes the fields associated with this instance."""
         self.fields = tuple(self.fields)
 
     def add_field(self, field: Type[BaseAnnDataField]) -> None:
+        """Adds a field to this instance."""
         assert isinstance(
             self.fields, list
         ), "Fields have been frozen. Create a new AnnDataManager object for additional fields."
@@ -55,6 +74,18 @@ class AnnDataManager:
         source_setup_dict: Optional[dict] = None,
         **transfer_kwargs
     ):
+        """
+        Helper function with registers each field associated with this instance.
+
+        Either registers or transfers the setup from `source_setup_dict` if passed in.
+
+        Parameters
+        ----------
+        adata
+            AnnData object to be registered.
+        source_setup_dict
+            Setup dictionary created after registering an AnnData using an AnnDataManager object.
+        """
         assert (
             self.adata is None
         ), "Existing AnnData object registered with this Manager instance."
@@ -79,31 +110,66 @@ class AnnDataManager:
         self._assign_uuid()
 
     def register_fields(self, adata: AnnData):
+        """Registers each field associated with this instance with the AnnData object."""
         return self._register_fields(adata)
 
     def transfer_setup(
-        self, adata_target: AnnData, setup_dict: Optional[dict] = None, **kwargs
+        self, adata_target: AnnData, source_setup_dict: Optional[dict] = None, **kwargs
     ) -> AnnDataManager:
-        assert setup_dict is not None or self._assert_anndata_registered()
+        """
+        Transfers an existing setup to each field associated with this instance with the target AnnData object.
 
-        setup_dict = setup_dict if setup_dict is not None else self.get_setup_dict()
+        Transfers the setup from `source_setup_dict` if passed in, otherwise uses the setup dictionary
+        from the AnnData registered with this instance.
+
+        Parameters
+        ----------
+        adata
+            AnnData object to be registered.
+        source_setup_dict
+            Setup dictionary created after registering an AnnData using an AnnDataManager object.
+        """
+        assert source_setup_dict is not None or self._assert_anndata_registered()
+
+        setup_dict = (
+            source_setup_dict
+            if source_setup_dict is not None
+            else self.get_setup_dict()
+        )
         fields = self.fields
         new_adata_manager = self.__class__(fields)
         new_adata_manager._register_fields(adata_target, setup_dict, **kwargs)
         return new_adata_manager
 
     def get_adata_uuid(self) -> UUID:
+        """Returns the UUID for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
 
         return self.adata.uns[_constants._SCVI_UUID_KEY]
 
     def get_setup_dict(self) -> dict:
+        """Returns the setup dictionary for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
 
         return self.adata.uns[self.setup_dict_key]
 
     def get_data_registry(self, update: bool = False) -> dict:
+        """
+        Returns the data registry for the AnnData object registered with this instance.
+
+        If `update == True`, compiles the data registry mapping and updates the data registry
+        on the AnnData object.
+
+        Parameters
+        ----------
+        update
+            If True, recomputes and updates the data registry on the AnnData object
+            registered with this instance.
+        """
         self._assert_anndata_registered()
+
+        if not update and hasattr(self.adata.uns, _constants._SETUP_DICT_KEY):
+            return self.get_setup_dict()
 
         data_registry_dict = dict()
         for field in self.fields:
@@ -115,13 +181,29 @@ class AnnDataManager:
         return deepcopy(data_registry_dict)
 
     def get_summary_stats(self, update: bool = False) -> dict:
+        """
+        Returns the summary stats for the AnnData object registered with this instance.
+
+        If `update == True`, compiles the summary stats and updates the AnnData object.
+
+        Parameters
+        ----------
+        update
+            If True, recomputes and updates the summary stats on the AnnData object
+            registered with this instance.
+        """
         self._assert_anndata_registered()
+
+        setup_dict = self.get_setup_dict()
+
+        if not update and hasattr(setup_dict, _constants._SUMMARY_STATS_KEY):
+            return self.get_setup_dict()[_constants._SUMMARY_STATS_KEY]
 
         summary_stats_dict = dict()
         for field in self.fields:
             summary_stats_dict.update(field.compute_summary_stats(self.adata))
 
         if update:
-            self.get_setup_dict()[_constants._SUMMARY_STATS_KEY] = summary_stats_dict
+            setup_dict[_constants._SUMMARY_STATS_KEY] = summary_stats_dict
 
         return deepcopy(summary_stats_dict)

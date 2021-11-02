@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class BaseObsField(BaseAnnDataField):
+    """An abstract AnnDataField for .obs attributes in the AnnData data structure."""
+
     _attr_name = _constants._ADATA_ATTRS.OBS
 
     def __init__(self, scvi_key: str, obs_key: str) -> None:
@@ -39,6 +41,8 @@ class BaseObsField(BaseAnnDataField):
 
 
 class CategoricalObsField(BaseObsField):
+    """An AnnDataField for categorical .obs attributes in the AnnData data structure."""
+
     def __init__(self, scvi_key: str, obs_key: Optional[str]) -> None:
         super().__init__(scvi_key, obs_key)
         self.is_default = obs_key is None

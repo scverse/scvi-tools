@@ -424,10 +424,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     @staticmethod
     @abstractmethod
     def anndata_fields(*args, **kwargs) -> List[Type[BaseAnnDataField]]:
+        """Returns a list of AnnDataField instances used to register data for this model."""
         pass
 
     @classmethod
+    @setup_anndata_dsp.dedent
     def _register_manager(cls, adata_manager: AnnDataManager):
+        """
+        $(adata_fields_summary)s.
+        """
         adata_uuid = adata_manager.get_adata_uuid()
         cls.manager_store[adata_uuid] = adata_manager
 
@@ -437,16 +442,19 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         cls,
         adata: AnnData,
         copy: bool = False,
-        *args,
-        **kwargs,
+        *adata_fields_args,
+        **adata_fields_kwargs,
     ) -> Optional[AnnData]:
         """
         %(summary)s.
 
         Each model class deriving from this class provides parameters to this method
-        according to its needs.
+        according to its needs. See the `anndata_fields` method to understand what
+        args and kwargs this method takes.
         """
-        adata_manager = AnnDataManager(fields=cls.anndata_fields(*args, **kwargs))
+        adata_manager = AnnDataManager(
+            fields=cls.anndata_fields(*adata_fields_args, **adata_fields_kwargs)
+        )
         adata_manager.register_fields(adata)
         cls._register_manager(adata_manager)
 

@@ -10,6 +10,8 @@ from ._base_field import BaseAnnDataField
 
 
 class LayerField(BaseAnnDataField):
+    """An AnnDataField for layer or X attributes in the AnnData data structure."""
+
     def __init__(self, scvi_key: str, layer: Optional[str]) -> None:
         super().__init__()
         self._scvi_key = scvi_key

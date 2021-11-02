@@ -8,6 +8,22 @@ from ._manager import AnnDataManager
 def manager_from_setup_dict(
     adata: AnnData, setup_dict: dict, **transfer_kwargs
 ) -> AnnDataManager:
+    """
+    Creates an AnnDataManager given only a scvi-tools setup dictionary.
+
+    Only to be used for backwards compatibility when loading setup dictionaries for models.
+    Infers the AnnDataField instances used to define the AnnDataManager instance,
+    then uses the `AnnDataManager.transfer_setup(...)` method to register the new AnnData object.
+
+    Parameters
+    ----------
+    adata
+        AnnData object to be registered.
+    setup_dict
+        Setup dictionary created after registering an AnnData using an AnnDataManager object.
+    **kwargs
+        Keyword arguments to modify transfer behavior.
+    """
     source_adata_manager = AnnDataManager()
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
     for scvi_key, adata_mapping in data_registry.items():
@@ -26,5 +42,5 @@ def manager_from_setup_dict(
             )
         source_adata_manager.add_field(field)
     return source_adata_manager.transfer_setup(
-        adata, setup_dict=setup_dict, **transfer_kwargs
+        adata, source_setup_dict=setup_dict, **transfer_kwargs
     )

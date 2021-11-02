@@ -165,7 +165,21 @@ class SCVI(
             copy=copy,
         )
 
-    def anndata_fields(batch_key=None, labels_key=None, layer=None, copy=False):
+    @setup_anndata_dsp.dedent
+    def anndata_fields(batch_key=None, labels_key=None, layer=None):
+        """
+        %(adata_fields_summary)s.
+
+        Parameters
+        ----------
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_layer)s
+
+        Returns
+        -------
+        %(returns)s
+        """
         return [
             LayerField("X", layer),
             CategoricalObsField("batch", batch_key),
