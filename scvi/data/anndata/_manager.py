@@ -49,7 +49,12 @@ class AnnDataManager:
         ), "Fields have been frozen. Create a new AnnDataManager object for additional fields."
         self.fields.append(field)
 
-    def register_fields(self, adata: AnnData):
+    def _register_fields(
+        self,
+        adata: AnnData,
+        source_setup_dict: Optional[dict] = None,
+        **transfer_kwargs
+    ):
         assert (
             self.adata is None
         ), "Existing AnnData object registered with this Manager instance."
@@ -60,7 +65,10 @@ class AnnDataManager:
         self._init_setup_dict()
 
         for field in self.fields:
-            field.register_field(self.adata)
+            if source_setup_dict is not None:
+                field.transfer_field(source_setup_dict, self.adata, **transfer_kwargs)
+            else:
+                field.register_field(self.adata)
         self._freeze_fields()
 
         data_registry = self.get_data_registry(update=True)
@@ -70,17 +78,18 @@ class AnnDataManager:
 
         self._assign_uuid()
 
-    @classmethod
-    def transfer_setup(
-        cls, adata_manager: AnnDataManager, adata_target: AnnData, **kwargs
-    ) -> AnnDataManager:
-        assert adata_manager._assert_anndata_registered()
+    def register_fields(self, adata: AnnData):
+        return self._register_fields(adata)
 
-        adata_source = adata_manager.adata
-        fields = adata_manager.fields
-        new_adata_manager = cls(fields)
-        for field in fields:
-            field.transfer_field(adata_source, adata_target, **kwargs)
+    def transfer_setup(
+        self, adata_target: AnnData, setup_dict: Optional[dict] = None, **kwargs
+    ) -> AnnDataManager:
+        assert setup_dict is not None or self._assert_anndata_registered()
+
+        setup_dict = setup_dict if setup_dict is not None else self.get_setup_dict()
+        fields = self.fields
+        new_adata_manager = self.__class__(fields)
+        new_adata_manager._register_fields(adata_target, setup_dict, **kwargs)
         return new_adata_manager
 
     def get_adata_uuid(self) -> UUID:

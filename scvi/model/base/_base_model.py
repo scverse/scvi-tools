@@ -14,6 +14,7 @@ from anndata import AnnData
 from scvi import _CONSTANTS, settings
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.data.anndata import get_from_registry, transfer_anndata_setup
+from scvi.data.anndata._compat import manager_from_setup_dict
 from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SUMMARY_STATS_KEY
 from scvi.data.anndata._fields import BaseAnnDataField
 from scvi.data.anndata._manager import AnnDataManager
@@ -387,7 +388,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         }
 
         _validate_var_names(adata, var_names)
-        transfer_anndata_setup(scvi_setup_dict, adata)
+        cls._register_manager(manager_from_setup_dict(adata, scvi_setup_dict))
         model = _initialize_model(cls, adata, attr_dict)
 
         # some Pyro modules with AutoGuides may need one training step

@@ -57,11 +57,11 @@ class CategoricalObsField(BaseObsField):
 
     def transfer_field(
         self,
-        adata_source: AnnData,
+        setup_dict: dict,
         adata_target: AnnData,
         **kwargs,
     ) -> None:
-        super().transfer_field(adata_source, adata_target, **kwargs)
+        super().transfer_field(setup_dict, adata_target, **kwargs)
 
         extend_categories = kwargs["extend_categories"]
 
@@ -70,9 +70,7 @@ class CategoricalObsField(BaseObsField):
 
         self.validate_field(adata_target)
 
-        categorical_mappings = adata_source[_constants._SETUP_DICT_KEY][
-            _constants._CATEGORICAL_MAPPINGS_KEY
-        ]
+        categorical_mappings = setup_dict[_constants._CATEGORICAL_MAPPINGS_KEY]
         mapping = categorical_mappings[self.scvi_key]["mapping"].copy()
 
         # extend mapping for new categories

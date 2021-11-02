@@ -35,9 +35,7 @@ class BaseAnnDataField(ABC):
         self.validate_field(adata)
 
     @abstractmethod
-    def transfer_field(
-        self, adata_source: AnnData, adata_target: AnnData, **kwargs
-    ) -> None:
+    def transfer_field(self, setup_dict: dict, adata_target: AnnData, **kwargs) -> None:
         pass
 
     def data_registry_mapping(self) -> dict:

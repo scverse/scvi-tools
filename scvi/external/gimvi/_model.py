@@ -10,7 +10,6 @@ from anndata import AnnData
 from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS
-from scvi.data import transfer_anndata_setup
 from scvi.data.anndata import transfer_anndata_setup
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import DataSplitter

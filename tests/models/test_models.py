@@ -12,13 +12,9 @@ from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
-from scvi.data import (
-    register_tensor_from_anndata,
-    synthetic_iid,
-    transfer_anndata_setup,
-)
+from scvi.data import synthetic_iid
 from scvi.data._built_in_data._download import _download
-from scvi.data.anndata import transfer_anndata_setup
+from scvi.data.anndata import register_tensor_from_anndata, transfer_anndata_setup
 from scvi.data.anndata._utils import _check_anndata_setup_equivalence, _setup_anndata
 from scvi.dataloaders import (
     AnnDataLoader,
