@@ -35,10 +35,6 @@ class BaseObsField(BaseAnnDataField):
     def attr_key(self):
         return self._attr_key
 
-    def validate_field(self, adata: AnnData) -> None:
-        super().validate_field(adata)
-        self.get_field(adata)
-
 
 class CategoricalObsField(BaseObsField):
     """An AnnDataField for categorical .obs attributes in the AnnData data structure."""
@@ -46,18 +42,22 @@ class CategoricalObsField(BaseObsField):
     def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
         super().__init__(registry_key, obs_key)
         self.is_default = obs_key is None
-        self._attr_key = obs_key or self.registry_key
-        self.category_code_key = f"_scvi_{self.attr_key}"
+        self._original_attr_key = obs_key or self.registry_key
+        self._attr_key = f"_scvi_{self._original_attr_key}"
 
     def _setup_default_attr(self, adata: AnnData) -> None:
         adata.obs[self.attr_key] = np.zeros(adata.shape[0], dtype=np.int64)
+
+    def validate_field(self, adata: AnnData) -> None:
+        super().validate_field(adata)
+        assert self._original_attr_key in adata.obs
 
     def register_field(self, adata: AnnData) -> None:
         if self.is_default:
             self._setup_default_attr(adata)
 
         super().register_field(adata)
-        _make_obs_column_categorical(adata, self.attr_key, self.category_code_key)
+        _make_obs_column_categorical(adata, self._original_attr_key, self.attr_key)
 
     def transfer_field(
         self,
@@ -67,7 +67,7 @@ class CategoricalObsField(BaseObsField):
     ) -> None:
         super().transfer_field(setup_dict, adata_target, **kwargs)
 
-        extend_categories = kwargs["extend_categories"]
+        extend_categories = getattr(kwargs, "extend_categories", False)
 
         if self.is_default:
             self._setup_default_attr(adata_target)
@@ -75,7 +75,7 @@ class CategoricalObsField(BaseObsField):
         self.validate_field(adata_target)
 
         categorical_mappings = setup_dict[_constants._CATEGORICAL_MAPPINGS_KEY]
-        mapping = categorical_mappings[self.registry_key]["mapping"].copy()
+        mapping = categorical_mappings[self.attr_key]["mapping"].copy()
 
         # extend mapping for new categories
         if extend_categories:
@@ -85,8 +85,8 @@ class CategoricalObsField(BaseObsField):
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
         _make_obs_column_categorical(
             adata_target,
+            self._original_attr_key,
             self.attr_key,
-            self.category_code_key,
             categorical_dtype=cat_dtype,
         )
 
@@ -96,9 +96,7 @@ class CategoricalObsField(BaseObsField):
             _constants._CATEGORICAL_MAPPINGS_KEY
         ]
         n_categories = len(
-            np.unique(
-                categorical_mappings[self.category_code_key][_constants._CM_MAPPING_KEY]
-            )
+            np.unique(categorical_mappings[self.attr_key][_constants._CM_MAPPING_KEY])
         )
         stat_name = f"n_{self.registry_key}"
         return {stat_name: n_categories}

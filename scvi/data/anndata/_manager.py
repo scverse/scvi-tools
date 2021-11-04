@@ -30,7 +30,7 @@ class AnnDataManager:
     def __init__(
         self, fields: Optional[Sequence[Type[BaseAnnDataField]]] = None
     ) -> None:
-        self.fields = set(fields) or {}
+        self.fields = set(fields or {})
         self.adata = None
         self.setup_dict_key = _constants._SETUP_DICT_KEY
 
@@ -56,7 +56,7 @@ class AnnDataManager:
         """Assigns a UUID unique to the AnnData object. If already present, the UUID is left alone."""
         self._assert_anndata_registered()
 
-        if not hasattr(self.adata.uns, _constants._SCVI_UUID_KEY):
+        if _constants._SCVI_UUID_KEY not in self.adata.uns:
             self.adata.uns[_constants._SCVI_UUID_KEY] = uuid4()
 
     def _freeze_fields(self):
@@ -131,7 +131,7 @@ class AnnDataManager:
         source_setup_dict
             Setup dictionary created after registering an AnnData using an AnnDataManager object.
         """
-        assert source_setup_dict is not None or self._assert_anndata_registered()
+        assert source_setup_dict is not None or self.adata is not None
 
         setup_dict = (
             source_setup_dict
@@ -170,7 +170,7 @@ class AnnDataManager:
         """
         self._assert_anndata_registered()
 
-        if not update and hasattr(self.adata.uns, _constants._SETUP_DICT_KEY):
+        if not update and _constants._SETUP_DICT_KEY in self.adata.uns:
             return self.get_setup_dict()
 
         data_registry_dict = dict()
@@ -198,7 +198,7 @@ class AnnDataManager:
 
         setup_dict = self.get_setup_dict()
 
-        if not update and hasattr(setup_dict, _constants._SUMMARY_STATS_KEY):
+        if not update and _constants._SUMMARY_STATS_KEY in setup_dict:
             return self.get_setup_dict()[_constants._SUMMARY_STATS_KEY]
 
         summary_stats_dict = dict()

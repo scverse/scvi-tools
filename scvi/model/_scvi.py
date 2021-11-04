@@ -4,6 +4,7 @@ from typing import List, Optional, Set, Type
 from anndata import AnnData
 
 from scvi._compat import Literal
+from scvi._constants import _CONSTANTS
 from scvi.data.anndata._fields import BaseAnnDataField, CategoricalObsField, LayerField
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.model._utils import _init_library_size
@@ -185,7 +186,7 @@ class SCVI(
         %(returns)s
         """
         return {
-            LayerField("X", layer),
-            CategoricalObsField("batch", batch_key),
-            CategoricalObsField("labels", labels_key),
+            LayerField(_CONSTANTS.X_KEY, layer),
+            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
+            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
         }

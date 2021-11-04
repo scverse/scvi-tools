@@ -43,11 +43,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
-            if not hasattr(adata.uns, _SCVI_UUID_KEY):
+            if _SCVI_UUID_KEY not in adata.uns:
                 raise ValueError(
                     f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first."
                 )
-            adata_uuid = getattr(adata.uns, _SCVI_UUID_KEY)
+            adata_uuid = adata.uns[_SCVI_UUID_KEY]
             if adata_uuid not in self.manager_store:
                 raise ValueError(
                     f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first. "
@@ -441,10 +441,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        copy: bool = False,
         *adata_fields_args,
         **adata_fields_kwargs,
-    ) -> Optional[AnnData]:
+    ):
         """
         %(summary)s.
 
@@ -457,6 +456,3 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         )
         adata_manager.register_fields(adata)
         cls._register_manager(adata_manager)
-
-        if copy:
-            return adata
