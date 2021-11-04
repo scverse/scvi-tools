@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import List, Optional, Type
+from typing import Optional, Sequence, Type
 from uuid import UUID, uuid4
 
 from anndata import AnnData
@@ -27,8 +27,10 @@ class AnnDataManager:
         via the method `add_field`.
     """
 
-    def __init__(self, fields: Optional[List[Type[BaseAnnDataField]]] = None) -> None:
-        self.fields = fields or []
+    def __init__(
+        self, fields: Optional[Sequence[Type[BaseAnnDataField]]] = None
+    ) -> None:
+        self.fields = set(fields) or {}
         self.adata = None
         self.setup_dict_key = _constants._SETUP_DICT_KEY
 
@@ -59,14 +61,14 @@ class AnnDataManager:
 
     def _freeze_fields(self):
         """Freezes the fields associated with this instance."""
-        self.fields = tuple(self.fields)
+        self.fields = frozenset(self.fields)
 
     def add_field(self, field: Type[BaseAnnDataField]) -> None:
         """Adds a field to this instance."""
         assert isinstance(
-            self.fields, list
+            self.fields, set
         ), "Fields have been frozen. Create a new AnnDataManager object for additional fields."
-        self.fields.append(field)
+        self.fields.add(field)
 
     def _register_fields(
         self,

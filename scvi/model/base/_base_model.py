@@ -3,7 +3,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import List, Optional, Sequence, Type, Union
+from typing import Optional, Sequence, Set, Type, Union
 
 import numpy as np
 import pyro
@@ -423,8 +423,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     @staticmethod
     @abstractmethod
-    def anndata_fields(*args, **kwargs) -> List[Type[BaseAnnDataField]]:
-        """Returns a list of AnnDataField instances used to register data for this model."""
+    def anndata_fields(*args, **kwargs) -> Set[Type[BaseAnnDataField]]:
+        """Returns a set of AnnDataField instances used to register data for this model."""
         pass
 
     @classmethod

@@ -18,14 +18,14 @@ class BaseObsField(BaseAnnDataField):
 
     _attr_name = _constants._ADATA_ATTRS.OBS
 
-    def __init__(self, scvi_key: str, obs_key: str) -> None:
+    def __init__(self, registry_key: str, obs_key: str) -> None:
         super().__init__()
-        self._scvi_key = scvi_key
+        self._registry_key = registry_key
         self._attr_key = obs_key
 
     @property
-    def scvi_key(self):
-        return self._scvi_key
+    def registry_key(self):
+        return self._registry_key
 
     @property
     def attr_name(self):
@@ -43,10 +43,10 @@ class BaseObsField(BaseAnnDataField):
 class CategoricalObsField(BaseObsField):
     """An AnnDataField for categorical .obs attributes in the AnnData data structure."""
 
-    def __init__(self, scvi_key: str, obs_key: Optional[str]) -> None:
-        super().__init__(scvi_key, obs_key)
+    def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
+        super().__init__(registry_key, obs_key)
         self.is_default = obs_key is None
-        self._attr_key = obs_key or self.scvi_key
+        self._attr_key = obs_key or self.registry_key
         self.category_code_key = f"_scvi_{self.attr_key}"
 
     def _setup_default_attr(self, adata: AnnData) -> None:
@@ -75,7 +75,7 @@ class CategoricalObsField(BaseObsField):
         self.validate_field(adata_target)
 
         categorical_mappings = setup_dict[_constants._CATEGORICAL_MAPPINGS_KEY]
-        mapping = categorical_mappings[self.scvi_key]["mapping"].copy()
+        mapping = categorical_mappings[self.registry_key]["mapping"].copy()
 
         # extend mapping for new categories
         if extend_categories:
@@ -100,5 +100,5 @@ class CategoricalObsField(BaseObsField):
                 categorical_mappings[self.category_code_key][_constants._CM_MAPPING_KEY]
             )
         )
-        stat_name = f"n_{self.scvi_key}"
+        stat_name = f"n_{self.registry_key}"
         return {stat_name: n_categories}

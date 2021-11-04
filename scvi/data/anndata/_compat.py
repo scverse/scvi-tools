@@ -26,16 +26,16 @@ def manager_from_setup_dict(
     """
     source_adata_manager = AnnDataManager()
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
-    for scvi_key, adata_mapping in data_registry.items():
+    for registry_key, adata_mapping in data_registry.items():
         field = None
         attr_name = adata_mapping[_constants._DR_ATTR_NAME]
         attr_key = adata_mapping[_constants._DR_ATTR_KEY]
         if attr_name == _constants._ADATA_ATTRS.X:
-            field = LayerField(scvi_key, None)
+            field = LayerField(registry_key, None)
         elif attr_name == _constants._ADATA_ATTRS.LAYERS:
-            field = LayerField(scvi_key, attr_key)
+            field = LayerField(registry_key, attr_key)
         elif attr_name == _constants._ADATA_ATTRS.OBS:
-            field = CategoricalObsField(scvi_key, attr_key)
+            field = CategoricalObsField(registry_key, attr_key)
         else:
             raise NotImplementedError(
                 f"Backwards compatibility for attribute {attr_name} is not implemented yet."

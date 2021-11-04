@@ -1,10 +1,10 @@
 import logging
-from typing import List, Optional
+from typing import List, Optional, Set, Type
 
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.data.anndata._fields import CategoricalObsField, LayerField
+from scvi.data.anndata._fields import BaseAnnDataField, CategoricalObsField, LayerField
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
@@ -166,7 +166,11 @@ class SCVI(
         )
 
     @setup_anndata_dsp.dedent
-    def anndata_fields(batch_key=None, labels_key=None, layer=None):
+    def anndata_fields(
+        batch_key: Optional[str] = None,
+        labels_key: Optional[str] = None,
+        layer: Optional[str] = None,
+    ) -> Set[Type[BaseAnnDataField]]:
         """
         %(adata_fields_summary)s.
 
@@ -180,8 +184,8 @@ class SCVI(
         -------
         %(returns)s
         """
-        return [
+        return {
             LayerField("X", layer),
             CategoricalObsField("batch", batch_key),
             CategoricalObsField("labels", labels_key),
-        ]
+        }

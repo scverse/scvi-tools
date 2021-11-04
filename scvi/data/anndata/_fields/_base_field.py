@@ -20,7 +20,7 @@ class BaseAnnDataField(ABC):
 
     @property
     @abstractmethod
-    def scvi_key(self):
+    def registry_key(self):
         """The key that is referenced by models via a data loader."""
         pass
 
@@ -69,11 +69,11 @@ class BaseAnnDataField(ABC):
         """
         Returns a nested dictionary which describes the mapping to the AnnData data field.
 
-        The dictionary is of the form {scvi_key: {"attr_name": attr_name, "attr_key": attr_key}}.
+        The dictionary is of the form {registry_key: {"attr_name": attr_name, "attr_key": attr_key}}.
         This mapping is then combined with the mappings of other fields to make up the data registry.
         """
         return {
-            self.scvi_key: {
+            self.registry_key: {
                 _constants._DR_ATTR_NAME: self.attr_name,
                 _constants._DR_ATTR_KEY: self.attr_key,
             }

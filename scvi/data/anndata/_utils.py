@@ -905,7 +905,7 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Dict[str, str]]):
     """
     Registers the AnnData object by adding data_registry_dict to adata.uns['_scvi']['data_registry'].
 
-    Format of data_registry_dict is: {<scvi_key>: {"attr_name": <anndata dataframe>, "attr_key": <dataframe key> }}
+    Format of data_registry_dict is: {<registry_key>: {"attr_name": <anndata dataframe>, "attr_key": <dataframe key> }}
 
     Parameters
     ----------

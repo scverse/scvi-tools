@@ -12,9 +12,9 @@ from ._base_field import BaseAnnDataField
 class LayerField(BaseAnnDataField):
     """An AnnDataField for layer or X attributes in the AnnData data structure."""
 
-    def __init__(self, scvi_key: str, layer: Optional[str]) -> None:
+    def __init__(self, registry_key: str, layer: Optional[str]) -> None:
         super().__init__()
-        self._scvi_key = scvi_key
+        self._registry_key = registry_key
         self._attr_name = (
             _constants._ADATA_ATTRS.X
             if layer is None
@@ -23,8 +23,8 @@ class LayerField(BaseAnnDataField):
         self._attr_key = layer
 
     @property
-    def scvi_key(self):
-        return self._scvi_key
+    def registry_key(self):
+        return self._registry_key
 
     @property
     def attr_name(self):

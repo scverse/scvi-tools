@@ -61,13 +61,6 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
 
     None of the data in adata are modified. Only adds fields to adata"""
 
-    adata_fields_summary = """\
-    Returns a list of AnnDataField instances used to register data for this model.
-
-    Each field delineates a mapping that will be created between data field used by this model
-    to its respective location in adata. Any arguments and keyword arguments defined for this function
-    will be accepted by the `setup_anndata` method for this model."""
-
     param_adata = """\
     adata
         AnnData object containing raw counts. Rows represent cells, columns represent features."""
