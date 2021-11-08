@@ -3,7 +3,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Optional, Sequence, Set, Type, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import pyro
@@ -16,7 +16,6 @@ from scvi.data._utils import _check_nonnegative_integers
 from scvi.data.anndata import get_from_registry, transfer_anndata_setup
 from scvi.data.anndata._compat import manager_from_setup_dict
 from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SUMMARY_STATS_KEY
-from scvi.data.anndata._fields import BaseAnnDataField
 from scvi.data.anndata._manager import AnnDataManager
 from scvi.data.anndata._utils import _check_anndata_setup_equivalence
 from scvi.dataloaders import AnnDataLoader
@@ -421,38 +420,29 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         return ""
 
-    @staticmethod
-    @abstractmethod
-    def anndata_fields(*args, **kwargs) -> Set[Type[BaseAnnDataField]]:
-        """Returns a set of AnnDataField instances used to register data for this model."""
-        pass
-
     @classmethod
-    @setup_anndata_dsp.dedent
     def _register_manager(cls, adata_manager: AnnDataManager):
         """
-        $(adata_fields_summary)s.
+        Registers an AnnDataManager instance with this model class.
         """
         adata_uuid = adata_manager.get_adata_uuid()
         cls.manager_store[adata_uuid] = adata_manager
 
     @classmethod
+    @abstractmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
         cls,
         adata: AnnData,
-        *adata_fields_args,
-        **adata_fields_kwargs,
+        *args,
+        **kwargs,
     ):
         """
         %(summary)s.
 
         Each model class deriving from this class provides parameters to this method
-        according to its needs. See the `anndata_fields` method to understand what
-        args and kwargs this method takes.
+        according to its needs. To operate correctly with the model initialization,
+        the implementation must call `_register_manager` on a model-specific instance
+        of `AnnDataManager`.
         """
-        adata_manager = AnnDataManager(
-            fields=cls.anndata_fields(*adata_fields_args, **adata_fields_kwargs)
-        )
-        adata_manager.register_fields(adata)
-        cls._register_manager(adata_manager)
+        pass
