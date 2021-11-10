@@ -186,7 +186,7 @@ class SCVI(
         %(param_layer)s
         """
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer),
+            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
             CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
         ]

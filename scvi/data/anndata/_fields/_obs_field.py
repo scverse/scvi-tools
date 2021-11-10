@@ -37,7 +37,16 @@ class BaseObsField(BaseAnnDataField):
 
 
 class CategoricalObsField(BaseObsField):
-    """An AnnDataField for categorical .obs attributes in the AnnData data structure."""
+    """
+    An AnnDataField for categorical .obs attributes in the AnnData data structure.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    obs_key
+        Key to access the field in the AnnData obs mapping. If None, defaults to `registry_key`.
+    """
 
     def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
         super().__init__(registry_key, obs_key)

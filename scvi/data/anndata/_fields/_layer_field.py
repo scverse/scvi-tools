@@ -10,9 +10,22 @@ from ._base_field import BaseAnnDataField
 
 
 class LayerField(BaseAnnDataField):
-    """An AnnDataField for layer or X attributes in the AnnData data structure."""
+    """
+    An AnnDataField for layer or X attributes in the AnnData data structure.
 
-    def __init__(self, registry_key: str, layer: Optional[str]) -> None:
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    layer
+        Key to access the field in the AnnData layers mapping. If None, uses the data in .X.
+    is_count_data
+        If True, checks if the data are counts during validation.
+    """
+
+    def __init__(
+        self, registry_key: str, layer: Optional[str], is_count_data: bool = True
+    ) -> None:
         super().__init__()
         self._registry_key = registry_key
         self._attr_name = (
@@ -21,6 +34,7 @@ class LayerField(BaseAnnDataField):
             else _constants._ADATA_ATTRS.LAYERS
         )
         self._attr_key = layer
+        self._is_count_data = is_count_data
 
     @property
     def registry_key(self):
@@ -38,7 +52,7 @@ class LayerField(BaseAnnDataField):
         super().validate_field(adata)
         x = self.get_field(adata)
 
-        if _check_nonnegative_integers(x) is False:
+        if self._is_count_data and not _check_nonnegative_integers(x):
             logger_data_loc = (
                 "adata.X" if self.attr_key is None else f"adata.layers[{self.attr_key}]"
             )
