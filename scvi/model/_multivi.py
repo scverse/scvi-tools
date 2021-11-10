@@ -1,6 +1,9 @@
 import logging
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import Dict, Iterable, Optional, Sequence, Tuple, TypeVar, Union
+
+import warnings
+from collections.abc import Iterable as IterableClass
 
 import numpy as np
 import pandas as pd
@@ -665,7 +668,253 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 index=adata.obs_names[indices],
             )
 
-    # TO DO: EDIT GETS TO INCLUDE PROTEINS AND CREATE GET_NORMALIZED_PROTEIN
+    @torch.no_grad()
+    def get_normalized_expression_wprotein(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        n_samples_overall: Optional[int] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
+        gene_list: Optional[Sequence[str]] = None,
+        use_z_mean: bool = True,
+        n_samples: int = 1,
+        batch_size: Optional[int] = None,
+        return_mean: bool = True,
+    ) -> Union[np.ndarray, pd.DataFrame]:
+        r"""
+        Returns the normalized gene expression and protein expression.
+
+        This is denoted as :math:`\rho_n` in the totalVI paper for genes, and TODO
+        for proteins, :math:`(1-\pi_{nt})\alpha_{nt}\beta_{nt}`.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        n_samples_overall
+            Number of samples to use in total
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - List[int], then average over batches in list
+        gene_list
+            Return frequencies of expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        protein_list
+            Return protein expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        library_size
+            Scale the expression frequencies to a common library size.
+            This allows gene expression levels to be interpreted on a common scale of relevant
+            magnitude.
+        n_samples
+            Get sample scale from multiple samples.
+        sample_protein_mixing
+            Sample mixing bernoulli, setting background to zero
+        scale_protein
+            Make protein expression sum to 1
+        include_protein_background
+            Include background component for protein expression
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a `np.ndarray` instead of a `pd.DataFrame`. Includes gene
+            names as columns. If either n_samples=1 or return_mean=True, defaults to False.
+            Otherwise, it defaults to True.
+
+        Returns
+        -------
+        - **gene_normalized_expression** - normalized expression for RNA
+        - **protein_normalized_expression** - normalized expression for proteins
+
+        If ``n_samples`` > 1 and ``return_mean`` is False, then the shape is ``(samples, cells, genes)``.
+        Otherwise, shape is ``(cells, genes)``. Return type is ``pd.DataFrame`` unless ``return_numpy`` is True.
+        """
+
+        adata = self._validate_anndata(adata)
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+        if n_samples_overall is not None:
+            indices = np.random.choice(indices, n_samples_overall)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
+        if gene_list is None:
+            gene_mask = slice(None)
+        else:
+            all_genes = _get_var_names_from_setup_anndata(adata)
+            gene_mask = [gene in gene_list for gene in all_genes]
+
+        exprs = []
+        for tensors in scdl:
+            per_batch_exprs = []
+            for batch in transform_batch:
+                if batch is not None:
+                    batch_indices = tensors[_CONSTANTS.BATCH_KEY]
+                    tensors[_CONSTANTS.BATCH_KEY] = (
+                        torch.ones_like(batch_indices) * batch
+                    )
+                _, generative_outputs = self.module.forward(
+                    tensors=tensors,
+                    inference_kwargs=dict(n_samples=n_samples),
+                    generative_kwargs=dict(use_z_mean=use_z_mean),
+                    compute_loss=False,
+                )
+                py_ = generative_outputs["py_"]
+                protein_mixing = 1 / (1 + torch.exp(-py_["mixing"].cpu()))
+                output = py_["rate_fore"].cpu() * (1 - protein_mixing)
+                output = output.cpu().numpy()
+                # output = output[..., protein_mask]
+                per_batch_exprs.append(output)
+            per_batch_exprs = np.stack(
+                per_batch_exprs
+            )  # shape is (len(transform_batch) x batch_size x n_var)
+            exprs += [per_batch_exprs.mean(0)]
+
+        if n_samples > 1:
+            # The -2 axis correspond to cells.
+            exprs = np.concatenate(exprs, axis=-2)
+        else:
+            exprs = np.concatenate(exprs, axis=0)
+        if n_samples > 1 and return_mean:
+            exprs = exprs.mean(0)
+        return exprs
+
+    @torch.no_grad()
+    def get_protein_foreground_probability(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
+        protein_list: Optional[Sequence[str]] = None,
+        n_samples: int = 1,
+        batch_size: Optional[int] = None,
+        use_z_mean: bool = True,
+        return_mean: bool = True,
+        return_numpy: Optional[bool] = None,
+    ):
+        r"""
+        Returns the foreground probability for proteins.
+
+        This is denoted as :math:`(1 - \pi_{nt})` in the totalVI paper.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - List[int], then average over batches in list
+        protein_list
+            Return protein expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        n_samples
+            Number of posterior samples to use for estimation.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
+            gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
+            Otherwise, it defaults to `True`.
+
+        Returns
+        -------
+        - **foreground_probability** - probability foreground for each protein
+
+        If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
+        Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        """
+        adata = self._validate_anndata(adata)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
+
+        if protein_list is None:
+            protein_mask = slice(None)
+        else:
+            all_proteins = self.scvi_setup_dict_["protein_names"]
+            protein_mask = [True if p in protein_list else False for p in all_proteins]
+
+        if n_samples > 1 and return_mean is False:
+            if return_numpy is False:
+                warnings.warn(
+                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                )
+            return_numpy = True
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+
+        py_mixings = []
+        if not isinstance(transform_batch, IterableClass):
+            transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+        for tensors in post:
+            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            py_mixing = torch.zeros_like(y[..., protein_mask])
+            if n_samples > 1:
+                py_mixing = torch.stack(n_samples * [py_mixing])
+            for b in transform_batch:
+                # generative_kwargs = dict(transform_batch=b)
+                generative_kwargs = dict(use_z_mean=use_z_mean)
+                inference_kwargs = dict(n_samples=n_samples)
+                _, generative_outputs = self.module.forward(
+                    tensors=tensors,
+                    inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
+                    compute_loss=False,
+                )
+                py_mixing += torch.sigmoid(generative_outputs["py_"]["mixing"])[
+                    ..., protein_mask
+                ].cpu()
+            py_mixing /= len(transform_batch)
+            py_mixings += [py_mixing]
+        if n_samples > 1:
+            # concatenate along batch dimension -> result shape = (samples, cells, features)
+            py_mixings = torch.cat(py_mixings, dim=1)
+            # (cells, features, samples)
+            py_mixings = py_mixings.permute(1, 2, 0)
+        else:
+            py_mixings = torch.cat(py_mixings, dim=0)
+
+        if return_mean is True and n_samples > 1:
+            py_mixings = torch.mean(py_mixings, dim=-1)
+
+        py_mixings = py_mixings.cpu().numpy()
+
+        if return_numpy is True:
+            return 1 - py_mixings
+        else:
+            pro_names = self.scvi_setup_dict_["protein_names"]
+            foreground_prob = pd.DataFrame(
+                1 - py_mixings,
+                columns=pro_names[protein_mask],
+                index=adata.obs_names[indices],
+            )
+            return foreground_prob
 
     @_doc_params(doc_differential_expression=doc_differential_expression)
     def differential_accessibility(

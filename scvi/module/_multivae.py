@@ -499,8 +499,8 @@ class MULTIVAE(BaseModuleClass):
     ) -> Dict[str, torch.Tensor]:
 
         # Get Data and Additional Covs
-        x_rna = x[:, : self.n_input_genes]
-        x_chr = x[:, self.n_input_genes :]
+        x_rna = x[:, :self.n_input_genes]
+        x_chr = x[:, self.n_input_genes:]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
@@ -936,15 +936,15 @@ class MULTIVAE(BaseModuleClass):
     ):
         # Single Modality
         x = torch.where(mask_1.T, x_1.T, x_2.T).T
-        x = torch.where(mask_3.T, x.T, x_3.T).T
+        x = torch.where(mask_3.T, x_3.T, x.T).T
 
         # Double Modality
         mask_12 = torch.logical_and(mask_2, mask_1)
-        x = torch.where(mask_12.T, x.T, x_12.T).T
+        x = torch.where(mask_12.T, x_12.T, x.T).T
         mask_13 = torch.logical_and(mask_3, mask_1)
-        x = torch.where(mask_13.T, x.T, x_13.T).T
+        x = torch.where(mask_13.T, x_13.T, x.T).T
         mask_23 = torch.logical_and(mask_3, mask_2)
-        x = torch.where(mask_23.T, x.T, x_23.T).T
+        x = torch.where(mask_23.T, x_23.T, x.T).T
 
         # Fully Paired
         mask_123 = torch.logical_and(mask_12, mask_3)
