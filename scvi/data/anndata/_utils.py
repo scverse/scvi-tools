@@ -1,27 +1,46 @@
 import logging
-import os
-import pickle
-import sys
 import warnings
-from typing import Dict, List, Optional, Tuple, Union
+from copy import deepcopy
+from typing import Dict, List, Optional, Union
 
 import anndata
 import numpy as np
 import pandas as pd
-import rich
 from anndata._core.anndata import AnnData
 from pandas.api.types import CategoricalDtype
-from rich.console import Console
 from scipy.sparse import isspmatrix
 from sklearn.utils import deprecated
 
 import scvi
 from scvi import _CONSTANTS
 from scvi._compat import Literal
+from scvi.data._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
 
-from ._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
+from . import _constants
 
 logger = logging.getLogger(__name__)
+
+
+def _get_field(
+    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+) -> np.ndarray:
+    adata_attr = getattr(adata, attr_name)
+    if attr_key is None:
+        field = adata_attr
+    else:
+        if isinstance(adata_attr, pd.DataFrame):
+            if attr_key not in adata_attr.columns:
+                raise ValueError(
+                    f"{attr_key} is not a valid column in adata.{attr_name}."
+                )
+            field = adata_attr.loc[:, attr_key]
+        else:
+            if attr_key not in adata_attr.keys():
+                raise ValueError(f"{attr_key} is not a valid key in adata.{attr_name}.")
+            field = getattr(adata_attr, attr_key)
+    if isinstance(field, pd.Series):
+        field = field.to_numpy().reshape(-1, 1)
+    return field
 
 
 def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
@@ -57,18 +76,13 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
            [0],
            [0]])
     """
-    data_loc = adata.uns["_scvi"]["data_registry"][key]
-    attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
+    data_loc = adata.uns[_constants._SETUP_DICT_KEY][_constants._DATA_REGISTRY_KEY][key]
+    attr_name, attr_key = (
+        data_loc[_constants._DR_ATTR_NAME],
+        data_loc[_constants._DR_ATTR_KEY],
+    )
 
-    data = getattr(adata, attr_name)
-    if attr_key != "None":
-        if isinstance(data, pd.DataFrame):
-            data = data.loc[:, attr_key]
-        else:
-            data = data[attr_key]
-    if isinstance(data, pd.Series):
-        data = data.to_numpy().reshape(-1, 1)
-    return data
+    return _get_field(adata, attr_name, attr_key)
 
 
 @deprecated(
@@ -422,6 +436,7 @@ def transfer_anndata_setup(
     # transfer version
     adata_target.uns["_scvi"]["scvi_version"] = _scvi_dict["scvi_version"]
 
+    # transfer X
     x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
     if x_loc == "layers":
         layer = data_registry[_CONSTANTS.X_KEY]["attr_key"]
@@ -436,6 +451,12 @@ def transfer_anndata_setup(
             + "Expected: {} Received: {}".format(target_n_vars, summary_stats["n_vars"])
         )
 
+    x_loc, x_key = _setup_x(adata_target, layer)
+    target_data_registry = data_registry.copy()
+    target_data_registry.update(
+        {_CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
+    )
+
     # transfer batch and labels
     categorical_mappings = _scvi_dict["categorical_mappings"]
     _transfer_batch_and_labels(adata_target, categorical_mappings, extend_categories)
@@ -448,12 +469,6 @@ def transfer_anndata_setup(
         _scvi_dict, adata_target, batch_key
     )
 
-    # transfer X
-    x_loc, x_key = _setup_x(adata_target, layer)
-    target_data_registry = data_registry.copy()
-    target_data_registry.update(
-        {_CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
-    )
     # transfer extra categorical covs
     has_cat_cov = True if _CONSTANTS.CAT_COVS_KEY in data_registry.keys() else False
     if has_cat_cov:
@@ -708,8 +723,9 @@ def _make_obs_column_categorical(
     """
     Makes the data in column_key in obs all categorical.
 
-    If adata.obs[column_key] is not categorical, will categorize
-    and save to .obs[alternate_column_key]
+    Categorizes adata.obs[column_key], then saves category codes to
+    .obs[alternate_column_key] and the category mappings
+    to .uns["scvi"]["categorical_mappings"].
     """
     if categorical_dtype is None:
         categorical_obs = adata.obs[column_key].astype("category")
@@ -732,9 +748,8 @@ def _make_obs_column_categorical(
         alternate_column_key: {"original_key": column_key, "mapping": mapping}
     }
     if "categorical_mappings" not in adata.uns["_scvi"].keys():
-        adata.uns["_scvi"].update({"categorical_mappings": store_dict})
-    else:
-        adata.uns["_scvi"]["categorical_mappings"].update(store_dict)
+        adata.uns["_scvi"]["categorical_mappings"] = dict()
+    adata.uns["_scvi"]["categorical_mappings"].update(store_dict)
 
     # make sure each category contains enough cells
     unique, counts = np.unique(adata.obs[alternate_column_key], return_counts=True)
@@ -805,11 +820,15 @@ def _setup_protein_expression(
     return protein_expression_obsm_key
 
 
+def _assert_key_in_layers(adata, layer):
+    assert layer in adata.layers.keys(), "{} is not a valid key in adata.layers".format(
+        layer
+    )
+
+
 def _setup_x(adata, layer):
     if layer is not None:
-        assert (
-            layer in adata.layers.keys()
-        ), "{} is not a valid key in adata.layers".format(layer)
+        _assert_key_in_layers(layer)
         logger.info('Using data from adata.layers["{}"]'.format(layer))
         x_loc = "layers"
         x_key = layer
@@ -817,7 +836,7 @@ def _setup_x(adata, layer):
     else:
         logger.info("Using data from adata.X")
         x_loc = "X"
-        x_key = "None"
+        x_key = None
         x = adata.X
 
     if _check_nonnegative_integers(x) is False:
@@ -882,11 +901,11 @@ def _setup_summary_stats(
     return summary_stats
 
 
-def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
+def _register_anndata(adata, data_registry_dict: Dict[str, Dict[str, str]]):
     """
     Registers the AnnData object by adding data_registry_dict to adata.uns['_scvi']['data_registry'].
 
-    Format of data_registry_dict is: {<scvi_key>: (<anndata dataframe>, <dataframe key> )}
+    Format of data_registry_dict is: {<registry_key>: {"attr_name": <anndata dataframe>, "attr_key": <dataframe key> }}
 
     Parameters
     ----------
@@ -897,240 +916,10 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
 
     Examples
     --------
-    >>> data_dict = {"batch" :("obs", "batch_idx"), "X": ("_X", None)}
+    >>> data_dict = {"batch" : {"attr_name": "obs", "attr_key": "batch_idx"}, "X": {"attr_name": "_X", "attr_key": None}}
     >>> _register_anndata(adata, data_dict)
     """
-    adata.uns["_scvi"]["data_registry"] = data_registry_dict.copy()
-
-
-@deprecated(
-    extra="This method will be removed in 0.15.0. Please avoid building any new dependencies on it."
-)
-def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
-    """
-    Prints setup anndata.
-
-    Parameters
-    ----------
-    source
-        Either AnnData, path to saved AnnData, path to folder with adata.h5ad,
-        or scvi-setup-dict (adata.uns['_scvi'])
-
-    Examples
-    --------
-    >>> scvi.data.view_anndata_setup(adata)
-    >>> scvi.data.view_anndata_setup('saved_model_folder/adata.h5ad')
-    >>> scvi.data.view_anndata_setup('saved_model_folder/')
-    >>> scvi.data.view_anndata_setup(adata.uns['_scvi'])
-    """
-    if isinstance(source, anndata.AnnData):
-        adata = source
-    elif isinstance(source, str):
-        # check if user passed in folder or anndata
-        if source.endswith("h5ad"):
-            path = source
-            adata = anndata.read(path)
-        else:
-            path = os.path.join(source, "adata.h5ad")
-            if os.path.exists(path):
-                adata = anndata.read(path)
-            else:
-                path = os.path.join(source, "attr.pkl")
-                with open(path, "rb") as handle:
-                    adata = None
-                    setup_dict = pickle.load(handle)["scvi_setup_dict_"]
-    elif isinstance(source, dict):
-        adata = None
-        setup_dict = source
-    else:
-        raise ValueError(
-            "Invalid source passed in. Must be either AnnData, path to saved AnnData, "
-            + "path to folder with adata.h5ad or scvi-setup-dict (adata.uns['_scvi'])"
-        )
-
-    if adata is not None:
-        if "_scvi" not in adata.uns.keys():
-            raise ValueError("Please run setup_anndata() on your adata first.")
-        setup_dict = adata.uns["_scvi"]
-
-    summary_stats = setup_dict["summary_stats"]
-    data_registry = setup_dict["data_registry"]
-    mappings = setup_dict["categorical_mappings"]
-    version = setup_dict["scvi_version"]
-
-    rich.print("Anndata setup with scvi-tools version {}.".format(version))
-
-    n_cat = 0
-    n_covs = 0
-    if "extra_categoricals" in setup_dict.keys():
-        n_cat = len(setup_dict["extra_categoricals"]["mappings"])
-    if "extra_continuous_keys" in setup_dict.keys():
-        n_covs = len(setup_dict["extra_continuous_keys"])
-
-    in_colab = "google.colab" in sys.modules
-    force_jupyter = None if not in_colab else True
-    console = Console(force_jupyter=force_jupyter)
-    t = rich.table.Table(title="Data Summary")
-    t.add_column(
-        "Data", justify="center", style="dodger_blue1", no_wrap=True, overflow="fold"
-    )
-    t.add_column(
-        "Count", justify="center", style="dark_violet", no_wrap=True, overflow="fold"
-    )
-    data_summary = {
-        "Cells": summary_stats["n_cells"],
-        "Vars": summary_stats["n_vars"],
-        "Labels": summary_stats["n_labels"],
-        "Batches": summary_stats["n_batch"],
-        "Proteins": summary_stats["n_proteins"],
-        "Extra Categorical Covariates": n_cat,
-        "Extra Continuous Covariates": n_covs,
-    }
-    for data, count in data_summary.items():
-        t.add_row(data, str(count))
-    console.print(t)
-
-    t = rich.table.Table(title="SCVI Data Registry")
-    t.add_column(
-        "Data", justify="center", style="dodger_blue1", no_wrap=True, overflow="fold"
-    )
-    t.add_column(
-        "scvi-tools Location",
-        justify="center",
-        style="dark_violet",
-        no_wrap=True,
-        overflow="fold",
-    )
-
-    for scvi_data_key, data_loc in data_registry.items():
-        attr_name = data_loc["attr_name"]
-        attr_key = data_loc["attr_key"]
-        if attr_key == "None":
-            scvi_data_str = "adata.{}".format(attr_name)
-        else:
-            scvi_data_str = "adata.{}['{}']".format(attr_name, attr_key)
-
-        t.add_row(scvi_data_key, scvi_data_str)
-
-    console.print(t)
-
-    t = _categorical_mappings_table("Label Categories", "_scvi_labels", mappings)
-    console.print(t)
-    t = _categorical_mappings_table("Batch Categories", "_scvi_batch", mappings)
-    console.print(t)
-
-    if "extra_categoricals" in setup_dict.keys():
-        t = _extra_categoricals_table(setup_dict)
-        console.print(t)
-
-    if "extra_continuous_keys" in setup_dict.keys():
-        t = _extra_continuous_table(adata, setup_dict)
-        console.print(t)
-
-
-def _extra_categoricals_table(setup_dict: dict):
-    """Returns rich.table.Table with info on extra categorical variables."""
-    t = rich.table.Table(title="Extra Categorical Variables")
-    t.add_column(
-        "Source Location",
-        justify="center",
-        style="dodger_blue1",
-        no_wrap=True,
-        overflow="fold",
-    )
-    t.add_column(
-        "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
-    )
-    t.add_column(
-        "scvi-tools Encoding",
-        justify="center",
-        style="dark_violet",
-        no_wrap=True,
-        overflow="fold",
-    )
-    for key, mappings in setup_dict["extra_categoricals"]["mappings"].items():
-        for i, mapping in enumerate(mappings):
-            if i == 0:
-                t.add_row("adata.obs['{}']".format(key), str(mapping), str(i))
-            else:
-                t.add_row("", str(mapping), str(i))
-        t.add_row("", "")
-    return t
-
-
-def _extra_continuous_table(adata: Optional[anndata.AnnData], setup_dict: dict):
-    """Returns rich.table.Table with info on extra continuous variables."""
-    t = rich.table.Table(title="Extra Continuous Variables")
-    t.add_column(
-        "Source Location",
-        justify="center",
-        style="dodger_blue1",
-        no_wrap=True,
-        overflow="fold",
-    )
-    if adata is not None:
-        t.add_column(
-            "Range",
-            justify="center",
-            style="dark_violet",
-            no_wrap=True,
-            overflow="fold",
-        )
-        cont_covs = scvi.data.get_from_registry(adata, "cont_covs")
-        for cov in cont_covs.iteritems():
-            col_name, values = cov[0], cov[1]
-            min_val = np.min(values)
-            max_val = np.max(values)
-            t.add_row(
-                "adata.obs['{}']".format(col_name),
-                "{:.20g} -> {:.20g}".format(min_val, max_val),
-            )
-    else:
-        for key in setup_dict["extra_continuous_keys"]:
-            t.add_row("adata.obs['{}']".format(key))
-    return t
-
-
-def _categorical_mappings_table(title: str, scvi_column: str, mappings: dict):
-    """
-    Returns rich.table.Table with info on a categorical variable.
-
-    Parameters
-    ----------
-    title
-        title of table
-    scvi_column
-        column used by scvi for categorical representation
-    mappings
-        output of adata.uns['_scvi']['categorical_mappings'], containing mapping
-        between scvi_column and original column and categories
-    """
-    source_key = mappings[scvi_column]["original_key"]
-    mapping = mappings[scvi_column]["mapping"]
-    t = rich.table.Table(title=title)
-    t.add_column(
-        "Source Location",
-        justify="center",
-        style="dodger_blue1",
-        no_wrap=True,
-        overflow="fold",
-    )
-    t.add_column(
-        "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
-    )
-    t.add_column(
-        "scvi-tools Encoding",
-        justify="center",
-        style="dark_violet",
-        no_wrap=True,
-        overflow="fold",
-    )
-    for i, cat in enumerate(mapping):
-        if i == 0:
-            t.add_row("adata.obs['{}']".format(source_key), str(cat), str(i))
-        else:
-            t.add_row("", str(cat), str(i))
-    return t
+    adata.uns["_scvi"]["data_registry"] = deepcopy(data_registry_dict)
 
 
 def _check_anndata_setup_equivalence(
@@ -1165,10 +954,6 @@ def _check_anndata_setup_equivalence(
     if target_n_vars != stats["n_vars"]:
         raise ValueError(error_msg.format("vars"))
 
-    error_msg = (
-        "There are more {} categories in the data than were originally registered. "
-        + "Please check your {} categories as well as adata.uns['_scvi']['categorical_mappings']."
-    )
     self_categoricals = _scvi_dict["categorical_mappings"]
     self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
 
@@ -1176,11 +961,14 @@ def _check_anndata_setup_equivalence(
     adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
 
     # check if mappings are equal or needs transfer
-    transfer_setup = _needs_transfer(self_batch_mapping, adata_batch_mapping, "batch")
+    transfer_setup = _mapping_needs_transfer(
+        self_batch_mapping, adata_batch_mapping, "batch"
+    )
+
     self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
     adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
 
-    transfer_setup = transfer_setup or _needs_transfer(
+    transfer_setup = transfer_setup or _mapping_needs_transfer(
         self_labels_mapping, adata_labels_mapping, "label"
     )
 
@@ -1200,7 +988,9 @@ def _check_anndata_setup_equivalence(
         target_extra_cat_maps = adata.uns["_scvi"]["extra_categoricals"]["mappings"]
         for key, val in source_dict["mappings"].items():
             target_map = target_extra_cat_maps[key]
-            transfer_setup = transfer_setup or _needs_transfer(val, target_map, key)
+            transfer_setup = transfer_setup or _mapping_needs_transfer(
+                val, target_map, key
+            )
     # validate any extra continuous covs
     if "extra_continuous_keys" in _scvi_dict.keys():
         if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
@@ -1214,7 +1004,7 @@ def _check_anndata_setup_equivalence(
     return transfer_setup
 
 
-def _needs_transfer(mapping1, mapping2, category):
+def _mapping_needs_transfer(mapping1, mapping2, category):
     needs_transfer = False
     error_msg = (
         "Categorial encoding for {} is not the same between "

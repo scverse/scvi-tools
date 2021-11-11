@@ -10,14 +10,13 @@ from scipy.sparse.csr import csr_matrix
 
 import scvi
 from scvi import _CONSTANTS
-from scvi.data import (
+from scvi.data import synthetic_iid
+from scvi.data.anndata import (
     get_from_registry,
     register_tensor_from_anndata,
-    synthetic_iid,
     transfer_anndata_setup,
-    view_anndata_setup,
 )
-from scvi.data._anndata import _setup_anndata
+from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import AnnTorchDataset
 
 
@@ -350,58 +349,6 @@ def test_anntorchdataset_getitem():
     bd = AnnTorchDataset(adata)
     for key, value in bd[1].items():
         assert type(value) == np.ndarray
-
-
-def test_view_anndata_setup(save_path):
-    adata = synthetic_iid(run_setup_anndata=False)
-    adata.obs["cont1"] = np.random.uniform(5, adata.n_obs)
-    adata.obs["cont2"] = np.random.uniform(5, adata.n_obs)
-    adata.obs["cont1"][0] = 939543895847598301.423432423523512351234123421341234
-    adata.obs["cont2"][1] = 0.12938471298374691827634
-
-    adata.obs["cat1"] = np.random.randint(0, 5, adata.n_obs).astype(str)
-    adata.obs["cat1"][8] = "asdf"
-    adata.obs["cat1"][9] = "f34"
-    adata.obs["cat2"] = np.random.randint(0, 7, adata.n_obs)
-
-    _setup_anndata(
-        adata,
-        protein_expression_obsm_key="protein_expression",
-        batch_key="batch",
-        labels_key="labels",
-        categorical_covariate_keys=["cat1", "cat2"],
-        continuous_covariate_keys=["cont1", "cont2"],
-    )
-    # test it works with adata
-    view_anndata_setup(adata)
-
-    # test it works with scvi setup dict
-    view_anndata_setup(adata.uns["_scvi"])
-
-    adata = scvi.data.synthetic_iid()
-    m = scvi.model.SCVI(adata)
-    folder_path = os.path.join(save_path, "tmp")
-    m.save(folder_path, save_anndata=True)
-
-    # test it works with a saved model folder
-    view_anndata_setup(folder_path)
-    adata_path = os.path.join(folder_path, "adata.h5ad")
-    # test it works with the path to an anndata
-    view_anndata_setup(adata_path)
-
-    m = scvi.model.SCVI(adata)
-    m.save(folder_path, overwrite=True)
-    # test it works without saving the anndata
-    view_anndata_setup(folder_path)
-
-    # test it throws error if adata was not setup
-    with pytest.raises(ValueError):
-        adata = synthetic_iid(run_setup_anndata=False)
-        view_anndata_setup(adata)
-
-    # test it throws error if we dont pass dict, anndata or str in
-    with pytest.raises(ValueError):
-        view_anndata_setup(0)
 
 
 def test_saving(save_path):

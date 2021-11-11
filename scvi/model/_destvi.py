@@ -7,8 +7,8 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi.data import register_tensor_from_anndata
-from scvi.data._anndata import _setup_anndata
+from scvi.data.anndata import register_tensor_from_anndata
+from scvi.data.anndata._utils import _setup_anndata
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
