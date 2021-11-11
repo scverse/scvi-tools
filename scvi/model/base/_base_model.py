@@ -2,7 +2,7 @@ import inspect
 import logging
 import os
 import warnings
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import Optional, Sequence, Union
 
 import numpy as np
@@ -10,12 +10,14 @@ import pyro
 import rich
 import torch
 from anndata import AnnData
-from rich.text import Text
 
 from scvi import _CONSTANTS, settings
-from scvi.data import get_from_registry, transfer_anndata_setup
-from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
+from scvi.data.anndata import get_from_registry, transfer_anndata_setup
+from scvi.data.anndata._compat import manager_from_setup_dict
+from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SUMMARY_STATS_KEY
+from scvi.data.anndata._manager import AnnDataManager
+from scvi.data.anndata._utils import _check_anndata_setup_equivalence
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass
@@ -29,19 +31,32 @@ logger = logging.getLogger(__name__)
 _UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained model. Please train the model first."
 
 
-class BaseModelClass(ABC):
+class BaseModelMetaClass(ABCMeta):
+    def __init__(cls, name, bases, dct):
+        cls.manager_store = dict()
+        return super().__init__(name, bases, dct)
+
+
+class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
-            if "_scvi" not in adata.uns.keys():
+            if _SCVI_UUID_KEY not in adata.uns:
                 raise ValueError(
-                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first"
+                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first."
                 )
+            adata_uuid = adata.uns[_SCVI_UUID_KEY]
+            if adata_uuid not in self.manager_store:
+                raise ValueError(
+                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first. "
+                    "It appears the AnnData object has been setup with a different model."
+                )
+
             self.adata = adata
-            self.scvi_setup_dict_ = adata.uns["_scvi"]
-            self.summary_stats = self.scvi_setup_dict_["summary_stats"]
-            self._validate_anndata(adata, copy_if_view=False)
+            self.adata_manager = self.manager_store[adata_uuid]
+            self.scvi_setup_dict_ = self.adata_manager.get_setup_dict()
+            self.summary_stats = self.scvi_setup_dict_[_SUMMARY_STATS_KEY]
 
         self.is_trained_ = False
         self._model_summary_string = ""
@@ -372,12 +387,8 @@ class BaseModelClass(ABC):
         }
 
         _validate_var_names(adata, var_names)
-        transfer_anndata_setup(scvi_setup_dict, adata)
+        cls._register_manager(manager_from_setup_dict(adata, scvi_setup_dict))
         model = _initialize_model(cls, adata, attr_dict)
-
-        # set saved attrs for loaded model
-        for attr, val in attr_dict.items():
-            setattr(model, attr, val)
 
         # some Pyro modules with AutoGuides may need one training step
         try:
@@ -407,28 +418,31 @@ class BaseModelClass(ABC):
         )
         rich.print(summary_string)
 
-        command = "scvi.data.view_anndata_setup(model.adata)"
-        command_len = len(command)
-        print_adata_str = "\n\nTo print summary of associated AnnData, use: " + command
-        text = Text(print_adata_str)
-        text.stylize(
-            "dark_violet", len(print_adata_str) - command_len, len(print_adata_str)
-        )
-        console = rich.console.Console()
-        console.print(text)
         return ""
 
-    @staticmethod
+    @classmethod
+    def _register_manager(cls, adata_manager: AnnDataManager):
+        """
+        Registers an AnnDataManager instance with this model class.
+        """
+        adata_uuid = adata_manager.get_adata_uuid()
+        cls.manager_store[adata_uuid] = adata_manager
+
+    @classmethod
     @abstractmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
         *args,
         **kwargs,
-    ) -> Optional[AnnData]:
+    ):
         """
         %(summary)s.
 
         Each model class deriving from this class provides parameters to this method
-        according to its needs.
+        according to its needs. To operate correctly with the model initialization,
+        the implementation must call `_register_manager` on a model-specific instance
+        of `AnnDataManager`.
         """
+        pass

@@ -1,12 +1,5 @@
 from anndata import read_csv, read_h5ad, read_loom, read_text
 
-from ._anndata import (
-    get_from_registry,
-    register_tensor_from_anndata,
-    setup_anndata,
-    transfer_anndata_setup,
-    view_anndata_setup,
-)
 from ._datasets import (
     annotation_simulation,
     brainlarge_dataset,
@@ -36,9 +29,6 @@ from ._preprocessing import (
 from ._read import read_10x_atac, read_10x_multiome
 
 __all__ = [
-    "setup_anndata",
-    "get_from_registry",
-    "view_anndata_setup",
     "poisson_gene_selection",
     "organize_cite_seq_10x",
     "pbmcs_10x_cite_seq",
@@ -58,8 +48,6 @@ __all__ = [
     "prefrontalcortex_starmap",
     "frontalcortex_dropseq",
     "annotation_simulation",
-    "transfer_anndata_setup",
-    "register_tensor_from_anndata",
     "read_h5ad",
     "read_csv",
     "read_loom",

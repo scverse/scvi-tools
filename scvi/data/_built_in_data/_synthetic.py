@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 
-from scvi.data._anndata import _setup_anndata
+from scvi.data.anndata._utils import _setup_anndata
 
 logger = logging.getLogger(__name__)
 

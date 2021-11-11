@@ -2,8 +2,8 @@ import os
 
 import anndata
 
-from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
+from scvi.data.anndata._utils import _setup_anndata
 
 
 def _load_heart_cell_atlas_subsampled(

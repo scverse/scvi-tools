@@ -6,8 +6,8 @@ import h5py
 import numpy as np
 import scipy.sparse as sp_sparse
 
-from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
+from scvi.data.anndata._utils import _setup_anndata
 
 logger = logging.getLogger(__name__)
 
