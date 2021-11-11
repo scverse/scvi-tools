@@ -115,6 +115,9 @@ def _initialize_model(cls, adata, attr_dict):
         non_kwargs.pop("use_cuda")
 
     model = cls(adata, **non_kwargs, **kwargs)
+    for attr, val in attr_dict.items():
+        setattr(model, attr, val)
+
     return model
 
 

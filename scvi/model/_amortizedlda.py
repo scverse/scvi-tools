@@ -9,7 +9,7 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
-from scvi.data._anndata import _setup_anndata
+from scvi.data.anndata._utils import _setup_anndata
 from scvi.module import AmortizedLDAPyroModule
 from scvi.utils import setup_anndata_dsp
 

@@ -9,8 +9,8 @@ from pytorch_lightning.callbacks import Callback
 
 import scvi
 from scvi import _CONSTANTS
-from scvi.data import register_tensor_from_anndata
-from scvi.data._anndata import _setup_anndata
+from scvi.data.anndata import register_tensor_from_anndata
+from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin

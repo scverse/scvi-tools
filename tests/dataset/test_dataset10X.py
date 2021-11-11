@@ -5,7 +5,7 @@ import pytest
 import scanpy as sc
 
 from scvi.data import dataset_10x, organize_cite_seq_10x
-from scvi.data._anndata import _setup_anndata
+from scvi.data.anndata._utils import _setup_anndata
 
 from .utils import unsupervised_training_one_epoch
 

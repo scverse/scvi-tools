@@ -6,7 +6,7 @@ from typing import Optional, Union
 import torch
 from anndata import AnnData
 
-from scvi.data import transfer_anndata_setup
+from scvi.data.anndata import transfer_anndata_setup
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.nn import FCLayers
 
@@ -94,10 +94,6 @@ class ArchesMixin:
         transfer_anndata_setup(scvi_setup_dict, adata, extend_categories=True)
 
         model = _initialize_model(cls, adata, attr_dict)
-
-        # set saved attrs for loaded model
-        for attr, val in attr_dict.items():
-            setattr(model, attr, val)
 
         model.to_device(device)
 
