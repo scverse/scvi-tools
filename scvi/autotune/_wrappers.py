@@ -6,7 +6,7 @@ from scvi.autotune import Autotune
 from scvi.model import SCVI
 
 
-def tune_scvi(adata: anndata.AnnData, n_epochs):
+def tune_scvi(adata: anndata.AnnData, n_epochs, run_kwargs):
     """
     Tune scvi with defaults for `tune.run` and return the best model.
 
@@ -43,7 +43,4 @@ def tune_scvi(adata: anndata.AnnData, n_epochs):
         num_epochs=n_epochs,
     )
     asha_scheduler = ASHAScheduler(max_t=n_epochs, grace_period=1, reduction_factor=2)
-    return tuner.run(
-        metric="elbo_validation",
-        scheduler=asha_scheduler,
-    )
+    return tuner.run(metric="elbo_validation", scheduler=asha_scheduler, **run_kwargs)
