@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import numpy as np
 from anndata import AnnData
@@ -26,14 +27,20 @@ class BaseAnnDataField(ABC):
 
     @property
     @abstractmethod
-    def attr_name(self):
+    def attr_name(self) -> str:
         """The name of the AnnData attribute where the data is stored (e.g. obs)."""
         pass
 
     @property
     @abstractmethod
-    def attr_key(self):
+    def attr_key(self) -> Optional[str]:
         """The key of the data field within the relevant AnnData attribute."""
+        pass
+
+    @property
+    @abstractmethod
+    def is_empty(self) -> bool:
+        """Returns True if the field is empty as a function of its kwargs."""
         pass
 
     @abstractmethod
@@ -72,6 +79,9 @@ class BaseAnnDataField(ABC):
         The dictionary is of the form {registry_key: {"attr_name": attr_name, "attr_key": attr_key}}.
         This mapping is then combined with the mappings of other fields to make up the data registry.
         """
+        if self.is_empty:
+            return dict()
+
         return {
             self.registry_key: {
                 _constants._DR_ATTR_NAME: self.attr_name,
@@ -81,6 +91,7 @@ class BaseAnnDataField(ABC):
 
     def get_field(self, adata: AnnData) -> np.ndarray:
         """Returns the data field as a NumPy array for a given AnnData object."""
+        assert not self.is_empty
         return _get_field(adata, self.attr_name, self.attr_key)
 
     def compute_summary_stats(self, adata: AnnData) -> dict:

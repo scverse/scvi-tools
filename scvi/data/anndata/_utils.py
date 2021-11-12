@@ -37,7 +37,7 @@ def _get_field(
         else:
             if attr_key not in adata_attr.keys():
                 raise ValueError(f"{attr_key} is not a valid key in adata.{attr_name}.")
-            field = getattr(adata_attr, attr_key)
+            field = adata_attr[attr_key]
     if isinstance(field, pd.Series):
         field = field.to_numpy().reshape(-1, 1)
     return field

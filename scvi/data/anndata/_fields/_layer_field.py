@@ -48,6 +48,10 @@ class LayerField(BaseAnnDataField):
     def attr_key(self):
         return self._attr_key
 
+    @property
+    def is_empty(self) -> bool:
+        return False
+
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
         x = self.get_field(adata)

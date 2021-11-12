@@ -1,7 +1,9 @@
 from anndata import AnnData
 
+from scvi._constants import _CONSTANTS
+
 from . import _constants
-from ._fields import CategoricalObsField, LayerField
+from ._fields import CategoricalObsField, ContinuousObsmField, LayerField
 from ._manager import AnnDataManager
 
 
@@ -38,6 +40,17 @@ def manager_from_setup_dict(
         elif attr_name == _constants._ADATA_ATTRS.OBS:
             original_key = categorical_mappings[attr_key][_constants._CM_ORIGINAL_KEY]
             field = CategoricalObsField(registry_key, original_key)
+        elif attr_name == _constants._ADATA_ATTRS.OBSM:
+            cont_cov_column_key = f"{_CONSTANTS.CONT_COVS_KEY}_keys"
+            if cont_cov_column_key in setup_dict:
+                obs_keys = setup_dict[cont_cov_column_key]
+                field = ContinuousObsmField(registry_key, obs_keys)
+            elif _CONSTANTS.CAT_COVS_KEY in setup_dict:
+                pass
+            else:
+                raise NotImplementedError(
+                    f"Unrecognized .obsm attribute {attr_key}. Backwards compatibility unavailable."
+                )
         else:
             raise NotImplementedError(
                 f"Backwards compatibility for attribute {attr_name} is not implemented yet."
