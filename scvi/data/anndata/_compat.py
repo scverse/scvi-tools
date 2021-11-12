@@ -1,10 +1,13 @@
 from anndata import AnnData
 
-from scvi._constants import _CONSTANTS
-
 from . import _constants
 from ._manager import AnnDataManager
-from .fields import CategoricalObsField, LayerField, NumericalJointObsField
+from .fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+)
 
 
 def manager_from_setup_dict(
@@ -41,12 +44,13 @@ def manager_from_setup_dict(
             original_key = categorical_mappings[attr_key][_constants._CM_ORIGINAL_KEY]
             field = CategoricalObsField(registry_key, original_key)
         elif attr_name == _constants._ADATA_ATTRS.OBSM:
-            cont_cov_column_key = f"{_CONSTANTS.CONT_COVS_KEY}_keys"
+            cont_cov_column_key = f"{registry_key}_keys"
             if cont_cov_column_key in setup_dict:
                 obs_keys = setup_dict[cont_cov_column_key]
                 field = NumericalJointObsField(registry_key, obs_keys)
-            elif _CONSTANTS.CAT_COVS_KEY in setup_dict:
-                pass
+            elif registry_key in setup_dict:
+                obs_keys = setup_dict[registry_key][_constants._JO_CM_KEYS_KEY]
+                field = CategoricalJointObsField(registry_key, obs_keys)
             else:
                 raise NotImplementedError(
                     f"Unrecognized .obsm attribute {attr_key}. Backwards compatibility unavailable."
