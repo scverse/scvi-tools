@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torchmetrics import MeanMetric
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
@@ -127,6 +128,19 @@ class TrainingPlan(pl.LightningModule):
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
 
+        self.train_running_metrics = dict(
+            elbo=MeanMetric(),
+            reconstruction_loss=MeanMetric(),
+            kl_local=MeanMetric(),
+            kl_global=MeanMetric(),
+        )
+        self.val_running_metrics = dict(
+            elbo=MeanMetric(),
+            reconstruction_loss=MeanMetric(),
+            kl_local=MeanMetric(),
+            kl_global=MeanMetric(),
+        )
+
     @property
     def n_obs_training(self):
         """
@@ -146,63 +160,63 @@ class TrainingPlan(pl.LightningModule):
         """Passthrough to `model.forward()`."""
         return self.module(*args, **kwargs)
 
+    def update_running_metrics(self, loss, metrics: dict):
+        reconstruction_loss = loss.reconstruction_loss
+        kl_local_sum = loss.kl_local.sum().detach().cpu()
+        reconstruction_loss_sum = reconstruction_loss.sum().detach().cpu()
+        n_obs = reconstruction_loss.shape[0]
+
+        metrics["elbo"].update(reconstruction_loss_sum + kl_local_sum, weight=n_obs)
+        metrics["reconstruction_loss"].update(reconstruction_loss_sum, weight=n_obs)
+        metrics["kl_local"].update(kl_local_sum, weight=n_obs)
+        metrics["kl_global"].update(loss.kl_global.detach().cpu())
+        return metrics
+
+    def log_metrics(self, metrics, mode=Literal["train", "validation"]):
+        """Compute average metrics, log them, and reset metrics."""
+        device = self.module.device
+
+        kl_global = metrics["kl_global"].compute().squeeze().to(device=device)
+        kl_local = metrics["kl_local"].compute().squeeze().to(device=device)
+        elbo = metrics["elbo"].compute().squeeze().to(device=device)
+        reconstruction_loss = (
+            metrics["reconstruction_loss"].compute().squeeze().to(device=device)
+        )
+        elbo += kl_global
+        self.log("elbo_{mode}".format(mode=mode), elbo)
+        self.log("kl_global_{mode}".format(mode=mode), kl_global)
+        self.log(
+            "reconstruction_loss_{mode}".format(mode=mode),
+            reconstruction_loss,
+        )
+        self.log("kl_local_{mode}".format(mode=mode), kl_local)
+        for metric in metrics.keys():
+            metrics[metric].reset()
+
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        reconstruction_loss = scvi_loss.reconstruction_loss
-        # pytorch lightning automatically backprops on "loss"
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
         # lightning wants non loss keys detached
-        return {
-            "loss": scvi_loss.loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
-            "kl_local_sum": scvi_loss.kl_local.sum().detach(),
-            "kl_global": scvi_loss.kl_global.detach(),
-            "n_obs": reconstruction_loss.shape[0],
-        }
+        self.train_running_metrics = self.update_running_metrics(
+            loss=scvi_loss,
+            metrics=self.train_running_metrics,
+        )
 
     def training_epoch_end(self, outputs):
-        n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
-        for tensors in outputs:
-            elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
-            rec_loss += tensors["reconstruction_loss_sum"]
-            kl_local += tensors["kl_local_sum"]
-            n_obs += tensors["n_obs"]
-        # kl global same for each minibatch
-        kl_global = outputs[0]["kl_global"]
-        elbo += kl_global
-        self.log("elbo_train", elbo / n_obs)
-        self.log("reconstruction_loss_train", rec_loss / n_obs)
-        self.log("kl_local_train", kl_local / n_obs)
-        self.log("kl_global_train", kl_global)
+        self.log_metrics(self.train_running_metrics, mode="train")
 
     def validation_step(self, batch, batch_idx):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        reconstruction_loss = scvi_loss.reconstruction_loss
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
-        return {
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_loss.kl_local.sum(),
-            "kl_global": scvi_loss.kl_global,
-            "n_obs": reconstruction_loss.shape[0],
-        }
+        self.val_running_metrics = self.update_running_metrics(
+            scvi_loss, metrics=self.val_running_metrics
+        )
 
     def validation_epoch_end(self, outputs):
         """Aggregate validation step information."""
-        n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
-        for tensors in outputs:
-            elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
-            rec_loss += tensors["reconstruction_loss_sum"]
-            kl_local += tensors["kl_local_sum"]
-            n_obs += tensors["n_obs"]
-        # kl global same for each minibatch
-        kl_global = outputs[0]["kl_global"]
-        elbo += kl_global
-        self.log("elbo_validation", elbo / n_obs)
-        self.log("reconstruction_loss_validation", rec_loss / n_obs)
-        self.log("kl_local_validation", kl_local / n_obs)
-        self.log("kl_global_validation", kl_global)
+        self.log_metrics(metrics=self.val_running_metrics, mode="validation")
 
     def configure_optimizers(self):
         params = filter(lambda p: p.requires_grad, self.module.parameters())
@@ -370,15 +384,8 @@ class AdversarialTrainingPlan(TrainingPlan):
                 fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
                 loss += fool_loss * kappa
 
-            reconstruction_loss = scvi_loss.reconstruction_loss
             self.log("train_loss", loss, on_epoch=True)
-            return {
-                "loss": loss,
-                "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
-                "kl_local_sum": scvi_loss.kl_local.sum().detach(),
-                "kl_global": scvi_loss.kl_global.detach(),
-                "n_obs": reconstruction_loss.shape[0],
-            }
+            self.update_running_metrics(scvi_loss, self.train_running_metrics)
 
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
@@ -508,7 +515,17 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             lr_scheduler_metric=lr_scheduler_metric,
             **loss_kwargs,
         )
+        self.train_running_metrics["classification_loss"] = MeanMetric()
+        self.val_running_metrics["classification_loss"] = MeanMetric()
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
+
+    def update_running_metrics(self, loss, metrics: dict):
+        metrics = super().update_running_metrics(loss, metrics)
+        if hasattr(loss, "classification_loss"):
+            metrics["classification_loss"].update(
+                loss.classification_loss.detach().cpu(), weight=loss.n_labelled_tensors
+            )
+        return metrics
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -528,19 +545,11 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         input_kwargs.update(self.loss_kwargs)
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
-        reconstruction_loss = scvi_losses.reconstruction_loss
         self.log("train_loss", loss, on_epoch=True)
-        loss_dict = {
-            "loss": loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
-            "kl_local_sum": scvi_losses.kl_local.sum().detach(),
-            "kl_global": scvi_losses.kl_global.detach(),
-            "n_obs": reconstruction_loss.shape[0],
-        }
-        if hasattr(scvi_losses, "classification_loss"):
-            loss_dict["classification_loss"] = scvi_losses.classification_loss.detach()
-            loss_dict["n_labelled_tensors"] = scvi_losses.n_labelled_tensors
-        return loss_dict
+        self.train_running_metrics = self.update_running_metrics(
+            loss=scvi_losses,
+            metrics=self.train_running_metrics,
+        )
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -558,52 +567,35 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         input_kwargs.update(self.loss_kwargs)
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
-        reconstruction_loss = scvi_losses.reconstruction_loss
         self.log("validation_loss", loss, on_epoch=True)
-        loss_dict = {
-            "loss": loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_losses.kl_local.sum(),
-            "kl_global": scvi_losses.kl_global,
-            "n_obs": reconstruction_loss.shape[0],
-        }
-        if hasattr(scvi_losses, "classification_loss"):
-            loss_dict["classification_loss"] = scvi_losses.classification_loss
-            loss_dict["n_labelled_tensors"] = scvi_losses.n_labelled_tensors
-        return loss_dict
+        self.val_running_metrics = self.update_running_metrics(
+            loss=scvi_losses,
+            metrics=self.val_running_metrics,
+        )
 
     def training_epoch_end(self, outputs):
+        device = self.module.device
+        classif_loss = (
+            self.train_running_metrics["classification_loss"]
+            .compute()
+            .squeeze()
+            .to(device=device)
+        )
+        if not classif_loss.isnan():
+            self.log("classification_loss_train", classif_loss)
         super().training_epoch_end(outputs)
-        classifier_loss, total_labelled_tensors = 0, 0
-
-        for tensors in outputs:
-            if "classification_loss" in tensors.keys():
-                n_labelled = tensors["n_labelled_tensors"]
-                total_labelled_tensors += n_labelled
-                classification_loss = tensors["classification_loss"]
-                classifier_loss += classification_loss * n_labelled
-
-        if total_labelled_tensors > 0:
-            self.log(
-                "classification_loss_train", classifier_loss / total_labelled_tensors
-            )
 
     def validation_epoch_end(self, outputs):
+        device = self.module.device
+        classif_loss = (
+            self.val_running_metrics["classification_loss"]
+            .compute()
+            .squeeze()
+            .to(device=device)
+        )
+        if not classif_loss.isnan():
+            self.log("classification_loss_validation", classif_loss)
         super().validation_epoch_end(outputs)
-        classifier_loss, total_labelled_tensors = 0, 0
-
-        for tensors in outputs:
-            if "classification_loss" in tensors.keys():
-                n_labelled = tensors["n_labelled_tensors"]
-                total_labelled_tensors += n_labelled
-                classification_loss = tensors["classification_loss"]
-                classifier_loss += classification_loss * n_labelled
-
-        if total_labelled_tensors > 0:
-            self.log(
-                "classification_loss_validation",
-                classifier_loss / total_labelled_tensors,
-            )
 
 
 class PyroTrainingPlan(pl.LightningModule):
