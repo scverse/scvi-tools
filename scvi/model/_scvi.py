@@ -7,8 +7,8 @@ from scvi._compat import Literal
 from scvi._constants import _CONSTANTS
 from scvi.data.anndata._fields import (
     CategoricalObsField,
-    ContinuousObsmField,
     LayerField,
+    NonCategoricalJointObsField,
 )
 from scvi.data.anndata._manager import AnnDataManager
 from scvi.data.anndata._utils import _setup_anndata
@@ -194,7 +194,9 @@ class SCVI(
             LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
             CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
-            ContinuousObsmField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+            NonCategoricalJointObsField(
+                _CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields)
         adata_manager.register_fields(adata)

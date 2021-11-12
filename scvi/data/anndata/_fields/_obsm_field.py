@@ -19,11 +19,24 @@ class BaseObsmField(BaseAnnDataField):
     def __init__(
         self,
         registry_key: str,
-        obs_keys: Optional[List[str]],
     ) -> None:
         super().__init__()
         self._registry_key = registry_key
+
+    @property
+    def registry_key(self):
+        return self._registry_key
+
+    @property
+    def attr_name(self):
+        return self._attr_name
+
+
+class JointObsField(BaseObsmField):
+    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
+        super().__init__(registry_key)
         self._attr_key = f"_scvi_{registry_key}"
+        self._columns_key = f"{self.registry_key}_keys"
         self._obs_keys = obs_keys if obs_keys is not None else []
         self._is_empty = len(self.obs_keys) == 0
 
@@ -35,16 +48,8 @@ class BaseObsmField(BaseAnnDataField):
         adata.obsm[self.attr_key] = pd.concat(series, axis=1)
 
     @property
-    def registry_key(self):
-        return self._registry_key
-
-    @property
     def obs_keys(self):
         return self._obs_keys
-
-    @property
-    def attr_name(self):
-        return self._attr_name
 
     @property
     def attr_key(self):
@@ -55,23 +60,17 @@ class BaseObsmField(BaseAnnDataField):
         return self._is_empty
 
 
-class ContinuousObsmField(BaseObsmField):
+class NonCategoricalJointObsField(JointObsField):
     """
-    An AnnDataField for continuous .obsm attributes in the AnnData data structure.
+    An AnnDataField for non-categorical .obs fields in the AnnData data structure.
 
     Parameters
     ----------
     registry_key
         Key to register field under in data registry.
-    obsm_key
-        Key to access the field in the AnnData obsm mapping. If None, defaults to `registry_key`.
     obs_keys
-        Sequence of keys to combine to form the obsm field. If None, accesses the data at `obsm_key`.
+        Sequence of keys to combine to form the obsm field.
     """
-
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
-        super().__init__(registry_key, obs_keys)
-        self._columns_key = f"{self.registry_key}_keys"
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
