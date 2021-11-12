@@ -106,6 +106,7 @@ intersphinx_mapping = dict(
     pymde=("https://pymde.org/", None),
     flax=("https://flax.readthedocs.io/en/latest/", None),
     jax=("https://jax.readthedocs.io/en/latest/", None),
+    ray=("https://docs.ray.io/en/latest/", None),
 )
 
 
