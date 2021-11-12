@@ -1,3 +1,4 @@
+from functools import partial
 from random import randint
 
 from ray.tune import loguniform
@@ -63,7 +64,9 @@ def test_silhouette():
         "elbo_validation",
         "reconstruction_loss_validation",
     ]
-    metric_functions = {"silhouette_score": silhouette_metric}
+    metric_functions = {
+        "silhouette_score": partial(silhouette_metric, labels_key="labels")
+    }
     model_config = {"dropout_rate": loguniform(1e-4, 1e-1)}
     plan_config = {"lr": loguniform(1e-4, 1e-1)}
     num_epochs = 2
