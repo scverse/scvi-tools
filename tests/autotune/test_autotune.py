@@ -31,7 +31,7 @@ def test_autotune():
         plan_hyperparams=plan_config,
     )
     asha_scheduler = ASHAScheduler(max_t=num_epochs, grace_period=1, reduction_factor=2)
-    model, _ = tuner.run(metric="elbo_validation", scheduler=asha_scheduler)
+    model, analysis = tuner.run(metric="elbo_validation", scheduler=asha_scheduler)
 
 
 def test_metric_function_dummy():

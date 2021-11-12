@@ -9,7 +9,7 @@ class ModelSave(Callback):
         self.model = model
 
     def on_validation_epoch_end(self, trainer, pl_module, outputs=None):
-        if trainer.running_sanity_check:
+        if trainer.sanity_checking:
             return
         step = f"epoch={trainer.current_epoch}-step={trainer.global_step}"
         with tune.checkpoint_dir(step=step) as checkpoint_dir:
@@ -33,7 +33,7 @@ class _TuneReportMetricFunctionsCallback(TuneCallback):
 
     def _handle(self, trainer, pl_module):
         # Don't report if just doing initial validation sanity checks.
-        if trainer.running_sanity_check:
+        if trainer.sanity_checking:
             return
         if not self._metrics:
             report_dict = {k: v.item() for k, v in trainer.callback_metrics.items()}

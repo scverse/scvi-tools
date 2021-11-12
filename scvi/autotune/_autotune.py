@@ -1,15 +1,20 @@
-from typing import Optional
+import logging
+from typing import Optional, Union
 
 import anndata
 import torch
 from ray import tune
-from ray.tune import CLIReporter
+from ray.tune import CLIReporter, ExperimentAnalysis
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.schedulers.trial_scheduler import TrialScheduler
 from ray.tune.suggest.hyperopt import HyperOptSearch
 from ray.tune.suggest.search import SearchAlgorithm
 
+from scvi.model.base import BaseModelClass
+
 from ._callbacks import ModelSave, _TuneReportMetricFunctionsCallback
+
+logger = logging.getLogger(__name__)
 
 
 class Autotune:
@@ -37,7 +42,7 @@ class Autotune:
     def __init__(
         self,
         adata: anndata.AnnData,
-        model,
+        model: BaseModelClass,
         training_metrics: Optional[list] = None,
         metric_functions: Optional[dict] = None,
         model_hyperparams: Optional[dict] = None,
@@ -72,7 +77,7 @@ class Autotune:
                 self.config.update(d)
         self.num_epochs = num_epochs
 
-    def _trainable(self, config, checkpoint_dir=None):
+    def _trainable(self, config):
         model_config = {}
         trainer_config = {}
         plan_config = {}
@@ -110,8 +115,9 @@ class Autotune:
         name: str = "scvi-experiment",
         num_samples: int = 10,
         resources_per_trial: Optional[dict] = None,
+        local_dir: str = "./ray_results",
         **kwargs,
-    ):
+    ) -> Union[BaseModelClass, ExperimentAnalysis]:
         """
         Wrapper for `tune.run`. Searches for the configuration of model, trainer, and training_plan
         hyperparameters that minimize or maximize the provided metric.
@@ -121,17 +127,21 @@ class Autotune:
         metric
             Metric to optimize over in self.metrics or from self.training_funcs
         scheduler
-            Ray tune scheduler for trials defaults to ASHA.
+            Ray tune scheduler for trials. If `None`, defaults to
+            :class:`~ray.tune.schedulers.ASHAScheduler`.
         search_alg
-            Search algorithm from `tune.suggest`, defaults to hyperopt.
+            Search algorithm from `tune.suggest`. If `None`, defaults to
+            :class:`~ray.tune.suggest.hyperopt.HyperOptSearch`.
         mode
             "min" or "max" to maximize or minimize the objective metric
         name
             Name of this experiment.
         num_samples
             Number of times to sample hyperparameters from the configuration space.
+        local_dir
+            Local dir to save training results to.
         **kwargs
-            Additional arguments for `tune.run`
+            Additional arguments for func:`ray.tune.run`
 
         Returns
         -------
@@ -142,7 +152,8 @@ class Autotune:
             scheduler = ASHAScheduler(max_t=2, grace_period=1, reduction_factor=2)
 
         if not search_alg:
-            search_alg = HyperOptSearch(space=self.config, mode=mode, metric=metric)
+            # metric, mode, and config will be passed in tune.run
+            search_alg = HyperOptSearch()
 
         if not resources_per_trial:
             if torch.cuda.is_available():
@@ -161,10 +172,11 @@ class Autotune:
             progress_reporter=self.reporter,
             name=name,
             resources_per_trial=resources_per_trial,
+            local_dir=local_dir,
             **kwargs,
         )
         best_config = analysis.best_config
-        print("Best hyperparameters found were: ", best_config)
+        logger.info("Best hyperparameters found were: ", best_config)
         # Get the checkpoint path of the best trial of the experiment
         model_config = {}
         trainer_config = {}
@@ -176,6 +188,8 @@ class Autotune:
                 trainer_config[key] = best_config[key]
             elif key in self.plan_hyperparams:
                 plan_config[key] = best_config[key]
+
+        # retrieve and load best model
         best_checkpoint = analysis.best_checkpoint
         best_model = self.model(self.adata, **model_config)
         best_model.load(adata=self.adata, dir_path=best_checkpoint + "checkpoint")
