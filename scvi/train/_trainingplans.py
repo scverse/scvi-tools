@@ -4,6 +4,7 @@ from typing import Callable, Optional, Union
 import pyro
 import pytorch_lightning as pl
 import torch
+from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import _CONSTANTS
@@ -656,9 +657,13 @@ class PyroTrainingPlan(pl.LightningModule):
         self.pyro_guide = self.module.guide
         self.pyro_model = self.module.model
 
-        self.use_kl_weight = (
-            "kl_weight" in signature(self.pyro_model.forward).parameters
-        )
+        self.use_kl_weight = False
+        if isinstance(self.pyro_model, PyroModule):
+            self.use_kl_weight = (
+                "kl_weight" in signature(self.pyro_model.forward).parameters
+            )
+        elif callable(self.pyro_model):
+            self.use_kl_weight = "kl_weight" in signature(self.pyro_model).parameters
 
         self.svi = pyro.infer.SVI(
             model=self.pyro_model,

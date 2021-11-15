@@ -1,7 +1,6 @@
 import inspect
 import logging
 import os
-import pickle
 import warnings
 from abc import ABC, abstractmethod
 from typing import Optional, Sequence, Union
@@ -14,13 +13,13 @@ from anndata import AnnData
 from rich.text import Text
 
 from scvi import _CONSTANTS, settings
-from scvi._docs import setup_anndata_dsp
 from scvi.data import get_from_registry, transfer_anndata_setup
 from scvi.data._anndata import _check_anndata_setup_equivalence
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass
+from scvi.utils import setup_anndata_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -250,6 +249,7 @@ class BaseModelClass(ABC):
     def save(
         self,
         dir_path: str,
+        prefix: Optional[str] = None,
         overwrite: bool = False,
         save_anndata: bool = False,
         **anndata_write_kwargs,
@@ -265,6 +265,8 @@ class BaseModelClass(ABC):
         ----------
         dir_path
             Path to a directory.
+        prefix
+            Prefix to prepend to saved file names.
         overwrite
             Overwrite existing data or not. If `False` and directory
             already exists at `dir_path`, error will be raised.
@@ -273,11 +275,6 @@ class BaseModelClass(ABC):
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
-        # get all the user attributes
-        user_attributes = self._get_user_attributes()
-        # only save the public attributes with _ at the very end
-        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
-        # save the model state dict and the trainer state dict only
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
@@ -287,27 +284,41 @@ class BaseModelClass(ABC):
                 )
             )
 
+        file_name_prefix = prefix or ""
+
         if save_anndata:
             self.adata.write(
-                os.path.join(dir_path, "adata.h5ad"), **anndata_write_kwargs
+                os.path.join(dir_path, f"{file_name_prefix}adata.h5ad"),
+                **anndata_write_kwargs,
             )
 
-        model_save_path = os.path.join(dir_path, "model_params.pt")
-        attr_save_path = os.path.join(dir_path, "attr.pkl")
-        varnames_save_path = os.path.join(dir_path, "var_names.csv")
+        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+
+        # save the model state dict and the trainer state dict only
+        model_state_dict = self.module.state_dict()
 
         var_names = self.adata.var_names.astype(str)
         var_names = var_names.to_numpy()
-        np.savetxt(varnames_save_path, var_names, fmt="%s")
 
-        torch.save(self.module.state_dict(), model_save_path)
-        with open(attr_save_path, "wb") as f:
-            pickle.dump(user_attributes, f)
+        # get all the user attributes
+        user_attributes = self._get_user_attributes()
+        # only save the public attributes with _ at the very end
+        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
+
+        torch.save(
+            dict(
+                model_state_dict=model_state_dict,
+                var_names=var_names,
+                attr_dict=user_attributes,
+            ),
+            model_save_path,
+        )
 
     @classmethod
     def load(
         cls,
         dir_path: str,
+        prefix: Optional[str] = None,
         adata: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
     ):
@@ -318,6 +329,8 @@ class BaseModelClass(ABC):
         ----------
         dir_path
             Path to saved outputs.
+        prefix
+            Prefix of saved file names.
         adata
             AnnData organized in the same way as data used to train model.
             It is not necessary to run setup_anndata,
@@ -333,20 +346,30 @@ class BaseModelClass(ABC):
 
         Examples
         --------
-        >>> vae = SCVI.load(save_path, adata)
-        >>> vae.get_latent_representation()
+        >>> model = ModelClass.load(save_path, adata) # use the name of the model class used to save
+        >>> model.get_....
         """
         load_adata = adata is None
         use_gpu, device = parse_use_gpu_arg(use_gpu)
 
         (
-            scvi_setup_dict,
             attr_dict,
             var_names,
             model_state_dict,
             new_adata,
-        ) = _load_saved_files(dir_path, load_adata, map_location=device)
+        ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
         adata = new_adata if new_adata is not None else adata
+
+        scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+
+        # Filter out keys that are no longer populated by setup_anndata.
+        # TODO(jhong): remove hack with setup_anndata refactor.
+        deprecated_keys = {"local_l_mean", "local_l_var"}
+        scvi_setup_dict["data_registry"] = {
+            k: v
+            for k, v in scvi_setup_dict["data_registry"].items()
+            if k not in deprecated_keys
+        }
 
         _validate_var_names(adata, var_names)
         transfer_anndata_setup(scvi_setup_dict, adata)
@@ -361,7 +384,7 @@ class BaseModelClass(ABC):
             model.module.load_state_dict(model_state_dict)
         except RuntimeError as err:
             if isinstance(model.module, PyroBaseModuleClass):
-                old_history = model.history_
+                old_history = model.history_.copy()
                 logger.info("Preparing underlying module for load")
                 model.train(max_steps=1)
                 model.history_ = old_history

@@ -122,16 +122,20 @@ Before you submit a pull request, check that it meets these guidelines:
 Deploying
 ---------
 
-A reminder for the maintainers on how to deploy. Make sure all your changes are committed (including a release note entry).
 First, please install Poetry.
 
-Also, make sure you've tested your code using pytest by running::
+A reminder for the maintainers on how to deploy. Make sure all your changes are committed (including a release note entry).
+
+Additionally, make sure to commit a version bump to `pyproject.toml <https://github.com/YosefLab/scvi-tools/blob/master/pyproject.toml>`_ which can be updated by running::
+
+$ poetry version preversion # possible: major / minor / patch
+
+Then, make sure you've tested your code using pytest by running::
 
 $ pytest
 
-Then run::
+Subsequently run::
 
-$ poetry version preversion # possible: major / minor / patch
 $ poetry build
 $ poetry publish
 
