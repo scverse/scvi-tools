@@ -346,7 +346,7 @@ class BaseModelClass(ABC):
 
         Examples
         --------
-        >>> model = ModelClass.load(save_path, adata)
+        >>> model = ModelClass.load(save_path, adata) # use the name of the model class used to save
         >>> model.get_....
         """
         load_adata = adata is None
