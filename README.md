@@ -12,14 +12,17 @@ Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://gith
 [![Join the chat at https://gitter.im/scvi-tools/development](https://badges.gitter.im/scvi-tools/development.svg)](https://gitter.im/scvi-tools/development?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 [scvi-tools](https://scvi-tools.org/) (single-cell variational inference
-tools) is a package for probabilistic modeling of single-cell omics
+tools) is a package for probabilistic modeling and analysis of single-cell omics
 data, built on top of [PyTorch](https://pytorch.org) and
 [AnnData](https://anndata.readthedocs.io/en/latest/).
 
-# Available implementations of single-cell omics models
+# Analysis of single-cell omics data
 
-scvi-tools contains scalable implementations of several models that
-facilitate a broad number of tasks across many omics, including:
+<img src="https://github.com/YosefLab/scvi-tools/blob/master/docs/_static/tasks.png?raw=true" width="900" alt="scvi-tools tasks">
+
+
+
+## Available implementations of single-cell omics models
 
 -   [scVI](https://rdcu.be/bdHYQ) for analysis of single-cell RNA-seq
     data, as well as its improved differential expression
@@ -80,7 +83,7 @@ Please be sure to install a version of [PyTorch](https://pytorch.org/) that is c
 
 -   Tutorials, API reference, and installation guides are available in
     the [documentation](https://docs.scvi-tools.org/).
--   For discussion of usage, checkout out our
+-   For discussion of usage, check out our
     [forum](https://discourse.scvi-tools.org).
 -   Please use the [issues](https://github.com/YosefLab/scvi-tools/issues) to submit bug reports.
 -   If you\'d like to contribute, check out our [contributing

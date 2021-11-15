@@ -29,6 +29,8 @@ Model
    model.SCANVI
    model.SCVI
    model.TOTALVI
+   model.MULTIVI
+   model.AmortizedLDA
 
 
 
@@ -66,6 +68,7 @@ Data loading
    data.read_loom
    data.read_text
    data.read_10x_atac
+   data.read_10x_multiome
 
 
 Data preparation
@@ -102,6 +105,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
 
    data.poisson_gene_selection
    data.organize_cite_seq_10x
+   data.organize_multiome_anndatas
 
 
 Configuration

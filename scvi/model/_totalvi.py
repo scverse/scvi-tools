@@ -2,7 +2,7 @@ import logging
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Dict, Iterable, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -11,19 +11,21 @@ from anndata import AnnData
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.data import get_from_registry
+from scvi.data._anndata import _setup_anndata
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
+    _init_library_size,
     cite_seq_raw_counts_properties,
 )
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -38,7 +40,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.TOTALVI.setup_anndata`.
     n_latent
         Dimensionality of the latent space.
     gene_dispersion
@@ -68,13 +70,15 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         100 cells per batch and averages the distributions. Note that even with this option set to `True`,
         this only initializes a parameter that is learned during inference. If `False`, randomly initializes.
         The default (`None`), sets this to `True` if greater than 10 proteins are used.
+    override_missing_proteins
+        If `True`, will not treat proteins with all 0 expression in a particular batch as missing.
     **model_kwargs
         Keyword args for :class:`~scvi.module.TOTALVAE`
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch", protein_expression_obsm_key="protein_expression")
+    >>> scvi.model.TOTALVI.setup_anndata(adata, batch_key="batch", protein_expression_obsm_key="protein_expression")
     >>> vae = scvi.model.TOTALVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
@@ -83,9 +87,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/totalVI`
-    2. :doc:`/user_guide/notebooks/cite_scrna_integration_w_totalVI`
-    3. :doc:`/user_guide/notebooks/scarches_scvi_tools`
+    1. :doc:`/tutorials/notebooks/totalVI`
+    2. :doc:`/tutorials/notebooks/cite_scrna_integration_w_totalVI`
+    3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
     """
 
     def __init__(
@@ -101,11 +105,23 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
         empirical_protein_background_prior: Optional[bool] = None,
+        override_missing_proteins: bool = False,
         **model_kwargs,
     ):
         super(TOTALVI, self).__init__(adata)
-        if "totalvi_batch_mask" in self.scvi_setup_dict_.keys():
+        if (
+            "totalvi_batch_mask" in self.scvi_setup_dict_.keys()
+            and not override_missing_proteins
+        ):
             batch_mask = self.scvi_setup_dict_["totalvi_batch_mask"]
+            info_msg = (
+                "Some proteins have all 0 counts in some batches. "
+                + "These proteins will be treated as missing; however, "
+                + "this can occur due to experimental design/biology. "
+                + "Reinitialize the model with `override_missing_proteins=True`,"
+                + "to override this behavior."
+            )
+            logger.info(info_msg)
         else:
             batch_mask = None
         emp_prior = (
@@ -123,10 +139,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if "extra_categoricals" in self.scvi_setup_dict_
             else None
         )
+
+        n_batch = self.summary_stats["n_batch"]
+        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+
         self.module = TOTALVAE(
             n_input_genes=self.summary_stats["n_vars"],
             n_input_proteins=self.summary_stats["n_proteins"],
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=n_batch,
             n_latent=n_latent,
             n_continuous_cov=self.summary_stats["n_continuous_covs"],
             n_cats_per_cov=n_cats_per_cov,
@@ -137,6 +157,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             protein_batch_mask=batch_mask,
             protein_background_prior_mean=prior_mean,
             protein_background_prior_scale=prior_scale,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -288,8 +310,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
-        if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
+        self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
         post = self._make_data_loader(
@@ -299,9 +320,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in post:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
-            ql_m = outputs["ql_m"]
-            ql_v = outputs["ql_v"]
-            if give_mean is True:
+            if give_mean:
+                ql_m = outputs["ql_m"]
+                ql_v = outputs["ql_v"]
                 library = torch.exp(ql_m + 0.5 * ql_v)
             else:
                 library = outputs["library_gene"]
@@ -694,7 +715,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         include_protein_background
             Include the protein background component as part of the protein expression
         **kwargs
-            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------
@@ -1036,6 +1057,50 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             b_mean = inference_outputs["py_"]["rate_back"]
             background_mean += [b_mean.cpu().numpy()]
         return np.concatenate(background_mean)
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        protein_expression_obsm_key: str,
+        protein_names_uns_key: Optional[str] = None,
+        batch_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        protein_expression_obsm_key
+            key in `adata.obsm` for protein expression data.
+        protein_names_uns_key
+            key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
+            if it is a DataFrame, else will assign sequential names to proteins.
+        %(param_batch_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            batch_key=batch_key,
+            layer=layer,
+            protein_expression_obsm_key=protein_expression_obsm_key,
+            protein_names_uns_key=protein_names_uns_key,
+            categorical_covariate_keys=categorical_covariate_keys,
+            continuous_covariate_keys=continuous_covariate_keys,
+            copy=copy,
+        )
 
 
 def _get_totalvi_protein_priors(adata, n_cells=100):

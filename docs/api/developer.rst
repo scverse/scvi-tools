@@ -67,7 +67,8 @@ These classes should be used to construct user-facing model classes.
     model.base.PyroSviTrainMixin
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
-
+    model.base.DifferentialComputation
+    
 Module
 ------
 
@@ -84,11 +85,13 @@ Existing module classes with respective generative and inference procedures.
    module.Classifier
    module.LDVAE
    module.MRDeconv
-   module.PEAKVI
+   module.PEAKVAE
+   module.MULTIVAE
    module.SCANVAE
    module.TOTALVAE
    module.VAE
    module.VAEC
+   module.AmortizedLDAPyroModule
 
 
 External module
@@ -177,5 +180,5 @@ Utility functions used by scvi-tools.
    :toctree: reference/
    :nosignatures:
 
-   utils.DifferentialComputation
    utils.track
+   utils.setup_anndata_dsp

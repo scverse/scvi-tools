@@ -51,6 +51,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_gallery.load_style",
     "sphinx_tabs.tabs",
+    "sphinx_panels",
 ]
 
 # nbsphinx specific settings
@@ -72,6 +73,10 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
+
+# sphinx-panels shouldn't add bootstrap css since the pydata-sphinx-theme
+# already loads it
+panels_add_bootstrap_css = False
 
 # The master toctree document.
 master_doc = "index"
@@ -161,35 +166,50 @@ nbsphinx_prolog = r"""
 
 .. raw:: html
 
+    <style>
+        p {{
+            margin-bottom: 0.5rem;
+        }}
+    </style>
+
+.. raw:: html
+
     <div class="admonition note">
-    <p class="admonition-title">Note</p>
-    <p>
-      This page was generated from
-      <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/tree/{version}/">{docname}</a>.
-      Interactive online version:
-      <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
-    </p>
+        <p class="admonition-title">Note</p>
+        <p>
+        This page was generated from
+        <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/tree/{version}/">{docname}</a>.
+        Interactive online version:
+        <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+        </p>
     </div>
 """.format(
     version=version, docname="{{ docname|e }}"
 )
 nbsphinx_thumbnails = {
-    "user_guide/notebooks/data_loading": "_static/tutorials/anndata.svg",
-    "user_guide/notebooks/api_overview": "_static/tutorials/overview.svg",
-    "user_guide/notebooks/linear_decoder": "_static/tutorials/ldvae.svg",
-    "user_guide/notebooks/scvi_in_R": "_static/tutorials/Rlogo.png",
-    "user_guide/notebooks/harmonization": "_static/tutorials/scvi_batch.png",
-    "user_guide/notebooks/totalVI": "_static/tutorials/totalvi_cell.svg",
-    "user_guide/notebooks/AutoZI_tutorial": "_static/tutorials/history.png",
-    "user_guide/notebooks/gimvi_tutorial": "_static/tutorials/gimvi.png",
-    "user_guide/notebooks/scarches_scvi_tools": "_static/tutorials/scarches.png",
-    "user_guide/notebooks/cite_scrna_integration_w_totalVI": "_static/tutorials/cite_scrna.png",
-    "user_guide/notebooks/scVI_DE_worm": "_static/tutorials/worm.png",
-    "user_guide/notebooks/stereoscope_heart_LV_tutorial": "_static/tutorials/stereoscope.png",
-    "user_guide/notebooks/seed_labeling": "_static/tutorials/seed.png",
-    "user_guide/notebooks/cellassign_tutorial": "_static/tutorials/cellassign.png",
-    "user_guide/notebooks/DestVI_tutorial": "_static/tutorials/destvi.png",
-    "user_guide/notebooks/PeakVI": "_static/tutorials/peakvi.png",
+    "tutorials/notebooks/data_loading": "_static/tutorials/anndata.svg",
+    "tutorials/notebooks/api_overview": "_static/tutorials/overview.svg",
+    "tutorials/notebooks/linear_decoder": "_static/tutorials/ldvae.svg",
+    "tutorials/notebooks/scvi_in_R": "_static/tutorials/Rlogo.png",
+    "tutorials/notebooks/harmonization": "_static/tutorials/scvi_batch.png",
+    "tutorials/notebooks/totalVI": "_static/tutorials/totalvi_cell.svg",
+    "tutorials/notebooks/AutoZI_tutorial": "_static/tutorials/history.png",
+    "tutorials/notebooks/gimvi_tutorial": "_static/tutorials/gimvi.png",
+    "tutorials/notebooks/scarches_scvi_tools": "_static/tutorials/scarches.png",
+    "tutorials/notebooks/cite_scrna_integration_w_totalVI": "_static/tutorials/cite_scrna.png",
+    "tutorials/notebooks/scVI_DE_worm": "_static/tutorials/worm.png",
+    "tutorials/notebooks/stereoscope_heart_LV_tutorial": "_static/tutorials/stereoscope.png",
+    "tutorials/notebooks/seed_labeling": "_static/tutorials/seed.png",
+    "tutorials/notebooks/cellassign_tutorial": "_static/tutorials/cellassign.png",
+    "tutorials/notebooks/DestVI_tutorial": "_static/tutorials/destvi.png",
+    "tutorials/notebooks/DestVI_in_R": "_static/tutorials/Rlogo.png",
+    "tutorials/notebooks/PeakVI": "_static/tutorials/peakvi.png",
+    "tutorials/notebooks/peakvi_in_R": "_static/tutorials/Rlogo.png",
+    "tutorials/notebooks/totalvi_in_R": "_static/tutorials/Rlogo.png",
+    "tutorials/notebooks/MultiVI_tutorial": "_static/tutorials/multivi_umap.png",
+    "tutorials/notebooks/totalVI_reference_mapping": "_static/tutorials/totalvi_cell.svg",
+    "tutorials/notebooks/amortized_lda": "_static/tutorials/lda.png",
+    "tutorials/notebooks/cell2location_lymph_node_spatial_tutorial": "_static/tutorials/cell2location.png",
 }
 
 

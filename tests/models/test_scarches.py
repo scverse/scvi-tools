@@ -4,8 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import scvi
-from scvi.data import setup_anndata, synthetic_iid
+from scvi.data import synthetic_iid
 from scvi.model import PEAKVI, SCANVI, SCVI, TOTALVI
 
 
@@ -120,6 +119,42 @@ def test_scvi_online_update(save_path):
     model3.get_latent_representation()
 
 
+def test_scvi_library_size_update(save_path):
+    n_latent = 5
+    adata1 = synthetic_iid()
+    model = SCVI(adata1, n_latent=n_latent, use_observed_lib_size=False)
+
+    assert (
+        getattr(model.module, "library_log_means", None) is not None
+        and model.module.library_log_means.shape == (1, 2)
+        and model.module.library_log_means.count_nonzero().item() == 2
+    )
+    assert getattr(
+        model.module, "library_log_vars", None
+    ) is not None and model.module.library_log_vars.shape == (1, 2)
+
+    model.train(1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # also test subset var option
+    adata2 = synthetic_iid(run_setup_anndata=False, n_genes=110)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+
+    model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
+    assert (
+        getattr(model2.module, "library_log_means", None) is not None
+        and model2.module.library_log_means.shape == (1, 4)
+        and model2.module.library_log_means[:, :2].equal(model.module.library_log_means)
+        and model2.module.library_log_means.count_nonzero().item() == 4
+    )
+    assert (
+        getattr(model2.module, "library_log_vars", None) is not None
+        and model2.module.library_log_vars.shape == (1, 4)
+        and model2.module.library_log_vars[:, :2].equal(model.module.library_log_vars)
+    )
+
+
 def test_scanvi_online_update(save_path):
     # ref has semi-observed labels
     n_latent = 5
@@ -127,8 +162,13 @@ def test_scanvi_online_update(save_path):
     new_labels = adata1.obs.labels.to_numpy()
     new_labels[0] = "Unknown"
     adata1.obs["labels"] = pd.Categorical(new_labels)
-    setup_anndata(adata1, batch_key="batch", labels_key="labels")
-    model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
+    SCANVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
+    model = SCANVI(
+        adata1,
+        "Unknown",
+        n_latent=n_latent,
+        encode_covariates=True,
+    )
     model.train(max_epochs=1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
@@ -147,7 +187,7 @@ def test_scanvi_online_update(save_path):
     adata1 = synthetic_iid(run_setup_anndata=False)
     new_labels = adata1.obs.labels.to_numpy()
     adata1.obs["labels"] = pd.Categorical(new_labels)
-    setup_anndata(adata1, batch_key="batch", labels_key="labels")
+    SCANVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
     model.train(max_epochs=1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
@@ -208,17 +248,17 @@ def test_scanvi_online_update(save_path):
         np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
 
     # test saving and loading of online scanvi
-    a = scvi.data.synthetic_iid(run_setup_anndata=False)
+    a = synthetic_iid(run_setup_anndata=False)
     ref = a[a.obs["labels"] != "label_2"].copy()  # only has labels 0 and 1
-    scvi.data.setup_anndata(ref, batch_key="batch", labels_key="labels")
+    SCANVI.setup_anndata(ref, batch_key="batch", labels_key="labels")
     m = SCANVI(ref, "label_2")
     m.train(max_epochs=1)
     m.save(save_path, overwrite=True)
     query = a[a.obs["labels"] != "label_0"].copy()
-    query = scvi.data.synthetic_iid()  # has labels 0 and 2. 2 is unknown
+    query = synthetic_iid()  # has labels 0 and 2. 2 is unknown
     m_q = SCANVI.load_query_data(query, save_path)
     m_q.save(save_path, overwrite=True)
-    m_q = SCANVI.load(save_path, query)
+    m_q = SCANVI.load(save_path, adata=query)
     m_q.predict()
     m_q.get_elbo()
 

@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import numpy as np
 import pyro
@@ -13,6 +14,7 @@ from pyro.nn import PyroModule, PyroSample
 from scvi import _CONSTANTS
 from scvi.data import register_tensor_from_anndata, synthetic_iid
 from scvi.dataloaders import AnnDataLoader
+from scvi.model import AmortizedLDA
 from scvi.model.base import (
     BaseModelClass,
     PyroJitGuideWarmup,
@@ -20,6 +22,7 @@ from scvi.model.base import (
     PyroSviTrainMixin,
 )
 from scvi.module.base import PyroBaseModuleClass
+from scvi.nn import DecoderSCVI, Encoder
 from scvi.train import PyroTrainingPlan, Trainer
 
 
@@ -152,6 +155,12 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         )
         self._model_summary_string = "BayesianRegressionModel"
         self.init_params_ = self._get_init_params(locals())
+
+    @staticmethod
+    def setup_anndata(
+        adata: AnnData,
+    ) -> Optional[AnnData]:
+        pass
 
 
 def test_pyro_bayesian_regression(save_path):
@@ -376,3 +385,192 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
         adata.n_obs,
         1,
     )
+
+
+class FunctionBasedPyroModule(PyroBaseModuleClass):
+    def __init__(self, n_input: int, n_latent: int, n_hidden: int, n_layers: int):
+
+        super().__init__()
+        self.n_input = n_input
+        self.n_latent = n_latent
+        self.epsilon = 5.0e-3
+        # z encoder goes from the n_input-dimensional data to an n_latent-d
+        # latent space representation
+        self.encoder = Encoder(
+            n_input,
+            n_latent,
+            n_layers=n_layers,
+            n_hidden=n_hidden,
+            dropout_rate=0.1,
+        )
+        # decoder goes from n_latent-dimensional space to n_input-d data
+        self.decoder = DecoderSCVI(
+            n_latent,
+            n_input,
+            n_layers=n_layers,
+            n_hidden=n_hidden,
+        )
+        # This gene-level parameter modulates the variance of the observation distribution
+        self.px_r = torch.nn.Parameter(torch.ones(self.n_input))
+
+    @staticmethod
+    def _get_fn_args_from_batch(tensor_dict):
+        x = tensor_dict[_CONSTANTS.X_KEY]
+        log_library = torch.log(torch.sum(x, dim=1, keepdim=True) + 1e-6)
+        return (x, log_library), {}
+
+    def model(self, x, log_library):
+        # register PyTorch module `decoder` with Pyro
+        pyro.module("scvi", self)
+        with pyro.plate("data", x.shape[0]):
+            # setup hyperparameters for prior p(z)
+            z_loc = x.new_zeros(torch.Size((x.shape[0], self.n_latent)))
+            z_scale = x.new_ones(torch.Size((x.shape[0], self.n_latent)))
+            # sample from prior (value will be sampled by guide when computing the ELBO)
+            z = pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
+            # decode the latent code z
+            px_scale, _, px_rate, px_dropout = self.decoder("gene", z, log_library)
+            # build count distribution
+            nb_logits = (px_rate + self.epsilon).log() - (
+                self.px_r.exp() + self.epsilon
+            ).log()
+            x_dist = dist.ZeroInflatedNegativeBinomial(
+                gate_logits=px_dropout, total_count=self.px_r.exp(), logits=nb_logits
+            )
+            # score against actual counts
+            pyro.sample("obs", x_dist.to_event(1), obs=x)
+
+    def guide(self, x, log_library):
+        # define the guide (i.e. variational distribution) q(z|x)
+        pyro.module("scvi", self)
+        with pyro.plate("data", x.shape[0]):
+            # use the encoder to get the parameters used to define q(z|x)
+            x_ = torch.log(1 + x)
+            z_loc, z_scale, _ = self.encoder(x_)
+            # sample the latent code z
+            pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
+
+
+class FunctionBasedPyroModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass):
+    def __init__(
+        self,
+        adata: AnnData,
+    ):
+        # in case any other model was created before that shares the same parameter names.
+        clear_param_store()
+
+        super().__init__(adata)
+
+        self.module = FunctionBasedPyroModule(
+            n_input=adata.n_vars,
+            n_hidden=32,
+            n_latent=5,
+            n_layers=1,
+        )
+        self._model_summary_string = "FunctionBasedPyroModel"
+        self.init_params_ = self._get_init_params(locals())
+
+    @staticmethod
+    def setup_anndata(
+        adata: AnnData,
+    ) -> Optional[AnnData]:
+        pass
+
+
+def test_function_based_pyro_module():
+    use_gpu = torch.cuda.is_available()
+    adata = synthetic_iid()
+    mod = FunctionBasedPyroModel(adata)
+    mod.train(
+        max_epochs=1,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+
+
+def test_lda_model():
+    use_gpu = torch.cuda.is_available()
+    n_topics = 5
+    adata = synthetic_iid(run_setup_anndata=False)
+
+    # Test with float and Sequence priors.
+    AmortizedLDA.setup_anndata(adata)
+    mod1 = AmortizedLDA(
+        adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5
+    )
+    mod1.train(
+        max_epochs=1,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+    mod2 = AmortizedLDA(
+        adata,
+        n_topics=n_topics,
+        cell_topic_prior=[1.5 for _ in range(n_topics)],
+        topic_feature_prior=[1.5 for _ in range(adata.n_vars)],
+    )
+    mod2.train(
+        max_epochs=1,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+
+    mod = AmortizedLDA(adata, n_topics=n_topics)
+    mod.train(
+        max_epochs=5,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+    adata_gbt = mod.get_feature_by_topic().to_numpy()
+    assert np.allclose(adata_gbt.sum(axis=0), 1)
+    adata_lda = mod.get_latent_representation(adata).to_numpy()
+    assert (
+        adata_lda.shape == (adata.n_obs, n_topics)
+        and np.all((adata_lda <= 1) & (adata_lda >= 0))
+        and np.allclose(adata_lda.sum(axis=1), 1)
+    )
+    mod.get_elbo()
+    mod.get_perplexity()
+
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    AmortizedLDA.setup_anndata(adata2)
+    adata2_lda = mod.get_latent_representation(adata2).to_numpy()
+    assert (
+        adata2_lda.shape == (adata2.n_obs, n_topics)
+        and np.all((adata2_lda <= 1) & (adata2_lda >= 0))
+        and np.allclose(adata2_lda.sum(axis=1), 1)
+    )
+    mod.get_elbo(adata2)
+    mod.get_perplexity(adata2)
+
+
+def test_lda_model_save_load(save_path):
+    use_gpu = torch.cuda.is_available()
+    n_topics = 5
+    adata = synthetic_iid(run_setup_anndata=False)
+    AmortizedLDA.setup_anndata(adata)
+    mod = AmortizedLDA(adata, n_topics=n_topics)
+    mod.train(
+        max_epochs=5,
+        batch_size=256,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+
+    feature_by_topic_1 = mod.get_feature_by_topic(n_samples=5000)
+    latent_1 = mod.get_latent_representation(n_samples=5000)
+
+    save_path = os.path.join(save_path, "tmp")
+    mod.save(save_path, overwrite=True, save_anndata=True)
+    mod = AmortizedLDA.load(save_path)
+
+    feature_by_topic_2 = mod.get_feature_by_topic(n_samples=5000)
+    latent_2 = mod.get_latent_representation(n_samples=5000)
+    np.testing.assert_almost_equal(
+        feature_by_topic_1.to_numpy(), feature_by_topic_2.to_numpy(), decimal=2
+    )
+    np.testing.assert_almost_equal(latent_1.to_numpy(), latent_2.to_numpy(), decimal=2)

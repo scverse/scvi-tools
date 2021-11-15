@@ -7,6 +7,7 @@ import torch
 from anndata import AnnData
 
 from scvi import _CONSTANTS
+from scvi.data._anndata import _setup_anndata
 from scvi.model.base import (
     BaseModelClass,
     RNASeqMixin,
@@ -14,6 +15,7 @@ from scvi.model.base import (
     VAEMixin,
 )
 from scvi.module import VAEC
+from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.CondSCVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -42,8 +44,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.external.CondSCVI(adata)
+    >>> scvi.model.CondSCVI.setup_anndata(adata, "labels")
+    >>> vae = scvi.model.CondSCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_CondSCVI"] = vae.get_latent_representation()
     """
@@ -106,7 +108,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         mean_vprior: np.ndarray
             (n_labels, p, D) array
         var_vprior
-            (n_labels, p, 3) array
+            (n_labels, p, D) array
         """
         if self.is_trained_ is False:
             warnings.warn(
@@ -201,4 +203,33 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             batch_size=batch_size,
             plan_kwargs=plan_kwargs,
             **kwargs,
+        )
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        labels_key: str,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_labels_key)s
+        %(param_layer)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            labels_key=labels_key,
+            layer=layer,
+            copy=copy,
         )

@@ -1,9 +1,10 @@
-from inspect import getfullargspec
+from inspect import getfullargspec, signature
 from typing import Callable, Optional, Union
 
 import pyro
 import pytorch_lightning as pl
 import torch
+from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import _CONSTANTS
@@ -13,9 +14,37 @@ from scvi.module.base import BaseModuleClass, PyroBaseModuleClass
 from scvi.nn import one_hot
 
 
+def _compute_kl_weight(
+    epoch: int,
+    step: int,
+    n_epochs_kl_warmup: Optional[int],
+    n_steps_kl_warmup: Optional[int],
+) -> float:
+    epoch_criterion = n_epochs_kl_warmup is not None
+    step_criterion = n_steps_kl_warmup is not None
+    if epoch_criterion:
+        kl_weight = min(1.0, epoch / n_epochs_kl_warmup)
+    elif step_criterion:
+        kl_weight = min(1.0, step / n_steps_kl_warmup)
+    else:
+        kl_weight = 1.0
+    return max(kl_weight, 1e-3)
+
+
 class TrainingPlan(pl.LightningModule):
     """
     Lightning module task to train scvi-tools modules.
+
+    The training plan is a PyTorch Lightning Module that is initialized
+    with a scvi-tools module object. It configures the optimizers, defines
+    the training step and validation step, and computes metrics to be recorded
+    during training. The training step and validation step are functions that
+    take data, run it through the model and return the loss, which will then
+    be used to optimize the model parameters in the Trainer. Overall, custom
+    training plans can be used to develop complex inference schemes on top of
+    modules.
+    The following developer tutorial will familiarize you more with training plans
+    and how to use them: :doc:`/tutorials/notebooks/model_user_guide`.
 
     Parameters
     ----------
@@ -121,11 +150,12 @@ class TrainingPlan(pl.LightningModule):
         reconstruction_loss = scvi_loss.reconstruction_loss
         # pytorch lightning automatically backprops on "loss"
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
+        # lightning wants non loss keys detached
         return {
             "loss": scvi_loss.loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_loss.kl_local.sum(),
-            "kl_global": scvi_loss.kl_global,
+            "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
+            "kl_local_sum": scvi_loss.kl_local.sum().detach(),
+            "kl_global": scvi_loss.kl_global.detach(),
             "n_obs": reconstruction_loss.shape[0],
         }
 
@@ -204,15 +234,12 @@ class TrainingPlan(pl.LightningModule):
     @property
     def kl_weight(self):
         """Scaling factor on KL divergence during training."""
-        epoch_criterion = self.n_epochs_kl_warmup is not None
-        step_criterion = self.n_steps_kl_warmup is not None
-        if epoch_criterion:
-            kl_weight = min(1.0, self.current_epoch / self.n_epochs_kl_warmup)
-        elif step_criterion:
-            kl_weight = min(1.0, self.global_step / self.n_steps_kl_warmup)
-        else:
-            kl_weight = 1.0
-        return kl_weight
+        return _compute_kl_weight(
+            self.current_epoch,
+            self.global_step,
+            self.n_epochs_kl_warmup,
+            self.n_steps_kl_warmup,
+        )
 
 
 class AdversarialTrainingPlan(TrainingPlan):
@@ -223,8 +250,6 @@ class AdversarialTrainingPlan(TrainingPlan):
     ----------
     module
         A module instance from class ``BaseModuleClass``.
-    n_obs_training
-        Number of observations in the training set.
     lr
         Learning rate used for optimization :class:`~torch.optim.Adam`.
     weight_decay
@@ -346,9 +371,9 @@ class AdversarialTrainingPlan(TrainingPlan):
             self.log("train_loss", loss, on_epoch=True)
             return {
                 "loss": loss,
-                "reconstruction_loss_sum": reconstruction_loss.sum(),
-                "kl_local_sum": scvi_loss.kl_local.sum(),
-                "kl_global": scvi_loss.kl_global,
+                "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
+                "kl_local_sum": scvi_loss.kl_local.sum().detach(),
+                "kl_global": scvi_loss.kl_global.detach(),
                 "n_obs": reconstruction_loss.shape[0],
             }
 
@@ -504,13 +529,13 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.log("train_loss", loss, on_epoch=True)
         loss_dict = {
             "loss": loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_losses.kl_local.sum(),
-            "kl_global": scvi_losses.kl_global,
+            "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
+            "kl_local_sum": scvi_losses.kl_local.sum().detach(),
+            "kl_global": scvi_losses.kl_global.detach(),
             "n_obs": reconstruction_loss.shape[0],
         }
         if hasattr(scvi_losses, "classification_loss"):
-            loss_dict["classification_loss"] = scvi_losses.classification_loss
+            loss_dict["classification_loss"] = scvi_losses.classification_loss.detach()
             loss_dict["n_labelled_tensors"] = scvi_losses.n_labelled_tensors
         return loss_dict
 
@@ -595,6 +620,12 @@ class PyroTrainingPlan(pl.LightningModule):
         defaults to :class:`pyro.optim.Adam` optimizer with a learning rate of `1e-3`.
     optim_kwargs
         Keyword arguments for **default** optimiser :class:`pyro.optim.Adam`.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+        Only activated when `n_epochs_kl_warmup` is set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from 0 to 1.
+        Overrides `n_steps_kl_warmup` when both are not `None`.
     """
 
     def __init__(
@@ -603,6 +634,8 @@ class PyroTrainingPlan(pl.LightningModule):
         loss_fn: Optional[pyro.infer.ELBO] = None,
         optim: Optional[pyro.optim.PyroOptim] = None,
         optim_kwargs: Optional[dict] = None,
+        n_steps_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = 400,
     ):
         super().__init__()
         self.module = pyro_module
@@ -617,9 +650,20 @@ class PyroTrainingPlan(pl.LightningModule):
             pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         )
 
+        self.n_steps_kl_warmup = n_steps_kl_warmup
+        self.n_epochs_kl_warmup = n_epochs_kl_warmup
+
         self.automatic_optimization = False
         self.pyro_guide = self.module.guide
         self.pyro_model = self.module.model
+
+        self.use_kl_weight = False
+        if isinstance(self.pyro_model, PyroModule):
+            self.use_kl_weight = (
+                "kl_weight" in signature(self.pyro_model.forward).parameters
+            )
+        elif callable(self.pyro_model):
+            self.use_kl_weight = "kl_weight" in signature(self.pyro_model).parameters
 
         self.svi = pyro.infer.SVI(
             model=self.pyro_model,
@@ -655,7 +699,12 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         args, kwargs = self.module._get_fn_args_from_batch(batch)
-        loss = self.svi.step(*args, **kwargs)
+        # Set KL weight if necessary.
+        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
+        if self.use_kl_weight:
+            kwargs.update({"kl_weight": self.kl_weight})
+        # pytorch lightning requires a Tensor object for loss
+        loss = torch.Tensor([self.svi.step(*args, **kwargs)])
 
         return {"loss": loss}
 
@@ -676,6 +725,16 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def backward(self, *args, **kwargs):
         pass
+
+    @property
+    def kl_weight(self):
+        """Scaling factor on KL divergence during training."""
+        return _compute_kl_weight(
+            self.current_epoch,
+            self.global_step,
+            self.n_epochs_kl_warmup,
+            self.n_steps_kl_warmup,
+        )
 
 
 class ClassifierTrainingPlan(pl.LightningModule):

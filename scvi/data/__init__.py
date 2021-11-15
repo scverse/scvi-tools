@@ -17,6 +17,7 @@ from ._datasets import (
     heart_cell_atlas_subsampled,
     mouse_ob_dataset,
     pbmc_dataset,
+    pbmc_seurat_v4_cite_seq,
     pbmcs_10x_cite_seq,
     prefrontalcortex_starmap,
     purified_pbmc_dataset,
@@ -27,8 +28,12 @@ from ._datasets import (
     spleen_lymph_cite_seq,
     synthetic_iid,
 )
-from ._preprocessing import organize_cite_seq_10x, poisson_gene_selection
-from ._read import read_10x_atac
+from ._preprocessing import (
+    organize_cite_seq_10x,
+    organize_multiome_anndatas,
+    poisson_gene_selection,
+)
+from ._read import read_10x_atac, read_10x_multiome
 
 __all__ = [
     "setup_anndata",
@@ -60,5 +65,8 @@ __all__ = [
     "read_loom",
     "read_text",
     "read_10x_atac",
+    "read_10x_multiome",
     "heart_cell_atlas_subsampled",
+    "organize_multiome_anndatas",
+    "pbmc_seurat_v4_cite_seq",
 ]

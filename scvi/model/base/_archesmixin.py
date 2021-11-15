@@ -35,13 +35,13 @@ class ArchesMixin:
         freeze_classifier: bool = True,
     ):
         """
-        Online update of a reference model with scArches algorithm [Lotfollahi20]_.
+        Online update of a reference model with scArches algorithm [Lotfollahi21]_.
 
         Parameters
         ----------
         adata
             AnnData organized in the same way as data used to train model.
-            It is not necessary to run :func:`~scvi.data.setup_anndata`,
+            It is not necessary to run setup_anndata,
             as AnnData is validated against the saved `scvi` setup dictionary.
         reference_model
             Either an already instantiated model of the same class, or a path to
@@ -69,21 +69,16 @@ class ArchesMixin:
         """
         use_gpu, device = parse_use_gpu_arg(use_gpu)
         if isinstance(reference_model, str):
-            (
-                scvi_setup_dict,
-                attr_dict,
-                var_names,
-                load_state_dict,
-                _,
-            ) = _load_saved_files(
+            (attr_dict, var_names, load_state_dict, _,) = _load_saved_files(
                 reference_model, load_adata=False, map_location=device
             )
         else:
             attr_dict = reference_model._get_user_attributes()
             attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
-            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
             var_names = reference_model.adata.var_names
             load_state_dict = deepcopy(reference_model.module.state_dict())
+
+        scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
 
         if inplace_subset_query_vars:
             logger.debug("Subsetting query vars to reference vars.")
