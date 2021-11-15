@@ -346,8 +346,8 @@ class BaseModelClass(ABC):
 
         Examples
         --------
-        >>> vae = SCVI.load(save_path, adata)
-        >>> vae.get_latent_representation()
+        >>> model = ModelClass.load(save_path, adata) # use the name of the model class used to save
+        >>> model.get_....
         """
         load_adata = adata is None
         use_gpu, device = parse_use_gpu_arg(use_gpu)
