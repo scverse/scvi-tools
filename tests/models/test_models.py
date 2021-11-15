@@ -67,6 +67,9 @@ def test_new_setup():
         continuous_covariate_keys=["cont1", "cont2"],
     )
     assert not _check_anndata_setup_equivalence(adata, adata2)
+    assert adata.obsm["_scvi_extra_categoricals"].equals(
+        adata2.obsm["_scvi_extra_categoricals"]
+    )
     adata_manager = SCVI.manager_store[adata2.uns[_constants._SCVI_UUID_KEY]]
     adata_manager.transfer_setup(adata3)
     assert not _check_anndata_setup_equivalence(adata, adata3)
