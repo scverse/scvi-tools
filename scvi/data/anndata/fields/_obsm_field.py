@@ -1,7 +1,6 @@
 import logging
 from typing import List, Optional
 
-import pandas as pd
 from anndata import AnnData
 
 from scvi.data.anndata import _constants
@@ -54,9 +53,7 @@ class JointObsField(BaseObsmField):
         self._is_empty = len(self.obs_keys) == 0
 
     def _combine_obs_fields(self, adata: AnnData) -> None:
-        adata.obsm[self.attr_key] = pd.concat(
-            (adata.obs[key] for key in self.obs_keys), axis=1
-        )
+        adata.obsm[self.attr_key] = adata.obs[self.obs_keys].copy()
 
     @property
     def obs_keys(self):
