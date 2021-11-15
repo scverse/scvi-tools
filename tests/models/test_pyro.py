@@ -569,7 +569,7 @@ def test_lda_model_save_load(save_path):
     mod.save(save_path, overwrite=True, save_anndata=True)
     mod = AmortizedLDA.load(save_path)
 
-    np.testing.assert_equal(mod.history_["elbo_train"], hist_elbo)
+    np.testing.assert_array_equal(mod.history_["elbo_train"], hist_elbo)
 
     feature_by_topic_2 = mod.get_feature_by_topic(n_samples=5000)
     latent_2 = mod.get_latent_representation(n_samples=5000)
