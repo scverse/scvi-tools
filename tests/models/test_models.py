@@ -818,6 +818,10 @@ def test_totalvi(save_path):
     assert model.module.protein_batch_mask is not None
     model.train(1, train_size=0.5)
 
+    model = TOTALVI(adata, override_missing_proteins=True)
+    assert model.module.protein_batch_mask is None
+    model.train(1, train_size=0.5)
+
 
 def test_totalvi_model_library_size(save_path):
     adata = synthetic_iid()
