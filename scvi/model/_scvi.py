@@ -10,7 +10,7 @@ from scvi.data.anndata._utils import _setup_anndata
 from scvi.data.anndata.fields import (
     CategoricalObsField,
     LayerField,
-    NonCategoricalJointObsField,
+    NumericalJointObsField,
 )
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
@@ -194,9 +194,7 @@ class SCVI(
             LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
             CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
-            NonCategoricalJointObsField(
-                _CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
+            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields)
         adata_manager.register_fields(adata)

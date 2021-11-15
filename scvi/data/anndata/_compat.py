@@ -3,8 +3,8 @@ from anndata import AnnData
 from scvi._constants import _CONSTANTS
 
 from . import _constants
-from ._fields import CategoricalObsField, LayerField, NonCategoricalJointObsField
 from ._manager import AnnDataManager
+from .fields import CategoricalObsField, LayerField, NumericalJointObsField
 
 
 def manager_from_setup_dict(
@@ -44,7 +44,7 @@ def manager_from_setup_dict(
             cont_cov_column_key = f"{_CONSTANTS.CONT_COVS_KEY}_keys"
             if cont_cov_column_key in setup_dict:
                 obs_keys = setup_dict[cont_cov_column_key]
-                field = NonCategoricalJointObsField(registry_key, obs_keys)
+                field = NumericalJointObsField(registry_key, obs_keys)
             elif _CONSTANTS.CAT_COVS_KEY in setup_dict:
                 pass
             else:

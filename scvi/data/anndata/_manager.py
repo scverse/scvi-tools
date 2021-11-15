@@ -9,8 +9,8 @@ from anndata import AnnData
 import scvi
 
 from . import _constants
-from ._fields import BaseAnnDataField
 from ._utils import _register_anndata, _verify_and_correct_data_format
+from .fields import BaseAnnDataField
 
 
 class AnnDataManager:

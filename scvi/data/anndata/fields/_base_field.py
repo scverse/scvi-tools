@@ -40,7 +40,13 @@ class BaseAnnDataField(ABC):
     @property
     @abstractmethod
     def is_empty(self) -> bool:
-        """Returns True if the field is empty as a function of its kwargs."""
+        """
+        Returns True if the field is empty as a function of its kwargs.
+
+        A field can be empty if it is composed of a collection of variables, and for a given
+        instance of a model, the collection is empty. If empty, the field will be omitted from
+        the registry, but included in the summary stats dictionary.
+        """
         pass
 
     @abstractmethod

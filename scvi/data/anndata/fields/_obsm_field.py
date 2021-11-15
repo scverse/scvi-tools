@@ -33,6 +33,19 @@ class BaseObsmField(BaseAnnDataField):
 
 
 class JointObsField(BaseObsmField):
+    """
+    An abstract AnnDataField for a collection of .obs fields in the AnnData data structure.
+
+    Creates an .obsm field containing each .obs field to be referenced as a whole a model.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    obs_keys
+        Sequence of keys to combine to form the obsm field.
+    """
+
     def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
         super().__init__(registry_key)
         self._attr_key = f"_scvi_{registry_key}"
@@ -41,11 +54,9 @@ class JointObsField(BaseObsmField):
         self._is_empty = len(self.obs_keys) == 0
 
     def _combine_obs_fields(self, adata: AnnData) -> None:
-        series = []
-        for key in self.obs_keys:
-            s = adata.obs[key]
-            series.append(s)
-        adata.obsm[self.attr_key] = pd.concat(series, axis=1)
+        adata.obsm[self.attr_key] = pd.concat(
+            (adata.obs[key] for key in self.obs_keys), axis=1
+        )
 
     @property
     def obs_keys(self):
@@ -60,9 +71,11 @@ class JointObsField(BaseObsmField):
         return self._is_empty
 
 
-class NonCategoricalJointObsField(JointObsField):
+class NumericalJointObsField(JointObsField):
     """
-    An AnnDataField for non-categorical .obs fields in the AnnData data structure.
+    An AnnDataField for a collection of numerical .obs fields in the AnnData data structure.
+
+    Creates an .obsm field containing each .obs field to be referenced as a whole a model.
 
     Parameters
     ----------
@@ -80,7 +93,6 @@ class NonCategoricalJointObsField(JointObsField):
     def register_field(self, adata: AnnData) -> None:
         super().register_field(adata)
         self._combine_obs_fields(adata)
-        # TODO(jhong): remove if not necessary.
         adata.uns[_constants._SETUP_DICT_KEY][self._columns_key] = self.get_field(
             adata
         ).columns.to_numpy()
