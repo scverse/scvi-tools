@@ -95,9 +95,9 @@ class NumericalJointObsField(JointObsField):
     def register_field(self, adata: AnnData) -> None:
         super().register_field(adata)
         self._combine_obs_fields(adata)
-        adata.uns[_constants._SETUP_DICT_KEY][self._columns_key] = self.get_field(
-            adata
-        ).columns.to_numpy()
+        adata.uns[_constants._SETUP_DICT_KEY][self._columns_key] = adata.obsm[
+            self.attr_key
+        ].columns.to_numpy()
 
     def transfer_field(
         self,
@@ -119,6 +119,8 @@ class CategoricalJointObsField(JointObsField):
     """
     An AnnDataField for a collection of categorical .obs fields in the AnnData data structure.
 
+    Creates an .obsm field containing each .obs field to be referenced as a whole a model.
+
     Parameters
     ----------
     registry_key
@@ -139,18 +141,25 @@ class CategoricalJointObsField(JointObsField):
     def _make_obsm_categorical(
         self, adata: AnnData, category_dict: Optional[Dict[str, List[str]]] = None
     ) -> None:
-        assert self.obs_keys == self.get_field(adata).columns.tolist()
+        if self.obs_keys != adata.obsm[self.attr_key].columns.tolist():
+            raise ValueError(
+                "Original .obs keys do not match the columns in the generated .obsm field."
+            )
+
         categories = dict()
+        obsm_df = adata.obsm[self.attr_key]
         for key in self.obs_keys:
             if category_dict is None:
-                categorical_obs = adata.obs[key].astype("category")
+                categorical_obs = obsm_df[key].astype("category")
                 mapping = categorical_obs.cat.categories.to_numpy(copy=True)
                 categories[key] = mapping
             else:
                 possible_cats = category_dict[key]
-                categorical_obs = adata.obs[key].astype(
+                categorical_obs = obsm_df[key].astype(
                     CategoricalDtype(categories=possible_cats)
                 )
+            obsm_df[key] = categorical_obs.cat.codes
+
         store_cats = categories if category_dict is None else category_dict
 
         mappings_dict = adata.uns[_constants._SETUP_DICT_KEY][self._mappings_key]
