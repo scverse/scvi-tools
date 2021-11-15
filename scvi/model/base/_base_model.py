@@ -370,7 +370,7 @@ class BaseModelClass(ABC):
             model.module.load_state_dict(model_state_dict)
         except RuntimeError as err:
             if isinstance(model.module, PyroBaseModuleClass):
-                old_history = model.history_
+                old_history = model.history_.copy()
                 logger.info("Preparing underlying module for load")
                 model.train(max_steps=1)
                 model.history_ = old_history
