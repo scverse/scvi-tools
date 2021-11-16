@@ -181,7 +181,7 @@ class DecoderADT(torch.nn.Module):
 
 class MULTIVAE(BaseModuleClass):
     """
-    Variational auto-encoder model for joint paired + unpaired RNA-seq and ATAC-seq data.
+    Variational auto-encoder model for joint paired + unpaired RNA-seq, ATAC-seq, and CITE-seq data.
 
     Parameters
     ----------
@@ -237,7 +237,6 @@ class MULTIVAE(BaseModuleClass):
         Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional RNA distribution.
     """
 
-    ## TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes forst or that they're even contiguous)
     def __init__(
         self,
         n_input_regions: int = 0,
@@ -266,6 +265,7 @@ class MULTIVAE(BaseModuleClass):
     ):
         super().__init__()
 
+        # ####################################################################
         # INIT PARAMS
         self.n_input_regions = n_input_regions
         self.n_input_genes = n_input_genes
@@ -277,7 +277,6 @@ class MULTIVAE(BaseModuleClass):
         )
         self.n_batch = n_batch
 
-        self.gene_likelihood = gene_likelihood
         self.latent_distribution = latent_distribution
 
         self.n_latent = int(np.sqrt(self.n_hidden)) if n_latent is None else n_latent
@@ -295,6 +294,118 @@ class MULTIVAE(BaseModuleClass):
         self.deeply_inject_covariates = deeply_inject_covariates
         self.use_size_factor_key = use_size_factor_key
 
+        cat_list = (
+            [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
+        )
+        encoder_cat_list = cat_list if encode_covariates else None
+        n_input_decoder = self.n_latent + self.n_continuous_cov
+        # ####################################################################
+
+        # ####################################################################
+        # RNA
+        # expression encoder
+        if self.n_input_genes == 0:
+            input_exp = 1
+        else:
+            input_exp = self.n_input_genes
+        n_input_encoder_exp = input_exp + n_continuous_cov * encode_covariates
+
+        self.gene_likelihood = gene_likelihood
+        self.z_encoder_expression = Encoder(
+            n_input=n_input_encoder_exp,
+            n_layers=self.n_layers_encoder,
+            n_output=self.n_latent,
+            n_hidden=self.n_hidden,
+            n_cat_list=encoder_cat_list,
+            dropout_rate=self.dropout_rate,
+            activation_fn=torch.nn.LeakyReLU,
+            distribution=self.latent_distribution,
+            var_eps=0,
+            use_batch_norm=self.use_batch_norm_encoder,
+            use_layer_norm=self.use_layer_norm_encoder,
+        )
+
+        # expression decoder
+        self.z_decoder_expression = DecoderSCVI(
+            n_input_decoder,
+            n_input_genes,
+            n_cat_list=cat_list,
+            n_layers=n_layers_decoder,
+            n_hidden=self.n_hidden,
+            inject_covariates=self.deeply_inject_covariates,
+            use_batch_norm=self.use_batch_norm_decoder,
+            use_layer_norm=self.use_layer_norm_decoder,
+        )
+
+        # expression dispersion parameters
+        self.px_r = torch.nn.Parameter(torch.randn(n_input_genes))
+
+        # expression library size encoder
+        self.l_encoder_expression = LibrarySizeEncoder(
+            n_input_encoder_exp,
+            n_cat_list=encoder_cat_list,
+            n_layers=self.n_layers_encoder,
+            n_hidden=self.n_hidden,
+            use_batch_norm=self.use_batch_norm_encoder,
+            use_layer_norm=self.use_layer_norm_encoder,
+            deep_inject_covariates=self.deeply_inject_covariates,
+        )
+        # ####################################################################
+
+        # ####################################################################
+        # ACCESSIBILITY
+        # accessibility encoder
+        if self.n_input_regions == 0:
+            input_acc = 1
+        else:
+            input_acc = self.n_input_regions
+        n_input_encoder_acc = input_acc + n_continuous_cov * encode_covariates
+
+        self.z_encoder_accessibility = Encoder(
+            n_input=n_input_encoder_acc,
+            n_layers=self.n_layers_encoder,
+            n_output=self.n_latent,
+            n_hidden=self.n_hidden,
+            n_cat_list=encoder_cat_list,
+            dropout_rate=self.dropout_rate,
+            activation_fn=torch.nn.LeakyReLU,
+            distribution=self.latent_distribution,
+            var_eps=0,
+            use_batch_norm=self.use_batch_norm_encoder,
+            use_layer_norm=self.use_layer_norm_encoder,
+        )
+
+        # accessibility decoder
+        self.z_decoder_accessibility = DecoderPeakVI(
+            n_input=n_input_decoder,
+            n_output=n_input_regions,
+            n_hidden=self.n_hidden,
+            n_cat_list=cat_list,
+            n_layers=self.n_layers_decoder,
+            use_batch_norm=self.use_batch_norm_decoder,
+            use_layer_norm=self.use_layer_norm_decoder,
+            deep_inject_covariates=self.deeply_inject_covariates,
+        )
+
+        # accessibility region-specific factors
+        self.region_factors = None
+        if region_factors:
+            self.region_factors = torch.nn.Parameter(torch.zeros(input_acc))
+
+        # accessibility library size encoder
+        self.l_encoder_accessibility = DecoderPeakVI(
+            n_input=n_input_encoder_acc,
+            n_output=1,
+            n_hidden=self.n_hidden,
+            n_cat_list=encoder_cat_list,
+            n_layers=self.n_layers_encoder,
+            use_batch_norm=self.use_batch_norm_encoder,
+            use_layer_norm=self.use_layer_norm_encoder,
+            deep_inject_covariates=self.deeply_inject_covariates,
+        )
+        # ####################################################################
+
+        # ####################################################################
         # PROTEIN
         self.protein_dispersion = protein_dispersion
         self.protein_batch_mask = protein_batch_mask
@@ -327,51 +438,12 @@ class MULTIVAE(BaseModuleClass):
                 torch.log(torch.from_numpy(init_scale.astype(np.float32)))
             )
 
-        cat_list = (
-            [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
-        )
-
-        ## ENCODERS
-        n_input_encoder_acc = (
-            self.n_input_regions + n_continuous_cov * encode_covariates
-        )
-        n_input_encoder_exp = self.n_input_genes + n_continuous_cov * encode_covariates
-        n_input_encoder_pro = (
-            self.n_input_proteins + n_continuous_cov * encode_covariates
-        )
-        encoder_cat_list = cat_list if encode_covariates else None
-
-        ## accessibility encoder
-        self.z_encoder_accessibility = Encoder(
-            n_input=n_input_encoder_acc,
-            n_layers=self.n_layers_encoder,
-            n_output=self.n_latent,
-            n_hidden=self.n_hidden,
-            n_cat_list=encoder_cat_list,
-            dropout_rate=self.dropout_rate,
-            activation_fn=torch.nn.LeakyReLU,
-            distribution=self.latent_distribution,
-            var_eps=0,
-            use_batch_norm=self.use_batch_norm_encoder,
-            use_layer_norm=self.use_layer_norm_encoder,
-        )
-
-        ## expression encoder
-        self.z_encoder_expression = Encoder(
-            n_input=n_input_encoder_exp,
-            n_layers=self.n_layers_encoder,
-            n_output=self.n_latent,
-            n_hidden=self.n_hidden,
-            n_cat_list=encoder_cat_list,
-            dropout_rate=self.dropout_rate,
-            activation_fn=torch.nn.LeakyReLU,
-            distribution=self.latent_distribution,
-            var_eps=0,
-            use_batch_norm=self.use_batch_norm_encoder,
-            use_layer_norm=self.use_layer_norm_encoder,
-        )
-
         ## protein encoder
+        if self.n_input_proteins == 0:
+            input_pro = 1
+        else:
+            input_pro = self.n_input_proteins
+        n_input_encoder_pro = input_pro + n_continuous_cov * encode_covariates
         self.z_encoder_protein = Encoder(
             n_input=n_input_encoder_pro,
             n_layers=self.n_layers_encoder
@@ -388,33 +460,6 @@ class MULTIVAE(BaseModuleClass):
             use_layer_norm=self.use_layer_norm_encoder,
         )
 
-        # DECODERS
-        n_input_decoder = self.n_latent + self.n_continuous_cov
-        # expression decoder
-        self.z_decoder_expression = DecoderSCVI(
-            n_input_decoder,
-            n_input_genes,
-            n_cat_list=cat_list,
-            n_layers=n_layers_decoder,
-            n_hidden=self.n_hidden,
-            inject_covariates=self.deeply_inject_covariates,
-            use_batch_norm=self.use_batch_norm_decoder,
-            use_layer_norm=self.use_layer_norm_decoder,
-            scale_activation="softplus" if use_size_factor_key else "softmax",
-        )
-
-        # accessibility decoder
-        self.z_decoder_accessibility = DecoderPeakVI(
-            n_input=n_input_decoder,
-            n_output=n_input_regions,
-            n_hidden=self.n_hidden,
-            n_cat_list=cat_list,
-            n_layers=self.n_layers_decoder,
-            use_batch_norm=self.use_batch_norm_decoder,
-            use_layer_norm=self.use_layer_norm_decoder,
-            deep_inject_covariates=self.deeply_inject_covariates,
-        )
-
         # protein decoder
         self.z_decoder_pro = DecoderADT(
             n_input=n_input_decoder,
@@ -427,54 +472,23 @@ class MULTIVAE(BaseModuleClass):
             deep_inject_covariates=self.deeply_inject_covariates,
         )
 
-        ## accessibility region-specific factors
-        self.region_factors = None
-        if region_factors:
-            self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
-
-        ## expression dispersion parameters
-        self.px_r = torch.nn.Parameter(torch.randn(n_input_genes))
-
-        ## expression library size encoder
-        self.l_encoder_expression = LibrarySizeEncoder(
-            n_input_encoder_exp,
-            n_cat_list=encoder_cat_list,
-            n_layers=self.n_layers_encoder,
-            n_hidden=self.n_hidden,
-            use_batch_norm=self.use_batch_norm_encoder,
-            use_layer_norm=self.use_layer_norm_encoder,
-            deep_inject_covariates=self.deeply_inject_covariates,
-        )
-
-        ## accessibility library size encoder
-        self.l_encoder_accessibility = DecoderPeakVI(
-            n_input=n_input_encoder_acc,
-            n_output=1,
-            n_hidden=self.n_hidden,
-            n_cat_list=encoder_cat_list,
-            n_layers=self.n_layers_encoder,
-            use_batch_norm=self.use_batch_norm_encoder,
-            use_layer_norm=self.use_layer_norm_encoder,
-            deep_inject_covariates=self.deeply_inject_covariates,
-        )
-
-        ## protein dispersion parameters
+        # protein dispersion parameters
         if self.protein_dispersion == "protein":
             self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins))
         elif self.protein_dispersion == "protein-batch":
-            self.py_r = torch.nn.Parameter(
-                2 * torch.rand(self.n_input_proteins, n_batch)
-            )
+            self.py_r = torch.nn.Parameter(2 * torch.rand(input_pro, n_batch))
         elif self.protein_dispersion == "protein-label":
-            self.py_r = torch.nn.Parameter(
-                2 * torch.rand(self.n_input_proteins, n_labels)
-            )
+            self.py_r = torch.nn.Parameter(2 * torch.rand(input_pro, n_labels))
         else:  # protein-cell
             pass
+        # ####################################################################
 
     def _get_inference_input(self, tensors):
         x = tensors[REGISTRY_KEYS.X_KEY]
-        y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
+        if self.n_input_proteins == 0:
+            y = torch.zeros(x.shape[0], 1)
+        else:
+            y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY)
         cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY)
@@ -499,8 +513,14 @@ class MULTIVAE(BaseModuleClass):
     ) -> Dict[str, torch.Tensor]:
 
         # Get Data and Additional Covs
-        x_rna = x[:, :self.n_input_genes]
-        x_chr = x[:, self.n_input_genes:]
+        if self.n_input_genes == 0:
+            x_rna = torch.zeros(x.shape[0], 1)
+        else:
+            x_rna = x[:, : self.n_input_genes]
+        if self.n_input_regions == 0:
+            x_chr = torch.zeros(x.shape[0], 1)
+        else:
+            x_chr = x[:, self.n_input_genes :]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
@@ -740,11 +760,19 @@ class MULTIVAE(BaseModuleClass):
     ):
         # Get the data
         x = tensors[REGISTRY_KEYS.X_KEY]
-        y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
+        if self.n_input_genes == 0:
+            x_rna = torch.zeros(x.shape[0], 1)
+        else:
+            x_rna = x[:, : self.n_input_genes]
+        if self.n_input_regions == 0:
+            x_chr = torch.zeros(x.shape[0], 1)
+        else:
+            x_chr = x[:, self.n_input_genes :]
+        if self.n_input_proteins == 0:
+            y = torch.zeros(x.shape[0], 1)
+        else:
+            y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
-        x_rna = x[:, : self.n_input_genes]
-        x_chr = x[:, self.n_input_genes :]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
@@ -761,27 +789,36 @@ class MULTIVAE(BaseModuleClass):
                 )
 
         # Compute Accessibility loss
-        x_accessibility = x[:, self.n_input_genes :]
-        p = generative_outputs["p"]
-        libsize_acc = inference_outputs["libsize_acc"]
-        rl_accessibility = self.get_reconstruction_loss_accessibility(
-            x_accessibility, p, libsize_acc
-        )
+        if self.n_input_regions == 0:
+            rl_accessibility = torch.zeros(x.shape[0])
+        else:
+            x_accessibility = x[:, self.n_input_genes :]
+            p = generative_outputs["p"]
+            libsize_acc = inference_outputs["libsize_acc"]
+            rl_accessibility = self.get_reconstruction_loss_accessibility(
+                x_accessibility, p, libsize_acc
+            )
 
         # Compute Expression loss
-        px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px_r"]
-        px_dropout = generative_outputs["px_dropout"]
-        x_expression = x[:, : self.n_input_genes]
-        rl_expression = self.get_reconstruction_loss_expression(
-            x_expression, px_rate, px_r, px_dropout
-        )
+        if self.n_input_genes == 0:
+            rl_expression = torch.zeros(x.shape[0])
+        else:
+            px_rate = generative_outputs["px_rate"]
+            px_r = generative_outputs["px_r"]
+            px_dropout = generative_outputs["px_dropout"]
+            x_expression = x[:, : self.n_input_genes]
+            rl_expression = self.get_reconstruction_loss_expression(
+                x_expression, px_rate, px_r, px_dropout
+            )
 
         # Compute Protein loss
-        py_ = generative_outputs["py_"]
-        rl_protein = self.get_reconstruction_loss_protein(
-            y, py_, pro_batch_mask_minibatch
-        )
+        if self.n_input_proteins == 0:
+            rl_protein = torch.zeros(x.shape[0])
+        else:
+            py_ = generative_outputs["py_"]
+            rl_protein = self.get_reconstruction_loss_protein(
+                y, py_, pro_batch_mask_minibatch
+            )
 
         # mix losses to get the correct loss for each cell
         recon_loss = self._mix_modalities123(
@@ -800,10 +837,7 @@ class MULTIVAE(BaseModuleClass):
         # Compute KLD between Z and N(0,I)
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]
-        kl_div_z = kld(
-            Normal(qz_m, torch.sqrt(qz_v)),
-            Normal(0, 1),
-        ).sum(dim=1)
+        kl_div_z = kld(Normal(qz_m, torch.sqrt(qz_v)), Normal(0, 1)).sum(dim=1)
 
         # Compute KLD between distributions for paired data
         qzm_expr = inference_outputs["qzm_expr"]
@@ -820,6 +854,7 @@ class MULTIVAE(BaseModuleClass):
 
             return out
 
+        """
         kld_paired = (
             symKLd(qzm_expr, qzv_expr, qzm_acc, qzv_acc)
             + symKLd(qzm_expr, qzv_expr, qzm_pro, qzv_pro)
@@ -842,19 +877,34 @@ class MULTIVAE(BaseModuleClass):
             kld_paired.T,
             torch.zeros_like(kld_paired).T,
         ).sum(dim=0)
+        """
+        symKLd12 = symKLd(qzm_expr, qzv_expr, qzm_acc, qzv_acc)
+        symKLd13 = symKLd(qzm_expr, qzv_expr, qzm_pro, qzv_pro)
+        symKLd23 = symKLd(qzm_acc, qzv_acc, qzm_pro, qzv_pro)
+
+        kld_paired = self._mix_modalities123(
+            symKLd12 + symKLd13 + symKLd23,
+            symKLd12,
+            symKLd23,
+            symKLd13,
+            torch.zeros(x.shape[0]),
+            torch.zeros(x.shape[0]),
+            torch.zeros(x.shape[0]),
+            mask_expr,
+            mask_acc,
+            mask_pro,
+        ).sum(dim=1)
 
         # KL WARMUP
         kl_local_for_warmup = kl_div_z
         weighted_kl_local = kl_weight * kl_local_for_warmup
-
-        # PENALTY
-        # distance_penalty = kl_weight * torch.pow(z_acc - z_expr, 2).sum(dim=1)
 
         # TOTAL LOSS
         loss = torch.mean(recon_loss + weighted_kl_local + kld_paired)
 
         kl_local = dict(kl_divergence_z=kl_div_z)
         kl_global = torch.tensor(0.0)
+
         return LossRecorder(loss, recon_loss, kl_local, kl_global)
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
@@ -901,39 +951,47 @@ class MULTIVAE(BaseModuleClass):
         return rl_protein
 
     @staticmethod
-    def _mix_modalities12(x_12, x_1, x_2, mask_1, mask_2):
+    def _mix_modalities123(
+        x_123, x_12, x_13, x_23, x_1, x_2, x_3, mask_1, mask_2, mask_3
+    ):
         """
         Mixes modality-specific vectors according to the modality masks.
 
-        in positions where both `mask_1` and `mask_2` are True (corresponding to cell
-        for which both modality data is available), values from `x_12`
-        will be used. If only `mask_1` is True, use values from `x_1`, and if only
-        `mask_2` is True, use values from `x_2`.
+        In positions where both `mask_1` and `mask_2` are True (corresponding to cell
+        for which both modality data is available), values from `x_12` will be used, etc.
+        If only `mask_1` is True, use values from `x_1`, and if only `mask_2` is True, use values from `x_2`.
 
         Parameters
         ----------
-        x_12
-            the values for paired cells (both modalities available), will be used in
+        x_123
+            the values for fully paired cells (all modalities available), will be used in
             positions where both `mask_expr` and `mask_acc` are True.
+        x_12
+            the values for partially paired cells, will be used in
+            positions where both `mask_expr` and `mask_acc` are True.
+        x_13
+            the values for partially paired cells, will be used in
+            positions where both `mask_expr` and `mask_prot` are True.
+        x_23
+            the values for paired cells (both modalities available), will be used in
+            positions where both `mask_prot` and `mask_acc` are True.
         x_1
             the values for modality1-only cells, will be used in positions where
             only `mask_1` is True.
         x_2
             the values for modality2-only cells, will be used on positions where
             only `mask_2` is True.
+        x_3
+            the values for modality3-only cells, will be used on positions where
+            only `mask_3` is True.
         mask_1
             the mask for modality 1, indicating which cells have modality 1 data
         mask_2
             the mask for modality 2, indicating which cells have modality 2 data
+        mask_3
+            the mask for modality 3, indicating which cells have modality 3 data
         """
-        x = torch.where(mask_1.T, x_1.T, x_2.T).T
-        x = torch.where(torch.logical_and(mask_2, mask_1), x_12.T, x.T).T
-        return x
 
-    @staticmethod
-    def _mix_modalities123(
-        x_123, x_12, x_13, x_23, x_1, x_2, x_3, mask_1, mask_2, mask_3
-    ):
         # Single Modality
         x = torch.where(mask_1.T, x_1.T, x_2.T).T
         x = torch.where(mask_3.T, x_3.T, x.T).T

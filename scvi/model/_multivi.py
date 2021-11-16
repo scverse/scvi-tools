@@ -203,6 +203,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
         self.n_genes = n_genes
+        self.n_regions = n_regions
+        self.n_proteins = n_proteins
 
     def train(
         self,
@@ -343,24 +345,37 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size
         )
 
-        lib_exp = []
-        lib_acc = []
-        for tensors in scdl:
-            outputs = self.module.inference(**self.module._get_inference_input(tensors))
-            lib_exp.append(outputs["libsize_expr"].cpu())
-            lib_acc.append(outputs["libsize_acc"].cpu())
+        out = {}
+        if self.n_genes > 0:
+            lib_exp = []
+            for tensors in scdl:
+                outputs = self.module.inference(
+                    **self.module._get_inference_input(tensors)
+                )
+                lib_exp.append(outputs["libsize_expr"].cpu())
+                out["expression"] = torch.cat(lib_exp).numpy().squeeze()
 
-        return {
-            "expression": torch.cat(lib_exp).numpy().squeeze(),
-            "accessibility": torch.cat(lib_acc).numpy().squeeze(),
-        }
+        if self.n_regions > 0:
+            lib_acc = []
+            for tensors in scdl:
+                outputs = self.module.inference(
+                    **self.module._get_inference_input(tensors)
+                )
+                lib_acc.append(outputs["libsize_acc"].cpu())
+                out["accessibility"] = torch.cat(lib_acc).numpy().squeeze()
+
+        return out
 
     @torch.no_grad()
     def get_region_factors(self) -> np.ndarray:
         """Return region-specific factors."""
         if self.module.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
-        return torch.sigmoid(self.module.region_factors).cpu().numpy()
+
+        if self.n_regions == 0:
+            return np.zeros(1)
+        else:
+            return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
     @torch.no_grad()
     def get_latent_representation(
@@ -450,47 +465,11 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         normalize_cells: bool = False,
         normalize_regions: bool = False,
         batch_size: int = 128,
-        return_numpy: bool = False,
-    ) -> Union[np.ndarray, csr_matrix, pd.DataFrame]:
-        """
-        Impute the full accessibility matrix.
+    ) -> Union[np.ndarray, csr_matrix]:
 
-        Returns a matrix of accessibility probabilities for each cell and genomic region in the input
-        (for return matrix A, A[i,j] is the probability that region j is accessible in cell i).
+        if self.n_regions == 0:
+            return np.zeros(1)
 
-        Parameters
-        ----------
-        adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
-            AnnData object used to initialize the model.
-        indices
-            Indices of cells in adata to use. If `None`, all cells are used.
-        n_samples_overall
-            Number of samples to return in total
-        region_indices
-            Indices of regions to use. if `None`, all regions are used.
-        transform_batch
-            Batch to condition on.
-            If transform_batch is:
-
-            - None, then real observed batch is used
-            - int, then batch transform_batch is used
-        use_z_mean
-            If True (default), use the distribution mean. Otherwise, sample from the distribution.
-        threshold
-            If provided, values below the threshold are replaced with 0 and a sparse matrix
-            is returned instead. This is recommended for very large matrices. Must be between 0 and 1.
-        normalize_cells
-            Whether to reintroduce library size factors to scale the normalized probabilities.
-            This makes the estimates closer to the input, but removes the library size correction.
-            False by default.
-        normalize_regions
-            Whether to reintroduce region factors to scale the normalized probabilities. This makes
-            the estimates closer to the input, but removes the region-level bias correction. False by
-            default.
-        batch_size
-            Minibatch size for data loading into model
-        """
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata, required=True)
         if indices is None:
