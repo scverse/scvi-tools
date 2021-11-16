@@ -61,7 +61,8 @@ scvi-tools contains the building blocks to develop and deploy novel probablistic
 models. These building blocks are powered by popular probabilistic and
 machine learning frameworks such as [PyTorch
 Lightning](https://www.pytorchlightning.ai/) and
-[Pyro](https://pyro.ai/).
+[Pyro](https://pyro.ai/). For an overview of how the scvi-tools package
+is structured, you may refer to [this](https://docs.scvi-tools.org/en/stable/user_guide/background/codebase_overview.html) page.
 
 We recommend checking out the [skeleton
 repository](https://github.com/YosefLab/scvi-tools-skeleton) as a
