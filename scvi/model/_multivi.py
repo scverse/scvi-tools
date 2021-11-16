@@ -188,6 +188,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
         self.n_genes = n_genes
+        self.n_regions = n_regions
+        self.n_proteins = n_proteins
+
 
     def train(
         self,
@@ -311,23 +314,32 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size
         )
 
-        lib_exp = []
-        lib_acc = []
-        for tensors in scdl:
-            outputs = self.module.inference(**self.module._get_inference_input(tensors))
-            lib_exp.append(outputs["libsize_expr"].cpu())
-            lib_acc.append(outputs["libsize_acc"].cpu())
+        out = {}
+        if self.n_genes > 0:
+            lib_exp = []
+            for tensors in scdl:
+                outputs = self.module.inference(**self.module._get_inference_input(tensors))
+                lib_exp.append(outputs["libsize_expr"].cpu())
+                out["expression"] = torch.cat(lib_exp).numpy().squeeze()
 
-        return {
-            "expression": torch.cat(lib_exp).numpy().squeeze(),
-            "accessibility": torch.cat(lib_acc).numpy().squeeze(),
-        }
+        if self.n_regions > 0:
+            lib_acc = []
+            for tensors in scdl:
+                outputs = self.module.inference(**self.module._get_inference_input(tensors))
+                lib_acc.append(outputs["libsize_acc"].cpu())
+                out["accessibility"] = torch.cat(lib_acc).numpy().squeeze()
+
+        return out
 
     @torch.no_grad()
     def get_region_factors(self) -> np.ndarray:
         if self.module.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
-        return torch.sigmoid(self.module.region_factors).cpu().numpy()
+
+        if self.n_regions == 0:
+            return np.zeros(1)
+        else:
+            return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
     @torch.no_grad()
     def get_latent_representation(
@@ -396,6 +408,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         normalize_regions: bool = False,
         batch_size: int = 128,
     ) -> Union[np.ndarray, csr_matrix]:
+
+        if self.n_regions == 0:
+            return np.zeros(1)
+
         adata = self._validate_anndata(adata)
         if indices is None:
             indices = np.arange(adata.n_obs)
