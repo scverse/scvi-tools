@@ -1,0 +1,30 @@
+New in 0.14.4 (2021-11-16)
+--------------------------
+
+Bug fixes, some tutorial improvements.
+
+Changes
+~~~~~~~
+- `kl_weight` handling for Pyro-based models (`#1242`_).
+- Allow override of missing protein inference in :class:`~scvi.model.TOTALVI` (`#1251`_). This allows to treat all 0s in a particular batch for one protein as biologically valid.
+- Fix load documentation (e.g., :meth:`~scvi.model.SCVI.load`, :meth:`~scvi.model.TOTALVI.load`) (`#1253`_).
+- Fix model history on load with Pyro-based models (`#1255`_).
+- Model construction tutorial uses new static setup anndata (`#1257`_).
+- Add codebase overview figure to docs (`#1231`_).
+
+Contributors
+~~~~~~~~~~~~
+- `@adamgayoso`_
+- `@jjhong922`_
+- `@watiss`_
+
+.. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@jjhong922`: https://github.com/jjhong922
+.. _`@watiss`: https://github.com/watiss
+
+.. _`#1242` : https://github.com/YosefLab/scvi-tools/pull/1242
+.. _`#1251` : https://github.com/YosefLab/scvi-tools/pull/1251
+.. _`#1253` : https://github.com/YosefLab/scvi-tools/pull/1253
+.. _`#1255` : https://github.com/YosefLab/scvi-tools/pull/1255
+.. _`#1257` : https://github.com/YosefLab/scvi-tools/pull/1257
+.. _`#1231` : https://github.com/YosefLab/scvi-tools/pull/1231
