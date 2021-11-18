@@ -486,7 +486,7 @@ class MULTIVAE(BaseModuleClass):
     def _get_inference_input(self, tensors):
         x = tensors[REGISTRY_KEYS.X_KEY]
         if self.n_input_proteins == 0:
-            y = torch.zeros(x.shape[0], 1)
+            y = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -514,11 +514,11 @@ class MULTIVAE(BaseModuleClass):
 
         # Get Data and Additional Covs
         if self.n_input_genes == 0:
-            x_rna = torch.zeros(x.shape[0], 1)
+            x_rna = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             x_rna = x[:, : self.n_input_genes]
         if self.n_input_regions == 0:
-            x_chr = torch.zeros(x.shape[0], 1)
+            x_chr = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             x_chr = x[:, self.n_input_genes :]
 
@@ -625,7 +625,7 @@ class MULTIVAE(BaseModuleClass):
             mask_acc,
             mask_pro,
         )
-        
+
         qz_v = self._mix_modalities123(
             qzp_v123,
             qzp_v12,
@@ -762,15 +762,15 @@ class MULTIVAE(BaseModuleClass):
         # Get the data
         x = tensors[REGISTRY_KEYS.X_KEY]
         if self.n_input_genes == 0:
-            x_rna = torch.zeros(x.shape[0], 1)
+            x_rna = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             x_rna = x[:, : self.n_input_genes]
         if self.n_input_regions == 0:
-            x_chr = torch.zeros(x.shape[0], 1)
+            x_chr = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             x_chr = x[:, self.n_input_genes :]
         if self.n_input_proteins == 0:
-            y = torch.zeros(x.shape[0], 1)
+            y = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -888,9 +888,9 @@ class MULTIVAE(BaseModuleClass):
             symKLd12,
             symKLd23,
             symKLd13,
-            torch.zeros(x.shape[0]),
-            torch.zeros(x.shape[0]),
-            torch.zeros(x.shape[0]),
+            torch.zeros(x.shape[0], device=x.device, requires_grad=False),
+            torch.zeros(x.shape[0], device=x.device, requires_grad=False),
+            torch.zeros(x.shape[0], device=x.device, requires_grad=False),
             mask_expr,
             mask_acc,
             mask_pro,
