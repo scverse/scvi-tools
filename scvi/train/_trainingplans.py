@@ -36,7 +36,17 @@ def _compute_kl_weight(
 
 
 class VIMetrics(Metric):
-    def __init__(self, dist_sync_on_step=False, additional_keys=None):
+    def __init__(self, dist_sync_on_step=False, additional_keys: List = None):
+        """Metric aggregator for scvi-tools experiments.
+
+        A number of metrics commonly used in scvi-tools models are tracked down, as well as additional metrics
+
+        Parameters
+        ----------
+        dist_sync_on_step : bool, optional, by default False
+        additional_keys : List, optional
+            List of additional metric names to track, by default None
+        """
         super().__init__(dist_sync_on_step=dist_sync_on_step)
 
         default_val = torch.tensor(0)
@@ -63,6 +73,7 @@ class VIMetrics(Metric):
         scvi_losses,
         **kwargs,
     ):
+        """Updates all (or some) metrics."""
         n_obs = scvi_losses.reconstruction_loss.shape[0]
         kl_local_sum = scvi_losses.kl_local.sum().detach().cpu()
         kl_global = scvi_losses.kl_global.cpu()
@@ -82,7 +93,7 @@ class VIMetrics(Metric):
         kl_local = self.kl_local.squeeze() / self.n_obs
         kl_global = (
             self.kl_global / self.n_obs
-        )  # Taking mean of kl global accross batches
+        ).squeeze()  # Taking mean of kl global accross batches
         elbo = reconstruction_loss + kl_local + (kl_global / self.n_obs)
         main_metrics = {
             "elbo": elbo,
@@ -90,7 +101,9 @@ class VIMetrics(Metric):
             "kl_local": kl_local,
             "kl_global": kl_global,
         }
-        additional_metrics = {key: getattr(self, key) for key in self.additional_keys}
+        additional_metrics = {
+            key: getattr(self, key).squeeze() for key in self.additional_keys
+        }
         return {**main_metrics, **additional_metrics}
 
 
@@ -584,7 +597,11 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         self.log("train_loss", loss, on_epoch=True)
-        self.train_running_metrics.update(scvi_losses)
+        self.train_running_metrics.update(
+            scvi_losses,
+            classification_loss=scvi_losses.classification_loss.detach(),
+            n_labelled_tensors=scvi_losses.n_labelled_tensors,
+        )
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -603,7 +620,11 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         self.log("validation_loss", loss, on_epoch=True)
-        self.val_running_metrics.update(scvi_losses)
+        self.val_running_metrics.update(
+            scvi_losses,
+            classification_loss=scvi_losses.classification_loss.detach(),
+            n_labelled_tensors=scvi_losses.n_labelled_tensors,
+        )
 
 
 class PyroTrainingPlan(pl.LightningModule):
