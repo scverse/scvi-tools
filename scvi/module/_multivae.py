@@ -625,6 +625,7 @@ class MULTIVAE(BaseModuleClass):
             mask_acc,
             mask_pro,
         )
+        
         qz_v = self._mix_modalities123(
             qzp_v123,
             qzp_v12,
