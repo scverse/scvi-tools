@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchmetrics import MeanMetric, Metric
+from torchmetrics import Metric
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
@@ -567,6 +567,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     ):
         subset_keys = metrics.default_metrics
         all_metrics = super().log_metrics(metrics, mode, subset_keys=subset_keys)
+
+        # Log classification loss is not nan, normalize it
         if not all_metrics["classification_loss"].isnan():
             normalized_classif_loss = (
                 all_metrics["classification_loss"] / all_metrics["n_labelled_tensors"]
