@@ -180,14 +180,13 @@ class CategoricalJointObsField(JointObsField):
         self,
         setup_dict: dict,
         adata_target: AnnData,
+        extend_categories: bool = False,
         **kwargs,
     ) -> None:
         super().transfer_field(setup_dict, adata_target, **kwargs)
 
         if self.is_empty:
             return
-
-        extend_categories = getattr(kwargs, "extend_categories", False)
 
         source_cat_dict = setup_dict[self._mappings_key][
             _constants._JO_CM_MAPPINGS_KEY

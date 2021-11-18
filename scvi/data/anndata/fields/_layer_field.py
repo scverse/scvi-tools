@@ -68,10 +68,8 @@ class LayerField(BaseAnnDataField):
     def register_field(self, adata: AnnData) -> None:
         super().register_field(adata)
 
-    def transfer_field(
-        self, setup_dict: dict, adata_target: AnnData, **_kwargs
-    ) -> None:
-        super().transfer_field(setup_dict, adata_target)
+    def transfer_field(self, setup_dict: dict, adata_target: AnnData, **kwargs) -> None:
+        super().transfer_field(setup_dict, adata_target, **kwargs)
         summary_stats = setup_dict[_constants._SUMMARY_STATS_KEY]
         target_n_vars = adata_target.n_vars
         if target_n_vars != summary_stats["n_vars"]:
