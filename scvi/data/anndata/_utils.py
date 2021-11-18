@@ -630,7 +630,7 @@ def _setup_batch(adata, batch_key):
 def _setup_extra_categorical_covs(
     adata: anndata.AnnData,
     categorical_covariate_keys: List[str],
-    category_dict: Dict[str, List[str]] = None,
+    category_dict: Optional[Dict[str, List[str]]] = None,
 ):
     """
     Setup obsm df for extra categorical covariates.

@@ -29,6 +29,15 @@ _DR_ATTR_KEY = "attr_key"
 _CM_ORIGINAL_KEY = "original_key"
 _CM_MAPPING_KEY = "mapping"
 
+#######################################
+# scVI Joint Obs Categorical Mappings Constants #
+#######################################
+
+_JO_CM_MAPPINGS_KEY = "mappings"
+_JO_CM_KEYS_KEY = "keys"
+_JO_CM_N_CATS_PER_KEY = "n_cats_per_key"
+
+
 ############################
 # AnnData Object Constants #
 ############################
