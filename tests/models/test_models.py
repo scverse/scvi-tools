@@ -44,6 +44,10 @@ from scvi.train import TrainingPlan, TrainRunner
 
 def test_new_setup():
     adata = synthetic_iid(run_setup_anndata=False)
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     adata2 = adata.copy()
     adata3 = adata.copy()
     adata4 = adata.copy()
@@ -51,15 +55,29 @@ def test_new_setup():
         adata,
         batch_key="batch",
         labels_key="labels",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
     )
 
-    SCVI.setup_anndata(adata2, batch_key="batch", labels_key="labels")
+    SCVI.setup_anndata(
+        adata2,
+        batch_key="batch",
+        labels_key="labels",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
     assert not _check_anndata_setup_equivalence(adata, adata2)
+    assert adata.obsm["_scvi_extra_categoricals"].equals(
+        adata2.obsm["_scvi_extra_categoricals"]
+    )
     adata_manager = SCVI.manager_store[adata2.uns[_constants._SCVI_UUID_KEY]]
     adata_manager.transfer_setup(adata3)
     assert not _check_anndata_setup_equivalence(adata, adata3)
     manager_from_setup_dict(adata4, adata_manager.get_setup_dict())
     assert not _check_anndata_setup_equivalence(adata, adata4)
+
+    model = SCVI(adata2, n_latent=5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
 
 def test_scvi(save_path):
