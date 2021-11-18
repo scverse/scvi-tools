@@ -5,9 +5,14 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi._constants import _CONSTANTS
-from scvi.data.anndata._fields import CategoricalObsField, LayerField
 from scvi.data.anndata._manager import AnnDataManager
 from scvi.data.anndata._utils import _setup_anndata
+from scvi.data.anndata.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+)
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
@@ -102,7 +107,7 @@ class SCVI(
             n_input=self.summary_stats["n_vars"],
             n_batch=n_batch,
             n_labels=self.summary_stats["n_labels"],
-            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_continuous_cov=self.summary_stats["n_extra_continuous"],
             n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
             n_latent=n_latent,
@@ -174,6 +179,8 @@ class SCVI(
         adata: AnnData,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
         layer: Optional[str] = None,
     ):
         """
@@ -189,6 +196,10 @@ class SCVI(
             LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
             CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            CategoricalJointObsField(
+                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields)
         adata_manager.register_fields(adata)

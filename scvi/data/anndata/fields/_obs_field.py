@@ -35,6 +35,10 @@ class BaseObsField(BaseAnnDataField):
     def attr_key(self):
         return self._attr_key
 
+    @property
+    def is_empty(self) -> bool:
+        return False
+
 
 class CategoricalObsField(BaseObsField):
     """
@@ -49,10 +53,9 @@ class CategoricalObsField(BaseObsField):
     """
 
     def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
-        super().__init__(registry_key, obs_key)
         self.is_default = obs_key is None
         self._original_attr_key = obs_key or self.registry_key
-        self._attr_key = f"_scvi_{self._original_attr_key}"
+        super().__init__(registry_key, f"_scvi_{self._original_attr_key}")
 
     def _setup_default_attr(self, adata: AnnData) -> None:
         adata.obs[self.attr_key] = np.zeros(adata.shape[0], dtype=np.int64)
@@ -72,11 +75,10 @@ class CategoricalObsField(BaseObsField):
         self,
         setup_dict: dict,
         adata_target: AnnData,
+        extend_categories: bool = False,
         **kwargs,
     ) -> None:
         super().transfer_field(setup_dict, adata_target, **kwargs)
-
-        extend_categories = getattr(kwargs, "extend_categories", False)
 
         if self.is_default:
             self._setup_default_attr(adata_target)
