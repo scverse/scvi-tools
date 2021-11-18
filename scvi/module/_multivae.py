@@ -783,7 +783,7 @@ class MULTIVAE(BaseModuleClass):
 
         # Compute Accessibility loss
         if self.n_input_regions == 0:
-            rl_accessibility = torch.zeros(x.shape[0])
+            rl_accessibility = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             x_accessibility = x[:, self.n_input_genes :]
             p = generative_outputs["p"]
@@ -794,7 +794,7 @@ class MULTIVAE(BaseModuleClass):
 
         # Compute Expression loss
         if self.n_input_genes == 0:
-            rl_expression = torch.zeros(x.shape[0])
+            rl_expression = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             px_rate = generative_outputs["px_rate"]
             px_r = generative_outputs["px_r"]
@@ -806,7 +806,7 @@ class MULTIVAE(BaseModuleClass):
 
         # Compute Protein loss
         if self.n_input_proteins == 0:
-            rl_protein = torch.zeros(x.shape[0])
+            rl_protein = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             py_ = generative_outputs["py_"]
             rl_protein = self.get_reconstruction_loss_protein(
