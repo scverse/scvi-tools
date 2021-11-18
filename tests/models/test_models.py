@@ -34,6 +34,7 @@ from scvi.model import (
     SCVI,
     TOTALVI,
     CondSCVI,
+    CycleModel,
     DestVI,
     LinearSCVI,
 )
@@ -972,6 +973,13 @@ def test_multivi():
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
     vae.differential_expression(groupby="labels", group1="label_1")
+
+
+def test_cycle():
+    adata = synthetic_iid(run_setup_anndata=False)
+    CycleModel.setup_anndata(adata, batch_key="batch")
+    model = CycleModel(adata)
+    model.train(10)
 
 
 def test_early_stopping():

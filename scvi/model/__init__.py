@@ -1,6 +1,7 @@
 from ._amortizedlda import AmortizedLDA
 from ._autozi import AUTOZI
 from ._condscvi import CondSCVI
+from ._cycle import CycleModel
 from ._destvi import DestVI
 from ._linear_scvi import LinearSCVI
 from ._multivi import MULTIVI
@@ -20,4 +21,5 @@ __all__ = [
     "DestVI",
     "MULTIVI",
     "AmortizedLDA",
+    "CycleModel",
 ]

@@ -107,7 +107,7 @@ class BaseModuleClass(nn.Module):
         inference_kwargs: Optional[dict] = None,
         generative_kwargs: Optional[dict] = None,
         loss_kwargs: Optional[dict] = None,
-        compute_loss=True,
+        compute_loss: bool = True,
     ) -> Union[
         Tuple[torch.Tensor, torch.Tensor],
         Tuple[torch.Tensor, torch.Tensor, LossRecorder],
