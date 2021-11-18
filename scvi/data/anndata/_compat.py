@@ -1,8 +1,13 @@
 from anndata import AnnData
 
 from . import _constants
-from ._fields import CategoricalObsField, LayerField
 from ._manager import AnnDataManager
+from .fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+)
 
 
 def manager_from_setup_dict(
@@ -38,6 +43,18 @@ def manager_from_setup_dict(
         elif attr_name == _constants._ADATA_ATTRS.OBS:
             original_key = categorical_mappings[attr_key][_constants._CM_ORIGINAL_KEY]
             field = CategoricalObsField(registry_key, original_key)
+        elif attr_name == _constants._ADATA_ATTRS.OBSM:
+            cont_cov_column_key = f"{registry_key}_keys"
+            if cont_cov_column_key in setup_dict:
+                obs_keys = setup_dict[cont_cov_column_key]
+                field = NumericalJointObsField(registry_key, obs_keys)
+            elif registry_key in setup_dict:
+                obs_keys = setup_dict[registry_key][_constants._JO_CM_KEYS_KEY]
+                field = CategoricalJointObsField(registry_key, obs_keys)
+            else:
+                raise NotImplementedError(
+                    f"Unrecognized .obsm attribute {attr_key}. Backwards compatibility unavailable."
+                )
         else:
             raise NotImplementedError(
                 f"Backwards compatibility for attribute {attr_name} is not implemented yet."

@@ -9,8 +9,8 @@ from anndata import AnnData
 import scvi
 
 from . import _constants
-from ._fields import BaseAnnDataField
 from ._utils import _register_anndata, _verify_and_correct_data_format
+from .fields import BaseAnnDataField
 
 
 class AnnDataManager:
@@ -98,10 +98,13 @@ class AnnDataManager:
         self._init_setup_dict()
 
         for field in self.fields:
-            if source_setup_dict is not None:
-                field.transfer_field(source_setup_dict, self.adata, **transfer_kwargs)
-            else:
-                field.register_field(self.adata)
+            if not field.is_empty:
+                if source_setup_dict is not None:
+                    field.transfer_field(
+                        source_setup_dict, self.adata, **transfer_kwargs
+                    )
+                else:
+                    field.register_field(self.adata)
         self._freeze_fields()
 
         data_registry = self.get_data_registry(update=True)
@@ -175,7 +178,8 @@ class AnnDataManager:
 
         data_registry_dict = dict()
         for field in self.fields:
-            data_registry_dict.update(field.data_registry_mapping())
+            if not field.is_empty:
+                data_registry_dict.update(field.data_registry_mapping())
 
         if update:
             _register_anndata(self.adata, data_registry_dict)
