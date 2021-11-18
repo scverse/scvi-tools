@@ -1,12 +1,12 @@
 from inspect import getfullargspec, signature
-from typing import Callable, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import pyro
 import pytorch_lightning as pl
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchmetrics import MeanMetric
+from torchmetrics import MeanMetric, Metric
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
@@ -35,6 +35,65 @@ def _compute_kl_weight(
     return kl_weight
 
 
+class VIMetrics(Metric):
+    def __init__(self, dist_sync_on_step=False, additional_keys=None):
+        super().__init__(dist_sync_on_step=dist_sync_on_step)
+
+        default_val = torch.tensor(0)
+        # self.add_state("elbo", default=default_val)
+        self.add_state("reconstruction_loss", default=default_val)
+        self.add_state("kl_local", default=default_val)
+        self.add_state("kl_global", default=default_val)
+        self.add_state("n_obs", default=default_val)
+
+        self.default_metrics = [
+            "elbo",
+            "reconstruction_loss",
+            "kl_local",
+            "elbo",
+        ]  # Default keys used for logging
+        additional_keys = [] if additional_keys is None else additional_keys
+        for new_key in additional_keys:
+            self.add_state(new_key, default=default_val)
+        self.additional_keys = additional_keys
+        self.set_dtype(torch.float)
+
+    def update(
+        self,
+        scvi_losses,
+        **kwargs,
+    ):
+        n_obs = scvi_losses.reconstruction_loss.shape[0]
+        kl_local_sum = scvi_losses.kl_local.sum().detach().cpu()
+        kl_global = scvi_losses.kl_global.cpu()
+        reconstruction_loss_sum = scvi_losses.reconstruction_loss.sum().detach().cpu()
+
+        self.reconstruction_loss += reconstruction_loss_sum
+        self.kl_local += kl_local_sum
+        self.kl_global += kl_global
+        self.n_obs += n_obs
+
+        for new_key, tensor_value in kwargs.items():
+            old_value = getattr(self, new_key)
+            setattr(self, new_key, old_value + tensor_value)
+
+    def compute(self):
+        reconstruction_loss = self.reconstruction_loss.squeeze() / self.n_obs
+        kl_local = self.kl_local.squeeze() / self.n_obs
+        kl_global = (
+            self.kl_global / self.n_obs
+        )  # Taking mean of kl global accross batches
+        elbo = reconstruction_loss + kl_local + (kl_global / self.n_obs)
+        main_metrics = {
+            "elbo": elbo,
+            "reconstruction_loss": reconstruction_loss,
+            "kl_local": kl_local,
+            "kl_global": kl_global,
+        }
+        additional_metrics = {key: getattr(self, key) for key in self.additional_keys}
+        return {**main_metrics, **additional_metrics}
+
+
 class TrainingPlan(pl.LightningModule):
     """
     Lightning module task to train scvi-tools modules.
@@ -55,6 +114,7 @@ class TrainingPlan(pl.LightningModule):
     module
         A module instance from class ``BaseModuleClass``.
     lr
+
         Learning rate used for optimization.
     weight_decay
         Weight decay used in optimizatoin.
@@ -128,18 +188,8 @@ class TrainingPlan(pl.LightningModule):
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
 
-        self.train_running_metrics = dict(
-            elbo=MeanMetric(),
-            reconstruction_loss=MeanMetric(),
-            kl_local=MeanMetric(),
-            kl_global=MeanMetric(),
-        )
-        self.val_running_metrics = dict(
-            elbo=MeanMetric(),
-            reconstruction_loss=MeanMetric(),
-            kl_local=MeanMetric(),
-            kl_global=MeanMetric(),
-        )
+        self.train_running_metrics = VIMetrics()
+        self.val_running_metrics = VIMetrics()
 
     @property
     def n_obs_training(self):
@@ -160,38 +210,22 @@ class TrainingPlan(pl.LightningModule):
         """Passthrough to `model.forward()`."""
         return self.module(*args, **kwargs)
 
-    def update_running_metrics(self, loss, metrics: dict):
-        reconstruction_loss = loss.reconstruction_loss
-        kl_local_sum = loss.kl_local.sum().detach().cpu()
-        reconstruction_loss_sum = reconstruction_loss.sum().detach().cpu()
-        n_obs = reconstruction_loss.shape[0]
-
-        metrics["elbo"].update(reconstruction_loss_sum + kl_local_sum, weight=n_obs)
-        metrics["reconstruction_loss"].update(reconstruction_loss_sum, weight=n_obs)
-        metrics["kl_local"].update(kl_local_sum, weight=n_obs)
-        metrics["kl_global"].update(loss.kl_global.detach().cpu())
-        return metrics
-
-    def log_metrics(self, metrics, mode=Literal["train", "validation"]):
+    def log_metrics(
+        self, metrics, mode: Literal["train", "validation"], subset_keys: List = None
+    ):
         """Compute average metrics, log them, and reset metrics."""
         device = self.module.device
-
-        kl_global = metrics["kl_global"].compute().squeeze().to(device=device)
-        kl_local = metrics["kl_local"].compute().squeeze().to(device=device)
-        elbo = metrics["elbo"].compute().squeeze().to(device=device)
-        reconstruction_loss = (
-            metrics["reconstruction_loss"].compute().squeeze().to(device=device)
-        )
-        elbo += kl_global
-        self.log("elbo_{mode}".format(mode=mode), elbo)
-        self.log("kl_global_{mode}".format(mode=mode), kl_global)
-        self.log(
-            "reconstruction_loss_{mode}".format(mode=mode),
-            reconstruction_loss,
-        )
-        self.log("kl_local_{mode}".format(mode=mode), kl_local)
-        for metric in metrics.keys():
+        all_metrics = metrics.compute()
+        subset_keys = all_metrics.keys() if subset_keys is None else subset_keys
+        for metric_name in subset_keys:
+            metric = all_metrics[metric_name]
+            self.log(
+                "{metric_name}_{mode}".format(metric_name=metric_name, mode=mode),
+                metric.to(device=device),
+            )
+        for metric in all_metrics.keys():
             metrics[metric].reset()
+        return all_metrics
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         if "kl_weight" in self.loss_kwargs:
@@ -199,10 +233,7 @@ class TrainingPlan(pl.LightningModule):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
         # lightning wants non loss keys detached
-        self.train_running_metrics = self.update_running_metrics(
-            loss=scvi_loss,
-            metrics=self.train_running_metrics,
-        )
+        self.train_running_metrics.update(scvi_loss)
 
     def training_epoch_end(self, outputs):
         self.log_metrics(self.train_running_metrics, mode="train")
@@ -210,9 +241,7 @@ class TrainingPlan(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
-        self.val_running_metrics = self.update_running_metrics(
-            scvi_loss, metrics=self.val_running_metrics
-        )
+        self.val_running_metrics.update(scvi_loss)
 
     def validation_epoch_end(self, outputs):
         """Aggregate validation step information."""
@@ -385,7 +414,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 loss += fool_loss * kappa
 
             self.log("train_loss", loss, on_epoch=True)
-            self.update_running_metrics(scvi_loss, self.train_running_metrics)
+            self.train_running_metrics.update(scvi_loss)
 
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
@@ -515,17 +544,26 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             lr_scheduler_metric=lr_scheduler_metric,
             **loss_kwargs,
         )
-        self.train_running_metrics["classification_loss"] = MeanMetric()
-        self.val_running_metrics["classification_loss"] = MeanMetric()
+        additional_metrics = ["classification_loss", "n_labelled_tensors"]
+        self.train_running_metrics = VIMetrics(additional_keys=additional_metrics)
+        self.val_running_metrics = VIMetrics(additional_keys=additional_metrics)
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
 
-    def update_running_metrics(self, loss, metrics: dict):
-        metrics = super().update_running_metrics(loss, metrics)
-        if hasattr(loss, "classification_loss"):
-            metrics["classification_loss"].update(
-                loss.classification_loss.detach().cpu(), weight=loss.n_labelled_tensors
+    def log_metrics(
+        self, metrics, mode: Literal["train", "validation"], subset_keys: List = None
+    ):
+        subset_keys = metrics.default_metrics
+        all_metrics = super().log_metrics(metrics, mode, subset_keys=subset_keys)
+        if not all_metrics["classification_loss"].isnan():
+            normalized_classif_loss = (
+                all_metrics["classification_loss"] / all_metrics["n_labelled_tensors"]
             )
-        return metrics
+            self.log(
+                "{metric_name}_{mode}".format(
+                    metric_name="classification_loss", mode=mode
+                ),
+                normalized_classif_loss.to(device=self.module.device),
+            )
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -546,10 +584,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         self.log("train_loss", loss, on_epoch=True)
-        self.train_running_metrics = self.update_running_metrics(
-            loss=scvi_losses,
-            metrics=self.train_running_metrics,
-        )
+        self.train_running_metrics.update(scvi_losses)
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -568,34 +603,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         self.log("validation_loss", loss, on_epoch=True)
-        self.val_running_metrics = self.update_running_metrics(
-            loss=scvi_losses,
-            metrics=self.val_running_metrics,
-        )
-
-    def training_epoch_end(self, outputs):
-        device = self.module.device
-        classif_loss = (
-            self.train_running_metrics["classification_loss"]
-            .compute()
-            .squeeze()
-            .to(device=device)
-        )
-        if not classif_loss.isnan():
-            self.log("classification_loss_train", classif_loss)
-        super().training_epoch_end(outputs)
-
-    def validation_epoch_end(self, outputs):
-        device = self.module.device
-        classif_loss = (
-            self.val_running_metrics["classification_loss"]
-            .compute()
-            .squeeze()
-            .to(device=device)
-        )
-        if not classif_loss.isnan():
-            self.log("classification_loss_validation", classif_loss)
-        super().validation_epoch_end(outputs)
+        self.val_running_metrics.update(scvi_losses)
 
 
 class PyroTrainingPlan(pl.LightningModule):
