@@ -824,9 +824,9 @@ class MULTIVAE(BaseModuleClass):
         # mix losses to get the correct loss for each cell
         recon_loss = self._mix_modalities123(
             rl_accessibility + rl_expression + rl_protein,
-            rl_accessibility + rl_expression,
-            rl_accessibility + rl_protein,
+            rl_expression + rl_accessibility,
             rl_expression + rl_protein,
+            rl_accessibility + rl_protein,
             rl_expression,
             rl_accessibility,
             rl_protein,
@@ -855,30 +855,6 @@ class MULTIVAE(BaseModuleClass):
 
             return out
 
-        """
-        kld_paired = (
-            symKLd(qzm_expr, qzv_expr, qzm_acc, qzv_acc)
-            + symKLd(qzm_expr, qzv_expr, qzm_pro, qzv_pro)
-            + symKLd(qzm_acc, qzv_acc, qzm_pro, qzv_pro)
-        )
-
-        mask = torch.logical_or(
-            torch.logical_or(
-                torch.logical_or(
-                    torch.logical_and(mask_acc, mask_expr),
-                    torch.logical_and(mask_expr, mask_pro),
-                ),
-                torch.logical_and(mask_acc, mask_pro),
-            ),
-            torch.logical_and(torch.logical_and(mask_expr, mask_acc), mask_pro),
-        )
-
-        kld_paired = torch.where(
-            mask,
-            kld_paired.T,
-            torch.zeros_like(kld_paired).T,
-        ).sum(dim=0)
-        """
         symKLd12 = symKLd(qzm_expr, qzv_expr, qzm_acc, qzv_acc)
         symKLd13 = symKLd(qzm_expr, qzv_expr, qzm_pro, qzv_pro)
         symKLd23 = symKLd(qzm_acc, qzv_acc, qzm_pro, qzv_pro)
@@ -886,8 +862,8 @@ class MULTIVAE(BaseModuleClass):
         kld_paired = self._mix_modalities123(
             symKLd12 + symKLd13 + symKLd23,
             symKLd12,
-            symKLd23,
             symKLd13,
+            symKLd23,
             torch.zeros(x.shape[0], device=x.device, requires_grad=False),
             torch.zeros(x.shape[0], device=x.device, requires_grad=False),
             torch.zeros(x.shape[0], device=x.device, requires_grad=False),
