@@ -361,8 +361,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         Examples
         --------
-        >>> vae = SCVI.load(save_path, adata)
-        >>> vae.get_latent_representation()
+        >>> model = ModelClass.load(save_path, adata) # use the name of the model class used to save
+        >>> model.get_....
         """
         load_adata = adata is None
         use_gpu, device = parse_use_gpu_arg(use_gpu)
@@ -395,7 +395,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             model.module.load_state_dict(model_state_dict)
         except RuntimeError as err:
             if isinstance(model.module, PyroBaseModuleClass):
-                old_history = model.history_
+                old_history = model.history_.copy()
                 logger.info("Preparing underlying module for load")
                 model.train(max_steps=1)
                 model.history_ = old_history

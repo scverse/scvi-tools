@@ -70,6 +70,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         100 cells per batch and averages the distributions. Note that even with this option set to `True`,
         this only initializes a parameter that is learned during inference. If `False`, randomly initializes.
         The default (`None`), sets this to `True` if greater than 10 proteins are used.
+    override_missing_proteins
+        If `True`, will not treat proteins with all 0 expression in a particular batch as missing.
     **model_kwargs
         Keyword args for :class:`~scvi.module.TOTALVAE`
 
@@ -103,11 +105,23 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
         empirical_protein_background_prior: Optional[bool] = None,
+        override_missing_proteins: bool = False,
         **model_kwargs,
     ):
         super(TOTALVI, self).__init__(adata)
-        if "totalvi_batch_mask" in self.scvi_setup_dict_.keys():
+        if (
+            "totalvi_batch_mask" in self.scvi_setup_dict_.keys()
+            and not override_missing_proteins
+        ):
             batch_mask = self.scvi_setup_dict_["totalvi_batch_mask"]
+            info_msg = (
+                "Some proteins have all 0 counts in some batches. "
+                + "These proteins will be treated as missing; however, "
+                + "this can occur due to experimental design/biology. "
+                + "Reinitialize the model with `override_missing_proteins=True`,"
+                + "to override this behavior."
+            )
+            logger.info(info_msg)
         else:
             batch_mask = None
         emp_prior = (
