@@ -10,7 +10,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.module import Classifier
-from scvi.module.base import BaseModuleClass, PyroBaseModuleClass, LossRecorder
+from scvi.module.base import BaseModuleClass, LossRecorder, PyroBaseModuleClass
 from scvi.nn import one_hot
 
 from ._metrics import VIMetrics
