@@ -10,7 +10,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.module import Classifier
-from scvi.module.base import BaseModuleClass, PyroBaseModuleClass
+from scvi.module.base import BaseModuleClass, PyroBaseModuleClass, LossRecorder
 from scvi.nn import one_hot
 
 from ._metrics import VIMetrics
@@ -124,14 +124,23 @@ class TrainingPlan(pl.LightningModule):
         self.loss_kwargs = loss_kwargs
 
         self._n_obs_training = None
+        self._n_obs_validation = None
 
         # automatic handling of kl weight
         self._loss_args = getfullargspec(self.module.loss)[0]
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
 
-        self.train_running_metrics = VIMetrics()
-        self.val_running_metrics = VIMetrics()
+        self.initialize_train_metrics()
+        self.initialize_val_metrics()
+
+    def initialize_train_metrics(self):
+        """Initialize train related metrics."""
+        self.train_vi_metrics = VIMetrics(self.n_obs_training)
+
+    def initialize_val_metrics(self):
+        """Initialize train related metrics."""
+        self.val_vi_metrics = VIMetrics(self.n_obs_validation)
 
     @property
     def n_obs_training(self):
@@ -139,6 +148,10 @@ class TrainingPlan(pl.LightningModule):
         Number of observations in the training set.
 
         This will update the loss kwargs for loss rescaling.
+
+        Notes
+        -----
+        This can get set after initialization
         """
         return self._n_obs_training
 
@@ -147,47 +160,86 @@ class TrainingPlan(pl.LightningModule):
         if "n_obs" in self._loss_args:
             self.loss_kwargs.update({"n_obs": n_obs})
         self._n_obs_training = n_obs
+        self.initialize_train_metrics()
+
+    @property
+    def n_obs_validation(self):
+        """
+        Number of observations in the validation set.
+
+        This will update the loss kwargs for loss rescaling.
+
+        Notes
+        -----
+        This can get set after initialization
+        """
+        return self._n_obs_validation
+
+    @n_obs_validation.setter
+    def n_obs_validation(self, n_obs: int):
+        if "n_obs" in self._loss_args:
+            self.loss_kwargs.update({"n_obs": n_obs})
+        self._n_obs_validation = n_obs
+        self.initialize_validation_metrics()
 
     def forward(self, *args, **kwargs):
         """Passthrough to `model.forward()`."""
         return self.module(*args, **kwargs)
 
-    def log_metrics(
-        self, metrics, mode: Literal["train", "validation"], subset_keys: List = None
+    def compute_vi_metrics(
+        self,
+        lossrecorder: LossRecorder,
+        metric_attr_name: str,
+        mode: Literal["train", "validation"],
     ):
-        """Compute average metrics, log them, and reset metrics."""
-        device = self.module.device
-        all_metrics = metrics.compute()
-        subset_keys = all_metrics.keys() if subset_keys is None else subset_keys
-        for metric_name in subset_keys:
-            metric = all_metrics[metric_name]
+        """Computes metrics."""
+
+        lr = lossrecorder
+        vi_metric = getattr(self, metric_attr_name)
+        rec_loss = lr.reconstruction_loss.detach()
+        n_obs_minibatch = rec_loss.shape[0]
+
+        # accumlate extra metrics passed to loss recorder
+        extras = {}
+        for extra_metric in lr.extra_metric_attrs:
+            met = getattr(lr, extra_metric)
+            if type(met) == torch.Tensor:
+                met = met.detach()
+            extras[extra_metric] = met
+
+        metric_out = vi_metric(
+            rec_loss.detach(),
+            lr.kl_local.sum().detach(),
+            lr.kl_global.detach(),
+            n_obs_minibatch,
+            **extras,
+        )
+        for metric_name in metric_out.keys():
+            metric = metric_out[metric_name]
             self.log(
-                "{metric_name}_{mode}".format(metric_name=metric_name, mode=mode),
-                metric.to(device=device),
+                f"{metric_name}_{mode}",
+                metric,
+                on_step=True,
+                on_epoch=True,
             )
-        for metric in all_metrics.keys():
-            metrics[metric].reset()
-        return all_metrics
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
-        # lightning wants non loss keys detached
-        self.train_running_metrics.update(scvi_loss)
+        self.compute_vi_metrics(scvi_loss, mode="train")
 
-    def training_epoch_end(self, outputs):
-        self.log_metrics(self.train_running_metrics, mode="train")
+    def training_epoch_end(self, outputs) -> None:
+        self.train_vi_metrics.reset()
 
     def validation_step(self, batch, batch_idx):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
-        self.val_running_metrics.update(scvi_loss)
+        self.compute_vi_metrics(scvi_loss, mode="validation")
 
-    def validation_epoch_end(self, outputs):
-        """Aggregate validation step information."""
-        self.log_metrics(metrics=self.val_running_metrics, mode="validation")
+    def validation_epoch_end(self, outputs) -> None:
+        self.val_vi_metrics.reset()
 
     def configure_optimizers(self):
         params = filter(lambda p: p.requires_grad, self.module.parameters())
@@ -356,7 +408,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 loss += fool_loss * kappa
 
             self.log("train_loss", loss, on_epoch=True)
-            self.train_running_metrics.update(scvi_loss)
+            self.compute_vi_metrics(scvi_loss, mode="train")
 
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
@@ -368,13 +420,6 @@ class AdversarialTrainingPlan(TrainingPlan):
             loss *= kappa
 
             return loss
-
-    def training_epoch_end(self, outputs):
-        # only report from optimizer one loss signature
-        if self.adversarial_classifier:
-            super().training_epoch_end(outputs[0])
-        else:
-            super().training_epoch_end(outputs)
 
     def configure_optimizers(self):
         params1 = filter(lambda p: p.requires_grad, self.module.parameters())
@@ -491,24 +536,6 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.val_running_metrics = VIMetrics(additional_keys=additional_metrics)
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
 
-    def log_metrics(
-        self, metrics, mode: Literal["train", "validation"], subset_keys: List = None
-    ):
-        subset_keys = metrics.default_metrics
-        all_metrics = super().log_metrics(metrics, mode, subset_keys=subset_keys)
-
-        # Log classification loss is not nan, normalize it
-        if not all_metrics["classification_loss"].isnan():
-            normalized_classif_loss = (
-                all_metrics["classification_loss"] / all_metrics["n_labelled_tensors"]
-            )
-            self.log(
-                "{metric_name}_{mode}".format(
-                    metric_name="classification_loss", mode=mode
-                ),
-                normalized_classif_loss.to(device=self.module.device),
-            )
-
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
         if len(batch) == 2:
@@ -528,11 +555,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         self.log("train_loss", loss, on_epoch=True)
-        self.train_running_metrics.update(
-            scvi_losses,
-            classification_loss=scvi_losses.classification_loss.detach(),
-            n_labelled_tensors=scvi_losses.n_labelled_tensors,
-        )
+        self.compute_vi_metrics(scvi_losses, mode="train")
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -551,11 +574,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         self.log("validation_loss", loss, on_epoch=True)
-        self.val_running_metrics.update(
-            scvi_losses,
-            classification_loss=scvi_losses.classification_loss.detach(),
-            n_labelled_tensors=scvi_losses.n_labelled_tensors,
-        )
+        self.compute_vi_metrics(scvi_losses, mode="train")
 
 
 class PyroTrainingPlan(pl.LightningModule):

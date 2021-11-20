@@ -5,7 +5,9 @@ from torchmetrics import Metric
 
 
 class VIMetrics(Metric):
-    def __init__(self, dist_sync_on_step=False, additional_keys: List = None):
+    def __init__(
+        self, n_obs_total: int, dist_sync_on_step=False, additional_keys: List = None
+    ):
         """Metric aggregator for scvi-tools experiments.
 
         A number of metrics commonly used in scvi-tools models are tracked down, as well as additional metrics
@@ -18,12 +20,15 @@ class VIMetrics(Metric):
         """
         super().__init__(dist_sync_on_step=dist_sync_on_step)
 
-        default_val = torch.tensor(0)
-        # self.add_state("elbo", default=default_val)
+        if n_obs_total is None:
+            self.n_obs_total = 1
+
+        default_val = torch.tensor(0.0)
         self.add_state("reconstruction_loss", default=default_val)
         self.add_state("kl_local", default=default_val)
         self.add_state("kl_global", default=default_val)
         self.add_state("n_obs", default=default_val)
+        self.add_state("n_batches", default=default_val)
 
         self.default_metrics = [
             "elbo",
@@ -39,38 +44,38 @@ class VIMetrics(Metric):
 
     def update(
         self,
-        scvi_losses,
+        reconstruction_loss_sum: torch.Tensor,
+        kl_local_sum: torch.Tensor,
+        kl_global: torch.Tensor,
+        n_obs_minibatch: int,
         **kwargs,
     ):
         """Updates all (or some) metrics."""
-        n_obs = scvi_losses.reconstruction_loss.shape[0]
-        kl_local_sum = scvi_losses.kl_local.sum().detach().cpu()
-        kl_global = scvi_losses.kl_global.cpu()
-        reconstruction_loss_sum = scvi_losses.reconstruction_loss.sum().detach().cpu()
+        reconstruction_loss_sum = reconstruction_loss_sum.detach().cpu()
+        kl_local_sum = kl_local_sum.detach().cpu()
+        kl_global = kl_global.cpu()
 
         self.reconstruction_loss += reconstruction_loss_sum
         self.kl_local += kl_local_sum
         self.kl_global += kl_global
-        self.n_obs += n_obs
+        self.n_obs += n_obs_minibatch
+        self.n_batches += 1
 
         for new_key, tensor_value in kwargs.items():
             old_value = getattr(self, new_key)
             setattr(self, new_key, old_value + tensor_value)
 
-    def compute(self):
-        reconstruction_loss = self.reconstruction_loss.squeeze() / self.n_obs
-        kl_local = self.kl_local.squeeze() / self.n_obs
-        kl_global = (
-            self.kl_global / self.n_obs
-        ).squeeze()  # Taking mean of kl global accross batches
-        elbo = reconstruction_loss + kl_local + (kl_global / self.n_obs)
+    def compute(self) -> dict:
+        avg_reconstruction_loss = self.reconstruction_loss / self.n_obs
+        avg_kl_local = self.kl_local / self.n_obs
+        kl_global = self.kl_global / self.n_batches
+        # elbo on the scale of one observation
+        elbo = avg_reconstruction_loss + avg_kl_local + (kl_global / self.n_obs_total)
         main_metrics = {
             "elbo": elbo,
-            "reconstruction_loss": reconstruction_loss,
-            "kl_local": kl_local,
+            "reconstruction_loss": avg_reconstruction_loss,
+            "kl_local": avg_kl_local,
             "kl_global": kl_global,
         }
-        additional_metrics = {
-            key: getattr(self, key).squeeze() for key in self.additional_keys
-        }
+        additional_metrics = {key: getattr(self, key) for key in self.additional_keys}
         return {**main_metrics, **additional_metrics}
