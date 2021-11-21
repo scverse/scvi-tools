@@ -1,5 +1,5 @@
 from inspect import getfullargspec, signature
-from typing import Callable, List, Optional, Union
+from typing import Callable, Optional, Union
 
 import pyro
 import pytorch_lightning as pl
