@@ -4,7 +4,7 @@ import torch
 from torchmetrics import Metric
 
 
-class VIMetrics(Metric):
+class ElboMetric(Metric):
     def __init__(self, n_obs_total: int, dist_sync_on_step: bool = False):
         """Metric aggregator for scvi-tools experiments.
 
@@ -34,9 +34,8 @@ class VIMetrics(Metric):
         kl_local_sum: torch.Tensor,
         kl_global: torch.Tensor,
         n_obs_minibatch: int,
-        **kwargs,
     ):
-        """Updates all (or some) metrics."""
+        """Updates all metrics."""
         reconstruction_loss_sum = reconstruction_loss_sum.detach()
         kl_local_sum = kl_local_sum.detach()
         kl_global = kl_global
@@ -47,16 +46,11 @@ class VIMetrics(Metric):
         self.n_obs += n_obs_minibatch
         self.n_batches += 1
 
-    def compute(self) -> dict:
+    def compute(self):
         avg_reconstruction_loss = self.reconstruction_loss / self.n_obs
         avg_kl_local = self.kl_local / self.n_obs
         kl_global = self.kl_global / self.n_batches
         # elbo on the scale of one observation
         elbo = avg_reconstruction_loss + avg_kl_local + (kl_global / self.n_obs_total)
-        main_metrics = {
-            "elbo": elbo,
-            "reconstruction_loss": avg_reconstruction_loss,
-            "kl_local": avg_kl_local,
-            "kl_global": kl_global,
-        }
-        return main_metrics
+
+        return elbo
