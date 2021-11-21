@@ -1,5 +1,3 @@
-from typing import List
-
 import torch
 from torchmetrics import Metric
 
