@@ -199,21 +199,22 @@ class TrainingPlan(pl.LightningModule):
         rec_loss = lr.reconstruction_loss.detach()
         n_obs_minibatch = rec_loss.shape[0]
 
-        # accumlate extra metrics passed to loss recorder
-        extras = {}
-        for extra_metric in lr.extra_metric_attrs:
-            met = getattr(lr, extra_metric)
-            if type(met) == torch.Tensor:
-                met = met.detach()
-            extras[extra_metric] = met
-
+        # use the torchmetric object for the ELBO
         metric_out = vi_metric(
             rec_loss.detach(),
             lr.kl_local.sum().detach(),
             lr.kl_global.detach(),
             n_obs_minibatch,
-            **extras,
         )
+        # accumlate extra metrics passed to loss recorder
+        metric_out = {}
+        for extra_metric in lr.extra_metric_attrs:
+            met = getattr(lr, extra_metric)
+            if type(met) == torch.Tensor:
+                if met.shape != torch.size([]):
+                    raise ValueError("Extra tracked metrics should be 0-d tensors.")
+                met = met.detach()
+            metric_out[extra_metric] = met
         for metric_name in metric_out.keys():
             metric = metric_out[metric_name]
             self.log(
@@ -574,7 +575,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         self.log("validation_loss", loss, on_epoch=True)
-        self.compute_vi_metrics(scvi_losses, mode="train")
+        self.compute_vi_metrics(scvi_losses, mode="validation")
 
 
 class PyroTrainingPlan(pl.LightningModule):

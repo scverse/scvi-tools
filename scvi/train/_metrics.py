@@ -5,18 +5,17 @@ from torchmetrics import Metric
 
 
 class VIMetrics(Metric):
-    def __init__(
-        self, n_obs_total: int, dist_sync_on_step=False, additional_keys: List = None
-    ):
+    def __init__(self, n_obs_total: int, dist_sync_on_step: bool = False):
         """Metric aggregator for scvi-tools experiments.
 
         A number of metrics commonly used in scvi-tools models are tracked down, as well as additional metrics
 
         Parameters
         ----------
-        dist_sync_on_step : bool, optional, by default False
-        additional_keys : List, optional
-            List of additional metric names to track, by default None
+        n_obs_total
+            Number of total observations, for rescaling the ELBO
+        dist_sync_on_step
+            optional, by default False
         """
         super().__init__(dist_sync_on_step=dist_sync_on_step)
 
@@ -30,16 +29,6 @@ class VIMetrics(Metric):
         self.add_state("n_obs", default=default_val)
         self.add_state("n_batches", default=default_val)
 
-        self.default_metrics = [
-            "elbo",
-            "reconstruction_loss",
-            "kl_local",
-            "elbo",
-        ]  # Default keys used for logging
-        additional_keys = [] if additional_keys is None else additional_keys
-        for new_key in additional_keys:
-            self.add_state(new_key, default=default_val)
-        self.additional_keys = additional_keys
         self.set_dtype(torch.float)
 
     def update(
@@ -61,10 +50,6 @@ class VIMetrics(Metric):
         self.n_obs += n_obs_minibatch
         self.n_batches += 1
 
-        for new_key, tensor_value in kwargs.items():
-            old_value = getattr(self, new_key)
-            setattr(self, new_key, old_value + tensor_value)
-
     def compute(self) -> dict:
         avg_reconstruction_loss = self.reconstruction_loss / self.n_obs
         avg_kl_local = self.kl_local / self.n_obs
@@ -77,5 +62,4 @@ class VIMetrics(Metric):
             "kl_local": avg_kl_local,
             "kl_global": kl_global,
         }
-        additional_metrics = {key: getattr(self, key) for key in self.additional_keys}
-        return {**main_metrics, **additional_metrics}
+        return main_metrics
