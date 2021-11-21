@@ -180,7 +180,7 @@ class TrainingPlan(pl.LightningModule):
         if "n_obs" in self._loss_args:
             self.loss_kwargs.update({"n_obs": n_obs})
         self._n_obs_validation = n_obs
-        self.initialize_validation_metrics()
+        self.initialize_val_metrics()
 
     def forward(self, *args, **kwargs):
         """Passthrough to `model.forward()`."""
@@ -201,13 +201,12 @@ class TrainingPlan(pl.LightningModule):
 
         # use the torchmetric object for the ELBO
         metric_out = vi_metric(
-            rec_loss.detach(),
+            rec_loss.sum(),
             lr.kl_local.sum().detach(),
             lr.kl_global.detach(),
             n_obs_minibatch,
         )
         # accumlate extra metrics passed to loss recorder
-        metric_out = {}
         for extra_metric in lr.extra_metric_attrs:
             met = getattr(lr, extra_metric)
             if type(met) == torch.Tensor:
@@ -220,7 +219,7 @@ class TrainingPlan(pl.LightningModule):
             self.log(
                 f"{metric_name}_{mode}",
                 metric,
-                on_step=True,
+                on_step=False,
                 on_epoch=True,
             )
 
@@ -229,7 +228,9 @@ class TrainingPlan(pl.LightningModule):
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
-        self.compute_vi_metrics(scvi_loss, mode="train")
+        self.compute_vi_metrics(
+            scvi_loss, metric_attr_name="train_vi_metrics", mode="train"
+        )
 
     def training_epoch_end(self, outputs) -> None:
         self.train_vi_metrics.reset()
@@ -237,7 +238,9 @@ class TrainingPlan(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
-        self.compute_vi_metrics(scvi_loss, mode="validation")
+        self.compute_vi_metrics(
+            scvi_loss, metric_attr_name="val_vi_metrics", mode="validation"
+        )
 
     def validation_epoch_end(self, outputs) -> None:
         self.val_vi_metrics.reset()
@@ -409,7 +412,9 @@ class AdversarialTrainingPlan(TrainingPlan):
                 loss += fool_loss * kappa
 
             self.log("train_loss", loss, on_epoch=True)
-            self.compute_vi_metrics(scvi_loss, mode="train")
+            self.compute_vi_metrics(
+                scvi_loss, metric_attr_name="train_vi_metrics", mode="train"
+            )
 
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
@@ -532,9 +537,6 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             lr_scheduler_metric=lr_scheduler_metric,
             **loss_kwargs,
         )
-        additional_metrics = ["classification_loss", "n_labelled_tensors"]
-        self.train_running_metrics = VIMetrics(additional_keys=additional_metrics)
-        self.val_running_metrics = VIMetrics(additional_keys=additional_metrics)
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
@@ -556,7 +558,9 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         self.log("train_loss", loss, on_epoch=True)
-        self.compute_vi_metrics(scvi_losses, mode="train")
+        self.compute_vi_metrics(
+            scvi_losses, metric_attr_name="train_vi_metrics", mode="train"
+        )
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -575,7 +579,9 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
         self.log("validation_loss", loss, on_epoch=True)
-        self.compute_vi_metrics(scvi_losses, mode="validation")
+        self.compute_vi_metrics(
+            scvi_losses, metric_attr_name="val_vi_metrics", mode="validation"
+        )
 
 
 class PyroTrainingPlan(pl.LightningModule):

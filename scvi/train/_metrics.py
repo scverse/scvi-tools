@@ -19,8 +19,7 @@ class VIMetrics(Metric):
         """
         super().__init__(dist_sync_on_step=dist_sync_on_step)
 
-        if n_obs_total is None:
-            self.n_obs_total = 1
+        self.n_obs_total = 1 if n_obs_total is None else n_obs_total
 
         default_val = torch.tensor(0.0)
         self.add_state("reconstruction_loss", default=default_val)
@@ -28,8 +27,6 @@ class VIMetrics(Metric):
         self.add_state("kl_global", default=default_val)
         self.add_state("n_obs", default=default_val)
         self.add_state("n_batches", default=default_val)
-
-        self.set_dtype(torch.float)
 
     def update(
         self,
@@ -40,9 +37,9 @@ class VIMetrics(Metric):
         **kwargs,
     ):
         """Updates all (or some) metrics."""
-        reconstruction_loss_sum = reconstruction_loss_sum.detach().cpu()
-        kl_local_sum = kl_local_sum.detach().cpu()
-        kl_global = kl_global.cpu()
+        reconstruction_loss_sum = reconstruction_loss_sum.detach()
+        kl_local_sum = kl_local_sum.detach()
+        kl_global = kl_global
 
         self.reconstruction_loss += reconstruction_loss_sum
         self.kl_local += kl_local_sum
