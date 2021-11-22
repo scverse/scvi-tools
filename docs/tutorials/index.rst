@@ -17,7 +17,7 @@ Quick start
 
    notebooks/api_overview
    notebooks/data_loading
-   notebooks/scvi_in_R
+   notebooks/python_in_R
 
 
 User tutorials
@@ -29,9 +29,11 @@ scRNA-seq
 .. nbgallery::
 
    notebooks/harmonization
+   notebooks/scvi_in_R
+   notebooks/tabula_muris
+   notebooks/scarches_scvi_tools
    notebooks/seed_labeling
    notebooks/linear_decoder
-   notebooks/scarches_scvi_tools
    notebooks/AutoZI_tutorial
    notebooks/cellassign_tutorial
    notebooks/amortized_lda
