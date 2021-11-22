@@ -19,6 +19,7 @@ def _compute_kl_weight(
     step: int,
     n_epochs_kl_warmup: Optional[int],
     n_steps_kl_warmup: Optional[int],
+    min_weight: Optional[float] = None,
 ) -> float:
     epoch_criterion = n_epochs_kl_warmup is not None
     step_criterion = n_steps_kl_warmup is not None
@@ -28,7 +29,9 @@ def _compute_kl_weight(
         kl_weight = min(1.0, step / n_steps_kl_warmup)
     else:
         kl_weight = 1.0
-    return max(kl_weight, 1e-3)
+    if min_weight is not None:
+        kl_weight = max(kl_weight, min_weight)
+    return kl_weight
 
 
 class TrainingPlan(pl.LightningModule):
@@ -734,6 +737,7 @@ class PyroTrainingPlan(pl.LightningModule):
             self.global_step,
             self.n_epochs_kl_warmup,
             self.n_steps_kl_warmup,
+            min_weight=1e-3,
         )
 
 
