@@ -241,6 +241,7 @@ class TrainingPlan(pl.LightningModule):
         self.log(
             f"kl_global_{mode}",
             kl_global,
+            on_step=False,
             on_epoch=True,
         )
 
@@ -248,13 +249,13 @@ class TrainingPlan(pl.LightningModule):
         for extra_metric in lr.extra_metric_attrs:
             met = getattr(lr, extra_metric)
             if type(met) == torch.Tensor:
-                if met.shape != torch.size([]):
+                if met.shape != torch.Size([]):
                     raise ValueError("Extra tracked metrics should be 0-d tensors.")
                 met = met.detach()
             self.log(
                 f"{extra_metric}_{mode}",
                 met,
-                on_step=True,
+                on_step=False,
                 on_epoch=True,
             )
 
