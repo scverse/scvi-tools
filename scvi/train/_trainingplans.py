@@ -206,11 +206,11 @@ class TrainingPlan(pl.LightningModule):
         """
         lr = lossrecorder
         elbo_metric = getattr(self, metric_attr_name)
-        rec_loss = lr.reconstruction_loss.detach()
+        rec_loss = lr.reconstruction_loss
         n_obs_minibatch = rec_loss.shape[0]
         rec_loss = rec_loss.sum()
-        kl_local = lr.kl_local.sum().detach()
-        kl_global = lr.kl_global.detach()
+        kl_local = lr.kl_local.sum()
+        kl_global = lr.kl_global
 
         # use the torchmetric object for the ELBO
         elbo_metric(
@@ -267,6 +267,7 @@ class TrainingPlan(pl.LightningModule):
         self.compute_and_log_metrics(
             scvi_loss, metric_attr_name="train_elbo_metric", mode="train"
         )
+        return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
@@ -445,6 +446,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             self.compute_and_log_metrics(
                 scvi_loss, metric_attr_name="train_elbo_metric", mode="train"
             )
+            return loss
 
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
@@ -591,6 +593,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.compute_and_log_metrics(
             scvi_losses, metric_attr_name="train_elbo_metric", mode="train"
         )
+        return loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
