@@ -136,11 +136,11 @@ class TrainingPlan(pl.LightningModule):
 
     def initialize_train_metrics(self):
         """Initialize train related metrics."""
-        self.train_vi_metrics = ElboMetric(self.n_obs_training)
+        self.train_elbo_metric = ElboMetric(self.n_obs_training)
 
     def initialize_val_metrics(self):
         """Initialize train related metrics."""
-        self.val_vi_metrics = ElboMetric(self.n_obs_validation)
+        self.val_elbo_metric = ElboMetric(self.n_obs_validation)
 
     @property
     def n_obs_training(self):
@@ -193,12 +193,17 @@ class TrainingPlan(pl.LightningModule):
         mode: Literal["train", "validation"],
     ):
         """
-        Computes metrics.
+        Computes and logs metrics.
 
-        In particular, this compute
-
+        Parameters
+        ----------
+        lossrecorder
+            LossRecorder object from scvi-tools module
+        metric_attr_name
+            The name of the torch metric object to use
+        mode
+            Train or validation, used for logging names
         """
-
         lr = lossrecorder
         elbo_metric = getattr(self, metric_attr_name)
         rec_loss = lr.reconstruction_loss.detach()
@@ -259,14 +264,14 @@ class TrainingPlan(pl.LightningModule):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
         self.compute_and_log_metrics(
-            scvi_loss, metric_attr_name="train_vi_metrics", mode="train"
+            scvi_loss, metric_attr_name="train_elbo_metric", mode="train"
         )
 
     def validation_step(self, batch, batch_idx):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
         self.compute_and_log_metrics(
-            scvi_loss, metric_attr_name="val_vi_metrics", mode="validation"
+            scvi_loss, metric_attr_name="val_elbo_metric", mode="validation"
         )
 
     def configure_optimizers(self):
@@ -437,7 +442,7 @@ class AdversarialTrainingPlan(TrainingPlan):
 
             self.log("train_loss", loss, on_epoch=True)
             self.compute_and_log_metrics(
-                scvi_loss, metric_attr_name="train_vi_metrics", mode="train"
+                scvi_loss, metric_attr_name="train_elbo_metric", mode="train"
             )
 
         # train adversarial classifier
@@ -583,7 +588,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         loss = scvi_losses.loss
         self.log("train_loss", loss, on_epoch=True)
         self.compute_and_log_metrics(
-            scvi_losses, metric_attr_name="train_vi_metrics", mode="train"
+            scvi_losses, metric_attr_name="train_elbo_metric", mode="train"
         )
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
@@ -604,7 +609,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         loss = scvi_losses.loss
         self.log("validation_loss", loss, on_epoch=True)
         self.compute_and_log_metrics(
-            scvi_losses, metric_attr_name="val_vi_metrics", mode="validation"
+            scvi_losses, metric_attr_name="val_elbo_metric", mode="validation"
         )
 
 

@@ -4,9 +4,8 @@ from torchmetrics import Metric
 
 class ElboMetric(Metric):
     def __init__(self, n_obs_total: int, dist_sync_on_step: bool = False):
-        """Metric aggregator for scvi-tools experiments.
-
-        A number of metrics commonly used in scvi-tools models are tracked down, as well as additional metrics
+        """
+        Elbo metric aggregator for scvi-tools experiments.
 
         Parameters
         ----------
