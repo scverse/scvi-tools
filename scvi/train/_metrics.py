@@ -33,9 +33,9 @@ class ElboMetric(Metric):
         n_obs_minibatch: int,
     ):
         """Updates all metrics."""
-        reconstruction_loss_sum = reconstruction_loss_sum.clone().detach()
-        kl_local_sum = kl_local_sum.clone().detach()
-        kl_global = kl_global.clone().detach()
+        reconstruction_loss_sum = reconstruction_loss_sum.detach()
+        kl_local_sum = kl_local_sum.detach()
+        kl_global = kl_global.detach()
 
         self.reconstruction_loss += reconstruction_loss_sum
         self.kl_local += kl_local_sum
