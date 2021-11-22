@@ -178,30 +178,35 @@ class PyroSampleMixin:
         -------
         Dictionary with a sample for each variable
         """
-        guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
-        model_trace = poutine.trace(
-            poutine.replay(self.module.model, guide_trace)
-        ).get_trace(*args, **kwargs)
+        if isinstance(self.module.guide, poutine.messenger.Messenger):
+            # This already includes trace-replay behavior.
+            sample = self.module.guide(*args, **kwargs)
+        else:
+            guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
+            model_trace = poutine.trace(
+                poutine.replay(self.module.model, guide_trace)
+            ).get_trace(*args, **kwargs)
+            sample = {
+                name: site["value"]
+                for name, site in model_trace.nodes.items()
+                if (
+                    (site["type"] == "sample")  # sample statement
+                    and (
+                        (return_sites is None) or (name in return_sites)
+                    )  # selected in return_sites list
+                    and (
+                        (
+                            (not site.get("is_observed", True)) or return_observed
+                        )  # don't save observed unless requested
+                        or (site.get("infer", False).get("_deterministic", False))
+                    )  # unless it is deterministic
+                    and not isinstance(
+                        site.get("fn", None), poutine.subsample_messenger._Subsample
+                    )  # don't save plates
+                )
+            }
 
-        sample = {
-            name: site["value"].cpu().numpy()
-            for name, site in model_trace.nodes.items()
-            if (
-                (site["type"] == "sample")  # sample statement
-                and (
-                    (return_sites is None) or (name in return_sites)
-                )  # selected in return_sites list
-                and (
-                    (
-                        (not site.get("is_observed", True)) or return_observed
-                    )  # don't save observed unless requested
-                    or (site.get("infer", False).get("_deterministic", False))
-                )  # unless it is deterministic
-                and not isinstance(
-                    site.get("fn", None), poutine.subsample_messenger._Subsample
-                )  # don't save plates
-            )
-        }
+        sample = {name: site.cpu().numpy() for name, site in sample.items()}
 
         return sample
 
