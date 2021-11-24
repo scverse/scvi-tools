@@ -13,11 +13,11 @@ from anndata import AnnData
 
 from scvi import _CONSTANTS, settings
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.data.anndata import get_from_registry, transfer_anndata_setup
+from scvi.data.anndata import get_from_registry
 from scvi.data.anndata._compat import manager_from_setup_dict
 from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SUMMARY_STATS_KEY
-from scvi.data.anndata._manager import AnnDataManager
 from scvi.data.anndata._utils import _check_anndata_setup_equivalence
+from scvi.data.anndata.manager import AnnDataManager
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass
@@ -42,19 +42,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
-            if _SCVI_UUID_KEY not in adata.uns:
-                raise ValueError(
-                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first."
-                )
-            adata_uuid = adata.uns[_SCVI_UUID_KEY]
-            if adata_uuid not in self.manager_store:
-                raise ValueError(
-                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first. "
-                    "It appears the AnnData object has been setup with a different model."
-                )
-
-            self.adata = adata
-            self.adata_manager = self.manager_store[adata_uuid]
+            self.adata_manager = self.get_anndata_manager(adata, required=True)
+            self.adata = self.adata_manager.adata
             self.scvi_setup_dict_ = self.adata_manager.get_setup_dict()
             self.summary_stats = self.scvi_setup_dict_[_SUMMARY_STATS_KEY]
 
@@ -91,9 +80,41 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def device(self):
         return self.module.device
 
+    @classmethod
+    def get_anndata_manager(
+        cls, adata: AnnData, required: bool = False
+    ) -> Optional[AnnDataManager]:
+        """
+        Retrieves the AnnDataManager for a given AnnData object specific to this model class.
+
+        Parameters
+        ----------
+        adata
+            AnnData object to find manager instance for.
+        required
+            If True, errors on missing manager. Otherwise, returns None when manager is missing.
+        """
+        if _SCVI_UUID_KEY not in adata.uns:
+            if required:
+                raise ValueError(
+                    f"Please set up your AnnData with {cls.__name__}.setup_anndata first."
+                )
+            return None
+
+        adata_uuid = adata.uns[_SCVI_UUID_KEY]
+        if adata_uuid not in cls.manager_store:
+            if required:
+                raise ValueError(
+                    f"Please set up your AnnData with {cls.__name__}.setup_anndata first. "
+                    "It appears the AnnData object has been setup with a different model."
+                )
+            return None
+
+        return cls.manager_store[adata_uuid]
+
     def _make_data_loader(
         self,
-        adata: AnnData,
+        adata: Optional[AnnData],
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
         shuffle: bool = False,
@@ -119,6 +140,16 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         data_loader_kwargs
             Kwargs to the class-specific data loader class
         """
+        if adata is None:
+            adata_manager = self.adata_manager
+        else:
+            adata_manager = self.get_anndata_manager(adata)
+            if adata_manager is None:
+                adata_manager = self.adata_manager.transfer_setup(adata)
+                self._register_manager(adata_manager)
+
+        adata = adata_manager.adata
+
         if batch_size is None:
             batch_size = settings.batch_size
         if indices is None:
@@ -130,7 +161,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             data_loader_kwargs.update({"num_workers": settings.dl_num_workers})
 
         dl = data_loader_class(
-            adata,
+            adata_manager,
             shuffle=shuffle,
             indices=indices,
             batch_size=batch_size,
@@ -156,7 +187,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Input adata not setup with scvi. "
                 + "attempting to transfer anndata setup"
             )
-            transfer_anndata_setup(self.scvi_setup_dict_, adata)
+            self._register_manager(self.adata_manager.transfer_setup(adata))
         is_nonneg_int = _check_nonnegative_integers(
             get_from_registry(adata, _CONSTANTS.X_KEY)
         )
@@ -167,7 +198,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         needs_transfer = _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
         if needs_transfer:
-            transfer_anndata_setup(self.scvi_setup_dict_, adata)
+            self._register_manager(self.adata_manager.transfer_setup(adata))
 
         return adata
 

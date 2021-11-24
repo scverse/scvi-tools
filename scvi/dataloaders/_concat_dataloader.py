@@ -2,8 +2,9 @@ from itertools import cycle
 from typing import List, Optional, Union
 
 import numpy as np
-from anndata import AnnData
 from torch.utils.data import DataLoader
+
+from scvi.data.anndata.manager import AnnDataManager
 
 from ._ann_dataloader import AnnDataLoader
 
@@ -14,8 +15,8 @@ class ConcatDataLoader(DataLoader):
 
     Parameters
     ----------
-    adata
-        AnnData object that has been registered via setup_anndata.
+    adata_manager
+        AnnDataManager object that has been created via setup_anndata.
     indices_list
         List where each element is a list of indices in the adata to load
     shuffle
@@ -32,7 +33,7 @@ class ConcatDataLoader(DataLoader):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata_manager: AnnDataManager,
         indices_list: List[List[int]],
         shuffle: bool = False,
         batch_size: int = 128,
@@ -44,7 +45,7 @@ class ConcatDataLoader(DataLoader):
         for indices in indices_list:
             self.dataloaders.append(
                 AnnDataLoader(
-                    adata,
+                    adata_manager,
                     indices=indices,
                     shuffle=shuffle,
                     batch_size=batch_size,
