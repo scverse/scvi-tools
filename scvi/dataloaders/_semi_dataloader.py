@@ -1,9 +1,9 @@
 from typing import List, Optional, Union
 
 import numpy as np
-from anndata import AnnData
 
 from scvi import _CONSTANTS
+from scvi.data.anndata.manager import AnnDataManager
 
 from ._concat_dataloader import ConcatDataLoader
 
@@ -14,8 +14,8 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
     Parameters
     ----------
-    adata
-        AnnData object that has been registered via setup_anndata.
+    adata_manager
+        AnnDataManager object that has been created via setup_anndata.
     unlabeled_category
         Category to treat as unlabeled
     n_samples_per_label
@@ -37,7 +37,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata_manager: AnnDataManager,
         unlabeled_category: str,
         n_samples_per_label: Optional[int] = None,
         indices: Optional[List[int]] = None,
@@ -47,6 +47,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         drop_last: Union[bool, int] = False,
         **data_loader_kwargs,
     ):
+        adata = adata_manager.adata
         if indices is None:
             indices = np.arange(adata.n_obs)
 
@@ -57,8 +58,10 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
         self.n_samples_per_label = n_samples_per_label
 
-        key = adata.uns["_scvi"]["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
-        labels_obs_key = adata.uns["_scvi"]["categorical_mappings"][key]["original_key"]
+        key = adata_manager.get_data_registry()[_CONSTANTS.LABELS_KEY]["attr_key"]
+        labels_obs_key = adata_manager.get_setup_dict()["categorical_mappings"][key][
+            "original_key"
+        ]
 
         # save a nested list of the indices per labeled category
         self.labeled_locs = []
@@ -71,7 +74,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         labelled_idx = self.subsample_labels()
 
         super().__init__(
-            adata=adata,
+            adata_manager=adata_manager,
             indices_list=[indices, labelled_idx],
             shuffle=shuffle,
             batch_size=batch_size,

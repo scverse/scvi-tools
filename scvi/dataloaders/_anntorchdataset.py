@@ -58,7 +58,6 @@ class AnnTorchDataset(Dataset):
         ----------
         getitem_tensors:
             Either a list of keys in the scvi data registry to return when getitem is called
-            or
 
         Examples
         --------

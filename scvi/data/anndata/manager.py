@@ -70,14 +70,14 @@ class AnnDataManager:
         ), "Fields have been frozen. Create a new AnnDataManager object for additional fields."
         self.fields.add(field)
 
-    def _register_fields(
+    def register_fields(
         self,
         adata: AnnData,
         source_setup_dict: Optional[dict] = None,
         **transfer_kwargs
     ):
         """
-        Helper function with registers each field associated with this instance.
+        Registers each field associated with this instance with the AnnData object.
 
         Either registers or transfers the setup from `source_setup_dict` if passed in.
 
@@ -114,10 +114,6 @@ class AnnDataManager:
 
         self._assign_uuid()
 
-    def register_fields(self, adata: AnnData):
-        """Registers each field associated with this instance with the AnnData object."""
-        return self._register_fields(adata)
-
     def transfer_setup(
         self, adata_target: AnnData, source_setup_dict: Optional[dict] = None, **kwargs
     ) -> AnnDataManager:
@@ -143,7 +139,7 @@ class AnnDataManager:
         )
         fields = self.fields
         new_adata_manager = self.__class__(fields)
-        new_adata_manager._register_fields(adata_target, setup_dict, **kwargs)
+        new_adata_manager.register_fields(adata_target, setup_dict, **kwargs)
         return new_adata_manager
 
     def get_adata_uuid(self) -> UUID:
