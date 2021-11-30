@@ -4,10 +4,10 @@ from typing import Dict, List, Optional
 import numpy as np
 import pytorch_lightning as pl
 import torch
-from anndata import AnnData
 from torch.utils.data import DataLoader, Dataset
 
 from scvi import _CONSTANTS, settings
+from scvi.data.anndata.manager import AnnDataManager
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -60,8 +60,8 @@ class DataSplitter(pl.LightningDataModule):
 
     Parameters
     ----------
-    adata
-        AnnData to split into train/test/val sets
+    adata_manager
+        AnnDataManager object that has been created via setup_anndata.
     train_size
         float, or None (default is 0.9)
     validation_size
@@ -76,7 +76,9 @@ class DataSplitter(pl.LightningDataModule):
 
     Examples
     --------
-    >>> adata = scvi.data.synthetic_iid()
+    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> scvi.model.SCVI.setup_anndata(adata)
+    >>> adata_manager = scvi.model.SCVI(adata).adata_manager
     >>> splitter = DataSplitter(adata)
     >>> splitter.setup()
     >>> train_dl = splitter.train_dataloader()
@@ -84,21 +86,21 @@ class DataSplitter(pl.LightningDataModule):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         use_gpu: bool = False,
         **kwargs,
     ):
         super().__init__()
-        self.adata = adata
+        self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
         self.data_loader_kwargs = kwargs
         self.use_gpu = use_gpu
 
         self.n_train, self.n_val = validate_data_split(
-            self.adata.n_obs, self.train_size, self.validation_size
+            self.adata_manager.adata.n_obs, self.train_size, self.validation_size
         )
 
     def setup(self, stage: Optional[str] = None):
@@ -106,7 +108,7 @@ class DataSplitter(pl.LightningDataModule):
         n_train = self.n_train
         n_val = self.n_val
         random_state = np.random.RandomState(seed=settings.seed)
-        permutation = random_state.permutation(self.adata.n_obs)
+        permutation = random_state.permutation(self.adata_manager.adata.n_obs)
         self.val_idx = permutation[:n_val]
         self.train_idx = permutation[n_val : (n_val + n_train)]
         self.test_idx = permutation[(n_val + n_train) :]
@@ -118,7 +120,7 @@ class DataSplitter(pl.LightningDataModule):
 
     def train_dataloader(self):
         return AnnDataLoader(
-            self.adata,
+            self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
             drop_last=3,
@@ -129,7 +131,7 @@ class DataSplitter(pl.LightningDataModule):
     def val_dataloader(self):
         if len(self.val_idx) > 0:
             return AnnDataLoader(
-                self.adata,
+                self.adata_manager,
                 indices=self.val_idx,
                 shuffle=True,
                 drop_last=3,
@@ -142,7 +144,7 @@ class DataSplitter(pl.LightningDataModule):
     def test_dataloader(self):
         if len(self.test_idx) > 0:
             return AnnDataLoader(
-                self.adata,
+                self.adata_manager,
                 indices=self.test_idx,
                 shuffle=True,
                 drop_last=3,
@@ -163,8 +165,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
     Parameters
     ----------
-    adata
-        AnnData to split into train/test/val sets
+    adata_manager
+        AnnDataManager object that has been created via setup_anndata.
     unlabeled_category
         Category to treat as unlabeled
     train_size
@@ -183,7 +185,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
     Examples
     --------
-    >>> adata = scvi.data.synthetic_iid()
+    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> scvi.model.SCVI.setup_anndata(adata, labels_key="labels")
+    >>> adata_manager = scvi.model.SCVI(adata).adata_manager
     >>> unknown_label = 'label_0'
     >>> splitter = SemiSupervisedDataSplitter(adata, unknown_label)
     >>> splitter.setup()
@@ -192,7 +196,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata_manager: AnnDataManager,
         unlabeled_category,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
@@ -201,17 +205,17 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         **kwargs,
     ):
         super().__init__()
-        self.adata = adata
+        self.adata_manager = adata_manager
         self.unlabeled_category = unlabeled_category
         self.train_size = float(train_size)
         self.validation_size = validation_size
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
-        setup_dict = adata.uns["_scvi"]
+        setup_dict = adata_manager.get_setup_dict()
         key = setup_dict["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
         original_key = setup_dict["categorical_mappings"][key]["original_key"]
-        labels = np.asarray(adata.obs[original_key]).ravel()
+        labels = np.asarray(adata_manager.obs[original_key]).ravel()
         self._unlabeled_indices = np.argwhere(labels == unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != unlabeled_category).ravel()
 
@@ -288,7 +292,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
     def train_dataloader(self):
         return self.data_loader_class(
-            self.adata,
+            self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
             drop_last=3,
@@ -299,7 +303,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     def val_dataloader(self):
         if len(self.val_idx) > 0:
             return self.data_loader_class(
-                self.adata,
+                self.adata_manager,
                 indices=self.val_idx,
                 shuffle=True,
                 drop_last=3,
@@ -312,7 +316,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     def test_dataloader(self):
         if len(self.test_idx) > 0:
             return self.data_loader_class(
-                self.adata,
+                self.adata_manager,
                 indices=self.test_idx,
                 shuffle=True,
                 drop_last=3,
@@ -331,8 +335,8 @@ class DeviceBackedDataSplitter(DataSplitter):
 
     Parameters
     ----------
-    adata
-        AnnData to split into train/test/val sets
+    adata_manager
+        AnnDataManager object that has been created via setup_anndata.
     train_size
         float, or None (default is 0.9)
     validation_size
@@ -347,7 +351,9 @@ class DeviceBackedDataSplitter(DataSplitter):
 
     Examples
     --------
-    >>> adata = scvi.data.synthetic_iid()
+    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> scvi.model.SCVI.setup_anndata(adata)
+    >>> adata_manager = scvi.model.SCVI(adata).adata_manager
     >>> splitter = DeviceBackedDataSplitter(adata)
     >>> splitter.setup()
     >>> train_dl = splitter.train_dataloader()
@@ -355,7 +361,7 @@ class DeviceBackedDataSplitter(DataSplitter):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata_manager: AnnDataManager,
         train_size: float = 1.0,
         validation_size: Optional[float] = None,
         use_gpu: bool = False,
@@ -364,7 +370,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         **kwargs,
     ):
         super().__init__(
-            adata=adata,
+            adata_manager=adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             use_gpu=use_gpu,
@@ -394,7 +400,7 @@ class DeviceBackedDataSplitter(DataSplitter):
     def _get_tensor_dict(self, indices, device):
         if len(indices) is not None and len(indices) > 0:
             dl = AnnDataLoader(
-                self.adata,
+                self.adata_manager,
                 indices=indices,
                 batch_size=len(indices),
                 shuffle=False,

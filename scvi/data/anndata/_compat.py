@@ -1,13 +1,13 @@
 from anndata import AnnData
 
 from . import _constants
-from ._manager import AnnDataManager
 from .fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
     NumericalJointObsField,
 )
+from .manager import AnnDataManager
 
 
 def manager_from_setup_dict(
