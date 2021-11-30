@@ -2,10 +2,11 @@ import copy
 import logging
 from typing import Optional, Union
 
-import anndata
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+
+from scvi.data.anndata.manager import AnnDataManager
 
 from ._anntorchdataset import AnnTorchDataset
 
@@ -91,8 +92,8 @@ class AnnDataLoader(DataLoader):
 
     Parameters
     ----------
-    adata
-        An anndata objects
+    adata_manager
+        AnnDataManager object that has been created via setup_anndata.
     shuffle
         Whether the data should be shuffled
     indices
@@ -109,7 +110,7 @@ class AnnDataLoader(DataLoader):
 
     def __init__(
         self,
-        adata: anndata.AnnData,
+        adata_manager: AnnDataManager,
         shuffle=False,
         indices=None,
         batch_size=128,
@@ -118,11 +119,11 @@ class AnnDataLoader(DataLoader):
         **data_loader_kwargs,
     ):
 
-        if "_scvi" not in adata.uns.keys():
+        if adata_manager.adata is None:
             raise ValueError("Please run setup_anndata() on your anndata object first.")
 
         if data_and_attributes is not None:
-            data_registry = adata.uns["_scvi"]["data_registry"]
+            data_registry = adata_manager.get_data_registry()
             for key in data_and_attributes.keys():
                 if key not in data_registry.keys():
                     raise ValueError(
@@ -131,7 +132,9 @@ class AnnDataLoader(DataLoader):
                         )
                     )
 
-        self.dataset = AnnTorchDataset(adata, getitem_tensors=data_and_attributes)
+        self.dataset = AnnTorchDataset(
+            adata_manager.adata, getitem_tensors=data_and_attributes
+        )
 
         sampler_kwargs = {
             "batch_size": batch_size,

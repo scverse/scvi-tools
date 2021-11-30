@@ -34,7 +34,7 @@ class LayerField(BaseAnnDataField):
             else _constants._ADATA_ATTRS.LAYERS
         )
         self._attr_key = layer
-        self._is_count_data = is_count_data
+        self.is_count_data = is_count_data
 
     @property
     def registry_key(self):
@@ -56,7 +56,7 @@ class LayerField(BaseAnnDataField):
         super().validate_field(adata)
         x = self.get_field(adata)
 
-        if self._is_count_data and not _check_nonnegative_integers(x):
+        if self.is_count_data and not _check_nonnegative_integers(x):
             logger_data_loc = (
                 "adata.X" if self.attr_key is None else f"adata.layers[{self.attr_key}]"
             )
