@@ -145,8 +145,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         else:
             adata_manager = self.get_anndata_manager(adata)
             if adata_manager is None:
-                adata_manager = self.adata_manager.transfer_setup(adata)
-                self._register_manager(adata_manager)
+                raise AssertionError(
+                    "AnnDataManager not found. Call `self._validate` prior to calling this function."
+                )
 
         adata = adata_manager.adata
 
