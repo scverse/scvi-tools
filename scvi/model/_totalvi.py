@@ -122,8 +122,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 + "to override this behavior."
             )
             logger.info(info_msg)
+            self._use_adversarial_classifier = True
         else:
             batch_mask = None
+            self._use_adversarial_classifier = False
+
         emp_prior = (
             empirical_protein_background_prior
             if empirical_protein_background_prior is not None
@@ -235,10 +238,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if adversarial_classifier is None:
-            imputation = (
-                True if "totalvi_batch_mask" in self.scvi_setup_dict_.keys() else False
-            )
-            adversarial_classifier = True if imputation else False
+            adversarial_classifier = self._use_adversarial_classifier
         n_steps_kl_warmup = (
             n_steps_kl_warmup
             if n_steps_kl_warmup is not None
