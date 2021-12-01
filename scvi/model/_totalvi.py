@@ -114,14 +114,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             and not override_missing_proteins
         ):
             batch_mask = self.scvi_setup_dict_["totalvi_batch_mask"]
-            info_msg = (
+            msg = (
                 "Some proteins have all 0 counts in some batches. "
-                + "These proteins will be treated as missing; however, "
+                + "These proteins will be treated as missing measurements; however, "
                 + "this can occur due to experimental design/biology. "
                 + "Reinitialize the model with `override_missing_proteins=True`,"
                 + "to override this behavior."
             )
-            logger.info(info_msg)
+            warnings.warn(msg, UserWarning)
             self._use_adversarial_classifier = True
         else:
             batch_mask = None
