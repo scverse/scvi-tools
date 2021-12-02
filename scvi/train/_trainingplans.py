@@ -137,10 +137,12 @@ class TrainingPlan(pl.LightningModule):
     def initialize_train_metrics(self):
         """Initialize train related metrics."""
         self.elbo_train = ElboMetric(self.n_obs_training, mode="train")
+        self.elbo_train.reset()
 
     def initialize_val_metrics(self):
         """Initialize train related metrics."""
         self.elbo_val = ElboMetric(self.n_obs_validation, mode="validation")
+        self.elbo_val.reset()
 
     @property
     def n_obs_training(self):
@@ -186,6 +188,7 @@ class TrainingPlan(pl.LightningModule):
         """Passthrough to `model.forward()`."""
         return self.module(*args, **kwargs)
 
+    @torch.no_grad()
     def compute_and_log_metrics(
         self,
         loss_recorder: LossRecorder,
