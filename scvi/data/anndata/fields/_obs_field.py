@@ -110,7 +110,7 @@ class CategoricalObsField(BaseObsField):
         )
         return {self.CATEGORICAL_MAPPING_KEY: new_mapping}
 
-    def compute_summary_stats(self, state_registry: dict) -> dict:
+    def get_summary_stats(self, state_registry: dict) -> dict:
         categorical_mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
         n_categories = len(np.unique(categorical_mapping))
         return {self.count_stat_key: n_categories}

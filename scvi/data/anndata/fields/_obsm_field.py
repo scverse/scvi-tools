@@ -97,7 +97,7 @@ class NumericalJointObsField(JointObsField):
     def register_field(self, adata: AnnData) -> dict:
         super().register_field(adata)
         self._combine_obs_fields(adata)
-        return {self._columns_key: adata.obsm[self.attr_key].columns.to_numpy()}
+        return {self.columns_key: adata.obsm[self.attr_key].columns.to_numpy()}
 
     def transfer_field(
         self,
@@ -108,8 +108,8 @@ class NumericalJointObsField(JointObsField):
         super().transfer_field(state_registry, adata_target, **kwargs)
         return self.register_field(adata_target)
 
-    def compute_summary_stats(self, state_registry: dict) -> dict:
-        n_continuous_covariates = len(state_registry[self.columns_key].shape[0])
+    def get_summary_stats(self, _state_registry: dict) -> dict:
+        n_continuous_covariates = len(self.obs_keys)
         return {self.count_stat_key: n_continuous_covariates}
 
 
@@ -199,8 +199,8 @@ class CategoricalJointObsField(JointObsField):
         self._combine_obs_fields(adata_target)
         return self._make_obsm_categorical(adata_target, category_dict=source_cat_dict)
 
-    def compute_summary_stats(self, state_registry: dict) -> dict:
-        n_categorical_covariates = len(state_registry[self.KEYS_KEY])
+    def get_summary_stats(self, _state_registry: dict) -> dict:
+        n_categorical_covariates = len(self.obs_keys)
 
         return {
             self.count_stat_key: n_categorical_covariates,

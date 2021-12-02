@@ -98,7 +98,7 @@ class BaseAnnDataField(ABC):
         assert not self.is_empty
         return _get_field(adata, self.attr_name, self.attr_key)
 
-    def data_registry_mapping(self) -> dict:
+    def get_data_registry(self) -> dict:
         """
         Returns a nested dictionary which describes the mapping to the AnnData data field.
 
