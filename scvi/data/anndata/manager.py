@@ -5,12 +5,13 @@ from copy import deepcopy
 from typing import Optional, Sequence, Type
 from uuid import UUID, uuid4
 
+import numpy as np
 from anndata import AnnData
 
 import scvi
 
 from . import _constants
-from ._utils import _verify_and_correct_data_format
+from ._utils import _verify_and_correct_data_format, get_anndata_attribute
 from .fields import BaseAnnDataField
 
 
@@ -156,6 +157,27 @@ class AnnDataManager:
         self._assert_anndata_registered()
 
         return self.registry[_constants._SCVI_UUID_KEY]
+
+    def get_from_registry(self, registry_key: str) -> np.ndarray:
+        """
+        Returns the object in AnnData associated with the key in the data registry``.
+
+        Parameters
+        ----------
+        key
+            key of object to get from ``self.data_registry``
+
+        Returns
+        -------
+        The requested data as a NumPy array.
+        """
+        data_loc = self.data_registry[registry_key]
+        attr_name, attr_key = (
+            data_loc[_constants._DR_ATTR_NAME],
+            data_loc[_constants._DR_ATTR_KEY],
+        )
+
+        return get_anndata_attribute(self.adata, attr_name, attr_key)
 
     @property
     def data_registry(self) -> dict:

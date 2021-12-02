@@ -101,13 +101,15 @@ class SCVI(
             else None
         )
         n_batch = self.summary_stats["n_batch"]
-        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+        library_log_means, library_log_vars = _init_library_size(
+            self.adata_manager, n_batch
+        )
 
         self.module = VAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=n_batch,
             n_labels=self.summary_stats["n_labels"],
-            n_continuous_cov=self.summary_stats["n_extra_continuous"],
+            n_continuous_cov=self.summary_stats["n_extra_continuous_covs"],
             n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
             n_latent=n_latent,

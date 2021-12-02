@@ -21,7 +21,7 @@ from . import _constants
 logger = logging.getLogger(__name__)
 
 
-def _get_field(
+def get_anndata_attribute(
     adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
 ) -> np.ndarray:
     adata_attr = getattr(adata, attr_name)
@@ -82,7 +82,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
         data_loc[_constants._DR_ATTR_KEY],
     )
 
-    return _get_field(adata, attr_name, attr_key)
+    return get_anndata_attribute(adata, attr_name, attr_key)
 
 
 @deprecated(
@@ -326,7 +326,7 @@ def _verify_and_correct_data_format(adata, data_registry):
             mapping[_constants._DR_ATTR_NAME],
             mapping[_constants._DR_ATTR_KEY],
         )
-        data = _get_field(adata, attr_name, attr_key)
+        data = get_anndata_attribute(adata, attr_name, attr_key)
         if isspmatrix(data) and (data.getformat() != "csr"):
             warnings.warn(
                 "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization."

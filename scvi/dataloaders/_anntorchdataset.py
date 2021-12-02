@@ -1,14 +1,13 @@
 import logging
 from typing import Dict, List, Union
 
-import anndata
 import h5py
 import numpy as np
 import pandas as pd
 from anndata._core.sparse_dataset import SparseDataset
 from torch.utils.data import Dataset
 
-from scvi.data.anndata import get_from_registry
+from scvi.data.anndata.manager import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +17,10 @@ class AnnTorchDataset(Dataset):
 
     def __init__(
         self,
-        adata: anndata.AnnData,
+        adata_manager: AnnDataManager,
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
     ):
-        self.adata = adata
+        self.adata_manager = adata_manager
         self.attributes_and_types = None
         self.getitem_tensors = getitem_tensors
         self.setup_getitem()
@@ -30,7 +29,7 @@ class AnnTorchDataset(Dataset):
     @property
     def registered_keys(self):
         """Returns the keys of the mappings in scvi data registry."""
-        return self.adata.uns["_scvi"]["data_registry"].keys()
+        return self.adata_manager.data_registry.keys()
 
     def setup_data_attr(self):
         """
@@ -39,7 +38,7 @@ class AnnTorchDataset(Dataset):
         Reduces number of times anndata needs to be accessed
         """
         self.data = {
-            key: get_from_registry(self.adata, key)
+            key: self.adata_manager.get_from_registry(key)
             for key, _ in self.attributes_and_types.items()
         }
 
@@ -58,10 +57,11 @@ class AnnTorchDataset(Dataset):
         ----------
         getitem_tensors:
             Either a list of keys in the scvi data registry to return when getitem is called
+            or a dictionary mapping keys to numpy types.
 
         Examples
         --------
-        >>> sd = AnnTorchDataset(adata)
+        >>> sd = AnnTorchDataset(adata_manager)
 
         # following will only return the X and batch_indices both by default as np.float32
         >>> sd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])
@@ -124,4 +124,4 @@ class AnnTorchDataset(Dataset):
         return tensors[scvi_data_key]
 
     def __len__(self):
-        return self.adata.shape[0]
+        return self.adata_manager.adata.shape[0]

@@ -10,6 +10,7 @@ import torch
 
 from scvi import _CONSTANTS
 from scvi.data.anndata import get_from_registry
+from scvi.data.anndata.manager import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +234,7 @@ def _get_batch_code_from_category(
 
 
 def _init_library_size(
-    adata: anndata.AnnData, n_batch: dict
+    adata_manager: AnnDataManager, n_batch: dict
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Computes and returns library size.
@@ -255,8 +256,8 @@ def _init_library_size(
         and the variance defaults to 1. These defaults are arbitrary placeholders which
         should not be used in any downstream computation.
     """
-    data = get_from_registry(adata, _CONSTANTS.X_KEY)
-    batch_indices = get_from_registry(adata, _CONSTANTS.BATCH_KEY)
+    data = adata_manager.get_from_registry(_CONSTANTS.X_KEY)
+    batch_indices = adata_manager.get_from_registry(_CONSTANTS.BATCH_KEY)
 
     library_log_means = np.zeros(n_batch)
     library_log_vars = np.ones(n_batch)

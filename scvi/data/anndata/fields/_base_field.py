@@ -5,7 +5,7 @@ import numpy as np
 from anndata import AnnData
 
 from scvi.data.anndata import _constants
-from scvi.data.anndata._utils import _get_field
+from scvi.data.anndata._utils import get_anndata_attribute
 
 
 class BaseAnnDataField(ABC):
@@ -96,7 +96,7 @@ class BaseAnnDataField(ABC):
     def get_field(self, adata: AnnData) -> np.ndarray:
         """Returns the data field as a NumPy array for a given AnnData object."""
         assert not self.is_empty
-        return _get_field(adata, self.attr_name, self.attr_key)
+        return get_anndata_attribute(adata, self.attr_name, self.attr_key)
 
     def get_data_registry(self) -> dict:
         """

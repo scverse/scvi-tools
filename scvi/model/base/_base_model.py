@@ -13,10 +13,8 @@ from anndata import AnnData
 
 from scvi import _CONSTANTS, settings
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.data.anndata import get_from_registry
 from scvi.data.anndata._compat import manager_from_setup_dict
 from scvi.data.anndata._constants import _SCVI_UUID_KEY
-from scvi.data.anndata._utils import _check_anndata_setup_equivalence
 from scvi.data.anndata.manager import AnnDataManager
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -183,23 +181,24 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             else:
                 raise ValueError("Please run `adata = adata.copy()`")
 
-        if "_scvi" not in adata.uns_keys():
+        if self.get_anndata_manager(adata) is None:
             logger.info(
                 "Input adata not setup with scvi. "
                 + "attempting to transfer anndata setup"
             )
             self._register_manager(self.adata_manager.transfer_setup(adata))
+        adata_manager = self.get_anndata_manager(adata)
         is_nonneg_int = _check_nonnegative_integers(
-            get_from_registry(adata, _CONSTANTS.X_KEY)
+            adata_manager.get_from_registry(_CONSTANTS.X_KEY)
         )
         if not is_nonneg_int:
             warnings.warn(
                 "Make sure the registered X field in anndata contains unnormalized count data."
             )
 
-        needs_transfer = _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
-        if needs_transfer:
-            self._register_manager(self.adata_manager.transfer_setup(adata))
+        # needs_transfer = _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
+        # if needs_transfer:
+        #     self._register_manager(self.adata_manager.transfer_setup(adata))
 
         return adata
 
