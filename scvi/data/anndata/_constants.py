@@ -11,6 +11,7 @@ _SCVI_UUID_KEY = "_scvi_uuid"
 #############################
 
 _SETUP_DICT_KEY = "_scvi"
+_SCVI_VERSION_KEY = "scvi_version"
 _DATA_REGISTRY_KEY = "data_registry"
 _CATEGORICAL_MAPPINGS_KEY = "categorical_mappings"
 _SUMMARY_STATS_KEY = "summary_stats"

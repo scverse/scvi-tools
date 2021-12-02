@@ -32,13 +32,7 @@ class AnnDataManager:
     ) -> None:
         self.fields = set(fields or {})
         self.adata = None
-        self.setup_dict_key = _constants._SETUP_DICT_KEY
-
-    def _init_setup_dict(self) -> dict:
-        """Creates a setup dictionary and intializes it with the current scvi-tools version."""
-        self._assert_anndata_registered()
-
-        self.adata.uns[self.setup_dict_key] = {"scvi_version": scvi.__version__}
+        self.state_dict = {_constants._SCVI_VERSION_KEY: scvi.__version__}
 
     def _assert_anndata_registered(self):
         """Asserts that an AnnData object has been registered with this instance."""
@@ -58,6 +52,9 @@ class AnnDataManager:
 
         if _constants._SCVI_UUID_KEY not in self.adata.uns:
             self.adata.uns[_constants._SCVI_UUID_KEY] = uuid4()
+
+        scvi_uuid = self.adata.uns[_constants._SCVI_UUID_KEY]
+        self.state_dict[_constants._SCVI_UUID_KEY] = scvi_uuid
 
     def _freeze_fields(self):
         """Freezes the fields associated with this instance."""
@@ -95,8 +92,6 @@ class AnnDataManager:
         self._validate_anndata_object(adata)
         self.adata = adata
 
-        self._init_setup_dict()
-
         for field in self.fields:
             if not field.is_empty:
                 if source_setup_dict is not None:
@@ -107,10 +102,8 @@ class AnnDataManager:
                     field.register_field(self.adata)
         self._freeze_fields()
 
-        data_registry = self.get_data_registry(update=True)
+        data_registry = self.get_data_registry()
         _verify_and_correct_data_format(self.adata, data_registry)
-
-        self.get_summary_stats(update=True)
 
         self._assign_uuid()
 
@@ -147,12 +140,6 @@ class AnnDataManager:
         self._assert_anndata_registered()
 
         return self.adata.uns[_constants._SCVI_UUID_KEY]
-
-    def get_setup_dict(self) -> dict:
-        """Returns the setup dictionary for the AnnData object registered with this instance."""
-        self._assert_anndata_registered()
-
-        return self.adata.uns[self.setup_dict_key]
 
     def get_data_registry(self, update: bool = False) -> dict:
         """
@@ -203,7 +190,7 @@ class AnnDataManager:
 
         summary_stats_dict = dict()
         for field in self.fields:
-            summary_stats_dict.update(field.compute_summary_stats(self.adata))
+            summary_stats_dict.update(field.get_summary_stats(self.adata))
 
         if update:
             setup_dict[_constants._SUMMARY_STATS_KEY] = summary_stats_dict

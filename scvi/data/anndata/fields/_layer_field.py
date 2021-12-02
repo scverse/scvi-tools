@@ -23,6 +23,9 @@ class LayerField(BaseAnnDataField):
         If True, checks if the data are counts during validation.
     """
 
+    N_VARS_KEY = "n_vars"
+    N_CELLS_KEY = "n_cells"
+
     def __init__(
         self, registry_key: str, layer: Optional[str], is_count_data: bool = True
     ) -> None:
@@ -65,22 +68,23 @@ class LayerField(BaseAnnDataField):
                 "Are you sure this is what you want?"
             )
 
-    def register_field(self, adata: AnnData) -> None:
+    def register_field(self, adata: AnnData) -> dict:
         super().register_field(adata)
+        return {self.N_CELLS_KEY: adata.n_obs, self.N_VARS_KEY: adata.n_vars}
 
-    def transfer_field(self, setup_dict: dict, adata_target: AnnData, **kwargs) -> None:
-        super().transfer_field(setup_dict, adata_target, **kwargs)
-        summary_stats = setup_dict[_constants._SUMMARY_STATS_KEY]
+    def transfer_field(
+        self, state_registry: dict, adata_target: AnnData, **kwargs
+    ) -> dict:
+        super().transfer_field(state_registry, adata_target, **kwargs)
+        n_vars = state_registry[self.N_VARS_KEY]
         target_n_vars = adata_target.n_vars
-        if target_n_vars != summary_stats["n_vars"]:
+        if target_n_vars != n_vars:
             raise ValueError(
                 "Number of vars in adata_target not the same as source. "
-                + "Expected: {} Received: {}".format(
-                    target_n_vars, summary_stats["n_vars"]
-                )
+                + "Expected: {} Received: {}".format(target_n_vars, n_vars)
             )
 
-        self.register_field(adata_target)
+        return self.register_field(adata_target)
 
-    def compute_summary_stats(self, adata: AnnData) -> dict:
-        return dict(n_cells=adata.n_obs, n_vars=adata.n_vars)
+    def get_summary_stats(self, state_registry: dict) -> dict:
+        return state_registry.copy()

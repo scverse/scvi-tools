@@ -90,29 +90,27 @@ class NumericalJointObsField(JointObsField):
 
     def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
         super().__init__(registry_key, obs_keys)
-        self._columns_key = f"{self.registry_key}_keys"
+        self.columns_key = f"{self.registry_key}_keys"
 
-    def register_field(self, adata: AnnData) -> None:
+        self.count_stat_key = f"n_{self.registry_key}"
+
+    def register_field(self, adata: AnnData) -> dict:
         super().register_field(adata)
         self._combine_obs_fields(adata)
-        adata.uns[_constants._SETUP_DICT_KEY][self._columns_key] = adata.obsm[
-            self.attr_key
-        ].columns.to_numpy()
+        return {self._columns_key: adata.obsm[self.attr_key].columns.to_numpy()}
 
     def transfer_field(
         self,
-        setup_dict: dict,
+        state_registry: dict,
         adata_target: AnnData,
         **kwargs,
-    ) -> None:
-        super().transfer_field(setup_dict, adata_target, **kwargs)
-        self.register_field(adata_target)
+    ) -> dict:
+        super().transfer_field(state_registry, adata_target, **kwargs)
+        return self.register_field(adata_target)
 
-    def compute_summary_stats(self, adata: AnnData) -> dict:
-        super().compute_summary_stats(adata)
-        n_continuous_covariates = len(self.obs_keys)
-        stat_name = f"n_{self.registry_key}"
-        return {stat_name: n_continuous_covariates}
+    def compute_summary_stats(self, state_registry: dict) -> dict:
+        n_continuous_covariates = len(state_registry[self.columns_key].shape[0])
+        return {self.count_stat_key: n_continuous_covariates}
 
 
 class CategoricalJointObsField(JointObsField):
@@ -129,18 +127,20 @@ class CategoricalJointObsField(JointObsField):
         Sequence of keys to combine to form the obsm field.
     """
 
+    MAPPINGS_KEY = "mappings"
+    KEYS_KEY = "keys"
+    N_CATS_PER_KEY = "n_cats_per_key"
+
     def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
         super().__init__(registry_key, obs_keys)
-        self._mappings_key = registry_key
+        self.count_stat_key = f"n_{self.registry_key}"
 
-    def _initialize_mappings_dict(self, adata: AnnData) -> None:
-        adata.uns[_constants._SETUP_DICT_KEY][self._mappings_key] = dict(
-            mappings=dict(), keys=[]
-        )
+    def _default_mappings_dict(self) -> dict:
+        return {self.MAPPINGS_KEY: dict(), self.KEYS_KEY: [], self.N_CATS_PER_KEY: []}
 
     def _make_obsm_categorical(
         self, adata: AnnData, category_dict: Optional[Dict[str, List[str]]] = None
-    ) -> None:
+    ) -> dict:
         if self.obs_keys != adata.obsm[self.attr_key].columns.tolist():
             raise ValueError(
                 "Original .obs keys do not match the columns in the generated .obsm field."
@@ -163,34 +163,31 @@ class CategoricalJointObsField(JointObsField):
         store_cats = categories if category_dict is None else category_dict
 
         mappings_dict = adata.uns[_constants._SETUP_DICT_KEY][self._mappings_key]
-        mappings_dict[_constants._JO_CM_MAPPINGS_KEY] = store_cats
-        mappings_dict[_constants._JO_CM_KEYS_KEY] = self.obs_keys
-        n_cats_per_key = []
+        mappings_dict = self._default_mappings_dict()
+        mappings_dict[self.MAPPINGS_KEY] = store_cats
+        mappings_dict[self.KEYS_KEY] = self.obs_keys
         for k in self.obs_keys:
-            n_cats_per_key.append(len(store_cats[k]))
-        mappings_dict[_constants._JO_CM_N_CATS_PER_KEY] = n_cats_per_key
+            mappings_dict[self.N_CATS_PER_KEY].append(len(store_cats[k]))
+        return mappings_dict
 
-    def register_field(self, adata: AnnData) -> None:
+    def register_field(self, adata: AnnData) -> dict:
         super().register_field(adata)
         self._combine_obs_fields(adata)
-        self._initialize_mappings_dict(adata)
-        self._make_obsm_categorical(adata)
+        return self._make_obsm_categorical(adata)
 
     def transfer_field(
         self,
-        setup_dict: dict,
+        state_registry: dict,
         adata_target: AnnData,
         extend_categories: bool = False,
         **kwargs,
-    ) -> None:
-        super().transfer_field(setup_dict, adata_target, **kwargs)
+    ) -> dict:
+        super().transfer_field(state_registry, adata_target, **kwargs)
 
         if self.is_empty:
             return
 
-        source_cat_dict = setup_dict[self._mappings_key][
-            _constants._JO_CM_MAPPINGS_KEY
-        ].copy()
+        source_cat_dict = state_registry[self.MAPPINGS_KEY].copy()
         if extend_categories:
             for key, mapping in source_cat_dict.items():
                 for c in np.unique(adata_target.obs[key]):
@@ -200,14 +197,11 @@ class CategoricalJointObsField(JointObsField):
 
         self.validate_field(adata_target)
         self._combine_obs_fields(adata_target)
-        self._initialize_mappings_dict(adata_target)
-        self._make_obsm_categorical(adata_target, category_dict=source_cat_dict)
+        return self._make_obsm_categorical(adata_target, category_dict=source_cat_dict)
 
-    def compute_summary_stats(self, adata: AnnData) -> dict:
-        super().compute_summary_stats(adata)
-        n_categorical_covariates = len(self.obs_keys)
-        stat_name = f"n_{self.registry_key}"
+    def compute_summary_stats(self, state_registry: dict) -> dict:
+        n_categorical_covariates = len(state_registry[self.KEYS_KEY])
 
         return {
-            stat_name: n_categorical_covariates,
+            self.count_stat_key: n_categorical_covariates,
         }

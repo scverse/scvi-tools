@@ -720,13 +720,7 @@ def _setup_extra_continuous_covs(
 def _make_obs_column_categorical(
     adata, column_key, alternate_column_key, categorical_dtype=None
 ):
-    """
-    Makes the data in column_key in obs all categorical.
-
-    Categorizes adata.obs[column_key], then saves category codes to
-    .obs[alternate_column_key] and the category mappings
-    to .uns["scvi"]["categorical_mappings"].
-    """
+    """Makes the data in column_key in obs all categorical."""
     if categorical_dtype is None:
         categorical_obs = adata.obs[column_key].astype("category")
     else:
@@ -743,14 +737,6 @@ def _make_obs_column_categorical(
         )
     adata.obs[alternate_column_key] = codes
 
-    # store categorical mappings
-    store_dict = {
-        alternate_column_key: {"original_key": column_key, "mapping": mapping}
-    }
-    if "categorical_mappings" not in adata.uns["_scvi"].keys():
-        adata.uns["_scvi"]["categorical_mappings"] = dict()
-    adata.uns["_scvi"]["categorical_mappings"].update(store_dict)
-
     # make sure each category contains enough cells
     unique, counts = np.unique(adata.obs[alternate_column_key], return_counts=True)
     if np.min(counts) < 3:
@@ -765,7 +751,8 @@ def _make_obs_column_categorical(
         warnings.warn(
             "Is adata.obs['{}'] continuous? SCVI doesn't support continuous obs yet."
         )
-    return alternate_column_key
+
+    return mapping
 
 
 def _setup_protein_expression(
