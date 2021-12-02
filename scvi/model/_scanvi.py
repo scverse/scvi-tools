@@ -200,7 +200,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scanvi_model = cls(
             adata, unlabeled_category, **non_kwargs, **kwargs, **scanvi_kwargs
         )
-        scvi_state_dict = scvi_model.module.state_dict()
+        scvi_state_dict = scvi_model.module.state_dict().copy()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
         scanvi_model.was_pretrained = True
 
