@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from copy import deepcopy
 from typing import Optional, Sequence, Type
 from uuid import UUID, uuid4
@@ -32,7 +33,10 @@ class AnnDataManager:
     ) -> None:
         self.fields = set(fields or {})
         self.adata = None
-        self.registry = {_constants._SCVI_VERSION_KEY: scvi.__version__}
+        self.registry = {
+            _constants._SCVI_VERSION_KEY: scvi.__version__,
+            _constants._FIELD_REGISTRIES_KEY: defaultdict(dict),
+        }
 
     def _assert_anndata_registered(self):
         """Asserts that an AnnData object has been registered with this instance."""
@@ -88,13 +92,14 @@ class AnnDataManager:
 
         self._validate_anndata_object(adata)
         self.adata = adata
+        field_registries = self.registry[_constants._FIELD_REGISTRIES_KEY]
 
         for field in self.fields:
-            self.registry[field.registry_key] = {
+            field_registries[field.registry_key] = {
                 _constants._DATA_REGISTRY_KEY: field.get_data_registry(),
                 _constants._STATE_REGISTRY_KEY: dict(),
             }
-            field_registry = self.registry[field.registry_key]
+            field_registry = field_registries[field.registry_key]
 
             if not field.is_empty:
                 if source_registry is not None:
@@ -150,7 +155,7 @@ class AnnDataManager:
         """Returns the UUID for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
 
-        return self.adata.uns[_constants._SCVI_UUID_KEY]
+        return self.registry[_constants._SCVI_UUID_KEY]
 
     @property
     def data_registry(self) -> dict:
@@ -158,7 +163,9 @@ class AnnDataManager:
         self._assert_anndata_registered()
 
         data_registry = dict()
-        for registry_key, field_registry in self.registry:
+        for registry_key, field_registry in self.registry[
+            _constants._FIELD_REGISTRIES_KEY
+        ].items():
             field_data_registry = field_registry[_constants._DATA_REGISTRY_KEY]
             if field_data_registry:
                 data_registry[registry_key] = field_data_registry.copy()
@@ -171,7 +178,7 @@ class AnnDataManager:
         self._assert_anndata_registered()
 
         summary_stats = dict()
-        for field_registry in self.registry.values():
+        for field_registry in self.registry[_constants._FIELD_REGISTRIES_KEY].values():
             field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
             summary_stats.update(field_summary_stats)
 

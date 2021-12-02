@@ -88,16 +88,17 @@ class NumericalJointObsField(JointObsField):
         Sequence of keys to combine to form the obsm field.
     """
 
+    COLUMNS_KEY = "columns"
+
     def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
         super().__init__(registry_key, obs_keys)
-        self.columns_key = f"{self.registry_key}_keys"
 
         self.count_stat_key = f"n_{self.registry_key}"
 
     def register_field(self, adata: AnnData) -> dict:
         super().register_field(adata)
         self._combine_obs_fields(adata)
-        return {self.columns_key: adata.obsm[self.attr_key].columns.to_numpy()}
+        return {self.COLUMNS_KEY: adata.obsm[self.attr_key].columns.to_numpy()}
 
     def transfer_field(
         self,
@@ -162,7 +163,6 @@ class CategoricalJointObsField(JointObsField):
 
         store_cats = categories if category_dict is None else category_dict
 
-        mappings_dict = adata.uns[_constants._SETUP_DICT_KEY][self._mappings_key]
         mappings_dict = self._default_mappings_dict()
         mappings_dict[self.MAPPINGS_KEY] = store_cats
         mappings_dict[self.KEYS_KEY] = self.obs_keys

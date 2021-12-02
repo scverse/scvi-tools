@@ -15,7 +15,7 @@ from scvi import _CONSTANTS, settings
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.data.anndata import get_from_registry
 from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SUMMARY_STATS_KEY
+from scvi.data.anndata._constants import _SCVI_UUID_KEY
 from scvi.data.anndata._utils import _check_anndata_setup_equivalence
 from scvi.data.anndata.manager import AnnDataManager
 from scvi.dataloaders import AnnDataLoader
@@ -44,8 +44,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if adata is not None:
             self.adata_manager = self.get_anndata_manager(adata, required=True)
             self.adata = self.adata_manager.adata
-            self.scvi_setup_dict_ = self.adata_manager.get_setup_dict()
-            self.summary_stats = self.scvi_setup_dict_[_SUMMARY_STATS_KEY]
+            self.registry = self.adata_manager.registry
+            self.summary_stats = self.adata_manager.summary_stats
 
         self.is_trained_ = False
         self._model_summary_string = ""

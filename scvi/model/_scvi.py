@@ -96,8 +96,8 @@ class SCVI(
         super(SCVI, self).__init__(adata)
 
         n_cats_per_cov = (
-            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
-            if "extra_categoricals" in self.scvi_setup_dict_
+            self.registry["extra_categoricals"]["n_cats_per_key"]
+            if "extra_categoricals" in self.registry
             else None
         )
         n_batch = self.summary_stats["n_batch"]

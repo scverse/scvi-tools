@@ -275,7 +275,7 @@ def _setup_anndata(
         return adata
 
 
-def _set_data_in_registry(adata, data, key):
+def _set_data_in_registry(adata, data, attr_name, attr_key):
     """
     Sets the data associated with key in adata.uns['_scvi']['data_registry'].keys() to data.
 
@@ -292,9 +292,6 @@ def _set_data_in_registry(adata, data, key):
     key
         key in adata.uns['_scvi]['data_registry'].keys() associated with the data
     """
-    data_loc = adata.uns["_scvi"]["data_registry"][key]
-    attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
-
     if attr_key == "None":
         setattr(adata, attr_name, data)
 
@@ -324,7 +321,12 @@ def _verify_and_correct_data_format(adata, data_registry):
     keys = [key for key in keys_to_check if key in data_registry.keys()]
 
     for k in keys:
-        data = get_from_registry(adata, k)
+        mapping = data_registry[k]
+        attr_name, attr_key = (
+            mapping[_constants._DR_ATTR_NAME],
+            mapping[_constants._DR_ATTR_KEY],
+        )
+        data = _get_field(adata, attr_name, attr_key)
         if isspmatrix(data) and (data.getformat() != "csr"):
             warnings.warn(
                 "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization."
@@ -334,7 +336,7 @@ def _verify_and_correct_data_format(adata, data_registry):
                 "{} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.".format(k)
             )
             data = np.asarray(data, order="C")
-            _set_data_in_registry(adata, data, k)
+            _set_data_in_registry(adata, data, attr_name, attr_key)
         elif isinstance(data, pd.DataFrame) and (
             data.to_numpy().flags["C_CONTIGUOUS"] is False
         ):
@@ -347,7 +349,7 @@ def _verify_and_correct_data_format(adata, data_registry):
             data = pd.DataFrame(
                 np.ascontiguousarray(vals), index=index, columns=columns
             )
-            _set_data_in_registry(adata, data, k)
+            _set_data_in_registry(adata, data, attr_name, attr_key)
 
 
 def register_tensor_from_anndata(
@@ -718,9 +720,19 @@ def _setup_extra_continuous_covs(
 
 
 def _make_obs_column_categorical(
-    adata, column_key, alternate_column_key, categorical_dtype=None
+    adata,
+    column_key,
+    alternate_column_key,
+    categorical_dtype=None,
+    return_mapping=False,
 ):
-    """Makes the data in column_key in obs all categorical."""
+    """
+    Makes the data in column_key in obs all categorical.
+
+    Categorizes adata.obs[column_key], then saves category codes to
+    .obs[alternate_column_key] and the category mappings
+    to .uns["scvi"]["categorical_mappings"].
+    """
     if categorical_dtype is None:
         categorical_obs = adata.obs[column_key].astype("category")
     else:
@@ -737,6 +749,16 @@ def _make_obs_column_categorical(
         )
     adata.obs[alternate_column_key] = codes
 
+    if not return_mapping:
+        # store categorical mappings
+        store_dict = {
+            alternate_column_key: {"original_key": column_key, "mapping": mapping}
+        }
+
+        if "categorical_mappings" not in adata.uns["_scvi"].keys():
+            adata.uns["_scvi"]["categorical_mappings"] = dict()
+        adata.uns["_scvi"]["categorical_mappings"].update(store_dict)
+
     # make sure each category contains enough cells
     unique, counts = np.unique(adata.obs[alternate_column_key], return_counts=True)
     if np.min(counts) < 3:
@@ -752,7 +774,7 @@ def _make_obs_column_categorical(
             "Is adata.obs['{}'] continuous? SCVI doesn't support continuous obs yet."
         )
 
-    return mapping
+    return mapping if return_mapping else alternate_column_key
 
 
 def _setup_protein_expression(

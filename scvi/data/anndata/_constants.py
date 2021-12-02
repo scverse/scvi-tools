@@ -12,8 +12,9 @@ _SCVI_UUID_KEY = "_scvi_uuid"
 
 _SETUP_DICT_KEY = "_scvi"
 _SCVI_VERSION_KEY = "scvi_version"
+_FIELD_REGISTRIES_KEY = "field_registries"
 _DATA_REGISTRY_KEY = "data_registry"
-_CATEGORICAL_MAPPINGS_KEY = "categorical_mappings"
+_STATE_REGISTRY_KEY = "state_registry"
 _SUMMARY_STATS_KEY = "summary_stats"
 
 ################################
@@ -22,21 +23,6 @@ _SUMMARY_STATS_KEY = "summary_stats"
 
 _DR_ATTR_NAME = "attr_name"
 _DR_ATTR_KEY = "attr_key"
-
-#######################################
-# scVI Categorical Mappings Constants #
-#######################################
-
-_CM_ORIGINAL_KEY = "original_key"
-_CM_MAPPING_KEY = "mapping"
-
-#######################################
-# scVI Joint Obs Categorical Mappings Constants #
-#######################################
-
-_JO_CM_MAPPINGS_KEY = "mappings"
-_JO_CM_KEYS_KEY = "keys"
-_JO_CM_N_CATS_PER_KEY = "n_cats_per_key"
 
 
 ############################

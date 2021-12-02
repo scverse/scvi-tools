@@ -20,7 +20,7 @@ from scvi.data.anndata import (
     transfer_anndata_setup,
 )
 from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._utils import _check_anndata_setup_equivalence, _setup_anndata
+from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -42,7 +42,7 @@ from scvi.model import (
 from scvi.train import TrainingPlan, TrainRunner
 
 
-def test_new_setup():
+def test_new_setup_compat():
     adata = synthetic_iid(run_setup_anndata=False)
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
@@ -66,17 +66,49 @@ def test_new_setup():
         categorical_covariate_keys=["cat1", "cat2"],
         continuous_covariate_keys=["cont1", "cont2"],
     )
-    assert not _check_anndata_setup_equivalence(adata, adata2)
+    # Consistency with previous implementation.
     assert adata.obsm["_scvi_extra_categoricals"].equals(
-        adata2.obsm["_scvi_extra_categoricals"]
+        adata2.obsm["_scvi_extra_categorical_covs"]
     )
-    adata_manager = SCVI.manager_store[adata2.uns[_constants._SCVI_UUID_KEY]]
-    adata_manager.transfer_setup(adata3)
-    assert not _check_anndata_setup_equivalence(adata, adata3)
-    manager_from_setup_dict(adata4, adata_manager.get_setup_dict())
-    assert not _check_anndata_setup_equivalence(adata, adata4)
+    assert adata.obsm["_scvi_extra_continuous"].equals(
+        adata2.obsm["_scvi_extra_continuous_covs"]
+    )
 
-    model = SCVI(adata2, n_latent=5)
+    adata_manager = SCVI.manager_store[adata2.uns[_constants._SCVI_UUID_KEY]]
+
+    # Backwards compatibility test.
+    adata3_manager = manager_from_setup_dict(
+        adata3, adata.uns[_constants._SETUP_DICT_KEY]
+    )
+    np.testing.assert_equal(
+        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+    )
+
+    # Test transfer.
+    adata4_manager = adata_manager.transfer_setup(adata4)
+    np.testing.assert_equal(
+        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        adata4_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+    )
+
+
+def test_new_setup_train():
+    adata = synthetic_iid(run_setup_anndata=False)
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
+
+    # Test train.
+    model = SCVI(adata, n_latent=5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
 
