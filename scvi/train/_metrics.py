@@ -1,22 +1,36 @@
 import torch
 from torchmetrics import Metric
 
+from scvi._compat import Literal
+
 
 class ElboMetric(Metric):
-    def __init__(self, n_obs_total: int, dist_sync_on_step: bool = False):
-        """
-        Elbo metric aggregator for scvi-tools experiments.
+    """
+    Elbo metric aggregator for scvi-tools experiments.
 
-        Parameters
-        ----------
-        n_obs_total
-            Number of total observations, for rescaling the ELBO
-        dist_sync_on_step
-            optional, by default False
-        """
-        super().__init__(dist_sync_on_step=dist_sync_on_step)
+    Parameters
+    ----------
+    n_obs_total
+        Number of total observations, for rescaling the ELBO
+    mode
+        Train or validation, used for logging names
+    dist_sync_on_step
+        optional, by default False
+    **kwargs
+        Keyword args for :class:`torchmetrics.Metric`
+    """
+
+    def __init__(
+        self,
+        n_obs_total: int,
+        mode: Literal["train", "validation"],
+        dist_sync_on_step: bool = False,
+        **kwargs
+    ):
+        super().__init__(dist_sync_on_step=dist_sync_on_step, **kwargs)
 
         self.n_obs_total = 1 if n_obs_total is None else n_obs_total
+        self._mode = mode
 
         default_val = torch.tensor(0.0)
         self.add_state("reconstruction_loss", default=default_val)
@@ -24,6 +38,10 @@ class ElboMetric(Metric):
         self.add_state("kl_global", default=default_val)
         self.add_state("n_obs", default=default_val)
         self.add_state("n_batches", default=default_val)
+
+    @property
+    def mode(self):
+        return self._mode
 
     def update(
         self,
@@ -46,8 +64,10 @@ class ElboMetric(Metric):
     def compute(self):
         avg_reconstruction_loss = self.reconstruction_loss / self.n_obs
         avg_kl_local = self.kl_local / self.n_obs
-        kl_global = self.kl_global / self.n_batches
+        avg_kl_global = self.kl_global / self.n_batches
         # elbo on the scale of one observation
-        elbo = avg_reconstruction_loss + avg_kl_local + (kl_global / self.n_obs_total)
+        elbo = (
+            avg_reconstruction_loss + avg_kl_local + (avg_kl_global / self.n_obs_total)
+        )
 
         return elbo
