@@ -395,7 +395,7 @@ pyflakes = ">=2.3.0,<2.4.0"
 
 [[package]]
 name = "fsspec"
-version = "2021.8.1"
+version = "2021.11.1"
 description = "File-system specification"
 category = "main"
 optional = false
@@ -408,15 +408,20 @@ requests = {version = "*", optional = true, markers = "extra == \"http\""}
 [package.extras]
 abfs = ["adlfs"]
 adl = ["adlfs"]
+arrow = ["pyarrow (>=1)"]
 dask = ["dask", "distributed"]
 dropbox = ["dropboxdrivefs", "requests", "dropbox"]
 entrypoints = ["importlib-metadata"]
+fuse = ["fusepy"]
 gcs = ["gcsfs"]
 git = ["pygit2"]
 github = ["requests"]
 gs = ["gcsfs"]
+gui = ["panel"]
 hdfs = ["pyarrow (>=1)"]
 http = ["requests", "aiohttp"]
+libarchive = ["libarchive-c"]
+oci = ["ocifs"]
 s3 = ["s3fs"]
 sftp = ["paramiko"]
 smb = ["smbprotocol"]
@@ -906,6 +911,23 @@ description = "The fastest markdown parser in pure Python"
 category = "main"
 optional = false
 python-versions = "*"
+
+[[package]]
+name = "mudata"
+version = "0.1.0"
+description = "Multimodal omics analysis framework"
+category = "main"
+optional = false
+python-versions = ">= 3.6"
+
+[package.dependencies]
+anndata = "*"
+h5py = "*"
+numpy = "*"
+pandas = "*"
+
+[package.extras]
+docs = ["sphinx (>=4.0)", "sphinx-rtd-theme", "readthedocs-sphinx-search", "nbsphinx", "sphinx-automodapi"]
 
 [[package]]
 name = "multidict"
@@ -2380,7 +2402,7 @@ tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<4.0"
-content-hash = "7b743f81968774207c9589184e8768cdb054ac1b7eeda632a33b2a32a4e3ea89"
+content-hash = "5336295bda90022370a457b517e3938e33bbfa204882364a68d7eb38c34fd9cf"
 
 [metadata.files]
 absl-py = [
@@ -2685,8 +2707,8 @@ flake8 = [
     {file = "flake8-3.9.1.tar.gz", hash = "sha256:1aa8990be1e689d96c745c5682b687ea49f2e05a443aff1f8251092b0014e378"},
 ]
 fsspec = [
-    {file = "fsspec-2021.8.1-py3-none-any.whl", hash = "sha256:30f27c059a414d1f434b14b2d0e75c8d9c3dd473ad8daeccb444d9d4069b9f03"},
-    {file = "fsspec-2021.8.1.tar.gz", hash = "sha256:af125917788b77782899bbd4484d29e5407f53d2bb04cdfa025fe4931201a555"},
+    {file = "fsspec-2021.11.1-py3-none-any.whl", hash = "sha256:bcb136caa37e1470dd8314a7d3917cb9b25dd9da44c10d36df556ab4ef038185"},
+    {file = "fsspec-2021.11.1.tar.gz", hash = "sha256:03683e606651d5e4bd9180525d57477bd5430e5dc68d2e459835dc14cecc3dd4"},
 ]
 future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
@@ -3032,6 +3054,10 @@ mccabe = [
 mistune = [
     {file = "mistune-0.8.4-py2.py3-none-any.whl", hash = "sha256:88a1051873018da288eee8538d476dffe1262495144b33ecb586c4ab266bb8d4"},
     {file = "mistune-0.8.4.tar.gz", hash = "sha256:59a3429db53c50b5c6bcc8a07f8848cb00d7dc8bdb431a4ab41920d201d4756e"},
+]
+mudata = [
+    {file = "mudata-0.1.0-py3-none-any.whl", hash = "sha256:0709f09f19de1c81359f69b164eda3b7b7ad9fb7cecf97e1e84980a3be355260"},
+    {file = "mudata-0.1.0.tar.gz", hash = "sha256:85d46902e877ddb02b0fe5c70384930ddffa4c07da04371da88d6bb8d58f456c"},
 ]
 multidict = [
     {file = "multidict-5.1.0-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:b7993704f1a4b204e71debe6095150d43b2ee6150fa4f44d6d966ec356a8d61f"},
