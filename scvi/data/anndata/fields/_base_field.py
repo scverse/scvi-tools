@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 from anndata import AnnData
+from mudata import MuData
 
 from scvi.data.anndata import _constants
 from scvi.data.anndata._utils import get_anndata_attribute
@@ -24,6 +25,12 @@ class BaseAnnDataField(ABC):
     @abstractmethod
     def registry_key(self):
         """The key that is referenced by models via a data loader."""
+        pass
+
+    @property
+    @abstractmethod
+    def mod_key(self) -> str:
+        """The name of the MuData modality where the data is stored. For AnnData, must be None."""
         pass
 
     @property
@@ -51,12 +58,13 @@ class BaseAnnDataField(ABC):
         pass
 
     @abstractmethod
-    def validate_field(self, adata: AnnData) -> None:
+    def validate_field(self, adata: Union[AnnData, MuData]) -> None:
         """Validates whether an AnnData object is compatible with this field definition."""
-        pass
+        if not isinstance(adata, MuData):
+            raise AssertionError("Cannot use mod_key with AnnData.")
 
     @abstractmethod
-    def register_field(self, adata: AnnData) -> dict:
+    def register_field(self, adata: Union[AnnData, MuData]) -> dict:
         """
         Sets up the AnnData object and creates a mapping for scvi-tools models to use.
 
@@ -70,7 +78,7 @@ class BaseAnnDataField(ABC):
 
     @abstractmethod
     def transfer_field(
-        self, state_registry: dict, adata_target: AnnData, **kwargs
+        self, state_registry: dict, adata_target: Union[AnnData, MuData], **kwargs
     ) -> dict:
         """
         Takes an existing scvi-tools setup dictionary and transfers the same setup to the target AnnData.
@@ -95,10 +103,10 @@ class BaseAnnDataField(ABC):
         """
         pass
 
-    def get_field(self, adata: AnnData) -> np.ndarray:
+    def get_field(self, adata: Union[AnnData, MuData]) -> np.ndarray:
         """Returns the data field as a NumPy array for a given AnnData object."""
         assert not self.is_empty
-        return get_anndata_attribute(adata, self.attr_name, self.attr_key)
+        return get_anndata_attribute(adata, self.mod_key, self.attr_name, self.attr_key)
 
     def get_data_registry(self) -> dict:
         """
@@ -111,6 +119,7 @@ class BaseAnnDataField(ABC):
             return dict()
 
         return {
+            _constants._DR_MOD_KEY: self.mod_key,
             _constants._DR_ATTR_NAME: self.attr_name,
             _constants._DR_ATTR_KEY: self.attr_key,
         }

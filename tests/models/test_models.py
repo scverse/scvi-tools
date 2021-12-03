@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from mudata import MuData
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
@@ -39,6 +40,21 @@ from scvi.model import (
     LinearSCVI,
 )
 from scvi.train import TrainingPlan, TrainRunner
+
+
+def test_new_setup_mudata():
+    adata = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid(run_setup_anndata=False)
+    mdata = MuData({"mod1": adata, "mod2": adata2})
+    SCVI.setup_anndata(
+        mdata,
+        counts_mod_key="mod1",
+        batch_key="mod1:batch",
+        labels_key="mod2:labels",
+    )
+
+    model = SCVI(mdata, n_latent=5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
 
 def test_new_setup_compat():

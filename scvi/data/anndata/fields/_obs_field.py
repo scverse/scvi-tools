@@ -3,10 +3,15 @@ from typing import Optional
 
 import numpy as np
 from anndata import AnnData
+from mudata import MuData
 from pandas.api.types import CategoricalDtype
 
 from scvi.data.anndata import _constants
-from scvi.data.anndata._utils import _make_obs_column_categorical, get_anndata_attribute
+from scvi.data.anndata._utils import (
+    _make_obs_column_categorical,
+    get_anndata_attribute,
+    parse_attr_key,
+)
 
 from ._base_field import BaseAnnDataField
 
@@ -21,11 +26,15 @@ class BaseObsField(BaseAnnDataField):
     def __init__(self, registry_key: str, obs_key: str) -> None:
         super().__init__()
         self._registry_key = registry_key
-        self._attr_key = obs_key
+        self._mod_key, self._attr_key = parse_attr_key(obs_key)
 
     @property
     def registry_key(self):
         return self._registry_key
+
+    @property
+    def mod_key(self):
+        return self._mod_key
 
     @property
     def attr_name(self):
@@ -57,9 +66,13 @@ class CategoricalObsField(BaseObsField):
     CM_MAPPING_KEY = "mapping"
 
     def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
+        super().__init__(registry_key, obs_key or registry_key)
         self.is_default = obs_key is None
-        self._original_attr_key = obs_key or registry_key
-        super().__init__(registry_key, f"_scvi_{self._original_attr_key}")
+        self._original_attr_key = self.attr_key
+        self._original_mod_key = self.mod_key
+
+        self._mod_key = None
+        self._attr_key = f"_scvi_{self.attr_key}"
 
         self.count_stat_key = f"n_{self.registry_key}"
 
@@ -67,11 +80,22 @@ class CategoricalObsField(BaseObsField):
         adata.obs[self.attr_key] = np.zeros(adata.shape[0], dtype=np.int64)
 
     def _get_original_column(self, adata: AnnData) -> np.ndarray:
-        return get_anndata_attribute(adata, self.attr_name, self._original_attr_key)
+        return get_anndata_attribute(
+            adata, self._original_mod_key, self.attr_name, self._original_attr_key
+        )
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
-        assert self._original_attr_key in adata.obs
+        if self._original_mod_key is not None:
+            if not isinstance(adata, MuData):
+                raise AssertionError("Cannot use mod_key with AnnData.")
+            if self._original_mod_key not in adata.mod:
+                raise AssertionError(
+                    f"{self._original_mod_key} is not a valid modality."
+                )
+            adata = adata[self._original_mod_key]
+        if self._original_attr_key not in adata.obs:
+            raise AssertionError(f"{self._original_attr_key} not found in .obs.")
 
     def register_field(self, adata: AnnData) -> dict:
         if self.is_default:

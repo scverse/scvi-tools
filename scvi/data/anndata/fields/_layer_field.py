@@ -27,10 +27,15 @@ class LayerField(BaseAnnDataField):
     N_CELLS_KEY = "n_cells"
 
     def __init__(
-        self, registry_key: str, layer: Optional[str], is_count_data: bool = True
+        self,
+        registry_key: str,
+        mod_key: Optional[str],
+        layer: Optional[str],
+        is_count_data: bool = True,
     ) -> None:
         super().__init__()
         self._registry_key = registry_key
+        self._mod_key = mod_key
         self._attr_name = (
             _constants._ADATA_ATTRS.X
             if layer is None
@@ -42,6 +47,10 @@ class LayerField(BaseAnnDataField):
     @property
     def registry_key(self):
         return self._registry_key
+
+    @property
+    def mod_key(self):
+        return self._mod_key
 
     @property
     def attr_name(self):

@@ -1,11 +1,12 @@
 import logging
 import warnings
 from copy import deepcopy
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
-import anndata
 import numpy as np
 import pandas as pd
+from anndata import AnnData
+from mudata import MuData
 from pandas.api.types import CategoricalDtype
 from scipy.sparse import isspmatrix
 from sklearn.utils import deprecated
@@ -20,9 +21,34 @@ from . import _constants
 logger = logging.getLogger(__name__)
 
 
+_MUDATA_MOD_DELIMETER = ":"
+
+
+def parse_attr_key(attr_key: Optional[str]) -> Tuple[str, str]:
+    """Parses attr_key into mod_key and attr_key for the AnnData and MuData getitem support."""
+    if attr_key is None:
+        return None, None
+    split_attr_key = attr_key.split(_MUDATA_MOD_DELIMETER)
+    if len(split_attr_key) == 1:
+        return None, split_attr_key[0]
+    elif len(split_attr_key) == 2:
+        return split_attr_key[0], split_attr_key[1]
+    else:
+        return ValueError(f"{attr_key} is not a valid AnnData/MuData attribute key.")
+
+
 def get_anndata_attribute(
-    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+    adata: Union[AnnData, MuData],
+    mod_key: Optional[str],
+    attr_name: str,
+    attr_key: Optional[str],
 ) -> np.ndarray:
+    if mod_key is not None:
+        if not isinstance(adata, MuData):
+            raise ValueError(
+                "mod_key can only be non-None when accessing MuData attributes."
+            )
+        adata = adata[mod_key]
     adata_attr = getattr(adata, attr_name)
     if attr_key is None:
         field = adata_attr
@@ -42,7 +68,7 @@ def get_anndata_attribute(
     return field
 
 
-def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
+def get_from_registry(adata: AnnData, key: str) -> np.ndarray:
     """
     Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``.
 
@@ -88,7 +114,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     extra="Please use the model-specific setup_anndata methods instead. The global method will be removed in version 0.15.0."
 )
 def setup_anndata(
-    adata: anndata.AnnData,
+    adata: AnnData,
     batch_key: Optional[str] = None,
     labels_key: Optional[str] = None,
     layer: Optional[str] = None,
@@ -97,7 +123,7 @@ def setup_anndata(
     categorical_covariate_keys: Optional[List[str]] = None,
     continuous_covariate_keys: Optional[List[str]] = None,
     copy: bool = False,
-) -> Optional[anndata.AnnData]:
+) -> Optional[AnnData]:
     """
     Sets up :class:`~anndata.AnnData` object for models.
 
@@ -196,7 +222,7 @@ def setup_anndata(
 
 
 def _setup_anndata(
-    adata: anndata.AnnData,
+    adata: AnnData,
     batch_key: Optional[str] = None,
     labels_key: Optional[str] = None,
     layer: Optional[str] = None,
@@ -205,7 +231,7 @@ def _setup_anndata(
     categorical_covariate_keys: Optional[List[str]] = None,
     continuous_covariate_keys: Optional[List[str]] = None,
     copy: bool = False,
-) -> Optional[anndata.AnnData]:
+) -> Optional[AnnData]:
     if copy:
         adata = adata.copy()
 
@@ -352,7 +378,7 @@ def _verify_and_correct_data_format(adata, data_registry):
 
 
 def register_tensor_from_anndata(
-    adata: anndata.AnnData,
+    adata: AnnData,
     registry_key: str,
     adata_attr_name: Literal["obs", "var", "obsm", "varm", "uns"],
     adata_key_name: str,
@@ -405,8 +431,8 @@ def register_tensor_from_anndata(
     extra="This method will be removed in 0.15.0. Please avoid building any new dependencies on it."
 )
 def transfer_anndata_setup(
-    adata_source: Union[anndata.AnnData, dict],
-    adata_target: anndata.AnnData,
+    adata_source: Union[AnnData, dict],
+    adata_target: AnnData,
     extend_categories: bool = False,
 ):
     """
@@ -427,7 +453,7 @@ def transfer_anndata_setup(
     """
     adata_target.uns["_scvi"] = {}
 
-    if isinstance(adata_source, anndata.AnnData):
+    if isinstance(adata_source, AnnData):
         _scvi_dict = adata_source.uns["_scvi"]
     else:
         _scvi_dict = adata_source
@@ -634,7 +660,7 @@ def _setup_batch(adata, batch_key):
 
 
 def _setup_extra_categorical_covs(
-    adata: anndata.AnnData,
+    adata: AnnData,
     categorical_covariate_keys: List[str],
     category_dict: Optional[Dict[str, List[str]]] = None,
 ):
@@ -691,9 +717,7 @@ def _setup_extra_categorical_covs(
     return cat_loc, cat_key
 
 
-def _setup_extra_continuous_covs(
-    adata: anndata.AnnData, continuous_covariate_keys: List[str]
-):
+def _setup_extra_continuous_covs(adata: AnnData, continuous_covariate_keys: List[str]):
     """
     Setup obsm df for extra continuous covariates.
 

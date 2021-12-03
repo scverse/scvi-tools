@@ -179,11 +179,12 @@ class SCVI(
     def setup_anndata(
         cls,
         adata: AnnData,
+        counts_mod_key: Optional[str] = None,
+        counts_layer: Optional[str] = None,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
-        layer: Optional[str] = None,
     ):
         """
         %(summary)s.
@@ -195,7 +196,9 @@ class SCVI(
         %(param_layer)s
         """
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+            LayerField(
+                _CONSTANTS.X_KEY, counts_mod_key, counts_layer, is_count_data=True
+            ),
             CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
             CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
             CategoricalJointObsField(

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Optional, Sequence, Type
+from typing import Optional, Sequence, Type, Union
 from uuid import UUID, uuid4
 
 import numpy as np
 from anndata import AnnData
+from mudata import MuData
 
 import scvi
 
@@ -88,7 +89,10 @@ class AnnDataManager:
         self.fields.add(field)
 
     def register_fields(
-        self, adata: AnnData, source_registry: Optional[dict] = None, **transfer_kwargs
+        self,
+        adata: Union[AnnData, MuData],
+        source_registry: Optional[dict] = None,
+        **transfer_kwargs
     ):
         """
         Registers each field associated with this instance with the AnnData object.
