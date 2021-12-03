@@ -9,12 +9,8 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
-from scvi.data.anndata._utils import (
-    _setup_anndata,
-    get_from_registry,
-    transfer_anndata_setup,
-)
+from scvi import _REGISTRY_KEYS
+from scvi.data.anndata._utils import _setup_anndata, transfer_anndata_setup
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
@@ -200,8 +196,8 @@ class SOLO(BaseModelClass):
             cls.setup_anndata(full_adata, labels_key=LABELS_KEY)
         return cls(full_adata, **classifier_kwargs)
 
-    @staticmethod
     def create_doublets(
+        self,
         adata: AnnData,
         doublet_ratio: int,
         indices: Optional[Sequence[int]] = None,
@@ -225,7 +221,8 @@ class SOLO(BaseModelClass):
         num_doublets = doublet_ratio * n_obs
 
         # counts can be in many locations, this uses where it was registered in setup
-        x = get_from_registry(adata, _CONSTANTS.X_KEY)
+        adata = self._validate_anndata(adata)
+        x = self.get_from_registry(adata, _REGISTRY_KEYS.X_KEY)
         if indices is not None:
             x = x[indices]
 
@@ -241,9 +238,11 @@ class SOLO(BaseModelClass):
 
         # if adata setup with a layer, need to add layer to doublets adata
         data_registry = adata.uns["_scvi"]["data_registry"]
-        x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
+        x_loc = data_registry[_REGISTRY_KEYS.X_KEY]["attr_name"]
         layer = (
-            data_registry[_CONSTANTS.X_KEY]["attr_key"] if x_loc == "layers" else None
+            data_registry[_REGISTRY_KEYS.X_KEY]["attr_key"]
+            if x_loc == "layers"
+            else None
         )
         if layer is not None:
             doublets_ad.layers[layer] = doublets
@@ -372,7 +371,7 @@ class SOLO(BaseModelClass):
 
         y_pred = []
         for _, tensors in enumerate(scdl):
-            x = tensors[_CONSTANTS.X_KEY]
+            x = tensors[_REGISTRY_KEYS.X_KEY]
             pred = auto_forward(self.module, x)
             y_pred.append(pred.cpu())
 

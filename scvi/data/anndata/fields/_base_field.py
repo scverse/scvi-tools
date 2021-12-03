@@ -69,7 +69,9 @@ class BaseAnnDataField(ABC):
         self.validate_field(adata)
 
     @abstractmethod
-    def transfer_field(self, setup_dict: dict, adata_target: AnnData, **kwargs) -> dict:
+    def transfer_field(
+        self, state_registry: dict, adata_target: AnnData, **kwargs
+    ) -> dict:
         """
         Takes an existing scvi-tools setup dictionary and transfers the same setup to the target AnnData.
 
@@ -78,8 +80,8 @@ class BaseAnnDataField(ABC):
 
         Parameters
         ----------
-        setup_dict
-            Setup dictionary created after registering an AnnData using an AnnDataManager object.
+        state_registry
+            state_registry dictionary created after registering an AnnData using an AnnDataManager object.
         adata_target
             AnnData object that is being registered.
         **kwargs

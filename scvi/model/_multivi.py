@@ -9,7 +9,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
-from scvi import _CONSTANTS
+from scvi import _REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.data.anndata._utils import _setup_anndata
@@ -593,8 +593,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             per_batch_exprs = []
             for batch in transform_batch:
                 if batch is not None:
-                    batch_indices = tensors[_CONSTANTS.BATCH_KEY]
-                    tensors[_CONSTANTS.BATCH_KEY] = (
+                    batch_indices = tensors[_REGISTRY_KEYS.BATCH_KEY]
+                    tensors[_REGISTRY_KEYS.BATCH_KEY] = (
                         torch.ones_like(batch_indices) * batch
                     )
                 _, generative_outputs = self.module.forward(
@@ -714,7 +714,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         result = _de_core(
-            adata=adata,
+            adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
             groupby=groupby,
             group1=group1,
@@ -800,7 +800,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             var_idx=np.arange(adata.shape[1])[: self.n_genes],
         )
         result = _de_core(
-            adata,
+            adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
             groupby=groupby,
             group1=group1,

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi import _CONSTANTS
+from scvi import _REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import (
     NegativeBinomial,
@@ -318,14 +318,14 @@ class TOTALVAE(BaseModuleClass):
         return reconst_loss_gene, reconst_loss_protein
 
     def _get_inference_input(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
+        y = tensors[_REGISTRY_KEYS.PROTEIN_EXP_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = _REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = _REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         input_dict = dict(
@@ -336,13 +336,13 @@ class TOTALVAE(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
         library_gene = inference_outputs["library_gene"]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        label = tensors[_CONSTANTS.LABELS_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
+        label = tensors[_REGISTRY_KEYS.LABELS_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = _REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = _REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         return dict(
@@ -566,9 +566,9 @@ class TOTALVAE(BaseModuleClass):
         px_ = generative_outputs["px_"]
         py_ = generative_outputs["py_"]
 
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
+        y = tensors[_REGISTRY_KEYS.PROTEIN_EXP_KEY]
 
         if self.protein_batch_mask is not None:
             pro_batch_mask_minibatch = torch.zeros_like(y)
@@ -659,8 +659,8 @@ class TOTALVAE(BaseModuleClass):
     @torch.no_grad()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
         to_sum = torch.zeros(x.size()[0], n_mc_samples)
 
         for i in range(n_mc_samples):

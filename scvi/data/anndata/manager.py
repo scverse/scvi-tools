@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from copy import deepcopy
 from typing import Optional, Sequence, Type
 from uuid import UUID, uuid4
 
@@ -158,13 +157,40 @@ class AnnDataManager:
 
         return self.registry[_constants._SCVI_UUID_KEY]
 
+    @property
+    def data_registry(self) -> dict:
+        """Returns the data registry for the AnnData object registered with this instance."""
+        self._assert_anndata_registered()
+
+        data_registry = dict()
+        for registry_key, field_registry in self.registry[
+            _constants._FIELD_REGISTRIES_KEY
+        ].items():
+            field_data_registry = field_registry[_constants._DATA_REGISTRY_KEY]
+            if field_data_registry:
+                data_registry[registry_key] = field_data_registry
+
+        return data_registry
+
+    @property
+    def summary_stats(self) -> dict:
+        """Returns the summary stats for the AnnData object registered with this instance."""
+        self._assert_anndata_registered()
+
+        summary_stats = dict()
+        for field_registry in self.registry[_constants._FIELD_REGISTRIES_KEY].values():
+            field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
+            summary_stats.update(field_summary_stats)
+
+        return summary_stats
+
     def get_from_registry(self, registry_key: str) -> np.ndarray:
         """
-        Returns the object in AnnData associated with the key in the data registry``.
+        Returns the object in AnnData associated with the key in the data registry.
 
         Parameters
         ----------
-        key
+        registry_key
             key of object to get from ``self.data_registry``
 
         Returns
@@ -179,29 +205,10 @@ class AnnDataManager:
 
         return get_anndata_attribute(self.adata, attr_name, attr_key)
 
-    @property
-    def data_registry(self) -> dict:
-        """Returns the data registry for the AnnData object registered with this instance."""
+    def get_state_registry(self, registry_key: str) -> dict:
+        """Returns the state registry for the AnnDataField registered with this instance."""
         self._assert_anndata_registered()
 
-        data_registry = dict()
-        for registry_key, field_registry in self.registry[
-            _constants._FIELD_REGISTRIES_KEY
-        ].items():
-            field_data_registry = field_registry[_constants._DATA_REGISTRY_KEY]
-            if field_data_registry:
-                data_registry[registry_key] = field_data_registry.copy()
-
-        return data_registry
-
-    @property
-    def summary_stats(self) -> dict:
-        """Returns the summary stats for the AnnData object registered with this instance."""
-        self._assert_anndata_registered()
-
-        summary_stats = dict()
-        for field_registry in self.registry[_constants._FIELD_REGISTRIES_KEY].values():
-            field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
-            summary_stats.update(field_summary_stats)
-
-        return deepcopy(summary_stats)
+        return self.registry[_constants._FIELD_REGISTRIES_KEY][registry_key][
+            _constants._STATE_REGISTRY_KEY
+        ]

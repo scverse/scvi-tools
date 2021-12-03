@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch.distributions import NegativeBinomial, Normal
 
-from scvi import _CONSTANTS
+from scvi import _REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 
@@ -65,8 +65,8 @@ class RNADeconv(BaseModuleClass):
         return {}
 
     def _get_generative_input(self, tensors, inference_outputs):
-        x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
+        y = tensors[_REGISTRY_KEYS.LABELS_KEY]
 
         input_dict = dict(x=x, y=y)
         return input_dict
@@ -100,7 +100,7 @@ class RNADeconv(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
         scaling_factor = generative_outputs["scaling_factor"]
@@ -180,7 +180,7 @@ class SpatialDeconv(BaseModuleClass):
         return {}
 
     def _get_generative_input(self, tensors, inference_outputs):
-        x = tensors[_CONSTANTS.X_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
         ind_x = tensors["ind_x"]
 
         input_dict = dict(x=x, ind_x=ind_x)
@@ -218,7 +218,7 @@ class SpatialDeconv(BaseModuleClass):
         kl_weight: float = 1.0,
         n_obs: int = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
 

@@ -1,7 +1,7 @@
 from typing import NamedTuple
 
 
-class _CONSTANTS_NT(NamedTuple):
+class _REGISTRY_KEYS_NT(NamedTuple):
     X_KEY: str = "X"
     BATCH_KEY: str = "batch"
     LABELS_KEY: str = "labels"
@@ -10,4 +10,4 @@ class _CONSTANTS_NT(NamedTuple):
     CONT_COVS_KEY: str = "extra_continuous_covs"
 
 
-_CONSTANTS = _CONSTANTS_NT()
+_REGISTRY_KEYS = _REGISTRY_KEYS_NT()

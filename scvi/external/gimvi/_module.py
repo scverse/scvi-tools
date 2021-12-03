@@ -9,7 +9,7 @@ from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 from torch.nn import ModuleList
 
-from scvi import _CONSTANTS
+from scvi import _REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import Encoder, MultiDecoder, MultiEncoder, one_hot
@@ -357,13 +357,13 @@ class JVAE(BaseModuleClass):
         return reconstruction_loss
 
     def _get_inference_input(self, tensors):
-        return dict(x=tensors[_CONSTANTS.X_KEY])
+        return dict(x=tensors[_REGISTRY_KEYS.X_KEY])
 
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
         library = inference_outputs["library"]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
+        y = tensors[_REGISTRY_KEYS.LABELS_KEY]
         return dict(z=z, library=library, batch_index=batch_index, y=y)
 
     @auto_move_data
@@ -444,8 +444,8 @@ class JVAE(BaseModuleClass):
                 mode = 0
             else:
                 raise Exception("Must provide a mode")
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
 
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]

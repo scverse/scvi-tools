@@ -8,7 +8,7 @@ import pyro
 import torch
 from anndata import AnnData
 
-from scvi._constants import _CONSTANTS
+from scvi._constants import _REGISTRY_KEYS
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.module import AmortizedLDAPyroModule
 from scvi.utils import setup_anndata_dsp
@@ -181,7 +181,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         transformed_xs = []
         for tensors in dl:
-            x = tensors[_CONSTANTS.X_KEY]
+            x = tensors[_REGISTRY_KEYS.X_KEY]
             transformed_xs.append(
                 self.module.get_topic_distribution(x, n_samples=n_samples)
             )
@@ -226,7 +226,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         elbos = []
         for tensors in dl:
-            x = tensors[_CONSTANTS.X_KEY]
+            x = tensors[_REGISTRY_KEYS.X_KEY]
             library = x.sum(dim=1)
             elbos.append(self.module.get_elbo(x, library, len(dl.indices)))
         return np.mean(elbos)
@@ -260,7 +260,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         adata = self._validate_anndata(adata)
 
         dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        total_counts = sum(tensors[_CONSTANTS.X_KEY].sum().item() for tensors in dl)
+        total_counts = sum(tensors[_REGISTRY_KEYS.X_KEY].sum().item() for tensors in dl)
 
         return np.exp(
             self.get_elbo(adata=adata, indices=indices, batch_size=batch_size)

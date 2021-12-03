@@ -181,7 +181,7 @@ def _prepare_obs(
 
 
 def _de_core(
-    adata,
+    adata_manager,
     model_fn,
     groupby,
     group1,
@@ -201,6 +201,7 @@ def _de_core(
     **kwargs,
 ):
     """Internal function for DE interface."""
+    adata = adata_manager.adata
     if group1 is None and idx1 is None:
         group1 = adata.obs[groupby].astype("category").cat.categories.tolist()
         if len(group1) == 1:
@@ -244,7 +245,7 @@ def _de_core(
         )
 
         if all_stats is True:
-            genes_properties_dict = all_stats_fn(adata, cell_idx1, cell_idx2)
+            genes_properties_dict = all_stats_fn(adata_manager, cell_idx1, cell_idx2)
             all_info = {**all_info, **genes_properties_dict}
 
         res = pd.DataFrame(all_info, index=col_names)

@@ -9,7 +9,7 @@ from torch import logsumexp
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 
-from scvi import _CONSTANTS
+from scvi import _REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
@@ -200,13 +200,13 @@ class VAE(BaseModuleClass):
         )
 
     def _get_inference_input(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = _REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = _REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         input_dict = dict(
@@ -217,13 +217,13 @@ class VAE(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
         library = inference_outputs["library"]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
+        y = tensors[_REGISTRY_KEYS.LABELS_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = _REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = _REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
         input_dict = {
             "z": z,
@@ -347,8 +347,8 @@ class VAE(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
 
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]
@@ -475,8 +475,8 @@ class VAE(BaseModuleClass):
     @torch.no_grad()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
-        sample_batch = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        sample_batch = tensors[_REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
 
         to_sum = torch.zeros(sample_batch.size()[0], n_mc_samples)
 

@@ -5,7 +5,7 @@ import torch
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kld
 
-from scvi import _CONSTANTS
+from scvi import _REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module._peakvae import Decoder as DecoderPeakVI
@@ -249,10 +249,10 @@ class MULTIVAE(BaseModuleClass):
         )
 
     def _get_inference_input(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        cont_covs = tensors.get(_CONSTANTS.CONT_COVS_KEY)
-        cat_covs = tensors.get(_CONSTANTS.CAT_COVS_KEY)
+        x = tensors[_REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
+        cont_covs = tensors.get(_REGISTRY_KEYS.CONT_COVS_KEY)
+        cat_covs = tensors.get(_REGISTRY_KEYS.CAT_COVS_KEY)
         input_dict = dict(
             x=x,
             batch_index=batch_index,
@@ -362,13 +362,13 @@ class MULTIVAE(BaseModuleClass):
         z = inference_outputs["z"]
         qz_m = inference_outputs["qz_m"]
         libsize_expr = inference_outputs["libsize_expr"]
-        labels = tensors[_CONSTANTS.LABELS_KEY]
+        labels = tensors[_REGISTRY_KEYS.LABELS_KEY]
 
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
+        cont_key = _REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = _REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         if transform_batch is not None:
@@ -428,7 +428,7 @@ class MULTIVAE(BaseModuleClass):
         self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
     ):
         # Get the data
-        x = tensors[_CONSTANTS.X_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
 
         x_rna = x[:, : self.n_input_genes]
         x_chr = x[:, self.n_input_genes :]

@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import _REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.utils._docstrings import doc_differential_expression
@@ -102,7 +102,9 @@ class RNASeqMixin:
             adata=adata, indices=indices, batch_size=batch_size
         )
 
-        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+        transform_batch = _get_batch_code_from_category(
+            self.get_anndata_manager(adata, required=True), transform_batch
+        )
 
         if gene_list is None:
             gene_mask = slice(None)
@@ -209,7 +211,7 @@ class RNASeqMixin:
             batch_size=batch_size,
         )
         result = _de_core(
-            adata,
+            self.get_anndata_manager(adata, required=True),
             model_fn,
             groupby,
             group1,
@@ -332,7 +334,7 @@ class RNASeqMixin:
 
         data_loader_list = []
         for tensors in scdl:
-            x = tensors[_CONSTANTS.X_KEY]
+            x = tensors[_REGISTRY_KEYS.X_KEY]
             generative_kwargs = self._get_transform_batch_gen_kwargs(transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
             _, generative_outputs = self.module.forward(
@@ -411,7 +413,9 @@ class RNASeqMixin:
 
         adata = self._validate_anndata(adata)
 
-        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+        transform_batch = _get_batch_code_from_category(
+            self.get_anndata_manager(adata, required=True), transform_batch
+        )
 
         corr_mats = []
         for b in transform_batch:

@@ -11,7 +11,7 @@ from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
 
-from scvi import _CONSTANTS
+from scvi import _REGISTRY_KEYS
 from scvi.data import synthetic_iid
 from scvi.data.anndata import register_tensor_from_anndata
 from scvi.dataloaders import AnnDataLoader
@@ -81,8 +81,8 @@ class BayesianRegressionPyroModel(PyroModule):
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
-        x = tensor_dict[_CONSTANTS.X_KEY]
-        y = tensor_dict[_CONSTANTS.LABELS_KEY]
+        x = tensor_dict[_REGISTRY_KEYS.X_KEY]
+        y = tensor_dict[_REGISTRY_KEYS.LABELS_KEY]
         ind_x = tensor_dict["ind_x"].long().squeeze()
         return (x, y, ind_x), {}
 
@@ -416,7 +416,7 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
-        x = tensor_dict[_CONSTANTS.X_KEY]
+        x = tensor_dict[_REGISTRY_KEYS.X_KEY]
         log_library = torch.log(torch.sum(x, dim=1, keepdim=True) + 1e-6)
         return (x, log_library), {}
 

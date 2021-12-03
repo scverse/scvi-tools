@@ -2,7 +2,7 @@ from typing import List, Optional, Union
 
 import numpy as np
 
-from scvi import _CONSTANTS
+from scvi import _REGISTRY_KEYS
 from scvi.data.anndata.manager import AnnDataManager
 
 from ._concat_dataloader import ConcatDataLoader
@@ -58,7 +58,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
         self.n_samples_per_label = n_samples_per_label
 
-        key = adata_manager.get_data_registry()[_CONSTANTS.LABELS_KEY]["attr_key"]
+        key = adata_manager.get_data_registry()[_REGISTRY_KEYS.LABELS_KEY]["attr_key"]
         labels_obs_key = adata_manager.get_setup_dict()["categorical_mappings"][key][
             "original_key"
         ]

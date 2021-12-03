@@ -4,7 +4,7 @@ from typing import List, Optional
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi._constants import _CONSTANTS
+from scvi._constants import _REGISTRY_KEYS
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.data.anndata.fields import (
     CategoricalJointObsField,
@@ -195,13 +195,15 @@ class SCVI(
         %(param_layer)s
         """
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            LayerField(_REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(_REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(_REGISTRY_KEYS.LABELS_KEY, labels_key),
             CategoricalJointObsField(
-                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+                _REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),
-            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+            NumericalJointObsField(
+                _REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields)
         adata_manager.register_fields(adata)

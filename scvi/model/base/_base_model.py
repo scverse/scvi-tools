@@ -11,8 +11,7 @@ import rich
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS, settings
-from scvi.data._utils import _check_nonnegative_integers
+from scvi import settings
 from scvi.data.anndata._compat import manager_from_setup_dict
 from scvi.data.anndata._constants import _SCVI_UUID_KEY
 from scvi.data.anndata.manager import AnnDataManager
@@ -110,9 +109,39 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         return cls.manager_store[adata_uuid]
 
+    def get_from_registry(
+        self,
+        adata: AnnData,
+        registry_key: str,
+    ) -> np.ndarray:
+        """
+        Returns the object in AnnData associated with the key in the data registry.
+
+        AnnData object should be registered with the model prior to calling this function
+        via the ``self._validate_anndata`` method.
+
+        Parameters
+        ----------
+        registry_key
+            key of object to get from data registry.
+        adata
+            AnnData to pull data from.
+
+        Returns
+        -------
+        The requested data as a NumPy array.
+        """
+        adata_manager = self.get_anndata_manager(adata)
+        if adata_manager is None:
+            raise AssertionError(
+                "AnnData not registered with model. Call `self._validate_anndata` "
+                "prior to calling this function."
+            )
+        return adata_manager.get_from_registry(registry_key)
+
     def _make_data_loader(
         self,
-        adata: Optional[AnnData],
+        adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
         shuffle: bool = False,
@@ -125,8 +154,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnData object with equivalent structure to initial AnnData.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
@@ -138,14 +166,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         data_loader_kwargs
             Kwargs to the class-specific data loader class
         """
-        if adata is None:
-            adata_manager = self.adata_manager
-        else:
-            adata_manager = self.get_anndata_manager(adata)
-            if adata_manager is None:
-                raise AssertionError(
-                    "AnnDataManager not found. Call `self._validate` prior to calling this function."
-                )
+        adata_manager = self.get_anndata_manager(adata)
+        if adata_manager is None:
+            raise AssertionError(
+                "AnnDataManager not found. Call `self._validate` prior to calling this function."
+            )
 
         adata = adata_manager.adata
 
@@ -187,15 +212,16 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 + "attempting to transfer anndata setup"
             )
             self._register_manager(self.adata_manager.transfer_setup(adata))
-        adata_manager = self.get_anndata_manager(adata)
-        is_nonneg_int = _check_nonnegative_integers(
-            adata_manager.get_from_registry(_CONSTANTS.X_KEY)
-        )
-        if not is_nonneg_int:
-            warnings.warn(
-                "Make sure the registered X field in anndata contains unnormalized count data."
-            )
+        # adata_manager = self.get_anndata_manager(adata)
+        # is_nonneg_int = _check_nonnegative_integers(
+        #     adata_manager.get_from_registry(_REGISTRY_KEYS.X_KEY)
+        # )
+        # if not is_nonneg_int:
+        #     warnings.warn(
+        #         "Make sure the registered X field in anndata contains unnormalized count data."
+        #     )
 
+        # TODO(jhong): Determine how to check for setup equivalence.
         # needs_transfer = _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
         # if needs_transfer:
         #     self._register_manager(self.adata_manager.transfer_setup(adata))

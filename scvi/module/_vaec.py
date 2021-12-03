@@ -4,7 +4,7 @@ import torch
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi import _CONSTANTS
+from scvi import _REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import Encoder, FCLayers
@@ -100,8 +100,8 @@ class VAEC(BaseModuleClass):
         self.register_buffer("ct_weight", ct_weight)
 
     def _get_inference_input(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
+        y = tensors[_REGISTRY_KEYS.LABELS_KEY]
 
         input_dict = dict(
             x=x,
@@ -112,7 +112,7 @@ class VAEC(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
         library = inference_outputs["library"]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        y = tensors[_REGISTRY_KEYS.LABELS_KEY]
 
         input_dict = {
             "z": z,
@@ -164,8 +164,8 @@ class VAEC(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        x = tensors[_REGISTRY_KEYS.X_KEY]
+        y = tensors[_REGISTRY_KEYS.LABELS_KEY]
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]
         px_rate = generative_outputs["px_rate"]
