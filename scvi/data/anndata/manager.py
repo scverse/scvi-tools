@@ -35,14 +35,16 @@ class AnnDataManager:
         self.adata = None
         self.registry = {
             _constants._SCVI_VERSION_KEY: scvi.__version__,
+            _constants._SOURCE_SCVI_UUID_KEY: None,
             _constants._FIELD_REGISTRIES_KEY: defaultdict(dict),
         }
 
     def _assert_anndata_registered(self):
         """Asserts that an AnnData object has been registered with this instance."""
-        assert (
-            self.adata is not None
-        ), "AnnData object not registered. Please call register_fields."
+        if self.adata is None:
+            raise AssertionError(
+                "AnnData object not registered. Please call register_fields."
+            )
 
     @staticmethod
     def _validate_anndata_object(adata: AnnData):
@@ -59,6 +61,20 @@ class AnnDataManager:
 
         scvi_uuid = self.adata.uns[_constants._SCVI_UUID_KEY]
         self.registry[_constants._SCVI_UUID_KEY] = scvi_uuid
+
+    def _assign_source_uuid(self, source_registry: Optional[dict]):
+        """
+        Assigns a source UUID to the AnnData object.
+
+        If setup not transferred from a source, set to current UUID.
+        """
+        self._assert_anndata_registered()
+
+        if source_registry is None:
+            source_registry = self.registry
+        self.registry[_constants._SOURCE_SCVI_UUID_KEY] = self.registry[
+            _constants._SCVI_UUID_KEY
+        ]
 
     def _freeze_fields(self):
         """Freezes the fields associated with this instance."""
@@ -106,9 +122,9 @@ class AnnDataManager:
                     field_registry[
                         _constants._STATE_REGISTRY_KEY
                     ] = field.transfer_field(
-                        source_registry[field.registry_key][
-                            _constants._STATE_REGISTRY_KEY
-                        ],
+                        source_registry[_constants._FIELD_REGISTRIES_KEY][
+                            field.registry_key
+                        ][_constants._STATE_REGISTRY_KEY],
                         self.adata,
                         **transfer_kwargs
                     )
@@ -127,6 +143,7 @@ class AnnDataManager:
         _verify_and_correct_data_format(self.adata, self.data_registry)
 
         self._assign_uuid()
+        self._assign_source_uuid(source_registry)
 
     def transfer_setup(
         self, adata_target: AnnData, source_registry: Optional[dict] = None, **kwargs
@@ -134,17 +151,23 @@ class AnnDataManager:
         """
         Transfers an existing setup to each field associated with this instance with the target AnnData object.
 
-        Transfers the setup from `source_setup_dict` if passed in, otherwise uses the setup dictionary
+        Transfers the setup from `source_registry` if passed in, otherwise uses the registry
         from the AnnData registered with this instance.
 
         Parameters
         ----------
-        adata
+        adata_target
             AnnData object to be registered.
-        source_setup_dict
-            Setup dictionary created after registering an AnnData using an AnnDataManager object.
+        source_registry
+            Registry dictionary created after registering an AnnData using an AnnDataManager object.
         """
-        assert source_registry is not None or self.adata is not None
+        if source_registry is None and self.adata is None:
+            raise AssertionError(
+                "Requires either source registry or a registered AnnData object."
+            )
+
+        if source_registry is None:
+            source_registry = self.registry
 
         fields = self.fields
         new_adata_manager = self.__class__(fields)

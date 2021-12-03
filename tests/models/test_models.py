@@ -12,7 +12,6 @@ from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
-from scvi._constants import _REGISTRY_KEYS
 from scvi.data import synthetic_iid
 from scvi.data._built_in_data._download import _download
 from scvi.data.anndata import (
@@ -21,8 +20,6 @@ from scvi.data.anndata import (
     transfer_anndata_setup,
 )
 from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._utils import _setup_anndata
-from scvi.data.anndata.fields import CategoricalObsField
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -151,7 +148,7 @@ def test_scvi(save_path):
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
 
-    adata2 = synthetic_iid()
+    adata2 = synthetic_iid(run_setup_anndata=False)
     model.get_elbo(adata2)
     model.get_marginal_ll(adata2, n_mc_samples=3)
     model.get_reconstruction_error(adata2)
@@ -224,37 +221,6 @@ def test_scvi(save_path):
     adata2 = synthetic_iid(run_setup_anndata=False)
     model.get_elbo(adata2[:10])
 
-    # test that we catch incorrect mappings
-    adata = synthetic_iid(run_setup_anndata=False)
-    adata2 = synthetic_iid(run_setup_anndata=False)
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-    )
-    model._validate_anndata(adata2)
-    adata2_manager = model.get_anndata_manager(adata2)
-    adata2_manager.get_state_registry(_REGISTRY_KEYS.LABELS_KEY)[
-        CategoricalObsField.CATEGORICAL_MAPPING_KEY
-    ] = np.array(["label_4", "label_0", "label_2"])
-    with pytest.raises(ValueError):
-        model.get_elbo(adata2)
-
-    # test that same mapping different order doesn't raise error
-    adata = synthetic_iid(run_setup_anndata=False)
-    adata2 = synthetic_iid(run_setup_anndata=False)
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-    )
-    model._validate_anndata(adata2)
-    adata2_manager = model.get_anndata_manager(adata2)
-    adata2_manager.get_state_registry(_REGISTRY_KEYS.LABELS_KEY)[
-        CategoricalObsField.CATEGORICAL_MAPPING_KEY
-    ] = np.array(["label_1", "label_0", "label_2"])
-    model.get_elbo(adata2)  # should automatically transfer setup
-
     # test mismatched categories raises ValueError
     adata2 = synthetic_iid(run_setup_anndata=False)
     adata2.obs.labels.cat.rename_categories(["a", "b", "c"], inplace=True)
@@ -275,7 +241,10 @@ def test_scvi(save_path):
     batch = np.zeros(a.n_obs)
     batch[:64] += 1
     a.obs["batch"] = batch
-    _setup_anndata(a, batch_key="batch")
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+    )
     m = SCVI(a)
     m.train(1, train_size=0.5)
     m.get_normalized_expression(transform_batch=1)
@@ -288,7 +257,7 @@ def test_scvi(save_path):
     # test train callbacks work
     a = synthetic_iid(run_setup_anndata=False)
     SCVI.setup_anndata(
-        adata,
+        a,
         batch_key="batch",
         labels_key="labels",
     )

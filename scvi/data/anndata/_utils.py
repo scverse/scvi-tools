@@ -6,14 +6,13 @@ from typing import Dict, List, Optional, Union
 import anndata
 import numpy as np
 import pandas as pd
-from anndata._core.anndata import AnnData
 from pandas.api.types import CategoricalDtype
 from scipy.sparse import isspmatrix
 from sklearn.utils import deprecated
 
 import scvi
-from scvi import _CONSTANTS
 from scvi._compat import Literal
+from scvi._constants import _REGISTRY_KEYS
 from scvi.data._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
 
 from . import _constants
@@ -223,16 +222,16 @@ def _setup_anndata(
     x_loc, x_key = _setup_x(adata, layer)
 
     data_registry = {
-        _CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key},
-        _CONSTANTS.BATCH_KEY: {"attr_name": "obs", "attr_key": batch_key},
-        _CONSTANTS.LABELS_KEY: {"attr_name": "obs", "attr_key": labels_key},
+        _REGISTRY_KEYS.X_KEY: {"attr_name": x_loc, "attr_key": x_key},
+        _REGISTRY_KEYS.BATCH_KEY: {"attr_name": "obs", "attr_key": batch_key},
+        _REGISTRY_KEYS.LABELS_KEY: {"attr_name": "obs", "attr_key": labels_key},
     }
 
     if protein_expression_obsm_key is not None:
         protein_expression_obsm_key = _setup_protein_expression(
             adata, protein_expression_obsm_key, protein_names_uns_key, batch_key
         )
-        data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = {
+        data_registry[_REGISTRY_KEYS.PROTEIN_EXP_KEY] = {
             "attr_name": "obsm",
             "attr_key": protein_expression_obsm_key,
         }
@@ -241,7 +240,7 @@ def _setup_anndata(
         cat_loc, cat_key = _setup_extra_categorical_covs(
             adata, categorical_covariate_keys
         )
-        data_registry[_CONSTANTS.CAT_COVS_KEY] = {
+        data_registry[_REGISTRY_KEYS.CAT_COVS_KEY] = {
             "attr_name": cat_loc,
             "attr_key": cat_key,
         }
@@ -250,7 +249,7 @@ def _setup_anndata(
         cont_loc, cont_key = _setup_extra_continuous_covs(
             adata, continuous_covariate_keys
         )
-        data_registry[_CONSTANTS.CONT_COVS_KEY] = {
+        data_registry[_REGISTRY_KEYS.CONT_COVS_KEY] = {
             "attr_name": cont_loc,
             "attr_key": cont_key,
         }
@@ -317,7 +316,7 @@ def _verify_and_correct_data_format(adata, data_registry):
     data_registry
         data registry of anndata
     """
-    keys_to_check = [_CONSTANTS.X_KEY, _CONSTANTS.PROTEIN_EXP_KEY]
+    keys_to_check = [_REGISTRY_KEYS.X_KEY, _REGISTRY_KEYS.PROTEIN_EXP_KEY]
     keys = [key for key in keys_to_check if key in data_registry.keys()]
 
     for k in keys:
@@ -439,9 +438,9 @@ def transfer_anndata_setup(
     adata_target.uns["_scvi"]["scvi_version"] = _scvi_dict["scvi_version"]
 
     # transfer X
-    x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
+    x_loc = data_registry[_REGISTRY_KEYS.X_KEY]["attr_name"]
     if x_loc == "layers":
-        layer = data_registry[_CONSTANTS.X_KEY]["attr_key"]
+        layer = data_registry[_REGISTRY_KEYS.X_KEY]["attr_key"]
     else:
         layer = None
 
@@ -456,7 +455,7 @@ def transfer_anndata_setup(
     x_loc, x_key = _setup_x(adata_target, layer)
     target_data_registry = data_registry.copy()
     target_data_registry.update(
-        {_CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
+        {_REGISTRY_KEYS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
     )
 
     # transfer batch and labels
@@ -472,7 +471,7 @@ def transfer_anndata_setup(
     )
 
     # transfer extra categorical covs
-    has_cat_cov = True if _CONSTANTS.CAT_COVS_KEY in data_registry.keys() else False
+    has_cat_cov = True if _REGISTRY_KEYS.CAT_COVS_KEY in data_registry.keys() else False
     if has_cat_cov:
         source_cat_dict = _scvi_dict["extra_categoricals"]["mappings"].copy()
         # extend categories
@@ -489,20 +488,27 @@ def transfer_anndata_setup(
             category_dict=source_cat_dict,
         )
         target_data_registry.update(
-            {_CONSTANTS.CAT_COVS_KEY: {"attr_name": cat_loc, "attr_key": cat_key}}
+            {_REGISTRY_KEYS.CAT_COVS_KEY: {"attr_name": cat_loc, "attr_key": cat_key}}
         )
     else:
         source_cat_dict = None
 
     # transfer extra continuous covs
-    has_cont_cov = True if _CONSTANTS.CONT_COVS_KEY in data_registry.keys() else False
+    has_cont_cov = (
+        True if _REGISTRY_KEYS.CONT_COVS_KEY in data_registry.keys() else False
+    )
     if has_cont_cov:
         obs_keys_names = _scvi_dict["extra_continuous_keys"]
         cont_loc, cont_key = _setup_extra_continuous_covs(
             adata_target, list(obs_keys_names)
         )
         target_data_registry.update(
-            {_CONSTANTS.CONT_COVS_KEY: {"attr_name": cont_loc, "attr_key": cont_key}}
+            {
+                _REGISTRY_KEYS.CONT_COVS_KEY: {
+                    "attr_name": cont_loc,
+                    "attr_key": cont_key,
+                }
+            }
         )
     else:
         obs_keys_names = None
@@ -559,9 +565,13 @@ def _transfer_protein_expression(_scvi_dict, adata_target, batch_key):
     data_registry = _scvi_dict["data_registry"]
     summary_stats = _scvi_dict["summary_stats"]
 
-    has_protein = True if _CONSTANTS.PROTEIN_EXP_KEY in data_registry.keys() else False
+    has_protein = (
+        True if _REGISTRY_KEYS.PROTEIN_EXP_KEY in data_registry.keys() else False
+    )
     if has_protein is True:
-        prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY]["attr_key"]
+        prev_protein_obsm_key = data_registry[_REGISTRY_KEYS.PROTEIN_EXP_KEY][
+            "attr_key"
+        ]
         if prev_protein_obsm_key not in adata_target.obsm.keys():
             raise KeyError(
                 "Can't find {} in adata_target.obsm for protein expressions.".format(
@@ -929,120 +939,3 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Dict[str, str]]):
     >>> _register_anndata(adata, data_dict)
     """
     adata.uns["_scvi"]["data_registry"] = deepcopy(data_registry_dict)
-
-
-def _check_anndata_setup_equivalence(
-    adata_source: Union[AnnData, dict], adata_target: AnnData
-) -> bool:
-    """
-    Checks if target setup is equivalent to source.
-
-    Parameters
-    ----------
-    adata_source
-        Either AnnData already setup or scvi_setup_dict as the source
-    adata_target
-        Target AnnData to check setup equivalence
-
-    Returns
-    -------
-    Whether the adata_target should be run through `transfer_anndata_setup`
-    """
-    if isinstance(adata_source, anndata.AnnData):
-        _scvi_dict = adata_source.uns["_scvi"]
-    else:
-        _scvi_dict = adata_source
-    adata = adata_target
-
-    stats = _scvi_dict["summary_stats"]
-
-    target_n_vars = adata.shape[1]
-    error_msg = (
-        "Number of {} in anndata different from initial anndata used for training."
-    )
-    if target_n_vars != stats["n_vars"]:
-        raise ValueError(error_msg.format("vars"))
-
-    self_categoricals = _scvi_dict["categorical_mappings"]
-    self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
-
-    adata_categoricals = adata.uns["_scvi"]["categorical_mappings"]
-    adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
-
-    # check if mappings are equal or needs transfer
-    transfer_setup = _mapping_needs_transfer(
-        self_batch_mapping, adata_batch_mapping, "batch"
-    )
-
-    self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
-    adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
-
-    transfer_setup = transfer_setup or _mapping_needs_transfer(
-        self_labels_mapping, adata_labels_mapping, "label"
-    )
-
-    # validate any extra categoricals
-    error_msg = (
-        "Registered categorical key order mismatch between "
-        + "the anndata used to train and the anndata passed in."
-        + "Expected categories & order {}. Received {}.\n"
-    )
-    if "extra_categoricals" in _scvi_dict.keys():
-        target_dict = adata.uns["_scvi"]["extra_categoricals"]
-        source_dict = _scvi_dict["extra_categoricals"]
-        # check that order of keys setup is same
-        if not np.array_equal(target_dict["keys"], source_dict["keys"]):
-            raise ValueError(error_msg.format(source_dict["keys"], target_dict["keys"]))
-        # check mappings are equivalent
-        target_extra_cat_maps = adata.uns["_scvi"]["extra_categoricals"]["mappings"]
-        for key, val in source_dict["mappings"].items():
-            target_map = target_extra_cat_maps[key]
-            transfer_setup = transfer_setup or _mapping_needs_transfer(
-                val, target_map, key
-            )
-    # validate any extra continuous covs
-    if "extra_continuous_keys" in _scvi_dict.keys():
-        if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
-            raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
-        target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
-        source_cont_keys = _scvi_dict["extra_continuous_keys"]
-        # check that order of keys setup is same
-        if not np.array_equal(target_cont_keys, source_cont_keys):
-            raise ValueError(error_msg.format(source_cont_keys, target_cont_keys))
-
-    return transfer_setup
-
-
-def _mapping_needs_transfer(mapping1, mapping2, category):
-    needs_transfer = False
-    error_msg = (
-        "Categorial encoding for {} is not the same between "
-        + "the anndata used to train and the anndata passed in. "
-        + "Categorical encoding needs to be same elements, same order, and same datatype.\n"
-        + "Expected categories: {}. Received categories: {}.\n"
-    )
-    warning_msg = (
-        "Categorical encoding for {} is similar but not equal between "
-        + "the anndata used to train and the anndata passed in. "
-        + "Will attempt transfer. Expected categories: {}. Received categories: {}.\n "
-    )
-    if _is_equal_mapping(mapping1, mapping2):
-        needs_transfer = False
-    elif _is_similar_mapping(mapping1, mapping2):
-        needs_transfer = True
-        warnings.warn(warning_msg.format(category, mapping1, mapping2))
-    else:
-        raise ValueError(error_msg.format(category, mapping1, mapping2))
-    return needs_transfer
-
-
-def _is_similar_mapping(mapping1, mapping2):
-    """Returns True if mapping2 is a subset of mapping1."""
-    if len(set(mapping2) - set(mapping1)) == 0:
-        return True
-    else:
-        return False
-
-
-def _is_equal_mapping(mapping1, mapping2):
-    return pd.Index(mapping1).equals(pd.Index(mapping2))

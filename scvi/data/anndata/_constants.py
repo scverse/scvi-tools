@@ -5,6 +5,7 @@ from typing import NamedTuple
 ################################
 
 _SCVI_UUID_KEY = "_scvi_uuid"
+_SOURCE_SCVI_UUID_KEY = "_source_scvi_uuid"
 
 #############################
 # scVI Setup Dict Constants #

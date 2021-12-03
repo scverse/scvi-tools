@@ -13,7 +13,7 @@ from anndata import AnnData
 
 from scvi import settings
 from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _SCVI_UUID_KEY
+from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SOURCE_SCVI_UUID_KEY
 from scvi.data.anndata.manager import AnnDataManager
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -206,25 +206,22 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             else:
                 raise ValueError("Please run `adata = adata.copy()`")
 
-        if self.get_anndata_manager(adata) is None:
+        adata_manager = self.get_anndata_manager(adata)
+        if adata_manager is None:
             logger.info(
-                "Input adata not setup with scvi. "
+                "Input adata not setup with scvi-tools. "
                 + "attempting to transfer anndata setup"
             )
             self._register_manager(self.adata_manager.transfer_setup(adata))
-        # adata_manager = self.get_anndata_manager(adata)
-        # is_nonneg_int = _check_nonnegative_integers(
-        #     adata_manager.get_from_registry(_REGISTRY_KEYS.X_KEY)
-        # )
-        # if not is_nonneg_int:
-        #     warnings.warn(
-        #         "Make sure the registered X field in anndata contains unnormalized count data."
-        #     )
-
-        # TODO(jhong): Determine how to check for setup equivalence.
-        # needs_transfer = _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
-        # if needs_transfer:
-        #     self._register_manager(self.adata_manager.transfer_setup(adata))
+        elif (
+            adata_manager.registry[_SOURCE_SCVI_UUID_KEY]
+            != self.adata_manager.registry[_SCVI_UUID_KEY]
+        ):
+            logger.info(
+                "Input AnnData setup with AnnData the model was initialized with. "
+                "Attempting to transfer setup with initial AnnData."
+            )
+            self._register_manager(self.adata_manager.transfer_setup(adata))
 
         return adata
 
