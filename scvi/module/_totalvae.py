@@ -609,7 +609,8 @@ class TOTALVAE(BaseModuleClass):
             kl_div_back_pro = torch.zeros_like(kl_div_back_pro_full)
             kl_div_back_pro.masked_scatter_(
                 pro_batch_mask_minibatch.bool(), kl_div_back_pro_full
-            ).sum(dim=1)
+            )
+            kl_div_back_pro = kl_div_back_pro.sum(dim=1)
         else:
             kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
         loss = torch.mean(
