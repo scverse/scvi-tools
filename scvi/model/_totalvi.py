@@ -133,7 +133,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             else (self.summary_stats["n_proteins"] > 10)
         )
         if emp_prior:
-            prior_mean, prior_scale = _get_totalvi_protein_priors(adata)
+            prior_mean, prior_scale = _get_totalvi_protein_priors(adata, batch_mask)
         else:
             prior_mean, prior_scale = None, None
 
@@ -1103,7 +1103,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
 
 
-def _get_totalvi_protein_priors(adata, n_cells=100):
+def _get_totalvi_protein_priors(adata, batch_mask, n_cells=100):
     """Compute an empirical prior for protein background."""
     import warnings
 
@@ -1127,10 +1127,23 @@ def _get_totalvi_protein_priors(adata, n_cells=100):
             continue
         pro_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)[batch == b]
 
-        # for missing batches, put dummy values -- scarches case, will be replaced anyway
+        # non missing
+        if batch_mask is not None:
+            pro_exp = pro_exp[:, batch_mask[b]]
+            if pro_exp.shape[1] < 5:
+                logger.debug(
+                    f"Batch {b} has too few proteins to set prior, setting randomly."
+                )
+                batch_avg_mus.append(0.0)
+                batch_avg_scales.append(0.05)
+                continue
+
+        # a batch is missing because it's in the reference but not query data
+        # for scarches case, these values will be replaced by original state dict
         if pro_exp.shape[0] == 0:
             batch_avg_mus.append(0.0)
             batch_avg_scales.append(0.05)
+            continue
 
         cells = np.random.choice(np.arange(pro_exp.shape[0]), size=n_cells)
         if isinstance(pro_exp, pd.DataFrame):
@@ -1145,7 +1158,7 @@ def _get_totalvi_protein_priors(adata, n_cells=100):
             # when cell is all 0
             except ConvergenceWarning:
                 mus.append(0)
-                scales.append(0.05)
+                scales.append(0.5)
                 continue
 
             means = gmm.means_.ravel()
