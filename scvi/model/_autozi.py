@@ -7,7 +7,7 @@ from anndata import AnnData
 from torch import logsumexp
 from torch.distributions import Beta, Normal
 
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.model._utils import _init_library_size
@@ -202,9 +202,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 alpha_posterior, beta_posterior
             )
             for tensors in scdl:
-                sample_batch = tensors[_REGISTRY_KEYS.X_KEY].to(self.device)
-                batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY].to(self.device)
-                labels = tensors[_REGISTRY_KEYS.LABELS_KEY].to(self.device)
+                sample_batch = tensors[_CONSTANTS.X_KEY].to(self.device)
+                batch_index = tensors[_CONSTANTS.BATCH_KEY].to(self.device)
+                labels = tensors[_CONSTANTS.LABELS_KEY].to(self.device)
 
                 # Distribution parameters and sampled variables
                 inf_outputs, gen_outputs, _ = self.module.forward(tensors)

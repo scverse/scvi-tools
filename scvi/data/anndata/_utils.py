@@ -12,7 +12,7 @@ from sklearn.utils import deprecated
 
 import scvi
 from scvi._compat import Literal
-from scvi._constants import _REGISTRY_KEYS
+from scvi._constants import _CONSTANTS
 from scvi.data._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
 
 from . import _constants
@@ -222,16 +222,16 @@ def _setup_anndata(
     x_loc, x_key = _setup_x(adata, layer)
 
     data_registry = {
-        _REGISTRY_KEYS.X_KEY: {"attr_name": x_loc, "attr_key": x_key},
-        _REGISTRY_KEYS.BATCH_KEY: {"attr_name": "obs", "attr_key": batch_key},
-        _REGISTRY_KEYS.LABELS_KEY: {"attr_name": "obs", "attr_key": labels_key},
+        _CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key},
+        _CONSTANTS.BATCH_KEY: {"attr_name": "obs", "attr_key": batch_key},
+        _CONSTANTS.LABELS_KEY: {"attr_name": "obs", "attr_key": labels_key},
     }
 
     if protein_expression_obsm_key is not None:
         protein_expression_obsm_key = _setup_protein_expression(
             adata, protein_expression_obsm_key, protein_names_uns_key, batch_key
         )
-        data_registry[_REGISTRY_KEYS.PROTEIN_EXP_KEY] = {
+        data_registry[_CONSTANTS.PROTEIN_EXP_KEY] = {
             "attr_name": "obsm",
             "attr_key": protein_expression_obsm_key,
         }
@@ -240,7 +240,7 @@ def _setup_anndata(
         cat_loc, cat_key = _setup_extra_categorical_covs(
             adata, categorical_covariate_keys
         )
-        data_registry[_REGISTRY_KEYS.CAT_COVS_KEY] = {
+        data_registry[_CONSTANTS.CAT_COVS_KEY] = {
             "attr_name": cat_loc,
             "attr_key": cat_key,
         }
@@ -249,7 +249,7 @@ def _setup_anndata(
         cont_loc, cont_key = _setup_extra_continuous_covs(
             adata, continuous_covariate_keys
         )
-        data_registry[_REGISTRY_KEYS.CONT_COVS_KEY] = {
+        data_registry[_CONSTANTS.CONT_COVS_KEY] = {
             "attr_name": cont_loc,
             "attr_key": cont_key,
         }
@@ -316,7 +316,7 @@ def _verify_and_correct_data_format(adata, data_registry):
     data_registry
         data registry of anndata
     """
-    keys_to_check = [_REGISTRY_KEYS.X_KEY, _REGISTRY_KEYS.PROTEIN_EXP_KEY]
+    keys_to_check = [_CONSTANTS.X_KEY, _CONSTANTS.PROTEIN_EXP_KEY]
     keys = [key for key in keys_to_check if key in data_registry.keys()]
 
     for k in keys:
@@ -438,9 +438,9 @@ def transfer_anndata_setup(
     adata_target.uns["_scvi"]["scvi_version"] = _scvi_dict["scvi_version"]
 
     # transfer X
-    x_loc = data_registry[_REGISTRY_KEYS.X_KEY]["attr_name"]
+    x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
     if x_loc == "layers":
-        layer = data_registry[_REGISTRY_KEYS.X_KEY]["attr_key"]
+        layer = data_registry[_CONSTANTS.X_KEY]["attr_key"]
     else:
         layer = None
 
@@ -455,7 +455,7 @@ def transfer_anndata_setup(
     x_loc, x_key = _setup_x(adata_target, layer)
     target_data_registry = data_registry.copy()
     target_data_registry.update(
-        {_REGISTRY_KEYS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
+        {_CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
     )
 
     # transfer batch and labels
@@ -471,7 +471,7 @@ def transfer_anndata_setup(
     )
 
     # transfer extra categorical covs
-    has_cat_cov = True if _REGISTRY_KEYS.CAT_COVS_KEY in data_registry.keys() else False
+    has_cat_cov = True if _CONSTANTS.CAT_COVS_KEY in data_registry.keys() else False
     if has_cat_cov:
         source_cat_dict = _scvi_dict["extra_categoricals"]["mappings"].copy()
         # extend categories
@@ -488,15 +488,13 @@ def transfer_anndata_setup(
             category_dict=source_cat_dict,
         )
         target_data_registry.update(
-            {_REGISTRY_KEYS.CAT_COVS_KEY: {"attr_name": cat_loc, "attr_key": cat_key}}
+            {_CONSTANTS.CAT_COVS_KEY: {"attr_name": cat_loc, "attr_key": cat_key}}
         )
     else:
         source_cat_dict = None
 
     # transfer extra continuous covs
-    has_cont_cov = (
-        True if _REGISTRY_KEYS.CONT_COVS_KEY in data_registry.keys() else False
-    )
+    has_cont_cov = True if _CONSTANTS.CONT_COVS_KEY in data_registry.keys() else False
     if has_cont_cov:
         obs_keys_names = _scvi_dict["extra_continuous_keys"]
         cont_loc, cont_key = _setup_extra_continuous_covs(
@@ -504,7 +502,7 @@ def transfer_anndata_setup(
         )
         target_data_registry.update(
             {
-                _REGISTRY_KEYS.CONT_COVS_KEY: {
+                _CONSTANTS.CONT_COVS_KEY: {
                     "attr_name": cont_loc,
                     "attr_key": cont_key,
                 }
@@ -565,13 +563,9 @@ def _transfer_protein_expression(_scvi_dict, adata_target, batch_key):
     data_registry = _scvi_dict["data_registry"]
     summary_stats = _scvi_dict["summary_stats"]
 
-    has_protein = (
-        True if _REGISTRY_KEYS.PROTEIN_EXP_KEY in data_registry.keys() else False
-    )
+    has_protein = True if _CONSTANTS.PROTEIN_EXP_KEY in data_registry.keys() else False
     if has_protein is True:
-        prev_protein_obsm_key = data_registry[_REGISTRY_KEYS.PROTEIN_EXP_KEY][
-            "attr_key"
-        ]
+        prev_protein_obsm_key = data_registry[_CONSTANTS.PROTEIN_EXP_KEY]["attr_key"]
         if prev_protein_obsm_key not in adata_target.obsm.keys():
             raise KeyError(
                 "Can't find {} in adata_target.obsm for protein expressions.".format(

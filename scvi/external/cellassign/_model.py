@@ -7,7 +7,7 @@ import torch
 from anndata import AnnData
 from pytorch_lightning.callbacks import Callback
 
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi.data.anndata import register_tensor_from_anndata
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import DataSplitter
@@ -78,7 +78,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         adata = self._validate_anndata(adata)
-        x = self.get_from_registry(adata, _REGISTRY_KEYS.X_KEY)
+        x = self.get_from_registry(adata, _CONSTANTS.X_KEY)
         col_means = np.asarray(np.mean(x, 0)).ravel()  # (g)
         col_means_mu, col_means_std = np.mean(col_means), np.std(col_means)
         col_means_normalized = torch.Tensor((col_means - col_means_mu) / col_means_std)

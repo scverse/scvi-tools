@@ -1,6 +1,6 @@
 import torch
 
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi.module import Classifier
 from scvi.train import AdversarialTrainingPlan
 
@@ -32,7 +32,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             n_obs = 0
             zs = []
             for (i, tensors) in enumerate(batch):
-                n_obs += tensors[_REGISTRY_KEYS.X_KEY].shape[0]
+                n_obs += tensors[_CONSTANTS.X_KEY].shape[0]
                 self.loss_kwargs.update(dict(kl_weight=self.kl_weight, mode=i))
                 inference_kwargs = dict(mode=i)
                 generative_kwargs = dict(mode=i)

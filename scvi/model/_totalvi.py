@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.data._utils import _check_nonnegative_integers
@@ -443,8 +443,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scale_list_pro = []
 
         for tensors in post:
-            x = tensors[_REGISTRY_KEYS.X_KEY]
-            y = tensors[_REGISTRY_KEYS.PROTEIN_EXP_KEY]
+            x = tensors[_CONSTANTS.X_KEY]
+            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
             px_scale = torch.zeros_like(x)
             py_scale = torch.zeros_like(y)
             if n_samples > 1:
@@ -599,7 +599,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
         for tensors in post:
-            y = tensors[_REGISTRY_KEYS.PROTEIN_EXP_KEY]
+            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
@@ -865,8 +865,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         scdl_list = []
         for tensors in scdl:
-            x = tensors[_REGISTRY_KEYS.X_KEY]
-            y = tensors[_REGISTRY_KEYS.PROTEIN_EXP_KEY]
+            x = tensors[_CONSTANTS.X_KEY]
+            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
 
             generative_kwargs = dict(transform_batch=transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
@@ -1032,8 +1032,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     ):
         adata = super()._validate_anndata(adata=adata, copy_if_view=copy_if_view)
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
-        if _REGISTRY_KEYS.PROTEIN_EXP_KEY in adata.uns["_scvi"]["data_registry"].keys():
-            pro_exp = self.get_from_registry(adata, _REGISTRY_KEYS.PROTEIN_EXP_KEY)
+        if _CONSTANTS.PROTEIN_EXP_KEY in adata.uns["_scvi"]["data_registry"].keys():
+            pro_exp = self.get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
             if self.summary_stats["n_proteins"] != pro_exp.shape[1]:
                 raise ValueError(error_msg.format("proteins"))
             is_nonneg_int = _check_nonnegative_integers(pro_exp)
@@ -1056,7 +1056,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         warnings.filterwarnings("error")
 
         adata = self._validate_anndata(adata)
-        batch = self.get_from_registry(adata, _REGISTRY_KEYS.BATCH_KEY).ravel()
+        batch = self.get_from_registry(adata, _CONSTANTS.BATCH_KEY).ravel()
         cats = adata.uns["_scvi"]["categorical_mappings"]["_scvi_batch"]["mapping"]
         codes = np.arange(len(cats))
 
@@ -1069,7 +1069,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 batch_avg_mus.append(0)
                 batch_avg_scales.append(1)
                 continue
-            pro_exp = self.get_from_registry(adata, _REGISTRY_KEYS.PROTEIN_EXP_KEY)[
+            pro_exp = self.get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)[
                 batch == b
             ]
 

@@ -9,7 +9,7 @@ import torch
 from anndata import AnnData
 from torch.utils.data import DataLoader
 
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi.data.anndata import transfer_anndata_setup
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import DataSplitter
@@ -30,9 +30,9 @@ logger = logging.getLogger(__name__)
 
 
 def _unpack_tensors(tensors):
-    x = tensors[_REGISTRY_KEYS.X_KEY].squeeze_(0)
-    batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY].squeeze_(0)
-    y = tensors[_REGISTRY_KEYS.LABELS_KEY].squeeze_(0)
+    x = tensors[_CONSTANTS.X_KEY].squeeze_(0)
+    batch_index = tensors[_CONSTANTS.BATCH_KEY].squeeze_(0)
+    y = tensors[_CONSTANTS.LABELS_KEY].squeeze_(0)
     return x, batch_index, y
 
 

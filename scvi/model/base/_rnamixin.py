@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.utils._docstrings import doc_differential_expression
@@ -334,7 +334,7 @@ class RNASeqMixin:
 
         data_loader_list = []
         for tensors in scdl:
-            x = tensors[_REGISTRY_KEYS.X_KEY]
+            x = tensors[_CONSTANTS.X_KEY]
             generative_kwargs = self._get_transform_batch_gen_kwargs(transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
             _, generative_outputs = self.module.forward(

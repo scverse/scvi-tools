@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from anndata import AnnData
 
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.model.base import (
     BaseModelClass,
@@ -139,8 +139,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             mean = []
             var = []
             for tensors in scdl:
-                x = tensors[_REGISTRY_KEYS.X_KEY]
-                y = tensors[_REGISTRY_KEYS.LABELS_KEY]
+                x = tensors[_CONSTANTS.X_KEY]
+                y = tensors[_CONSTANTS.LABELS_KEY]
                 out = self.module.inference(x, y)
                 mean_, var_ = out["qz_m"], out["qz_v"]
                 mean += [mean_.cpu()]

@@ -3,7 +3,7 @@
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
 
-from ._constants import _REGISTRY_KEYS
+from ._constants import _CONSTANTS
 from ._settings import settings
 
 # this import needs to come after prior imports to prevent circular import
@@ -21,4 +21,4 @@ __version__ = importlib_metadata.version(package_name)
 settings.verbosity = logging.INFO
 test_var = "test"
 
-__all__ = ["settings", "_REGISTRY_KEYS", "data", "model", "external", "utils"]
+__all__ = ["settings", "_CONSTANTS", "data", "model", "external", "utils"]

@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch.distributions import Normal, kl_divergence
 
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import Encoder, FCLayers
@@ -213,10 +213,10 @@ class PEAKVAE(BaseModuleClass):
             self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
 
     def _get_inference_input(self, tensors):
-        x = tensors[_REGISTRY_KEYS.X_KEY]
-        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
-        cont_covs = tensors.get(_REGISTRY_KEYS.CONT_COVS_KEY)
-        cat_covs = tensors.get(_REGISTRY_KEYS.CAT_COVS_KEY)
+        x = tensors[_CONSTANTS.X_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        cont_covs = tensors.get(_CONSTANTS.CONT_COVS_KEY)
+        cat_covs = tensors.get(_CONSTANTS.CAT_COVS_KEY)
         input_dict = dict(
             x=x,
             batch_index=batch_index,
@@ -228,11 +228,11 @@ class PEAKVAE(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
         z = inference_outputs["z"]
         qz_m = inference_outputs["qz_m"]
-        batch_index = tensors[_REGISTRY_KEYS.BATCH_KEY]
+        batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
-        cont_covs = tensors.get(_REGISTRY_KEYS.CONT_COVS_KEY)
+        cont_covs = tensors.get(_CONSTANTS.CONT_COVS_KEY)
 
-        cat_covs = tensors.get(_REGISTRY_KEYS.CAT_COVS_KEY)
+        cat_covs = tensors.get(_CONSTANTS.CAT_COVS_KEY)
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
@@ -314,7 +314,7 @@ class PEAKVAE(BaseModuleClass):
     def loss(
         self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
     ):
-        x = tensors[_REGISTRY_KEYS.X_KEY]
+        x = tensors[_CONSTANTS.X_KEY]
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]
         d = inference_outputs["d"]

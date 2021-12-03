@@ -9,7 +9,7 @@ import scipy.sparse as sparse
 from scipy.sparse.csr import csr_matrix
 
 import scvi
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi.data import synthetic_iid
 from scvi.data.anndata import (
     get_from_registry,
@@ -127,10 +127,10 @@ def test_data_format():
     assert np.array_equal(old_pro, adata.obsm["protein_expression"])
     assert np.array_equal(old_obs, adata.obs)
 
-    assert np.array_equal(adata.X, get_from_registry(adata, _REGISTRY_KEYS.X_KEY))
+    assert np.array_equal(adata.X, get_from_registry(adata, _CONSTANTS.X_KEY))
     assert np.array_equal(
         adata.obsm["protein_expression"],
-        get_from_registry(adata, _REGISTRY_KEYS.PROTEIN_EXP_KEY),
+        get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
     )
 
     # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
@@ -142,10 +142,10 @@ def test_data_format():
     new_pe = get_from_registry(adata, "protein_expression")
     assert new_pe.to_numpy().flags["C_CONTIGUOUS"] is True
     assert np.array_equal(pe, new_pe)
-    assert np.array_equal(adata.X, get_from_registry(adata, _REGISTRY_KEYS.X_KEY))
+    assert np.array_equal(adata.X, get_from_registry(adata, _CONSTANTS.X_KEY))
     assert np.array_equal(
         adata.obsm["protein_expression"],
-        get_from_registry(adata, _REGISTRY_KEYS.PROTEIN_EXP_KEY),
+        get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
     )
 
 

@@ -7,7 +7,7 @@ import numpy as np
 import scipy.sparse as sp_sparse
 import torch
 
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi.data.anndata.fields import CategoricalObsField
 from scvi.data.anndata.manager import AnnDataManager
 
@@ -85,7 +85,7 @@ def scrna_raw_counts_properties(
         mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
     """
     adata = adata_manager.adata
-    data = adata_manager.get_from_registry(_REGISTRY_KEYS.X_KEY)
+    data = adata_manager.get_from_registry(_CONSTANTS.X_KEY)
     data1 = data[idx1]
     data2 = data[idx2]
     if var_idx is not None:
@@ -150,10 +150,10 @@ def cite_seq_raw_counts_properties(
         mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
     """
     gp = scrna_raw_counts_properties(adata_manager, idx1, idx2)
-    protein_exp = adata_manager.get_from_registry(_REGISTRY_KEYS.PROTEIN_EXP_KEY)
+    protein_exp = adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY)
 
     nan = np.array([np.nan] * len(adata_manager.summary_stats["protein_names"]))
-    protein_exp = adata_manager.get_from_registry(_REGISTRY_KEYS.PROTEIN_EXP_KEY)
+    protein_exp = adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY)
     mean1_pro = np.asarray(protein_exp[idx1].mean(0))
     mean2_pro = np.asarray(protein_exp[idx2].mean(0))
     nonz1_pro = np.asarray((protein_exp[idx1] > 0).mean(0))
@@ -195,7 +195,7 @@ def scatac_raw_counts_properties(
     type
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population).
     """
-    data = adata_manager.get_from_registry(_REGISTRY_KEYS.X_KEY)
+    data = adata_manager.get_from_registry(_CONSTANTS.X_KEY)
     data1 = data[idx1]
     data2 = data[idx2]
     if var_idx is not None:
@@ -219,7 +219,7 @@ def _get_batch_code_from_category(
     if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]
 
-    batch_mappings = adata_manager.get_state_registry(_REGISTRY_KEYS.BATCH_KEY)[
+    batch_mappings = adata_manager.get_state_registry(_CONSTANTS.BATCH_KEY)[
         CategoricalObsField.CATEGORICAL_MAPPING_KEY
     ]
     batch_code = []
@@ -257,8 +257,8 @@ def _init_library_size(
         and the variance defaults to 1. These defaults are arbitrary placeholders which
         should not be used in any downstream computation.
     """
-    data = adata_manager.get_from_registry(_REGISTRY_KEYS.X_KEY)
-    batch_indices = adata_manager.get_from_registry(_REGISTRY_KEYS.BATCH_KEY)
+    data = adata_manager.get_from_registry(_CONSTANTS.X_KEY)
+    batch_indices = adata_manager.get_from_registry(_CONSTANTS.BATCH_KEY)
 
     library_log_means = np.zeros(n_batch)
     library_log_vars = np.ones(n_batch)

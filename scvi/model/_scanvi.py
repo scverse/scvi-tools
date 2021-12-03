@@ -8,7 +8,7 @@ import torch
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
-from scvi import _REGISTRY_KEYS
+from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi.data.anndata._utils import _make_obs_column_categorical, _setup_anndata
 from scvi.dataloaders import (
@@ -215,9 +215,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         True is categories reordered else False
         """
         # get indices for labeled and unlabeled cells
-        key = self.scvi_setup_dict_["data_registry"][_REGISTRY_KEYS.LABELS_KEY][
-            "attr_key"
-        ]
+        key = self.scvi_setup_dict_["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
         mapping = self.scvi_setup_dict_["categorical_mappings"][key]["mapping"]
         original_key = self.scvi_setup_dict_["categorical_mappings"][key][
             "original_key"
@@ -286,8 +284,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         y_pred = []
         for _, tensors in enumerate(scdl):
-            x = tensors[_REGISTRY_KEYS.X_KEY]
-            batch = tensors[_REGISTRY_KEYS.BATCH_KEY]
+            x = tensors[_CONSTANTS.X_KEY]
+            batch = tensors[_CONSTANTS.BATCH_KEY]
             pred = self.module.classify(x, batch)
             if not soft:
                 pred = pred.argmax(dim=1)

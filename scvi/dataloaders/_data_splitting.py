@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from scvi import _REGISTRY_KEYS, settings
+from scvi import _CONSTANTS, settings
 from scvi.data.anndata.manager import AnnDataManager
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
@@ -213,7 +213,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.n_samples_per_label = n_samples_per_label
 
         setup_dict = adata_manager.get_setup_dict()
-        key = setup_dict["data_registry"][_REGISTRY_KEYS.LABELS_KEY]["attr_key"]
+        key = setup_dict["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
         original_key = setup_dict["categorical_mappings"][key]["original_key"]
         labels = np.asarray(adata_manager.obs[original_key]).ravel()
         self._unlabeled_indices = np.argwhere(labels == unlabeled_category).ravel()
