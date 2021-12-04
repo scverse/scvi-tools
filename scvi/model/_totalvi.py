@@ -1181,10 +1181,11 @@ def _get_totalvi_protein_priors(adata, batch_mask, n_cells=100):
         batch_avg_scales.append(batch_avg_scale)
 
     # repeat prior for each protein
+    n_proteins = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY).shape[1]
     batch_avg_mus = np.array(batch_avg_mus, dtype=np.float32).reshape(1, -1)
     batch_avg_scales = np.array(batch_avg_scales, dtype=np.float32).reshape(1, -1)
-    batch_avg_mus = np.tile(batch_avg_mus, (pro_exp.shape[1], 1))
-    batch_avg_scales = np.tile(batch_avg_scales, (pro_exp.shape[1], 1))
+    batch_avg_mus = np.tile(batch_avg_mus, (n_proteins, 1))
+    batch_avg_scales = np.tile(batch_avg_scales, (n_proteins, 1))
 
     warnings.resetwarnings()
 
