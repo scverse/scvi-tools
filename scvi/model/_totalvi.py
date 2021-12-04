@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from pandas.core.frame import DataFrame
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
