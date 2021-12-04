@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Uni
 
 import numpy as np
 import pandas as pd
+from pandas.core.frame import DataFrame
 import torch
 from anndata import AnnData
 
@@ -1112,6 +1113,7 @@ def _get_totalvi_protein_priors(adata, batch_mask, n_cells=100):
 
     warnings.filterwarnings("error")
 
+    logger.info("Computing empirical prior initialization for protein background.")
     batch = get_from_registry(adata, _CONSTANTS.BATCH_KEY).ravel()
     cats = adata.uns["_scvi"]["categorical_mappings"]["_scvi_batch"]["mapping"]
     codes = np.arange(len(cats))
@@ -1125,8 +1127,10 @@ def _get_totalvi_protein_priors(adata, batch_mask, n_cells=100):
             batch_avg_mus.append(0)
             batch_avg_scales.append(1)
             continue
-        pro_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)[batch == b]
-
+        pro_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
+        if isinstance(pro_exp, pd.DataFrame):
+            pro_exp = np.asarray(pro_exp)
+        pro_exp = pro_exp[batch == b]
         # non missing
         if batch_mask is not None:
             pro_exp = pro_exp[:, batch_mask[b]]
