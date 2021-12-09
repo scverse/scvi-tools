@@ -24,7 +24,6 @@ def registry_from_setup_dict(setup_dict: dict) -> dict:
     setup_dict
         Setup dictionary created after registering an AnnData with former `setup_anndata(...)` implementation.
     """
-
     registry = {
         _constants._SCVI_VERSION_KEY: setup_dict[_constants._SCVI_VERSION_KEY],
         _constants._FIELD_REGISTRIES_KEY: {},

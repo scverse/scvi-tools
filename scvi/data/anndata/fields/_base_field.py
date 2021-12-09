@@ -96,6 +96,26 @@ class BaseAnnDataField(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_summary_stats(self, state_registry: dict) -> dict:
+        """
+        Returns a dictionary comprising of summary statistics relevant to the field.
+
+        Parameters
+        ----------
+        state_registry
+            Dictionary returned by `register_field`. Summary stats should always be a function
+            of information stored in this dictionary.
+
+        Returns
+        -------
+        summary_stats_dict
+            The dictionary is of the form {summary_stat_name: summary_stat_value}.
+            This mapping is then combined with the mappings of other fields to make up
+            the summary stats mapping.
+        """
+        return dict()
+
     def get_field(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
         """Returns the requested data as determined by the field for a given AnnData object."""
         assert not self.is_empty
@@ -115,22 +135,3 @@ class BaseAnnDataField(ABC):
             _constants._DR_ATTR_NAME: self.attr_name,
             _constants._DR_ATTR_KEY: self.attr_key,
         }
-
-    def get_summary_stats(self, state_registry: dict) -> dict:
-        """
-        Returns a dictionary comprising of summary statistics relevant to the field.
-
-        Parameters
-        ----------
-        state_registry
-            Dictionary returned by `register_field`. Summary stats should always be a function
-            of information stored in this dictionary.
-
-        Returns
-        -------
-        summary_stats_dict
-            The dictionary is of the form {summary_stat_name: summary_stat_value}.
-            This mapping is then combined with the mappings of other fields to make up
-            the summary stats mapping.
-        """
-        return dict()
