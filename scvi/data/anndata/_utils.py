@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 
 def get_anndata_attribute(
     adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
-) -> np.ndarray:
+) -> Union[np.ndarray, pd.DataFrame]:
+    """Returns the requested data from a given AnnData object."""
     adata_attr = getattr(adata, attr_name)
     if attr_key is None:
         field = adata_attr
@@ -42,7 +43,9 @@ def get_anndata_attribute(
     return field
 
 
-def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
+def get_from_registry(
+    adata: anndata.AnnData, key: str
+) -> Union[np.ndarray, pd.DataFrame]:
     """
     Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``.
 
@@ -274,9 +277,14 @@ def _setup_anndata(
         return adata
 
 
-def _set_data_in_registry(adata, data, attr_name, attr_key):
+def _set_data_in_registry(
+    adata: anndata.AnnData,
+    data: Union[np.ndarray, pd.DataFrame],
+    attr_name: str,
+    attr_key: str,
+):
     """
-    Sets the data associated with key in adata.uns['_scvi']['data_registry'].keys() to data.
+    Sets the data in the AnnData object according to the attr_name and attr_key.
 
     Note: This is a dangerous method and will change the underlying data of the user's anndata
     Currently used to make the user's anndata C_CONTIGUOUS and csr if it is dense numpy
@@ -285,11 +293,13 @@ def _set_data_in_registry(adata, data, attr_name, attr_key):
     Parameters
     ----------
     adata
-        anndata object to change data of
+        AnnData object to change data of.
     data
-        data to change to
-    key
-        key in adata.uns['_scvi]['data_registry'].keys() associated with the data
+        Data to change to.
+    attr_name
+        Attribute name of AnnData object to store data in.
+    attr_key
+        Key in AnnData attribute under which to store data in.
     """
     if attr_key == "None":
         setattr(adata, attr_name, data)
@@ -303,7 +313,7 @@ def _set_data_in_registry(adata, data, attr_name, attr_key):
         setattr(adata, attr_name, attribute)
 
 
-def _verify_and_correct_data_format(adata, data_registry):
+def _verify_and_correct_data_format(adata: anndata.AnnData, data_registry: dict):
     """
     Will make sure that the user's anndata is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
 

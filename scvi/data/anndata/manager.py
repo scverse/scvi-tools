@@ -31,9 +31,9 @@ class AnnDataManager:
     def __init__(
         self, fields: Optional[Sequence[Type[BaseAnnDataField]]] = None
     ) -> None:
-        self.fields = set(fields or {})
         self.adata = None
-        self.registry = {
+        self.fields = set(fields or {})
+        self._registry = {
             _constants._SCVI_VERSION_KEY: scvi.__version__,
             _constants._SOURCE_SCVI_UUID_KEY: None,
             _constants._FIELD_REGISTRIES_KEY: defaultdict(dict),
@@ -179,6 +179,11 @@ class AnnDataManager:
         self._assert_anndata_registered()
 
         return self.registry[_constants._SCVI_UUID_KEY]
+
+    @property
+    def registry(self) -> dict:
+        """Returns the top-level registry dictionary for the AnnData object registered with this instance."""
+        return self._registry
 
     @property
     def data_registry(self) -> dict:

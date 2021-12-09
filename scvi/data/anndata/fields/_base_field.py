@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 
 from scvi.data.anndata import _constants
@@ -95,8 +96,8 @@ class BaseAnnDataField(ABC):
         """
         pass
 
-    def get_field(self, adata: AnnData) -> np.ndarray:
-        """Returns the data field as a NumPy array for a given AnnData object."""
+    def get_field(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
+        """Returns the requested data as determined by the field for a given AnnData object."""
         assert not self.is_empty
         return get_anndata_attribute(adata, self.attr_name, self.attr_key)
 

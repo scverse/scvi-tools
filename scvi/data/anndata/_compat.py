@@ -25,10 +25,14 @@ def registry_from_setup_dict(setup_dict: dict) -> dict:
         Setup dictionary created after registering an AnnData with former `setup_anndata(...)` implementation.
     """
 
-    registry = {_constants._SCVI_VERSION_KEY: setup_dict[_constants._SCVI_VERSION_KEY]}
+    registry = {
+        _constants._SCVI_VERSION_KEY: setup_dict[_constants._SCVI_VERSION_KEY],
+        _constants._FIELD_REGISTRIES_KEY: {},
+    }
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
     categorical_mappings = setup_dict["categorical_mappings"]
     summary_stats = setup_dict[_constants._SUMMARY_STATS_KEY]
+    field_registries = registry[_constants._FIELD_REGISTRIES_KEY]
     for (
         registry_key,
         adata_mapping,
@@ -36,12 +40,12 @@ def registry_from_setup_dict(setup_dict: dict) -> dict:
         attr_name = adata_mapping[_constants._DR_ATTR_NAME]
         attr_key = adata_mapping[_constants._DR_ATTR_KEY]
 
-        registry[registry_key] = {
+        field_registries[registry_key] = {
             _constants._DATA_REGISTRY_KEY: adata_mapping,
             _constants._STATE_REGISTRY_KEY: dict(),
             _constants._SUMMARY_STATS_KEY: dict(),
         }
-        field_registry = registry[registry_key]
+        field_registry = field_registries[registry_key]
         field_state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
         field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
 
