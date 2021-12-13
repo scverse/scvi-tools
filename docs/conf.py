@@ -30,7 +30,7 @@ import scvi  # noqa
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-needs_sphinx = "3.4"  # Nicer param docs
+needs_sphinx = "4.3"  # Nicer param docs
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
@@ -76,7 +76,7 @@ annotate_defaults = True  # scanpydoc option, look into why we need this
 
 # sphinx-panels shouldn't add bootstrap css since the pydata-sphinx-theme
 # already loads it
-panels_add_bootstrap_css = False
+panels_add_bootstrap_css = True
 
 # The master toctree document.
 master_doc = "index"
@@ -124,8 +124,8 @@ language = None
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "default"
-pygments_dark_style = "default"
+# pygments_style = "default"
+# pygments_dark_style = "default"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
@@ -133,23 +133,19 @@ todo_include_todos = False
 
 # -- Options for HTML output -------------------------------------------
 
-html_show_sourcelink = True
-html_theme = "pydata_sphinx_theme"
+# html_show_sourcelink = True
+html_theme = "furo"
 
-html_context = dict(
-    # display_github=True,  # Integrate GitHub
-    github_user="YosefLab",  # Username
-    github_repo="scvi-tools",  # Repo name
-    github_version="master",  # Version
-    doc_path="docs/",  # Path in the checkout to the docs root
-)
 # Set link name generated in the top bar.
 html_title = "scvi-tools"
 html_logo = "_static/logo.png"
 
 html_theme_options = {
-    "github_url": "https://github.com/YosefLab/scvi-tools",
-    "twitter_url": "https://twitter.com/YosefLab",
+    "sidebar_hide_name": True,
+    "light_css_variables": {
+        "color-brand-primary": "#003262",
+        "color-brand-content": "#2a5adf",
+    },
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -215,6 +211,6 @@ nbsphinx_thumbnails = {
 }
 
 
-def setup(app):
-    # https://github.com/pradyunsg/furo/issues/49
-    app.config.pygments_dark_style = "default"
+# def setup(app):
+#     # https://github.com/pradyunsg/furo/issues/49
+#     app.config.pygments_dark_style = "default"

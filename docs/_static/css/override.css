@@ -5,6 +5,15 @@
 https://github.com/streamlink/streamlink/blob/17a4088c38709123c0bcab4a150549bd16d19e07/docs/_static/styles/custom.css
 */
 
+:root {
+    /* misc */
+    --sidebar-width: 18em;
+    --content-width: 65em;
+    --admonition-font-size: var(--font-size--small);
+    --admonition-title-font-size: var(--font-size--normal);
+}
+
+
 dt:target, span.highlighted {
     background-color: #f0f0f0;
 }
@@ -35,7 +44,7 @@ dl.citation > dt {
 }
 
 /* Parameters normalize size and captialized, */
-dl.c .field-list dt, dl.cpp .field-list dt, dl.js .field-list dt, dl.py .field-list dt {
+dl .field-list dt {
     font-size: var(--font-size--normal);
     text-transform: none;
 }
@@ -51,7 +60,7 @@ p.rubric {
 /* Getting started index page */
 
 .intro-card {
-    background: #fff;
+    background: transparent;
     border-radius: 0;
     padding: 30px 10px 10px 10px;
     margin: 10px 0px;
@@ -130,7 +139,7 @@ p.topic-title {
 /* https://github.com/pandas-dev/pandas/blob/059c8bac51e47d6eaaa3e36d6a293a22312925e6/doc/source/_static/css/pandas.css */
 /* with custom changes */
 .intro-card {
-    background: #fff;
+    background: inherit;
     border-radius: 0;
     padding: 30px 10px 20px 10px;
     margin: 10px 0px;
@@ -146,7 +155,7 @@ p.topic-title {
 
   .intro-card .card-header {
     border: none;
-    background-color:white;
+    background-color:inherit;
     color: #150458 !important;
     font-size: var(--pst-font-size-h5);
     font-weight: bold;
@@ -155,7 +164,7 @@ p.topic-title {
 
   .intro-card .card-footer {
     border: none;
-    background-color:white;
+    background-color:inherit;
   }
 
   .intro-card .card-footer p.card-text{
@@ -165,7 +174,7 @@ p.topic-title {
   }
 
   .intro-card .btn-secondary {
-      background-color: #dcdcdc;
+      background-color: inherit;
       border-color: #dcdcdc;
       color: #484848;
   }
