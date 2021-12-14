@@ -11,12 +11,9 @@ import rich
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS, settings
-from scvi.data._utils import _check_nonnegative_integers
-from scvi.data.anndata import get_from_registry
+from scvi import settings
 from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SUMMARY_STATS_KEY
-from scvi.data.anndata._utils import _check_anndata_setup_equivalence
+from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SOURCE_SCVI_UUID_KEY
 from scvi.data.anndata.manager import AnnDataManager
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -44,8 +41,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if adata is not None:
             self.adata_manager = self.get_anndata_manager(adata, required=True)
             self.adata = self.adata_manager.adata
-            self.scvi_setup_dict_ = self.adata_manager.get_setup_dict()
-            self.summary_stats = self.scvi_setup_dict_[_SUMMARY_STATS_KEY]
+            self.registry = self.adata_manager.registry
+            self.summary_stats = self.adata_manager.summary_stats
 
         self.is_trained_ = False
         self._model_summary_string = ""
@@ -112,9 +109,39 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         return cls.manager_store[adata_uuid]
 
+    def get_from_registry(
+        self,
+        adata: AnnData,
+        registry_key: str,
+    ) -> np.ndarray:
+        """
+        Returns the object in AnnData associated with the key in the data registry.
+
+        AnnData object should be registered with the model prior to calling this function
+        via the ``self._validate_anndata`` method.
+
+        Parameters
+        ----------
+        registry_key
+            key of object to get from data registry.
+        adata
+            AnnData to pull data from.
+
+        Returns
+        -------
+        The requested data as a NumPy array.
+        """
+        adata_manager = self.get_anndata_manager(adata)
+        if adata_manager is None:
+            raise AssertionError(
+                "AnnData not registered with model. Call `self._validate_anndata` "
+                "prior to calling this function."
+            )
+        return adata_manager.get_from_registry(registry_key)
+
     def _make_data_loader(
         self,
-        adata: Optional[AnnData],
+        adata: AnnData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
         shuffle: bool = False,
@@ -127,8 +154,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnData object with equivalent structure to initial AnnData.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
@@ -140,14 +166,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         data_loader_kwargs
             Kwargs to the class-specific data loader class
         """
-        if adata is None:
-            adata_manager = self.adata_manager
-        else:
-            adata_manager = self.get_anndata_manager(adata)
-            if adata_manager is None:
-                raise AssertionError(
-                    "AnnDataManager not found. Call `self._validate` prior to calling this function."
-                )
+        adata_manager = self.get_anndata_manager(adata)
+        if adata_manager is None:
+            raise AssertionError(
+                "AnnDataManager not found. Call `self._validate` prior to calling this function."
+            )
 
         adata = adata_manager.adata
 
@@ -183,22 +206,21 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             else:
                 raise ValueError("Please run `adata = adata.copy()`")
 
-        if "_scvi" not in adata.uns_keys():
+        adata_manager = self.get_anndata_manager(adata)
+        if adata_manager is None:
             logger.info(
-                "Input adata not setup with scvi. "
+                "Input adata not setup with scvi-tools. "
                 + "attempting to transfer anndata setup"
             )
             self._register_manager(self.adata_manager.transfer_setup(adata))
-        is_nonneg_int = _check_nonnegative_integers(
-            get_from_registry(adata, _CONSTANTS.X_KEY)
-        )
-        if not is_nonneg_int:
-            warnings.warn(
-                "Make sure the registered X field in anndata contains unnormalized count data."
+        elif (
+            adata_manager.registry[_SOURCE_SCVI_UUID_KEY]
+            != self.adata_manager.registry[_SCVI_UUID_KEY]
+        ):
+            logger.info(
+                "Input AnnData setup with AnnData the model was initialized with. "
+                "Attempting to transfer setup with initial AnnData."
             )
-
-        needs_transfer = _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
-        if needs_transfer:
             self._register_manager(self.adata_manager.transfer_setup(adata))
 
         return adata

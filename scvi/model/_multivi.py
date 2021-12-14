@@ -714,7 +714,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         result = _de_core(
-            adata=adata,
+            adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
             groupby=groupby,
             group1=group1,
@@ -800,7 +800,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             var_idx=np.arange(adata.shape[1])[: self.n_genes],
         )
         result = _de_core(
-            adata,
+            adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
             groupby=groupby,
             group1=group1,
