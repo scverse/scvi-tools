@@ -482,7 +482,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 return samples >= delta
 
         result = _de_core(
-            adata=adata,
+            adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
             groupby=groupby,
             group1=group1,

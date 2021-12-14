@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 
 from scvi.data.anndata import _constants
-from scvi.data.anndata._utils import _get_field
+from scvi.data.anndata._utils import get_anndata_attribute
 
 
 class BaseAnnDataField(ABC):
@@ -18,6 +19,7 @@ class BaseAnnDataField(ABC):
 
     def __init__(self) -> None:
         super().__init__()
+        self.state_dict = dict()
 
     @property
     @abstractmethod
@@ -55,12 +57,22 @@ class BaseAnnDataField(ABC):
         pass
 
     @abstractmethod
-    def register_field(self, adata: AnnData) -> None:
-        """Sets up the AnnData object and creates a mapping for scvi-tools models to use."""
+    def register_field(self, adata: AnnData) -> dict:
+        """
+        Sets up the AnnData object and creates a mapping for scvi-tools models to use.
+
+        Returns
+        -------
+        dict
+            A dictionary containing any additional state required for scvi-tools models not
+            stored directly on the AnnData object.
+        """
         self.validate_field(adata)
 
     @abstractmethod
-    def transfer_field(self, setup_dict: dict, adata_target: AnnData, **kwargs) -> None:
+    def transfer_field(
+        self, state_registry: dict, adata_target: AnnData, **kwargs
+    ) -> dict:
         """
         Takes an existing scvi-tools setup dictionary and transfers the same setup to the target AnnData.
 
@@ -69,37 +81,57 @@ class BaseAnnDataField(ABC):
 
         Parameters
         ----------
-        setup_dict
-            Setup dictionary created after registering an AnnData using an AnnDataManager object.
+        state_registry
+            state_registry dictionary created after registering an AnnData using an AnnDataManager object.
         adata_target
             AnnData object that is being registered.
         **kwargs
             Keyword arguments to modify transfer behavior.
+
+        Returns
+        -------
+        dict
+            A dictionary containing any additional state required for scvi-tools models not
+            stored directly on the AnnData object.
         """
         pass
 
-    def data_registry_mapping(self) -> dict:
+    @abstractmethod
+    def get_summary_stats(self, state_registry: dict) -> dict:
+        """
+        Returns a dictionary comprising of summary statistics relevant to the field.
+
+        Parameters
+        ----------
+        state_registry
+            Dictionary returned by `register_field`. Summary stats should always be a function
+            of information stored in this dictionary.
+
+        Returns
+        -------
+        summary_stats_dict
+            The dictionary is of the form {summary_stat_name: summary_stat_value}.
+            This mapping is then combined with the mappings of other fields to make up
+            the summary stats mapping.
+        """
+        return dict()
+
+    def get_field(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
+        """Returns the requested data as determined by the field for a given AnnData object."""
+        assert not self.is_empty
+        return get_anndata_attribute(adata, self.attr_name, self.attr_key)
+
+    def get_data_registry(self) -> dict:
         """
         Returns a nested dictionary which describes the mapping to the AnnData data field.
 
-        The dictionary is of the form {registry_key: {"attr_name": attr_name, "attr_key": attr_key}}.
+        The dictionary is of the form {"attr_name": attr_name, "attr_key": attr_key}.
         This mapping is then combined with the mappings of other fields to make up the data registry.
         """
         if self.is_empty:
             return dict()
 
         return {
-            self.registry_key: {
-                _constants._DR_ATTR_NAME: self.attr_name,
-                _constants._DR_ATTR_KEY: self.attr_key,
-            }
+            _constants._DR_ATTR_NAME: self.attr_name,
+            _constants._DR_ATTR_KEY: self.attr_key,
         }
-
-    def get_field(self, adata: AnnData) -> np.ndarray:
-        """Returns the data field as a NumPy array for a given AnnData object."""
-        assert not self.is_empty
-        return _get_field(adata, self.attr_name, self.attr_key)
-
-    def compute_summary_stats(self, adata: AnnData) -> dict:
-        """Returns a dictionary comprising of summary statistics relevant to the field."""
-        return dict()

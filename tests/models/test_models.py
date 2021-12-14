@@ -20,7 +20,6 @@ from scvi.data.anndata import (
     transfer_anndata_setup,
 )
 from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._utils import _check_anndata_setup_equivalence, _setup_anndata
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -42,7 +41,7 @@ from scvi.model import (
 from scvi.train import TrainingPlan, TrainRunner
 
 
-def test_new_setup():
+def test_new_setup_compat():
     adata = synthetic_iid(run_setup_anndata=False)
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
@@ -66,17 +65,49 @@ def test_new_setup():
         categorical_covariate_keys=["cat1", "cat2"],
         continuous_covariate_keys=["cont1", "cont2"],
     )
-    assert not _check_anndata_setup_equivalence(adata, adata2)
+    # Consistency with previous implementation.
     assert adata.obsm["_scvi_extra_categoricals"].equals(
-        adata2.obsm["_scvi_extra_categoricals"]
+        adata2.obsm["_scvi_extra_categorical_covs"]
     )
-    adata_manager = SCVI.manager_store[adata2.uns[_constants._SCVI_UUID_KEY]]
-    adata_manager.transfer_setup(adata3)
-    assert not _check_anndata_setup_equivalence(adata, adata3)
-    manager_from_setup_dict(adata4, adata_manager.get_setup_dict())
-    assert not _check_anndata_setup_equivalence(adata, adata4)
+    assert adata.obsm["_scvi_extra_continuous"].equals(
+        adata2.obsm["_scvi_extra_continuous_covs"]
+    )
 
-    model = SCVI(adata2, n_latent=5)
+    adata_manager = SCVI.manager_store[adata2.uns[_constants._SCVI_UUID_KEY]]
+
+    # Backwards compatibility test.
+    adata3_manager = manager_from_setup_dict(
+        adata3, adata.uns[_constants._SETUP_DICT_KEY]
+    )
+    np.testing.assert_equal(
+        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+    )
+
+    # Test transfer.
+    adata4_manager = adata_manager.transfer_setup(adata4)
+    np.testing.assert_equal(
+        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        adata4_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+    )
+
+
+def test_new_setup_train():
+    adata = synthetic_iid(run_setup_anndata=False)
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
+
+    # Test train.
+    model = SCVI(adata, n_latent=5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
 
@@ -117,7 +148,7 @@ def test_scvi(save_path):
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
 
-    adata2 = synthetic_iid()
+    adata2 = synthetic_iid(run_setup_anndata=False)
     model.get_elbo(adata2)
     model.get_marginal_ll(adata2, n_mc_samples=3)
     model.get_reconstruction_error(adata2)
@@ -176,33 +207,19 @@ def test_scvi(save_path):
 
     # test transfer_anndata_setup
     adata2 = synthetic_iid(run_setup_anndata=False)
-    transfer_anndata_setup(adata, adata2)
+    model._validate_anndata(adata2)
     model.get_elbo(adata2)
 
     # test automatic transfer_anndata_setup + on a view
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = SCVI(adata)
     adata2 = synthetic_iid(run_setup_anndata=False)
     model.get_elbo(adata2[:10])
-
-    # test that we catch incorrect mappings
-    adata = synthetic_iid()
-    adata2 = synthetic_iid(run_setup_anndata=False)
-    transfer_anndata_setup(adata, adata2)
-    adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
-        ["label_4", "label_0", "label_2"]
-    )
-    with pytest.raises(ValueError):
-        model.get_elbo(adata2)
-
-    # test that same mapping different order doesn't raise error
-    adata = synthetic_iid()
-    adata2 = synthetic_iid(run_setup_anndata=False)
-    transfer_anndata_setup(adata, adata2)
-    adata2.uns["_scvi"]["categorical_mappings"]["_scvi_labels"]["mapping"] = np.array(
-        ["label_1", "label_0", "label_2"]
-    )
-    model.get_elbo(adata2)  # should automatically transfer setup
 
     # test mismatched categories raises ValueError
     adata2 = synthetic_iid(run_setup_anndata=False)
@@ -224,7 +241,10 @@ def test_scvi(save_path):
     batch = np.zeros(a.n_obs)
     batch[:64] += 1
     a.obs["batch"] = batch
-    _setup_anndata(a, batch_key="batch")
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+    )
     m = SCVI(a)
     m.train(1, train_size=0.5)
     m.get_normalized_expression(transform_batch=1)
@@ -235,7 +255,12 @@ def test_scvi(save_path):
     model.get_likelihood_parameters()
 
     # test train callbacks work
-    a = synthetic_iid()
+    a = synthetic_iid(run_setup_anndata=False)
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+        labels_key="labels",
+    )
     m = scvi.model.SCVI(a)
     lr_monitor = LearningRateMonitor()
     m.train(

@@ -13,7 +13,6 @@ from scvi import _CONSTANTS
 from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.data.anndata import get_from_registry
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
@@ -130,7 +129,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             else (self.summary_stats["n_proteins"] > 10)
         )
         if emp_prior:
-            prior_mean, prior_scale = _get_totalvi_protein_priors(adata)
+            prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
 
@@ -737,7 +736,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             ]
         )
         result = _de_core(
-            adata,
+            self.get_anndata_manager(adata, required=True),
             model_fn,
             groupby,
             group1,
@@ -963,7 +962,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if not isinstance(transform_batch, IterableClass):
             transform_batch = [transform_batch]
 
-        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+        transform_batch = _get_batch_code_from_category(
+            self.get_anndata_manager(adata, required=True), transform_batch
+        )
 
         corr_mats = []
         for b in transform_batch:
@@ -1029,10 +1030,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
     ):
-        adata = super()._validate_anndata(adata, copy_if_view)
+        adata = super()._validate_anndata(adata=adata, copy_if_view=copy_if_view)
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
         if _CONSTANTS.PROTEIN_EXP_KEY in adata.uns["_scvi"]["data_registry"].keys():
-            pro_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
+            pro_exp = self.get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
             if self.summary_stats["n_proteins"] != pro_exp.shape[1]:
                 raise ValueError(error_msg.format("proteins"))
             is_nonneg_int = _check_nonnegative_integers(pro_exp)
@@ -1044,6 +1045,79 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             raise ValueError("No protein data found, please setup or transfer anndata")
 
         return adata
+
+    def _get_totalvi_protein_priors(self, adata, n_cells=100):
+        """Compute an empirical prior for protein background."""
+        import warnings
+
+        from sklearn.exceptions import ConvergenceWarning
+        from sklearn.mixture import GaussianMixture
+
+        warnings.filterwarnings("error")
+
+        adata = self._validate_anndata(adata)
+        batch = self.get_from_registry(adata, _CONSTANTS.BATCH_KEY).ravel()
+        cats = adata.uns["_scvi"]["categorical_mappings"]["_scvi_batch"]["mapping"]
+        codes = np.arange(len(cats))
+
+        batch_avg_mus, batch_avg_scales = [], []
+        for b in np.unique(codes):
+            # can happen during online updates
+            # the values of these batches will not be used
+            num_in_batch = np.sum(batch == b)
+            if num_in_batch == 0:
+                batch_avg_mus.append(0)
+                batch_avg_scales.append(1)
+                continue
+            pro_exp = self.get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)[
+                batch == b
+            ]
+
+            # for missing batches, put dummy values -- scarches case, will be replaced anyway
+            if pro_exp.shape[0] == 0:
+                batch_avg_mus.append(0.0)
+                batch_avg_scales.append(0.05)
+
+            cells = np.random.choice(np.arange(pro_exp.shape[0]), size=n_cells)
+            if isinstance(pro_exp, pd.DataFrame):
+                pro_exp = pro_exp.to_numpy()
+            pro_exp = pro_exp[cells]
+            gmm = GaussianMixture(n_components=2)
+            mus, scales = [], []
+            # fit per cell GMM
+            for c in pro_exp:
+                try:
+                    gmm.fit(np.log1p(c.reshape(-1, 1)))
+                # when cell is all 0
+                except ConvergenceWarning:
+                    mus.append(0)
+                    scales.append(0.05)
+                    continue
+
+                means = gmm.means_.ravel()
+                sorted_fg_bg = np.argsort(means)
+                mu = means[sorted_fg_bg].ravel()[0]
+                covariances = gmm.covariances_[sorted_fg_bg].ravel()[0]
+                scale = np.sqrt(covariances)
+                mus.append(mu)
+                scales.append(scale)
+
+            # average distribution over cells
+            batch_avg_mu = np.mean(mus)
+            batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells ** 2))
+
+            batch_avg_mus.append(batch_avg_mu)
+            batch_avg_scales.append(batch_avg_scale)
+
+        # repeat prior for each protein
+        batch_avg_mus = np.array(batch_avg_mus, dtype=np.float32).reshape(1, -1)
+        batch_avg_scales = np.array(batch_avg_scales, dtype=np.float32).reshape(1, -1)
+        batch_avg_mus = np.tile(batch_avg_mus, (pro_exp.shape[1], 1))
+        batch_avg_scales = np.tile(batch_avg_scales, (pro_exp.shape[1], 1))
+
+        warnings.resetwarnings()
+
+        return batch_avg_mus, batch_avg_scales
 
     @torch.no_grad()
     def get_protein_background_mean(self, adata, indices, batch_size):
@@ -1101,74 +1175,3 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             continuous_covariate_keys=continuous_covariate_keys,
             copy=copy,
         )
-
-
-def _get_totalvi_protein_priors(adata, n_cells=100):
-    """Compute an empirical prior for protein background."""
-    import warnings
-
-    from sklearn.exceptions import ConvergenceWarning
-    from sklearn.mixture import GaussianMixture
-
-    warnings.filterwarnings("error")
-
-    batch = get_from_registry(adata, _CONSTANTS.BATCH_KEY).ravel()
-    cats = adata.uns["_scvi"]["categorical_mappings"]["_scvi_batch"]["mapping"]
-    codes = np.arange(len(cats))
-
-    batch_avg_mus, batch_avg_scales = [], []
-    for b in np.unique(codes):
-        # can happen during online updates
-        # the values of these batches will not be used
-        num_in_batch = np.sum(batch == b)
-        if num_in_batch == 0:
-            batch_avg_mus.append(0)
-            batch_avg_scales.append(1)
-            continue
-        pro_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)[batch == b]
-
-        # for missing batches, put dummy values -- scarches case, will be replaced anyway
-        if pro_exp.shape[0] == 0:
-            batch_avg_mus.append(0.0)
-            batch_avg_scales.append(0.05)
-
-        cells = np.random.choice(np.arange(pro_exp.shape[0]), size=n_cells)
-        if isinstance(pro_exp, pd.DataFrame):
-            pro_exp = pro_exp.to_numpy()
-        pro_exp = pro_exp[cells]
-        gmm = GaussianMixture(n_components=2)
-        mus, scales = [], []
-        # fit per cell GMM
-        for c in pro_exp:
-            try:
-                gmm.fit(np.log1p(c.reshape(-1, 1)))
-            # when cell is all 0
-            except ConvergenceWarning:
-                mus.append(0)
-                scales.append(0.05)
-                continue
-
-            means = gmm.means_.ravel()
-            sorted_fg_bg = np.argsort(means)
-            mu = means[sorted_fg_bg].ravel()[0]
-            covariances = gmm.covariances_[sorted_fg_bg].ravel()[0]
-            scale = np.sqrt(covariances)
-            mus.append(mu)
-            scales.append(scale)
-
-        # average distribution over cells
-        batch_avg_mu = np.mean(mus)
-        batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells ** 2))
-
-        batch_avg_mus.append(batch_avg_mu)
-        batch_avg_scales.append(batch_avg_scale)
-
-    # repeat prior for each protein
-    batch_avg_mus = np.array(batch_avg_mus, dtype=np.float32).reshape(1, -1)
-    batch_avg_scales = np.array(batch_avg_scales, dtype=np.float32).reshape(1, -1)
-    batch_avg_mus = np.tile(batch_avg_mus, (pro_exp.shape[1], 1))
-    batch_avg_scales = np.tile(batch_avg_scales, (pro_exp.shape[1], 1))
-
-    warnings.resetwarnings()
-
-    return batch_avg_mus, batch_avg_scales

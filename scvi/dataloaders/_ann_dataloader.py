@@ -101,7 +101,7 @@ class AnnDataLoader(DataLoader):
     batch_size
         minibatch size to load each iteration
     data_and_attributes
-        Dictionary with keys representing keys in data registry (`adata.uns["_scvi"]`)
+        Dictionary with keys representing keys in data registry (`adata_manager.data_registry`)
         and value equal to desired numpy loading type (later made into torch tensor).
         If `None`, defaults to all registered data.
     data_loader_kwargs
@@ -123,7 +123,7 @@ class AnnDataLoader(DataLoader):
             raise ValueError("Please run setup_anndata() on your anndata object first.")
 
         if data_and_attributes is not None:
-            data_registry = adata_manager.get_data_registry()
+            data_registry = adata_manager.data_registry
             for key in data_and_attributes.keys():
                 if key not in data_registry.keys():
                     raise ValueError(
@@ -133,7 +133,7 @@ class AnnDataLoader(DataLoader):
                     )
 
         self.dataset = AnnTorchDataset(
-            adata_manager.adata, getitem_tensors=data_and_attributes
+            adata_manager, getitem_tensors=data_and_attributes
         )
 
         sampler_kwargs = {

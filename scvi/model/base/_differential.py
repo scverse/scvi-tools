@@ -11,7 +11,6 @@ from sklearn.mixture import GaussianMixture
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.data.anndata import get_from_registry
 
 logger = logging.getLogger(__name__)
 
@@ -252,7 +251,7 @@ class DifferentialComputation:
         # Adding pseudocounts to the scales
         if pseudocounts is None:
             logger.debug("Estimating pseudocounts offet from the data")
-            x = get_from_registry(self.adata, _CONSTANTS.X_KEY)
+            x = self.get_from_registry(self.adata, _CONSTANTS.X_KEY)
             where_zero_a = densify(np.max(x[idx1], 0)) == 0
             where_zero_b = densify(np.max(x[idx2], 0)) == 0
             pseudocounts = estimate_pseudocounts_offset(
