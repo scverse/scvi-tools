@@ -6,14 +6,13 @@ from typing import Dict, List, Optional, Union
 import anndata
 import numpy as np
 import pandas as pd
-from anndata._core.anndata import AnnData
 from pandas.api.types import CategoricalDtype
 from scipy.sparse import isspmatrix
 from sklearn.utils import deprecated
 
 import scvi
-from scvi import _CONSTANTS
 from scvi._compat import Literal
+from scvi._constants import _CONSTANTS
 from scvi.data._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
 
 from . import _constants
@@ -21,9 +20,10 @@ from . import _constants
 logger = logging.getLogger(__name__)
 
 
-def _get_field(
+def get_anndata_attribute(
     adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
-) -> np.ndarray:
+) -> Union[np.ndarray, pd.DataFrame]:
+    """Returns the requested data from a given AnnData object."""
     adata_attr = getattr(adata, attr_name)
     if attr_key is None:
         field = adata_attr
@@ -43,7 +43,9 @@ def _get_field(
     return field
 
 
-def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
+def get_from_registry(
+    adata: anndata.AnnData, key: str
+) -> Union[np.ndarray, pd.DataFrame]:
     """
     Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``.
 
@@ -82,7 +84,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
         data_loc[_constants._DR_ATTR_KEY],
     )
 
-    return _get_field(adata, attr_name, attr_key)
+    return get_anndata_attribute(adata, attr_name, attr_key)
 
 
 @deprecated(
@@ -275,9 +277,14 @@ def _setup_anndata(
         return adata
 
 
-def _set_data_in_registry(adata, data, key):
+def _set_data_in_registry(
+    adata: anndata.AnnData,
+    data: Union[np.ndarray, pd.DataFrame],
+    attr_name: str,
+    attr_key: str,
+):
     """
-    Sets the data associated with key in adata.uns['_scvi']['data_registry'].keys() to data.
+    Sets the data in the AnnData object according to the attr_name and attr_key.
 
     Note: This is a dangerous method and will change the underlying data of the user's anndata
     Currently used to make the user's anndata C_CONTIGUOUS and csr if it is dense numpy
@@ -286,15 +293,14 @@ def _set_data_in_registry(adata, data, key):
     Parameters
     ----------
     adata
-        anndata object to change data of
+        AnnData object to change data of.
     data
-        data to change to
-    key
-        key in adata.uns['_scvi]['data_registry'].keys() associated with the data
+        Data to change to.
+    attr_name
+        Attribute name of AnnData object to store data in.
+    attr_key
+        Key in AnnData attribute under which to store data in.
     """
-    data_loc = adata.uns["_scvi"]["data_registry"][key]
-    attr_name, attr_key = data_loc["attr_name"], data_loc["attr_key"]
-
     if attr_key == "None":
         setattr(adata, attr_name, data)
 
@@ -307,7 +313,7 @@ def _set_data_in_registry(adata, data, key):
         setattr(adata, attr_name, attribute)
 
 
-def _verify_and_correct_data_format(adata, data_registry):
+def _verify_and_correct_data_format(adata: anndata.AnnData, data_registry: dict):
     """
     Will make sure that the user's anndata is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
 
@@ -324,7 +330,12 @@ def _verify_and_correct_data_format(adata, data_registry):
     keys = [key for key in keys_to_check if key in data_registry.keys()]
 
     for k in keys:
-        data = get_from_registry(adata, k)
+        mapping = data_registry[k]
+        attr_name, attr_key = (
+            mapping[_constants._DR_ATTR_NAME],
+            mapping[_constants._DR_ATTR_KEY],
+        )
+        data = get_anndata_attribute(adata, attr_name, attr_key)
         if isspmatrix(data) and (data.getformat() != "csr"):
             warnings.warn(
                 "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization."
@@ -334,7 +345,7 @@ def _verify_and_correct_data_format(adata, data_registry):
                 "{} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.".format(k)
             )
             data = np.asarray(data, order="C")
-            _set_data_in_registry(adata, data, k)
+            _set_data_in_registry(adata, data, attr_name, attr_key)
         elif isinstance(data, pd.DataFrame) and (
             data.to_numpy().flags["C_CONTIGUOUS"] is False
         ):
@@ -347,7 +358,7 @@ def _verify_and_correct_data_format(adata, data_registry):
             data = pd.DataFrame(
                 np.ascontiguousarray(vals), index=index, columns=columns
             )
-            _set_data_in_registry(adata, data, k)
+            _set_data_in_registry(adata, data, attr_name, attr_key)
 
 
 def register_tensor_from_anndata(
@@ -500,7 +511,12 @@ def transfer_anndata_setup(
             adata_target, list(obs_keys_names)
         )
         target_data_registry.update(
-            {_CONSTANTS.CONT_COVS_KEY: {"attr_name": cont_loc, "attr_key": cont_key}}
+            {
+                _CONSTANTS.CONT_COVS_KEY: {
+                    "attr_name": cont_loc,
+                    "attr_key": cont_key,
+                }
+            }
         )
     else:
         obs_keys_names = None
@@ -718,7 +734,11 @@ def _setup_extra_continuous_covs(
 
 
 def _make_obs_column_categorical(
-    adata, column_key, alternate_column_key, categorical_dtype=None
+    adata,
+    column_key,
+    alternate_column_key,
+    categorical_dtype=None,
+    return_mapping=False,
 ):
     """
     Makes the data in column_key in obs all categorical.
@@ -743,13 +763,15 @@ def _make_obs_column_categorical(
         )
     adata.obs[alternate_column_key] = codes
 
-    # store categorical mappings
-    store_dict = {
-        alternate_column_key: {"original_key": column_key, "mapping": mapping}
-    }
-    if "categorical_mappings" not in adata.uns["_scvi"].keys():
-        adata.uns["_scvi"]["categorical_mappings"] = dict()
-    adata.uns["_scvi"]["categorical_mappings"].update(store_dict)
+    if not return_mapping:
+        # store categorical mappings
+        store_dict = {
+            alternate_column_key: {"original_key": column_key, "mapping": mapping}
+        }
+
+        if "categorical_mappings" not in adata.uns["_scvi"].keys():
+            adata.uns["_scvi"]["categorical_mappings"] = dict()
+        adata.uns["_scvi"]["categorical_mappings"].update(store_dict)
 
     # make sure each category contains enough cells
     unique, counts = np.unique(adata.obs[alternate_column_key], return_counts=True)
@@ -765,7 +787,8 @@ def _make_obs_column_categorical(
         warnings.warn(
             "Is adata.obs['{}'] continuous? SCVI doesn't support continuous obs yet."
         )
-    return alternate_column_key
+
+    return mapping if return_mapping else alternate_column_key
 
 
 def _setup_protein_expression(
@@ -920,120 +943,3 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Dict[str, str]]):
     >>> _register_anndata(adata, data_dict)
     """
     adata.uns["_scvi"]["data_registry"] = deepcopy(data_registry_dict)
-
-
-def _check_anndata_setup_equivalence(
-    adata_source: Union[AnnData, dict], adata_target: AnnData
-) -> bool:
-    """
-    Checks if target setup is equivalent to source.
-
-    Parameters
-    ----------
-    adata_source
-        Either AnnData already setup or scvi_setup_dict as the source
-    adata_target
-        Target AnnData to check setup equivalence
-
-    Returns
-    -------
-    Whether the adata_target should be run through `transfer_anndata_setup`
-    """
-    if isinstance(adata_source, anndata.AnnData):
-        _scvi_dict = adata_source.uns["_scvi"]
-    else:
-        _scvi_dict = adata_source
-    adata = adata_target
-
-    stats = _scvi_dict["summary_stats"]
-
-    target_n_vars = adata.shape[1]
-    error_msg = (
-        "Number of {} in anndata different from initial anndata used for training."
-    )
-    if target_n_vars != stats["n_vars"]:
-        raise ValueError(error_msg.format("vars"))
-
-    self_categoricals = _scvi_dict["categorical_mappings"]
-    self_batch_mapping = self_categoricals["_scvi_batch"]["mapping"]
-
-    adata_categoricals = adata.uns["_scvi"]["categorical_mappings"]
-    adata_batch_mapping = adata_categoricals["_scvi_batch"]["mapping"]
-
-    # check if mappings are equal or needs transfer
-    transfer_setup = _mapping_needs_transfer(
-        self_batch_mapping, adata_batch_mapping, "batch"
-    )
-
-    self_labels_mapping = self_categoricals["_scvi_labels"]["mapping"]
-    adata_labels_mapping = adata_categoricals["_scvi_labels"]["mapping"]
-
-    transfer_setup = transfer_setup or _mapping_needs_transfer(
-        self_labels_mapping, adata_labels_mapping, "label"
-    )
-
-    # validate any extra categoricals
-    error_msg = (
-        "Registered categorical key order mismatch between "
-        + "the anndata used to train and the anndata passed in."
-        + "Expected categories & order {}. Received {}.\n"
-    )
-    if "extra_categoricals" in _scvi_dict.keys():
-        target_dict = adata.uns["_scvi"]["extra_categoricals"]
-        source_dict = _scvi_dict["extra_categoricals"]
-        # check that order of keys setup is same
-        if not np.array_equal(target_dict["keys"], source_dict["keys"]):
-            raise ValueError(error_msg.format(source_dict["keys"], target_dict["keys"]))
-        # check mappings are equivalent
-        target_extra_cat_maps = adata.uns["_scvi"]["extra_categoricals"]["mappings"]
-        for key, val in source_dict["mappings"].items():
-            target_map = target_extra_cat_maps[key]
-            transfer_setup = transfer_setup or _mapping_needs_transfer(
-                val, target_map, key
-            )
-    # validate any extra continuous covs
-    if "extra_continuous_keys" in _scvi_dict.keys():
-        if "extra_continuous_keys" not in adata.uns["_scvi"].keys():
-            raise ValueError('extra_continuous_keys not in adata.uns["_scvi"]')
-        target_cont_keys = adata.uns["_scvi"]["extra_continuous_keys"]
-        source_cont_keys = _scvi_dict["extra_continuous_keys"]
-        # check that order of keys setup is same
-        if not np.array_equal(target_cont_keys, source_cont_keys):
-            raise ValueError(error_msg.format(source_cont_keys, target_cont_keys))
-
-    return transfer_setup
-
-
-def _mapping_needs_transfer(mapping1, mapping2, category):
-    needs_transfer = False
-    error_msg = (
-        "Categorial encoding for {} is not the same between "
-        + "the anndata used to train and the anndata passed in. "
-        + "Categorical encoding needs to be same elements, same order, and same datatype.\n"
-        + "Expected categories: {}. Received categories: {}.\n"
-    )
-    warning_msg = (
-        "Categorical encoding for {} is similar but not equal between "
-        + "the anndata used to train and the anndata passed in. "
-        + "Will attempt transfer. Expected categories: {}. Received categories: {}.\n "
-    )
-    if _is_equal_mapping(mapping1, mapping2):
-        needs_transfer = False
-    elif _is_similar_mapping(mapping1, mapping2):
-        needs_transfer = True
-        warnings.warn(warning_msg.format(category, mapping1, mapping2))
-    else:
-        raise ValueError(error_msg.format(category, mapping1, mapping2))
-    return needs_transfer
-
-
-def _is_similar_mapping(mapping1, mapping2):
-    """Returns True if mapping2 is a subset of mapping1."""
-    if len(set(mapping2) - set(mapping1)) == 0:
-        return True
-    else:
-        return False
-
-
-def _is_equal_mapping(mapping1, mapping2):
-    return pd.Index(mapping1).equals(pd.Index(mapping2))

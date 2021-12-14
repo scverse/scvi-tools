@@ -24,7 +24,7 @@ class ConcatDataLoader(DataLoader):
     batch_size
         minibatch size to load each iteration
     data_and_attributes
-        Dictionary with keys representing keys in data registry (`adata.uns["_scvi"]`)
+        Dictionary with keys representing keys in data registry (`adata_manager.data_registry`)
         and value equal to desired numpy loading type (later made into torch tensor).
         If `None`, defaults to all registered data.
     data_loader_kwargs
