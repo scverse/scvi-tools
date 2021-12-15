@@ -25,11 +25,11 @@ class BaseObsmField(BaseAnnDataField):
         self._registry_key = registry_key
 
     @property
-    def registry_key(self):
+    def registry_key(self) -> str:
         return self._registry_key
 
     @property
-    def attr_name(self):
+    def attr_name(self) -> str:
         return self._attr_name
 
 
@@ -62,11 +62,12 @@ class JointObsField(BaseObsmField):
         adata.obsm[self.attr_key] = adata.obs[self.obs_keys].copy()
 
     @property
-    def obs_keys(self):
+    def obs_keys(self) -> List[str]:
+        """List of .obs keys that make up this joint field."""
         return self._obs_keys
 
     @property
-    def attr_key(self):
+    def attr_key(self) -> str:
         return self._attr_key
 
     @property
