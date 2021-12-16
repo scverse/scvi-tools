@@ -191,7 +191,8 @@ nbsphinx_thumbnails = {
     "tutorials/notebooks/api_overview": "_static/tutorials/overview.svg",
     "tutorials/notebooks/linear_decoder": "_static/tutorials/ldvae.svg",
     "tutorials/notebooks/scvi_in_R": "_static/tutorials/Rlogo.png",
-    "tutorials/notebooks/harmonization": "_static/tutorials/scvi_batch.png",
+    "tutorials/notebooks/python_in_R": "_static/tutorials/Rlogo.png",
+    "tutorials/notebooks/harmonization": "_static/tutorials/lung_atlas.png",
     "tutorials/notebooks/totalVI": "_static/tutorials/totalvi_cell.svg",
     "tutorials/notebooks/AutoZI_tutorial": "_static/tutorials/history.png",
     "tutorials/notebooks/gimvi_tutorial": "_static/tutorials/gimvi.png",
@@ -210,6 +211,7 @@ nbsphinx_thumbnails = {
     "tutorials/notebooks/totalVI_reference_mapping": "_static/tutorials/totalvi_cell.svg",
     "tutorials/notebooks/amortized_lda": "_static/tutorials/lda.png",
     "tutorials/notebooks/cell2location_lymph_node_spatial_tutorial": "_static/tutorials/cell2location.png",
+    "tutorials/notebooks/tabula_muris": "_static/tutorials/muris-mouse.png",
 }
 
 
