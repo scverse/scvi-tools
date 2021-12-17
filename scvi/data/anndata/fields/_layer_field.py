@@ -40,15 +40,15 @@ class LayerField(BaseAnnDataField):
         self.is_count_data = is_count_data
 
     @property
-    def registry_key(self):
+    def registry_key(self) -> str:
         return self._registry_key
 
     @property
-    def attr_name(self):
+    def attr_name(self) -> str:
         return self._attr_name
 
     @property
-    def attr_key(self):
+    def attr_key(self) -> Optional[str]:
         return self._attr_key
 
     @property

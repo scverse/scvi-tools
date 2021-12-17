@@ -23,14 +23,14 @@ class BaseAnnDataField(ABC):
 
     @property
     @abstractmethod
-    def registry_key(self):
+    def registry_key(self) -> str:
         """The key that is referenced by models via a data loader."""
         pass
 
     @property
     @abstractmethod
     def attr_name(self) -> str:
-        """The name of the AnnData attribute where the data is stored (e.g. obs)."""
+        """The name of the AnnData attribute where the data is stored."""
         pass
 
     @property

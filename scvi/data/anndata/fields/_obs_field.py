@@ -24,15 +24,15 @@ class BaseObsField(BaseAnnDataField):
         self._attr_key = obs_key
 
     @property
-    def registry_key(self):
+    def registry_key(self) -> str:
         return self._registry_key
 
     @property
-    def attr_name(self):
+    def attr_name(self) -> str:
         return self._attr_name
 
     @property
-    def attr_key(self):
+    def attr_key(self) -> str:
         return self._attr_key
 
     @property
