@@ -41,7 +41,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if adata is not None:
             self.adata_manager = self.get_anndata_manager(adata, required=True)
             self.adata = self.adata_manager.adata
-            self.registry = self.adata_manager.registry
+            self.registry_ = self.adata_manager.registry
             self.summary_stats = self.adata_manager.summary_stats
 
         self.is_trained_ = False
@@ -428,20 +428,16 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             new_adata,
         ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
         adata = new_adata if new_adata is not None else adata
-
-        scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-
-        # Filter out keys that are no longer populated by setup_anndata.
-        # TODO(jhong): remove hack with setup_anndata refactor.
-        deprecated_keys = {"local_l_mean", "local_l_var"}
-        scvi_setup_dict["data_registry"] = {
-            k: v
-            for k, v in scvi_setup_dict["data_registry"].items()
-            if k not in deprecated_keys
-        }
-
         _validate_var_names(adata, var_names)
-        cls._register_manager(manager_from_setup_dict(adata, scvi_setup_dict))
+
+        if "scvi_setup_dict_" in attr_dict:
+            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+            cls._register_manager(manager_from_setup_dict(adata, scvi_setup_dict))
+        else:
+            registry = attr_dict.pop("registry_")
+            adata_manager = AnnDataManager()  # TODO(jhong): need fields here.
+            adata_manager.register_fields(adata, source_registry=registry)
+            cls._register_manager(adata_manager)
         model = _initialize_model(cls, adata, attr_dict)
 
         # some Pyro modules with AutoGuides may need one training step

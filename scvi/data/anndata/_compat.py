@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 from anndata import AnnData
+from sklearn.utils import deprecated
 
 from . import _constants
 from .fields import (
@@ -75,6 +76,9 @@ def registry_from_setup_dict(setup_dict: dict) -> dict:
     return registry
 
 
+@deprecated(
+    extra="The save format of models has been updated. Please update your saved model files accordingly."
+)
 def manager_from_setup_dict(
     adata: AnnData, setup_dict: dict, **transfer_kwargs
 ) -> AnnDataManager:
@@ -94,7 +98,7 @@ def manager_from_setup_dict(
     **kwargs
         Keyword arguments to modify transfer behavior.
     """
-    source_adata_manager = AnnDataManager()
+    adata_manager = AnnDataManager()
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
     categorical_mappings = setup_dict["categorical_mappings"]
     for registry_key, adata_mapping in data_registry.items():
@@ -123,8 +127,8 @@ def manager_from_setup_dict(
             raise NotImplementedError(
                 f"Backwards compatibility for attribute {attr_name} is not implemented yet."
             )
-        source_adata_manager.add_field(field)
+        adata_manager.add_field(field)
     source_registry = registry_from_setup_dict(setup_dict)
-    return source_adata_manager.transfer_setup(
+    return adata_manager.register_fields(
         adata, source_registry=source_registry, **transfer_kwargs
     )

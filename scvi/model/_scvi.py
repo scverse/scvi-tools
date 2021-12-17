@@ -193,6 +193,8 @@ class SCVI(
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
         """
         anndata_fields = [
             LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),

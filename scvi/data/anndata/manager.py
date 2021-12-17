@@ -145,9 +145,7 @@ class AnnDataManager:
         self._assign_uuid()
         self._assign_source_uuid(source_registry)
 
-    def transfer_setup(
-        self, adata_target: AnnData, source_registry: Optional[dict] = None, **kwargs
-    ) -> AnnDataManager:
+    def transfer_setup(self, adata_target: AnnData, **kwargs) -> AnnDataManager:
         """
         Transfers an existing setup to each field associated with this instance with the target AnnData object.
 
@@ -158,20 +156,12 @@ class AnnDataManager:
         ----------
         adata_target
             AnnData object to be registered.
-        source_registry
-            Registry dictionary created after registering an AnnData using an AnnDataManager object.
         """
-        if source_registry is None and self.adata is None:
-            raise AssertionError(
-                "Requires either source registry or a registered AnnData object."
-            )
-
-        if source_registry is None:
-            source_registry = self.registry
+        self._assert_anndata_registered()
 
         fields = self.fields
         new_adata_manager = self.__class__(fields)
-        new_adata_manager.register_fields(adata_target, source_registry, **kwargs)
+        new_adata_manager.register_fields(adata_target, self.registry, **kwargs)
         return new_adata_manager
 
     def get_adata_uuid(self) -> UUID:
