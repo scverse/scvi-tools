@@ -96,8 +96,10 @@ class SCVI(
         super(SCVI, self).__init__(adata)
 
         n_cats_per_cov = (
-            self.registry["extra_categoricals"]["n_cats_per_key"]
-            if "extra_categoricals" in self.registry
+            self.adata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY).get(
+                CategoricalJointObsField.N_CATS_PER_KEY
+            )
+            if _CONSTANTS.CAT_COVS_KEY in self.adata_manager.registry
             else None
         )
         n_batch = self.summary_stats["n_batch"]
@@ -184,6 +186,7 @@ class SCVI(
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         layer: Optional[str] = None,
+        **kwargs,
     ):
         """
         %(summary)s.
@@ -196,6 +199,7 @@ class SCVI(
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
+        setup_inputs = cls._get_setup_inputs(**locals())
         anndata_fields = [
             LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
@@ -205,6 +209,6 @@ class SCVI(
             ),
             NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
-        adata_manager = AnnDataManager(fields=anndata_fields)
-        adata_manager.register_fields(adata)
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_inputs=setup_inputs)
+        adata_manager.register_fields(adata, **kwargs)
         cls._register_manager(adata_manager)

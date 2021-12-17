@@ -8,11 +8,13 @@ _SCVI_UUID_KEY = "_scvi_uuid"
 _SOURCE_SCVI_UUID_KEY = "_source_scvi_uuid"
 
 #############################
-# scVI Setup Dict Constants #
+# scVI Registry Constants #
 #############################
 
 _SETUP_DICT_KEY = "_scvi"
 _SCVI_VERSION_KEY = "scvi_version"
+_MODEL_NAME_KEY = "model_name"
+_SETUP_KWARGS_KEY = "setup_kwargs"
 _FIELD_REGISTRIES_KEY = "field_registries"
 _DATA_REGISTRY_KEY = "data_registry"
 _STATE_REGISTRY_KEY = "state_registry"
