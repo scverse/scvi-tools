@@ -208,6 +208,7 @@ class AnnDataManager:
 
     @property
     def setup_inputs(self) -> dict:
+        """Returns the setup inputs, including the model name, that were used to initialize this AnnDataManager instance."""
         return {
             k: v
             for k, v in self.registry.items()
