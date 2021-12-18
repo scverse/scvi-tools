@@ -56,10 +56,19 @@ class CategoricalObsField(BaseObsField):
     CM_ORIGINAL_KEY = "original_key"
     CM_MAPPING_KEY = "mapping"
 
-    def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
+    def __init__(
+        self,
+        registry_key: str,
+        obs_key: Optional[str],
+        model_name: Optional[str] = None,
+    ) -> None:
+        super().__init__(registry_key, obs_key)
         self.is_default = obs_key is None
         self._original_attr_key = obs_key or registry_key
-        super().__init__(registry_key, f"_scvi_{self._original_attr_key}")
+        codes_column_prefix = (
+            f"_{model_name}" if model_name is not None else "_scvi_tools"
+        )
+        self._attr_key = "_".join((codes_column_prefix, self._original_attr_key))
 
         self.count_stat_key = f"n_{self.registry_key}"
 

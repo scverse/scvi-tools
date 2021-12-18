@@ -63,10 +63,10 @@ def test_new_setup_compat():
     )
     # Consistency with previous implementation.
     assert adata.obsm["_scvi_extra_categoricals"].equals(
-        adata2.obsm["_scvi_extra_categorical_covs"]
+        adata2.obsm["_SCVI_extra_categorical_covs"]
     )
     assert adata.obsm["_scvi_extra_continuous"].equals(
-        adata2.obsm["_scvi_extra_continuous_covs"]
+        adata2.obsm["_SCVI_extra_continuous_covs"]
     )
 
     adata_manager = SCVI.manager_store[adata2.uns[_constants._SCVI_UUID_KEY]]

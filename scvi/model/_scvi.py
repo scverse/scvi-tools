@@ -200,14 +200,23 @@ class SCVI(
         %(param_cont_cov_keys)s
         """
         setup_inputs = cls._get_setup_inputs(**locals())
+        model_name = cls.__name__
         anndata_fields = [
             LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
-            CategoricalJointObsField(
-                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key, model_name=model_name),
+            CategoricalObsField(
+                _CONSTANTS.LABELS_KEY, labels_key, model_name=model_name
             ),
-            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+            CategoricalJointObsField(
+                _CONSTANTS.CAT_COVS_KEY,
+                categorical_covariate_keys,
+                model_name=model_name,
+            ),
+            NumericalJointObsField(
+                _CONSTANTS.CONT_COVS_KEY,
+                continuous_covariate_keys,
+                model_name=model_name,
+            ),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_inputs=setup_inputs)
         adata_manager.register_fields(adata, **kwargs)

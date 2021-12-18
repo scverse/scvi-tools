@@ -47,9 +47,17 @@ class JointObsField(BaseObsmField):
         Sequence of keys to combine to form the obsm field.
     """
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
+    def __init__(
+        self,
+        registry_key: str,
+        obs_keys: Optional[List[str]],
+        model_name: Optional[str],
+    ) -> None:
         super().__init__(registry_key)
-        self._attr_key = f"_scvi_{registry_key}"
+        obsm_column_prefix = (
+            f"_{model_name}" if model_name is not None else "_scvi_tools"
+        )
+        self._attr_key = "_".join((obsm_column_prefix, registry_key))
         self._obs_keys = obs_keys if obs_keys is not None else []
         self._is_empty = len(self.obs_keys) == 0
 
@@ -91,8 +99,13 @@ class NumericalJointObsField(JointObsField):
 
     COLUMNS_KEY = "columns"
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
-        super().__init__(registry_key, obs_keys)
+    def __init__(
+        self,
+        registry_key: str,
+        obs_keys: Optional[List[str]],
+        model_name: Optional[str] = None,
+    ) -> None:
+        super().__init__(registry_key, obs_keys, model_name)
 
         self.count_stat_key = f"n_{self.registry_key}"
 
@@ -133,8 +146,13 @@ class CategoricalJointObsField(JointObsField):
     KEYS_KEY = "keys"
     N_CATS_PER_KEY = "n_cats_per_key"
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
-        super().__init__(registry_key, obs_keys)
+    def __init__(
+        self,
+        registry_key: str,
+        obs_keys: Optional[List[str]],
+        model_name: Optional[str] = None,
+    ) -> None:
+        super().__init__(registry_key, obs_keys, model_name)
         self.count_stat_key = f"n_{self.registry_key}"
 
     def _default_mappings_dict(self) -> dict:

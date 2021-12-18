@@ -98,6 +98,7 @@ def manager_from_setup_dict(
     **kwargs
         Keyword arguments to modify transfer behavior.
     """
+    model_name = cls.__name__
     fields = []
     setup_kwargs = dict()
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
@@ -114,16 +115,22 @@ def manager_from_setup_dict(
             setup_kwargs["layer"] = attr_key
         elif attr_name == _constants._ADATA_ATTRS.OBS:
             original_key = categorical_mappings[attr_key]["original_key"]
-            field = CategoricalObsField(registry_key, original_key)
+            field = CategoricalObsField(
+                registry_key, original_key, model_name=model_name
+            )
             setup_kwargs[f"{registry_key}_key"] = original_key
         elif attr_name == _constants._ADATA_ATTRS.OBSM:
             if attr_key == "_scvi_extra_continuous":
                 obs_keys = setup_dict["extra_continuous_keys"]
-                field = NumericalJointObsField(registry_key, obs_keys)
+                field = NumericalJointObsField(
+                    registry_key, obs_keys, model_name=model_name
+                )
                 setup_kwargs["continuous_covariate_keys"] = obs_keys
             elif attr_key == "_scvi_extra_categoricals":
                 obs_keys = setup_dict["extra_categoricals"]["keys"]
-                field = CategoricalJointObsField(registry_key, obs_keys)
+                field = CategoricalJointObsField(
+                    registry_key, obs_keys, model_name=model_name
+                )
                 setup_kwargs["categorical_covariate_keys"] = obs_keys
             else:
                 raise NotImplementedError(
