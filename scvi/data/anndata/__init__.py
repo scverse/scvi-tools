@@ -5,6 +5,5 @@ __all__ = [
     "setup_anndata",
     "transfer_anndata_setup",
     "register_tensor_from_anndata",
-    "get_from_registry",
     "AnnDataManager",
 ]
