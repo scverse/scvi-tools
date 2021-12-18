@@ -7,7 +7,7 @@ import pandas as pd
 from anndata._core.sparse_dataset import SparseDataset
 from torch.utils.data import Dataset
 
-from scvi.data.anndata.manager import AnnDataManager
+from scvi.data.anndata._manager import AnnDataManager
 
 logger = logging.getLogger(__name__)
 

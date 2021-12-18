@@ -3,7 +3,7 @@ from typing import List, Optional, Union
 import numpy as np
 
 from scvi import _CONSTANTS
-from scvi.data.anndata.manager import AnnDataManager
+from scvi.data.anndata._manager import AnnDataManager
 
 from ._concat_dataloader import ConcatDataLoader
 

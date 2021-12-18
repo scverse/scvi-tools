@@ -19,7 +19,7 @@ from scvi.data.anndata._constants import (
     _SETUP_KWARGS_KEY,
     _SOURCE_SCVI_UUID_KEY,
 )
-from scvi.data.anndata.manager import AnnDataManager
+from scvi.data.anndata._manager import AnnDataManager
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass

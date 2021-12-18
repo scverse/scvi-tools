@@ -4,13 +4,13 @@ from anndata import AnnData
 from sklearn.utils import deprecated
 
 from . import _constants
+from ._manager import AnnDataManager
 from .fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
     NumericalJointObsField,
 )
-from .manager import AnnDataManager
 
 
 def registry_from_setup_dict(setup_dict: dict) -> dict:
