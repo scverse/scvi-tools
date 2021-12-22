@@ -48,6 +48,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if adata is not None:
             self.adata_manager = self.get_anndata_manager(adata, required=True)
             self.adata = self.adata_manager.adata
+            # Suffix registry instance variable with _ to include it when saving the model.
             self.registry_ = self.adata_manager.registry
             self.summary_stats = self.adata_manager.summary_stats
 
@@ -493,7 +494,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return ""
 
     @staticmethod
-    def _get_setup_inputs(**setup_locals) -> dict:
+    def _get_setup_method_args(**setup_locals) -> dict:
+        """
+        Returns a dictionary organizing the arguments used to call ``setup_anndata``.
+
+        Must be called with ``**locals()`` at the start of the ``setup_anndata`` method
+        to avoid the inclusion of any extraneous variables.
+        """
         cls = setup_locals.pop("cls")
         model_name = cls.__name__
         setup_kwargs = dict()

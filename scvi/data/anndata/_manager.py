@@ -26,7 +26,7 @@ class AnnDataManager:
     fields
         List of AnnDataFields to intialize with. Additional fields can be added
         via the method `add_field`.
-    setup_inputs
+    setup_method_args
         Dictionary describing the model and arguments passed in by the user
         to setup this AnnDataManager.
     """
@@ -34,7 +34,7 @@ class AnnDataManager:
     def __init__(
         self,
         fields: Optional[Sequence[Type[BaseAnnDataField]]] = None,
-        setup_inputs: Optional[dict] = None,
+        setup_method_args: Optional[dict] = None,
     ) -> None:
         self.adata = None
         self.fields = set(fields or {})
@@ -45,8 +45,8 @@ class AnnDataManager:
             _constants._SETUP_KWARGS_KEY: None,
             _constants._FIELD_REGISTRIES_KEY: defaultdict(dict),
         }
-        if setup_inputs is not None:
-            self._registry.update(setup_inputs)
+        if setup_method_args is not None:
+            self._registry.update(setup_method_args)
 
     def _assert_anndata_registered(self):
         """Asserts that an AnnData object has been registered with this instance."""
@@ -103,6 +103,8 @@ class AnnDataManager:
             AnnData object to be registered.
         source_registry
             Registry created after registering an AnnData using an :class:`~scvi.data.anndata.AnnDataManager` object.
+        transfer_kwargs
+            Additional keywords which modify transfer behavior. Only applicable if ``source_registry`` is set.
         """
         assert (
             self.adata is None
@@ -151,19 +153,18 @@ class AnnDataManager:
         """
         Transfers an existing setup to each field associated with this instance with the target AnnData object.
 
-        Transfers the setup from `source_registry` if passed in, otherwise uses the registry
-        from the AnnData registered with this instance.
-
         Parameters
         ----------
         adata_target
             AnnData object to be registered.
+        kwargs
+            Additional keywords which modify transfer behavior.
         """
         self._assert_anndata_registered()
 
         fields = self.fields
         new_adata_manager = self.__class__(
-            fields=fields, setup_inputs=self.setup_inputs
+            fields=fields, setup_method_args=self.setup_method_args
         )
         new_adata_manager.register_fields(adata_target, self.registry, **kwargs)
         return new_adata_manager
@@ -207,8 +208,14 @@ class AnnDataManager:
         return summary_stats
 
     @property
-    def setup_inputs(self) -> dict:
-        """Returns the setup inputs, including the model name, that were used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance."""
+    def setup_method_arguments(self) -> dict:
+        """
+        Returns the ``setup_anndata`` method arguments used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance.
+
+        Returns the ``setup_anndata`` method arguments, including the model name,
+        that were used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance
+        in the form of a dictionary.
+        """
         return {
             k: v
             for k, v in self.registry.items()

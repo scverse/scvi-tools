@@ -4,13 +4,13 @@ from anndata import AnnData
 from sklearn.utils import deprecated
 
 from . import _constants
+from ._manager import AnnDataManager
 from .fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
     NumericalJointObsField,
 )
-from .manager import AnnDataManager
 
 
 def registry_from_setup_dict(setup_dict: dict) -> dict:
@@ -86,11 +86,11 @@ def manager_from_setup_dict(
     cls, adata: AnnData, setup_dict: dict, **transfer_kwargs
 ) -> AnnDataManager:
     """
-    Creates an AnnDataManager given only a scvi-tools setup dictionary.
+    Creates an :class:`~scvi.data.anndata.AnnDataManager` given only a scvi-tools setup dictionary.
 
     Only to be used for backwards compatibility when loading setup dictionaries for models.
-    Infers the AnnDataField instances used to define the AnnDataManager instance,
-    then uses the `AnnDataManager.transfer_setup(...)` method to register the new AnnData object.
+    Infers the AnnDataField instances used to define the :class:`~scvi.data.anndata.AnnDataManager` instance,
+    then uses the :meth:`~scvi.data.anndata.AnnDataManager.transfer_setup` method to register the new AnnData object.
 
     Parameters
     ----------
@@ -137,11 +137,11 @@ def manager_from_setup_dict(
                 f"Backwards compatibility for attribute {attr_name} is not implemented yet."
             )
         fields.append(field)
-    setup_inputs = {
+    setup_method_args = {
         _constants._MODEL_NAME_KEY: cls.__name__,
         _constants._SETUP_KWARGS_KEY: setup_kwargs,
     }
-    adata_manager = AnnDataManager(fields=fields, setup_inputs=setup_inputs)
+    adata_manager = AnnDataManager(fields=fields, setup_method_args=setup_method_args)
 
     source_registry = registry_from_setup_dict(setup_dict)
     adata_manager.register_fields(
