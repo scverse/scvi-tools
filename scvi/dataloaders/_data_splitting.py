@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from scvi import _CONSTANTS, settings
-from scvi.data.anndata.manager import AnnDataManager
+from scvi.data.anndata import AnnDataManager
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_use_gpu_arg

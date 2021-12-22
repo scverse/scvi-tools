@@ -208,7 +208,7 @@ class AnnDataManager:
         return summary_stats
 
     @property
-    def setup_method_arguments(self) -> dict:
+    def setup_method_args(self) -> dict:
         """
         Returns the ``setup_anndata`` method arguments used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance.
 

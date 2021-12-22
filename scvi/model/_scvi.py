@@ -5,6 +5,7 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi._constants import _CONSTANTS
+from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.data.anndata.fields import (
     CategoricalJointObsField,
@@ -12,7 +13,6 @@ from scvi.data.anndata.fields import (
     LayerField,
     NumericalJointObsField,
 )
-from scvi.data.anndata.manager import AnnDataManager
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE

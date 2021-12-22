@@ -12,6 +12,7 @@ import torch
 from anndata import AnnData
 
 from scvi import settings
+from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata._compat import manager_from_setup_dict
 from scvi.data.anndata._constants import (
     _MODEL_NAME_KEY,
@@ -19,7 +20,6 @@ from scvi.data.anndata._constants import (
     _SETUP_KWARGS_KEY,
     _SOURCE_SCVI_UUID_KEY,
 )
-from scvi.data.anndata.manager import AnnDataManager
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass

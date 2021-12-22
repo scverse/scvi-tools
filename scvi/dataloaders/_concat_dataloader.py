@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 import numpy as np
 from torch.utils.data import DataLoader
 
-from scvi.data.anndata.manager import AnnDataManager
+from scvi.data.anndata import AnnDataManager
 
 from ._ann_dataloader import AnnDataLoader
 

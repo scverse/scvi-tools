@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from scvi.data.anndata.manager import AnnDataManager
+from scvi.data.anndata import AnnDataManager
 
 from ._anntorchdataset import AnnTorchDataset
 

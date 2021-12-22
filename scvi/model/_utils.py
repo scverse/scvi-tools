@@ -8,8 +8,8 @@ import scipy.sparse as sp_sparse
 import torch
 
 from scvi import _CONSTANTS
+from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import CategoricalObsField
-from scvi.data.anndata.manager import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
