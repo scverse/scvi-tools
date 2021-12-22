@@ -14,11 +14,7 @@ from torch.nn import Softplus
 import scvi
 from scvi.data import synthetic_iid
 from scvi.data._built_in_data._download import _download
-from scvi.data.anndata import (
-    _constants,
-    register_tensor_from_anndata,
-    transfer_anndata_setup,
-)
+from scvi.data.anndata import _constants, transfer_anndata_setup
 from scvi.data.anndata._compat import manager_from_setup_dict
 from scvi.dataloaders import (
     AnnDataLoader,
@@ -77,7 +73,7 @@ def test_new_setup_compat():
 
     # Backwards compatibility test.
     adata3_manager = manager_from_setup_dict(
-        adata3, adata.uns[_constants._SETUP_DICT_KEY]
+        SCVI, adata3, adata.uns[_constants._SETUP_DICT_KEY]
     )
     np.testing.assert_equal(
         adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
@@ -335,6 +331,16 @@ def test_saving_and_loading(save_path):
             pickle.dump(user_attributes, f)
 
     def test_save_load_model(cls, adata, save_path, prefix=None, legacy=False):
+        if cls is TOTALVI:
+            cls.setup_anndata(
+                adata,
+                batch_key="batch",
+                labels_key="labels",
+                protein_expression_obsm_key="protein_expression",
+                protein_names_uns_key="protein_names",
+            )
+        else:
+            cls.setup_anndata(adata, batch_key="batch", labels_key="labels")
         model = cls(adata, latent_distribution="normal")
         model.train(1, train_size=0.2)
         z1 = model.get_latent_representation(adata)
@@ -347,13 +353,24 @@ def test_saving_and_loading(save_path):
             model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
         model = cls.load(save_path, prefix=prefix)
         model.get_latent_representation()
-        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+
+        # Load with mismatched genes.
+        tmp_adata = synthetic_iid(n_genes=200, run_setup_anndata=False)
         with pytest.raises(ValueError):
             cls.load(save_path, adata=tmp_adata, prefix=prefix)
+
+        # Load with different batches.
+        tmp_adata = synthetic_iid(run_setup_anndata=False)
+        tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(
+            ["batch_2", "batch_3"]
+        )
+        with pytest.raises(ValueError):
+            cls.load(save_path, adata=tmp_adata, prefix=prefix)
+
         model = cls.load(save_path, adata=adata, prefix=prefix)
-        assert "test" in adata.uns["_scvi"]["data_registry"]
-        assert adata.uns["_scvi"]["data_registry"]["test"] == dict(
-            attr_name="obs", attr_key="cont1"
+        assert "batch" in model.adata_manager.data_registry
+        assert model.adata_manager.data_registry["batch"] == dict(
+            attr_name="obs", attr_key="_scvi_batch"
         )
 
         z2 = model.get_latent_representation()
@@ -364,14 +381,8 @@ def test_saving_and_loading(save_path):
 
     save_path = os.path.join(save_path, "tmp")
     adata = synthetic_iid()
-    # Test custom tensors are loaded properly.
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    register_tensor_from_anndata(
-        adata, registry_key="test", adata_attr_name="obs", adata_key_name="cont1"
-    )
 
     for cls in [SCVI, LinearSCVI, TOTALVI, PEAKVI]:
-        print(cls)
         test_save_load_model(
             cls, adata, save_path, prefix=f"{cls.__name__}_", legacy=True
         )
@@ -400,9 +411,9 @@ def test_saving_and_loading(save_path):
         with pytest.raises(ValueError):
             AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
         model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
-        assert "test" in adata.uns["_scvi"]["data_registry"]
-        assert adata.uns["_scvi"]["data_registry"]["test"] == dict(
-            attr_name="obs", attr_key="cont1"
+        assert "batch" in model.adata_manager.data_registry
+        assert model.adata_manager.data_registry["batch"] == dict(
+            attr_name="obs", attr_key="_scvi_batch"
         )
 
         ab2 = model.get_alphas_betas()
@@ -410,6 +421,7 @@ def test_saving_and_loading(save_path):
         np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
         assert model.is_trained is True
 
+    AUTOZI.setup_anndata(adata, batch_key="batch", labels_key="labels")
     test_save_load_autozi(legacy=True)
     test_save_load_autozi()
     # Test load prioritizes newer save paradigm and thus mismatches legacy save.
@@ -434,15 +446,16 @@ def test_saving_and_loading(save_path):
         with pytest.raises(ValueError):
             SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
         model = SCANVI.load(save_path, adata=adata, prefix=prefix)
-        assert "test" in adata.uns["_scvi"]["data_registry"]
-        assert adata.uns["_scvi"]["data_registry"]["test"] == dict(
-            attr_name="obs", attr_key="cont1"
+        assert "batch" in model.adata_manager.data_registry
+        assert model.adata_manager.data_registry["batch"] == dict(
+            attr_name="obs", attr_key="_scvi_batch"
         )
 
         p2 = model.predict()
         np.testing.assert_array_equal(p1, p2)
         assert model.is_trained is True
 
+    SCANVI.setup_anndata(batch_key="batch", labels_key="labels")
     test_save_load_scanvi(legacy=True)
     test_save_load_scanvi()
     # Test load prioritizes newer save paradigm and thus mismatches legacy save.

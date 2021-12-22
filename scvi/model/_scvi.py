@@ -5,6 +5,7 @@ from anndata import AnnData
 
 from scvi._compat import Literal
 from scvi._constants import _CONSTANTS
+from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.data.anndata.fields import (
     CategoricalJointObsField,
@@ -12,7 +13,6 @@ from scvi.data.anndata.fields import (
     LayerField,
     NumericalJointObsField,
 )
-from scvi.data.anndata.manager import AnnDataManager
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
@@ -96,8 +96,10 @@ class SCVI(
         super(SCVI, self).__init__(adata)
 
         n_cats_per_cov = (
-            self.registry["extra_categoricals"]["n_cats_per_key"]
-            if "extra_categoricals" in self.registry
+            self.adata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY).get(
+                CategoricalJointObsField.N_CATS_PER_KEY
+            )
+            if _CONSTANTS.CAT_COVS_KEY in self.adata_manager.registry
             else None
         )
         n_batch = self.summary_stats["n_batch"]
@@ -184,6 +186,7 @@ class SCVI(
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         layer: Optional[str] = None,
+        **kwargs,
     ):
         """
         %(summary)s.
@@ -193,7 +196,10 @@ class SCVI(
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
         """
+        setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
@@ -203,6 +209,8 @@ class SCVI(
             ),
             NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
-        adata_manager = AnnDataManager(fields=anndata_fields)
-        adata_manager.register_fields(adata)
-        cls._register_manager(adata_manager)
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
