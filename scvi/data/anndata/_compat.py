@@ -1,15 +1,16 @@
 from copy import deepcopy
 
 from anndata import AnnData
+from sklearn.utils import deprecated
 
 from . import _constants
+from ._manager import AnnDataManager
 from .fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
     NumericalJointObsField,
 )
-from .manager import AnnDataManager
 
 
 def registry_from_setup_dict(setup_dict: dict) -> dict:
@@ -75,15 +76,21 @@ def registry_from_setup_dict(setup_dict: dict) -> dict:
     return registry
 
 
+@deprecated(
+    extra=(
+        "The save format of models has been updated. Please update your saved model files accordingly. "
+        "Backwards compatibility with be removed in v1.0."
+    )
+)
 def manager_from_setup_dict(
-    adata: AnnData, setup_dict: dict, **transfer_kwargs
+    cls, adata: AnnData, setup_dict: dict, **transfer_kwargs
 ) -> AnnDataManager:
     """
-    Creates an AnnDataManager given only a scvi-tools setup dictionary.
+    Creates an :class:`~scvi.data.anndata.AnnDataManager` given only a scvi-tools setup dictionary.
 
     Only to be used for backwards compatibility when loading setup dictionaries for models.
-    Infers the AnnDataField instances used to define the AnnDataManager instance,
-    then uses the `AnnDataManager.transfer_setup(...)` method to register the new AnnData object.
+    Infers the AnnDataField instances used to define the :class:`~scvi.data.anndata.AnnDataManager` instance,
+    then uses the :meth:`~scvi.data.anndata.AnnDataManager.transfer_setup` method to register the new AnnData object.
 
     Parameters
     ----------
@@ -94,7 +101,8 @@ def manager_from_setup_dict(
     **kwargs
         Keyword arguments to modify transfer behavior.
     """
-    source_adata_manager = AnnDataManager()
+    fields = []
+    setup_kwargs = dict()
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
     categorical_mappings = setup_dict["categorical_mappings"]
     for registry_key, adata_mapping in data_registry.items():
@@ -103,18 +111,23 @@ def manager_from_setup_dict(
         attr_key = adata_mapping[_constants._DR_ATTR_KEY]
         if attr_name == _constants._ADATA_ATTRS.X:
             field = LayerField(registry_key, None)
+            setup_kwargs["layer"] = None
         elif attr_name == _constants._ADATA_ATTRS.LAYERS:
             field = LayerField(registry_key, attr_key)
+            setup_kwargs["layer"] = attr_key
         elif attr_name == _constants._ADATA_ATTRS.OBS:
             original_key = categorical_mappings[attr_key]["original_key"]
             field = CategoricalObsField(registry_key, original_key)
+            setup_kwargs[f"{registry_key}_key"] = original_key
         elif attr_name == _constants._ADATA_ATTRS.OBSM:
             if attr_key == "_scvi_extra_continuous":
                 obs_keys = setup_dict["extra_continuous_keys"]
                 field = NumericalJointObsField(registry_key, obs_keys)
+                setup_kwargs["continuous_covariate_keys"] = obs_keys
             elif attr_key == "_scvi_extra_categoricals":
                 obs_keys = setup_dict["extra_categoricals"]["keys"]
                 field = CategoricalJointObsField(registry_key, obs_keys)
+                setup_kwargs["categorical_covariate_keys"] = obs_keys
             else:
                 raise NotImplementedError(
                     f"Unrecognized .obsm attribute {attr_key}. Backwards compatibility unavailable."
@@ -123,8 +136,15 @@ def manager_from_setup_dict(
             raise NotImplementedError(
                 f"Backwards compatibility for attribute {attr_name} is not implemented yet."
             )
-        source_adata_manager.add_field(field)
+        fields.append(field)
+    setup_method_args = {
+        _constants._MODEL_NAME_KEY: cls.__name__,
+        _constants._SETUP_KWARGS_KEY: setup_kwargs,
+    }
+    adata_manager = AnnDataManager(fields=fields, setup_method_args=setup_method_args)
+
     source_registry = registry_from_setup_dict(setup_dict)
-    return source_adata_manager.transfer_setup(
+    adata_manager.register_fields(
         adata, source_registry=source_registry, **transfer_kwargs
     )
+    return adata_manager

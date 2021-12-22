@@ -82,7 +82,7 @@ class BaseAnnDataField(ABC):
         Parameters
         ----------
         state_registry
-            state_registry dictionary created after registering an AnnData using an AnnDataManager object.
+            state_registry dictionary created after registering an AnnData using an :class:`~scvi.data.anndata.AnnDataManager` object.
         adata_target
             AnnData object that is being registered.
         **kwargs

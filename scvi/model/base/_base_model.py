@@ -12,9 +12,14 @@ import torch
 from anndata import AnnData
 
 from scvi import settings
+from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _SCVI_UUID_KEY, _SOURCE_SCVI_UUID_KEY
-from scvi.data.anndata.manager import AnnDataManager
+from scvi.data.anndata._constants import (
+    _MODEL_NAME_KEY,
+    _SCVI_UUID_KEY,
+    _SETUP_KWARGS_KEY,
+    _SOURCE_SCVI_UUID_KEY,
+)
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass
@@ -26,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 
 _UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained model. Please train the model first."
+
+_SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "kwargs"}
 
 
 class BaseModelMetaClass(ABCMeta):
@@ -41,7 +48,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if adata is not None:
             self.adata_manager = self.get_anndata_manager(adata, required=True)
             self.adata = self.adata_manager.adata
-            self.registry = self.adata_manager.registry
+            # Suffix registry instance variable with _ to include it when saving the model.
+            self.registry_ = self.adata_manager.registry
             self.summary_stats = self.adata_manager.summary_stats
 
         self.is_trained_ = False
@@ -82,7 +90,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         cls, adata: AnnData, required: bool = False
     ) -> Optional[AnnDataManager]:
         """
-        Retrieves the AnnDataManager for a given AnnData object specific to this model class.
+        Retrieves the :class:`~scvi.data.anndata.AnnDataManager` for a given AnnData object specific to this model class.
 
         Parameters
         ----------
@@ -212,7 +220,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Input adata not setup with scvi-tools. "
                 + "attempting to transfer anndata setup"
             )
-            self._register_manager(self.adata_manager.transfer_setup(adata))
+            self.register_manager(self.adata_manager.transfer_setup(adata))
         elif (
             adata_manager.registry[_SOURCE_SCVI_UUID_KEY]
             != self.adata_manager.registry[_SCVI_UUID_KEY]
@@ -221,7 +229,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Input AnnData setup with AnnData the model was initialized with. "
                 "Attempting to transfer setup with initial AnnData."
             )
-            self._register_manager(self.adata_manager.transfer_setup(adata))
+            self.register_manager(self.adata_manager.transfer_setup(adata))
 
         return adata
 
@@ -428,20 +436,31 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             new_adata,
         ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
         adata = new_adata if new_adata is not None else adata
-
-        scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-
-        # Filter out keys that are no longer populated by setup_anndata.
-        # TODO(jhong): remove hack with setup_anndata refactor.
-        deprecated_keys = {"local_l_mean", "local_l_var"}
-        scvi_setup_dict["data_registry"] = {
-            k: v
-            for k, v in scvi_setup_dict["data_registry"].items()
-            if k not in deprecated_keys
-        }
-
         _validate_var_names(adata, var_names)
-        cls._register_manager(manager_from_setup_dict(adata, scvi_setup_dict))
+
+        if "scvi_setup_dict_" in attr_dict:
+            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+            cls.register_manager(manager_from_setup_dict(cls, adata, scvi_setup_dict))
+        else:
+            registry = attr_dict.pop("registry_")
+            if (
+                _MODEL_NAME_KEY in registry
+                and registry[_MODEL_NAME_KEY] != cls.__name__
+            ):
+                raise ValueError(
+                    "It appears you are loading a model from a different class."
+                )
+
+            if _SETUP_KWARGS_KEY not in registry:
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
+                )
+
+            cls.setup_anndata(
+                adata, source_registry=registry, **registry[_SETUP_KWARGS_KEY]
+            )
+
         model = _initialize_model(cls, adata, attr_dict)
 
         # some Pyro modules with AutoGuides may need one training step
@@ -474,10 +493,26 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         return ""
 
-    @classmethod
-    def _register_manager(cls, adata_manager: AnnDataManager):
+    @staticmethod
+    def _get_setup_method_args(**setup_locals) -> dict:
         """
-        Registers an AnnDataManager instance with this model class.
+        Returns a dictionary organizing the arguments used to call ``setup_anndata``.
+
+        Must be called with ``**locals()`` at the start of the ``setup_anndata`` method
+        to avoid the inclusion of any extraneous variables.
+        """
+        cls = setup_locals.pop("cls")
+        model_name = cls.__name__
+        setup_kwargs = dict()
+        for k, v in setup_locals.items():
+            if k not in _SETUP_INPUTS_EXCLUDED_PARAMS:
+                setup_kwargs[k] = v
+        return {_MODEL_NAME_KEY: model_name, _SETUP_KWARGS_KEY: setup_kwargs}
+
+    @classmethod
+    def register_manager(cls, adata_manager: AnnDataManager):
+        """
+        Registers an :class:`~scvi.data.anndata.AnnDataManager` instance with this model class.
         """
         adata_uuid = adata_manager.get_adata_uuid()
         cls.manager_store[adata_uuid] = adata_manager
@@ -496,7 +531,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         Each model class deriving from this class provides parameters to this method
         according to its needs. To operate correctly with the model initialization,
-        the implementation must call `_register_manager` on a model-specific instance
-        of `AnnDataManager`.
+        the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
+        on a model-specific instance of :class:`~scvi.data.anndata.AnnDataManager`.
         """
         pass
