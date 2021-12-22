@@ -211,4 +211,4 @@ class SCVI(
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_inputs=setup_inputs)
         adata_manager.register_fields(adata, **kwargs)
-        cls._register_manager(adata_manager)
+        cls.register_manager(adata_manager)

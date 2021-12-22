@@ -61,7 +61,7 @@ class DataSplitter(pl.LightningDataModule):
     Parameters
     ----------
     adata_manager
-        AnnDataManager object that has been created via setup_anndata.
+        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
         float, or None (default is 0.9)
     validation_size
@@ -166,7 +166,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     Parameters
     ----------
     adata_manager
-        AnnDataManager object that has been created via setup_anndata.
+        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
     unlabeled_category
         Category to treat as unlabeled
     train_size
@@ -336,7 +336,7 @@ class DeviceBackedDataSplitter(DataSplitter):
     Parameters
     ----------
     adata_manager
-        AnnDataManager object that has been created via setup_anndata.
+        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
         float, or None (default is 0.9)
     validation_size

@@ -70,7 +70,7 @@ def scrna_raw_counts_properties(
     Parameters
     ----------
     adata_manager
-        AnnDataManager object setup with `SCVI`.
+        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
     idx1
         subset of indices describing the first population.
     idx2
@@ -137,7 +137,7 @@ def cite_seq_raw_counts_properties(
     Parameters
     ----------
     adata_manager
-        AnnDataManager object setup with `TOTALVI`.
+        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.TOTALVI`.
     idx1
         subset of indices describing the first population.
     idx2
@@ -182,7 +182,7 @@ def scatac_raw_counts_properties(
     Parameters
     ----------
     adata_manager
-        AnnDataManager object setup with `SCVI`.
+        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
     idx1
         subset of indices describing the first population.
     idx2
@@ -243,7 +243,7 @@ def _init_library_size(
     Parameters
     ----------
     adata_manager
-        AnnDataManager object setup with `SCVI`.
+        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
     n_batch
         Number of batches.
 

@@ -102,7 +102,7 @@ class AnnDataManager:
         adata
             AnnData object to be registered.
         source_registry
-            Registry created after registering an AnnData using an AnnDataManager object.
+            Registry created after registering an AnnData using an :class:`~scvi.data.anndata.AnnDataManager` object.
         """
         assert (
             self.adata is None
@@ -208,7 +208,7 @@ class AnnDataManager:
 
     @property
     def setup_inputs(self) -> dict:
-        """Returns the setup inputs, including the model name, that were used to initialize this AnnDataManager instance."""
+        """Returns the setup inputs, including the model name, that were used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance."""
         return {
             k: v
             for k, v in self.registry.items()

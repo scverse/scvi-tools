@@ -15,7 +15,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
     Parameters
     ----------
     adata_manager
-        AnnDataManager object that has been created via setup_anndata.
+        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
     unlabeled_category
         Category to treat as unlabeled
     n_samples_per_label

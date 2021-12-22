@@ -89,7 +89,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         cls, adata: AnnData, required: bool = False
     ) -> Optional[AnnDataManager]:
         """
-        Retrieves the AnnDataManager for a given AnnData object specific to this model class.
+        Retrieves the :class:`~scvi.data.anndata.AnnDataManager` for a given AnnData object specific to this model class.
 
         Parameters
         ----------
@@ -219,7 +219,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Input adata not setup with scvi-tools. "
                 + "attempting to transfer anndata setup"
             )
-            self._register_manager(self.adata_manager.transfer_setup(adata))
+            self.register_manager(self.adata_manager.transfer_setup(adata))
         elif (
             adata_manager.registry[_SOURCE_SCVI_UUID_KEY]
             != self.adata_manager.registry[_SCVI_UUID_KEY]
@@ -228,7 +228,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Input AnnData setup with AnnData the model was initialized with. "
                 "Attempting to transfer setup with initial AnnData."
             )
-            self._register_manager(self.adata_manager.transfer_setup(adata))
+            self.register_manager(self.adata_manager.transfer_setup(adata))
 
         return adata
 
@@ -439,7 +439,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         if "scvi_setup_dict_" in attr_dict:
             scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-            cls._register_manager(manager_from_setup_dict(cls, adata, scvi_setup_dict))
+            cls.register_manager(manager_from_setup_dict(cls, adata, scvi_setup_dict))
         else:
             registry = attr_dict.pop("registry_")
             if (
@@ -503,9 +503,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return {_MODEL_NAME_KEY: model_name, _SETUP_KWARGS_KEY: setup_kwargs}
 
     @classmethod
-    def _register_manager(cls, adata_manager: AnnDataManager):
+    def register_manager(cls, adata_manager: AnnDataManager):
         """
-        Registers an AnnDataManager instance with this model class.
+        Registers an :class:`~scvi.data.anndata.AnnDataManager` instance with this model class.
         """
         adata_uuid = adata_manager.get_adata_uuid()
         cls.manager_store[adata_uuid] = adata_manager
@@ -524,7 +524,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         Each model class deriving from this class provides parameters to this method
         according to its needs. To operate correctly with the model initialization,
-        the implementation must call `_register_manager` on a model-specific instance
-        of `AnnDataManager`.
+        the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
+        on a model-specific instance of :class:`~scvi.data.anndata.AnnDataManager`.
         """
         pass
