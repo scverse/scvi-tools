@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from typing import Optional, Sequence, Type
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import numpy as np
 from anndata import AnnData
@@ -26,18 +26,27 @@ class AnnDataManager:
     fields
         List of AnnDataFields to intialize with. Additional fields can be added
         via the method `add_field`.
+    setup_method_args
+        Dictionary describing the model and arguments passed in by the user
+        to setup this AnnDataManager.
     """
 
     def __init__(
-        self, fields: Optional[Sequence[Type[BaseAnnDataField]]] = None
+        self,
+        fields: Optional[Sequence[Type[BaseAnnDataField]]] = None,
+        setup_method_args: Optional[dict] = None,
     ) -> None:
         self.adata = None
         self.fields = set(fields or {})
         self._registry = {
             _constants._SCVI_VERSION_KEY: scvi.__version__,
             _constants._SOURCE_SCVI_UUID_KEY: None,
+            _constants._MODEL_NAME_KEY: None,
+            _constants._SETUP_KWARGS_KEY: None,
             _constants._FIELD_REGISTRIES_KEY: defaultdict(dict),
         }
+        if setup_method_args is not None:
+            self._registry.update(setup_method_args)
 
     def _assert_anndata_registered(self):
         """Asserts that an AnnData object has been registered with this instance."""
@@ -57,7 +66,7 @@ class AnnDataManager:
         self._assert_anndata_registered()
 
         if _constants._SCVI_UUID_KEY not in self.adata.uns:
-            self.adata.uns[_constants._SCVI_UUID_KEY] = uuid4()
+            self.adata.uns[_constants._SCVI_UUID_KEY] = str(uuid4())
 
         scvi_uuid = self.adata.uns[_constants._SCVI_UUID_KEY]
         self.registry[_constants._SCVI_UUID_KEY] = scvi_uuid
@@ -80,13 +89,6 @@ class AnnDataManager:
         """Freezes the fields associated with this instance."""
         self.fields = frozenset(self.fields)
 
-    def add_field(self, field: Type[BaseAnnDataField]) -> None:
-        """Adds a field to this instance."""
-        assert isinstance(
-            self.fields, set
-        ), "Fields have been frozen. Create a new AnnDataManager object for additional fields."
-        self.fields.add(field)
-
     def register_fields(
         self, adata: AnnData, source_registry: Optional[dict] = None, **transfer_kwargs
     ):
@@ -99,8 +101,10 @@ class AnnDataManager:
         ----------
         adata
             AnnData object to be registered.
-        source_setup_dict
-            Setup dictionary created after registering an AnnData using an AnnDataManager object.
+        source_registry
+            Registry created after registering an AnnData using an :class:`~scvi.data.anndata.AnnDataManager` object.
+        transfer_kwargs
+            Additional keywords which modify transfer behavior. Only applicable if ``source_registry`` is set.
         """
         assert (
             self.adata is None
@@ -145,36 +149,27 @@ class AnnDataManager:
         self._assign_uuid()
         self._assign_source_uuid(source_registry)
 
-    def transfer_setup(
-        self, adata_target: AnnData, source_registry: Optional[dict] = None, **kwargs
-    ) -> AnnDataManager:
+    def transfer_setup(self, adata_target: AnnData, **kwargs) -> AnnDataManager:
         """
         Transfers an existing setup to each field associated with this instance with the target AnnData object.
-
-        Transfers the setup from `source_registry` if passed in, otherwise uses the registry
-        from the AnnData registered with this instance.
 
         Parameters
         ----------
         adata_target
             AnnData object to be registered.
-        source_registry
-            Registry dictionary created after registering an AnnData using an AnnDataManager object.
+        kwargs
+            Additional keywords which modify transfer behavior.
         """
-        if source_registry is None and self.adata is None:
-            raise AssertionError(
-                "Requires either source registry or a registered AnnData object."
-            )
-
-        if source_registry is None:
-            source_registry = self.registry
+        self._assert_anndata_registered()
 
         fields = self.fields
-        new_adata_manager = self.__class__(fields)
-        new_adata_manager.register_fields(adata_target, source_registry, **kwargs)
+        new_adata_manager = self.__class__(
+            fields=fields, setup_method_args=self.setup_method_args
+        )
+        new_adata_manager.register_fields(adata_target, self.registry, **kwargs)
         return new_adata_manager
 
-    def get_adata_uuid(self) -> UUID:
+    def get_adata_uuid(self) -> str:
         """Returns the UUID for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
 
@@ -211,6 +206,21 @@ class AnnDataManager:
             summary_stats.update(field_summary_stats)
 
         return summary_stats
+
+    @property
+    def setup_method_args(self) -> dict:
+        """
+        Returns the ``setup_anndata`` method arguments used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance.
+
+        Returns the ``setup_anndata`` method arguments, including the model name,
+        that were used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance
+        in the form of a dictionary.
+        """
+        return {
+            k: v
+            for k, v in self.registry.items()
+            if k in {_constants._MODEL_NAME_KEY, _constants._SETUP_KWARGS_KEY}
+        }
 
     def get_from_registry(self, registry_key: str) -> np.ndarray:
         """

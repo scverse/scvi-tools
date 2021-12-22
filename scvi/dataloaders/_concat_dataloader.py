@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 import numpy as np
 from torch.utils.data import DataLoader
 
-from scvi.data.anndata.manager import AnnDataManager
+from scvi.data.anndata import AnnDataManager
 
 from ._ann_dataloader import AnnDataLoader
 
@@ -16,7 +16,7 @@ class ConcatDataLoader(DataLoader):
     Parameters
     ----------
     adata_manager
-        AnnDataManager object that has been created via setup_anndata.
+        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
     indices_list
         List where each element is a list of indices in the adata to load
     shuffle
@@ -24,9 +24,9 @@ class ConcatDataLoader(DataLoader):
     batch_size
         minibatch size to load each iteration
     data_and_attributes
-        Dictionary with keys representing keys in data registry (`adata_manager.data_registry`)
+        Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
         and value equal to desired numpy loading type (later made into torch tensor).
-        If `None`, defaults to all registered data.
+        If ``None``, defaults to all registered data.
     data_loader_kwargs
         Keyword arguments for :class:`~torch.utils.data.DataLoader`
     """
