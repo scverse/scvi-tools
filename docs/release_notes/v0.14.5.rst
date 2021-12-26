@@ -1,5 +1,5 @@
-New in 0.14.5
--------------
+New in 0.14.5 (2021-11-22)
+--------------------------
 
 Bug fixes, new tutorials.
 
@@ -16,10 +16,10 @@ Contributors
 - `@watiss`_
 - `@vitkl`_
 
-
 .. _`@adamgayoso`: https://github.com/adamgayoso
 .. _`@jjhong922`: https://github.com/jjhong922
 .. _`@watiss`: https://github.com/watiss
+.. _`@vitkl`: https://github.com/vitkl
 
 .. _`#1267` : https://github.com/YosefLab/scvi-tools/pull/1267
 .. _`#1269` : https://github.com/YosefLab/scvi-tools/pull/1269
