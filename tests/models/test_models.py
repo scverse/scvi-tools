@@ -901,11 +901,11 @@ def test_totalvi(save_path):
     del adata2.obsm["protein_expression"]
     with pytest.raises(AssertionError):
         model.get_elbo(adata2)
-    # model.differential_expression(groupby="labels", group1="label_1")
-    # model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
-    # model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
-    # model.differential_expression(idx1=[0, 1, 2])
-    # model.differential_expression(groupby="labels")
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(idx1=[0, 1, 2])
+    model.differential_expression(groupby="labels")
 
     # test with missing proteins
     adata = scvi.data.pbmcs_10x_cite_seq(
@@ -924,7 +924,13 @@ def test_totalvi(save_path):
 
 
 def test_totalvi_model_library_size(save_path):
-    adata = synthetic_iid()
+    adata = synthetic_iid(run_setup_anndata=False)
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
     n_latent = 10
 
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
