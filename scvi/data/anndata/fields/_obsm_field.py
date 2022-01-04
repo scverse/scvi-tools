@@ -1,10 +1,13 @@
 import logging
-from typing import Dict, List, Optional
+import warnings
+from typing import Dict, List, Optional, Union
 
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
+from scvi.data._utils import _check_nonnegative_integers
 from scvi.data.anndata import _constants
 
 from ._base_field import BaseAnnDataField
@@ -31,6 +34,104 @@ class BaseObsmField(BaseAnnDataField):
     @property
     def attr_name(self) -> str:
         return self._attr_name
+
+
+class ObsmField(BaseObsmField):
+    """
+    An AnnDataField for an .obsm field in the AnnData data structure.
+
+    In addition to creating a reference to the .obsm field. Stores the column
+    keys for the obsm field in a more accessible .uns attribute.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    obsm_key
+        Key to access the field in the AnnData .obsm mapping.
+    colnames_uns_key
+        Key to access column names corresponding to each column of the .obsm field in
+        the AnnData .uns mapping.
+    is_count_data
+        If True, checks if the data are counts during validation.
+    """
+
+    COLUMN_NAMES_KEY = "column_names"
+
+    def __init__(
+        self,
+        registry_key: str,
+        obsm_key: str,
+        colnames_uns_key: Optional[str] = None,
+        is_count_data: bool = False,
+    ) -> None:
+        super().__init__(registry_key)
+        self._attr_key = obsm_key
+        self.colnames_uns_key = colnames_uns_key
+        self.is_count_data = is_count_data
+        self.count_stat_key = f"n_{self.registry_key}"
+
+    @property
+    def attr_key(self) -> str:
+        return self._attr_key
+
+    @property
+    def is_empty(self) -> bool:
+        return False
+
+    def validate_field(self, adata: AnnData) -> None:
+        super().validate_field(adata)
+        assert self.attr_key in adata.obsm, f"{self.attr_key} not found in adata.obsm."
+
+        obsm_data = self.get_field(adata)
+
+        if self.is_count_data and not _check_nonnegative_integers(obsm_data):
+            warnings.warn(
+                f"adata.obsm['{self.attr_key}'] does not contain unnormalized count data. "
+                "Are you sure this is what you want?"
+            )
+
+    def _setup_column_names(self, adata: AnnData) -> Union[list, np.ndarray]:
+        obsm_data = self.get_field(adata)
+        if self.colnames_uns_key is None and isinstance(obsm_data, pd.DataFrame):
+            logger.info(
+                f"Using column names from columns of adata.obsm['{self.attr_key}']"
+            )
+            column_names = list(obsm_data.columns)
+        elif self.colnames_uns_key is not None:
+            logger.info(
+                f"Using protein names from adata.uns['{self.colnames_uns_key}']"
+            )
+            column_names = adata.uns[self.colnames_uns_key]
+        else:
+            logger.info("Generating sequential protein names")
+            column_names = np.arange(obsm_data.shape[1])
+        return column_names
+
+    def register_field(self, adata: AnnData) -> dict:
+        super().register_field(adata)
+
+        column_names = self._setup_column_names(adata)
+
+        return {self.COLUMN_NAMES_KEY: column_names}
+
+    def transfer_field(
+        self, state_registry: dict, adata_target: AnnData, **kwargs
+    ) -> dict:
+        super().transfer_field(state_registry, adata_target, **kwargs)
+        self.validate_field(adata_target)
+        source_n_cols = len(state_registry[self.COLUMN_NAMES_KEY])
+        target_n_cols = self.get_field(adata_target).shape[1]
+        assert source_n_cols == target_n_cols, (
+            f"Target adata.obsm['{self.attr_key}'] has {target_n_cols} which does not match "
+            "the source adata.obsm['{self.attr_key}'] column count of {source_n_cols}."
+        )
+
+        return {self.COLUMN_NAMES_KEY: state_registry[self.COLUMN_NAMES_KEY].copy()}
+
+    def get_summary_stats(self, state_registry: dict) -> dict:
+        n_obsm_cols = len(state_registry[self.COLUMN_NAMES_KEY])
+        return {self.count_stat_key: n_obsm_cols}
 
 
 class JointObsField(BaseObsmField):
@@ -111,8 +212,8 @@ class NumericalJointObsField(JointObsField):
         return self.register_field(adata_target)
 
     def get_summary_stats(self, _state_registry: dict) -> dict:
-        n_continuous_covariates = len(self.obs_keys)
-        return {self.count_stat_key: n_continuous_covariates}
+        n_obs_keys = len(self.obs_keys)
+        return {self.count_stat_key: n_obs_keys}
 
 
 class CategoricalJointObsField(JointObsField):
@@ -201,8 +302,8 @@ class CategoricalJointObsField(JointObsField):
         return self._make_obsm_categorical(adata_target, category_dict=source_cat_dict)
 
     def get_summary_stats(self, _state_registry: dict) -> dict:
-        n_categorical_covariates = len(self.obs_keys)
+        n_obs_keys = len(self.obs_keys)
 
         return {
-            self.count_stat_key: n_categorical_covariates,
+            self.count_stat_key: n_obs_keys,
         }
