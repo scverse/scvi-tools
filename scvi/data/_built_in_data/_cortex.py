@@ -18,8 +18,7 @@ def _load_cortex(save_path: str = "data/") -> anndata.AnnData:
     save_fn = "expression.bin"
     _download(url, save_path, save_fn)
     adata = _load_cortex_txt(os.path.join(save_path, save_fn))
-    # if run_setup_anndata:
-    #     _setup_anndata(adata, labels_key="labels")
+
     return adata
 
 

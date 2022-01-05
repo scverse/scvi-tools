@@ -62,13 +62,6 @@ def _load_pbmcs_10x_cite_seq(
     dataset = anndata.concat([dataset1, dataset2], join=protein_join)
     dataset.obsm["protein_expression"] = dataset.obsm["protein_expression"].fillna(0)
 
-    # if run_setup_anndata:
-    #     _setup_anndata(
-    #         dataset,
-    #         batch_key="batch",
-    #         protein_expression_obsm_key="protein_expression",
-    #     )
-
     return dataset
 
 
@@ -128,14 +121,6 @@ def _load_spleen_lymph_cite_seq(
             for c in dataset.obs["leiden_subclusters"]
         ]
         dataset = dataset[include_cells].copy()
-
-    # if run_setup_anndata:
-    #     _setup_anndata(
-    #         dataset,
-    #         batch_key="batch",
-    #         labels_key="cell_types",
-    #         protein_expression_obsm_key="protein_expression",
-    #     )
 
     return dataset
 
@@ -208,12 +193,5 @@ def _load_pbmc_seurat_v4_cite_seq(
         )[:mask_protein_batches]
         for r in rand_cats:
             adata.obsm["protein_counts"][adata.obs["orig.ident"] == r] = 0.0
-
-    # if run_setup_anndata:
-    #     _setup_anndata(
-    #         adata,
-    #         batch_key="orig.ident",
-    #         protein_expression_obsm_key="protein_counts",
-    #     )
 
     return adata

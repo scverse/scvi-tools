@@ -48,8 +48,6 @@ def _load_retina(save_path: str = "data/") -> AnnData:
     del adata.obs["ClusterID"]
     adata.obs["batch"] = pd.Categorical(adata.obs["BatchID"].values.copy())
     del adata.obs["BatchID"]
-    # if run_setup_anndata:
-    #     _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
@@ -71,8 +69,7 @@ def _load_prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
     del adata.obs["BatchID"]
     adata.obs["x_coord"] = adata.obsm["Spatial_coordinates"][:, 0]
     adata.obs["y_coord"] = adata.obsm["Spatial_coordinates"][:, 1]
-    # if run_setup_anndata:
-    #     _setup_anndata(adata, batch_key="batch", labels_key="labels")
+
     return adata
 
 
@@ -89,9 +86,6 @@ def _load_frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
     # reorder labels such that layers of the cortex are in order
     # order_labels = [5, 6, 3, 2, 4, 0, 1, 8, 7, 9, 10, 11, 12, 13]
     # self.reorder_cell_types(self.cell_types[order_labels])
-
-    # if run_setup_anndata:
-    #     _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
@@ -117,9 +111,6 @@ def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
 
     adata.obs["batch"] = adata.obs.BatchID.values
     del adata.obs["BatchID"]
-
-    # if run_setup_anndata:
-    #     _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
