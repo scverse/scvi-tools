@@ -1088,6 +1088,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata)
+        pro_exp = adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY)
+        pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
         batch_mask = adata_manager.get_state_registry(_CONSTANTS.PROTEIN_EXP_KEY).get(
             ProteinObsmField.PROTEIN_BATCH_MASK
         )
@@ -1106,16 +1108,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 batch_avg_mus.append(0)
                 batch_avg_scales.append(1)
                 continue
-            pro_exp = adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY)
-            pro_exp = (
-                np.asarray(pro_exp) if isinstance(pro_exp, pd.DataFrame) else pro_exp
-            )
-            pro_exp = pro_exp[batch == b]
+            batch_pro_exp = pro_exp[batch == b]
 
             # non missing
             if batch_mask is not None:
-                pro_exp = pro_exp[:, batch_mask[b]]
-                if pro_exp.shape[1] < 5:
+                batch_pro_exp = batch_pro_exp[:, batch_mask[b]]
+                if batch_pro_exp.shape[1] < 5:
                     logger.debug(
                         f"Batch {b} has too few proteins to set prior, setting randomly."
                     )
@@ -1124,18 +1122,16 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     continue
 
             # for missing batches, put dummy values -- scarches case, will be replaced anyway
-            if pro_exp.shape[0] == 0:
+            if batch_pro_exp.shape[0] == 0:
                 batch_avg_mus.append(0.0)
                 batch_avg_scales.append(0.05)
 
-            cells = np.random.choice(np.arange(pro_exp.shape[0]), size=n_cells)
-            if isinstance(pro_exp, pd.DataFrame):
-                pro_exp = pro_exp.to_numpy()
-            pro_exp = pro_exp[cells]
+            cells = np.random.choice(np.arange(batch_pro_exp.shape[0]), size=n_cells)
+            batch_pro_exp = batch_pro_exp[cells]
             gmm = GaussianMixture(n_components=2)
             mus, scales = [], []
             # fit per cell GMM
-            for c in pro_exp:
+            for c in batch_pro_exp:
                 try:
                     gmm.fit(np.log1p(c.reshape(-1, 1)))
                 # when cell is all 0
