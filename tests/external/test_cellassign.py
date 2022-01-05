@@ -6,7 +6,9 @@ from scvi.external import CellAssign
 
 
 def test_cellassign(save_path):
-    adata = synthetic_iid(n_labels=5, run_setup_anndata=False)
+    adata = synthetic_iid(
+        n_labels=5,
+    )
     CellAssign.setup_anndata(
         adata,
         "size_factor",

@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 
 from scvi.data._built_in_data._download import _download
-from scvi.data.anndata._utils import _setup_anndata
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,6 @@ _subtype_to_high_level_mapping = {
 def _load_smfish(
     save_path: str = "data/",
     use_high_level_cluster: bool = True,
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     save_path = os.path.abspath(save_path)
     url = "http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom"
@@ -57,8 +55,8 @@ def _load_smfish(
         os.path.join(save_path, save_fn), use_high_level_cluster=use_high_level_cluster
     )
     adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
-    if run_setup_anndata:
-        _setup_anndata(adata, labels_key="labels", batch_key="batch")
+    # if run_setup_anndata:
+    #     _setup_anndata(adata, labels_key="labels", batch_key="batch")
     return adata
 
 

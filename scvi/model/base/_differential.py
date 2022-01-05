@@ -11,6 +11,7 @@ from sklearn.mixture import GaussianMixture
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
+from scvi.data.anndata.fields import CategoricalObsField
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +30,13 @@ class DifferentialComputation:
     ----------
     model_fn
         Function in model API to get values from.
-    adata
-        AnnData setup with scvi
+    adata_manager
+        AnnDataManager created by :meth:`~scvi.model.SCVI.setup_anndata`.
     """
 
-    def __init__(self, model_fn, adata):
-        self.adata = adata
+    def __init__(self, model_fn, adata_manager):
+        self.adata_manager = adata_manager
+        self.adata = adata_manager.adata
         self.model_fn = model_fn
 
     def get_bayes_factors(
@@ -251,7 +253,7 @@ class DifferentialComputation:
         # Adding pseudocounts to the scales
         if pseudocounts is None:
             logger.debug("Estimating pseudocounts offet from the data")
-            x = self.get_from_registry(self.adata, _CONSTANTS.X_KEY)
+            x = self.adata_manager.get_from_registry(_CONSTANTS.X_KEY)
             where_zero_a = densify(np.max(x[idx1], 0)) == 0
             where_zero_b = densify(np.max(x[idx2], 0)) == 0
             pseudocounts = estimate_pseudocounts_offset(
@@ -391,8 +393,8 @@ class DifferentialComputation:
         """
         # Get overall number of desired samples and desired batches
         if batchid is None and not use_observed_batches:
-            categorical_mappings = self.adata.uns["_scvi"]["categorical_mappings"]
-            batchid = categorical_mappings["_scvi_batch"]["mapping"]
+            batch_registry = self.adata_manager.get_state_registry(_CONSTANTS.BATCH_KEY)
+            batchid = batch_registry[CategoricalObsField.CATEGORICAL_MAPPING_KEY]
         if use_observed_batches:
             if batchid is not None:
                 raise ValueError("Unconsistent batch policy")

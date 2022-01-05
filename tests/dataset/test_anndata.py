@@ -22,8 +22,8 @@ from scvi.dataloaders import AnnTorchDataset
 
 def test_transfer_anndata_setup():
     # test transfer_anndata function
-    adata1 = synthetic_iid(run_setup_anndata=False)
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata1 = synthetic_iid()
+    adata2 = synthetic_iid()
     adata2.X = adata1.X
     _setup_anndata(adata1)
     transfer_anndata_setup(adata1, adata2)
@@ -32,8 +32,8 @@ def test_transfer_anndata_setup():
     )
 
     # test if layer was used initially, again used in transfer setup
-    adata1 = synthetic_iid(run_setup_anndata=False)
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata1 = synthetic_iid()
+    adata2 = synthetic_iid()
     raw_counts = adata1.X.copy()
     adata1.layers["raw"] = raw_counts
     adata2.layers["raw"] = raw_counts
@@ -49,28 +49,28 @@ def test_transfer_anndata_setup():
 
     # test that an unknown batch throws an error
     adata1 = synthetic_iid()
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs["batch"] = [2] * adata2.n_obs
     with pytest.raises(ValueError):
         transfer_anndata_setup(adata1, adata2)
 
     # TODO: test that a batch with wrong dtype throws an error
     # adata1 = synthetic_iid()
-    # adata2 = synthetic_iid(run_setup_anndata=False)
+    # adata2 = synthetic_iid()
     # adata2.obs["batch"] = ["0"] * adata2.n_obs
     # with pytest.raises(ValueError):
     #     transfer_anndata_setup(adata1, adata2)
 
     # test that an unknown label throws an error
     adata1 = synthetic_iid()
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs["labels"] = ["label_123"] * adata2.n_obs
     with pytest.raises(ValueError):
         transfer_anndata_setup(adata1, adata2)
 
     # test that correct mapping was applied
     adata1 = synthetic_iid()
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs["labels"] = ["label_1"] * adata2.n_obs
     transfer_anndata_setup(adata1, adata2)
     labels_mapping = adata1.uns["_scvi"]["categorical_mappings"]["_scvi_labels"][
@@ -81,16 +81,16 @@ def test_transfer_anndata_setup():
 
     # test that transfer_anndata_setup correctly looks for adata.obs['batch']
     adata1 = synthetic_iid()
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     del adata2.obs["batch"]
     with pytest.raises(KeyError):
         transfer_anndata_setup(adata1, adata2)
 
     # test that transfer_anndata_setup assigns same batch and label to cells
     # if the original anndata was also same batch and label
-    adata1 = synthetic_iid(run_setup_anndata=False)
+    adata1 = synthetic_iid()
     _setup_anndata(adata1)
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     del adata2.obs["batch"]
     transfer_anndata_setup(adata1, adata2)
     assert adata2.obs["_scvi_batch"][0] == 0
@@ -98,7 +98,7 @@ def test_transfer_anndata_setup():
 
     # test that if a category mapping is a subset, transfer anndata is called
     a1 = scvi.data.synthetic_iid()
-    a2 = scvi.data.synthetic_iid(run_setup_anndata=False)
+    a2 = scvi.data.synthetic_iid()
     a2.obs["batch"] = "batch_1"
     scvi.model.SCVI.setup_anndata(a2, batch_key="batch")
     m = scvi.model.SCVI(a1)
@@ -109,7 +109,7 @@ def test_transfer_anndata_setup():
 
 def test_data_format():
     # if data was dense np array, check after setup_anndata, data is C_CONTIGUOUS
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
 
     old_x = adata.X
     old_pro = adata.obsm["protein_expression"]
@@ -151,7 +151,7 @@ def test_data_format():
 
 def test_setup_anndata():
     # test regular setup
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     _setup_anndata(
         adata,
         batch_key="batch",
@@ -319,7 +319,7 @@ def test_anntorchdataset_getitem():
         assert type(value) == np.ndarray
 
     # check AnnTorchDataset returns numpy array counts were sparse
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     adata.X = sparse.csr_matrix(adata.X)
     _setup_anndata(adata)
     bd = AnnTorchDataset(adata)
@@ -327,7 +327,7 @@ def test_anntorchdataset_getitem():
         assert type(value) == np.ndarray
 
     # check AnnTorchDataset returns numpy array if pro exp was sparse
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     adata.obsm["protein_expression"] = sparse.csr_matrix(
         adata.obsm["protein_expression"]
     )
@@ -339,7 +339,7 @@ def test_anntorchdataset_getitem():
         assert type(value) == np.ndarray
 
     # check pro exp is being returned as numpy array even if its DF
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     adata.obsm["protein_expression"] = pd.DataFrame(
         adata.obsm["protein_expression"], index=adata.obs_names
     )
@@ -353,7 +353,7 @@ def test_anntorchdataset_getitem():
 
 def test_saving(save_path):
     save_path = os.path.join(save_path, "tmp_adata.h5ad")
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     adata.obs["cont1"] = np.random.uniform(5, adata.n_obs)
     adata.obs["cont2"] = np.random.uniform(5, adata.n_obs)
     adata.obs["cat1"] = np.random.randint(0, 3, adata.n_obs).astype(str)

@@ -20,6 +20,7 @@ from scvi.data.anndata._constants import (
     _SETUP_KWARGS_KEY,
     _SOURCE_SCVI_UUID_KEY,
 )
+from scvi.data.anndata._utils import _assign_adata_uuid
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass
@@ -211,6 +212,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             if copy_if_view:
                 logger.info("Received view of anndata, making copy.")
                 adata = adata.copy()
+                # Reassign AnnData UUID to produce a separate AnnDataManager.
+                _assign_adata_uuid(adata, overwrite=True)
             else:
                 raise ValueError("Please run `adata = adata.copy()`")
 

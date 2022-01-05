@@ -5,7 +5,7 @@ from scvi.model import SCVI
 
 def test_solo(save_path):
     n_latent = 5
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
@@ -15,7 +15,7 @@ def test_solo(save_path):
     assert "validation_loss" in solo.history.keys()
     solo.predict()
 
-    bdata = synthetic_iid(run_setup_anndata=False)
+    bdata = synthetic_iid()
     solo = SOLO.from_scvi_model(model, bdata)
     solo.train(1, check_val_every_n_epoch=1, train_size=0.9)
     assert "validation_loss" in solo.history.keys()

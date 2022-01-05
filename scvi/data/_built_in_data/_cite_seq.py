@@ -6,13 +6,11 @@ import pandas as pd
 
 from scvi import settings
 from scvi.data._built_in_data._download import _download
-from scvi.data.anndata._utils import _setup_anndata
 
 
 def _load_pbmcs_10x_cite_seq(
     save_path: str = "data/",
     protein_join: str = "inner",
-    run_setup_anndata: bool = True,
 ):
     """
     Filtered PBMCs from 10x Genomics profiled with RNA and protein.
@@ -26,8 +24,6 @@ def _load_pbmcs_10x_cite_seq(
         Location to use when saving/loading the data.
     protein_join
         Whether to take an inner join or outer join of proteins
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -66,12 +62,12 @@ def _load_pbmcs_10x_cite_seq(
     dataset = anndata.concat([dataset1, dataset2], join=protein_join)
     dataset.obsm["protein_expression"] = dataset.obsm["protein_expression"].fillna(0)
 
-    if run_setup_anndata:
-        _setup_anndata(
-            dataset,
-            batch_key="batch",
-            protein_expression_obsm_key="protein_expression",
-        )
+    # if run_setup_anndata:
+    #     _setup_anndata(
+    #         dataset,
+    #         batch_key="batch",
+    #         protein_expression_obsm_key="protein_expression",
+    #     )
 
     return dataset
 
@@ -80,7 +76,6 @@ def _load_spleen_lymph_cite_seq(
     save_path: str = "data/",
     protein_join: str = "inner",
     remove_outliers: bool = True,
-    run_setup_anndata: bool = True,
 ):
     """
     Immune cells from the murine spleen and lymph nodes [GayosoSteier21]_.
@@ -95,8 +90,6 @@ def _load_spleen_lymph_cite_seq(
         Whether to take an inner join or outer join of proteins
     remove_outliers
         Whether to remove clusters annotated as doublet or low quality
-    run_setup_anndata
-        If true, runs _setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -136,13 +129,13 @@ def _load_spleen_lymph_cite_seq(
         ]
         dataset = dataset[include_cells].copy()
 
-    if run_setup_anndata:
-        _setup_anndata(
-            dataset,
-            batch_key="batch",
-            labels_key="cell_types",
-            protein_expression_obsm_key="protein_expression",
-        )
+    # if run_setup_anndata:
+    #     _setup_anndata(
+    #         dataset,
+    #         batch_key="batch",
+    #         labels_key="cell_types",
+    #         protein_expression_obsm_key="protein_expression",
+    #     )
 
     return dataset
 
@@ -152,7 +145,6 @@ def _load_pbmc_seurat_v4_cite_seq(
     apply_filters: bool = True,
     aggregate_proteins: bool = True,
     mask_protein_batches: int = 0,
-    run_setup_anndata: bool = True,
 ):
     url = "https://ndownloader.figshare.com/files/27458840"
     save_fn = "pbmc_seurat_v4.h5ad"
@@ -217,11 +209,11 @@ def _load_pbmc_seurat_v4_cite_seq(
         for r in rand_cats:
             adata.obsm["protein_counts"][adata.obs["orig.ident"] == r] = 0.0
 
-    if run_setup_anndata:
-        _setup_anndata(
-            adata,
-            batch_key="orig.ident",
-            protein_expression_obsm_key="protein_counts",
-        )
+    # if run_setup_anndata:
+    #     _setup_anndata(
+    #         adata,
+    #         batch_key="orig.ident",
+    #         protein_expression_obsm_key="protein_counts",
+    #     )
 
     return adata

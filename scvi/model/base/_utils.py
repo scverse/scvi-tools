@@ -221,7 +221,7 @@ def _de_core(
         groupby = temp_key
 
     df_results = []
-    dc = DifferentialComputation(model_fn, adata)
+    dc = DifferentialComputation(model_fn, adata_manager)
     for g1 in track(
         group1,
         description="DE...",
