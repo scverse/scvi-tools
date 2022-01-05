@@ -903,7 +903,7 @@ def test_totalvi(save_path):
     # test that we catch missing proteins
     adata2 = synthetic_iid()
     del adata2.obsm["protein_expression"]
-    with pytest.raises(AssertionError):
+    with pytest.raises(KeyError):
         model.get_elbo(adata2)
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
