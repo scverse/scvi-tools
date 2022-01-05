@@ -1,5 +1,6 @@
 import os
 import random
+from typing import List, Optional
 
 import anndata
 import numpy as np
@@ -12,12 +13,38 @@ import scvi
 from scvi import _CONSTANTS
 from scvi.data import synthetic_iid
 from scvi.data.anndata import (
-    get_from_registry,
+    AnnDataManager,
     register_tensor_from_anndata,
     transfer_anndata_setup,
 )
 from scvi.data.anndata._utils import _setup_anndata
+from scvi.data.anndata.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+)
 from scvi.dataloaders import AnnTorchDataset
+
+
+def _create_generic_adata_manager(
+    adata: anndata.AnnData,
+    batch_key: Optional[str] = None,
+    labels_key: Optional[str] = None,
+    categorical_covariate_keys: Optional[List[str]] = None,
+    continuous_covariate_keys: Optional[List[str]] = None,
+    layer: Optional[str] = None,
+) -> AnnDataManager:
+    anndata_fields = [
+        LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+        CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
+        CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+        CategoricalJointObsField(_CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys),
+        NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+    ]
+    adata_manager = AnnDataManager(fields=anndata_fields)
+    adata_manager.register_fields(adata)
+    return adata_manager
 
 
 def test_transfer_anndata_setup():
@@ -25,8 +52,8 @@ def test_transfer_anndata_setup():
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     adata2.X = adata1.X
-    _setup_anndata(adata1)
-    transfer_anndata_setup(adata1, adata2)
+    adata1_manager = _create_generic_adata_manager(adata1)
+    adata1_manager.transfer_setup(adata2)
     np.testing.assert_array_equal(
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
@@ -41,8 +68,8 @@ def test_transfer_anndata_setup():
     ones = np.ones_like(adata1.X)
     adata1.X = zeros
     adata2.X = ones
-    _setup_anndata(adata1, layer="raw")
-    transfer_anndata_setup(adata1, adata2)
+    adata1_manager = _create_generic_adata_manager(adata1, layer="raw")
+    adata1_manager.transfer_setup(adata2)
     np.testing.assert_array_equal(
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
@@ -51,8 +78,9 @@ def test_transfer_anndata_setup():
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     adata2.obs["batch"] = [2] * adata2.n_obs
+    adata1_manager = _create_generic_adata_manager(adata1, batch_key="batch")
     with pytest.raises(ValueError):
-        transfer_anndata_setup(adata1, adata2)
+        adata1_manager.transfer_setup(adata2)
 
     # TODO: test that a batch with wrong dtype throws an error
     # adata1 = synthetic_iid()
@@ -65,16 +93,18 @@ def test_transfer_anndata_setup():
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     adata2.obs["labels"] = ["label_123"] * adata2.n_obs
+    adata1_manager = _create_generic_adata_manager(adata1, labels_key="labels")
     with pytest.raises(ValueError):
-        transfer_anndata_setup(adata1, adata2)
+        adata1_manager.transfer_setup(adata2)
 
     # test that correct mapping was applied
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     adata2.obs["labels"] = ["label_1"] * adata2.n_obs
-    transfer_anndata_setup(adata1, adata2)
-    labels_mapping = adata1.uns["_scvi"]["categorical_mappings"]["_scvi_labels"][
-        "mapping"
+    adata1_manager = _create_generic_adata_manager(adata1, labels_key="labels")
+    adata1_manager.transfer_setup(adata2)
+    labels_mapping = adata1_manager.get_state_registry("labels")[
+        CategoricalObsField.CATEGORICAL_MAPPING_KEY
     ]
     correct_label = np.where(labels_mapping == "label_1")[0][0]
     adata2.obs["_scvi_labels"][0] == correct_label
@@ -83,21 +113,23 @@ def test_transfer_anndata_setup():
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     del adata2.obs["batch"]
+    adata1_manager = _create_generic_adata_manager(adata1, batch_key="batch")
     with pytest.raises(KeyError):
-        transfer_anndata_setup(adata1, adata2)
+        adata1_manager.transfer_setup(adata2)
 
     # test that transfer_anndata_setup assigns same batch and label to cells
     # if the original anndata was also same batch and label
     adata1 = synthetic_iid()
-    _setup_anndata(adata1)
+    adata1_manager = _create_generic_adata_manager(adata1)
     adata2 = synthetic_iid()
     del adata2.obs["batch"]
-    transfer_anndata_setup(adata1, adata2)
+    adata1_manager.transfer_setup(adata2)
     assert adata2.obs["_scvi_batch"][0] == 0
     assert adata2.obs["_scvi_labels"][0] == 0
 
     # test that if a category mapping is a subset, transfer anndata is called
     a1 = scvi.data.synthetic_iid()
+    scvi.model.SCVI.setup_anndata(a1, batch_key="batch")
     a2 = scvi.data.synthetic_iid()
     a2.obs["batch"] = "batch_1"
     scvi.model.SCVI.setup_anndata(a2, batch_key="batch")
@@ -127,10 +159,10 @@ def test_data_format():
     assert np.array_equal(old_pro, adata.obsm["protein_expression"])
     assert np.array_equal(old_obs, adata.obs)
 
-    assert np.array_equal(adata.X, get_from_registry(adata, _CONSTANTS.X_KEY))
+    assert np.array_equal(adata.X, adata.get_from_registry(adata, _CONSTANTS.X_KEY))
     assert np.array_equal(
         adata.obsm["protein_expression"],
-        get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
+        adata.get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
     )
 
     # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
@@ -139,13 +171,13 @@ def test_data_format():
     adata.obsm["protein_expression"] = pd.DataFrame(pe, index=adata.obs_names)
     assert adata.obsm["protein_expression"].to_numpy().flags["C_CONTIGUOUS"] is False
     _setup_anndata(adata, protein_expression_obsm_key="protein_expression")
-    new_pe = get_from_registry(adata, "protein_expression")
+    new_pe = adata.get_from_registry(adata, "protein_expression")
     assert new_pe.to_numpy().flags["C_CONTIGUOUS"] is True
     assert np.array_equal(pe, new_pe)
-    assert np.array_equal(adata.X, get_from_registry(adata, _CONSTANTS.X_KEY))
+    assert np.array_equal(adata.X, adata.get_from_registry(adata, _CONSTANTS.X_KEY))
     assert np.array_equal(
         adata.obsm["protein_expression"],
-        get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
+        adata.get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
     )
 
 
@@ -160,16 +192,16 @@ def test_setup_anndata():
         protein_names_uns_key="protein_names",
     )
     np.testing.assert_array_equal(
-        get_from_registry(adata, "batch_indices"),
+        adata.get_from_registry(adata, "batch_indices"),
         np.array(adata.obs["_scvi_batch"]).reshape((-1, 1)),
     )
     np.testing.assert_array_equal(
-        get_from_registry(adata, "labels"),
+        adata.get_from_registry(adata, "labels"),
         np.array(adata.obs["labels"].cat.codes).reshape((-1, 1)),
     )
-    np.testing.assert_array_equal(get_from_registry(adata, "X"), adata.X)
+    np.testing.assert_array_equal(adata.get_from_registry(adata, "X"), adata.X)
     np.testing.assert_array_equal(
-        get_from_registry(adata, "protein_expression"),
+        adata.get_from_registry(adata, "protein_expression"),
         adata.obsm["protein_expression"],
     )
     np.testing.assert_array_equal(
@@ -201,7 +233,7 @@ def test_setup_anndata():
     adata.layers["X"] = true_x
     adata.X = np.ones_like(adata.X)
     _setup_anndata(adata, layer="X")
-    np.testing.assert_array_equal(get_from_registry(adata, "X"), true_x)
+    np.testing.assert_array_equal(adata.get_from_registry(adata, "X"), true_x)
 
     # test that it creates layers and batch if no layers_key is passed
     adata = synthetic_iid()
@@ -211,10 +243,10 @@ def test_setup_anndata():
         protein_names_uns_key="protein_names",
     )
     np.testing.assert_array_equal(
-        get_from_registry(adata, "batch_indices"), np.zeros((adata.shape[0], 1))
+        adata.get_from_registry(adata, "batch_indices"), np.zeros((adata.shape[0], 1))
     )
     np.testing.assert_array_equal(
-        get_from_registry(adata, "labels"), np.zeros((adata.shape[0], 1))
+        adata.get_from_registry(adata, "labels"), np.zeros((adata.shape[0], 1))
     )
 
 
