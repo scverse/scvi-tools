@@ -10,7 +10,7 @@ from scvi.model import PEAKVI, SCANVI, SCVI, TOTALVI
 
 def single_pass_for_online_update(model):
     dl = model._make_data_loader(model.adata, indices=range(0, 10))
-    for i_batch, tensors in enumerate(dl):
+    for tensors in dl:
         _, _, scvi_loss = model.module(tensors)
     scvi_loss.loss.backward()
 
@@ -18,6 +18,7 @@ def single_pass_for_online_update(model):
 def test_scvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
+    SCVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCVI(adata1, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
@@ -62,6 +63,7 @@ def test_scvi_online_update(save_path):
 
     # test options
     adata1 = synthetic_iid()
+    SCVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCVI(
         adata1,
         n_latent=n_latent,
@@ -122,6 +124,7 @@ def test_scvi_online_update(save_path):
 def test_scvi_library_size_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
+    SCVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCVI(adata1, n_latent=n_latent, use_observed_lib_size=False)
 
     assert (
@@ -267,6 +270,12 @@ def test_totalvi_online_update(save_path):
     # basic case
     n_latent = 5
     adata1 = synthetic_iid()
+    TOTALVI.setup_anndata(
+        adata1,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
     model = TOTALVI(adata1, n_latent=n_latent, use_batch_norm="decoder")
     model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
