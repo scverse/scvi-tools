@@ -40,6 +40,39 @@ class BaseObsField(BaseAnnDataField):
         return False
 
 
+class NumericalObsField(BaseObsField):
+    """
+    An AnnDataField for numerical .obs attributes in the AnnData data structure.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    obs_key
+        Key to access the field in the AnnData obs mapping. If None, defaults to `registry_key`.
+    """
+
+    def validate_field(self, adata: AnnData) -> None:
+        super().validate_field(adata)
+        if self.attr_key not in adata.obs:
+            raise KeyError(f"{self.attr_key} not found in adata.obs.")
+
+    def register_field(self, adata: AnnData) -> dict:
+        super().register_field(adata)
+
+    def transfer_field(
+        self,
+        state_registry: dict,
+        adata_target: AnnData,
+        **kwargs,
+    ) -> dict:
+        super().transfer_field(state_registry, adata_target, **kwargs)
+        return self.register_field(adata_target)
+
+    def get_summary_stats(self, _state_registry: dict) -> dict:
+        return {}
+
+
 class CategoricalObsField(BaseObsField):
     """
     An AnnDataField for categorical .obs attributes in the AnnData data structure.
