@@ -23,25 +23,39 @@ from scvi.data.anndata.fields import (
     CategoricalObsField,
     LayerField,
     NumericalJointObsField,
+    ProteinObsmField,
 )
 from scvi.dataloaders import AnnTorchDataset
 
 
-def _create_generic_adata_manager(
+def _generic_setup_adata_manager(
     adata: anndata.AnnData,
     batch_key: Optional[str] = None,
     labels_key: Optional[str] = None,
     categorical_covariate_keys: Optional[List[str]] = None,
     continuous_covariate_keys: Optional[List[str]] = None,
     layer: Optional[str] = None,
+    protein_expression_obsm_key: Optional[str] = None,
+    protein_names_uns_key: Optional[str] = None,
 ) -> AnnDataManager:
+    batch_field = CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key)
     anndata_fields = [
+        batch_field,
         LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-        CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
         CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
         CategoricalJointObsField(_CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys),
         NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
     ]
+    if protein_expression_obsm_key is not None:
+        anndata_fields.append(
+            ProteinObsmField(
+                _CONSTANTS.PROTEIN_EXP_KEY,
+                protein_expression_obsm_key,
+                batch_field.attr_key,
+                colnames_uns_key=protein_names_uns_key,
+                is_count_data=True,
+            )
+        )
     adata_manager = AnnDataManager(fields=anndata_fields)
     adata_manager.register_fields(adata)
     return adata_manager
@@ -52,7 +66,7 @@ def test_transfer_anndata_setup():
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     adata2.X = adata1.X
-    adata1_manager = _create_generic_adata_manager(adata1)
+    adata1_manager = _generic_setup_adata_manager(adata1)
     adata1_manager.transfer_setup(adata2)
     np.testing.assert_array_equal(
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
@@ -68,7 +82,7 @@ def test_transfer_anndata_setup():
     ones = np.ones_like(adata1.X)
     adata1.X = zeros
     adata2.X = ones
-    adata1_manager = _create_generic_adata_manager(adata1, layer="raw")
+    adata1_manager = _generic_setup_adata_manager(adata1, layer="raw")
     adata1_manager.transfer_setup(adata2)
     np.testing.assert_array_equal(
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
@@ -78,7 +92,7 @@ def test_transfer_anndata_setup():
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     adata2.obs["batch"] = [2] * adata2.n_obs
-    adata1_manager = _create_generic_adata_manager(adata1, batch_key="batch")
+    adata1_manager = _generic_setup_adata_manager(adata1, batch_key="batch")
     with pytest.raises(ValueError):
         adata1_manager.transfer_setup(adata2)
 
@@ -93,7 +107,7 @@ def test_transfer_anndata_setup():
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     adata2.obs["labels"] = ["label_123"] * adata2.n_obs
-    adata1_manager = _create_generic_adata_manager(adata1, labels_key="labels")
+    adata1_manager = _generic_setup_adata_manager(adata1, labels_key="labels")
     with pytest.raises(ValueError):
         adata1_manager.transfer_setup(adata2)
 
@@ -101,7 +115,7 @@ def test_transfer_anndata_setup():
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     adata2.obs["labels"] = ["label_1"] * adata2.n_obs
-    adata1_manager = _create_generic_adata_manager(adata1, labels_key="labels")
+    adata1_manager = _generic_setup_adata_manager(adata1, labels_key="labels")
     adata1_manager.transfer_setup(adata2)
     labels_mapping = adata1_manager.get_state_registry("labels")[
         CategoricalObsField.CATEGORICAL_MAPPING_KEY
@@ -113,14 +127,14 @@ def test_transfer_anndata_setup():
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     del adata2.obs["batch"]
-    adata1_manager = _create_generic_adata_manager(adata1, batch_key="batch")
+    adata1_manager = _generic_setup_adata_manager(adata1, batch_key="batch")
     with pytest.raises(KeyError):
         adata1_manager.transfer_setup(adata2)
 
     # test that transfer_anndata_setup assigns same batch and label to cells
     # if the original anndata was also same batch and label
     adata1 = synthetic_iid()
-    adata1_manager = _create_generic_adata_manager(adata1)
+    adata1_manager = _generic_setup_adata_manager(adata1)
     adata2 = synthetic_iid()
     del adata2.obs["batch"]
     adata1_manager.transfer_setup(adata2)
@@ -151,7 +165,9 @@ def test_data_format():
     assert adata.X.flags["C_CONTIGUOUS"] is False
     assert adata.obsm["protein_expression"].flags["C_CONTIGUOUS"] is False
 
-    _setup_anndata(adata, protein_expression_obsm_key="protein_expression")
+    adata_manager = _generic_setup_adata_manager(
+        adata, protein_expression_obsm_key="protein_expression"
+    )
     assert adata.X.flags["C_CONTIGUOUS"] is True
     assert adata.obsm["protein_expression"].flags["C_CONTIGUOUS"] is True
 
@@ -159,10 +175,10 @@ def test_data_format():
     assert np.array_equal(old_pro, adata.obsm["protein_expression"])
     assert np.array_equal(old_obs, adata.obs)
 
-    assert np.array_equal(adata.X, adata.get_from_registry(adata, _CONSTANTS.X_KEY))
+    assert np.array_equal(adata.X, adata_manager.get_from_registry(_CONSTANTS.X_KEY))
     assert np.array_equal(
         adata.obsm["protein_expression"],
-        adata.get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
+        adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY),
     )
 
     # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
@@ -170,14 +186,16 @@ def test_data_format():
     pe = np.asfortranarray(adata.obsm["protein_expression"])
     adata.obsm["protein_expression"] = pd.DataFrame(pe, index=adata.obs_names)
     assert adata.obsm["protein_expression"].to_numpy().flags["C_CONTIGUOUS"] is False
-    _setup_anndata(adata, protein_expression_obsm_key="protein_expression")
-    new_pe = adata.get_from_registry(adata, "protein_expression")
+    adata_manager = _generic_setup_adata_manager(
+        adata, protein_expression_obsm_key="protein_expression"
+    )
+    new_pe = adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY)
     assert new_pe.to_numpy().flags["C_CONTIGUOUS"] is True
     assert np.array_equal(pe, new_pe)
-    assert np.array_equal(adata.X, adata.get_from_registry(adata, _CONSTANTS.X_KEY))
+    assert np.array_equal(adata.X, adata_manager.get_from_registry(_CONSTANTS.X_KEY))
     assert np.array_equal(
         adata.obsm["protein_expression"],
-        adata.get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY),
+        adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY),
     )
 
 
