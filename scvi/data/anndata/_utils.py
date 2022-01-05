@@ -67,9 +67,9 @@ def get_from_registry(
     >>> adata = scvi.data.cortex()
     >>> adata.uns['_scvi']['data_registry']
     {'X': ['_X', None],
-    'batch_indices': ['obs', 'batch'],
+    'batch': ['obs', 'batch'],
     'labels': ['obs', 'labels']}
-    >>> batch = get_from_registry(adata, "batch_indices")
+    >>> batch = get_from_registry(adata, "batch")
     >>> batch
     array([[0],
            [0],
@@ -170,7 +170,7 @@ def setup_anndata(
     INFO      No label_key inputted, assuming all cells have same label
     INFO      Using data from adata.X
     INFO      Computing library size prior per batch
-    INFO      Registered keys:['X', 'batch_indices', 'labels']
+    INFO      Registered keys:['X', 'batch', 'labels']
     INFO      Successfully registered anndata object containing 400 cells, 100 vars, 1 batches, 1 labels, and 0 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
 
     Example setting up scanpy dataset with random gene data, batch, and protein expression
@@ -183,7 +183,7 @@ def setup_anndata(
     INFO      Computing library size prior per batch
     INFO      Using protein expression from adata.obsm['protein_expression']
     INFO      Generating sequential protein names
-    INFO      Registered keys:['X', 'batch_indices', 'labels', 'protein_expression']
+    INFO      Registered keys:['X', 'batch', 'labels', 'protein_expression']
     INFO      Successfully registered anndata object containing 400 cells, 100 vars, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
     """
     return _setup_anndata(
