@@ -62,11 +62,11 @@ class ProteinObsmField(ObsmField):
         pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
         batches = adata.obs[self.batch_key].values
         batch_mask = {}
-        for b_code, b in enumerate(np.unique(batches)):
+        for b in np.unique(batches):
             b_inds = np.where(batches.ravel() == b)[0]
             batch_sum = pro_exp[b_inds, :].sum(axis=0)
             all_zero = batch_sum == 0
-            batch_mask[b_code] = ~all_zero
+            batch_mask[b] = ~all_zero
 
         if np.sum([~b[1] for b in batch_mask.items()]) > 0:
             logger.info("Found batches with missing protein expression")

@@ -37,7 +37,7 @@ class AnnDataManager:
         setup_method_args: Optional[dict] = None,
     ) -> None:
         self.adata = None
-        self.fields = set(fields or {})
+        self.fields = fields or []
         self._registry = {
             _constants._SCVI_VERSION_KEY: scvi.__version__,
             _constants._SOURCE_SCVI_UUID_KEY: None,
@@ -87,7 +87,7 @@ class AnnDataManager:
 
     def _freeze_fields(self):
         """Freezes the fields associated with this instance."""
-        self.fields = frozenset(self.fields)
+        self.fields = tuple(self.fields)
 
     def register_fields(
         self, adata: AnnData, source_registry: Optional[dict] = None, **transfer_kwargs

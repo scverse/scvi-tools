@@ -1217,12 +1217,13 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         %(returns)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
+        batch_field = CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key)
         anndata_fields = [
             LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(
                 _CONSTANTS.LABELS_KEY, None
             ),  # Default labels field for compatibility with TOTALVAE
-            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
+            batch_field,
             CategoricalJointObsField(
                 _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
             ),
@@ -1230,7 +1231,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             ProteinObsmField(
                 _CONSTANTS.PROTEIN_EXP_KEY,
                 protein_expression_obsm_key,
-                batch_key,
+                batch_field.attr_key,
                 colnames_uns_key=protein_names_uns_key,
                 is_count_data=True,
             ),
