@@ -282,7 +282,7 @@ def _set_data_in_registry(
     adata: anndata.AnnData,
     data: Union[np.ndarray, pd.DataFrame],
     attr_name: str,
-    attr_key: str,
+    attr_key: Optional[str],
 ):
     """
     Sets the data in the AnnData object according to the attr_name and attr_key.
@@ -302,10 +302,10 @@ def _set_data_in_registry(
     attr_key
         Key in AnnData attribute under which to store data in.
     """
-    if attr_key == "None":
+    if attr_key is None:
         setattr(adata, attr_name, data)
 
-    elif attr_key != "None":
+    elif attr_key is not None:
         attribute = getattr(adata, attr_name)
         if isinstance(attribute, pd.DataFrame):
             attribute.loc[:, attr_key] = data
