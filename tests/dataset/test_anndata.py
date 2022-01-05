@@ -202,7 +202,7 @@ def test_data_format():
 def test_setup_anndata():
     # test regular setup
     adata = synthetic_iid()
-    _setup_anndata(
+    adata_manager = _generic_setup_adata_manager(
         adata,
         batch_key="batch",
         labels_key="labels",
@@ -210,26 +210,31 @@ def test_setup_anndata():
         protein_names_uns_key="protein_names",
     )
     np.testing.assert_array_equal(
-        adata.get_from_registry(adata, "batch_indices"),
+        adata_manager.get_from_registry(_CONSTANTS.BATCH_KEY),
         np.array(adata.obs["_scvi_batch"]).reshape((-1, 1)),
     )
     np.testing.assert_array_equal(
-        adata.get_from_registry(adata, "labels"),
+        adata_manager.get_from_registry(_CONSTANTS.LABELS_KEY),
         np.array(adata.obs["labels"].cat.codes).reshape((-1, 1)),
     )
-    np.testing.assert_array_equal(adata.get_from_registry(adata, "X"), adata.X)
     np.testing.assert_array_equal(
-        adata.get_from_registry(adata, "protein_expression"),
+        adata_manager.get_from_registry(_CONSTANTS.X_KEY), adata.X
+    )
+    np.testing.assert_array_equal(
+        adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY),
         adata.obsm["protein_expression"],
     )
     np.testing.assert_array_equal(
-        adata.uns["_scvi"]["protein_names"], adata.uns["protein_names"]
+        adata_manager.get_state_registry(_CONSTANTS.PROTEIN_EXP_KEY)[
+            ProteinObsmField.COLUMN_NAMES_KEY
+        ],
+        adata.uns["protein_names"],
     )
 
     # test that error is thrown if its a view:
     adata = synthetic_iid()
     with pytest.raises(ValueError):
-        _setup_anndata(adata[1])
+        _generic_setup_adata_manager(adata[1])
 
     # If obsm is a df and protein_names_uns_key is None, protein names should be grabbed from column of df
     adata = synthetic_iid()
@@ -240,9 +245,14 @@ def test_setup_anndata():
         columns=new_protein_names,
     )
     adata.obsm["protein_expression"] = df
-    _setup_anndata(adata, protein_expression_obsm_key="protein_expression")
+    adata_manager = _generic_setup_adata_manager(
+        adata, protein_expression_obsm_key="protein_expression"
+    )
     np.testing.assert_array_equal(
-        adata.uns["_scvi"]["protein_names"], new_protein_names
+        adata_manager.get_state_registry(_CONSTANTS.PROTEIN_EXP_KEY)[
+            ProteinObsmField.COLUMN_NAMES_KEY
+        ],
+        new_protein_names,
     )
 
     # test that layer is working properly
@@ -250,21 +260,25 @@ def test_setup_anndata():
     true_x = adata.X
     adata.layers["X"] = true_x
     adata.X = np.ones_like(adata.X)
-    _setup_anndata(adata, layer="X")
-    np.testing.assert_array_equal(adata.get_from_registry(adata, "X"), true_x)
+    adata_manager = _generic_setup_adata_manager(adata, layer="X")
+    np.testing.assert_array_equal(
+        adata_manager.get_from_registry(_CONSTANTS.X_KEY), true_x
+    )
 
     # test that it creates layers and batch if no layers_key is passed
     adata = synthetic_iid()
-    _setup_anndata(
+    _generic_setup_adata_manager(
         adata,
         protein_expression_obsm_key="protein_expression",
         protein_names_uns_key="protein_names",
     )
     np.testing.assert_array_equal(
-        adata.get_from_registry(adata, "batch_indices"), np.zeros((adata.shape[0], 1))
+        adata_manager.get_from_registry(_CONSTANTS.BATCH_KEY),
+        np.zeros((adata.shape[0], 1)),
     )
     np.testing.assert_array_equal(
-        adata.get_from_registry(adata, "labels"), np.zeros((adata.shape[0], 1))
+        adata_manager.get_from_registry(_CONSTANTS.LABELS_KEY),
+        np.zeros((adata.shape[0], 1)),
     )
 
 
