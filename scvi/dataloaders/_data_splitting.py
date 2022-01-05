@@ -76,7 +76,7 @@ class DataSplitter(pl.LightningDataModule):
 
     Examples
     --------
-    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> adata = scvi.data.synthetic_iid()
     >>> scvi.model.SCVI.setup_anndata(adata)
     >>> adata_manager = scvi.model.SCVI(adata).adata_manager
     >>> splitter = DataSplitter(adata)
@@ -185,7 +185,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
     Examples
     --------
-    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> adata = scvi.data.synthetic_iid()
     >>> scvi.model.SCVI.setup_anndata(adata, labels_key="labels")
     >>> adata_manager = scvi.model.SCVI(adata).adata_manager
     >>> unknown_label = 'label_0'
@@ -351,7 +351,7 @@ class DeviceBackedDataSplitter(DataSplitter):
 
     Examples
     --------
-    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> adata = scvi.data.synthetic_iid()
     >>> scvi.model.SCVI.setup_anndata(adata)
     >>> adata_manager = scvi.model.SCVI(adata).adata_manager
     >>> splitter = DeviceBackedDataSplitter(adata)

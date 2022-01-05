@@ -60,7 +60,7 @@ def test_saving_and_loading(save_path):
 
     def test_save_and_load(save_path, legacy=False):
         prefix = "GIMVI_"
-        adata = synthetic_iid(run_setup_anndata=False)
+        adata = synthetic_iid()
         GIMVI.setup_anndata(
             adata,
             batch_key="batch",

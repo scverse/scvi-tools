@@ -493,7 +493,7 @@ def test_function_based_pyro_module():
 def test_lda_model():
     use_gpu = torch.cuda.is_available()
     n_topics = 5
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
 
     # Test with float and Sequence priors.
     AmortizedLDA.setup_anndata(adata)
@@ -537,7 +537,7 @@ def test_lda_model():
     mod.get_elbo()
     mod.get_perplexity()
 
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     AmortizedLDA.setup_anndata(adata2)
     adata2_lda = mod.get_latent_representation(adata2).to_numpy()
     assert (
@@ -552,7 +552,7 @@ def test_lda_model():
 def test_lda_model_save_load(save_path):
     use_gpu = torch.cuda.is_available()
     n_topics = 5
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     AmortizedLDA.setup_anndata(adata)
     mod = AmortizedLDA(adata, n_topics=n_topics)
     mod.train(

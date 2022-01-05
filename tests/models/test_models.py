@@ -38,7 +38,7 @@ from scvi.train import TrainingPlan, TrainRunner
 
 
 def test_new_setup_compat():
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
@@ -89,7 +89,7 @@ def test_new_setup_compat():
 
 
 def test_new_setup_train():
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
@@ -109,7 +109,7 @@ def test_new_setup_train():
 
 def test_scvi(save_path):
     n_latent = 5
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -117,7 +117,7 @@ def test_scvi(save_path):
     )
 
     # Test with observed lib size.
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -144,7 +144,7 @@ def test_scvi(save_path):
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
 
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     model.get_elbo(adata2)
     model.get_marginal_ll(adata2, n_mc_samples=3)
     model.get_reconstruction_error(adata2)
@@ -202,23 +202,23 @@ def test_scvi(save_path):
     model.get_latent_library_size(adata2, indices=[1, 2, 3])
 
     # test transfer_anndata_setup
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     model._validate_anndata(adata2)
     model.get_elbo(adata2)
 
     # test automatic transfer_anndata_setup + on a view
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
     )
     model = SCVI(adata)
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     model.get_elbo(adata2[:10])
 
     # test mismatched categories raises ValueError
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs.labels.cat.rename_categories(["a", "b", "c"], inplace=True)
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
@@ -233,7 +233,7 @@ def test_scvi(save_path):
     model.differential_expression(idx1=[0, 1, 2])
 
     # transform batch works with all different types
-    a = synthetic_iid(run_setup_anndata=False)
+    a = synthetic_iid()
     batch = np.zeros(a.n_obs)
     batch[:64] += 1
     a.obs["batch"] = batch
@@ -251,7 +251,7 @@ def test_scvi(save_path):
     model.get_likelihood_parameters()
 
     # test train callbacks work
-    a = synthetic_iid(run_setup_anndata=False)
+    a = synthetic_iid()
     SCVI.setup_anndata(
         a,
         batch_key="batch",
@@ -271,7 +271,7 @@ def test_scvi(save_path):
 
 def test_scvi_sparse(save_path):
     n_latent = 5
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     adata.X = csr_matrix(adata.X)
     SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
@@ -355,12 +355,14 @@ def test_saving_and_loading(save_path):
         model.get_latent_representation()
 
         # Load with mismatched genes.
-        tmp_adata = synthetic_iid(n_genes=200, run_setup_anndata=False)
+        tmp_adata = synthetic_iid(
+            n_genes=200,
+        )
         with pytest.raises(ValueError):
             cls.load(save_path, adata=tmp_adata, prefix=prefix)
 
         # Load with different batches.
-        tmp_adata = synthetic_iid(run_setup_anndata=False)
+        tmp_adata = synthetic_iid()
         tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(
             ["batch_2", "batch_3"]
         )
@@ -668,7 +670,7 @@ def test_semisupervised_data_splitter():
 
 
 def test_scanvi(save_path):
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     SCANVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -740,7 +742,9 @@ def test_linear_scvi(save_path):
 
 
 def test_autozi():
-    data = synthetic_iid(n_batches=1, run_setup_anndata=False)
+    data = synthetic_iid(
+        n_batches=1,
+    )
     AUTOZI.setup_anndata(
         data,
         batch_key="batch",
@@ -782,7 +786,7 @@ def test_autozi():
 
 
 def test_totalvi(save_path):
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     TOTALVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -834,7 +838,7 @@ def test_totalvi(save_path):
     model.get_marginal_ll(indices=model.validation_indices, n_mc_samples=3)
     model.get_reconstruction_error(indices=model.validation_indices)
 
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     TOTALVI.setup_anndata(
         adata2,
         batch_key="batch",
@@ -856,11 +860,11 @@ def test_totalvi(save_path):
     model.get_feature_correlation_matrix(adata2)
 
     # test transfer_anndata_setup + view
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     model.get_elbo(adata2[:10])
 
     # test automatic transfer_anndata_setup
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     TOTALVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -868,36 +872,36 @@ def test_totalvi(save_path):
         protein_names_uns_key="protein_names",
     )
     model = TOTALVI(adata)
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     model.get_elbo(adata2)
 
     # test that we catch incorrect mappings
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     TOTALVI.setup_anndata(
         adata,
         batch_key="batch",
         protein_expression_obsm_key="protein_expression",
         protein_names_uns_key="protein_names",
     )
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"], inplace=True)
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
 
     # test that same mapping different order is okay
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     TOTALVI.setup_anndata(
         adata,
         batch_key="batch",
         protein_expression_obsm_key="protein_expression",
         protein_names_uns_key="protein_names",
     )
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"], inplace=True)
     model.get_elbo(adata2)  # should automatically transfer setup
 
     # test that we catch missing proteins
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     del adata2.obsm["protein_expression"]
     with pytest.raises(AssertionError):
         model.get_elbo(adata2)
@@ -909,7 +913,8 @@ def test_totalvi(save_path):
 
     # test with missing proteins
     adata = scvi.data.pbmcs_10x_cite_seq(
-        save_path=save_path, protein_join="outer", run_setup_anndata=False
+        save_path=save_path,
+        protein_join="outer",
     )
     TOTALVI.setup_anndata(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
@@ -924,7 +929,7 @@ def test_totalvi(save_path):
 
 
 def test_totalvi_model_library_size(save_path):
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     TOTALVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -977,7 +982,7 @@ def test_multiple_covariates_scvi(save_path):
 
 
 def test_peakvi():
-    data = synthetic_iid(run_setup_anndata=False)
+    data = synthetic_iid()
     PEAKVI.setup_anndata(
         data,
         batch_key="batch",
@@ -1008,7 +1013,9 @@ def test_peakvi():
 
 
 def test_condscvi(save_path):
-    dataset = synthetic_iid(n_labels=5, run_setup_anndata=False)
+    dataset = synthetic_iid(
+        n_labels=5,
+    )
     CondSCVI.setup_anndata(
         dataset,
         "labels",
@@ -1058,7 +1065,7 @@ def test_destvi(save_path):
 
 
 def test_multivi():
-    data = synthetic_iid(run_setup_anndata=False)
+    data = synthetic_iid()
     MULTIVI.setup_anndata(
         data,
         batch_key="batch",
@@ -1087,9 +1094,7 @@ def test_multivi():
 def test_early_stopping():
     n_epochs = 100
 
-    adata = synthetic_iid(
-        run_setup_anndata=False,
-    )
+    adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
         batch_key="batch",

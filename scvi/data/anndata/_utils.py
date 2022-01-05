@@ -2,6 +2,7 @@ import logging
 import warnings
 from copy import deepcopy
 from typing import Dict, List, Optional, Union
+from uuid import uuid4
 
 import anndata
 import numpy as np
@@ -151,7 +152,7 @@ def setup_anndata(
     >>> import scanpy as sc
     >>> import scvi
     >>> import numpy as np
-    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> adata = scvi.data.synthetic_iid()
     >>> adata
     AnnData object with n_obs × n_vars = 400 × 100
         obs: 'batch', 'labels'
@@ -174,7 +175,7 @@ def setup_anndata(
 
     Example setting up scanpy dataset with random gene data, batch, and protein expression
 
-    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> adata = scvi.data.synthetic_iid()
     >>> scvi.data.setup_anndata(adata, batch_key='batch', protein_expression_obsm_key='protein_expression')
     INFO      Using batches from adata.obs["batch"]
     INFO      No label_key inputted, assuming all cells have same label
@@ -924,7 +925,9 @@ def _setup_summary_stats(
     return summary_stats
 
 
-def _register_anndata(adata, data_registry_dict: Dict[str, Dict[str, str]]):
+def _register_anndata(
+    adata: anndata.AnnData, data_registry_dict: Dict[str, Dict[str, str]]
+):
     """
     Registers the AnnData object by adding data_registry_dict to adata.uns['_scvi']['data_registry'].
 
@@ -943,3 +946,13 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Dict[str, str]]):
     >>> _register_anndata(adata, data_dict)
     """
     adata.uns["_scvi"]["data_registry"] = deepcopy(data_registry_dict)
+
+
+def _assign_adata_uuid(adata: anndata.AnnData, overwrite: bool = False) -> None:
+    """
+    Assigns a UUID unique to the AnnData object.
+
+    If already present, the UUID is left alone, unless ``overwrite == True``.
+    """
+    if _constants._SCVI_UUID_KEY not in adata.uns or overwrite:
+        adata.uns[_constants._SCVI_UUID_KEY] = str(uuid4())
