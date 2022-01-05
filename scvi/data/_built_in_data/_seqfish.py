@@ -38,8 +38,6 @@ def _load_seqfishplus(
     adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
     adata.obs["labels"] = np.zeros(adata.shape[0], dtype=np.int64)
 
-    # if run_setup_anndata:
-    #     _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 
@@ -76,8 +74,6 @@ def _load_seqfish(save_path: str = "data/") -> anndata.AnnData:
     adata = _load_seqfish_data(os.path.join(save_path, save_fn))
     adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
     adata.obs["labels"] = np.zeros(adata.shape[0], dtype=np.int64)
-    # if run_setup_anndata:
-    #     _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 

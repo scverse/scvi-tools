@@ -30,8 +30,6 @@ def _load_brainlarge_dataset(
         n_genes_to_keep=n_genes_to_keep,
         loading_batch_size=loading_batch_size,
     )
-    # if run_setup_anndata:
-    #     _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 

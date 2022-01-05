@@ -45,9 +45,4 @@ def _load_heart_cell_atlas_subsampled(
         keep = [c not in remove for c in dataset.obs.cell_type.values]
         dataset = dataset[keep, :].copy()
 
-    # if run_setup_anndata:
-    #     _setup_anndata(
-    #         dataset,
-    #     )
-
     return dataset

@@ -41,9 +41,6 @@ def _load_purified_pbmc_dataset(
         row_indices = np.concatenate(row_indices)
         adata = adata[row_indices].copy()
 
-    # if run_setup_anndata:
-    #     _setup_anndata(adata, batch_key="batch", labels_key="labels")
-
     return adata
 
 
@@ -122,6 +119,4 @@ def _load_pbmc_dataset(
 
     adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata.X, axis=0)))
 
-    # if run_setup_anndata:
-    #     _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
