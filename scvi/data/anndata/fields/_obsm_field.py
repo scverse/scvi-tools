@@ -99,12 +99,10 @@ class ObsmField(BaseObsmField):
             )
             column_names = list(obsm_data.columns)
         elif self.colnames_uns_key is not None:
-            logger.info(
-                f"Using protein names from adata.uns['{self.colnames_uns_key}']"
-            )
+            logger.info(f"Using column names from adata.uns['{self.colnames_uns_key}']")
             column_names = adata.uns[self.colnames_uns_key]
         else:
-            logger.info("Generating sequential protein names")
+            logger.info("Generating sequential column names")
             column_names = np.arange(obsm_data.shape[1])
         return column_names
 
@@ -120,12 +118,21 @@ class ObsmField(BaseObsmField):
     ) -> dict:
         super().transfer_field(state_registry, adata_target, **kwargs)
         self.validate_field(adata_target)
-        source_n_cols = len(state_registry[self.COLUMN_NAMES_KEY])
-        target_n_cols = self.get_field(adata_target).shape[1]
-        assert source_n_cols == target_n_cols, (
-            f"Target adata.obsm['{self.attr_key}'] has {target_n_cols} which does not match "
-            "the source adata.obsm['{self.attr_key}'] column count of {source_n_cols}."
-        )
+        source_cols = state_registry[self.COLUMN_NAMES_KEY]
+        target_data = self.get_field(adata_target)
+        if len(source_cols) != target_data.shape[1]:
+            raise ValueError(
+                f"Target adata.obsm['{self.attr_key}'] has {target_data.shape[1]} which does not match "
+                f"the source adata.obsm['{self.attr_key}'] column count of {len(source_cols)}."
+            )
+
+        if isinstance(target_data, pd.DataFrame) and source_cols != list(
+            target_data.columns
+        ):
+            raise ValueError(
+                f"Target adata.obsm['{self.attr_key}'] column names do not match "
+                f"the source adata.obsm['{self.attr_key}'] column names."
+            )
 
         return {self.COLUMN_NAMES_KEY: state_registry[self.COLUMN_NAMES_KEY].copy()}
 

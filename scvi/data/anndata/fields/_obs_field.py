@@ -71,7 +71,7 @@ class CategoricalObsField(BaseObsField):
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
         if self._original_attr_key not in adata.obs:
-            raise AssertionError(f"{self._original_attr_key} not found in adata.obs.")
+            raise KeyError(f"{self._original_attr_key} not found in adata.obs.")
 
     def register_field(self, adata: AnnData) -> dict:
         if self.is_default:
