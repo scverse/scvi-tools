@@ -17,10 +17,6 @@ class BaseAnnDataField(ABC):
     to an attribute in an AnnData object.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.state_dict = dict()
-
     @property
     @abstractmethod
     def registry_key(self) -> str:
