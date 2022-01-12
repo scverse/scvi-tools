@@ -991,7 +991,15 @@ def test_multiple_covariates_scvi(save_path):
     m = SCVI(adata)
     m.train(1)
 
-    m = SCANVI(adata, unlabeled_category="Unknown")
+    SCANVI.setup_anndata(
+        adata,
+        "Unknown",
+        batch_key="batch",
+        labels_key="labels",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = SCANVI(adata)
     m.train(1)
 
     TOTALVI.setup_anndata(
