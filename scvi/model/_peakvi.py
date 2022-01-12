@@ -116,7 +116,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             n_latent=n_latent,
             n_layers_encoder=n_layers_encoder,
             n_layers_decoder=n_layers_decoder,
-            n_continuous_cov=self.summary_stats["n_extra_continuous_covs"],
+            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             n_cats_per_cov=n_cats_per_cov,
             dropout_rate=dropout_rate,
             model_depth=model_depth,

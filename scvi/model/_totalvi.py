@@ -165,7 +165,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             n_input_proteins=self.summary_stats["n_proteins"],
             n_batch=n_batch,
             n_latent=n_latent,
-            n_continuous_cov=self.summary_stats["n_extra_continuous_covs"],
+            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             n_cats_per_cov=n_cats_per_cov,
             gene_dispersion=gene_dispersion,
             protein_dispersion=protein_dispersion,

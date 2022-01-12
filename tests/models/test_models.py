@@ -60,13 +60,13 @@ LEGACY_SETUP_DICT = {
     "extra_continuous_keys": np.array(["cont1", "cont2"], dtype=object),
     "data_registry": {
         "X": {"attr_name": "X", "attr_key": None},
-        "batch": {"attr_name": "obs", "attr_key": "_scvi_batch"},
+        "batch_indices": {"attr_name": "obs", "attr_key": "_scvi_batch"},
         "labels": {"attr_name": "obs", "attr_key": "_scvi_labels"},
-        "extra_categorical_covs": {
+        "cat_covs": {
             "attr_name": "obsm",
             "attr_key": "_scvi_extra_categoricals",
         },
-        "extra_continuous_covs": {
+        "cont_covs": {
             "attr_name": "obsm",
             "attr_key": "_scvi_extra_continuous",
         },

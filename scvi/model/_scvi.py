@@ -110,7 +110,7 @@ class SCVI(
             n_input=self.summary_stats["n_vars"],
             n_batch=n_batch,
             n_labels=self.summary_stats["n_labels"],
-            n_continuous_cov=self.summary_stats["n_extra_continuous_covs"],
+            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
             n_latent=n_latent,
