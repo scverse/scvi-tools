@@ -37,75 +37,49 @@ from scvi.model import (
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager
 
-
-def test_new_setup_compat():
-    adata = synthetic_iid()
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata2 = adata.copy()
-    adata3 = adata.copy()
-    adata4 = adata.copy()
-    SCVI.old_setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        categorical_covariate_keys=["cat1", "cat2"],
-        continuous_covariate_keys=["cont1", "cont2"],
-    )
-
-    SCVI.setup_anndata(
-        adata2,
-        batch_key="batch",
-        labels_key="labels",
-        categorical_covariate_keys=["cat1", "cat2"],
-        continuous_covariate_keys=["cont1", "cont2"],
-    )
-    # Consistency with previous implementation.
-    assert adata.obsm["_scvi_extra_categoricals"].equals(
-        adata2.obsm["_scvi_extra_categorical_covs"]
-    )
-    assert adata.obsm["_scvi_extra_continuous"].equals(
-        adata2.obsm["_scvi_extra_continuous_covs"]
-    )
-
-    adata_manager = SCVI.manager_store[adata2.uns[_constants._SCVI_UUID_KEY]]
-
-    # Backwards compatibility test.
-    adata3_manager = manager_from_setup_dict(
-        SCVI, adata3, adata.uns[_constants._SETUP_DICT_KEY]
-    )
-    np.testing.assert_equal(
-        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
-        adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
-    )
-
-    # Test transfer.
-    adata4_manager = adata_manager.transfer_setup(adata4)
-    np.testing.assert_equal(
-        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
-        adata4_manager.registry[_constants._FIELD_REGISTRIES_KEY],
-    )
-
-
-def test_new_setup_train():
-    adata = synthetic_iid()
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        categorical_covariate_keys=["cat1", "cat2"],
-        continuous_covariate_keys=["cont1", "cont2"],
-    )
-
-    # Test train.
-    model = SCVI(adata, n_latent=5)
-    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+LEGACY_SETUP_DICT = {
+    "scvi_version": "0.0.0",
+    "categorical_mappings": {
+        "_scvi_batch": {
+            "original_key": "batch",
+            "mapping": np.array(["batch_0", "batch_1"], dtype=object),
+        },
+        "_scvi_labels": {
+            "original_key": "labels",
+            "mapping": np.array(["label_0", "label_1", "label_2"], dtype=object),
+        },
+    },
+    "extra_categoricals": {
+        "mappings": {
+            "cat1": np.array([0, 1, 2, 3, 4]),
+            "cat2": np.array([0, 1, 2, 3, 4]),
+        },
+        "keys": ["cat1", "cat2"],
+        "n_cats_per_key": [5, 5],
+    },
+    "extra_continuous_keys": np.array(["cont1", "cont2"], dtype=object),
+    "data_registry": {
+        "X": {"attr_name": "X", "attr_key": None},
+        "batch": {"attr_name": "obs", "attr_key": "_scvi_batch"},
+        "labels": {"attr_name": "obs", "attr_key": "_scvi_labels"},
+        "extra_categorical_covs": {
+            "attr_name": "obsm",
+            "attr_key": "_scvi_extra_categoricals",
+        },
+        "extra_continuous_covs": {
+            "attr_name": "obsm",
+            "attr_key": "_scvi_extra_continuous",
+        },
+    },
+    "summary_stats": {
+        "n_batch": 2,
+        "n_cells": 400,
+        "n_vars": 100,
+        "n_labels": 3,
+        "n_proteins": 0,
+        "n_continuous_covs": 2,
+    },
+}
 
 
 def test_scvi(save_path):
@@ -464,6 +438,39 @@ def test_saving_and_loading(save_path):
     # Test load prioritizes newer save paradigm and thus mismatches legacy save.
     with pytest.raises(AssertionError):
         test_save_load_scanvi(legacy=True)
+
+
+def test_new_setup_compat():
+    adata = synthetic_iid()
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata2 = adata.copy()
+    adata3 = adata.copy()
+
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
+    adata_manager = SCVI.manager_store[adata.uns[_constants._SCVI_UUID_KEY]]
+
+    # Backwards compatibility test.
+    adata2_manager = manager_from_setup_dict(SCVI, adata2, LEGACY_SETUP_DICT)
+    np.testing.assert_equal(
+        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        adata2_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+    )
+
+    # Test transfer.
+    adata3_manager = adata_manager.transfer_setup(adata3)
+    np.testing.assert_equal(
+        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+    )
 
 
 @pytest.mark.internet
