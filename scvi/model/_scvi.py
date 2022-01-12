@@ -6,7 +6,6 @@ from anndata import AnnData
 from scvi._compat import Literal
 from scvi._constants import _CONSTANTS
 from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata._utils import _setup_anndata
 from scvi.data.anndata.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -137,44 +136,6 @@ class SCVI(
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    @staticmethod
-    @setup_anndata_dsp.dedent
-    def old_setup_anndata(
-        adata: AnnData,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        layer: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
-        """
-        %(summary)s.
-
-        Parameters
-        ----------
-        %(param_adata)s
-        %(param_batch_key)s
-        %(param_labels_key)s
-        %(param_layer)s
-        %(param_cat_cov_keys)s
-        %(param_cont_cov_keys)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
-        """
-        return _setup_anndata(
-            adata,
-            batch_key=batch_key,
-            labels_key=labels_key,
-            layer=layer,
-            categorical_covariate_keys=categorical_covariate_keys,
-            continuous_covariate_keys=continuous_covariate_keys,
-            copy=copy,
-        )
 
     @classmethod
     @setup_anndata_dsp.dedent
