@@ -673,10 +673,11 @@ def test_scanvi(save_path):
     adata = synthetic_iid()
     SCANVI.setup_anndata(
         adata,
+        "label_0",
         batch_key="batch",
         labels_key="labels",
     )
-    model = SCANVI(adata, "label_0", n_latent=10)
+    model = SCANVI(adata, n_latent=10)
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     logged_keys = model.history.keys()
     assert "elbo_validation" in logged_keys
@@ -700,20 +701,29 @@ def test_scanvi(save_path):
     # test that all data labeled runs
     unknown_label = "asdf"
     a = scvi.data.synthetic_iid()
-    scvi.model.SCANVI.setup_anndata(a, batch_key="batch", labels_key="labels")
-    m = scvi.model.SCANVI(a, unknown_label)
+    scvi.model.SCANVI.setup_anndata(
+        a, unknown_label, batch_key="batch", labels_key="labels"
+    )
+    m = scvi.model.SCANVI(a)
     m.train(1)
 
     # test mix of labeled and unlabeled data
     unknown_label = "label_0"
     a = scvi.data.synthetic_iid()
-    scvi.model.SCANVI.setup_anndata(a, batch_key="batch", labels_key="labels")
-    m = scvi.model.SCANVI(a, unknown_label)
+    scvi.model.SCANVI.setup_anndata(
+        a, unknown_label, batch_key="batch", labels_key="labels"
+    )
+    m = scvi.model.SCANVI(a)
     m.train(1, train_size=0.9)
 
     # test from_scvi_model
     a = scvi.data.synthetic_iid()
-    m = scvi.model.SCVI(a, use_observed_lib_size=False)
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    m = SCVI(a, use_observed_lib_size=False)
     a2 = scvi.data.synthetic_iid()
     scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
     # make sure the state_dicts are different objects for the two models
