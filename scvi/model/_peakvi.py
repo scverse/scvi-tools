@@ -9,8 +9,15 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 
 from scvi._compat import Literal
+from scvi._constants import _CONSTANTS
 from scvi._utils import _doc_params
-from scvi.data.anndata._utils import _setup_anndata
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+)
 from scvi.model._utils import (
     _get_batch_code_from_category,
     scatac_raw_counts_properties,
@@ -95,8 +102,10 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         super(PEAKVI, self).__init__(adata)
 
         n_cats_per_cov = (
-            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
-            if "extra_categoricals" in self.scvi_setup_dict_
+            self.adata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY)[
+                CategoricalJointObsField.N_CATS_PER_KEY
+            ]
+            if _CONSTANTS.CAT_COVS_KEY in self.adata_manager.data_registry
             else []
         )
 
@@ -107,7 +116,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             n_latent=n_latent,
             n_layers_encoder=n_layers_encoder,
             n_layers_decoder=n_layers_decoder,
-            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_continuous_cov=self.summary_stats["n_extra_continuous_covs"],
             n_cats_per_cov=n_cats_per_cov,
             dropout_rate=dropout_rate,
             model_depth=model_depth,
@@ -338,6 +347,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             DataFrame includes regions names as columns.
         """
         adata = self._validate_anndata(adata)
+        adata_manager = self.get_anndata_manager(adata, required=True)
         if indices is None:
             indices = np.arange(adata.n_obs)
         if n_samples_overall is not None:
@@ -345,7 +355,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         post = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
-        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+        transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
 
         if region_list is None:
             region_mask = slice(None)
@@ -519,37 +529,41 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         return result
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
         batch_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        labels_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        layer: Optional[str] = None,
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
         %(param_batch_key)s
+        %(param_labels_key)s
         %(param_layer)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            batch_key=batch_key,
-            layer=layer,
-            categorical_covariate_keys=categorical_covariate_keys,
-            continuous_covariate_keys=continuous_covariate_keys,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
+            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            CategoricalJointObsField(
+                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
