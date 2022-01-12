@@ -6,11 +6,17 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from pandas.api.types import CategoricalDtype
 
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.data.anndata._utils import _make_obs_column_categorical, _setup_anndata
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LabelsWithUnlabeledObsField,
+    LayerField,
+    NumericalJointObsField,
+)
 from scvi.dataloaders import (
     AnnDataLoader,
     SemiSupervisedDataLoader,
@@ -38,8 +44,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     ----------
     adata
         AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
-    unlabeled_category
-        Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -85,7 +89,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
-        unlabeled_category: Union[str, int, float],
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -97,8 +100,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         super(SCANVI, self).__init__(adata)
         scanvae_model_kwargs = dict(model_kwargs)
 
-        self.unlabeled_category_ = unlabeled_category
-        has_unlabeled = self._set_indices_and_labels()
+        self._set_indices_and_labels()
 
         if len(self._labeled_indices) != 0:
             self._dl_cls = SemiSupervisedDataLoader
@@ -108,23 +110,27 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         # ignores unlabeled catgegory
         n_labels = (
             self.summary_stats["n_labels"] - 1
-            if has_unlabeled
+            if self.has_unlabeled
             else self.summary_stats["n_labels"]
         )
         n_cats_per_cov = (
-            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
-            if "extra_categoricals" in self.scvi_setup_dict_
+            self.adata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY)[
+                CategoricalJointObsField.N_CATS_PER_KEY
+            ]
+            if _CONSTANTS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
 
         n_batch = self.summary_stats["n_batch"]
-        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+        library_log_means, library_log_vars = _init_library_size(
+            self.adata_manager, n_batch
+        )
 
         self.module = SCANVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=n_batch,
             n_labels=n_labels,
-            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_continuous_cov=self.summary_stats["n_extra_continuous_covs"],
             n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
             n_latent=n_latent,
@@ -144,7 +150,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             "ScanVI Model with the following params: \nunlabeled_category: {}, n_hidden: {}, n_latent: {}"
             ", n_layers: {}, dropout_rate: {}, dispersion: {}, gene_likelihood: {}"
         ).format(
-            unlabeled_category,
+            self.unlabeled_category_,
             n_hidden,
             n_latent,
             n_layers,
@@ -208,48 +214,31 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     def _set_indices_and_labels(self):
         """
-        Set indices and make unlabeled cat as the last cat.
-
-        Returns
-        -------
-        True is categories reordered else False
+        Set indices for labeled and unlabeled cells.
         """
-        # get indices for labeled and unlabeled cells
-        key = self.scvi_setup_dict_["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
-        mapping = self.scvi_setup_dict_["categorical_mappings"][key]["mapping"]
-        original_key = self.scvi_setup_dict_["categorical_mappings"][key][
-            "original_key"
+        labels_state_registry = self.adata_manager.get_state_registry(
+            _CONSTANTS.LABELS_KEY
+        )
+        self.unlabeled_category_ = labels_state_registry[
+            LabelsWithUnlabeledObsField.UNLABELED_CATEGORY
         ]
-        labels = np.asarray(self.adata.obs[original_key]).ravel()
+        self.has_unlabeled = labels_state_registry[
+            LabelsWithUnlabeledObsField.WAS_REMAPPED
+        ]
 
-        if self.unlabeled_category_ in labels:
-            unlabeled_idx = np.where(mapping == self.unlabeled_category_)
-            unlabeled_idx = unlabeled_idx[0][0]
-            # move unlabeled category to be the last position
-            mapping[unlabeled_idx], mapping[-1] = mapping[-1], mapping[unlabeled_idx]
-            cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
-            # rerun setup for the batch column
-            _make_obs_column_categorical(
-                self.adata,
-                original_key,
-                "_scvi_labels",
-                categorical_dtype=cat_dtype,
-            )
-            remapped = True
-        else:
-            remapped = False
-
-        self.scvi_setup_dict_ = self.adata.uns["_scvi"]
-        self._label_mapping = mapping
+        labels = self.get_from_registry(self.adata, _CONSTANTS.LABELS_KEY)
+        self._label_mapping = labels_state_registry[
+            LabelsWithUnlabeledObsField.CATEGORICAL_MAPPING_KEY
+        ]
         # set unlabeled and labeled indices
         self._unlabeled_indices = np.argwhere(
             labels == self.unlabeled_category_
         ).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
-        self.original_label_key = original_key
-
-        return remapped
+        self.original_label_key = labels_state_registry[
+            LabelsWithUnlabeledObsField.ORIGINAL_ATTR_KEY
+        ]
 
     def predict(
         self,
@@ -367,7 +356,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
 
         data_splitter = SemiSupervisedDataSplitter(
-            adata=self.adata,
+            adata_manager=self.adata_manager,
             unlabeled_category=self.unlabeled_category_,
             train_size=train_size,
             validation_size=validation_size,
@@ -392,40 +381,44 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         return runner()
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
-        labels_key: str,
+        unlabeled_category: Union[str, int, float],
         batch_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        labels_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        layer: Optional[str] = None,
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
-        %(param_labels_key)s
         %(param_batch_key)s
+        %(param_labels_key)s
         %(param_layer)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            batch_key=batch_key,
-            labels_key=labels_key,
-            layer=layer,
-            categorical_covariate_keys=categorical_covariate_keys,
-            continuous_covariate_keys=continuous_covariate_keys,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
+            LabelsWithUnlabeledObsField(
+                _CONSTANTS.LABELS_KEY, labels_key, unlabeled_category
+            ),
+            CategoricalJointObsField(
+                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)

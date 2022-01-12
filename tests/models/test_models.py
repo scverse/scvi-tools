@@ -433,7 +433,7 @@ def test_saving_and_loading(save_path):
     # SCANVI
     def test_save_load_scanvi(legacy=False):
         prefix = "SCANVI_"
-        model = SCANVI(adata, "label_0")
+        model = SCANVI(adata)
         model.train(max_epochs=1, train_size=0.5)
         p1 = model.predict()
         if legacy:
@@ -457,7 +457,7 @@ def test_saving_and_loading(save_path):
         np.testing.assert_array_equal(p1, p2)
         assert model.is_trained is True
 
-    SCANVI.setup_anndata(batch_key="batch", labels_key="labels")
+    SCANVI.setup_anndata(adata, "label_0", batch_key="batch", labels_key="labels")
     test_save_load_scanvi(legacy=True)
     test_save_load_scanvi()
     # Test load prioritizes newer save paradigm and thus mismatches legacy save.

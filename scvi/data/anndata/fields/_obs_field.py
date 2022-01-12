@@ -86,6 +86,7 @@ class CategoricalObsField(BaseObsField):
     """
 
     CATEGORICAL_MAPPING_KEY = "categorical_mapping"
+    ORIGINAL_ATTR_KEY = "original_key"
 
     def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
         self.is_default = obs_key is None
@@ -114,7 +115,10 @@ class CategoricalObsField(BaseObsField):
         categorical_mapping = _make_obs_column_categorical(
             adata, self._original_attr_key, self.attr_key, return_mapping=True
         )
-        return {self.CATEGORICAL_MAPPING_KEY: categorical_mapping}
+        return {
+            self.CATEGORICAL_MAPPING_KEY: categorical_mapping,
+            self.ORIGINAL_ATTR_KEY: self._original_attr_key,
+        }
 
     def transfer_field(
         self,
@@ -150,7 +154,10 @@ class CategoricalObsField(BaseObsField):
             categorical_dtype=cat_dtype,
             return_mapping=True,
         )
-        return {self.CATEGORICAL_MAPPING_KEY: new_mapping}
+        return {
+            self.CATEGORICAL_MAPPING_KEY: new_mapping,
+            self.ORIGINAL_ATTR_KEY: self._original_attr_key,
+        }
 
     def get_summary_stats(self, state_registry: dict) -> dict:
         categorical_mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]

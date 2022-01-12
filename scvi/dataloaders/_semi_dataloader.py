@@ -4,6 +4,7 @@ import numpy as np
 
 from scvi import _CONSTANTS
 from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import LabelsWithUnlabeledObsField
 
 from ._concat_dataloader import ConcatDataLoader
 
@@ -58,17 +59,16 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
         self.n_samples_per_label = n_samples_per_label
 
-        key = adata_manager.get_data_registry()[_CONSTANTS.LABELS_KEY]["attr_key"]
-        labels_obs_key = adata_manager.get_setup_dict()["categorical_mappings"][key][
-            "original_key"
+        labels_obs_key = adata_manager.get_state_registry(_CONSTANTS.LABELS_KEY)[
+            LabelsWithUnlabeledObsField.ORIGINAL_ATTR_KEY
         ]
+        labels = np.asarray(adata_manager.adata.obs[labels_obs_key]).ravel()
 
         # save a nested list of the indices per labeled category
         self.labeled_locs = []
-        labels = np.unique(adata.obs[labels_obs_key][indices])
         for label in labels:
             if label != unlabeled_category:
-                label_loc_idx = np.where(adata.obs[labels_obs_key][indices] == label)[0]
+                label_loc_idx = np.where(labels[indices] == label)[0]
                 label_loc = indices[label_loc_idx]
                 self.labeled_locs.append(label_loc)
         labelled_idx = self.subsample_labels()
