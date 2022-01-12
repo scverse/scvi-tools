@@ -84,7 +84,7 @@ class BayesianRegressionPyroModel(PyroModule):
     def _get_fn_args_from_batch(tensor_dict):
         x = tensor_dict[_CONSTANTS.X_KEY]
         y = tensor_dict[_CONSTANTS.LABELS_KEY]
-        ind_x = tensor_dict["ind_x"].long().squeeze()
+        ind_x = tensor_dict[_CONSTANTS.INDICES_KEY].long().squeeze()
         return (x, y, ind_x), {}
 
     def forward(self, x, y, ind_x):
@@ -162,7 +162,7 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         anndata_fields = [
             LayerField(_CONSTANTS.X_KEY, None, is_count_data=True),
             CategoricalObsField(_CONSTANTS.LABELS_KEY, None),
-            NumericalObsField("ind_x", "_indices"),
+            NumericalObsField(_CONSTANTS.INDICES_KEY, "_indices"),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
@@ -177,7 +177,7 @@ def _create_indices_adata_manager(adata: AnnData) -> AnnDataManager:
     anndata_fields = [
         LayerField(_CONSTANTS.X_KEY, None, is_count_data=True),
         CategoricalObsField(_CONSTANTS.LABELS_KEY, None),
-        NumericalObsField("ind_x", "_indices"),
+        NumericalObsField(_CONSTANTS.INDICES_KEY, "_indices"),
     ]
     adata_manager = AnnDataManager(fields=anndata_fields)
     adata_manager.register_fields(adata)

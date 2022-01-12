@@ -8,6 +8,7 @@ class _CONSTANTS_NT(NamedTuple):
     PROTEIN_EXP_KEY: str = "proteins"
     CAT_COVS_KEY: str = "extra_categorical_covs"
     CONT_COVS_KEY: str = "extra_continuous_covs"
+    INDICES_KEY: str = "ind_x"
 
 
 _CONSTANTS = _CONSTANTS_NT()

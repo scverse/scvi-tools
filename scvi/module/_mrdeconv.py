@@ -140,7 +140,7 @@ class MRDeconv(BaseModuleClass):
 
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[_CONSTANTS.X_KEY]
-        ind_x = tensors["ind_x"].long()
+        ind_x = tensors[_CONSTANTS.X_KEY].long()
 
         input_dict = dict(x=x, ind_x=ind_x)
         return input_dict
