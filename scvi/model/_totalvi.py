@@ -24,7 +24,6 @@ from scvi.data.anndata.fields import (
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
-    _get_var_names_from_setup_anndata,
     _init_library_size,
     cite_seq_raw_counts_properties,
 )
@@ -757,7 +756,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         col_names = np.concatenate(
             [
-                np.asarray(_get_var_names_from_setup_anndata(adata)),
+                np.asarray(adata.var_names),
                 self.protein_state_registry[ProteinObsmField.COLUMN_NAMES_KEY],
             ]
         )
@@ -827,7 +826,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = _get_var_names_from_setup_anndata(adata)
+            all_genes = adata.var_names
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
         if protein_list is None:
             protein_mask = slice(None)
@@ -1021,7 +1020,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             corr_mats.append(corr_matrix)
 
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
-        var_names = _get_var_names_from_setup_anndata(adata)
+        var_names = adata.var_names
         names = np.concatenate(
             [
                 np.asarray(var_names),

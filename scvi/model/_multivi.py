@@ -16,7 +16,6 @@ from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
-    _get_var_names_from_setup_anndata,
     scatac_raw_counts_properties,
     scrna_raw_counts_properties,
 )
@@ -689,7 +688,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         """
         adata = self._validate_anndata(adata)
-        col_names = _get_var_names_from_setup_anndata(adata)[self.n_genes :]
+        col_names = adata.var_names[self.n_genes :]
         model_fn = partial(
             self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
         )
@@ -790,7 +789,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """
         adata = self._validate_anndata(adata)
 
-        col_names = _get_var_names_from_setup_anndata(adata)[: self.n_genes]
+        col_names = adata.var_names[: self.n_genes]
         model_fn = partial(
             self.get_normalized_expression,
             batch_size=batch_size,

@@ -13,11 +13,7 @@ from scvi import _CONSTANTS
 from scvi.data.anndata import transfer_anndata_setup
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import (
-    _get_var_names_from_setup_anndata,
-    _init_library_size,
-    parse_use_gpu_arg,
-)
+from scvi.model._utils import _init_library_size, parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
 from scvi.utils import setup_anndata_dsp
@@ -91,8 +87,8 @@ class GIMVI(VAEMixin, BaseModelClass):
             "spatial": adata_spatial.uns["_scvi"],
         }
 
-        seq_var_names = _get_var_names_from_setup_anndata(adata_seq)
-        spatial_var_names = _get_var_names_from_setup_anndata(adata_spatial)
+        seq_var_names = adata_seq.var_names
+        spatial_var_names = adata_spatial.var_names
 
         if not set(spatial_var_names) <= set(seq_var_names):
             raise ValueError("spatial genes needs to be subset of seq genes")

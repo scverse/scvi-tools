@@ -13,7 +13,6 @@ from scvi._utils import _doc_params
 from scvi.data.anndata._utils import _setup_anndata
 from scvi.model._utils import (
     _get_batch_code_from_category,
-    _get_var_names_from_setup_anndata,
     scatac_raw_counts_properties,
 )
 from scvi.model.base import UnsupervisedTrainingMixin
@@ -351,7 +350,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if region_list is None:
             region_mask = slice(None)
         else:
-            all_regions = _get_var_names_from_setup_anndata(adata)
+            all_regions = adata.var_names
             region_mask = [region in region_list for region in all_regions]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
@@ -462,7 +461,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         """
         adata = self._validate_anndata(adata)
-        col_names = _get_var_names_from_setup_anndata(adata)
+        col_names = adata.var_names
         model_fn = partial(
             self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
         )
