@@ -35,6 +35,7 @@ from scvi.model import (
     LinearSCVI,
 )
 from scvi.train import TrainingPlan, TrainRunner
+from tests.dataset.utils import generic_setup_adata_manager
 
 
 def test_new_setup_compat():
@@ -505,29 +506,35 @@ def test_backed_anndata_scvi(save_path):
 
 def test_ann_dataloader():
     a = scvi.data.synthetic_iid()
+    adata_manager = generic_setup_adata_manager(
+        a, batch_key="batch", labels_key="labels"
+    )
 
     # test that batch sampler drops the last batch if it has less than 3 cells
     assert a.n_obs == 400
-    adl = AnnDataLoader(a, batch_size=397, drop_last=3)
+    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=3)
     assert len(adl) == 2
     for i, x in enumerate(adl):
         pass
     assert i == 1
-    adl = AnnDataLoader(a, batch_size=398, drop_last=3)
+    adl = AnnDataLoader(adata_manager, batch_size=398, drop_last=3)
     assert len(adl) == 1
     for i, x in enumerate(adl):
         pass
     assert i == 0
     with pytest.raises(ValueError):
-        AnnDataLoader(a, batch_size=1, drop_last=2)
+        AnnDataLoader(adata_manager, batch_size=1, drop_last=2)
 
 
 def test_semisupervised_dataloader():
     # test label resampling
     n_samples_per_label = 10
     a = synthetic_iid()
+    adata_manager = generic_setup_adata_manager(
+        a, batch_key="batch", labels_key="labels"
+    )
     dl = SemiSupervisedDataLoader(
-        a,
+        adata_manager,
         indices=np.arange(a.n_obs),
         unlabeled_category="label_0",
         n_samples_per_label=n_samples_per_label,
@@ -544,8 +551,11 @@ def test_semisupervised_dataloader():
 
 def test_data_splitter():
     a = synthetic_iid()
+    adata_manager = generic_setup_adata_manager(
+        a, batch_key="batch", labels_key="labels"
+    )
     # test leaving validataion_size empty works
-    ds = DataSplitter(a, train_size=0.4)
+    ds = DataSplitter(adata_manager, train_size=0.4)
     ds.setup()
     # check the number of indices
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
@@ -559,7 +569,7 @@ def test_data_splitter():
     assert np.isclose(n_test_idx / a.n_obs, 0)
 
     # test test size
-    ds = DataSplitter(a, train_size=0.4, validation_size=0.3)
+    ds = DataSplitter(adata_manager, train_size=0.4, validation_size=0.3)
     ds.setup()
     # check the number of indices
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
@@ -574,27 +584,27 @@ def test_data_splitter():
 
     # test that 0 < train_size <= 1
     with pytest.raises(ValueError):
-        ds = DataSplitter(a, train_size=2)
+        ds = DataSplitter(adata_manager, train_size=2)
         ds.setup()
         ds.train_dataloader()
     with pytest.raises(ValueError):
-        ds = DataSplitter(a, train_size=-2)
+        ds = DataSplitter(adata_manager, train_size=-2)
         ds.setup()
         ds.train_dataloader()
 
     # test that 0 <= validation_size < 1
     with pytest.raises(ValueError):
-        ds = DataSplitter(a, train_size=0.1, validation_size=1)
+        ds = DataSplitter(adata_manager, train_size=0.1, validation_size=1)
         ds.setup()
         ds.val_dataloader()
     with pytest.raises(ValueError):
-        ds = DataSplitter(a, train_size=0.1, validation_size=-1)
+        ds = DataSplitter(adata_manager, train_size=0.1, validation_size=-1)
         ds.setup()
         ds.val_dataloader()
 
     # test that train_size + validation_size <= 1
     with pytest.raises(ValueError):
-        ds = DataSplitter(a, train_size=1, validation_size=0.1)
+        ds = DataSplitter(adata_manager, train_size=1, validation_size=0.1)
         ds.setup()
         ds.train_dataloader()
         ds.val_dataloader()
@@ -602,8 +612,10 @@ def test_data_splitter():
 
 def test_device_backed_data_splitter():
     a = synthetic_iid()
+    SCVI.setup_anndata(a, batch_key="batch", labels_key="labels")
+    adata_manager = SCVI.get_anndata_manager(a)
     # test leaving validataion_size empty works
-    ds = DeviceBackedDataSplitter(a, train_size=1.0, use_gpu=None)
+    ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0, use_gpu=None)
     ds.setup()
     train_dl = ds.train_dataloader()
     ds.val_dataloader()
@@ -625,7 +637,10 @@ def test_device_backed_data_splitter():
 
 def test_semisupervised_data_splitter():
     a = synthetic_iid()
-    ds = SemiSupervisedDataSplitter(a, "asdf")
+    adata_manager = generic_setup_adata_manager(
+        a, batch_key="batch", labels_key="labels"
+    )
+    ds = SemiSupervisedDataSplitter(adata_manager, "asdf")
     ds.setup()
     # check the number of indices
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
@@ -640,7 +655,7 @@ def test_semisupervised_data_splitter():
 
     # test mix of labeled and unlabeled data
     unknown_label = "label_0"
-    ds = SemiSupervisedDataSplitter(a, unknown_label)
+    ds = SemiSupervisedDataSplitter(adata_manager, unknown_label)
     ds.setup()
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
 

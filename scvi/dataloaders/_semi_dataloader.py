@@ -66,7 +66,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
         # save a nested list of the indices per labeled category
         self.labeled_locs = []
-        for label in labels:
+        for label in np.unique(labels):
             if label != unlabeled_category:
                 label_loc_idx = np.where(labels[indices] == label)[0]
                 label_loc = indices[label_loc_idx]
