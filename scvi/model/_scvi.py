@@ -3,8 +3,8 @@ from typing import List, Optional
 
 from anndata import AnnData
 
+from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi._constants import _CONSTANTS
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import (
     CategoricalJointObsField,
