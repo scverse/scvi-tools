@@ -242,7 +242,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         size_factor_key
             key in `adata.obs` with continuous valued size factors.
         %(param_batch_key)s
-        %(param_labels_key)s
         %(param_layer)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
