@@ -9,6 +9,7 @@ class _CONSTANTS_NT(NamedTuple):
     CAT_COVS_KEY: str = "extra_categorical_covs"
     CONT_COVS_KEY: str = "extra_continuous_covs"
     INDICES_KEY: str = "ind_x"
+    SIZE_FACTOR_KEY: str = "size_factor"
 
 
 _CONSTANTS = _CONSTANTS_NT()

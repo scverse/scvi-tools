@@ -8,8 +8,14 @@ from anndata import AnnData
 from pytorch_lightning.callbacks import Callback
 
 from scvi import _CONSTANTS
-from scvi.data.anndata import register_tensor_from_anndata
-from scvi.data.anndata._utils import _setup_anndata
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+    NumericalObsField,
+)
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
@@ -72,8 +78,10 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         self.cell_type_markers = cell_type_markers
         rho = torch.Tensor(cell_type_markers.to_numpy())
         n_cats_per_cov = (
-            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
-            if "extra_categoricals" in self.scvi_setup_dict_
+            self.adata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY)[
+                CategoricalJointObsField.N_CATS_PER_KEY
+            ]
+            if _CONSTANTS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
 
@@ -93,7 +101,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             b_g_0=col_means_normalized,
             n_batch=self.summary_stats["n_batch"],
             n_cats_per_cov=n_cats_per_cov,
-            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -197,7 +205,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
         data_splitter = DataSplitter(
-            self.adata,
+            self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
@@ -214,50 +222,46 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         )
         return runner()
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
         size_factor_key: str,
         batch_key: Optional[str] = None,
-        layer: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        layer: Optional[str] = None,
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
         size_factor_key
             key in `adata.obs` with continuous valued size factors.
         %(param_batch_key)s
+        %(param_labels_key)s
         %(param_layer)s
         %(param_cat_cov_keys)s
-        %(param_cat_cov_keys)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
+        %(param_cont_cov_keys)s
         """
-        setup_data = _setup_anndata(
-            adata,
-            batch_key=batch_key,
-            layer=layer,
-            categorical_covariate_keys=categorical_covariate_keys,
-            continuous_covariate_keys=continuous_covariate_keys,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+            NumericalObsField(_CONSTANTS.SIZE_FACTOR_KEY, size_factor_key),
+            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
+            CategoricalJointObsField(
+                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
-        register_tensor_from_anndata(
-            adata if setup_data is None else setup_data,
-            "_size_factor",
-            "obs",
-            size_factor_key,
-        )
-        return setup_data
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
 
 
 class ClampCallback(Callback):
