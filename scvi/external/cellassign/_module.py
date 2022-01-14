@@ -111,7 +111,7 @@ class CellAssignModule(BaseModuleClass):
 
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[_CONSTANTS.X_KEY]
-        size_factor = tensors["_size_factor"]
+        size_factor = tensors[_CONSTANTS.SIZE_FACTOR_KEY]
 
         to_cat = []
         if self.n_batch > 0:

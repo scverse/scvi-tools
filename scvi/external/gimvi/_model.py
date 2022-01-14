@@ -10,8 +10,14 @@ from anndata import AnnData
 from torch.utils.data import DataLoader
 
 from scvi import _CONSTANTS
-from scvi.data.anndata import transfer_anndata_setup
-from scvi.data.anndata._utils import _setup_anndata
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata._compat import manager_from_setup_dict
+from scvi.data.anndata._constants import (
+    _DR_ATTR_KEY,
+    _MODEL_NAME_KEY,
+    _SETUP_KWARGS_KEY,
+)
+from scvi.data.anndata.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, VAEMixin
@@ -82,10 +88,11 @@ class GIMVI(VAEMixin, BaseModelClass):
     ):
         super(GIMVI, self).__init__()
         self.adatas = [adata_seq, adata_spatial]
-        self.scvi_setup_dicts_ = {
-            "seq": adata_seq.uns["_scvi"],
-            "spatial": adata_spatial.uns["_scvi"],
+        self.adata_managers = {
+            "seq": self.get_anndata_manager(adata_seq, required=True),
+            "spatial": self.get_anndata_manager(adata_spatial, required=True),
         }
+        self.registries_ = [adm.registry for adm in self.adata_managers.values()]
 
         seq_var_names = adata_seq.var_names
         spatial_var_names = adata_spatial.var_names
@@ -98,23 +105,27 @@ class GIMVI(VAEMixin, BaseModelClass):
         ]
         spatial_gene_loc = np.concatenate(spatial_gene_loc)
         gene_mappings = [slice(None), spatial_gene_loc]
-        sum_stats = [d.uns["_scvi"]["summary_stats"] for d in self.adatas]
+        sum_stats = [adm.summary_stats for adm in self.adata_managers.values()]
         n_inputs = [s["n_vars"] for s in sum_stats]
 
-        total_genes = adata_seq.uns["_scvi"]["summary_stats"]["n_vars"]
+        total_genes = n_inputs[0]
 
         # since we are combining datasets, we need to increment the batch_idx
         # of one of the datasets
-        adata_seq_n_batches = adata_seq.uns["_scvi"]["summary_stats"]["n_batch"]
-        adata_spatial.obs["_scvi_batch"] += adata_seq_n_batches
+        adata_seq_n_batches = sum_stats[0]["n_batch"]
+        adata_spatial.obs[
+            self.adata_managers["spatial"].data_registry[_CONSTANTS.BATCH_KEY][
+                _DR_ATTR_KEY
+            ]
+        ] += adata_seq_n_batches
 
         n_batches = sum(s["n_batch"] for s in sum_stats)
 
         library_log_means = []
         library_log_vars = []
-        for adata in self.adatas:
+        for adata_manager in self.adata_managers.values():
             adata_library_log_means, adata_library_log_vars = _init_library_size(
-                adata, n_batches
+                adata_manager, n_batches
             )
             library_log_means.append(adata_library_log_means)
             library_log_vars.append(adata_library_log_vars)
@@ -184,9 +195,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         )
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
         train_dls, test_dls, val_dls = [], [], []
-        for i, ad in enumerate(self.adatas):
+        for i, adm in enumerate(self.adata_managers.values()):
             ds = DataSplitter(
-                ad,
+                adm,
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
@@ -491,9 +502,32 @@ class GIMVI(VAEMixin, BaseModelClass):
                     "need to be the same and in the same order as the adata used to train the model."
                 )
 
-        scvi_setup_dicts = attr_dict.pop("scvi_setup_dicts_")
-        transfer_anndata_setup(scvi_setup_dicts["seq"], adata_seq)
-        transfer_anndata_setup(scvi_setup_dicts["spatial"], adata_spatial)
+        if "scvi_setup_dicts_" in attr_dict:
+            scvi_setup_dicts = attr_dict.pop("scvi_setup_dicts_")
+            for adata, scvi_setup_dict in zip(adatas, scvi_setup_dicts):
+                cls.register_manager(
+                    manager_from_setup_dict(cls, adata, scvi_setup_dict)
+                )
+        else:
+            registries = attr_dict.pop("registries_")
+            for adata, registry in zip(adatas, registries):
+                if (
+                    _MODEL_NAME_KEY in registry
+                    and registry[_MODEL_NAME_KEY] != cls.__name__
+                ):
+                    raise ValueError(
+                        "It appears you are loading a model from a different class."
+                    )
+
+                if _SETUP_KWARGS_KEY not in registry:
+                    raise ValueError(
+                        "Saved model does not contain original setup inputs. "
+                        "Cannot load the original setup."
+                    )
+
+                cls.setup_anndata(
+                    adata, source_registry=registry, **registry[_SETUP_KWARGS_KEY]
+                )
 
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
@@ -523,34 +557,36 @@ class GIMVI(VAEMixin, BaseModelClass):
         model.to_device(device)
         return model
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        layer: Optional[str] = None,
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
+        %(param_layer)s
         """
-        return _setup_anndata(
-            adata,
-            batch_key=batch_key,
-            labels_key=labels_key,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
+            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
 
 
 class TrainDL(DataLoader):

@@ -64,7 +64,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     deeply_inject_covariates
         Whether to deeply inject covariates into all layers of the decoder. If False (default),
-        covairates will only be included in the input layer.
+        covariates will only be included in the input layer.
     **model_kwargs
         Keyword args for :class:`~scvi.module.PEAKVAE`
 
