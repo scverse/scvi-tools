@@ -111,6 +111,16 @@ def test_saving_and_loading(save_path):
 def test_gimvi():
     adata_seq = synthetic_iid()
     adata_spatial = synthetic_iid()
+    GIMVI.setup_anndata(
+        adata_seq,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    GIMVI.setup_anndata(
+        adata_spatial,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = GIMVI(adata_seq, adata_spatial, n_latent=10)
     assert hasattr(model.module, "library_log_means_0") and not hasattr(
         model.module, "library_log_means_1"
@@ -120,6 +130,11 @@ def test_gimvi():
     model.get_imputed_values()
 
     adata_spatial.var_names += "asdf"
+    GIMVI.setup_anndata(
+        adata_spatial,
+        batch_key="batch",
+        labels_key="labels",
+    )
     with pytest.raises(ValueError):
         model = GIMVI(adata_seq, adata_spatial)
 
@@ -127,6 +142,16 @@ def test_gimvi():
 def test_gimvi_model_library_size():
     adata_seq = synthetic_iid()
     adata_spatial = synthetic_iid()
+    GIMVI.setup_anndata(
+        adata_seq,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    GIMVI.setup_anndata(
+        adata_spatial,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = GIMVI(
         adata_seq, adata_spatial, model_library_size=[True, True], n_latent=10
     )

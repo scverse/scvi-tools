@@ -504,6 +504,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Must be called with ``**locals()`` at the start of the ``setup_anndata`` method
         to avoid the inclusion of any extraneous variables.
         """
+        setup_locals.pop("adata")
         cls = setup_locals.pop("cls")
         model_name = cls.__name__
         setup_kwargs = dict()

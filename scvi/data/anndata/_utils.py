@@ -44,50 +44,6 @@ def get_anndata_attribute(
     return field
 
 
-def get_from_registry(
-    adata: anndata.AnnData, key: str
-) -> Union[np.ndarray, pd.DataFrame]:
-    """
-    Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``.
-
-    Parameters
-    ----------
-    adata
-        anndata object already setup with setup_anndata
-    key
-        key of object to get from ``adata.uns['_scvi]['data_registry']``
-
-    Returns
-    -------
-    The requested data
-
-    Examples
-    --------
-    >>> import scvi
-    >>> adata = scvi.data.cortex()
-    >>> adata.uns['_scvi']['data_registry']
-    {'X': ['_X', None],
-    'batch': ['obs', 'batch'],
-    'labels': ['obs', 'labels']}
-    >>> batch = get_from_registry(adata, "batch")
-    >>> batch
-    array([[0],
-           [0],
-           [0],
-           ...,
-           [0],
-           [0],
-           [0]])
-    """
-    data_loc = adata.uns[_constants._SETUP_DICT_KEY][_constants._DATA_REGISTRY_KEY][key]
-    attr_name, attr_key = (
-        data_loc[_constants._DR_ATTR_NAME],
-        data_loc[_constants._DR_ATTR_KEY],
-    )
-
-    return get_anndata_attribute(adata, attr_name, attr_key)
-
-
 @deprecated(
     extra="Please use the model-specific setup_anndata methods instead. The global method will be removed in version 0.15.0."
 )

@@ -10,7 +10,9 @@ import torch
 from anndata import AnnData
 
 from scvi import _CONSTANTS
-from scvi.data.anndata._utils import _setup_anndata, transfer_anndata_setup
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata._constants import _DR_ATTR_KEY, _DR_ATTR_NAME
+from scvi.data.anndata.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
@@ -126,15 +128,17 @@ class SOLO(BaseModelClass):
         SOLO model
         """
         _validate_scvi_model(scvi_model, restrict_to_batch=restrict_to_batch)
-        orig_adata = scvi_model.adata
-        orig_batch_key = scvi_model.scvi_setup_dict_["categorical_mappings"][
-            "_scvi_batch"
-        ]["original_key"]
+        orig_adata_manager = scvi_model.adata_manager
+        orig_batch_key = orig_adata_manager.get_state_registry(_CONSTANTS.BATCH_KEY)[
+            CategoricalObsField.ORIGINAL_ATTR_KEY
+        ]
 
         if adata is not None:
-            transfer_anndata_setup(orig_adata, adata)
+            cls.register_manager(orig_adata_manager.transfer_setup(adata))
+            adata_manager = cls.get_anndata_manager(adata)
         else:
-            adata = orig_adata
+            adata_manager = orig_adata_manager
+        adata = adata_manager.adata
 
         if restrict_to_batch is not None:
             batch_mask = adata.obs[orig_batch_key] == restrict_to_batch
@@ -153,7 +157,7 @@ class SOLO(BaseModelClass):
 
         # anndata with only generated doublets
         doublet_adata = cls.create_doublets(
-            adata, indices=batch_indices, doublet_ratio=doublet_ratio
+            adata_manager, indices=batch_indices, doublet_ratio=doublet_ratio
         )
         # if scvi wasn't trained with batch correction having the
         # zeros here does nothing.
@@ -196,9 +200,10 @@ class SOLO(BaseModelClass):
             cls.setup_anndata(full_adata, labels_key=LABELS_KEY)
         return cls(full_adata, **classifier_kwargs)
 
+    @classmethod
     def create_doublets(
-        self,
-        adata: AnnData,
+        cls,
+        adata_manager: AnnDataManager,
         doublet_ratio: int,
         indices: Optional[Sequence[int]] = None,
         seed: int = 1,
@@ -217,12 +222,12 @@ class SOLO(BaseModelClass):
         seed
             Seed for reproducibility
         """
+        adata = adata_manager.adata
         n_obs = adata.n_obs if indices is None else len(indices)
         num_doublets = doublet_ratio * n_obs
 
         # counts can be in many locations, this uses where it was registered in setup
-        adata = self._validate_anndata(adata)
-        x = self.get_from_registry(adata, _CONSTANTS.X_KEY)
+        x = adata_manager.get_from_registry(_CONSTANTS.X_KEY)
         if indices is not None:
             x = x[indices]
 
@@ -237,10 +242,10 @@ class SOLO(BaseModelClass):
         ]
 
         # if adata setup with a layer, need to add layer to doublets adata
-        data_registry = adata.uns["_scvi"]["data_registry"]
-        x_loc = data_registry[_CONSTANTS.X_KEY]["attr_name"]
+        data_registry = adata_manager.data_registry
+        x_loc = data_registry[_CONSTANTS.X_KEY][_DR_ATTR_NAME]
         layer = (
-            data_registry[_CONSTANTS.X_KEY]["attr_key"] if x_loc == "layers" else None
+            data_registry[_CONSTANTS.X_KEY][_DR_ATTR_KEY] if x_loc == "layers" else None
         )
         if layer is not None:
             doublets_ad.layers[layer] = doublets
@@ -322,7 +327,7 @@ class SOLO(BaseModelClass):
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
         data_splitter = DataSplitter(
-            self.adata,
+            self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
@@ -380,8 +385,8 @@ class SOLO(BaseModelClass):
 
         preds = y_pred[mask]
 
-        cols = self.adata.uns["_scvi"]["categorical_mappings"]["_scvi_labels"][
-            "mapping"
+        cols = self.adata_manager.get_state_registry(_CONSTANTS.LABELS_KEY)[
+            CategoricalObsField.CATEGORICAL_MAPPING_KEY
         ]
         preds_df = pd.DataFrame(preds, columns=cols, index=self.adata.obs_names[mask])
 
@@ -390,34 +395,33 @@ class SOLO(BaseModelClass):
 
         return preds_df
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
-        labels_key: str,
+        labels_key: Optional[str] = None,
         layer: Optional[str] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
         %(param_labels_key)s
         %(param_layer)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            labels_key=labels_key,
-            layer=layer,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
 
 
 def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):

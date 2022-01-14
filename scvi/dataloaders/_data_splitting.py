@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from scvi import _CONSTANTS, settings
 from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import LabelsWithUnlabeledObsField
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -212,10 +213,10 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
-        setup_dict = adata_manager.get_setup_dict()
-        key = setup_dict["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
-        original_key = setup_dict["categorical_mappings"][key]["original_key"]
-        labels = np.asarray(adata_manager.obs[original_key]).ravel()
+        original_key = adata_manager.get_state_registry(_CONSTANTS.LABELS_KEY)[
+            LabelsWithUnlabeledObsField.ORIGINAL_ATTR_KEY
+        ]
+        labels = np.asarray(adata_manager.adata.obs[original_key]).ravel()
         self._unlabeled_indices = np.argwhere(labels == unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != unlabeled_category).ravel()
 
