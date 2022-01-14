@@ -68,6 +68,8 @@ class TrainRunner:
     def __call__(self):
         if hasattr(self.data_splitter, "n_train"):
             self.training_plan.n_obs_training = self.data_splitter.n_train
+        if hasattr(self.data_splitter, "n_val"):
+            self.training_plan.n_obs_validation = self.data_splitter.n_val
 
         self.trainer.fit(self.training_plan, self.data_splitter)
         self._update_history()

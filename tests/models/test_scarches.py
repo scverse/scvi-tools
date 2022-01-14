@@ -45,6 +45,7 @@ def test_scvi_online_update(save_path):
         .numpy()[:, : adata1.shape[1]]
     )
     np.testing.assert_equal(one, two)
+    single_pass_for_online_update(model2)
     assert (
         np.sum(
             model2.module.z_encoder.encoder.fc_layers[0][0]
