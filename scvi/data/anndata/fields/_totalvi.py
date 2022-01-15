@@ -58,7 +58,7 @@ class ProteinObsmField(ObsmField):
         The mask is over cell measurement columns that are present (observed)
         in each batch. Absence is defined by all 0 for that protein in that batch.
         """
-        pro_exp = self.get_field(adata)
+        pro_exp = self.get_field_data(adata)
         pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
         batches = adata.obs[self.batch_key].values
         batch_mask = {}

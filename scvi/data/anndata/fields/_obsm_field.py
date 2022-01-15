@@ -51,7 +51,9 @@ class ObsmField(BaseObsmField):
         Key to access the field in the AnnData .obsm mapping.
     colnames_uns_key
         Key to access column names corresponding to each column of the .obsm field in
-        the AnnData .uns mapping.
+        the AnnData .uns mapping. If None, checks if the field is stored as a dataframe.
+        If so, uses the dataframe's colnames. Otherwise, generates sequential column names
+        (e.g. 1, 2, 3, etc.).
     is_count_data
         If True, checks if the data are counts during validation.
     """
@@ -83,7 +85,7 @@ class ObsmField(BaseObsmField):
         super().validate_field(adata)
         assert self.attr_key in adata.obsm, f"{self.attr_key} not found in adata.obsm."
 
-        obsm_data = self.get_field(adata)
+        obsm_data = self.get_field_data(adata)
 
         if self.is_count_data and not _check_nonnegative_integers(obsm_data):
             warnings.warn(
@@ -92,7 +94,15 @@ class ObsmField(BaseObsmField):
             )
 
     def _setup_column_names(self, adata: AnnData) -> Union[list, np.ndarray]:
-        obsm_data = self.get_field(adata)
+        """
+        Returns a list or NumPy array of column names that will be used for the relevant .obsm data.
+
+        If the ``colnames_uns_key`` was specified, then the columns stored in that
+        field will be returned. Otherwise, if the stored data is a pandas dataframe, then
+        the dataframe's colnames will be returned. In the case the stored data is a NumPy array,
+        sequential column names will be generated (e.g. 1, 2, 3, etc.)
+        """
+        obsm_data = self.get_field_data(adata)
         if self.colnames_uns_key is None and isinstance(obsm_data, pd.DataFrame):
             logger.info(
                 f"Using column names from columns of adata.obsm['{self.attr_key}']"
@@ -119,7 +129,7 @@ class ObsmField(BaseObsmField):
         super().transfer_field(state_registry, adata_target, **kwargs)
         self.validate_field(adata_target)
         source_cols = state_registry[self.COLUMN_NAMES_KEY]
-        target_data = self.get_field(adata_target)
+        target_data = self.get_field_data(adata_target)
         if len(source_cols) != target_data.shape[1]:
             raise ValueError(
                 f"Target adata.obsm['{self.attr_key}'] has {target_data.shape[1]} which does not match "
