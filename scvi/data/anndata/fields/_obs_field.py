@@ -53,8 +53,6 @@ class CategoricalObsField(BaseObsField):
     """
 
     CATEGORICAL_MAPPING_KEY = "categorical_mapping"
-    CM_ORIGINAL_KEY = "original_key"
-    CM_MAPPING_KEY = "mapping"
 
     def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
         self.is_default = obs_key is None
@@ -64,6 +62,7 @@ class CategoricalObsField(BaseObsField):
         self.count_stat_key = f"n_{self.registry_key}"
 
     def _setup_default_attr(self, adata: AnnData) -> None:
+        self._original_attr_key = self.attr_key
         adata.obs[self.attr_key] = np.zeros(adata.shape[0], dtype=np.int64)
 
     def _get_original_column(self, adata: AnnData) -> np.ndarray:
@@ -71,7 +70,8 @@ class CategoricalObsField(BaseObsField):
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
-        assert self._original_attr_key in adata.obs
+        if self._original_attr_key not in adata.obs:
+            raise KeyError(f"{self._original_attr_key} not found in adata.obs.")
 
     def register_field(self, adata: AnnData) -> dict:
         if self.is_default:

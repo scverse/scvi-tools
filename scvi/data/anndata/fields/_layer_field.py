@@ -57,7 +57,7 @@ class LayerField(BaseAnnDataField):
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
-        x = self.get_field(adata)
+        x = self.get_field_data(adata)
 
         if self.is_count_data and not _check_nonnegative_integers(x):
             logger_data_loc = (
