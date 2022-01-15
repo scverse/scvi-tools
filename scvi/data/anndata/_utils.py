@@ -2,6 +2,7 @@ import logging
 import warnings
 from copy import deepcopy
 from typing import Dict, List, Optional, Union
+from uuid import uuid4
 
 import anndata
 import numpy as np
@@ -41,50 +42,6 @@ def get_anndata_attribute(
     if isinstance(field, pd.Series):
         field = field.to_numpy().reshape(-1, 1)
     return field
-
-
-def get_from_registry(
-    adata: anndata.AnnData, key: str
-) -> Union[np.ndarray, pd.DataFrame]:
-    """
-    Returns the object in AnnData associated with the key in ``.uns['_scvi']['data_registry']``.
-
-    Parameters
-    ----------
-    adata
-        anndata object already setup with setup_anndata
-    key
-        key of object to get from ``adata.uns['_scvi]['data_registry']``
-
-    Returns
-    -------
-    The requested data
-
-    Examples
-    --------
-    >>> import scvi
-    >>> adata = scvi.data.cortex()
-    >>> adata.uns['_scvi']['data_registry']
-    {'X': ['_X', None],
-    'batch_indices': ['obs', 'batch'],
-    'labels': ['obs', 'labels']}
-    >>> batch = get_from_registry(adata, "batch_indices")
-    >>> batch
-    array([[0],
-           [0],
-           [0],
-           ...,
-           [0],
-           [0],
-           [0]])
-    """
-    data_loc = adata.uns[_constants._SETUP_DICT_KEY][_constants._DATA_REGISTRY_KEY][key]
-    attr_name, attr_key = (
-        data_loc[_constants._DR_ATTR_NAME],
-        data_loc[_constants._DR_ATTR_KEY],
-    )
-
-    return get_anndata_attribute(adata, attr_name, attr_key)
 
 
 @deprecated(
@@ -151,7 +108,7 @@ def setup_anndata(
     >>> import scanpy as sc
     >>> import scvi
     >>> import numpy as np
-    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> adata = scvi.data.synthetic_iid()
     >>> adata
     AnnData object with n_obs × n_vars = 400 × 100
         obs: 'batch', 'labels'
@@ -169,12 +126,12 @@ def setup_anndata(
     INFO      No label_key inputted, assuming all cells have same label
     INFO      Using data from adata.X
     INFO      Computing library size prior per batch
-    INFO      Registered keys:['X', 'batch_indices', 'labels']
+    INFO      Registered keys:['X', 'batch', 'labels']
     INFO      Successfully registered anndata object containing 400 cells, 100 vars, 1 batches, 1 labels, and 0 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
 
     Example setting up scanpy dataset with random gene data, batch, and protein expression
 
-    >>> adata = scvi.data.synthetic_iid(run_setup_anndata=False)
+    >>> adata = scvi.data.synthetic_iid()
     >>> scvi.data.setup_anndata(adata, batch_key='batch', protein_expression_obsm_key='protein_expression')
     INFO      Using batches from adata.obs["batch"]
     INFO      No label_key inputted, assuming all cells have same label
@@ -182,7 +139,7 @@ def setup_anndata(
     INFO      Computing library size prior per batch
     INFO      Using protein expression from adata.obsm['protein_expression']
     INFO      Generating sequential protein names
-    INFO      Registered keys:['X', 'batch_indices', 'labels', 'protein_expression']
+    INFO      Registered keys:['X', 'batch', 'labels', 'protein_expression']
     INFO      Successfully registered anndata object containing 400 cells, 100 vars, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
     """
     return _setup_anndata(
@@ -281,7 +238,7 @@ def _set_data_in_registry(
     adata: anndata.AnnData,
     data: Union[np.ndarray, pd.DataFrame],
     attr_name: str,
-    attr_key: str,
+    attr_key: Optional[str],
 ):
     """
     Sets the data in the AnnData object according to the attr_name and attr_key.
@@ -301,10 +258,10 @@ def _set_data_in_registry(
     attr_key
         Key in AnnData attribute under which to store data in.
     """
-    if attr_key == "None":
+    if attr_key is None:
         setattr(adata, attr_name, data)
 
-    elif attr_key != "None":
+    elif attr_key is not None:
         attribute = getattr(adata, attr_name)
         if isinstance(attribute, pd.DataFrame):
             attribute.loc[:, attr_key] = data
@@ -924,7 +881,9 @@ def _setup_summary_stats(
     return summary_stats
 
 
-def _register_anndata(adata, data_registry_dict: Dict[str, Dict[str, str]]):
+def _register_anndata(
+    adata: anndata.AnnData, data_registry_dict: Dict[str, Dict[str, str]]
+):
     """
     Registers the AnnData object by adding data_registry_dict to adata.uns['_scvi']['data_registry'].
 
@@ -943,3 +902,13 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Dict[str, str]]):
     >>> _register_anndata(adata, data_dict)
     """
     adata.uns["_scvi"]["data_registry"] = deepcopy(data_registry_dict)
+
+
+def _assign_adata_uuid(adata: anndata.AnnData, overwrite: bool = False) -> None:
+    """
+    Assigns a UUID unique to the AnnData object.
+
+    If already present, the UUID is left alone, unless ``overwrite == True``.
+    """
+    if _constants._SCVI_UUID_KEY not in adata.uns or overwrite:
+        adata.uns[_constants._SCVI_UUID_KEY] = str(uuid4())

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from typing import Optional, Sequence, Type
-from uuid import uuid4
 
 import numpy as np
 from anndata import AnnData
@@ -10,7 +9,11 @@ from anndata import AnnData
 import scvi
 
 from . import _constants
-from ._utils import _verify_and_correct_data_format, get_anndata_attribute
+from ._utils import (
+    _assign_adata_uuid,
+    _verify_and_correct_data_format,
+    get_anndata_attribute,
+)
 from .fields import BaseAnnDataField
 
 
@@ -65,8 +68,7 @@ class AnnDataManager:
         """Assigns a UUID unique to the AnnData object. If already present, the UUID is left alone."""
         self._assert_anndata_registered()
 
-        if _constants._SCVI_UUID_KEY not in self.adata.uns:
-            self.adata.uns[_constants._SCVI_UUID_KEY] = str(uuid4())
+        _assign_adata_uuid(self.adata)
 
         scvi_uuid = self.adata.uns[_constants._SCVI_UUID_KEY]
         self.registry[_constants._SCVI_UUID_KEY] = scvi_uuid

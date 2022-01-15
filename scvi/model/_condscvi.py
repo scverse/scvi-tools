@@ -7,7 +7,8 @@ import torch
 from anndata import AnnData
 
 from scvi import _CONSTANTS
-from scvi.data.anndata._utils import _setup_anndata
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import CategoricalObsField, LayerField
 from scvi.model.base import (
     BaseModelClass,
     RNASeqMixin,
@@ -65,7 +66,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         n_labels = self.summary_stats["n_labels"]
         n_vars = self.summary_stats["n_vars"]
         if weight_obs:
-            ct_counts = adata.obs["_scvi_labels"].value_counts()[range(n_labels)].values
+            ct_counts = np.unique(
+                self.get_from_registry(adata, _CONSTANTS.LABELS_KEY), return_counts=True
+            )[1]
             ct_prop = ct_counts / np.sum(ct_counts)
             ct_prop[ct_prop < 0.05] = 0.05
             ct_prop = ct_prop / np.sum(ct_prop)
@@ -121,12 +124,11 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             (self.summary_stats["n_labels"], p, self.module.n_latent)
         )
         var_vprior = np.zeros((self.summary_stats["n_labels"], p, self.module.n_latent))
-        key = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-            "original_key"
-        ]
-        mapping = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-            "mapping"
-        ]
+        labels_state_registry = self.adata_manager.get_state_registry(
+            _CONSTANTS.LABELS_KEY
+        )
+        key = labels_state_registry[CategoricalObsField.ORIGINAL_ATTR_KEY]
+        mapping = labels_state_registry[CategoricalObsField.CATEGORICAL_MAPPING_KEY]
         for ct in range(self.summary_stats["n_labels"]):
             # pick p cells
             local_indices = np.random.choice(
@@ -205,31 +207,30 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             **kwargs,
         )
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
-        labels_key: str,
+        labels_key: Optional[str] = None,
         layer: Optional[str] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
         %(param_labels_key)s
         %(param_layer)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            labels_key=labels_key,
-            layer=layer,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)

@@ -9,7 +9,8 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import _CONSTANTS
-from scvi.data.anndata._utils import _setup_anndata
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import LayerField
 from scvi.module import AmortizedLDAPyroModule
 from scvi.utils import setup_anndata_dsp
 
@@ -95,12 +96,13 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         self.init_params_ = self._get_init_params(locals())
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
         layer: Optional[str] = None,
-        copy: bool = False,
+        **kwargs,
     ) -> Optional[AnnData]:
         """
         %(summary)s.
@@ -109,17 +111,16 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         ----------
         %(param_adata)s
         %(param_layer)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            layer=layer,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
 
     def get_feature_by_topic(self, n_samples=5000) -> pd.DataFrame:
         """

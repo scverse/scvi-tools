@@ -7,13 +7,11 @@ import pandas as pd
 
 from scvi.data._built_in_data._dataset_10x import _load_dataset_10x
 from scvi.data._built_in_data._download import _download
-from scvi.data.anndata._utils import _setup_anndata
 
 
 def _load_purified_pbmc_dataset(
     save_path: str = "data/",
     subset_datasets: List[str] = None,
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     url = "https://github.com/YosefLab/scVI-data/raw/master/PurifiedPBMCDataset.h5ad"
     save_fn = "PurifiedPBMCDataset.h5ad"
@@ -43,15 +41,11 @@ def _load_purified_pbmc_dataset(
         row_indices = np.concatenate(row_indices)
         adata = adata[row_indices].copy()
 
-    if run_setup_anndata:
-        _setup_anndata(adata, batch_key="batch", labels_key="labels")
-
     return adata
 
 
 def _load_pbmc_dataset(
     save_path: str = "data/",
-    run_setup_anndata: bool = True,
     remove_extracted_data: bool = True,
 ) -> anndata.AnnData:
     urls = [
@@ -125,6 +119,4 @@ def _load_pbmc_dataset(
 
     adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata.X, axis=0)))
 
-    if run_setup_anndata:
-        _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata

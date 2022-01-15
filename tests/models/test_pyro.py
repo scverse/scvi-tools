@@ -13,7 +13,8 @@ from pyro.nn import PyroModule, PyroSample
 
 from scvi import _CONSTANTS
 from scvi.data import synthetic_iid
-from scvi.data.anndata import register_tensor_from_anndata
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.dataloaders import AnnDataLoader
 from scvi.model import AmortizedLDA
 from scvi.model.base import (
@@ -83,7 +84,7 @@ class BayesianRegressionPyroModel(PyroModule):
     def _get_fn_args_from_batch(tensor_dict):
         x = tensor_dict[_CONSTANTS.X_KEY]
         y = tensor_dict[_CONSTANTS.LABELS_KEY]
-        ind_x = tensor_dict["ind_x"].long().squeeze()
+        ind_x = tensor_dict[_CONSTANTS.INDICES_KEY].long().squeeze()
         return (x, y, ind_x), {}
 
     def forward(self, x, y, ind_x):
@@ -138,15 +139,6 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         # in case any other model was created before that shares the same parameter names.
         clear_param_store()
 
-        # add index for each cell (provided to pyro plate for correct minibatching)
-        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
-        register_tensor_from_anndata(
-            adata,
-            registry_key="ind_x",
-            adata_attr_name="obs",
-            adata_key_name="_indices",
-        )
-
         super().__init__(adata)
 
         self.module = BayesianRegressionModule(
@@ -157,25 +149,46 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         self._model_summary_string = "BayesianRegressionModel"
         self.init_params_ = self._get_init_params(locals())
 
-    @staticmethod
+    @classmethod
     def setup_anndata(
+        cls,
         adata: AnnData,
+        **kwargs,
     ) -> Optional[AnnData]:
-        pass
+        setup_method_args = cls._get_setup_method_args(**locals())
+
+        # add index for each cell (provided to pyro plate for correct minibatching)
+        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, None, is_count_data=True),
+            CategoricalObsField(_CONSTANTS.LABELS_KEY, None),
+            NumericalObsField(_CONSTANTS.INDICES_KEY, "_indices"),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
+
+
+def _create_indices_adata_manager(adata: AnnData) -> AnnDataManager:
+    # add index for each cell (provided to pyro plate for correct minibatching)
+    adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+    anndata_fields = [
+        LayerField(_CONSTANTS.X_KEY, None, is_count_data=True),
+        CategoricalObsField(_CONSTANTS.LABELS_KEY, None),
+        NumericalObsField(_CONSTANTS.INDICES_KEY, "_indices"),
+    ]
+    adata_manager = AnnDataManager(fields=anndata_fields)
+    adata_manager.register_fields(adata)
+    return adata_manager
 
 
 def test_pyro_bayesian_regression(save_path):
     use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
-    # add index for each cell (provided to pyro plate for correct minibatching)
-    adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
-    register_tensor_from_anndata(
-        adata,
-        registry_key="ind_x",
-        adata_attr_name="obs",
-        adata_key_name="_indices",
-    )
-    train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
+    adata_manager = _create_indices_adata_manager(adata)
+    train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
     pyro.clear_param_store()
     model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     plan = PyroTrainingPlan(model)
@@ -237,15 +250,8 @@ def test_pyro_bayesian_regression(save_path):
 def test_pyro_bayesian_regression_jit():
     use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
-    # add index for each cell (provided to pyro plate for correct minibatching)
-    adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
-    register_tensor_from_anndata(
-        adata,
-        registry_key="ind_x",
-        adata_attr_name="obs",
-        adata_key_name="_indices",
-    )
-    train_dl = AnnDataLoader(adata, shuffle=True, batch_size=128)
+    adata_manager = _create_indices_adata_manager(adata)
+    train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
     pyro.clear_param_store()
     model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
@@ -283,6 +289,7 @@ def test_pyro_bayesian_regression_jit():
 def test_pyro_bayesian_train_sample_mixin():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
+    BayesianRegressionModel.setup_anndata(adata)
     mod = BayesianRegressionModel(adata)
     mod.train(
         max_epochs=2,
@@ -307,6 +314,7 @@ def test_pyro_bayesian_train_sample_mixin():
 def test_pyro_bayesian_train_sample_mixin_full_data():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
+    BayesianRegressionModel.setup_anndata(adata)
     mod = BayesianRegressionModel(adata)
     mod.train(
         max_epochs=2,
@@ -331,6 +339,7 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
 def test_pyro_bayesian_train_sample_mixin_with_local():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
+    BayesianRegressionModel.setup_anndata(adata)
     mod = BayesianRegressionModel(adata, per_cell_weight=True)
     mod.train(
         max_epochs=2,
@@ -361,6 +370,7 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
 def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
+    BayesianRegressionModel.setup_anndata(adata)
     mod = BayesianRegressionModel(adata, per_cell_weight=True)
     mod.train(
         max_epochs=2,
@@ -471,16 +481,28 @@ class FunctionBasedPyroModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass)
         self._model_summary_string = "FunctionBasedPyroModel"
         self.init_params_ = self._get_init_params(locals())
 
-    @staticmethod
+    @classmethod
     def setup_anndata(
+        cls,
         adata: AnnData,
+        **kwargs,
     ) -> Optional[AnnData]:
-        pass
+        setup_method_args = cls._get_setup_method_args(**locals())
+
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, None, is_count_data=True),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
 
 
 def test_function_based_pyro_module():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
+    FunctionBasedPyroModel.setup_anndata(adata)
     mod = FunctionBasedPyroModel(adata)
     mod.train(
         max_epochs=1,
@@ -493,7 +515,7 @@ def test_function_based_pyro_module():
 def test_lda_model():
     use_gpu = torch.cuda.is_available()
     n_topics = 5
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
 
     # Test with float and Sequence priors.
     AmortizedLDA.setup_anndata(adata)
@@ -537,7 +559,7 @@ def test_lda_model():
     mod.get_elbo()
     mod.get_perplexity()
 
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     AmortizedLDA.setup_anndata(adata2)
     adata2_lda = mod.get_latent_representation(adata2).to_numpy()
     assert (
@@ -552,7 +574,7 @@ def test_lda_model():
 def test_lda_model_save_load(save_path):
     use_gpu = torch.cuda.is_available()
     n_topics = 5
-    adata = synthetic_iid(run_setup_anndata=False)
+    adata = synthetic_iid()
     AmortizedLDA.setup_anndata(adata)
     mod = AmortizedLDA(adata, n_topics=n_topics)
     mod.train(
