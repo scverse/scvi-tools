@@ -116,7 +116,7 @@ class BaseAnnDataField(ABC):
         """
         return dict()
 
-    def get_field(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
+    def get_field_data(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
         """Returns the requested data as determined by the field for a given AnnData object."""
         assert not self.is_empty
         return get_anndata_attribute(adata, self.attr_name, self.attr_key)

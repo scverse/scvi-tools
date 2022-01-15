@@ -203,7 +203,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
-    ):
+    ) -> AnnData:
         """Validate anndata has been properly registered, transfer if necessary."""
         if adata is None:
             adata = self.adata
@@ -217,8 +217,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata_manager = self.get_anndata_manager(adata)
         if adata_manager is None:
             logger.info(
-                "Input adata not setup with scvi-tools. "
-                + "attempting to transfer anndata setup"
+                "Input AnnData not setup with scvi-tools. "
+                + "attempting to transfer AnnData setup"
             )
             self.register_manager(self.adata_manager.transfer_setup(adata))
         elif (
@@ -226,7 +226,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             != self.adata_manager.registry[_SCVI_UUID_KEY]
         ):
             logger.info(
-                "Input AnnData setup with AnnData the model was initialized with. "
+                "Input AnnData requires setup with AnnData the model was initialized with. "
                 "Attempting to transfer setup with initial AnnData."
             )
             self.register_manager(self.adata_manager.transfer_setup(adata))
