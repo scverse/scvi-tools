@@ -83,7 +83,8 @@ class ObsmField(BaseObsmField):
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
-        assert self.attr_key in adata.obsm, f"{self.attr_key} not found in adata.obsm."
+        if self.attr_key not in adata.obsm:
+            raise KeyError(f"{self.attr_key} not found in adata.obsm.")
 
         obsm_data = self.get_field_data(adata)
 

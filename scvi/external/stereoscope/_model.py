@@ -6,9 +6,10 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
+from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.data.anndata import register_tensor_from_anndata
-from scvi.data.anndata._utils import _setup_anndata
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.utils import setup_anndata_dsp
@@ -112,34 +113,33 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             **kwargs,
         )
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
-        labels_key: str,
+        labels_key: Optional[str] = None,
         layer: Optional[str] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
         %(param_labels_key)s
         %(param_layer)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            labels_key=labels_key,
-            layer=layer,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
 
 
 class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
@@ -189,8 +189,6 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
     ):
-        st_adata.obs["_indices"] = np.arange(st_adata.n_obs)
-        register_tensor_from_anndata(st_adata, "ind_x", "obs", "_indices")
         super().__init__(st_adata)
         self.module = SpatialDeconv(
             n_spots=st_adata.n_obs,
@@ -212,6 +210,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: RNAStereoscope,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
+        layer: Optional[str] = None,
         **model_kwargs,
     ):
         """
@@ -226,14 +225,17 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         prior_weight
             how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
             procedure, "minibatch" is the procedure implemented in Stereoscope.
+        layer
+            if not `None`, uses this as the key in `adata.layers` for raw count data.
         **model_kwargs
             Keyword args for :class:`~scvi.external.SpatialDeconv`
         """
+        cls.setup_anndata(st_adata, layer=layer)
         return cls(
             st_adata,
             sc_model.module.get_params(),
-            sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-                "mapping"
+            sc_model.adata_manager.get_state_registry(_CONSTANTS.LABELS_KEY)[
+                CategoricalObsField.CATEGORICAL_MAPPING_KEY
             ],
             prior_weight=prior_weight,
             **model_kwargs,
@@ -331,28 +333,30 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             **kwargs,
         )
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
         layer: Optional[str] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
         %(param_layer)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            layer=layer,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        # add index for each cell (provided to pyro plate for correct minibatching)
+        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+        anndata_fields = [
+            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+            NumericalObsField(_CONSTANTS.INDICES_KEY, "_indices"),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)

@@ -26,7 +26,6 @@ from ._built_in_data._synthetic import _generate_synthetic
 
 def pbmc_dataset(
     save_path: str = "data/",
-    run_setup_anndata: bool = True,
     remove_extracted_data: bool = True,
 ) -> anndata.AnnData:
     """
@@ -43,8 +42,6 @@ def pbmc_dataset(
     ----------
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
     remove_extracted_data
         If true, will remove the folder the data was extracted to
 
@@ -59,7 +56,6 @@ def pbmc_dataset(
     """
     return _load_pbmc_dataset(
         save_path=save_path,
-        run_setup_anndata=run_setup_anndata,
         remove_extracted_data=remove_extracted_data,
     )
 
@@ -125,7 +121,6 @@ def dataset_10x(
 def smfish(
     save_path: str = "data/",
     use_high_level_cluster: bool = True,
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
     Loads osmFISH data of mouse cortex cells from the Linarsson lab.
@@ -138,8 +133,6 @@ def smfish(
         If True, use higher-level agglomerate clusters.
         The resulting cell types are "Astrocytes", "Endothelials", "Inhibitory",
         "Microglias", "Oligodendrocytes" and "Pyramidals".
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -154,14 +147,12 @@ def smfish(
     return _load_smfish(
         save_path=save_path,
         use_high_level_cluster=use_high_level_cluster,
-        run_setup_anndata=run_setup_anndata,
     )
 
 
 def seqfishplus(
     save_path: str = "data/",
     tissue_region="subventricular cortex",
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
     seqFISH+ of cortex, subventricular zone and olfactory bulb of mouse brain.
@@ -176,8 +167,6 @@ def seqfishplus(
         Location to use when saving/loading the data.
     tissue_region
         Region of the mouse brain, Either "subventricular cortex" or "olfactory bulb"
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -192,12 +181,11 @@ def seqfishplus(
     return _load_seqfishplus(
         save_path=save_path,
         tissue_region=tissue_region,
-        run_setup_anndata=run_setup_anndata,
     )
 
 
 def seqfish(
-    save_path: str = "data/", run_setup_anndata: bool = True
+    save_path: str = "data/",
 ) -> anndata.AnnData:
     """
     Seqfish dataset.
@@ -206,8 +194,6 @@ def seqfish(
     ----------
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -218,13 +204,12 @@ def seqfish(
     >>> import scvi
     >>> adata = scvi.data.seqfish()
     """
-    return _load_seqfish(save_path=save_path, run_setup_anndata=run_setup_anndata)
+    return _load_seqfish(save_path=save_path)
 
 
 def purified_pbmc_dataset(
     save_path: str = "data/",
     subset_datasets: Optional[List[str]] = None,
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
     Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
@@ -238,8 +223,6 @@ def purified_pbmc_dataset(
         which are used to form the ``PurifiedPBMCDataset``:
         "cd4_t_helper", "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic",
         "b_cells", "cd4_t_helper", "cd34", "cd56_nk", "cd14_monocytes".
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -253,13 +236,10 @@ def purified_pbmc_dataset(
     return _load_purified_pbmc_dataset(
         save_path=save_path,
         subset_datasets=subset_datasets,
-        run_setup_anndata=run_setup_anndata,
     )
 
 
-def prefrontalcortex_starmap(
-    save_path: str = "data/", run_setup_anndata: bool = True
-) -> anndata.AnnData:
+def prefrontalcortex_starmap(save_path: str = "data/") -> anndata.AnnData:
     """
     Loads a starMAP dataset of mouse pre-frontal cortex (Wang et al., 2018).
 
@@ -269,8 +249,6 @@ def prefrontalcortex_starmap(
     ----------
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -286,9 +264,7 @@ def prefrontalcortex_starmap(
     return _load_prefrontalcortex_starmap(save_path=save_path)
 
 
-def frontalcortex_dropseq(
-    save_path: str = "data/", run_setup_anndata: bool = True
-) -> anndata.AnnData:
+def frontalcortex_dropseq(save_path: str = "data/") -> anndata.AnnData:
     """
     Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018).
 
@@ -301,8 +277,6 @@ def frontalcortex_dropseq(
     ----------
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -316,9 +290,7 @@ def frontalcortex_dropseq(
     return _load_frontalcortex_dropseq(save_path=save_path)
 
 
-def annotation_simulation(
-    name: str, save_path: str = "data/", run_setup_anndata: bool = True
-) -> anndata.AnnData:
+def annotation_simulation(name: str, save_path: str = "data/") -> anndata.AnnData:
     """
     Simulated datasets for scANVI tutorials.
 
@@ -328,8 +300,6 @@ def annotation_simulation(
         One of "1", "2", or "3"
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -341,12 +311,10 @@ def annotation_simulation(
     >>> adata = scvi.data.annontation_simulation("1")
 
     """
-    return _load_annotation_simulation(
-        name=name, save_path=save_path, run_setup_anndata=run_setup_anndata
-    )
+    return _load_annotation_simulation(name=name, save_path=save_path)
 
 
-def retina(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.AnnData:
+def retina(save_path: str = "data/") -> anndata.AnnData:
     """
     Loads retina dataset.
 
@@ -358,8 +326,6 @@ def retina(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
     ----------
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -372,9 +338,7 @@ def retina(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
     return _load_retina(save_path=save_path)
 
 
-def mouse_ob_dataset(
-    save_path: str = "data/", run_setup_anndata: bool = True
-) -> anndata.AnnData:
+def mouse_ob_dataset(save_path: str = "data/") -> anndata.AnnData:
     """
     Loads mouse ob dataset.
 
@@ -382,8 +346,6 @@ def mouse_ob_dataset(
     ----------
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -394,14 +356,10 @@ def mouse_ob_dataset(
     >>> import scvi
     >>> adata = scvi.data.mouse_ob_dataset()
     """
-    return _load_mouse_ob_dataset(
-        save_path=save_path, run_setup_anndata=run_setup_anndata
-    )
+    return _load_mouse_ob_dataset(save_path=save_path)
 
 
-def breast_cancer_dataset(
-    save_path: str = "data/", run_setup_anndata: bool = True
-) -> anndata.AnnData:
+def breast_cancer_dataset(save_path: str = "data/") -> anndata.AnnData:
     """
     Loads breast cancer dataset.
 
@@ -409,8 +367,6 @@ def breast_cancer_dataset(
     ----------
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -421,15 +377,12 @@ def breast_cancer_dataset(
     >>> import scvi
     >>> adata = scvi.data.breast_cancer_dataset()
     """
-    return _load_breast_cancer_dataset(
-        save_path=save_path, run_setup_anndata=run_setup_anndata
-    )
+    return _load_breast_cancer_dataset(save_path=save_path)
 
 
 def pbmcs_10x_cite_seq(
     save_path: str = "data/",
     protein_join: str = "inner",
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
     Filtered PBMCs from 10x Genomics profiled with RNA and protein.
@@ -443,8 +396,6 @@ def pbmcs_10x_cite_seq(
         Location to use when saving/loading the data.
     protein_join
         Whether to take an inner join or outer join of proteins
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -461,7 +412,6 @@ def pbmcs_10x_cite_seq(
     return _load_pbmcs_10x_cite_seq(
         save_path=save_path,
         protein_join=protein_join,
-        run_setup_anndata=run_setup_anndata,
     )
 
 
@@ -469,7 +419,6 @@ def spleen_lymph_cite_seq(
     save_path: str = "data/",
     protein_join: str = "inner",
     remove_outliers: bool = True,
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
     Immune cells from the murine spleen and lymph nodes [GayosoSteier21]_.
@@ -484,8 +433,6 @@ def spleen_lymph_cite_seq(
         Whether to take an inner join or outer join of proteins
     remove_outliers
         Whether to remove clusters annotated as doublet or low quality
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -503,13 +450,11 @@ def spleen_lymph_cite_seq(
         save_path=save_path,
         protein_join=protein_join,
         remove_outliers=remove_outliers,
-        run_setup_anndata=run_setup_anndata,
     )
 
 
 def brainlarge_dataset(
     save_path: str = "data/",
-    run_setup_anndata: bool = True,
     sample_size_gene_var: int = 10000,
     max_cells_to_keep: Optional[int] = None,
     n_genes_to_keep: int = 720,
@@ -528,8 +473,6 @@ def brainlarge_dataset(
     ----------
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
     sample_size_gene_var
         Number of cells to use to estimate gene variances.
     max_cells_to_keep
@@ -550,7 +493,6 @@ def brainlarge_dataset(
     """
     return _load_brainlarge_dataset(
         save_path=save_path,
-        run_setup_anndata=run_setup_anndata,
         sample_size_gene_var=sample_size_gene_var,
         max_cells_to_keep=max_cells_to_keep,
         n_genes_to_keep=n_genes_to_keep,
@@ -558,7 +500,7 @@ def brainlarge_dataset(
     )
 
 
-def cortex(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.AnnData:
+def cortex(save_path: str = "data/") -> anndata.AnnData:
     """
     Loads cortex dataset.
 
@@ -571,8 +513,6 @@ def cortex(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
     ----------
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -583,7 +523,7 @@ def cortex(save_path: str = "data/", run_setup_anndata: bool = True) -> anndata.
     >>> import scvi
     >>> adata = scvi.data.cortex()
     """
-    return _load_cortex(save_path, run_setup_anndata)
+    return _load_cortex(save_path)
 
 
 def synthetic_iid(
@@ -592,7 +532,6 @@ def synthetic_iid(
     n_proteins: Optional[int] = 100,
     n_batches: Optional[int] = 2,
     n_labels: Optional[int] = 3,
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
     Synthetic dataset with ZINB distributed RNA and NB distributed protein.
@@ -612,8 +551,6 @@ def synthetic_iid(
         Number of batches
     n_labels
         Number of cell types
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -632,14 +569,12 @@ def synthetic_iid(
         n_proteins=n_proteins,
         n_batches=n_batches,
         n_labels=n_labels,
-        run_setup_anndata=run_setup_anndata,
     )
 
 
 def heart_cell_atlas_subsampled(
     save_path: str = "data/",
     remove_nuisance_clusters: bool = True,
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
     Combined single cell and single nuclei RNA-Seq data of 485K cardiac cells with annotations.
@@ -653,8 +588,6 @@ def heart_cell_atlas_subsampled(
         Location to use when saving/loading the data.
     remove_nuisance_clusters
         Remove doublets and unsassigned cells
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
 
     Returns
     -------
@@ -677,7 +610,6 @@ def heart_cell_atlas_subsampled(
     return _load_heart_cell_atlas_subsampled(
         save_path=save_path,
         remove_nuisance_clusters=remove_nuisance_clusters,
-        run_setup_anndata=run_setup_anndata,
     )
 
 
@@ -686,7 +618,6 @@ def pbmc_seurat_v4_cite_seq(
     apply_filters: bool = True,
     aggregate_proteins: bool = True,
     mask_protein_batches: int = 0,
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
     """
     Dataset of PBMCs measured with CITE-seq (161764 cells).
@@ -714,8 +645,6 @@ def pbmc_seurat_v4_cite_seq(
         Set proteins in this many batches to be all zero (considered missing
         for :class:`~scvi.model.TOTALVI`.). This improves transfer learning
         with this dataset.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning.
 
     Returns
     -------
@@ -742,5 +671,4 @@ def pbmc_seurat_v4_cite_seq(
         apply_filters=apply_filters,
         aggregate_proteins=aggregate_proteins,
         mask_protein_batches=mask_protein_batches,
-        run_setup_anndata=run_setup_anndata,
     )

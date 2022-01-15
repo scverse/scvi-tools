@@ -7,14 +7,12 @@ import numpy as np
 import scipy.sparse as sp_sparse
 
 from scvi.data._built_in_data._download import _download
-from scvi.data.anndata._utils import _setup_anndata
 
 logger = logging.getLogger(__name__)
 
 
 def _load_brainlarge_dataset(
     save_path: str = "data/",
-    run_setup_anndata: bool = True,
     sample_size_gene_var: int = 10000,
     max_cells_to_keep: int = None,
     n_genes_to_keep: int = 720,
@@ -32,8 +30,6 @@ def _load_brainlarge_dataset(
         n_genes_to_keep=n_genes_to_keep,
         loading_batch_size=loading_batch_size,
     )
-    if run_setup_anndata:
-        _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 

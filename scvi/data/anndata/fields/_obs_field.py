@@ -40,6 +40,39 @@ class BaseObsField(BaseAnnDataField):
         return False
 
 
+class NumericalObsField(BaseObsField):
+    """
+    An AnnDataField for numerical .obs attributes in the AnnData data structure.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    obs_key
+        Key to access the field in the AnnData obs mapping. If None, defaults to `registry_key`.
+    """
+
+    def validate_field(self, adata: AnnData) -> None:
+        super().validate_field(adata)
+        if self.attr_key not in adata.obs:
+            raise KeyError(f"{self.attr_key} not found in adata.obs.")
+
+    def register_field(self, adata: AnnData) -> dict:
+        super().register_field(adata)
+
+    def transfer_field(
+        self,
+        state_registry: dict,
+        adata_target: AnnData,
+        **kwargs,
+    ) -> dict:
+        super().transfer_field(state_registry, adata_target, **kwargs)
+        return self.register_field(adata_target)
+
+    def get_summary_stats(self, _state_registry: dict) -> dict:
+        return {}
+
+
 class CategoricalObsField(BaseObsField):
     """
     An AnnDataField for categorical .obs attributes in the AnnData data structure.
@@ -53,6 +86,7 @@ class CategoricalObsField(BaseObsField):
     """
 
     CATEGORICAL_MAPPING_KEY = "categorical_mapping"
+    ORIGINAL_ATTR_KEY = "original_key"
 
     def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
         self.is_default = obs_key is None
@@ -81,7 +115,10 @@ class CategoricalObsField(BaseObsField):
         categorical_mapping = _make_obs_column_categorical(
             adata, self._original_attr_key, self.attr_key, return_mapping=True
         )
-        return {self.CATEGORICAL_MAPPING_KEY: categorical_mapping}
+        return {
+            self.CATEGORICAL_MAPPING_KEY: categorical_mapping,
+            self.ORIGINAL_ATTR_KEY: self._original_attr_key,
+        }
 
     def transfer_field(
         self,
@@ -117,7 +154,10 @@ class CategoricalObsField(BaseObsField):
             categorical_dtype=cat_dtype,
             return_mapping=True,
         )
-        return {self.CATEGORICAL_MAPPING_KEY: new_mapping}
+        return {
+            self.CATEGORICAL_MAPPING_KEY: new_mapping,
+            self.ORIGINAL_ATTR_KEY: self._original_attr_key,
+        }
 
     def get_summary_stats(self, state_registry: dict) -> dict:
         categorical_mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]

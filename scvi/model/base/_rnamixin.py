@@ -14,11 +14,7 @@ from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.utils._docstrings import doc_differential_expression
 
-from .._utils import (
-    _get_batch_code_from_category,
-    _get_var_names_from_setup_anndata,
-    scrna_raw_counts_properties,
-)
+from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from ._utils import _de_core
 
 logger = logging.getLogger(__name__)
@@ -109,7 +105,7 @@ class RNASeqMixin:
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = _get_var_names_from_setup_anndata(adata)
+            all_genes = adata.var_names
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
 
         if n_samples > 1 and return_mean is False:
@@ -203,7 +199,7 @@ class RNASeqMixin:
         """
         adata = self._validate_anndata(adata)
 
-        col_names = _get_var_names_from_setup_anndata(adata)
+        col_names = adata.var_names
         model_fn = partial(
             self.get_normalized_expression,
             return_numpy=True,
@@ -280,7 +276,7 @@ class RNASeqMixin:
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = _get_var_names_from_setup_anndata(adata)
+            all_genes = adata.var_names
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
 
         x_new = []
@@ -444,7 +440,7 @@ class RNASeqMixin:
                 )
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
-        var_names = _get_var_names_from_setup_anndata(adata)
+        var_names = adata.var_names
         return pd.DataFrame(corr_matrix, index=var_names, columns=var_names)
 
     @torch.no_grad()

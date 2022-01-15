@@ -10,7 +10,7 @@ from scvi.model import PEAKVI, SCANVI, SCVI, TOTALVI
 
 def single_pass_for_online_update(model):
     dl = model._make_data_loader(model.adata, indices=range(0, 10))
-    for i_batch, tensors in enumerate(dl):
+    for tensors in dl:
         _, _, scvi_loss = model.module(tensors)
     scvi_loss.loss.backward()
 
@@ -18,13 +18,14 @@ def single_pass_for_online_update(model):
 def test_scvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
+    SCVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCVI(adata1, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
     # also test subset var option
-    adata2 = synthetic_iid(run_setup_anndata=False, n_genes=110)
+    adata2 = synthetic_iid(n_genes=110)
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
@@ -63,6 +64,7 @@ def test_scvi_online_update(save_path):
 
     # test options
     adata1 = synthetic_iid()
+    SCVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCVI(
         adata1,
         n_latent=n_latent,
@@ -75,7 +77,7 @@ def test_scvi_online_update(save_path):
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, freeze_expression=True)
@@ -123,6 +125,7 @@ def test_scvi_online_update(save_path):
 def test_scvi_library_size_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
+    SCVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCVI(adata1, n_latent=n_latent, use_observed_lib_size=False)
 
     assert (
@@ -139,7 +142,7 @@ def test_scvi_library_size_update(save_path):
     model.save(dir_path, overwrite=True)
 
     # also test subset var option
-    adata2 = synthetic_iid(run_setup_anndata=False, n_genes=110)
+    adata2 = synthetic_iid(n_genes=110)
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
@@ -159,14 +162,13 @@ def test_scvi_library_size_update(save_path):
 def test_scanvi_online_update(save_path):
     # ref has semi-observed labels
     n_latent = 5
-    adata1 = synthetic_iid(run_setup_anndata=False)
+    adata1 = synthetic_iid()
     new_labels = adata1.obs.labels.to_numpy()
     new_labels[0] = "Unknown"
     adata1.obs["labels"] = pd.Categorical(new_labels)
-    SCANVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
+    SCANVI.setup_anndata(adata1, "Unknown", batch_key="batch", labels_key="labels")
     model = SCANVI(
         adata1,
-        "Unknown",
         n_latent=n_latent,
         encode_covariates=True,
     )
@@ -174,7 +176,7 @@ def test_scanvi_online_update(save_path):
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata2.obs["labels"] = "Unknown"
 
@@ -185,17 +187,17 @@ def test_scanvi_online_update(save_path):
 
     # ref has fully-observed labels
     n_latent = 5
-    adata1 = synthetic_iid(run_setup_anndata=False)
+    adata1 = synthetic_iid()
     new_labels = adata1.obs.labels.to_numpy()
     adata1.obs["labels"] = pd.Categorical(new_labels)
-    SCANVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
-    model = SCANVI(adata1, "Unknown", n_latent=n_latent, encode_covariates=True)
+    SCANVI.setup_anndata(adata1, "Unknown", batch_key="batch", labels_key="labels")
+    model = SCANVI(adata1, n_latent=n_latent, encode_covariates=True)
     model.train(max_epochs=1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
     # query has one new label
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     new_labels = adata2.obs.labels.to_numpy()
     new_labels[0] = "Unknown"
@@ -249,10 +251,10 @@ def test_scanvi_online_update(save_path):
         np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
 
     # test saving and loading of online scanvi
-    a = synthetic_iid(run_setup_anndata=False)
+    a = synthetic_iid()
     ref = a[a.obs["labels"] != "label_2"].copy()  # only has labels 0 and 1
-    SCANVI.setup_anndata(ref, batch_key="batch", labels_key="labels")
-    m = SCANVI(ref, "label_2")
+    SCANVI.setup_anndata(ref, "label_2", batch_key="batch", labels_key="labels")
+    m = SCANVI(ref)
     m.train(max_epochs=1)
     m.save(save_path, overwrite=True)
     query = a[a.obs["labels"] != "label_0"].copy()
@@ -268,12 +270,18 @@ def test_totalvi_online_update(save_path):
     # basic case
     n_latent = 5
     adata1 = synthetic_iid()
+    TOTALVI.setup_anndata(
+        adata1,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
     model = TOTALVI(adata1, n_latent=n_latent, use_batch_norm="decoder")
     model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = TOTALVI.load_query_data(adata2, dir_path)
@@ -282,7 +290,7 @@ def test_totalvi_online_update(save_path):
     model2.get_latent_representation()
 
     # batch 3 has no proteins
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata2.obsm["protein_expression"][adata2.obs.batch == "batch_3"] = 0
 
@@ -297,13 +305,14 @@ def test_totalvi_online_update(save_path):
 def test_peakvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
+    PEAKVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = PEAKVI(adata1, n_latent=n_latent)
     model.train(1, save_best=False)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
     # also test subset var option
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = PEAKVI.load_query_data(adata2, dir_path)
@@ -335,6 +344,7 @@ def test_peakvi_online_update(save_path):
 
     # test options
     adata1 = synthetic_iid()
+    PEAKVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = PEAKVI(
         adata1,
         n_latent=n_latent,
@@ -344,7 +354,7 @@ def test_peakvi_online_update(save_path):
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
-    adata2 = synthetic_iid(run_setup_anndata=False)
+    adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = PEAKVI.load_query_data(adata2, dir_path, freeze_expression=True)

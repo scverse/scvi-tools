@@ -63,11 +63,11 @@ class AnnTorchDataset(Dataset):
         --------
         >>> sd = AnnTorchDataset(adata_manager)
 
-        # following will only return the X and batch_indices both by default as np.float32
-        >>> sd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])
+        # following will only return the X and batch both by default as np.float32
+        >>> sd.setup_getitem(getitem_tensors  = ['X,'batch'])
 
-        # This will return X as an integer and batch_indices as np.float32
-        >>> sd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch_indices':np.float32])
+        # This will return X as an integer and batch as np.float32
+        >>> sd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch':np.float32])
         """
         registered_keys = self.registered_keys
         getitem_tensors = self.getitem_tensors
@@ -85,9 +85,7 @@ class AnnTorchDataset(Dataset):
                 "getitem_tensors invalid type. Expected: List[str] or Dict[str, type] or None"
             )
         for key in keys:
-            assert (
-                key in registered_keys
-            ), "{} not in anndata.uns['_scvi']['data_registry']".format(key)
+            assert key in registered_keys, "{} not in data_registry".format(key)
 
         self.attributes_and_types = keys_to_type
 
