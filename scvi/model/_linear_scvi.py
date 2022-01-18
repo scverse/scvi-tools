@@ -4,7 +4,7 @@ from typing import Optional
 import pandas as pd
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import CategoricalObsField, LayerField
@@ -154,9 +154,9 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args

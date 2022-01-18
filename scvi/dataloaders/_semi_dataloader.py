@@ -2,7 +2,7 @@ from typing import List, Optional, Union
 
 import numpy as np
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import LabelsWithUnlabeledObsField
 
@@ -59,7 +59,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
         self.n_samples_per_label = n_samples_per_label
 
-        labels_obs_key = adata_manager.get_state_registry(_CONSTANTS.LABELS_KEY)[
+        labels_obs_key = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)[
             LabelsWithUnlabeledObsField.ORIGINAL_ATTR_KEY
         ]
         labels = np.asarray(adata_manager.adata.obs[labels_obs_key]).ravel()

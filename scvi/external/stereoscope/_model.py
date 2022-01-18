@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import CategoricalObsField, LayerField, NumericalObsField
@@ -132,8 +132,8 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
@@ -234,7 +234,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         return cls(
             st_adata,
             sc_model.module.get_params(),
-            sc_model.adata_manager.get_state_registry(_CONSTANTS.LABELS_KEY)[
+            sc_model.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)[
                 CategoricalObsField.CATEGORICAL_MAPPING_KEY
             ],
             prior_weight=prior_weight,
@@ -352,8 +352,8 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         # add index for each cell (provided to pyro plate for correct minibatching)
         adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            NumericalObsField(_CONSTANTS.INDICES_KEY, "_indices"),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args

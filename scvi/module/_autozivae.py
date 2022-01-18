@@ -7,7 +7,7 @@ from scipy.special import logit
 from torch.distributions import Beta, Gamma, Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import LossRecorder, auto_move_data
 from scvi.nn import one_hot
@@ -369,8 +369,8 @@ class AutoZIVAE(VAE):
         px_r = generative_outputs["px_r"]
         px_dropout = generative_outputs["px_dropout"]
         bernoulli_params = generative_outputs["bernoulli_params"]
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         # KL divergences wrt z_n,l_n
         mean = torch.zeros_like(qz_m)

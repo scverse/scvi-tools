@@ -4,7 +4,7 @@ import numpy as np
 from anndata import AnnData
 from sklearn.utils import deprecated
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 
 from . import _constants
 from ._manager import AnnDataManager
@@ -18,13 +18,13 @@ from .fields import (
 )
 
 LEGACY_REGISTRY_KEY_MAP = {
-    "X": _CONSTANTS.X_KEY,
-    "batch_indices": _CONSTANTS.BATCH_KEY,
-    "labels": _CONSTANTS.LABELS_KEY,
-    "cat_covs": _CONSTANTS.CAT_COVS_KEY,
-    "cont_covs": _CONSTANTS.CONT_COVS_KEY,
-    "protein_expression": _CONSTANTS.PROTEIN_EXP_KEY,
-    "ind_x": _CONSTANTS.INDICES_KEY,
+    "X": REGISTRY_KEYS.X_KEY,
+    "batch_indices": REGISTRY_KEYS.BATCH_KEY,
+    "labels": REGISTRY_KEYS.LABELS_KEY,
+    "cat_covs": REGISTRY_KEYS.CAT_COVS_KEY,
+    "cont_covs": REGISTRY_KEYS.CONT_COVS_KEY,
+    "protein_expression": REGISTRY_KEYS.PROTEIN_EXP_KEY,
+    "ind_x": REGISTRY_KEYS.INDICES_KEY,
 }
 
 
@@ -77,22 +77,22 @@ def registry_from_setup_dict(setup_dict: dict) -> dict:
             field_state_registry[
                 CategoricalObsField.CATEGORICAL_MAPPING_KEY
             ] = categorical_mapping["mapping"]
-            if new_registry_key == _CONSTANTS.BATCH_KEY:
+            if new_registry_key == REGISTRY_KEYS.BATCH_KEY:
                 field_summary_stats[f"n_{new_registry_key}"] = summary_stats["n_batch"]
-            elif new_registry_key == _CONSTANTS.LABELS_KEY:
+            elif new_registry_key == REGISTRY_KEYS.LABELS_KEY:
                 field_summary_stats[f"n_{new_registry_key}"] = summary_stats["n_labels"]
         elif attr_name == _constants._ADATA_ATTRS.OBSM:
-            if new_registry_key == _CONSTANTS.CONT_COVS_KEY:
+            if new_registry_key == REGISTRY_KEYS.CONT_COVS_KEY:
                 columns = setup_dict["extra_continuous_keys"].copy()
                 field_state_registry[NumericalJointObsField.COLUMNS_KEY] = columns
                 field_summary_stats[f"n_{new_registry_key}"] = columns.shape[0]
-            elif new_registry_key == _CONSTANTS.CAT_COVS_KEY:
+            elif new_registry_key == REGISTRY_KEYS.CAT_COVS_KEY:
                 extra_categoricals_mapping = deepcopy(setup_dict["extra_categoricals"])
                 field_state_registry.update(deepcopy(setup_dict["extra_categoricals"]))
                 field_summary_stats[f"n_{new_registry_key}"] = len(
                     extra_categoricals_mapping["keys"]
                 )
-            elif new_registry_key == _CONSTANTS.PROTEIN_EXP_KEY:
+            elif new_registry_key == REGISTRY_KEYS.PROTEIN_EXP_KEY:
                 field_state_registry[ProteinObsmField.COLUMN_NAMES_KEY] = setup_dict[
                     "protein_names"
                 ].copy()
@@ -144,33 +144,33 @@ def manager_from_setup_dict(
         attr_name = adata_mapping[_constants._DR_ATTR_NAME]
         attr_key = adata_mapping[_constants._DR_ATTR_KEY]
         if attr_name == _constants._ADATA_ATTRS.X:
-            field = LayerField(_CONSTANTS.X_KEY, None)
+            field = LayerField(REGISTRY_KEYS.X_KEY, None)
             setup_kwargs["layer"] = None
         elif attr_name == _constants._ADATA_ATTRS.LAYERS:
-            field = LayerField(_CONSTANTS.X_KEY, attr_key)
+            field = LayerField(REGISTRY_KEYS.X_KEY, attr_key)
             setup_kwargs["layer"] = attr_key
         elif attr_name == _constants._ADATA_ATTRS.OBS:
-            if new_registry_key in {_CONSTANTS.BATCH_KEY, _CONSTANTS.LABELS_KEY}:
+            if new_registry_key in {REGISTRY_KEYS.BATCH_KEY, REGISTRY_KEYS.LABELS_KEY}:
                 original_key = categorical_mappings[attr_key]["original_key"]
                 field = CategoricalObsField(new_registry_key, original_key)
                 setup_kwargs[f"{new_registry_key}_key"] = original_key
-            elif new_registry_key == _CONSTANTS.INDICES_KEY:
+            elif new_registry_key == REGISTRY_KEYS.INDICES_KEY:
                 adata.obs[attr_key] = np.arange(adata.n_obs).astype("int64")
                 field = NumericalObsField(new_registry_key, attr_key)
         elif attr_name == _constants._ADATA_ATTRS.OBSM:
-            if new_registry_key == _CONSTANTS.CONT_COVS_KEY:
+            if new_registry_key == REGISTRY_KEYS.CONT_COVS_KEY:
                 obs_keys = setup_dict["extra_continuous_keys"]
-                field = NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, obs_keys)
+                field = NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, obs_keys)
                 setup_kwargs["continuous_covariate_keys"] = obs_keys
-            elif new_registry_key == _CONSTANTS.CAT_COVS_KEY:
+            elif new_registry_key == REGISTRY_KEYS.CAT_COVS_KEY:
                 obs_keys = setup_dict["extra_categoricals"]["keys"]
-                field = CategoricalJointObsField(_CONSTANTS.CAT_COVS_KEY, obs_keys)
+                field = CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, obs_keys)
                 setup_kwargs["categorical_covariate_keys"] = obs_keys
-            elif new_registry_key == _CONSTANTS.PROTEIN_EXP_KEY:
+            elif new_registry_key == REGISTRY_KEYS.PROTEIN_EXP_KEY:
                 protein_names = setup_dict["protein_names"]
                 adata.uns["_protein_names"] = protein_names
                 field = ProteinObsmField(
-                    _CONSTANTS.PROTEIN_EXP_KEY,
+                    REGISTRY_KEYS.PROTEIN_EXP_KEY,
                     attr_key,
                     "_scvi_batch",
                     colnames_uns_key="_protein_names",

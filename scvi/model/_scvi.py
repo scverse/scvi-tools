@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import (
@@ -95,10 +95,10 @@ class SCVI(
         super(SCVI, self).__init__(adata)
 
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY).get(
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).get(
                 CategoricalJointObsField.N_CATS_PER_KEY
             )
-            if _CONSTANTS.CAT_COVS_KEY in self.adata_manager.registry
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.registry
             else None
         )
         n_batch = self.summary_stats["n_batch"]
@@ -162,13 +162,15 @@ class SCVI(
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             CategoricalJointObsField(
-                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),
-            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args

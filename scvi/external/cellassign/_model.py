@@ -7,7 +7,7 @@ import torch
 from anndata import AnnData
 from pytorch_lightning.callbacks import Callback
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import (
     CategoricalJointObsField,
@@ -78,15 +78,15 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         self.cell_type_markers = cell_type_markers
         rho = torch.Tensor(cell_type_markers.to_numpy())
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY)[
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
                 CategoricalJointObsField.N_CATS_PER_KEY
             ]
-            if _CONSTANTS.CAT_COVS_KEY in self.adata_manager.data_registry
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
 
         adata = self._validate_anndata(adata)
-        x = self.get_from_registry(adata, _CONSTANTS.X_KEY)
+        x = self.get_from_registry(adata, REGISTRY_KEYS.X_KEY)
         col_means = np.asarray(np.mean(x, 0)).ravel()  # (g)
         col_means_mu, col_means_std = np.mean(col_means), np.std(col_means)
         col_means_normalized = torch.Tensor((col_means - col_means_mu) / col_means_std)
@@ -248,13 +248,15 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            NumericalObsField(_CONSTANTS.SIZE_FACTOR_KEY, size_factor_key),
-            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalJointObsField(
-                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),
-            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
