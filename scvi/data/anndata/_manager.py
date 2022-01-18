@@ -108,9 +108,10 @@ class AnnDataManager:
         transfer_kwargs
             Additional keywords which modify transfer behavior. Only applicable if ``source_registry`` is set.
         """
-        assert (
-            self.adata is None
-        ), "Existing AnnData object registered with this Manager instance."
+        if self.adata is not None:
+            raise AssertionError(
+                "Existing AnnData object registered with this Manager instance."
+            )
 
         self._validate_anndata_object(adata)
         self.adata = adata

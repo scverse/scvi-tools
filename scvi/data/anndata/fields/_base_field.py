@@ -21,19 +21,16 @@ class BaseAnnDataField(ABC):
     @abstractmethod
     def registry_key(self) -> str:
         """The key that is referenced by models via a data loader."""
-        pass
 
     @property
     @abstractmethod
     def attr_name(self) -> str:
         """The name of the AnnData attribute where the data is stored."""
-        pass
 
     @property
     @abstractmethod
     def attr_key(self) -> Optional[str]:
         """The key of the data field within the relevant AnnData attribute."""
-        pass
 
     @property
     @abstractmethod
@@ -45,12 +42,10 @@ class BaseAnnDataField(ABC):
         instance of a model, the collection is empty. If empty, the field will be omitted from
         the registry, but included in the summary stats dictionary.
         """
-        pass
 
     @abstractmethod
     def validate_field(self, adata: AnnData) -> None:
         """Validates whether an AnnData object is compatible with this field definition."""
-        pass
 
     @abstractmethod
     def register_field(self, adata: AnnData) -> dict:
@@ -90,7 +85,6 @@ class BaseAnnDataField(ABC):
             A dictionary containing any additional state required for scvi-tools models not
             stored directly on the AnnData object.
         """
-        pass
 
     @abstractmethod
     def get_summary_stats(self, state_registry: dict) -> dict:
@@ -114,7 +108,8 @@ class BaseAnnDataField(ABC):
 
     def get_field_data(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
         """Returns the requested data as determined by the field for a given AnnData object."""
-        assert not self.is_empty
+        if self.is_empty:
+            raise AssertionError(f"The {self.registry_key} field is empty.")
         return get_anndata_attribute(adata, self.attr_name, self.attr_key)
 
     def get_data_registry(self) -> dict:

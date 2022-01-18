@@ -175,7 +175,8 @@ class JointObsField(BaseObsmField):
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
         for obs_key in self._obs_keys:
-            assert obs_key in adata.obs, f"{obs_key} not found in adata.obs."
+            if obs_key not in adata.obs:
+                raise KeyError(f"{obs_key} not found in adata.obs.")
 
     def _combine_obs_fields(self, adata: AnnData) -> None:
         adata.obsm[self.attr_key] = adata.obs[self.obs_keys].copy()

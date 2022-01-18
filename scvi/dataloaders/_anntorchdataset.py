@@ -85,7 +85,8 @@ class AnnTorchDataset(Dataset):
                 "getitem_tensors invalid type. Expected: List[str] or Dict[str, type] or None"
             )
         for key in keys:
-            assert key in registered_keys, "{} not in data_registry".format(key)
+            if key not in registered_keys:
+                raise KeyError(f"{key} not in data_registry")
 
         self.attributes_and_types = keys_to_type
 

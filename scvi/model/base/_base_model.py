@@ -39,7 +39,7 @@ _SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "kwargs"}
 class BaseModelMetaClass(ABCMeta):
     def __init__(cls, name, bases, dct):
         cls.manager_store = dict()
-        return super().__init__(name, bases, dct)
+        super().__init__(name, bases, dct)
 
 
 class BaseModelClass(metaclass=BaseModelMetaClass):
@@ -538,4 +538,3 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
         on a model-specific instance of :class:`~scvi.data.anndata.AnnDataManager`.
         """
-        pass
