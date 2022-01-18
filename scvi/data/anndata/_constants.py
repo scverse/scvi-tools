@@ -11,7 +11,6 @@ _SOURCE_SCVI_UUID_KEY = "_source_scvi_uuid"
 # scVI Registry Constants #
 #############################
 
-_SETUP_DICT_KEY = "_scvi"
 _SCVI_VERSION_KEY = "scvi_version"
 _MODEL_NAME_KEY = "model_name"
 _SETUP_KWARGS_KEY = "setup_kwargs"
@@ -26,7 +25,6 @@ _SUMMARY_STATS_KEY = "summary_stats"
 
 _DR_ATTR_NAME = "attr_name"
 _DR_ATTR_KEY = "attr_key"
-
 
 ############################
 # AnnData Object Constants #

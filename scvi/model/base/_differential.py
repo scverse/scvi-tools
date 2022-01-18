@@ -9,7 +9,7 @@ import torch
 from scipy.sparse import issparse
 from sklearn.mixture import GaussianMixture
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data.anndata.fields import CategoricalObsField
 
@@ -253,7 +253,7 @@ class DifferentialComputation:
         # Adding pseudocounts to the scales
         if pseudocounts is None:
             logger.debug("Estimating pseudocounts offet from the data")
-            x = self.adata_manager.get_from_registry(_CONSTANTS.X_KEY)
+            x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
             where_zero_a = densify(np.max(x[idx1], 0)) == 0
             where_zero_b = densify(np.max(x[idx2], 0)) == 0
             pseudocounts = estimate_pseudocounts_offset(
@@ -393,7 +393,9 @@ class DifferentialComputation:
         """
         # Get overall number of desired samples and desired batches
         if batchid is None and not use_observed_batches:
-            batch_registry = self.adata_manager.get_state_registry(_CONSTANTS.BATCH_KEY)
+            batch_registry = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.BATCH_KEY
+            )
             batchid = batch_registry[CategoricalObsField.CATEGORICAL_MAPPING_KEY]
         if use_observed_batches:
             if batchid is not None:

@@ -11,7 +11,7 @@ from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.data import synthetic_iid
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import CategoricalObsField, LayerField, NumericalObsField
@@ -82,9 +82,9 @@ class BayesianRegressionPyroModel(PyroModule):
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
-        x = tensor_dict[_CONSTANTS.X_KEY]
-        y = tensor_dict[_CONSTANTS.LABELS_KEY]
-        ind_x = tensor_dict[_CONSTANTS.INDICES_KEY].long().squeeze()
+        x = tensor_dict[REGISTRY_KEYS.X_KEY]
+        y = tensor_dict[REGISTRY_KEYS.LABELS_KEY]
+        ind_x = tensor_dict[REGISTRY_KEYS.INDICES_KEY].long().squeeze()
         return (x, y, ind_x), {}
 
     def forward(self, x, y, ind_x):
@@ -160,9 +160,9 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         # add index for each cell (provided to pyro plate for correct minibatching)
         adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, None, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, None),
-            NumericalObsField(_CONSTANTS.INDICES_KEY, "_indices"),
+            LayerField(REGISTRY_KEYS.X_KEY, None, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
+            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
@@ -175,9 +175,9 @@ def _create_indices_adata_manager(adata: AnnData) -> AnnDataManager:
     # add index for each cell (provided to pyro plate for correct minibatching)
     adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
     anndata_fields = [
-        LayerField(_CONSTANTS.X_KEY, None, is_count_data=True),
-        CategoricalObsField(_CONSTANTS.LABELS_KEY, None),
-        NumericalObsField(_CONSTANTS.INDICES_KEY, "_indices"),
+        LayerField(REGISTRY_KEYS.X_KEY, None, is_count_data=True),
+        CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
+        NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
     ]
     adata_manager = AnnDataManager(fields=anndata_fields)
     adata_manager.register_fields(adata)
@@ -426,7 +426,7 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
-        x = tensor_dict[_CONSTANTS.X_KEY]
+        x = tensor_dict[REGISTRY_KEYS.X_KEY]
         log_library = torch.log(torch.sum(x, dim=1, keepdim=True) + 1e-6)
         return (x, log_library), {}
 
@@ -490,7 +490,7 @@ class FunctionBasedPyroModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass)
         setup_method_args = cls._get_setup_method_args(**locals())
 
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, None, is_count_data=True),
+            LayerField(REGISTRY_KEYS.X_KEY, None, is_count_data=True),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args

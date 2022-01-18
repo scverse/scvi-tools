@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.data._utils import _check_nonnegative_integers
@@ -115,7 +115,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     ):
         super(TOTALVI, self).__init__(adata)
         self.protein_state_registry = self.adata_manager.get_state_registry(
-            _CONSTANTS.PROTEIN_EXP_KEY
+            REGISTRY_KEYS.PROTEIN_EXP_KEY
         )
         if (
             ProteinObsmField.PROTEIN_BATCH_MASK in self.protein_state_registry
@@ -148,10 +148,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             prior_mean, prior_scale = None, None
 
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY)[
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
                 CategoricalJointObsField.N_CATS_PER_KEY
             ]
-            if _CONSTANTS.CAT_COVS_KEY in self.adata_manager.data_registry
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
 
@@ -461,8 +461,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scale_list_pro = []
 
         for tensors in post:
-            x = tensors[_CONSTANTS.X_KEY]
-            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
             px_scale = torch.zeros_like(x)
             py_scale = torch.zeros_like(y)
             if n_samples > 1:
@@ -624,7 +624,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             self.adata_manager, transform_batch
         )
         for tensors in post:
-            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
@@ -892,8 +892,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         scdl_list = []
         for tensors in scdl:
-            x = tensors[_CONSTANTS.X_KEY]
-            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
 
             generative_kwargs = dict(transform_batch=transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
@@ -1062,8 +1062,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     ):
         adata = super()._validate_anndata(adata=adata, copy_if_view=copy_if_view)
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
-        if _CONSTANTS.PROTEIN_EXP_KEY in self.adata_manager.data_registry.keys():
-            pro_exp = self.get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
+        if REGISTRY_KEYS.PROTEIN_EXP_KEY in self.adata_manager.data_registry.keys():
+            pro_exp = self.get_from_registry(adata, REGISTRY_KEYS.PROTEIN_EXP_KEY)
             if self.summary_stats["n_proteins"] != pro_exp.shape[1]:
                 raise ValueError(error_msg.format("proteins"))
             is_nonneg_int = _check_nonnegative_integers(pro_exp)
@@ -1087,13 +1087,13 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata)
-        pro_exp = adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY)
+        pro_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
         pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
-        batch_mask = adata_manager.get_state_registry(_CONSTANTS.PROTEIN_EXP_KEY).get(
-            ProteinObsmField.PROTEIN_BATCH_MASK
-        )
-        batch = adata_manager.get_from_registry(_CONSTANTS.BATCH_KEY).ravel()
-        cats = adata_manager.get_state_registry(_CONSTANTS.BATCH_KEY)[
+        batch_mask = adata_manager.get_state_registry(
+            REGISTRY_KEYS.PROTEIN_EXP_KEY
+        ).get(ProteinObsmField.PROTEIN_BATCH_MASK)
+        batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
+        cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
             CategoricalObsField.CATEGORICAL_MAPPING_KEY
         ]
         codes = np.arange(len(cats))
@@ -1212,19 +1212,21 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         %(returns)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
-        batch_field = CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key)
+        batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(
-                _CONSTANTS.LABELS_KEY, None
+                REGISTRY_KEYS.LABELS_KEY, None
             ),  # Default labels field for compatibility with TOTALVAE
             batch_field,
             CategoricalJointObsField(
-                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),
-            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
             ProteinObsmField(
-                _CONSTANTS.PROTEIN_EXP_KEY,
+                REGISTRY_KEYS.PROTEIN_EXP_KEY,
                 protein_expression_obsm_key,
                 batch_field.attr_key,
                 colnames_uns_key=protein_names_uns_key,

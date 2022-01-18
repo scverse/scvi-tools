@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata._constants import _DR_ATTR_KEY, _DR_ATTR_NAME
 from scvi.data.anndata.fields import CategoricalObsField, LayerField
@@ -129,7 +129,7 @@ class SOLO(BaseModelClass):
         """
         _validate_scvi_model(scvi_model, restrict_to_batch=restrict_to_batch)
         orig_adata_manager = scvi_model.adata_manager
-        orig_batch_key = orig_adata_manager.get_state_registry(_CONSTANTS.BATCH_KEY)[
+        orig_batch_key = orig_adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
             CategoricalObsField.ORIGINAL_ATTR_KEY
         ]
 
@@ -227,7 +227,7 @@ class SOLO(BaseModelClass):
         num_doublets = doublet_ratio * n_obs
 
         # counts can be in many locations, this uses where it was registered in setup
-        x = adata_manager.get_from_registry(_CONSTANTS.X_KEY)
+        x = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
         if indices is not None:
             x = x[indices]
 
@@ -243,9 +243,11 @@ class SOLO(BaseModelClass):
 
         # if adata setup with a layer, need to add layer to doublets adata
         data_registry = adata_manager.data_registry
-        x_loc = data_registry[_CONSTANTS.X_KEY][_DR_ATTR_NAME]
+        x_loc = data_registry[REGISTRY_KEYS.X_KEY][_DR_ATTR_NAME]
         layer = (
-            data_registry[_CONSTANTS.X_KEY][_DR_ATTR_KEY] if x_loc == "layers" else None
+            data_registry[REGISTRY_KEYS.X_KEY][_DR_ATTR_KEY]
+            if x_loc == "layers"
+            else None
         )
         if layer is not None:
             doublets_ad.layers[layer] = doublets
@@ -374,7 +376,7 @@ class SOLO(BaseModelClass):
 
         y_pred = []
         for _, tensors in enumerate(scdl):
-            x = tensors[_CONSTANTS.X_KEY]
+            x = tensors[REGISTRY_KEYS.X_KEY]
             pred = auto_forward(self.module, x)
             y_pred.append(pred.cpu())
 
@@ -385,7 +387,7 @@ class SOLO(BaseModelClass):
 
         preds = y_pred[mask]
 
-        cols = self.adata_manager.get_state_registry(_CONSTANTS.LABELS_KEY)[
+        cols = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)[
             CategoricalObsField.CATEGORICAL_MAPPING_KEY
         ]
         preds_df = pd.DataFrame(preds, columns=cols, index=self.adata.obs_names[mask])
@@ -414,8 +416,8 @@ class SOLO(BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args

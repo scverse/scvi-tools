@@ -9,7 +9,7 @@ import torch
 from anndata import AnnData
 from torch.utils.data import DataLoader
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata._compat import manager_from_setup_dict
 from scvi.data.anndata._constants import (
@@ -32,9 +32,9 @@ logger = logging.getLogger(__name__)
 
 
 def _unpack_tensors(tensors):
-    x = tensors[_CONSTANTS.X_KEY].squeeze_(0)
-    batch_index = tensors[_CONSTANTS.BATCH_KEY].squeeze_(0)
-    y = tensors[_CONSTANTS.LABELS_KEY].squeeze_(0)
+    x = tensors[REGISTRY_KEYS.X_KEY].squeeze_(0)
+    batch_index = tensors[REGISTRY_KEYS.BATCH_KEY].squeeze_(0)
+    y = tensors[REGISTRY_KEYS.LABELS_KEY].squeeze_(0)
     return x, batch_index, y
 
 
@@ -114,7 +114,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         # of one of the datasets
         adata_seq_n_batches = sum_stats[0]["n_batch"]
         adata_spatial.obs[
-            self.adata_managers["spatial"].data_registry[_CONSTANTS.BATCH_KEY][
+            self.adata_managers["spatial"].data_registry[REGISTRY_KEYS.BATCH_KEY][
                 _DR_ATTR_KEY
             ]
         ] += adata_seq_n_batches
@@ -578,9 +578,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args

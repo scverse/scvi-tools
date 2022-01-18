@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import CategoricalObsField, LayerField
 from scvi.model.base import (
@@ -67,7 +67,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         n_vars = self.summary_stats["n_vars"]
         if weight_obs:
             ct_counts = np.unique(
-                self.get_from_registry(adata, _CONSTANTS.LABELS_KEY), return_counts=True
+                self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
+                return_counts=True,
             )[1]
             ct_prop = ct_counts / np.sum(ct_counts)
             ct_prop[ct_prop < 0.05] = 0.05
@@ -125,7 +126,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         )
         var_vprior = np.zeros((self.summary_stats["n_labels"], p, self.module.n_latent))
         labels_state_registry = self.adata_manager.get_state_registry(
-            _CONSTANTS.LABELS_KEY
+            REGISTRY_KEYS.LABELS_KEY
         )
         key = labels_state_registry[CategoricalObsField.ORIGINAL_ATTR_KEY]
         mapping = labels_state_registry[CategoricalObsField.CATEGORICAL_MAPPING_KEY]
@@ -141,8 +142,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             mean = []
             var = []
             for tensors in scdl:
-                x = tensors[_CONSTANTS.X_KEY]
-                y = tensors[_CONSTANTS.LABELS_KEY]
+                x = tensors[REGISTRY_KEYS.X_KEY]
+                y = tensors[REGISTRY_KEYS.LABELS_KEY]
                 out = self.module.inference(x, y)
                 mean_, var_ = out["qz_m"], out["qz_v"]
                 mean += [mean_.cpu()]
@@ -226,8 +227,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args

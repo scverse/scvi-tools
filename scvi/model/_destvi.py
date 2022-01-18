@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.model import CondSCVI
@@ -117,7 +117,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         decoder_state_dict = sc_model.module.decoder.state_dict()
         px_decoder_state_dict = sc_model.module.px_decoder.state_dict()
         px_r = sc_model.module.px_r.detach().cpu().numpy()
-        mapping = sc_model.adata_manager.get_state_registry(_CONSTANTS.LABELS_KEY)[
+        mapping = sc_model.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)[
             CategoricalObsField.CATEGORICAL_MAPPING_KEY
         ]
         if vamp_prior_p is None:
@@ -374,8 +374,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         # add index for each cell (provided to pyro plate for correct minibatching)
         adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            NumericalObsField(_CONSTANTS.INDICES_KEY, "_indices"),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args

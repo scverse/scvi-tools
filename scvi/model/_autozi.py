@@ -7,7 +7,7 @@ from anndata import AnnData
 from torch import logsumexp
 from torch.distributions import Beta, Normal
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import CategoricalObsField, LayerField
@@ -205,9 +205,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 alpha_posterior, beta_posterior
             )
             for tensors in scdl:
-                sample_batch = tensors[_CONSTANTS.X_KEY].to(self.device)
-                batch_index = tensors[_CONSTANTS.BATCH_KEY].to(self.device)
-                labels = tensors[_CONSTANTS.LABELS_KEY].to(self.device)
+                sample_batch = tensors[REGISTRY_KEYS.X_KEY].to(self.device)
+                batch_index = tensors[REGISTRY_KEYS.BATCH_KEY].to(self.device)
+                labels = tensors[REGISTRY_KEYS.LABELS_KEY].to(self.device)
 
                 # Distribution parameters and sampled variables
                 inf_outputs, gen_outputs, _ = self.module.forward(tensors)
@@ -301,9 +301,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
