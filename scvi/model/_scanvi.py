@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata._constants import _SETUP_KWARGS_KEY
@@ -115,10 +115,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             else self.summary_stats["n_labels"]
         )
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY)[
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
                 CategoricalJointObsField.N_CATS_PER_KEY
             ]
-            if _CONSTANTS.CAT_COVS_KEY in self.adata_manager.data_registry
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
 
@@ -218,7 +218,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Set indices for labeled and unlabeled cells.
         """
         labels_state_registry = self.adata_manager.get_state_registry(
-            _CONSTANTS.LABELS_KEY
+            REGISTRY_KEYS.LABELS_KEY
         )
         self.unlabeled_category_ = labels_state_registry[
             LabelsWithUnlabeledObsField.UNLABELED_CATEGORY
@@ -227,7 +227,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             LabelsWithUnlabeledObsField.WAS_REMAPPED
         ]
 
-        labels = self.get_from_registry(self.adata, _CONSTANTS.LABELS_KEY)
+        labels = self.get_from_registry(self.adata, REGISTRY_KEYS.LABELS_KEY)
         self._label_mapping = labels_state_registry[
             LabelsWithUnlabeledObsField.CATEGORICAL_MAPPING_KEY
         ]
@@ -274,8 +274,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         y_pred = []
         for _, tensors in enumerate(scdl):
-            x = tensors[_CONSTANTS.X_KEY]
-            batch = tensors[_CONSTANTS.BATCH_KEY]
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            batch = tensors[REGISTRY_KEYS.BATCH_KEY]
             pred = self.module.classify(x, batch)
             if not soft:
                 pred = pred.argmax(dim=1)
@@ -408,15 +408,17 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             LabelsWithUnlabeledObsField(
-                _CONSTANTS.LABELS_KEY, labels_key, unlabeled_category
+                REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
             ),
             CategoricalJointObsField(
-                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),
-            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args

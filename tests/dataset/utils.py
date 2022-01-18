@@ -3,7 +3,7 @@ from typing import List, Optional
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import (
     CategoricalJointObsField,
@@ -39,18 +39,20 @@ def generic_setup_adata_manager(
     protein_expression_obsm_key: Optional[str] = None,
     protein_names_uns_key: Optional[str] = None,
 ) -> AnnDataManager:
-    batch_field = CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key)
+    batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
     anndata_fields = [
         batch_field,
-        LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-        CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
-        CategoricalJointObsField(_CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys),
-        NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+        LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+        CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+        CategoricalJointObsField(
+            REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+        ),
+        NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
     ]
     if protein_expression_obsm_key is not None:
         anndata_fields.append(
             ProteinObsmField(
-                _CONSTANTS.PROTEIN_EXP_KEY,
+                REGISTRY_KEYS.PROTEIN_EXP_KEY,
                 protein_expression_obsm_key,
                 batch_field.attr_key,
                 colnames_uns_key=protein_names_uns_key,

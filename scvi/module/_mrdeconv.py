@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch.distributions import Normal
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
@@ -139,8 +139,8 @@ class MRDeconv(BaseModuleClass):
         return {}
 
     def _get_generative_input(self, tensors, inference_outputs):
-        x = tensors[_CONSTANTS.X_KEY]
-        ind_x = tensors[_CONSTANTS.X_KEY].long()
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        ind_x = tensors[REGISTRY_KEYS.X_KEY].long()
 
         input_dict = dict(x=x, ind_x=ind_x)
         return input_dict
@@ -215,7 +215,7 @@ class MRDeconv(BaseModuleClass):
         kl_weight: float = 1.0,
         n_obs: int = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
         gamma = generative_outputs["gamma"]

@@ -9,7 +9,7 @@ import scipy.sparse as sparse
 from scipy.sparse.csr import csr_matrix
 
 import scvi
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.data import synthetic_iid
 from scvi.data.anndata.fields import (
     CategoricalJointObsField,
@@ -135,10 +135,10 @@ def test_data_format():
     assert np.array_equal(old_pro, adata.obsm["protein_expression"])
     assert np.array_equal(old_obs, adata.obs)
 
-    assert np.array_equal(adata.X, adata_manager.get_from_registry(_CONSTANTS.X_KEY))
+    assert np.array_equal(adata.X, adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY))
     assert np.array_equal(
         adata.obsm["protein_expression"],
-        adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY),
+        adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
     )
 
     # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
@@ -149,13 +149,13 @@ def test_data_format():
     adata_manager = generic_setup_adata_manager(
         adata, protein_expression_obsm_key="protein_expression"
     )
-    new_pe = adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY)
+    new_pe = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
     assert new_pe.to_numpy().flags["C_CONTIGUOUS"] is True
     assert np.array_equal(pe, new_pe)
-    assert np.array_equal(adata.X, adata_manager.get_from_registry(_CONSTANTS.X_KEY))
+    assert np.array_equal(adata.X, adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY))
     assert np.array_equal(
         adata.obsm["protein_expression"],
-        adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY),
+        adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
     )
 
 
@@ -170,22 +170,22 @@ def test_setup_anndata():
         protein_names_uns_key="protein_names",
     )
     np.testing.assert_array_equal(
-        adata_manager.get_from_registry(_CONSTANTS.BATCH_KEY),
+        adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY),
         np.array(adata.obs["_scvi_batch"]).reshape((-1, 1)),
     )
     np.testing.assert_array_equal(
-        adata_manager.get_from_registry(_CONSTANTS.LABELS_KEY),
+        adata_manager.get_from_registry(REGISTRY_KEYS.LABELS_KEY),
         np.array(adata.obs["labels"].cat.codes).reshape((-1, 1)),
     )
     np.testing.assert_array_equal(
-        adata_manager.get_from_registry(_CONSTANTS.X_KEY), adata.X
+        adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), adata.X
     )
     np.testing.assert_array_equal(
-        adata_manager.get_from_registry(_CONSTANTS.PROTEIN_EXP_KEY),
+        adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
         adata.obsm["protein_expression"],
     )
     np.testing.assert_array_equal(
-        adata_manager.get_state_registry(_CONSTANTS.PROTEIN_EXP_KEY)[
+        adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)[
             ProteinObsmField.COLUMN_NAMES_KEY
         ],
         adata.uns["protein_names"],
@@ -209,7 +209,7 @@ def test_setup_anndata():
         adata, protein_expression_obsm_key="protein_expression"
     )
     np.testing.assert_array_equal(
-        adata_manager.get_state_registry(_CONSTANTS.PROTEIN_EXP_KEY)[
+        adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)[
             ProteinObsmField.COLUMN_NAMES_KEY
         ],
         new_protein_names,
@@ -222,7 +222,7 @@ def test_setup_anndata():
     adata.X = np.ones_like(adata.X)
     adata_manager = generic_setup_adata_manager(adata, layer="X")
     np.testing.assert_array_equal(
-        adata_manager.get_from_registry(_CONSTANTS.X_KEY), true_x
+        adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), true_x
     )
 
     # test that it creates layers and batch if no layers_key is passed
@@ -233,11 +233,11 @@ def test_setup_anndata():
         protein_names_uns_key="protein_names",
     )
     np.testing.assert_array_equal(
-        adata_manager.get_from_registry(_CONSTANTS.BATCH_KEY),
+        adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY),
         np.zeros((adata.shape[0], 1)),
     )
     np.testing.assert_array_equal(
-        adata_manager.get_from_registry(_CONSTANTS.LABELS_KEY),
+        adata_manager.get_from_registry(REGISTRY_KEYS.LABELS_KEY),
         np.zeros((adata.shape[0], 1)),
     )
 
@@ -269,7 +269,7 @@ def test_extra_covariates():
     )
     m = scvi.model.SCVI(adata)
     m.train(1)
-    df1 = m.get_from_registry(adata, _CONSTANTS.CONT_COVS_KEY)
+    df1 = m.get_from_registry(adata, REGISTRY_KEYS.CONT_COVS_KEY)
     df2 = adata.obs[["cont1", "cont2"]]
     pd.testing.assert_frame_equal(df1, df2)
 
@@ -301,7 +301,7 @@ def test_extra_covariates_transfer():
     bdata.obs["cat1"] = 6
     bdata_manager = adata_manager.transfer_setup(bdata, extend_categories=True)
     assert (
-        bdata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY)[
+        bdata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
             CategoricalJointObsField.MAPPINGS_KEY
         ]["cat1"][-1]
         == 6
@@ -318,23 +318,28 @@ def test_anntorchdataset_getitem():
         protein_names_uns_key="protein_names",
     )
     # check that we can successfully pass in a list of tensors to get
-    tensors_to_get = [_CONSTANTS.BATCH_KEY, _CONSTANTS.LABELS_KEY]
+    tensors_to_get = [REGISTRY_KEYS.BATCH_KEY, REGISTRY_KEYS.LABELS_KEY]
     bd = AnnTorchDataset(adata_manager, getitem_tensors=tensors_to_get)
     np.testing.assert_array_equal(tensors_to_get, list(bd[1].keys()))
 
     # check that we can successfully pass in a dict of tensors and their associated types
     bd = AnnTorchDataset(
         adata_manager,
-        getitem_tensors={_CONSTANTS.X_KEY: np.int, _CONSTANTS.LABELS_KEY: np.int64},
+        getitem_tensors={
+            REGISTRY_KEYS.X_KEY: np.int,
+            REGISTRY_KEYS.LABELS_KEY: np.int64,
+        },
     )
-    assert bd[1][_CONSTANTS.X_KEY].dtype == np.int64
-    assert bd[1][_CONSTANTS.LABELS_KEY].dtype == np.int64
+    assert bd[1][REGISTRY_KEYS.X_KEY].dtype == np.int64
+    assert bd[1][REGISTRY_KEYS.LABELS_KEY].dtype == np.int64
 
     # check that by default we get all the registered tensors
     bd = AnnTorchDataset(adata_manager)
     all_registered_tensors = list(adata_manager.data_registry.keys())
     np.testing.assert_array_equal(all_registered_tensors, list(bd[1].keys()))
-    assert bd[1][_CONSTANTS.X_KEY].shape[0] == bd.adata_manager.summary_stats["n_vars"]
+    assert (
+        bd[1][REGISTRY_KEYS.X_KEY].shape[0] == bd.adata_manager.summary_stats["n_vars"]
+    )
 
     # check that AnnTorchDataset returns numpy array
     adata1 = synthetic_iid()

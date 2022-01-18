@@ -9,7 +9,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 
 from scvi._compat import Literal
-from scvi._constants import _CONSTANTS
+from scvi._constants import REGISTRY_KEYS
 from scvi._utils import _doc_params
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata.fields import (
@@ -102,10 +102,10 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         super(PEAKVI, self).__init__(adata)
 
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(_CONSTANTS.CAT_COVS_KEY)[
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
                 CategoricalJointObsField.N_CATS_PER_KEY
             ]
-            if _CONSTANTS.CAT_COVS_KEY in self.adata_manager.data_registry
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else []
         )
 
@@ -554,13 +554,15 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(_CONSTANTS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(_CONSTANTS.BATCH_KEY, batch_key),
-            CategoricalObsField(_CONSTANTS.LABELS_KEY, labels_key),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             CategoricalJointObsField(
-                _CONSTANTS.CAT_COVS_KEY, categorical_covariate_keys
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),
-            NumericalJointObsField(_CONSTANTS.CONT_COVS_KEY, continuous_covariate_keys),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
