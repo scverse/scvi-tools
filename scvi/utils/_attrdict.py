@@ -1,3 +1,6 @@
+from copy import deepcopy
+
+
 class attrdict(dict):
     """
     A dictionary that allows for attribute notation (e.g. d.element).
@@ -5,7 +8,7 @@ class attrdict(dict):
     Based off of https://stackoverflow.com/questions/38034377/object-like-attribute-access-for-nested-dictionary.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, recursive: bool = False, **kwargs):
         def from_nested_dict(data):
             if not isinstance(data, dict):
                 return data
@@ -19,6 +22,9 @@ class attrdict(dict):
                 raise ValueError(
                     f"Cannot create attrdict containing key {key} due to conflict with built-in dict attribute."
                 )
-            self[key] = from_nested_dict(self[key])
+            if recursive:
+                self[key] = from_nested_dict(self[key])
+            else:
+                self[key] = deepcopy(self[key])
 
         self.__dict__ = self

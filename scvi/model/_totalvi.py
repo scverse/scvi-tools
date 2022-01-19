@@ -121,9 +121,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             ProteinObsmField.PROTEIN_BATCH_MASK in self.protein_state_registry
             and not override_missing_proteins
         ):
-            batch_mask = self.protein_state_registry[
-                ProteinObsmField.PROTEIN_BATCH_MASK
-            ]
+            batch_mask = self.protein_state_registry.protein_batch_mask
             msg = (
                 "Some proteins have all 0 counts in some batches. "
                 + "These proteins will be treated as missing measurements; however, "
@@ -140,7 +138,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         emp_prior = (
             empirical_protein_background_prior
             if empirical_protein_background_prior is not None
-            else (self.summary_stats["n_proteins"] > 10)
+            else (self.summary_stats.n_proteins > 10)
         )
         if emp_prior:
             prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
@@ -155,14 +153,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             else None
         )
 
-        n_batch = self.summary_stats["n_batch"]
+        n_batch = self.summary_stats.n_batch
         library_log_means, library_log_vars = _init_library_size(
             self.adata_manager, n_batch
         )
 
         self.module = TOTALVAE(
-            n_input_genes=self.summary_stats["n_vars"],
-            n_input_proteins=self.summary_stats["n_proteins"],
+            n_input_genes=self.summary_stats.n_vars,
+            n_input_proteins=self.summary_stats.n_proteins,
             n_batch=n_batch,
             n_latent=n_latent,
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
@@ -438,9 +436,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if protein_list is None:
             protein_mask = slice(None)
         else:
-            all_proteins = self.protein_state_registry[
-                ProteinObsmField.COLUMN_NAMES_KEY
-            ]
+            all_proteins = self.protein_state_registry.column_names
             protein_mask = [True if p in protein_list else False for p in all_proteins]
         if indices is None:
             indices = np.arange(adata.n_obs)
@@ -528,9 +524,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 columns=adata.var_names[gene_mask],
                 index=adata.obs_names[indices],
             )
-            protein_names = self.protein_state_registry[
-                ProteinObsmField.COLUMN_NAMES_KEY
-            ]
+            protein_names = self.protein_state_registry.column_names
             pro_df = pd.DataFrame(
                 scale_list_pro,
                 columns=protein_names[protein_mask],
@@ -602,9 +596,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if protein_list is None:
             protein_mask = slice(None)
         else:
-            all_proteins = self.protein_state_registry[
-                ProteinObsmField.COLUMN_NAMES_KEY
-            ]
+            all_proteins = self.protein_state_registry.column_names
             protein_mask = [True if p in protein_list else False for p in all_proteins]
 
         if n_samples > 1 and return_mean is False:
@@ -658,7 +650,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if return_numpy is True:
             return 1 - py_mixings
         else:
-            pro_names = self.protein_state_registry[ProteinObsmField.COLUMN_NAMES_KEY]
+            pro_names = self.protein_state_registry.column_names
             foreground_prob = pd.DataFrame(
                 1 - py_mixings,
                 columns=pro_names[protein_mask],
@@ -757,7 +749,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         col_names = np.concatenate(
             [
                 np.asarray(adata.var_names),
-                self.protein_state_registry[ProteinObsmField.COLUMN_NAMES_KEY],
+                self.protein_state_registry.column_names,
             ]
         )
         result = _de_core(
@@ -831,9 +823,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if protein_list is None:
             protein_mask = slice(None)
         else:
-            all_proteins = self.protein_state_registry[
-                ProteinObsmField.COLUMN_NAMES_KEY
-            ]
+            all_proteins = self.protein_state_registry.column_names
             protein_mask = [True if p in protein_list else False for p in all_proteins]
 
         scdl = self._make_data_loader(
@@ -1024,7 +1014,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         names = np.concatenate(
             [
                 np.asarray(var_names),
-                self.protein_state_registry[ProteinObsmField.COLUMN_NAMES_KEY],
+                self.protein_state_registry.column_names,
             ]
         )
         return pd.DataFrame(corr_matrix, index=names, columns=names)
@@ -1064,7 +1054,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
         if REGISTRY_KEYS.PROTEIN_EXP_KEY in self.adata_manager.data_registry.keys():
             pro_exp = self.get_from_registry(adata, REGISTRY_KEYS.PROTEIN_EXP_KEY)
-            if self.summary_stats["n_proteins"] != pro_exp.shape[1]:
+            if self.summary_stats.n_proteins != pro_exp.shape[1]:
                 raise ValueError(error_msg.format("proteins"))
             is_nonneg_int = _check_nonnegative_integers(pro_exp)
             if not is_nonneg_int:

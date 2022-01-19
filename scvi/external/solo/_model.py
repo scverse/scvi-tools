@@ -11,7 +11,6 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata._constants import _DR_ATTR_KEY, _DR_ATTR_NAME
 from scvi.data.anndata.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
@@ -84,7 +83,7 @@ class SOLO(BaseModelClass):
         super().__init__(adata)
 
         self.module = Classifier(
-            n_input=self.summary_stats["n_vars"],
+            n_input=self.summary_stats.n_vars,
             n_labels=2,
             logits=True,
             **classifier_kwargs,
@@ -129,9 +128,9 @@ class SOLO(BaseModelClass):
         """
         _validate_scvi_model(scvi_model, restrict_to_batch=restrict_to_batch)
         orig_adata_manager = scvi_model.adata_manager
-        orig_batch_key = orig_adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
-            CategoricalObsField.ORIGINAL_ATTR_KEY
-        ]
+        orig_batch_key = orig_adata_manager.get_state_registry(
+            REGISTRY_KEYS.BATCH_KEY
+        ).original_key
 
         if adata is not None:
             cls.register_manager(orig_adata_manager.transfer_setup(adata))
@@ -242,13 +241,7 @@ class SOLO(BaseModelClass):
         ]
 
         # if adata setup with a layer, need to add layer to doublets adata
-        data_registry = adata_manager.data_registry
-        x_loc = data_registry[REGISTRY_KEYS.X_KEY][_DR_ATTR_NAME]
-        layer = (
-            data_registry[REGISTRY_KEYS.X_KEY][_DR_ATTR_KEY]
-            if x_loc == "layers"
-            else None
-        )
+        layer = adata_manager.data_registry[REGISTRY_KEYS.X_KEY].attr_key
         if layer is not None:
             doublets_ad.layers[layer] = doublets
 
@@ -387,9 +380,9 @@ class SOLO(BaseModelClass):
 
         preds = y_pred[mask]
 
-        cols = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)[
-            CategoricalObsField.CATEGORICAL_MAPPING_KEY
-        ]
+        cols = self.adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        ).categorical_mapping
         preds_df = pd.DataFrame(preds, columns=cols, index=self.adata.obs_names[mask])
 
         if not soft:
@@ -427,7 +420,7 @@ class SOLO(BaseModelClass):
 
 
 def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):
-    if scvi_model.summary_stats["n_batch"] > 1 and restrict_to_batch is None:
+    if scvi_model.summary_stats.n_batch > 1 and restrict_to_batch is None:
         warnings.warn(
             "Solo should only be trained on one lane of data using `restrict_to_batch`. Performance may suffer.",
             UserWarning,

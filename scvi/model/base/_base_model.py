@@ -50,7 +50,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             self.adata_manager = self.get_anndata_manager(adata, required=True)
             self.adata = self.adata_manager.adata
             # Suffix registry instance variable with _ to include it when saving the model.
-            self.registry_ = self.adata_manager._registry
+            self.registry_ = self.adata_manager.registry
             self.summary_stats = self.adata_manager.summary_stats
 
         self.is_trained_ = False

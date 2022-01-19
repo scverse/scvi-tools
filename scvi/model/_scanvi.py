@@ -110,25 +110,25 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         # ignores unlabeled catgegory
         n_labels = (
-            self.summary_stats["n_labels"] - 1
+            self.summary_stats.n_labels - 1
             if self.has_unlabeled
-            else self.summary_stats["n_labels"]
+            else self.summary_stats.n_labels
         )
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
-                CategoricalJointObsField.N_CATS_PER_KEY
-            ]
+            self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
 
-        n_batch = self.summary_stats["n_batch"]
+        n_batch = self.summary_stats.n_batch
         library_log_means, library_log_vars = _init_library_size(
             self.adata_manager, n_batch
         )
 
         self.module = SCANVAE(
-            n_input=self.summary_stats["n_vars"],
+            n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=n_labels,
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
@@ -220,26 +220,19 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         labels_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         )
-        self.unlabeled_category_ = labels_state_registry[
-            LabelsWithUnlabeledObsField.UNLABELED_CATEGORY
-        ]
-        self.has_unlabeled = labels_state_registry[
-            LabelsWithUnlabeledObsField.WAS_REMAPPED
-        ]
+        self.unlabeled_category_ = labels_state_registry.unlabeled_category
+        self.has_unlabeled = labels_state_registry.was_remapped
 
         labels = self.get_from_registry(self.adata, REGISTRY_KEYS.LABELS_KEY)
-        self._label_mapping = labels_state_registry[
-            LabelsWithUnlabeledObsField.CATEGORICAL_MAPPING_KEY
-        ]
+        self._label_mapping = labels_state_registry.categorical_mapping
+
         # set unlabeled and labeled indices
         self._unlabeled_indices = np.argwhere(
             labels == self.unlabeled_category_
         ).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
-        self.original_label_key = labels_state_registry[
-            LabelsWithUnlabeledObsField.ORIGINAL_ATTR_KEY
-        ]
+        self.original_label_key = labels_state_registry.original_key
 
     def predict(
         self,

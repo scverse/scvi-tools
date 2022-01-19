@@ -11,11 +11,6 @@ from scipy.sparse.csr import csr_matrix
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import synthetic_iid
-from scvi.data.anndata.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    ProteinObsmField,
-)
 from scvi.dataloaders import AnnTorchDataset
 
 from .utils import generic_setup_adata_manager
@@ -70,9 +65,7 @@ def test_transfer_anndata_setup():
     adata2.obs["labels"] = ["label_1"] * adata2.n_obs
     adata1_manager = generic_setup_adata_manager(adata1, labels_key="labels")
     adata1_manager.transfer_setup(adata2)
-    labels_mapping = adata1_manager.get_state_registry("labels")[
-        CategoricalObsField.CATEGORICAL_MAPPING_KEY
-    ]
+    labels_mapping = adata1_manager.get_state_registry("labels").categorical_mapping
     correct_label = np.where(labels_mapping == "label_1")[0][0]
     adata2.obs["_scvi_labels"][0] == correct_label
 
@@ -178,9 +171,7 @@ def test_setup_anndata():
         adata.obsm["protein_expression"],
     )
     np.testing.assert_array_equal(
-        adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)[
-            ProteinObsmField.COLUMN_NAMES_KEY
-        ],
+        adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).column_names,
         adata.uns["protein_names"],
     )
 
@@ -202,9 +193,7 @@ def test_setup_anndata():
         adata, protein_expression_obsm_key="protein_expression"
     )
     np.testing.assert_array_equal(
-        adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)[
-            ProteinObsmField.COLUMN_NAMES_KEY
-        ],
+        adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).column_names,
         new_protein_names,
     )
 
@@ -294,9 +283,9 @@ def test_extra_covariates_transfer():
     bdata.obs["cat1"] = 6
     bdata_manager = adata_manager.transfer_setup(bdata, extend_categories=True)
     assert (
-        bdata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
-            CategoricalJointObsField.MAPPINGS_KEY
-        ]["cat1"][-1]
+        bdata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings["cat1"][
+            -1
+        ]
         == 6
     )
 
@@ -330,9 +319,7 @@ def test_anntorchdataset_getitem():
     bd = AnnTorchDataset(adata_manager)
     all_registered_tensors = list(adata_manager.data_registry.keys())
     np.testing.assert_array_equal(all_registered_tensors, list(bd[1].keys()))
-    assert (
-        bd[1][REGISTRY_KEYS.X_KEY].shape[0] == bd.adata_manager.summary_stats["n_vars"]
-    )
+    assert bd[1][REGISTRY_KEYS.X_KEY].shape[0] == bd.adata_manager.summary_stats.n_vars
 
     # check that AnnTorchDataset returns numpy array
     adata1 = synthetic_iid()

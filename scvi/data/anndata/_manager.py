@@ -194,9 +194,9 @@ class AnnDataManager:
         return self._registry[_constants._SCVI_UUID_KEY]
 
     @property
-    def registry(self) -> attrdict:
+    def registry(self) -> dict:
         """Returns the top-level registry dictionary for the AnnData object registered with this instance as an attrdict."""
-        return attrdict(self._registry)
+        return self._registry
 
     @property
     def data_registry(self) -> attrdict:
@@ -211,7 +211,7 @@ class AnnDataManager:
             if field_data_registry:
                 data_registry[registry_key] = field_data_registry
 
-        return attrdict(data_registry)
+        return attrdict(data_registry, recursive=True)
 
     @property
     def summary_stats(self) -> attrdict:
