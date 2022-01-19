@@ -92,7 +92,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             "seq": self.get_anndata_manager(adata_seq, required=True),
             "spatial": self.get_anndata_manager(adata_spatial, required=True),
         }
-        self.registries_ = [adm.registry for adm in self.adata_managers.values()]
+        self.registries_ = [adm._registry for adm in self.adata_managers.values()]
 
         seq_var_names = adata_seq.var_names
         spatial_var_names = adata_spatial.var_names

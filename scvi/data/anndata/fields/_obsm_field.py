@@ -250,7 +250,7 @@ class CategoricalJointObsField(JointObsField):
     """
 
     MAPPINGS_KEY = "mappings"
-    KEYS_KEY = "keys"
+    FIELD_KEYS_KEY = "field_keys"
     N_CATS_PER_KEY = "n_cats_per_key"
 
     def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
@@ -258,7 +258,11 @@ class CategoricalJointObsField(JointObsField):
         self.count_stat_key = f"n_{self.registry_key}"
 
     def _default_mappings_dict(self) -> dict:
-        return {self.MAPPINGS_KEY: dict(), self.KEYS_KEY: [], self.N_CATS_PER_KEY: []}
+        return {
+            self.MAPPINGS_KEY: dict(),
+            self.FIELD_KEYS_KEY: [],
+            self.N_CATS_PER_KEY: [],
+        }
 
     def _make_obsm_categorical(
         self, adata: AnnData, category_dict: Optional[Dict[str, List[str]]] = None
@@ -286,7 +290,7 @@ class CategoricalJointObsField(JointObsField):
 
         mappings_dict = self._default_mappings_dict()
         mappings_dict[self.MAPPINGS_KEY] = store_cats
-        mappings_dict[self.KEYS_KEY] = self.obs_keys
+        mappings_dict[self.FIELD_KEYS_KEY] = self.obs_keys
         for k in self.obs_keys:
             mappings_dict[self.N_CATS_PER_KEY].append(len(store_cats[k]))
         return mappings_dict
