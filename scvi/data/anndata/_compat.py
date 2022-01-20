@@ -38,7 +38,7 @@ def registry_from_setup_dict(setup_dict: dict) -> dict:
     Parameters
     ----------
     setup_dict
-        Setup dictionary created after registering an AnnData with former `setup_anndata(...)` implementation.
+        Setup dictionary created after registering an AnnData with former ``setup_anndata`` implementation.
     """
     registry = {
         _constants._SCVI_VERSION_KEY: setup_dict[_constants._SCVI_VERSION_KEY],
@@ -127,7 +127,7 @@ def manager_from_setup_dict(
     adata
         AnnData object to be registered.
     setup_dict
-        Setup dictionary created after registering an AnnData with former `setup_anndata(...)` implementation.
+        Setup dictionary created after registering an AnnData with former ``setup_anndata`` implementation.
     **kwargs
         Keyword arguments to modify transfer behavior.
     """
