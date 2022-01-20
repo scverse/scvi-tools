@@ -1,17 +1,10 @@
 import logging
-from typing import Tuple, Union
+from typing import Union
 
 import numpy as np
 import scipy
 import torch
 from scipy.optimize import linear_sum_assignment
-from sklearn.cluster import KMeans
-from sklearn.metrics import (
-    adjusted_rand_score,
-    normalized_mutual_info_score,
-    silhouette_score,
-)
-from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import NearestNeighbors
 
 logger = logging.getLogger(__name__)
@@ -87,31 +80,3 @@ def knn_purity(latent, label, n_neighbors=30):
     ]  # per cell-type purity
 
     return np.mean(res)
-
-
-@torch.no_grad()
-def clustering_scores(
-    self, adata, latent, labels, prediction_algorithm: str = "knn"
-) -> Tuple:
-    if adata.uns["scvi_summary_stats"]["n_labels"] > 1:
-        if prediction_algorithm == "knn":
-            labels_pred = KMeans(
-                self.dataset.adata.uns["scvi_summary_stats"]["n_labels"],
-                n_init=200,
-            ).fit_predict(latent)
-        elif prediction_algorithm == "gmm":
-            gmm = GaussianMixture(
-                self.dataset.adata.uns["scvi_summary_stats"]["n_labels"]
-            )
-            gmm.fit(latent)
-            labels_pred = gmm.predict(latent)
-
-        asw_score = silhouette_score(latent, labels)
-        nmi_score = normalized_mutual_info_score(labels, labels_pred)
-        ari_score = adjusted_rand_score(labels, labels_pred)
-        uca_score = unsupervised_clustering_accuracy(labels, labels_pred)[0]
-        logger.debug(
-            "Clustering Scores:\nSilhouette: %.4f\nNMI: %.4f\nARI: %.4f\nUCA: %.4f"
-            % (asw_score, nmi_score, ari_score, uca_score)
-        )
-        return asw_score, nmi_score, ari_score, uca_score

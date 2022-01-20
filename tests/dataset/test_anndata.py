@@ -56,13 +56,6 @@ def test_transfer_anndata_setup():
     with pytest.raises(ValueError):
         adata1_manager.transfer_setup(adata2)
 
-    # TODO: test that a batch with wrong dtype throws an error
-    # adata1 = synthetic_iid()
-    # adata2 = synthetic_iid()
-    # adata2.obs["batch"] = ["0"] * adata2.n_obs
-    # with pytest.raises(ValueError):
-    #     transfer_anndata_setup(adata1, adata2)
-
     # test that an unknown label throws an error
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
