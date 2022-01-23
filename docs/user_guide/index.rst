@@ -3,7 +3,7 @@ User guide
 
 scvi-tools is composed of models that can perform one or many analysis tasks. In the user guide, we provide an overview of each model with emphasis on the math behind the model, how it connects to the code, and how the code connects to analysis.
 
-.. figure:: /_static/tasks-01.png
+.. figure:: /_static/tasks.png
    :class: img-fluid
    :align: center
    :alt: Overview of tasks
