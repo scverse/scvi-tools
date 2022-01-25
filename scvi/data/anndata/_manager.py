@@ -258,7 +258,7 @@ class AnnDataManager:
             ]
         )
 
-    def _view_summary_stats(self, console: rich.Console) -> None:
+    def _view_summary_stats(self, console: rich.console.Console) -> None:
         """Prints summary stats."""
         t = rich.table.Table(title="Summary Statistics")
         t.add_column(
@@ -279,9 +279,9 @@ class AnnDataManager:
             t.add_row(stat_key, str(count))
         console.print(t)
 
-    def _view_data_registry(self, console: rich.Console) -> None:
+    def _view_data_registry(self, console: rich.console.Console) -> None:
         """Prints data registry."""
-        t = rich.table.Table(title="SCVI Data Registry")
+        t = rich.table.Table(title="Data Registry")
         t.add_column(
             "Registry Key",
             justify="center",
@@ -327,6 +327,6 @@ class AnnDataManager:
 
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
-        console = rich.Console(force_jupyter=force_jupyter)
+        console = rich.console.Console(force_jupyter=force_jupyter)
         self._view_summary_stats(console)
         self._view_data_registry(console)

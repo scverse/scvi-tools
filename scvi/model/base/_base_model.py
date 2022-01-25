@@ -546,7 +546,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Parameters
         ----------
         adata
-            AnnData object setup with ``setup_anndata``.
+            AnnData object setup with ``setup_anndata`` or
+            :meth:`~scvi.data.anndata.AnnDataManager.transfer_setup`.
         """
         if adata is None:
             adata = self.adata
