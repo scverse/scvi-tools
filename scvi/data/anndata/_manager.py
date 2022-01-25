@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import sys
 from collections import defaultdict
 from typing import Optional, Sequence, Type
 
 import numpy as np
+import rich
 from anndata import AnnData
 
 import scvi
@@ -148,7 +150,7 @@ class AnnDataManager:
                             field.registry_key
                         ][_constants._STATE_REGISTRY_KEY],
                         self.adata,
-                        **transfer_kwargs
+                        **transfer_kwargs,
                     )
                 else:
                     field_registry[
@@ -255,3 +257,76 @@ class AnnDataManager:
                 _constants._STATE_REGISTRY_KEY
             ]
         )
+
+    def _view_summary_stats(self, console: rich.Console) -> None:
+        """Prints summary stats."""
+        t = rich.table.Table(title="Summary Statistics")
+        t.add_column(
+            "Summary Stat Key",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
+        )
+        t.add_column(
+            "Value",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
+        )
+        for stat_key, count in self.summary_stats.items():
+            t.add_row(stat_key, str(count))
+        console.print(t)
+
+    def _view_data_registry(self, console: rich.Console) -> None:
+        """Prints data registry."""
+        t = rich.table.Table(title="SCVI Data Registry")
+        t.add_column(
+            "Registry Key",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
+        )
+        t.add_column(
+            "scvi-tools Location",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
+        )
+        t.add_column(
+            "State Registry Keys",
+            justify="center",
+            style="green",
+            no_wrap=True,
+            overflow="fold",
+        )
+
+        for registry_key, data_loc in self.data_registry.items():
+            attr_name = data_loc.attr_name
+            attr_key = data_loc.attr_key
+            if attr_key is None:
+                scvi_data_str = f"adata.{attr_name}"
+            else:
+                scvi_data_str = f"adata.{attr_name}['{attr_key}']"
+
+            state_registry = self.get_state_registry(registry_key)
+            state_registry_keys = ", ".join(state_registry.keys())
+
+            t.add_row(registry_key, scvi_data_str, state_registry_keys)
+
+        console.print(t)
+
+    def view_registry(self) -> None:
+        """Prints summary of the registry."""
+
+        version = self._registry[_constants._SCVI_VERSION_KEY]
+        rich.print("Anndata setup with scvi-tools version {}.".format(version))
+
+        in_colab = "google.colab" in sys.modules
+        force_jupyter = None if not in_colab else True
+        console = rich.Console(force_jupyter=force_jupyter)
+        self._view_summary_stats(console)
+        self._view_data_registry(console)
