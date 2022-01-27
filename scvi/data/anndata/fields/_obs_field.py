@@ -2,6 +2,7 @@ import logging
 from typing import Optional
 
 import numpy as np
+import rich
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
@@ -71,6 +72,9 @@ class NumericalObsField(BaseObsField):
 
     def get_summary_stats(self, _state_registry: dict) -> dict:
         return {}
+
+    def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
+        return None
 
 
 class CategoricalObsField(BaseObsField):
@@ -163,3 +167,31 @@ class CategoricalObsField(BaseObsField):
         categorical_mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
         n_categories = len(np.unique(categorical_mapping))
         return {self.count_stat_key: n_categories}
+
+    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        source_key = state_registry[self.ORIGINAL_ATTR_KEY]
+        mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
+        t = rich.table.Table(title=f"{self.registry_key} State Registry")
+        t.add_column(
+            "Source Location",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
+        )
+        t.add_column(
+            "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
+        )
+        t.add_column(
+            "scvi-tools Encoding",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
+        )
+        for i, cat in enumerate(mapping):
+            if i == 0:
+                t.add_row("adata.obs['{}']".format(source_key), str(cat), str(i))
+            else:
+                t.add_row("", str(cat), str(i))
+        return t
