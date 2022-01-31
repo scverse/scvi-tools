@@ -44,7 +44,7 @@ def nearest_neighbor_overlap(x1, x2, k=100):
     set_2 = set(np.where(kmatrix_2.A.flatten() == 1)[0])
     fold_enrichment = (
         len(set_1.intersection(set_2))
-        * n_samples ** 2
+        * n_samples**2
         / (float(len(set_1)) * len(set_2))
     )
     return spearman_correlation, fold_enrichment
