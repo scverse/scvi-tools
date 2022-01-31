@@ -31,10 +31,9 @@ version = "0.14.5"
 
 [tool.poetry.dependencies]
 anndata = ">=0.7.5"
-black = {version = ">=20.8b1", optional = true}
+black = {version = ">=22.1", optional = true}
 codecov = {version = ">=2.0.8", optional = true}
 docrep = ">=0.3.2"
-torchmetrics = ">=0.6.0"
 flake8 = {version = ">=3.7.7", optional = true}
 h5py = ">=2.9.0"
 importlib-metadata = {version = "^1.0", python = "<3.8"}
@@ -72,6 +71,7 @@ sphinx-panels = {version = "*", optional = true}
 sphinx-tabs = {version = "*", optional = true}
 sphinx_copybutton = {version = "<=0.3.1", optional = true}
 torch = ">=1.8.0"
+torchmetrics = ">=0.6.0"
 tqdm = ">=4.56.0"
 typing_extensions = {version = "*", python = "<3.8", optional = true}
 

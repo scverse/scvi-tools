@@ -304,7 +304,7 @@ class NegativeBinomial(Distribution):
 
     @property
     def variance(self):
-        return self.mean + (self.mean ** 2) / self.theta
+        return self.mean + (self.mean**2) / self.theta
 
     def sample(
         self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
