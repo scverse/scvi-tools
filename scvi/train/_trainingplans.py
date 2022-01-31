@@ -179,8 +179,6 @@ class TrainingPlan(pl.LightningModule):
 
     @n_obs_validation.setter
     def n_obs_validation(self, n_obs: int):
-        if "n_obs" in self._loss_args:
-            self.loss_kwargs.update({"n_obs": n_obs})
         self._n_obs_validation = n_obs
         self.initialize_val_metrics()
 
