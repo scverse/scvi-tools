@@ -1,5 +1,6 @@
 from typing import Callable, Iterable, Optional
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -40,6 +41,8 @@ class WVAE(VAE):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_observed_lib_size: bool = False,
+        library_log_means: Optional[np.ndarray] = None,
+        library_log_vars: Optional[np.ndarray] = None,
         var_activation: Optional[Callable] = nn.Softplus(),
     ):
         super().__init__(
@@ -61,6 +64,8 @@ class WVAE(VAE):
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
             use_observed_lib_size=use_observed_lib_size,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
             var_activation=var_activation,
         )
         self.n_particles = n_particles
@@ -69,10 +74,6 @@ class WVAE(VAE):
     def _get_generative_input(self, tensors, inference_outputs):
         res = super()._get_generative_input(tensors, inference_outputs)
         x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
-        res["local_l_mean"] = local_l_mean
-        res["local_l_var"] = local_l_var
         res["x"] = x
         return res
 
@@ -147,8 +148,6 @@ class WVAE(VAE):
         library,
         batch_index,
         x,
-        local_l_mean=None,
-        local_l_var=None,
         cont_covs=None,
         cat_covs=None,
         y=None,
@@ -187,8 +186,14 @@ class WVAE(VAE):
         if self.use_observed_lib_size:
             log_pl = 0.0
         else:
+            (
+                local_library_log_means,
+                local_library_log_vars,
+            ) = self._compute_local_library_params(batch_index)
             log_pl = (
-                Normal(local_l_mean, torch.sqrt(local_l_var)).log_prob(library).sum(-1)
+                Normal(local_library_log_means, torch.sqrt(local_library_log_vars))
+                .log_prob(library)
+                .sum(-1)
             )
 
         log_px_latents = -self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
