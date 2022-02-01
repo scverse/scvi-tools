@@ -5,7 +5,6 @@ import anndata
 import h5py
 import numpy as np
 import pandas as pd
-import torch
 from anndata._core.sparse_dataset import SparseDataset
 from torch.utils.data import Dataset
 
@@ -65,7 +64,7 @@ class AnnTorchDataset(Dataset):
         --------
         >>> sd = AnnTorchDataset(adata)
 
-        # following will only return the X and batch_indices both by defualt as np.float32
+        # following will only return the X and batch_indices both by default as np.float32
         >>> sd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])
 
         # This will return X as an integer and batch_indices as np.float32
@@ -93,7 +92,7 @@ class AnnTorchDataset(Dataset):
 
         self.attributes_and_types = keys_to_type
 
-    def __getitem__(self, idx: List[int]) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, idx: List[int]) -> Dict[str, np.ndarray]:
         """Get tensors in dictionary from anndata at idx."""
         data_numpy = {}
         for key, dtype in self.attributes_and_types.items():

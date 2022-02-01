@@ -464,8 +464,8 @@ class RNASeqMixin:
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
-        if self.is_trained_ is False:
-            raise RuntimeError("Please train the model first.")
+        self._check_if_trained(warn=False)
+
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -475,12 +475,17 @@ class RNASeqMixin:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
 
-            ql_m = outputs["ql_m"]
-            ql_v = outputs["ql_v"]
             library = outputs["library"]
-            if give_mean is False:
+            if not give_mean:
                 library = torch.exp(library)
             else:
+                ql_m = outputs["ql_m"]
+                ql_v = outputs["ql_v"]
+                if ql_m is None or ql_v is None:
+                    raise RuntimeError(
+                        "The module for this model does not compute the posterior distribution "
+                        "for the library size. Set `give_mean` to False to use the observed library size instead."
+                    )
                 library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
             libraries += [library.cpu()]
         return torch.cat(libraries).numpy()

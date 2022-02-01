@@ -39,9 +39,9 @@ class LossRecorder:
         loss: Union[Dict[str, torch.Tensor], torch.Tensor],
         reconstruction_loss: Union[
             Dict[str, torch.Tensor], torch.Tensor
-        ] = torch.Tensor([0]),
-        kl_local: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
-        kl_global: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.Tensor([0]),
+        ] = torch.tensor(0.0),
+        kl_local: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.tensor(0.0),
+        kl_global: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.tensor(0.0),
         **kwargs,
     ):
         self._loss = loss if isinstance(loss, dict) else dict(loss=loss)
@@ -56,8 +56,10 @@ class LossRecorder:
         self._kl_global = (
             kl_global if isinstance(kl_global, dict) else dict(kl_global=kl_global)
         )
+        self.extra_metric_attrs = []
         for key, value in kwargs.items():
             setattr(self, key, value)
+            self.extra_metric_attrs.append(key)
 
     @staticmethod
     def _get_dict_sum(dictionary):
@@ -90,6 +92,13 @@ class BaseModuleClass(nn.Module):
         self,
     ):
         super().__init__()
+
+    @property
+    def device(self):
+        device = list(set(p.device for p in self.parameters()))
+        if len(device) > 1:
+            raise RuntimeError("Module tensors on multiple devices.")
+        return device[0]
 
     @auto_move_data
     def forward(

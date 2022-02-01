@@ -1,12 +1,15 @@
 import logging
+from typing import Optional
 
 import pandas as pd
 from anndata import AnnData
 
 from scvi._compat import Literal
-from scvi.model._utils import _get_var_names_from_setup_anndata
+from scvi.data._anndata import _setup_anndata
+from scvi.model._utils import _get_var_names_from_setup_anndata, _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import LDVAE
+from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, DEMixin, RNASeqMixin, VAEMixin
 
@@ -22,7 +25,7 @@ class LinearSCVI(
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.LinearSCVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -55,7 +58,7 @@ class LinearSCVI(
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch")
+    >>> scvi.model.LinearSCVI.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.LinearSCVI(adata)
     >>> vae.train()
     >>> adata.var["loadings"] = vae.get_loadings()
@@ -64,7 +67,7 @@ class LinearSCVI(
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/linear_decoder`
+    1. :doc:`/tutorials/notebooks/linear_decoder`
     """
 
     def __init__(
@@ -80,9 +83,13 @@ class LinearSCVI(
         **model_kwargs,
     ):
         super(LinearSCVI, self).__init__(adata)
+
+        n_batch = self.summary_stats["n_batch"]
+        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+
         self.module = LDVAE(
             n_input=self.summary_stats["n_vars"],
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=n_batch,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers_encoder=n_layers,
@@ -90,6 +97,8 @@ class LinearSCVI(
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -121,3 +130,35 @@ class LinearSCVI(
         )
 
         return loadings
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        batch_key: Optional[str] = None,
+        labels_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_layer)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            batch_key=batch_key,
+            labels_key=labels_key,
+            layer=layer,
+            copy=copy,
+        )

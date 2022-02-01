@@ -15,7 +15,7 @@ class ConcatDataLoader(DataLoader):
     Parameters
     ----------
     adata
-        AnnData object that have been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via setup_anndata.
     indices_list
         List where each element is a list of indices in the adata to load
     shuffle

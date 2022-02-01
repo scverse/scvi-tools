@@ -6,8 +6,11 @@ import torch
 from scvi.data import synthetic_iid
 from scvi.external.wscvi import WSCVI
 from scvi.model import SCVI
-from scvi.utils import DifferentialComputation
-from scvi.utils._differential import estimate_delta, estimate_pseudocounts_offset
+from scvi.model.base._differential import (
+    DifferentialComputation,
+    estimate_delta,
+    estimate_pseudocounts_offset,
+)
 
 
 def test_features():

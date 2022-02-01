@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Union
 
-import numpy as np
+import pytorch_lightning as pl
 import torch
 from rich.console import Console
 from rich.logging import RichHandler
@@ -140,10 +140,9 @@ class ScviConfig:
     @seed.setter
     def seed(self, seed: int):
         """Random seed for torch and numpy."""
-        torch.manual_seed(seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        np.random.seed(seed)
+        pl.utilities.seed.seed_everything(seed)
         self._seed = seed
 
     @property

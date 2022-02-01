@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Iterable, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -9,8 +9,8 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 
 from scvi._compat import Literal
-from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
+from scvi.data._anndata import _setup_anndata
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _get_var_names_from_setup_anndata,
@@ -19,6 +19,7 @@ from scvi.model._utils import (
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import PEAKVAE
 from scvi.train._callbacks import SaveBestState
+from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin
 from .base._utils import _de_core
@@ -33,7 +34,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.PEAKVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer. If `None`, defaults to square root
         of number of regions.
@@ -64,7 +65,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
+    >>> scvi.model.PEAKVI.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.PEAKVI(adata)
     >>> vae.train()
 
@@ -240,7 +241,24 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
         batch_size: int = 128,
-    ):
+    ) -> Dict[str, np.ndarray]:
+        """
+        Return library size factors.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+
+        Returns
+        -------
+        Library size factor for expression and accessibility
+        """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -256,6 +274,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     @torch.no_grad()
     def get_region_factors(self):
+        """Return region-specific factors."""
         if self.module.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
         return torch.sigmoid(self.module.region_factors).cpu().numpy()
@@ -266,14 +285,15 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
         n_samples_overall: Optional[int] = None,
-        region_indices: Sequence[int] = None,
+        region_list: Optional[Sequence[str]] = None,
         transform_batch: Optional[Union[str, int]] = None,
         use_z_mean: bool = True,
         threshold: Optional[float] = None,
         normalize_cells: bool = False,
         normalize_regions: bool = False,
         batch_size: int = 128,
-    ) -> Union[np.ndarray, csr_matrix]:
+        return_numpy: bool = False,
+    ) -> Union[pd.DataFrame, np.ndarray, csr_matrix]:
         """
         Impute the full accessibility matrix.
 
@@ -289,8 +309,9 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Indices of cells in adata to use. If `None`, all cells are used.
         n_samples_overall
             Number of samples to return in total
-        region_indices
-            Indices of regions to use. if `None`, all regions are used.
+        region_list
+            Return accessibility estimates for this subset of regions. if `None`, all regions are used.
+            This can save memory when dealing with large datasets.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -312,7 +333,10 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             default.
         batch_size
             Minibatch size for data loading into model
-
+        return_numpy
+            If `True` and `threshold=None`, return :class:`~numpy.ndarray`. If `True` and `threshold` is
+            given, return :class:`~scipy.sparse.csr_matrix`. If `False`, return :class:`~pandas.DataFrame`.
+            DataFrame includes regions names as columns.
         """
         adata = self._validate_anndata(adata)
         if indices is None:
@@ -323,6 +347,12 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size
         )
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
+
+        if region_list is None:
+            region_mask = slice(None)
+        else:
+            all_regions = _get_var_names_from_setup_anndata(adata)
+            region_mask = [region in region_list for region in all_regions]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -346,8 +376,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if threshold:
                 p[p < threshold] = 0
                 p = csr_matrix(p.numpy())
-            if region_indices is not None:
-                p = p[:, region_indices]
+            if region_list is not None:
+                p = p[:, region_mask]
             imputed.append(p)
 
         if threshold:  # imputed is a list of csr_matrix objects
@@ -355,7 +385,20 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
 
-        return imputed
+        if return_numpy:
+            return imputed
+        elif threshold:
+            return pd.DataFrame.sparse.from_spmatrix(
+                imputed,
+                index=adata.obs_names[indices],
+                columns=adata.var_names[region_mask],
+            )
+        else:
+            return pd.DataFrame(
+                imputed,
+                index=adata.obs_names[indices],
+                columns=adata.var_names[region_mask],
+            )
 
     @_doc_params(
         doc_differential_expression=doc_differential_expression,
@@ -391,7 +434,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         two_sided
             Whether to perform a two-sided test, or a one-sided test.
         **kwargs
-            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------
@@ -475,4 +518,39 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 "emp_prob2": result.emp_mean2,
             },
         )
-        return result.reindex(adata.var.index)
+        return result
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        batch_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_batch_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            batch_key=batch_key,
+            layer=layer,
+            categorical_covariate_keys=categorical_covariate_keys,
+            continuous_covariate_keys=continuous_covariate_keys,
+            copy=copy,
+        )

@@ -1,6 +1,6 @@
 import logging
-import warnings
-from typing import Dict, Optional, OrderedDict, Sequence, Union
+from collections import OrderedDict
+from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -8,9 +8,11 @@ import torch
 from anndata import AnnData
 
 from scvi.data import register_tensor_from_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
+from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     st_adata
-        spatial transcriptomics AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        spatial transcriptomics AnnData object that has been registered via :meth:`~scvi.model.DestVI.setup_anndata`.
     cell_type_mapping
         mapping between numerals and cell type labels
     decoder_state_dict
@@ -43,10 +45,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_scRNA_anndata)
-    >>> scvi.data.setup_anndata(sc_adata)
-    >>> sc_model = scvi.CondSCVI(sc_adata)
+    >>> scvi.model.CondSCVI.setup_anndata(sc_adata)
+    >>> sc_model = scvi.model.CondSCVI(sc_adata)
     >>> st_adata = anndata.read_h5ad(path_to_ST_anndata)
-    >>> scvi.data.setup_anndata(st_adata)
+    >>> DestVI.setup_anndata(st_adata)
     >>> spatial_model = DestVI.from_rna_model(st_adata, sc_model)
     >>> spatial_model.train(max_epochs=2000)
     >>> st_adata.obsm["proportions"] = spatial_model.get_proportions(st_adata)
@@ -160,10 +162,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
         """
-        if self.is_trained_ is False:
-            warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
-            )
+        self._check_if_trained()
 
         column_names = self.cell_type_mapping
         index_names = self.adata.obs.index
@@ -215,10 +214,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         return_numpy
             if activated, will return a numpy array of shape is n_spots x n_latent x n_labels.
         """
-        if self.is_trained_ is False:
-            warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
-            )
+        self._check_if_trained()
 
         column_names = np.arange(self.module.n_latent)
         index_names = self.adata.obs.index
@@ -275,10 +271,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         -------
         Pandas dataframe of gene_expression
         """
-        if self.is_trained_ is False:
-            warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
-            )
+        self._check_if_trained()
 
         if label not in self.cell_type_mapping:
             raise ValueError("Unknown cell type")
@@ -356,4 +349,30 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             batch_size=batch_size,
             plan_kwargs=plan_kwargs,
             **kwargs,
+        )
+
+    @staticmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        adata: AnnData,
+        layer: Optional[str] = None,
+        copy: bool = False,
+    ) -> Optional[AnnData]:
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_layer)s
+        %(param_copy)s
+
+        Returns
+        -------
+        %(returns)s
+        """
+        return _setup_anndata(
+            adata,
+            layer=layer,
+            copy=copy,
         )

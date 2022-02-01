@@ -20,6 +20,7 @@ Here we host some published datasets that are useful for benchmarking and testin
    :toctree: reference/
    :nosignatures:
 
+   data.pbmc_seurat_v4_cite_seq
    data.spleen_lymph_cite_seq
    data.heart_cell_atlas_subsampled
    data.pbmcs_10x_cite_seq

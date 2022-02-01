@@ -259,11 +259,11 @@ class PEAKVAE(BaseModuleClass):
         n_samples=1,
     ) -> Dict[str, torch.Tensor]:
         """Helper function used in forward pass."""
-        if cat_covs is not None and self.encode_covariates is True:
+        if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
-        if cont_covs is not None and self.encode_covariates is True:
+        if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat([x, cont_covs], dim=-1)
         else:
             encoder_input = x
@@ -330,4 +330,4 @@ class PEAKVAE(BaseModuleClass):
 
         loss = (rl.sum() + kld * kl_weight).sum()
 
-        return LossRecorder(loss, rl, kld, kl_global=0.0)
+        return LossRecorder(loss, rl, kld, kl_global=torch.tensor(0.0))

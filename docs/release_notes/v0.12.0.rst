@@ -1,0 +1,69 @@
+New in 0.12.0 (2021-07-15)
+--------------------------
+
+This release adds features for tighter integration with Pyro for model development, fixes for :class:`~scvi.external.SOLO`, and other enhancements. Users of :class:`~scvi.external.SOLO` are strongly encouraged to upgrade as previous bugs will affect performance.
+
+Enchancements
+~~~~~~~~~~~~~
+- Add :class:`scvi.model.base.PyroSampleMixin` for easier posterior sampling with Pyro (`#1059`_).
+- Add :class:`scvi.model.base.PyroSviTrainMixin` for automated training of Pyro models (`#1059`_).
+- Ability to pass kwargs to :class:`~scvi.module.Classifier` when using :class:`~scvi.external.SOLO` (`#1078`_).
+- Ability to get doublet predictions for simulated doublets in :class:`~scvi.external.SOLO` (`#1076`_).
+- Add "comparison" column to differential expression results (`#1074`_).
+- Clarify :class:`~scvi.external.CellAssign` size factor usage. See class docstring.
+
+Changes
+~~~~~~~
+- Update minimum Python version to `3.7.2` (`#1082`_).
+- Slight interface changes to :class:`~scvi.train.PyroTrainingPlan`. `"elbo_train"` and `"elbo_test"` are now the average over minibatches as ELBO should be on scale of full data and `optim_kwargs` can be set on initialization of training plan (`#1059`_, `#1101`_).
+- Use pandas read pickle function for pbmc dataset metadata loading (`#1099`_).
+- Adds `n_samples_overall` parameter to functions for denoised expression/accesibility/etc. This is used in during differential expression (`#1090`_).
+- Ignore configure optimizers warning when training Pyro-based models (`#1064`_).
+
+Bug fixes
+~~~~~~~~~
+- Fix scale of library size for simulated doublets and expression in :class:`~scvi.external.SOLO` when using observed library size to train original :class:`~scvi.model.SCVI` model (`#1078`_, `#1085`_). Currently, library sizes in this case are not appropriately put on the log scale.
+- Fix issue where anndata setup with a layer led to errors in :class:`~scvi.external.SOLO` (`#1098`_).
+- Fix `adata` parameter of :func:`scvi.external.SOLO.from_scvi_model`, which previously did nothing (`#1078`_).
+- Fix default `max_epochs` of :class:`~scvi.model.SCANVI` when initializing using pre-trained model of :class:`~scvi.model.SCVI` (`#1079`_).
+- Fix bug in `predict()` function of :class:`~scvi.model.SCANVI`, which only occurred for soft predictions (`#1100`_).
+
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+None!
+
+Contributors
+~~~~~~~~~~~~
+- `@vitkl`_
+- `@adamgayoso`_
+- `@galenxing`_
+- `@PierreBoyeau`_
+- `@Munfred`_
+- `@njbernstein`_
+- `@mjayasur`_
+
+.. _`@Munfred`: https://github.com/Munfred
+.. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@galenxing`: https://github.com/galenxing
+.. _`@PierreBoyeau`: https://github.com/PierreBoyeau
+.. _`@njbernstein`: https://github.com/njbernstein
+.. _`@vitkl`: https://github.com/vitkl
+.. _`@mjayasur`: https://github.com/mjayasur
+
+
+.. _`#1059`: https://github.com/YosefLab/scvi-tools/pull/1059
+.. _`#1064`: https://github.com/YosefLab/scvi-tools/pull/1064
+.. _`#1074`: https://github.com/YosefLab/scvi-tools/pull/1074
+.. _`#1076`: https://github.com/YosefLab/scvi-tools/pull/1076
+.. _`#1079`: https://github.com/YosefLab/scvi-tools/pull/1079
+.. _`#1078`: https://github.com/YosefLab/scvi-tools/pull/1078
+.. _`#1082`: https://github.com/YosefLab/scvi-tools/pull/1082
+.. _`#1085`: https://github.com/YosefLab/scvi-tools/pull/1085
+.. _`#1090`: https://github.com/YosefLab/scvi-tools/pull/1090
+.. _`#1098`: https://github.com/YosefLab/scvi-tools/pull/1098
+.. _`#1099`: https://github.com/YosefLab/scvi-tools/pull/1099
+.. _`#1100`: https://github.com/YosefLab/scvi-tools/pull/1100
+.. _`#1101`: https://github.com/YosefLab/scvi-tools/pull/1101
+

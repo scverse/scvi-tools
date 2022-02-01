@@ -15,7 +15,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
     Parameters
     ----------
     adata
-        AnnData object that have been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via setup_anndata.
     unlabeled_category
         Category to treat as unlabeled
     n_samples_per_label

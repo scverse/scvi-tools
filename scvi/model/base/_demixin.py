@@ -10,7 +10,6 @@ from sklearn.covariance import EllipticEnvelope
 from torch.distributions import Categorical, Normal
 
 from scvi._compat import Literal
-from scvi._docs import doc_differential_expression
 from scvi._utils import _doc_params
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -18,6 +17,7 @@ from scvi.model._utils import (
     scrna_raw_counts_properties,
 )
 from scvi.model.base._utils import _de_core
+from scvi.utils._docstrings import doc_differential_expression
 
 logger = logging.getLogger(__name__)
 Number = Union[int, float]
@@ -69,7 +69,7 @@ class DEMixin:
         ----------
         {doc_differential_expression}
         **kwargs
-            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------

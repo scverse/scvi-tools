@@ -1,12 +1,11 @@
 import os
-import pickle
 from typing import List
 
 import anndata
 import numpy as np
 import pandas as pd
 
-from scvi.data import setup_anndata
+from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._dataset_10x import _load_dataset_10x
 from scvi.data._built_in_data._download import _download
 
@@ -45,7 +44,7 @@ def _load_purified_pbmc_dataset(
         adata = adata[row_indices].copy()
 
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
@@ -65,9 +64,7 @@ def _load_pbmc_dataset(
         _download(urls[i], save_path, save_fns[i])
 
     de_metadata = pd.read_csv(os.path.join(save_path, "gene_info_pbmc.csv"), sep=",")
-    pbmc_metadata = pickle.load(
-        open(os.path.join(save_path, "pbmc_metadata.pickle"), "rb")
-    )
+    pbmc_metadata = pd.read_pickle(os.path.join(save_path, "pbmc_metadata.pickle"))
     pbmc8k = _load_dataset_10x(
         "pbmc8k",
         save_path=save_path,
@@ -129,5 +126,5 @@ def _load_pbmc_dataset(
     adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata.X, axis=0)))
 
     if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+        _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata

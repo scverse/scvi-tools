@@ -13,16 +13,13 @@ from anndata._core.anndata import AnnData
 from pandas.api.types import CategoricalDtype
 from rich.console import Console
 from scipy.sparse import isspmatrix
+from sklearn.utils import deprecated
 
 import scvi
 from scvi import _CONSTANTS
 from scvi._compat import Literal
 
-from ._utils import (
-    _check_nonnegative_integers,
-    _compute_library_size_batch,
-    _get_batch_mask_protein_data,
-)
+from ._utils import _check_nonnegative_integers, _get_batch_mask_protein_data
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +31,7 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     Parameters
     ----------
     adata
-        anndata object already setup with `scvi.data.setup_anndata()`
+        anndata object already setup with setup_anndata
     key
         key of object to get from ``adata.uns['_scvi]['data_registry']``
 
@@ -49,8 +46,6 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     >>> adata.uns['_scvi']['data_registry']
     {'X': ['_X', None],
     'batch_indices': ['obs', 'batch'],
-    'local_l_mean': ['obs', '_scvi_local_l_mean'],
-    'local_l_var': ['obs', '_scvi_local_l_var'],
     'labels': ['obs', 'labels']}
     >>> batch = get_from_registry(adata, "batch_indices")
     >>> batch
@@ -76,6 +71,9 @@ def get_from_registry(adata: anndata.AnnData, key: str) -> np.ndarray:
     return data
 
 
+@deprecated(
+    extra="Please use the model-specific setup_anndata methods instead. The global method will be removed in version 0.15.0."
+)
 def setup_anndata(
     adata: anndata.AnnData,
     batch_key: Optional[str] = None,
@@ -91,7 +89,6 @@ def setup_anndata(
     Sets up :class:`~anndata.AnnData` object for models.
 
     A mapping will be created between data fields used by models to their respective locations in adata.
-    This method will also compute the log mean and log variance per batch for the library size prior.
 
     None of the data in adata are modified. Only adds fields to adata.
 
@@ -126,10 +123,6 @@ def setup_anndata(
 
     .uns['_scvi']
         `scvi` setup dictionary
-    .obs['_local_l_mean']
-        per batch library size mean
-    .obs['_local_l_var']
-        per batch library size variance
     .obs['_scvi_labels']
         labels encoded as integers
     .obs['_scvi_batch']
@@ -149,7 +142,7 @@ def setup_anndata(
         uns: 'protein_names'
         obsm: 'protein_expression'
 
-    Filter cells and run preprocessing before `setup_anndata`
+    Filter cells and run preprocessing before ``setup_anndata``
 
     >>> sc.pp.filter_cells(adata, min_counts = 0)
 
@@ -160,7 +153,7 @@ def setup_anndata(
     INFO      No label_key inputted, assuming all cells have same label
     INFO      Using data from adata.X
     INFO      Computing library size prior per batch
-    INFO      Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels']
+    INFO      Registered keys:['X', 'batch_indices', 'labels']
     INFO      Successfully registered anndata object containing 400 cells, 100 vars, 1 batches, 1 labels, and 0 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
 
     Example setting up scanpy dataset with random gene data, batch, and protein expression
@@ -173,9 +166,33 @@ def setup_anndata(
     INFO      Computing library size prior per batch
     INFO      Using protein expression from adata.obsm['protein_expression']
     INFO      Generating sequential protein names
-    INFO      Registered keys:['X', 'batch_indices', 'local_l_mean', 'local_l_var', 'labels', 'protein_expression']
+    INFO      Registered keys:['X', 'batch_indices', 'labels', 'protein_expression']
     INFO      Successfully registered anndata object containing 400 cells, 100 vars, 2 batches, 1 labels, and 100 proteins. Also registered 0 extra categorical covariates and 0 extra continuous covariates.
     """
+    return _setup_anndata(
+        adata,
+        batch_key,
+        labels_key,
+        layer,
+        protein_expression_obsm_key,
+        protein_names_uns_key,
+        categorical_covariate_keys,
+        continuous_covariate_keys,
+        copy,
+    )
+
+
+def _setup_anndata(
+    adata: anndata.AnnData,
+    batch_key: Optional[str] = None,
+    labels_key: Optional[str] = None,
+    layer: Optional[str] = None,
+    protein_expression_obsm_key: Optional[str] = None,
+    protein_names_uns_key: Optional[str] = None,
+    categorical_covariate_keys: Optional[List[str]] = None,
+    continuous_covariate_keys: Optional[List[str]] = None,
+    copy: bool = False,
+) -> Optional[anndata.AnnData]:
     if copy:
         adata = adata.copy()
 
@@ -190,13 +207,10 @@ def setup_anndata(
     batch_key = _setup_batch(adata, batch_key)
     labels_key = _setup_labels(adata, labels_key)
     x_loc, x_key = _setup_x(adata, layer)
-    local_l_mean_key, local_l_var_key = _setup_library_size(adata, batch_key, layer)
 
     data_registry = {
         _CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key},
         _CONSTANTS.BATCH_KEY: {"attr_name": "obs", "attr_key": batch_key},
-        _CONSTANTS.LOCAL_L_MEAN_KEY: {"attr_name": "obs", "attr_key": local_l_mean_key},
-        _CONSTANTS.LOCAL_L_VAR_KEY: {"attr_name": "obs", "attr_key": local_l_var_key},
         _CONSTANTS.LABELS_KEY: {"attr_name": "obs", "attr_key": labels_key},
     }
 
@@ -372,6 +386,9 @@ def register_tensor_from_anndata(
     _verify_and_correct_data_format(adata, data_registry)
 
 
+@deprecated(
+    extra="This method will be removed in 0.15.0. Please avoid building any new dependencies on it."
+)
 def transfer_anndata_setup(
     adata_source: Union[anndata.AnnData, dict],
     adata_target: anndata.AnnData,
@@ -433,9 +450,6 @@ def transfer_anndata_setup(
 
     # transfer X
     x_loc, x_key = _setup_x(adata_target, layer)
-    local_l_mean_key, local_l_var_key = _setup_library_size(
-        adata_target, batch_key, layer
-    )
     target_data_registry = data_registry.copy()
     target_data_registry.update(
         {_CONSTANTS.X_KEY: {"attr_name": x_loc, "attr_key": x_key}}
@@ -819,21 +833,6 @@ def _setup_x(adata, layer):
     return x_loc, x_key
 
 
-def _setup_library_size(adata, batch_key, layer):
-    # computes the library size per batch
-    logger.info("Computing library size prior per batch")
-    local_l_mean_key = "_scvi_local_l_mean"
-    local_l_var_key = "_scvi_local_l_var"
-    _compute_library_size_batch(
-        adata,
-        batch_key=batch_key,
-        local_l_mean_key=local_l_mean_key,
-        local_l_var_key=local_l_var_key,
-        layer=layer,
-    )
-    return local_l_mean_key, local_l_var_key
-
-
 def _setup_summary_stats(
     adata,
     batch_key,
@@ -904,6 +903,9 @@ def _register_anndata(adata, data_registry_dict: Dict[str, Tuple[str, str]]):
     adata.uns["_scvi"]["data_registry"] = data_registry_dict.copy()
 
 
+@deprecated(
+    extra="This method will be removed in 0.15.0. Please avoid building any new dependencies on it."
+)
 def view_anndata_setup(source: Union[anndata.AnnData, dict, str]):
     """
     Prints setup anndata.

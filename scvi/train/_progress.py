@@ -2,7 +2,6 @@ import logging
 
 from pytorch_lightning.callbacks import ProgressBarBase
 
-from scvi import settings
 from scvi.utils import track
 
 logger = logging.getLogger(__name__)
@@ -58,8 +57,7 @@ class ProgressBar(ProgressBarBase):
             None,
             total=trainer.max_epochs,
             description="Training",
-            style=settings.progress_bar_style,
-            initial=self.train_batch_idx,
+            style="tqdm",
             disable=self.is_disabled,
         )
         return bar

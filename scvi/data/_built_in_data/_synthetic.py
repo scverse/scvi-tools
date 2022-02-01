@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 
-from scvi.data import setup_anndata
+from scvi.data._anndata import _setup_anndata
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def _generate_synthetic(
     adata.obsm["protein_expression"] = p_data
     adata.uns["protein_names"] = np.arange(n_proteins).astype(str)
     if run_setup_anndata:
-        setup_anndata(
+        _setup_anndata(
             adata,
             batch_key="batch",
             labels_key="labels",

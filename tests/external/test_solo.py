@@ -1,4 +1,4 @@
-from scvi.data import setup_anndata, synthetic_iid
+from scvi.data import synthetic_iid
 from scvi.external import SOLO
 from scvi.model import SCVI
 
@@ -6,7 +6,7 @@ from scvi.model import SCVI
 def test_solo(save_path):
     n_latent = 5
     adata = synthetic_iid(run_setup_anndata=False)
-    setup_anndata(adata)
+    SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
@@ -25,7 +25,8 @@ def test_solo(save_path):
 def test_solo_multiple_batch(save_path):
     n_latent = 5
     adata = synthetic_iid()
-    setup_anndata(adata, batch_key="batch")
+    adata.layers["my_layer"] = adata.X.copy()
+    SCVI.setup_anndata(adata, layer="my_layer", batch_key="batch")
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
