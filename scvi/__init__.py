@@ -9,6 +9,9 @@ from ._settings import settings
 # this import needs to come after prior imports to prevent circular import
 from . import data, model, external, utils
 
+# https://github.com/determined-ai/determined/pull/3321
+import distutils.version  # isort:skip  # noqa: F401
+
 # https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094
 # https://github.com/python-poetry/poetry/issues/144#issuecomment-623927302
 try:
