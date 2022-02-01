@@ -335,7 +335,7 @@ class MULTIVAE(BaseModuleClass):
 
         ## Sample from the average distribution
         qzp_m = (qzm_acc + qzm_expr) / 2
-        qzp_v = (qzv_acc + qzv_expr) / (2 ** 0.5)
+        qzp_v = (qzv_acc + qzv_expr) / (2**0.5)
         zp = Normal(qzp_m, qzp_v.sqrt()).rsample()
 
         ## choose the correct latent representation based on the modality
