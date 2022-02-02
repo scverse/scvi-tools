@@ -18,11 +18,7 @@ data, built on top of [PyTorch](https://pytorch.org) and
 
 # Analysis of single-cell omics data
 
-<img src="https://github.com/YosefLab/scvi-tools/blob/master/docs/_static/tasks.png?raw=true" width="900" alt="scvi-tools tasks">
-
-
-
-## Available implementations of single-cell omics models
+scvi-tools is composed of models that can perform one or more tasks in single-cell omics data analysis. scvi-tools currently hosts implementations of:
 
 -   [scVI](https://rdcu.be/bdHYQ) for analysis of single-cell RNA-seq
     data, as well as its improved differential expression
