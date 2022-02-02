@@ -7,6 +7,7 @@ import numpy as np
 from anndata import AnnData
 
 import scvi
+from scvi.utils import attrdict
 
 from . import _constants
 from ._utils import (
@@ -64,6 +65,20 @@ class AnnDataManager:
         if adata.is_view:
             raise ValueError("Please run `adata = adata.copy()`")
 
+    def _get_setup_method_args(self) -> dict:
+        """
+        Returns the ``setup_anndata`` method arguments used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance.
+
+        Returns the ``setup_anndata`` method arguments, including the model name,
+        that were used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance
+        in the form of a dictionary.
+        """
+        return {
+            k: v
+            for k, v in self._registry.items()
+            if k in {_constants._MODEL_NAME_KEY, _constants._SETUP_KWARGS_KEY}
+        }
+
     def _assign_uuid(self):
         """Assigns a UUID unique to the AnnData object. If already present, the UUID is left alone."""
         self._assert_anndata_registered()
@@ -71,7 +86,7 @@ class AnnDataManager:
         _assign_adata_uuid(self.adata)
 
         scvi_uuid = self.adata.uns[_constants._SCVI_UUID_KEY]
-        self.registry[_constants._SCVI_UUID_KEY] = scvi_uuid
+        self._registry[_constants._SCVI_UUID_KEY] = scvi_uuid
 
     def _assign_source_uuid(self, source_registry: Optional[dict]):
         """
@@ -82,8 +97,8 @@ class AnnDataManager:
         self._assert_anndata_registered()
 
         if source_registry is None:
-            source_registry = self.registry
-        self.registry[_constants._SOURCE_SCVI_UUID_KEY] = self.registry[
+            source_registry = self._registry
+        self._registry[_constants._SOURCE_SCVI_UUID_KEY] = self._registry[
             _constants._SCVI_UUID_KEY
         ]
 
@@ -115,7 +130,7 @@ class AnnDataManager:
 
         self._validate_anndata_object(adata)
         self.adata = adata
-        field_registries = self.registry[_constants._FIELD_REGISTRIES_KEY]
+        field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
 
         for field in self.fields:
             field_registries[field.registry_key] = {
@@ -167,63 +182,48 @@ class AnnDataManager:
 
         fields = self.fields
         new_adata_manager = self.__class__(
-            fields=fields, setup_method_args=self.setup_method_args
+            fields=fields, setup_method_args=self._get_setup_method_args()
         )
-        new_adata_manager.register_fields(adata_target, self.registry, **kwargs)
+        new_adata_manager.register_fields(adata_target, self._registry, **kwargs)
         return new_adata_manager
 
     def get_adata_uuid(self) -> str:
         """Returns the UUID for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
 
-        return self.registry[_constants._SCVI_UUID_KEY]
+        return self._registry[_constants._SCVI_UUID_KEY]
 
     @property
     def registry(self) -> dict:
-        """Returns the top-level registry dictionary for the AnnData object registered with this instance."""
+        """Returns the top-level registry dictionary for the AnnData object registered with this instance as an attrdict."""
         return self._registry
 
     @property
-    def data_registry(self) -> dict:
+    def data_registry(self) -> attrdict:
         """Returns the data registry for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
 
         data_registry = dict()
-        for registry_key, field_registry in self.registry[
+        for registry_key, field_registry in self._registry[
             _constants._FIELD_REGISTRIES_KEY
         ].items():
             field_data_registry = field_registry[_constants._DATA_REGISTRY_KEY]
             if field_data_registry:
                 data_registry[registry_key] = field_data_registry
 
-        return data_registry
+        return attrdict(data_registry, recursive=True)
 
     @property
-    def summary_stats(self) -> dict:
+    def summary_stats(self) -> attrdict:
         """Returns the summary stats for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
 
         summary_stats = dict()
-        for field_registry in self.registry[_constants._FIELD_REGISTRIES_KEY].values():
+        for field_registry in self._registry[_constants._FIELD_REGISTRIES_KEY].values():
             field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
             summary_stats.update(field_summary_stats)
 
-        return summary_stats
-
-    @property
-    def setup_method_args(self) -> dict:
-        """
-        Returns the ``setup_anndata`` method arguments used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance.
-
-        Returns the ``setup_anndata`` method arguments, including the model name,
-        that were used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance
-        in the form of a dictionary.
-        """
-        return {
-            k: v
-            for k, v in self.registry.items()
-            if k in {_constants._MODEL_NAME_KEY, _constants._SETUP_KWARGS_KEY}
-        }
+        return attrdict(summary_stats)
 
     def get_from_registry(self, registry_key: str) -> np.ndarray:
         """
@@ -246,10 +246,12 @@ class AnnDataManager:
 
         return get_anndata_attribute(self.adata, attr_name, attr_key)
 
-    def get_state_registry(self, registry_key: str) -> dict:
+    def get_state_registry(self, registry_key: str) -> attrdict:
         """Returns the state registry for the AnnDataField registered with this instance."""
         self._assert_anndata_registered()
 
-        return self.registry[_constants._FIELD_REGISTRIES_KEY][registry_key][
-            _constants._STATE_REGISTRY_KEY
-        ]
+        return attrdict(
+            self._registry[_constants._FIELD_REGISTRIES_KEY][registry_key][
+                _constants._STATE_REGISTRY_KEY
+            ]
+        )

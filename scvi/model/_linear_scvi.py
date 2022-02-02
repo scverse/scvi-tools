@@ -84,13 +84,13 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     ):
         super(LinearSCVI, self).__init__(adata)
 
-        n_batch = self.summary_stats["n_batch"]
+        n_batch = self.summary_stats.n_batch
         library_log_means, library_log_vars = _init_library_size(
             self.adata_manager, n_batch
         )
 
         self.module = LDVAE(
-            n_input=self.summary_stats["n_vars"],
+            n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,
             n_latent=n_latent,

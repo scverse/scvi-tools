@@ -12,11 +12,7 @@ from torch.utils.data import DataLoader
 from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import (
-    _DR_ATTR_KEY,
-    _MODEL_NAME_KEY,
-    _SETUP_KWARGS_KEY,
-)
+from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_KWARGS_KEY
 from scvi.data.anndata.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_use_gpu_arg
@@ -114,9 +110,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         # of one of the datasets
         adata_seq_n_batches = sum_stats[0]["n_batch"]
         adata_spatial.obs[
-            self.adata_managers["spatial"].data_registry[REGISTRY_KEYS.BATCH_KEY][
-                _DR_ATTR_KEY
-            ]
+            self.adata_managers["spatial"]
+            .data_registry[REGISTRY_KEYS.BATCH_KEY]
+            .attr_key
         ] += adata_seq_n_batches
 
         n_batches = sum(s["n_batch"] for s in sum_stats)

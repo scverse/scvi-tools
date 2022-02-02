@@ -102,16 +102,16 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         super(PEAKVI, self).__init__(adata)
 
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
-                CategoricalJointObsField.N_CATS_PER_KEY
-            ]
+            self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else []
         )
 
         self.module = PEAKVAE(
-            n_input_regions=self.summary_stats["n_vars"],
-            n_batch=self.summary_stats["n_batch"],
+            n_input_regions=self.summary_stats.n_vars,
+            n_batch=self.summary_stats.n_batch,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers_encoder=n_layers_encoder,

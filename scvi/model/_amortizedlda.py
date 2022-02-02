@@ -59,7 +59,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         super().__init__(adata)
 
-        n_input = self.summary_stats["n_vars"]
+        n_input = self.summary_stats.n_vars
 
         if (
             cell_topic_prior is not None

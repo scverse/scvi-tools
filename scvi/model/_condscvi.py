@@ -63,8 +63,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     ):
         super(CondSCVI, self).__init__(adata)
 
-        n_labels = self.summary_stats["n_labels"]
-        n_vars = self.summary_stats["n_vars"]
+        n_labels = self.summary_stats.n_labels
+        n_vars = self.summary_stats.n_vars
         if weight_obs:
             ct_counts = np.unique(
                 self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
@@ -121,16 +121,14 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         adata = self._validate_anndata(adata)
 
-        mean_vprior = np.zeros(
-            (self.summary_stats["n_labels"], p, self.module.n_latent)
-        )
-        var_vprior = np.zeros((self.summary_stats["n_labels"], p, self.module.n_latent))
+        mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
+        var_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
         labels_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         )
-        key = labels_state_registry[CategoricalObsField.ORIGINAL_ATTR_KEY]
-        mapping = labels_state_registry[CategoricalObsField.CATEGORICAL_MAPPING_KEY]
-        for ct in range(self.summary_stats["n_labels"]):
+        key = labels_state_registry.original_key
+        mapping = labels_state_registry.categorical_mapping
+        for ct in range(self.summary_stats.n_labels):
             # pick p cells
             local_indices = np.random.choice(
                 np.where(adata.obs[key] == mapping[ct])[0], p

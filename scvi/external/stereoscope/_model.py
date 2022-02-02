@@ -44,8 +44,8 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         **model_kwargs,
     ):
         super(RNAStereoscope, self).__init__(sc_adata)
-        self.n_genes = self.summary_stats["n_vars"]
-        self.n_labels = self.summary_stats["n_labels"]
+        self.n_genes = self.summary_stats.n_vars
+        self.n_labels = self.summary_stats.n_labels
         # first we have the scRNA-seq model
         self.module = RNADeconv(
             n_genes=self.n_genes,
@@ -234,9 +234,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         return cls(
             st_adata,
             sc_model.module.get_params(),
-            sc_model.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)[
-                CategoricalObsField.CATEGORICAL_MAPPING_KEY
-            ],
+            sc_model.adata_manager.get_state_registry(
+                REGISTRY_KEYS.LABELS_KEY
+            ).categorical_mapping,
             prior_weight=prior_weight,
             **model_kwargs,
         )

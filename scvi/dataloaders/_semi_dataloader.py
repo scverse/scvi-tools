@@ -4,7 +4,6 @@ import numpy as np
 
 from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import LabelsWithUnlabeledObsField
 
 from ._concat_dataloader import ConcatDataLoader
 
@@ -59,9 +58,9 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
         self.n_samples_per_label = n_samples_per_label
 
-        labels_obs_key = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)[
-            LabelsWithUnlabeledObsField.ORIGINAL_ATTR_KEY
-        ]
+        labels_obs_key = adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        ).original_key
         labels = np.asarray(adata_manager.adata.obs[labels_obs_key]).ravel()
 
         # save a nested list of the indices per labeled category
