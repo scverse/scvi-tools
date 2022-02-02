@@ -304,7 +304,6 @@ class AnnDataManager:
                 scvi_data_str = f"adata.{attr_name}"
             else:
                 scvi_data_str = f"adata.{attr_name}['{attr_key}']"
-
             t.add_row(registry_key, scvi_data_str)
 
         return t
@@ -318,7 +317,6 @@ class AnnDataManager:
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
         console = rich.console.Console(force_jupyter=force_jupyter)
-
         console.print(self._view_summary_stats())
         console.print(self._view_data_registry())
 
