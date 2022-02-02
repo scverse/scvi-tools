@@ -74,13 +74,13 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             )
         super().__init__(adata)
 
-        self.n_genes = self.summary_stats["n_vars"]
+        self.n_genes = self.summary_stats.n_vars
         self.cell_type_markers = cell_type_markers
         rho = torch.Tensor(cell_type_markers.to_numpy())
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
-                CategoricalJointObsField.N_CATS_PER_KEY
-            ]
+            self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
@@ -99,7 +99,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             rho=rho,
             basis_means=basis_means,
             b_g_0=col_means_normalized,
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=self.summary_stats.n_batch,
             n_cats_per_cov=n_cats_per_cov,
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             **model_kwargs,

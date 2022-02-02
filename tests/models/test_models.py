@@ -951,6 +951,7 @@ def test_totalvi(save_path):
     TOTALVI.setup_anndata(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )
+    print(TOTALVI.get_anndata_manager(adata)._registry)
     model = TOTALVI(adata)
     assert model.module.protein_batch_mask is not None
     model.train(1, train_size=0.5)

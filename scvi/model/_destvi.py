@@ -9,7 +9,7 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import CategoricalObsField, LayerField, NumericalObsField
+from scvi.data.anndata.fields import LayerField, NumericalObsField
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
@@ -117,9 +117,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         decoder_state_dict = sc_model.module.decoder.state_dict()
         px_decoder_state_dict = sc_model.module.px_decoder.state_dict()
         px_r = sc_model.module.px_r.detach().cpu().numpy()
-        mapping = sc_model.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)[
-            CategoricalObsField.CATEGORICAL_MAPPING_KEY
-        ]
+        mapping = sc_model.adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        ).categorical_mapping
         if vamp_prior_p is None:
             mean_vprior = None
             var_vprior = None

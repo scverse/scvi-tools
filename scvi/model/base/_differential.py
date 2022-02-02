@@ -11,7 +11,6 @@ from sklearn.mixture import GaussianMixture
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.data.anndata.fields import CategoricalObsField
 
 logger = logging.getLogger(__name__)
 
@@ -396,7 +395,7 @@ class DifferentialComputation:
             batch_registry = self.adata_manager.get_state_registry(
                 REGISTRY_KEYS.BATCH_KEY
             )
-            batchid = batch_registry[CategoricalObsField.CATEGORICAL_MAPPING_KEY]
+            batchid = batch_registry.categorical_mapping
         if use_observed_batches:
             if batchid is not None:
                 raise ValueError("Unconsistent batch policy")

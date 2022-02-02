@@ -110,15 +110,15 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         super(AUTOZI, self).__init__(adata)
 
         self.use_observed_lib_size = use_observed_lib_size
-        n_batch = self.summary_stats["n_batch"]
+        n_batch = self.summary_stats.n_batch
         library_log_means, library_log_vars = _init_library_size(
             self.adata_manager, n_batch
         )
 
         self.module = AutoZIVAE(
-            n_input=self.summary_stats["n_vars"],
+            n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
-            n_labels=self.summary_stats["n_labels"],
+            n_labels=self.summary_stats.n_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,

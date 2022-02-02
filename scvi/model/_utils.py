@@ -9,7 +9,6 @@ import torch
 
 from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import CategoricalObsField
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +151,7 @@ def cite_seq_raw_counts_properties(
     gp = scrna_raw_counts_properties(adata_manager, idx1, idx2)
     protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
 
-    nan = np.array([np.nan] * adata_manager.summary_stats["n_proteins"])
+    nan = np.array([np.nan] * adata_manager.summary_stats.n_proteins)
     protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
     mean1_pro = np.asarray(protein_exp[idx1].mean(0))
     mean2_pro = np.asarray(protein_exp[idx2].mean(0))
@@ -213,9 +212,9 @@ def _get_batch_code_from_category(
     if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]
 
-    batch_mappings = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
-        CategoricalObsField.CATEGORICAL_MAPPING_KEY
-    ]
+    batch_mappings = adata_manager.get_state_registry(
+        REGISTRY_KEYS.BATCH_KEY
+    ).categorical_mapping
     batch_code = []
     for cat in category:
         if cat is None:
