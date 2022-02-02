@@ -457,6 +457,8 @@ def test_new_setup_compat():
         continuous_covariate_keys=["cont1", "cont2"],
     )
     adata_manager = SCVI.manager_store[adata.uns[_constants._SCVI_UUID_KEY]]
+    model = SCVI(adata)
+    model.view_anndata_setup(hide_state_registries=True)
 
     # Backwards compatibility test.
     adata2_manager = manager_from_setup_dict(SCVI, adata2, LEGACY_SETUP_DICT)

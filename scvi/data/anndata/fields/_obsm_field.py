@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
+import rich
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
@@ -151,6 +152,9 @@ class ObsmField(BaseObsmField):
         n_obsm_cols = len(state_registry[self.COLUMN_NAMES_KEY])
         return {self.count_stat_key: n_obsm_cols}
 
+    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        return None
+
 
 class JointObsField(BaseObsmField):
     """
@@ -233,6 +237,22 @@ class NumericalJointObsField(JointObsField):
     def get_summary_stats(self, _state_registry: dict) -> dict:
         n_obs_keys = len(self.obs_keys)
         return {self.count_stat_key: n_obs_keys}
+
+    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        if self.is_empty:
+            return None
+
+        t = rich.table.Table(title=f"{self.registry_key} State Registry")
+        t.add_column(
+            "Source Location",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
+        )
+        for key in state_registry[self.COLUMNS_KEY]:
+            t.add_row("adata.obs['{}']".format(key))
+        return t
 
 
 class CategoricalJointObsField(JointObsField):
@@ -330,3 +350,34 @@ class CategoricalJointObsField(JointObsField):
         return {
             self.count_stat_key: n_obs_keys,
         }
+
+    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        if self.is_empty:
+            return None
+
+        t = rich.table.Table(title=f"{self.registry_key} State Registry")
+        t.add_column(
+            "Source Location",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
+        )
+        t.add_column(
+            "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
+        )
+        t.add_column(
+            "scvi-tools Encoding",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
+        )
+        for key, mappings in state_registry[self.MAPPINGS_KEY].items():
+            for i, mapping in enumerate(mappings):
+                if i == 0:
+                    t.add_row("adata.obs['{}']".format(key), str(mapping), str(i))
+                else:
+                    t.add_row("", str(mapping), str(i))
+            t.add_row("", "")
+        return t

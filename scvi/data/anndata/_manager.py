@@ -258,7 +258,7 @@ class AnnDataManager:
             ]
         )
 
-    def _view_summary_stats(self, console: rich.console.Console) -> None:
+    def _view_summary_stats(self) -> rich.table.Table:
         """Prints summary stats."""
         t = rich.table.Table(title="Summary Statistics")
         t.add_column(
@@ -277,9 +277,9 @@ class AnnDataManager:
         )
         for stat_key, count in self.summary_stats.items():
             t.add_row(stat_key, str(count))
-        console.print(t)
+        return t
 
-    def _view_data_registry(self, console: rich.console.Console) -> None:
+    def _view_data_registry(self) -> rich.table.Table:
         """Prints data registry."""
         t = rich.table.Table(title="Data Registry")
         t.add_column(
@@ -296,13 +296,6 @@ class AnnDataManager:
             no_wrap=True,
             overflow="fold",
         )
-        t.add_column(
-            "State Registry Keys",
-            justify="center",
-            style="green",
-            no_wrap=True,
-            overflow="fold",
-        )
 
         for registry_key, data_loc in self.data_registry.items():
             attr_name = data_loc.attr_name
@@ -311,15 +304,11 @@ class AnnDataManager:
                 scvi_data_str = f"adata.{attr_name}"
             else:
                 scvi_data_str = f"adata.{attr_name}['{attr_key}']"
+            t.add_row(registry_key, scvi_data_str)
 
-            state_registry = self.get_state_registry(registry_key)
-            state_registry_keys = ", ".join(state_registry.keys())
+        return t
 
-            t.add_row(registry_key, scvi_data_str, state_registry_keys)
-
-        console.print(t)
-
-    def view_registry(self) -> None:
+    def view_registry(self, hide_state_registries: bool = False) -> None:
         """Prints summary of the registry."""
 
         version = self._registry[_constants._SCVI_VERSION_KEY]
@@ -328,5 +317,12 @@ class AnnDataManager:
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
         console = rich.console.Console(force_jupyter=force_jupyter)
-        self._view_summary_stats(console)
-        self._view_data_registry(console)
+        console.print(self._view_summary_stats())
+        console.print(self._view_data_registry())
+
+        if not hide_state_registries:
+            for field in self.fields:
+                state_registry = self.get_state_registry(field.registry_key)
+                t = field.view_state_registry(state_registry)
+                if t is not None:
+                    console.print(t)

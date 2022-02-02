@@ -1,6 +1,7 @@
 import warnings
 from typing import Optional
 
+import rich
 from anndata import AnnData
 
 from scvi.data._utils import _check_nonnegative_integers
@@ -88,3 +89,6 @@ class LayerField(BaseAnnDataField):
 
     def get_summary_stats(self, state_registry: dict) -> dict:
         return state_registry.copy()
+
+    def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
+        return None

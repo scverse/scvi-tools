@@ -539,7 +539,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         on a model-specific instance of :class:`~scvi.data.anndata.AnnDataManager`.
         """
 
-    def view_anndata_setup(self, adata: Optional[AnnData] = None) -> None:
+    def view_anndata_setup(
+        self, adata: Optional[AnnData] = None, hide_state_registries: bool = False
+    ) -> None:
         """
         Print summary of the setup for the initial AnnData or a given AnnData object.
 
@@ -558,4 +560,4 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 f"Given AnnData not setup with {self.__class__.__name__}. "
                 "Cannot view setup summary."
             )
-        adata_manager.view_registry()
+        adata_manager.view_registry(hide_state_registries=hide_state_registries)

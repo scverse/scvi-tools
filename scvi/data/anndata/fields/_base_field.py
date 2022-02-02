@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
+import rich
 from anndata import AnnData
 
 from scvi.data.anndata import _constants
@@ -94,8 +95,8 @@ class BaseAnnDataField(ABC):
         Parameters
         ----------
         state_registry
-            Dictionary returned by `register_field`. Summary stats should always be a function
-            of information stored in this dictionary.
+            Dictionary returned by :meth:`~scvi.data.anndata.fields.BaseAnnDataField.register_field`.
+            Summary stats should always be a function of information stored in this dictionary.
 
         Returns
         -------
@@ -104,7 +105,23 @@ class BaseAnnDataField(ABC):
             This mapping is then combined with the mappings of other fields to make up
             the summary stats mapping.
         """
-        return dict()
+
+    @abstractmethod
+    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        """
+        Returns a :class:`rich.table.Table` summarizing a state registry produced by this field.
+
+        Parameters
+        ----------
+        state_registry
+            Dictionary returned by :meth:`~scvi.data.anndata.fields.BaseAnnDataField.register_field`.
+            Printed summary should always be a function of information stored in this dictionary.
+
+        Returns
+        -------
+        state_registry_summary
+            Optional :class:`rich.table.Table` summarizing the ``state_registry``.
+        """
 
     def get_field_data(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
         """Returns the requested data as determined by the field for a given AnnData object."""
