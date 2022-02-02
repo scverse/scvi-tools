@@ -1074,6 +1074,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         from sklearn.mixture import GaussianMixture
 
         warnings.filterwarnings("error")
+        logger.info("Computing empirical prior initialization for protein background.")
 
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata)
@@ -1110,10 +1111,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     batch_avg_scales.append(0.05)
                     continue
 
-            # for missing batches, put dummy values -- scarches case, will be replaced anyway
+            # a batch is missing because it's in the reference but not query data
+            # for scarches case, these values will be replaced by original state dict
             if batch_pro_exp.shape[0] == 0:
                 batch_avg_mus.append(0.0)
                 batch_avg_scales.append(0.05)
+                continue
 
             cells = np.random.choice(np.arange(batch_pro_exp.shape[0]), size=n_cells)
             batch_pro_exp = batch_pro_exp[cells]
@@ -1139,7 +1142,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
             # average distribution over cells
             batch_avg_mu = np.mean(mus)
-            batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells ** 2))
+            batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells**2))
 
             batch_avg_mus.append(batch_avg_mu)
             batch_avg_scales.append(batch_avg_scale)
