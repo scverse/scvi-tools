@@ -5,12 +5,10 @@ class attrdict(dict):
     """
     A dictionary that allows for attribute notation (e.g. d.element).
 
-
     Parameters
     ----------
     recursive
         If True, recursively converts nested dictionaries into :class:`~scvi.utils.attrdict` objects.
-
 
     Notes
     -----
