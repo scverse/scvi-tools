@@ -538,3 +538,24 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
         on a model-specific instance of :class:`~scvi.data.anndata.AnnDataManager`.
         """
+
+    def view_anndata_setup(self, adata: Optional[AnnData] = None) -> None:
+        """
+        Print summary of the setup for the initial AnnData or a given AnnData object.
+
+        Parameters
+        ----------
+        adata
+            AnnData object setup with ``setup_anndata`` or
+            :meth:`~scvi.data.anndata.AnnDataManager.transfer_setup`.
+        """
+        if adata is None:
+            adata = self.adata
+        try:
+            adata_manager = self.get_anndata_manager(adata, required=True)
+        except ValueError:
+            raise ValueError(
+                f"Given AnnData not setup with {self.__class__.__name__}. "
+                "Cannot view setup summary."
+            )
+        adata_manager.view_registry()
