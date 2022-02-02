@@ -38,7 +38,7 @@ def logistic_normal_approximation(
     """
     K = alpha.shape[0]
     mu = torch.log(alpha) - torch.log(alpha).sum() / K
-    sigma = torch.sqrt((1 - 2 / K) / alpha + torch.sum(1 / alpha) / K ** 2)
+    sigma = torch.sqrt((1 - 2 / K) / alpha + torch.sum(1 / alpha) / K**2)
     return mu, sigma
 
 

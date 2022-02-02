@@ -179,8 +179,6 @@ class TrainingPlan(pl.LightningModule):
 
     @n_obs_validation.setter
     def n_obs_validation(self, n_obs: int):
-        if "n_obs" in self._loss_args:
-            self.loss_kwargs.update({"n_obs": n_obs})
         self._n_obs_validation = n_obs
         self.initialize_val_metrics()
 
@@ -268,6 +266,9 @@ class TrainingPlan(pl.LightningModule):
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
+        # loss kwargs here contains `n_obs` equal to n_training_obs
+        # so when relevant, the actual loss value is rescaled to number
+        # of training examples
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
         self.compute_and_log_metrics(scvi_loss, self.elbo_val)
