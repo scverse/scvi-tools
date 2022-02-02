@@ -5,6 +5,15 @@ class attrdict(dict):
     """
     A dictionary that allows for attribute notation (e.g. d.element).
 
+
+    Parameters
+    ----------
+    recursive
+        If True, recursively converts nested dictionaries into :class:`~scvi.utils.attrdict` objects.
+
+
+    Notes
+    -----
     Based off of https://stackoverflow.com/questions/38034377/object-like-attribute-access-for-nested-dictionary.
     """
 
@@ -28,3 +37,6 @@ class attrdict(dict):
                 self[key] = deepcopy(self[key])
 
         self.__dict__ = self
+
+    def __repr__(self) -> str:
+        return f"attrdict({super().__repr__()})"
