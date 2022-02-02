@@ -109,7 +109,7 @@ class BaseAnnDataField(ABC):
     @abstractmethod
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
         """
-        Returns a rich Table summarizing a state registry produced by this field.
+        Returns a :class:`rich.table.Table` summarizing a state registry produced by this field.
 
         Parameters
         ----------
@@ -120,7 +120,7 @@ class BaseAnnDataField(ABC):
         Returns
         -------
         state_registry_summary
-            Optional rich Table summarizing the ``state_registry``.
+            Optional :class:`rich.table.Table` summarizing the ``state_registry``.
         """
 
     def get_field_data(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
