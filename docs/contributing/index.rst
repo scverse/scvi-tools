@@ -144,32 +144,12 @@ This will upload `scvi-tools` to PyPi. Also be sure to add a tag corresponding t
 
 Instructions on Uploading to conda
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-`scvi-tools` is available on bioconda channel. Typically, a PR will be automatically created once a new PyPi release is made.
-This automated PR might need changes if we've changed dependencies. In that case, follow the below steps to upload a new version to bioconda channel.
+`scvi-tools` is available on conda-forge channel. Typically, a PR will be automatically created once a new PyPI release is made.
+This automated PR might need changes if we've changed dependencies. In that case, follow the below steps to upload a new version to conda-forge channel.
 
-Create a fork of bioconda-recipes on GitHub. Then::
+Create a fork of the scvi-tools feedstock `repo`_ on GitHub and follow instructions in the README there.
 
-$ git clone https://github.com/<USERNAME>/bioconda-recipes.git
-$ git remote add upstream https://github.com/bioconda/bioconda-recipes.git
-
-Update repo::
-
-$ git checkout master
-$ git pull origin master
-
-Write a recipe::
-
-$ git checkout -b my-recipe
-
-Get the package's hash::
-
-$ pip hash dist/scvi-tools-<NEW_VERSION_TAG>.tar.gz
-
-Push changes, wait for tests to pass, submit pull request::
-
-$ git push -u origin my-recipe
-
-For this, it's easier to look at old scvi-tools PR's.
+.. _repo: https://github.com/conda-forge/scvi-tools-feedstock
 
 Writing a GitHub release
 ~~~~~~~~~~~~~~~~~~~~~~~~
