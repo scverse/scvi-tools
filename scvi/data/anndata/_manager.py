@@ -310,7 +310,6 @@ class AnnDataManager:
 
     def view_registry(self, hide_state_registries: bool = False) -> None:
         """Prints summary of the registry."""
-
         version = self._registry[_constants._SCVI_VERSION_KEY]
         rich.print("Anndata setup with scvi-tools version {}.".format(version))
 
