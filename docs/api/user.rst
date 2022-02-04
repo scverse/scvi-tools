@@ -71,20 +71,6 @@ Data loading
    data.read_10x_multiome
 
 
-Data preparation
-~~~~~~~~~~~~~~~~
-
-Setting up an AnnData object is a prerequisite for running any ``scvi-tools`` model.
-
-.. autosummary::
-   :toctree: reference/
-   :nosignatures:
-
-   data.setup_anndata
-   data.transfer_anndata_setup
-   data.register_tensor_from_anndata
-
-
 Basic preprocessing
 ~~~~~~~~~~~~~~~~~~~
 
