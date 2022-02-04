@@ -2,7 +2,6 @@ from copy import deepcopy
 
 import numpy as np
 from anndata import AnnData
-from sklearn.utils import deprecated
 
 from scvi import REGISTRY_KEYS
 
@@ -106,12 +105,6 @@ def registry_from_setup_dict(setup_dict: dict) -> dict:
     return registry
 
 
-@deprecated(
-    extra=(
-        "The save format of models has been updated. Please update your saved model files accordingly. "
-        "Backwards compatibility with be removed in v1.0."
-    )
-)
 def manager_from_setup_dict(
     cls, adata: AnnData, setup_dict: dict, **transfer_kwargs
 ) -> AnnDataManager:

@@ -8,8 +8,6 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import isspmatrix
 
-from scvi._constants import REGISTRY_KEYS
-
 from . import _constants
 
 logger = logging.getLogger(__name__)
@@ -74,52 +72,48 @@ def _set_data_in_registry(
         setattr(adata, attr_name, attribute)
 
 
-def _verify_and_correct_data_format(adata: anndata.AnnData, data_registry: dict):
+def _verify_and_correct_data_format(
+    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+):
     """
-    Will make sure that the user's anndata is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
-
-    Will iterate through all the keys of data_registry.
+    Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
 
     Parameters
     ----------
     adata
-        anndata to check
-    data_registry
-        data registry of anndata
+        AnnData object to check.
+    attr_name
+        Attribute name where data is stored.
+    attr_key
+        Attribute key where data is stored, if applicable.
     """
-    keys_to_check = [REGISTRY_KEYS.X_KEY, REGISTRY_KEYS.PROTEIN_EXP_KEY]
-    keys = [key for key in keys_to_check if key in data_registry.keys()]
-
-    for k in keys:
-        mapping = data_registry[k]
-        attr_name, attr_key = (
-            mapping[_constants._DR_ATTR_NAME],
-            mapping[_constants._DR_ATTR_KEY],
+    data = get_anndata_attribute(adata, attr_name, attr_key)
+    data_loc_str = (
+        f"adata.{attr_name}[{attr_key}]"
+        if attr_key is not None
+        else f"adata.{attr_name}"
+    )
+    if isspmatrix(data) and (data.getformat() != "csr"):
+        warnings.warn(
+            "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization."
         )
-        data = get_anndata_attribute(adata, attr_name, attr_key)
-        if isspmatrix(data) and (data.getformat() != "csr"):
-            warnings.warn(
-                "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization."
-            )
-        elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
-            logger.debug(
-                "{} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.".format(k)
-            )
-            data = np.asarray(data, order="C")
-            _set_data_in_registry(adata, data, attr_name, attr_key)
-        elif isinstance(data, pd.DataFrame) and (
-            data.to_numpy().flags["C_CONTIGUOUS"] is False
-        ):
-            logger.debug(
-                "{} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.".format(k)
-            )
-            index = data.index
-            vals = data.to_numpy()
-            columns = data.columns
-            data = pd.DataFrame(
-                np.ascontiguousarray(vals), index=index, columns=columns
-            )
-            _set_data_in_registry(adata, data, attr_name, attr_key)
+    elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
+        logger.debug(
+            f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS."
+        )
+        data = np.asarray(data, order="C")
+        _set_data_in_registry(adata, data, attr_name, attr_key)
+    elif isinstance(data, pd.DataFrame) and (
+        data.to_numpy().flags["C_CONTIGUOUS"] is False
+    ):
+        logger.debug(
+            f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS."
+        )
+        index = data.index
+        vals = data.to_numpy()
+        columns = data.columns
+        data = pd.DataFrame(np.ascontiguousarray(vals), index=index, columns=columns)
+        _set_data_in_registry(adata, data, attr_name, attr_key)
 
 
 def _make_obs_column_categorical(

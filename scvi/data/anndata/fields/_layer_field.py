@@ -6,6 +6,7 @@ from anndata import AnnData
 
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.data.anndata import _constants
+from scvi.data.anndata._utils import _verify_and_correct_data_format
 
 from ._base_field import BaseAnnDataField
 
@@ -22,13 +23,20 @@ class LayerField(BaseAnnDataField):
         Key to access the field in the AnnData layers mapping. If None, uses the data in .X.
     is_count_data
         If True, checks if the data are counts during validation.
+    correct_data_format
+        If True, checks and corrects that the AnnData field is C_CONTIGUOUS and csr
+        if it is dense numpy or sparse respectively.
     """
 
     N_VARS_KEY = "n_vars"
     N_CELLS_KEY = "n_cells"
 
     def __init__(
-        self, registry_key: str, layer: Optional[str], is_count_data: bool = True
+        self,
+        registry_key: str,
+        layer: Optional[str],
+        is_count_data: bool = True,
+        correct_data_format=True,
     ) -> None:
         super().__init__()
         self._registry_key = registry_key
@@ -39,6 +47,7 @@ class LayerField(BaseAnnDataField):
         )
         self._attr_key = layer
         self.is_count_data = is_count_data
+        self.correct_data_format = correct_data_format
 
     @property
     def registry_key(self) -> str:
@@ -71,6 +80,8 @@ class LayerField(BaseAnnDataField):
 
     def register_field(self, adata: AnnData) -> dict:
         super().register_field(adata)
+        if self.correct_data_format:
+            _verify_and_correct_data_format(adata, self.attr_name, self.attr_key)
         return {self.N_CELLS_KEY: adata.n_obs, self.N_VARS_KEY: adata.n_vars}
 
     def transfer_field(

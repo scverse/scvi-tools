@@ -23,14 +23,20 @@ class ProteinObsmField(ObsmField):
         Key to register field under in data registry.
     obsm_key
         Key to access the field in the AnnData .obsm mapping.
+    use_batch_mask
+        If True, computes a batch mask over the data for missing protein data.
+        Requires ``batch_key`` to be not None.
     batch_key
         Key corresponding to the .obs field where batch indices are stored.
         Used for computing a batch mask over the data for missing protein data.
     colnames_uns_key
         Key to access column names corresponding to each column of the .obsm field in
-        the AnnData .uns mapping.
+        the AnnData .uns mapping. Only used when .obsm data is a np.ndarray, not a pd.DataFrame.
     is_count_data
         If True, checks if the data are counts during validation.
+    correct_data_format
+        If True, checks and corrects that the AnnData field is C_CONTIGUOUS and csr
+        if it is dense numpy or sparse respectively.
     """
 
     PROTEIN_BATCH_MASK = "protein_batch_mask"
@@ -39,16 +45,25 @@ class ProteinObsmField(ObsmField):
         self,
         registry_key: str,
         obsm_key: str,
-        batch_key: str,
+        use_batch_mask: bool = True,
+        batch_key: Optional[str] = None,
         colnames_uns_key: Optional[str] = None,
         is_count_data: bool = False,
+        correct_data_format: bool = True,
     ) -> None:
+        if use_batch_mask and batch_key is None:
+            raise ValueError(
+                "`use_batch_mask = True` requires that `batch_key is not None`. "
+                "Please provide a `batch_key`."
+            )
         super().__init__(
             registry_key,
             obsm_key,
             colnames_uns_key=colnames_uns_key,
             is_count_data=is_count_data,
+            correct_data_format=correct_data_format,
         )
+        self.use_batch_mask = use_batch_mask
         self.batch_key = batch_key
 
     def _get_batch_mask_protein_data(self, adata: AnnData) -> Optional[dict]:
@@ -77,9 +92,10 @@ class ProteinObsmField(ObsmField):
     def register_field(self, adata: AnnData) -> dict:
         state_registry = super().register_field(adata)
 
-        batch_mask = self._get_batch_mask_protein_data(adata)
-        if batch_mask is not None:
-            state_registry[self.PROTEIN_BATCH_MASK] = batch_mask
+        if self.use_batch_mask:
+            batch_mask = self._get_batch_mask_protein_data(adata)
+            if batch_mask is not None:
+                state_registry[self.PROTEIN_BATCH_MASK] = batch_mask
 
         return state_registry
 

@@ -37,6 +37,12 @@ _SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "kwargs"}
 
 
 class BaseModelMetaClass(ABCMeta):
+    """
+    Metaclass for :class:`~scvi.model.base.BaseModelClass`.
+
+    Constructs a model class-specific mapping for :class:`~scvi.data.anndata.AnnDataManager` instances.
+    """
+
     def __init__(cls, name, bases, dct):
         cls.manager_store = dict()
         super().__init__(name, bases, dct)
@@ -178,7 +184,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata_manager = self.get_anndata_manager(adata)
         if adata_manager is None:
             raise AssertionError(
-                "AnnDataManager not found. Call `self._validate` prior to calling this function."
+                "AnnDataManager not found. Call `self._validate_anndata` prior to calling this function."
             )
 
         adata = adata_manager.adata
@@ -441,6 +447,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata = new_adata if new_adata is not None else adata
         _validate_var_names(adata, var_names)
 
+        # Legacy support for old setup dict format.
         if "scvi_setup_dict_" in attr_dict:
             scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
             cls.register_manager(manager_from_setup_dict(cls, adata, scvi_setup_dict))
@@ -460,6 +467,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     "Cannot load the original setup."
                 )
 
+            # Calling ``setup_anndata`` method with the original arguments passed into
+            # the saved model. This enables simple backwards compatibility in the case of
+            # newly introduced fields or parameters.
             cls.setup_anndata(
                 adata, source_registry=registry, **registry[_SETUP_KWARGS_KEY]
             )

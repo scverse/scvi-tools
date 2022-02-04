@@ -12,11 +12,7 @@ import scvi
 from scvi.utils import attrdict
 
 from . import _constants
-from ._utils import (
-    _assign_adata_uuid,
-    _verify_and_correct_data_format,
-    get_anndata_attribute,
-)
+from ._utils import _assign_adata_uuid, get_anndata_attribute
 from .fields import BaseAnnDataField
 
 
@@ -30,11 +26,22 @@ class AnnDataManager:
     Parameters
     ----------
     fields
-        List of AnnDataFields to intialize with. Additional fields can be added
-        via the method `add_field`.
+        List of AnnDataFields to intialize with.
     setup_method_args
         Dictionary describing the model and arguments passed in by the user
         to setup this AnnDataManager.
+
+    Examples
+    --------
+    >>> fields = [LayerField("counts", "raw_counts")]
+    >>> adata_manager = AnnDataManager(fields=fields)
+    >>> adata_manager.register_fields(adata)
+
+    Notes
+    -----
+    This class is not initialized with a specific AnnData object, but later sets ``self.adata``
+    via :meth:`~scvi.data.anndata.AnnDataManager.register_fields`. This decouples the generalized
+    definition of the scvi-tools interface with the registration of an instance of data.
     """
 
     def __init__(
@@ -115,6 +122,7 @@ class AnnDataManager:
         Registers each field associated with this instance with the AnnData object.
 
         Either registers or transfers the setup from `source_setup_dict` if passed in.
+        Sets ``self.adata``.
 
         Parameters
         ----------
@@ -141,7 +149,10 @@ class AnnDataManager:
             }
             field_registry = field_registries[field.registry_key]
 
+            # A field can be empty if the model has optional fields (e.g. extra covariates).
+            # If empty, we skip registering the field.
             if not field.is_empty:
+                # Transfer case: Source registry is used for validation and/or setup.
                 if source_registry is not None:
                     field_registry[
                         _constants._STATE_REGISTRY_KEY
@@ -157,21 +168,23 @@ class AnnDataManager:
                         _constants._STATE_REGISTRY_KEY
                     ] = field.register_field(self.adata)
 
+            # Compute and set summary stats for the given field.
             state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
             field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(
                 state_registry
             )
 
         self._freeze_fields()
-
-        _verify_and_correct_data_format(self.adata, self.data_registry)
-
         self._assign_uuid()
         self._assign_source_uuid(source_registry)
 
     def transfer_setup(self, adata_target: AnnData, **kwargs) -> AnnDataManager:
         """
         Transfers an existing setup to each field associated with this instance with the target AnnData object.
+
+        Creates a new :class:`~scvi.data.anndata.AnnDataManager` instance with the same set of fields.
+        Then, registers the fields with a target AnnData object, incorporating details of the
+        source registry where necessary (e.g. for validation or modified data setup).
 
         Parameters
         ----------

@@ -10,6 +10,7 @@ from pandas.api.types import CategoricalDtype
 
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.data.anndata import _constants
+from scvi.data.anndata._utils import _verify_and_correct_data_format
 
 from ._base_field import BaseAnnDataField
 
@@ -41,7 +42,7 @@ class ObsmField(BaseObsmField):
     """
     An AnnDataField for an .obsm field in the AnnData data structure.
 
-    In addition to creating a reference to the .obsm field. Stores the column
+    In addition to creating a reference to the .obsm field, stores the column
     keys for the obsm field in a more accessible .uns attribute.
 
     Parameters
@@ -57,6 +58,9 @@ class ObsmField(BaseObsmField):
         (e.g. 1, 2, 3, etc.).
     is_count_data
         If True, checks if the data are counts during validation.
+    correct_data_format
+        If True, checks and corrects that the AnnData field is C_CONTIGUOUS and csr
+        if it is dense numpy or sparse respectively.
     """
 
     COLUMN_NAMES_KEY = "column_names"
@@ -67,11 +71,13 @@ class ObsmField(BaseObsmField):
         obsm_key: str,
         colnames_uns_key: Optional[str] = None,
         is_count_data: bool = False,
+        correct_data_format=True,
     ) -> None:
         super().__init__(registry_key)
         self._attr_key = obsm_key
         self.colnames_uns_key = colnames_uns_key
         self.is_count_data = is_count_data
+        self.correct_data_format = correct_data_format
         self.count_stat_key = f"n_{self.registry_key}"
 
     @property
@@ -120,6 +126,8 @@ class ObsmField(BaseObsmField):
 
     def register_field(self, adata: AnnData) -> dict:
         super().register_field(adata)
+        if self.correct_data_format:
+            _verify_and_correct_data_format(adata, self.attr_name, self.attr_key)
 
         column_names = self._setup_column_names(adata)
 
@@ -259,7 +267,8 @@ class CategoricalJointObsField(JointObsField):
     """
     An AnnDataField for a collection of categorical .obs fields in the AnnData data structure.
 
-    Creates an .obsm field containing each .obs field to be referenced as a whole a model.
+    Creates an .obsm field compiling the given .obs fields. The model will reference the compiled
+    data as a whole.
 
     Parameters
     ----------
