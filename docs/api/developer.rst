@@ -88,7 +88,7 @@ These classes should be used to construct user-facing model classes.
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
     model.base.DifferentialComputation
-    
+
 Module
 ------
 
