@@ -361,6 +361,25 @@ def test_anntorchdataset_getitem():
         assert type(value) == np.ndarray
 
 
+def test_view_registry():
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata_manager = generic_setup_adata_manager(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    adata_manager.view_registry()
+    adata_manager.view_registry(hide_state_registries=True)
+
+
 def test_saving(save_path):
     save_path = os.path.join(save_path, "tmp_adata.h5ad")
     adata = synthetic_iid()

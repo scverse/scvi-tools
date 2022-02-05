@@ -109,6 +109,9 @@ def test_scvi(save_path):
 
     # tests __repr__
     print(model)
+    # test view_registry
+    model.view_anndata_setup()
+    model.view_anndata_setup(hide_state_registries=True)
 
     assert model.is_trained is True
     z = model.get_latent_representation()
@@ -120,6 +123,11 @@ def test_scvi(save_path):
     model.get_normalized_expression(transform_batch="batch_1")
 
     adata2 = synthetic_iid()
+    # test view_registry with different anndata before transfer setup
+    with pytest.raises(ValueError):
+        model.view_anndata_setup(adata=adata2)
+        model.view_anndata_setup(adata=adata2, hide_state_registries=True)
+    # test get methods with different anndata
     model.get_elbo(adata2)
     model.get_marginal_ll(adata2, n_mc_samples=3)
     model.get_reconstruction_error(adata2)
@@ -127,6 +135,9 @@ def test_scvi(save_path):
     assert latent.shape == (3, n_latent)
     denoised = model.get_normalized_expression(adata2)
     assert denoised.shape == adata.shape
+    # test view_registry with different anndata after transfer setup
+    model.view_anndata_setup(adata=adata2)
+    model.view_anndata_setup(adata=adata2, hide_state_registries=True)
 
     denoised = model.get_normalized_expression(
         adata2, indices=[1, 2, 3], transform_batch="batch_1"

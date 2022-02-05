@@ -54,7 +54,8 @@ def generic_setup_adata_manager(
             ProteinObsmField(
                 REGISTRY_KEYS.PROTEIN_EXP_KEY,
                 protein_expression_obsm_key,
-                batch_field.attr_key,
+                use_batch_mask=True,
+                batch_key=batch_field.attr_key,
                 colnames_uns_key=protein_names_uns_key,
                 is_count_data=True,
             )
