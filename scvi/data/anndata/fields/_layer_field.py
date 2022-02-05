@@ -36,7 +36,7 @@ class LayerField(BaseAnnDataField):
         registry_key: str,
         layer: Optional[str],
         is_count_data: bool = True,
-        correct_data_format=True,
+        correct_data_format: bool = True,
     ) -> None:
         super().__init__()
         self._registry_key = registry_key
