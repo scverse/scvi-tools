@@ -5,7 +5,6 @@ import pytest
 import scanpy as sc
 
 from scvi.data import dataset_10x, organize_cite_seq_10x
-from scvi.data._anndata import _setup_anndata
 
 from .utils import unsupervised_training_one_epoch
 
@@ -17,7 +16,6 @@ def test_populate_and_train_one_v1(save_path):
         remove_extracted_data=True,
         save_path=sp,
     )
-    _setup_anndata(dataset)
     unsupervised_training_one_epoch(dataset)
 
 
@@ -28,7 +26,6 @@ def test_brain_small(save_path):
         save_path=sp,
         remove_extracted_data=True,
     )
-    _setup_anndata(dataset)
     unsupervised_training_one_epoch(dataset)
 
 
@@ -44,7 +41,6 @@ def test_pbmc_cite(save_path):
         os.path.join(sp, "filtered_feature_bc_matrix"), gex_only=False
     )
     organize_cite_seq_10x(dataset)
-    _setup_anndata(dataset, protein_expression_obsm_key="protein_expression")
     unsupervised_training_one_epoch(dataset)
 
 

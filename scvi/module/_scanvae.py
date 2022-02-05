@@ -6,7 +6,7 @@ from torch.distributions import Categorical, Normal
 from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.module.base import LossRecorder, auto_move_data
 from scvi.nn import Decoder, Encoder
@@ -207,9 +207,9 @@ class SCANVAE(VAE):
 
     @auto_move_data
     def classification_loss(self, labelled_dataset):
-        x = labelled_dataset[_CONSTANTS.X_KEY]
-        y = labelled_dataset[_CONSTANTS.LABELS_KEY]
-        batch_idx = labelled_dataset[_CONSTANTS.BATCH_KEY]
+        x = labelled_dataset[REGISTRY_KEYS.X_KEY]
+        y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]
+        batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
         classification_loss = F.cross_entropy(
             self.classify(x, batch_idx), y.view(-1).long()
         )
@@ -231,11 +231,11 @@ class SCANVAE(VAE):
         qz1_m = inference_outputs["qz_m"]
         qz1_v = inference_outputs["qz_v"]
         z1 = inference_outputs["z"]
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         if feed_labels:
-            y = tensors[_CONSTANTS.LABELS_KEY]
+            y = tensors[REGISTRY_KEYS.LABELS_KEY]
         else:
             y = None
         is_labelled = False if y is None else True
@@ -285,7 +285,7 @@ class SCANVAE(VAE):
                     reconst_loss,
                     kl_locals,
                     classification_loss=classifier_loss,
-                    n_labelled_tensors=labelled_tensors[_CONSTANTS.X_KEY].shape[0],
+                    n_labelled_tensors=labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
                 )
             return LossRecorder(
                 loss,

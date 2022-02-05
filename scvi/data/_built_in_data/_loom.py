@@ -6,13 +6,12 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 
-from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 
 logger = logging.getLogger(__name__)
 
 
-def _load_retina(save_path: str = "data/", run_setup_anndata: bool = True) -> AnnData:
+def _load_retina(save_path: str = "data/") -> AnnData:
     """\
     Loads retina dataset
 
@@ -49,15 +48,11 @@ def _load_retina(save_path: str = "data/", run_setup_anndata: bool = True) -> An
     del adata.obs["ClusterID"]
     adata.obs["batch"] = pd.Categorical(adata.obs["BatchID"].values.copy())
     del adata.obs["BatchID"]
-    if run_setup_anndata:
-        _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
 
-def _load_prefrontalcortex_starmap(
-    save_path: str = "data/", run_setup_anndata: bool = True
-) -> AnnData:
+def _load_prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
     """\
     Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)
     """
@@ -74,14 +69,11 @@ def _load_prefrontalcortex_starmap(
     del adata.obs["BatchID"]
     adata.obs["x_coord"] = adata.obsm["Spatial_coordinates"][:, 0]
     adata.obs["y_coord"] = adata.obsm["Spatial_coordinates"][:, 1]
-    if run_setup_anndata:
-        _setup_anndata(adata, batch_key="batch", labels_key="labels")
+
     return adata
 
 
-def _load_frontalcortex_dropseq(
-    save_path: str = "data/", run_setup_anndata: bool = True
-) -> AnnData:
+def _load_frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/fc-dropseq.loom"
     save_fn = "fc-dropseq.loom"
@@ -95,15 +87,10 @@ def _load_frontalcortex_dropseq(
     # order_labels = [5, 6, 3, 2, 4, 0, 1, 8, 7, 9, 10, 11, 12, 13]
     # self.reorder_cell_types(self.cell_types[order_labels])
 
-    if run_setup_anndata:
-        _setup_anndata(adata, batch_key="batch", labels_key="labels")
-
     return adata
 
 
-def _load_annotation_simulation(
-    name: str, save_path: str = "data/", run_setup_anndata: bool = True
-) -> AnnData:
+def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
     """\
     Simulated datasets for scANVI tutorials
 
@@ -124,9 +111,6 @@ def _load_annotation_simulation(
 
     adata.obs["batch"] = adata.obs.BatchID.values
     del adata.obs["BatchID"]
-
-    if run_setup_anndata:
-        _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 

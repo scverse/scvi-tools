@@ -12,9 +12,10 @@ class TestPbmcDataset(TestCase):
         dataset = scvi.data.pbmc_dataset(
             save_path="tests/data/10X",
             remove_extracted_data=True,
-            run_setup_anndata=True,
         )
-        unsupervised_training_one_epoch(dataset, run_setup_anndata=False)
+        unsupervised_training_one_epoch(
+            dataset,
+        )
 
 
 class TestLoomDataset(TestCase):
@@ -70,7 +71,9 @@ class TestBrainLargeDataset(TestCase):
             n_genes_to_keep=10,
             max_cells_to_keep=128,
         )
-        unsupervised_training_one_epoch(adata, run_setup_anndata=False)
+        unsupervised_training_one_epoch(
+            adata,
+        )
 
 
 class TestCsvDataset(TestCase):
@@ -78,13 +81,17 @@ class TestCsvDataset(TestCase):
         adata = scvi.data.breast_cancer_dataset(
             save_path="tests/data",
         )
-        unsupervised_training_one_epoch(adata, run_setup_anndata=False)
+        unsupervised_training_one_epoch(
+            adata,
+        )
 
     def test_mouse_ob(self):
         adata = scvi.data.mouse_ob_dataset(
             save_path="tests/data",
         )
-        unsupervised_training_one_epoch(adata, run_setup_anndata=False)
+        unsupervised_training_one_epoch(
+            adata,
+        )
 
 
 @pytest.mark.internet

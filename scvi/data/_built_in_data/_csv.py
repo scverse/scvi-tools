@@ -4,15 +4,12 @@ import os
 import anndata
 import numpy as np
 
-from scvi.data._anndata import _setup_anndata
 from scvi.data._built_in_data._download import _download
 
 logger = logging.getLogger(__name__)
 
 
-def _load_breast_cancer_dataset(
-    save_path: str = "data/", run_setup_anndata: bool = True
-):
+def _load_breast_cancer_dataset(save_path: str = "data/"):
     save_path = os.path.abspath(save_path)
     url = "http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/2016/07/Layer2_BC_count_matrix-1.tsv"
     save_fn = "Layer2_BC_count_matrix-1.tsv"
@@ -23,12 +20,10 @@ def _load_breast_cancer_dataset(
     adata.obs["batch"] = np.zeros(adata.shape[0]).astype(int)
     adata.obs["labels"] = np.zeros(adata.shape[0]).astype(int)
 
-    if run_setup_anndata:
-        _setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 
-def _load_mouse_ob_dataset(save_path: str = "data/", run_setup_anndata: bool = True):
+def _load_mouse_ob_dataset(save_path: str = "data/"):
     save_path = os.path.abspath(save_path)
     url = "http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/2016/07/Rep11_MOB_count_matrix-1.tsv"
     save_fn = "Rep11_MOB_count_matrix-1.tsv"
@@ -38,9 +33,6 @@ def _load_mouse_ob_dataset(save_path: str = "data/", run_setup_anndata: bool = T
     )
     adata.obs["batch"] = np.zeros(adata.shape[0]).astype(int)
     adata.obs["labels"] = np.zeros(adata.shape[0]).astype(int)
-
-    if run_setup_anndata:
-        _setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 

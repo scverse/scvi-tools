@@ -2,7 +2,7 @@ import inspect
 import logging
 import os
 import warnings
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import Optional, Sequence, Union
 
 import numpy as np
@@ -10,12 +10,17 @@ import pyro
 import rich
 import torch
 from anndata import AnnData
-from rich.text import Text
 
-from scvi import _CONSTANTS, settings
-from scvi.data import get_from_registry, transfer_anndata_setup
-from scvi.data._anndata import _check_anndata_setup_equivalence
-from scvi.data._utils import _check_nonnegative_integers
+from scvi import settings
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata._compat import manager_from_setup_dict
+from scvi.data.anndata._constants import (
+    _MODEL_NAME_KEY,
+    _SCVI_UUID_KEY,
+    _SETUP_KWARGS_KEY,
+    _SOURCE_SCVI_UUID_KEY,
+)
+from scvi.data.anndata._utils import _assign_adata_uuid
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass
@@ -28,20 +33,31 @@ logger = logging.getLogger(__name__)
 
 _UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained model. Please train the model first."
 
+_SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "kwargs"}
 
-class BaseModelClass(ABC):
+
+class BaseModelMetaClass(ABCMeta):
+    """
+    Metaclass for :class:`~scvi.model.base.BaseModelClass`.
+
+    Constructs a model class-specific mapping for :class:`~scvi.data.anndata.AnnDataManager` instances.
+    """
+
+    def __init__(cls, name, bases, dct):
+        cls.manager_store = dict()
+        super().__init__(name, bases, dct)
+
+
+class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnData] = None):
         if adata is not None:
-            if "_scvi" not in adata.uns.keys():
-                raise ValueError(
-                    f"Please set up your AnnData with {self.__class__.__name__}.setup_anndata first"
-                )
-            self.adata = adata
-            self.scvi_setup_dict_ = adata.uns["_scvi"]
-            self.summary_stats = self.scvi_setup_dict_["summary_stats"]
-            self._validate_anndata(adata, copy_if_view=False)
+            self.adata_manager = self.get_anndata_manager(adata, required=True)
+            self.adata = self.adata_manager.adata
+            # Suffix registry instance variable with _ to include it when saving the model.
+            self.registry_ = self.adata_manager.registry
+            self.summary_stats = self.adata_manager.summary_stats
 
         self.is_trained_ = False
         self._model_summary_string = ""
@@ -76,6 +92,68 @@ class BaseModelClass(ABC):
     def device(self):
         return self.module.device
 
+    @classmethod
+    def get_anndata_manager(
+        cls, adata: AnnData, required: bool = False
+    ) -> Optional[AnnDataManager]:
+        """
+        Retrieves the :class:`~scvi.data.anndata.AnnDataManager` for a given AnnData object specific to this model class.
+
+        Parameters
+        ----------
+        adata
+            AnnData object to find manager instance for.
+        required
+            If True, errors on missing manager. Otherwise, returns None when manager is missing.
+        """
+        if _SCVI_UUID_KEY not in adata.uns:
+            if required:
+                raise ValueError(
+                    f"Please set up your AnnData with {cls.__name__}.setup_anndata first."
+                )
+            return None
+
+        adata_uuid = adata.uns[_SCVI_UUID_KEY]
+        if adata_uuid not in cls.manager_store:
+            if required:
+                raise ValueError(
+                    f"Please set up your AnnData with {cls.__name__}.setup_anndata first. "
+                    "It appears the AnnData object has been setup with a different model."
+                )
+            return None
+
+        return cls.manager_store[adata_uuid]
+
+    def get_from_registry(
+        self,
+        adata: AnnData,
+        registry_key: str,
+    ) -> np.ndarray:
+        """
+        Returns the object in AnnData associated with the key in the data registry.
+
+        AnnData object should be registered with the model prior to calling this function
+        via the ``self._validate_anndata`` method.
+
+        Parameters
+        ----------
+        registry_key
+            key of object to get from data registry.
+        adata
+            AnnData to pull data from.
+
+        Returns
+        -------
+        The requested data as a NumPy array.
+        """
+        adata_manager = self.get_anndata_manager(adata)
+        if adata_manager is None:
+            raise AssertionError(
+                "AnnData not registered with model. Call `self._validate_anndata` "
+                "prior to calling this function."
+            )
+        return adata_manager.get_from_registry(registry_key)
+
     def _make_data_loader(
         self,
         adata: AnnData,
@@ -91,8 +169,7 @@ class BaseModelClass(ABC):
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnData object with equivalent structure to initial AnnData.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
@@ -104,6 +181,14 @@ class BaseModelClass(ABC):
         data_loader_kwargs
             Kwargs to the class-specific data loader class
         """
+        adata_manager = self.get_anndata_manager(adata)
+        if adata_manager is None:
+            raise AssertionError(
+                "AnnDataManager not found. Call `self._validate_anndata` prior to calling this function."
+            )
+
+        adata = adata_manager.adata
+
         if batch_size is None:
             batch_size = settings.batch_size
         if indices is None:
@@ -115,7 +200,7 @@ class BaseModelClass(ABC):
             data_loader_kwargs.update({"num_workers": settings.dl_num_workers})
 
         dl = data_loader_class(
-            adata,
+            adata_manager,
             shuffle=shuffle,
             indices=indices,
             batch_size=batch_size,
@@ -125,7 +210,7 @@ class BaseModelClass(ABC):
 
     def _validate_anndata(
         self, adata: Optional[AnnData] = None, copy_if_view: bool = True
-    ):
+    ) -> AnnData:
         """Validate anndata has been properly registered, transfer if necessary."""
         if adata is None:
             adata = self.adata
@@ -133,26 +218,27 @@ class BaseModelClass(ABC):
             if copy_if_view:
                 logger.info("Received view of anndata, making copy.")
                 adata = adata.copy()
+                # Reassign AnnData UUID to produce a separate AnnDataManager.
+                _assign_adata_uuid(adata, overwrite=True)
             else:
                 raise ValueError("Please run `adata = adata.copy()`")
 
-        if "_scvi" not in adata.uns_keys():
+        adata_manager = self.get_anndata_manager(adata)
+        if adata_manager is None:
             logger.info(
-                "Input adata not setup with scvi. "
-                + "attempting to transfer anndata setup"
+                "Input AnnData not setup with scvi-tools. "
+                + "attempting to transfer AnnData setup"
             )
-            transfer_anndata_setup(self.scvi_setup_dict_, adata)
-        is_nonneg_int = _check_nonnegative_integers(
-            get_from_registry(adata, _CONSTANTS.X_KEY)
-        )
-        if not is_nonneg_int:
-            warnings.warn(
-                "Make sure the registered X field in anndata contains unnormalized count data."
+            self.register_manager(self.adata_manager.transfer_setup(adata))
+        elif (
+            adata_manager.registry[_SOURCE_SCVI_UUID_KEY]
+            != self.adata_manager.registry[_SCVI_UUID_KEY]
+        ):
+            logger.info(
+                "Input AnnData requires setup with AnnData the model was initialized with. "
+                "Attempting to transfer setup with initial AnnData."
             )
-
-        needs_transfer = _check_anndata_setup_equivalence(self.scvi_setup_dict_, adata)
-        if needs_transfer:
-            transfer_anndata_setup(self.scvi_setup_dict_, adata)
+            self.register_manager(self.adata_manager.transfer_setup(adata))
 
         return adata
 
@@ -359,25 +445,36 @@ class BaseModelClass(ABC):
             new_adata,
         ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
         adata = new_adata if new_adata is not None else adata
-
-        scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-
-        # Filter out keys that are no longer populated by setup_anndata.
-        # TODO(jhong): remove hack with setup_anndata refactor.
-        deprecated_keys = {"local_l_mean", "local_l_var"}
-        scvi_setup_dict["data_registry"] = {
-            k: v
-            for k, v in scvi_setup_dict["data_registry"].items()
-            if k not in deprecated_keys
-        }
-
         _validate_var_names(adata, var_names)
-        transfer_anndata_setup(scvi_setup_dict, adata)
-        model = _initialize_model(cls, adata, attr_dict)
 
-        # set saved attrs for loaded model
-        for attr, val in attr_dict.items():
-            setattr(model, attr, val)
+        # Legacy support for old setup dict format.
+        if "scvi_setup_dict_" in attr_dict:
+            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+            cls.register_manager(manager_from_setup_dict(cls, adata, scvi_setup_dict))
+        else:
+            registry = attr_dict.pop("registry_")
+            if (
+                _MODEL_NAME_KEY in registry
+                and registry[_MODEL_NAME_KEY] != cls.__name__
+            ):
+                raise ValueError(
+                    "It appears you are loading a model from a different class."
+                )
+
+            if _SETUP_KWARGS_KEY not in registry:
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
+                )
+
+            # Calling ``setup_anndata`` method with the original arguments passed into
+            # the saved model. This enables simple backwards compatibility in the case of
+            # newly introduced fields or parameters.
+            cls.setup_anndata(
+                adata, source_registry=registry, **registry[_SETUP_KWARGS_KEY]
+            )
+
+        model = _initialize_model(cls, adata, attr_dict)
 
         # some Pyro modules with AutoGuides may need one training step
         try:
@@ -407,28 +504,70 @@ class BaseModelClass(ABC):
         )
         rich.print(summary_string)
 
-        command = "scvi.data.view_anndata_setup(model.adata)"
-        command_len = len(command)
-        print_adata_str = "\n\nTo print summary of associated AnnData, use: " + command
-        text = Text(print_adata_str)
-        text.stylize(
-            "dark_violet", len(print_adata_str) - command_len, len(print_adata_str)
-        )
-        console = rich.console.Console()
-        console.print(text)
         return ""
 
     @staticmethod
+    def _get_setup_method_args(**setup_locals) -> dict:
+        """
+        Returns a dictionary organizing the arguments used to call ``setup_anndata``.
+
+        Must be called with ``**locals()`` at the start of the ``setup_anndata`` method
+        to avoid the inclusion of any extraneous variables.
+        """
+        setup_locals.pop("adata")
+        cls = setup_locals.pop("cls")
+        model_name = cls.__name__
+        setup_kwargs = dict()
+        for k, v in setup_locals.items():
+            if k not in _SETUP_INPUTS_EXCLUDED_PARAMS:
+                setup_kwargs[k] = v
+        return {_MODEL_NAME_KEY: model_name, _SETUP_KWARGS_KEY: setup_kwargs}
+
+    @classmethod
+    def register_manager(cls, adata_manager: AnnDataManager):
+        """
+        Registers an :class:`~scvi.data.anndata.AnnDataManager` instance with this model class.
+        """
+        adata_uuid = adata_manager.get_adata_uuid()
+        cls.manager_store[adata_uuid] = adata_manager
+
+    @classmethod
     @abstractmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
         *args,
         **kwargs,
-    ) -> Optional[AnnData]:
+    ):
         """
         %(summary)s.
 
         Each model class deriving from this class provides parameters to this method
-        according to its needs.
+        according to its needs. To operate correctly with the model initialization,
+        the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
+        on a model-specific instance of :class:`~scvi.data.anndata.AnnDataManager`.
         """
+
+    def view_anndata_setup(
+        self, adata: Optional[AnnData] = None, hide_state_registries: bool = False
+    ) -> None:
+        """
+        Print summary of the setup for the initial AnnData or a given AnnData object.
+
+        Parameters
+        ----------
+        adata
+            AnnData object setup with ``setup_anndata`` or
+            :meth:`~scvi.data.anndata.AnnDataManager.transfer_setup`.
+        """
+        if adata is None:
+            adata = self.adata
+        try:
+            adata_manager = self.get_anndata_manager(adata, required=True)
+        except ValueError:
+            raise ValueError(
+                f"Given AnnData not setup with {self.__class__.__name__}. "
+                "Cannot view setup summary."
+            )
+        adata_manager.view_registry(hide_state_registries=hide_state_registries)

@@ -3,13 +3,12 @@ import warnings
 from collections.abc import Iterable as IterableClass
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-import anndata
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
 
-from scvi import _CONSTANTS
-from scvi.data import get_from_registry
+from scvi import REGISTRY_KEYS
+from scvi.data.anndata import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,7 @@ def parse_use_gpu_arg(
 
 
 def scrna_raw_counts_properties(
-    adata: anndata.AnnData,
+    adata_manager: AnnDataManager,
     idx1: Union[List[int], np.ndarray],
     idx2: Union[List[int], np.ndarray],
     var_idx: Optional[Union[List[int], np.ndarray]] = None,
@@ -69,8 +68,8 @@ def scrna_raw_counts_properties(
 
     Parameters
     ----------
-    adata
-        AnnData object setup with `scvi`.
+    adata_manager
+        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
     idx1
         subset of indices describing the first population.
     idx2
@@ -84,7 +83,8 @@ def scrna_raw_counts_properties(
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population),
         mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
     """
-    data = get_from_registry(adata, _CONSTANTS.X_KEY)
+    adata = adata_manager.adata
+    data = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
     data1 = data[idx1]
     data2 = data[idx2]
     if var_idx is not None:
@@ -126,7 +126,7 @@ def scrna_raw_counts_properties(
 
 
 def cite_seq_raw_counts_properties(
-    adata: anndata.AnnData,
+    adata_manager: AnnDataManager,
     idx1: Union[List[int], np.ndarray],
     idx2: Union[List[int], np.ndarray],
 ) -> Dict[str, np.ndarray]:
@@ -135,8 +135,8 @@ def cite_seq_raw_counts_properties(
 
     Parameters
     ----------
-    adata
-        AnnData object setup with `scvi`.
+    adata_manager
+        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.TOTALVI`.
     idx1
         subset of indices describing the first population.
     idx2
@@ -148,11 +148,11 @@ def cite_seq_raw_counts_properties(
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population),
         mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
     """
-    gp = scrna_raw_counts_properties(adata, idx1, idx2)
-    protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
+    gp = scrna_raw_counts_properties(adata_manager, idx1, idx2)
+    protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
 
-    nan = np.array([np.nan] * len(adata.uns["_scvi"]["protein_names"]))
-    protein_exp = get_from_registry(adata, _CONSTANTS.PROTEIN_EXP_KEY)
+    nan = np.array([np.nan] * adata_manager.summary_stats.n_proteins)
+    protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
     mean1_pro = np.asarray(protein_exp[idx1].mean(0))
     mean2_pro = np.asarray(protein_exp[idx2].mean(0))
     nonz1_pro = np.asarray((protein_exp[idx1] > 0).mean(0))
@@ -170,7 +170,7 @@ def cite_seq_raw_counts_properties(
 
 
 def scatac_raw_counts_properties(
-    adata: anndata.AnnData,
+    adata_manager: AnnDataManager,
     idx1: Union[List[int], np.ndarray],
     idx2: Union[List[int], np.ndarray],
     var_idx: Optional[Union[List[int], np.ndarray]] = None,
@@ -180,8 +180,8 @@ def scatac_raw_counts_properties(
 
     Parameters
     ----------
-    adata
-        AnnData object setup with `scvi`.
+    adata_manager
+        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
     idx1
         subset of indices describing the first population.
     idx2
@@ -194,7 +194,7 @@ def scatac_raw_counts_properties(
     type
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population).
     """
-    data = get_from_registry(adata, _CONSTANTS.X_KEY)
+    data = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
     data1 = data[idx1]
     data2 = data[idx2]
     if var_idx is not None:
@@ -206,20 +206,15 @@ def scatac_raw_counts_properties(
     return properties
 
 
-def _get_var_names_from_setup_anndata(adata):
-    """Gets var names by checking if using raw."""
-    var_names = adata.var_names
-    return var_names
-
-
 def _get_batch_code_from_category(
-    adata: anndata.AnnData, category: Sequence[Union[Number, str]]
+    adata_manager: AnnDataManager, category: Sequence[Union[Number, str]]
 ):
     if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]
 
-    categorical_mappings = adata.uns["_scvi"]["categorical_mappings"]
-    batch_mappings = categorical_mappings["_scvi_batch"]["mapping"]
+    batch_mappings = adata_manager.get_state_registry(
+        REGISTRY_KEYS.BATCH_KEY
+    ).categorical_mapping
     batch_code = []
     for cat in category:
         if cat is None:
@@ -233,15 +228,15 @@ def _get_batch_code_from_category(
 
 
 def _init_library_size(
-    adata: anndata.AnnData, n_batch: dict
+    adata_manager: AnnDataManager, n_batch: dict
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Computes and returns library size.
 
     Parameters
     ----------
-    adata
-        AnnData object setup with `scvi`.
+    adata_manager
+        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
     n_batch
         Number of batches.
 
@@ -255,8 +250,8 @@ def _init_library_size(
         and the variance defaults to 1. These defaults are arbitrary placeholders which
         should not be used in any downstream computation.
     """
-    data = get_from_registry(adata, _CONSTANTS.X_KEY)
-    batch_indices = get_from_registry(adata, _CONSTANTS.BATCH_KEY)
+    data = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+    batch_indices = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY)
 
     library_log_means = np.zeros(n_batch)
     library_log_vars = np.ones(n_batch)
