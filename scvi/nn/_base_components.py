@@ -1,10 +1,12 @@
 import collections
-from typing import Callable, Iterable, List, Literal, Optional
+from typing import Callable, Iterable, List, Optional
 
 import torch
 from torch import nn as nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
+
+from scvi._compat import Literal
 
 from ._utils import one_hot
 
