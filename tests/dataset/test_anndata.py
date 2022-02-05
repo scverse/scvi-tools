@@ -99,6 +99,24 @@ def test_transfer_anndata_setup():
     assert a2.obs["_scvi_batch"].all() == 1
 
 
+def test_clobber():
+    adata = scvi.data.synthetic_iid()
+
+    scvi.model.SCVI.setup_anndata(adata)
+    m1 = scvi.model.SCVI(adata)
+    m1.train(1)
+
+    scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
+    m2 = scvi.model.SCVI(adata)
+    m2.train(1)
+
+    adata_manager1 = m1.get_anndata_manager(adata)
+    assert adata_manager1.summary_stats.n_batch == 1
+
+    adata_manager2 = m2.get_anndata_manager(adata)
+    assert adata_manager2.summary_stats.n_batch == 2
+
+
 def test_data_format():
     # if data was dense np array, check after setup_anndata, data is C_CONTIGUOUS
     adata = synthetic_iid()
