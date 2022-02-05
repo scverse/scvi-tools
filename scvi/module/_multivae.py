@@ -413,7 +413,12 @@ class MULTIVAE(BaseModuleClass):
 
         # Expression Decoder
         px_scale, _, px_rate, px_dropout = self.z_decoder_expression(
-            "gene", decoder_input, libsize_expr, batch_index, *categorical_input, labels
+            "gene",
+            decoder_input,
+            torch.exp(libsize_expr),
+            batch_index,
+            *categorical_input,
+            labels
         )
 
         return dict(

@@ -84,12 +84,18 @@ LEGACY_SETUP_DICT = {
 
 def test_scvi(save_path):
     n_latent = 5
+
+    # Test with size factor.
     adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
     SCVI.setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
+        size_factor_key="size_factor",
     )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # Test with observed lib size.
     adata = synthetic_iid()
@@ -101,6 +107,7 @@ def test_scvi(save_path):
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
+    # Test without observed lib size.
     model = SCVI(
         adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False
     )

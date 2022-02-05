@@ -1,5 +1,5 @@
 import collections
-from typing import Callable, Iterable, List, Optional
+from typing import Callable, Iterable, List, Literal, Optional
 
 import torch
 from torch import nn as nn
@@ -324,6 +324,8 @@ class DecoderSCVI(nn.Module):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
+    scale_activation
+        Activation layer to use for px_scale_decoder
     """
 
     def __init__(
@@ -336,6 +338,7 @@ class DecoderSCVI(nn.Module):
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
+        scale_activation: Literal["softmax", "softplus"] = "softmax",
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -351,9 +354,13 @@ class DecoderSCVI(nn.Module):
         )
 
         # mean gamma
+        if scale_activation == "softmax":
+            px_scale_activation = nn.Softmax(dim=-1)
+        elif scale_activation == "softplus":
+            px_scale_activation = nn.Softplus()
         self.px_scale_decoder = nn.Sequential(
             nn.Linear(n_hidden, n_output),
-            nn.Softmax(dim=-1),
+            px_scale_activation,
         )
 
         # dispersion: here we only deal with gene-cell dispersion case
@@ -363,7 +370,11 @@ class DecoderSCVI(nn.Module):
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
 
     def forward(
-        self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int
+        self,
+        dispersion: str,
+        z: torch.Tensor,
+        size_factor: torch.Tensor,
+        *cat_list: int,
     ):
         """
         The forward computation for a single sample.
@@ -383,8 +394,8 @@ class DecoderSCVI(nn.Module):
             * ``'gene-cell'`` - dispersion can differ for every gene in every cell
         z :
             tensor with shape ``(n_input,)``
-        library
-            library size
+        size_factor
+            size factor for ``px_scale``
         cat_list
             list of category membership(s) for this sample
 
@@ -399,7 +410,7 @@ class DecoderSCVI(nn.Module):
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
-        px_rate = torch.exp(library) * px_scale  # torch.clamp( , max=12)
+        px_rate = size_factor * px_scale  # torch.clamp( , max=12)
         px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
         return px_scale, px_r, px_rate, px_dropout
 

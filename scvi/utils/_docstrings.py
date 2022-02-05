@@ -75,6 +75,11 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
         key in `adata.obs` for label information. Categories will automatically be converted into integer
         categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data."""
 
+    param_size_factor_key = """\
+    size_factor_key
+        key in `adata.obs` for size factor information. Instead of using library size as a size factor, the provided
+        size factor column will be used as a coefficient for a softplussed `px_scale` term."""
+
     param_layer = """\
     layer
         if not `None`, uses this as the key in `adata.layers` for raw count data."""

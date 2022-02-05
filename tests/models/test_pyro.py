@@ -440,7 +440,9 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
             # sample from prior (value will be sampled by guide when computing the ELBO)
             z = pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
             # decode the latent code z
-            px_scale, _, px_rate, px_dropout = self.decoder("gene", z, log_library)
+            px_scale, _, px_rate, px_dropout = self.decoder(
+                "gene", z, torch.exp(log_library)
+            )
             # build count distribution
             nb_logits = (px_rate + self.epsilon).log() - (
                 self.px_r.exp() + self.epsilon
