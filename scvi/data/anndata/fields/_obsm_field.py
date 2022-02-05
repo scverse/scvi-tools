@@ -71,7 +71,7 @@ class ObsmField(BaseObsmField):
         obsm_key: str,
         colnames_uns_key: Optional[str] = None,
         is_count_data: bool = False,
-        correct_data_format=True,
+        correct_data_format: bool = True,
     ) -> None:
         super().__init__(registry_key)
         self._attr_key = obsm_key
