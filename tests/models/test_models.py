@@ -15,7 +15,7 @@ import scvi
 from scvi.data import synthetic_iid
 from scvi.data._built_in_data._download import _download
 from scvi.data.anndata import _constants
-from scvi.data.anndata._compat import manager_from_setup_dict
+from scvi.data.anndata._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -37,6 +37,7 @@ from scvi.model import (
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager
 
+LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
     "scvi_version": "0.0.0",
     "categorical_mappings": {
@@ -478,17 +479,22 @@ def test_new_setup_compat():
     model = SCVI(adata)
     model.view_anndata_setup(hide_state_registries=True)
 
+    registry = adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
+    registry_legacy_subset = {
+        k: v for k, v in registry.items() if k in LEGACY_REGISTRY_KEYS
+    }
+
     # Backwards compatibility test.
     adata2_manager = manager_from_setup_dict(SCVI, adata2, LEGACY_SETUP_DICT)
     np.testing.assert_equal(
-        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        registry_legacy_subset,
         adata2_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
 
     # Test transfer.
     adata3_manager = adata_manager.transfer_setup(adata3)
     np.testing.assert_equal(
-        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        registry,
         adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
 
