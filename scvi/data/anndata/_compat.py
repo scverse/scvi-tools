@@ -165,7 +165,8 @@ def manager_from_setup_dict(
                 field = ProteinObsmField(
                     REGISTRY_KEYS.PROTEIN_EXP_KEY,
                     attr_key,
-                    "_scvi_batch",
+                    use_batch_mask=True,
+                    batch_key="_scvi_batch",
                     colnames_uns_key="_protein_names",
                 )
                 setup_kwargs["protein_expression_obsm_key"] = attr_key
