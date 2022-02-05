@@ -72,7 +72,7 @@ class VAE(BaseModuleClass):
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     use_layer_norm
         Whether to use layer norm in layers
-    use_size_factor
+    use_size_factor_key
         Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
         Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
@@ -237,15 +237,15 @@ class VAE(BaseModuleClass):
             tensors[size_factor_key] if size_factor_key in tensors.keys() else None
         )
 
-        input_dict = {
-            "z": z,
-            "library": library,
-            "batch_index": batch_index,
-            "y": y,
-            "cont_covs": cont_covs,
-            "cat_covs": cat_covs,
-            "size_factor": size_factor,
-        }
+        input_dict = dict(
+            z=z,
+            library=library,
+            batch_index=batch_index,
+            y=y,
+            cont_covs=cont_covs,
+            cat_covs=cat_covs,
+            size_factor=size_factor,
+        )
         return input_dict
 
     def _compute_local_library_params(self, batch_index):

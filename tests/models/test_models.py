@@ -1152,6 +1152,17 @@ def test_multivi():
     vae.differential_accessibility(groupby="labels", group1="label_1")
     vae.differential_expression(groupby="labels", group1="label_1")
 
+    # Test with size factor
+    data = synthetic_iid()
+    data.obs["size_factor"] = np.random.randint(1, 5, size=(data.shape[0],))
+    MULTIVI.setup_anndata(data, batch_key="batch", size_factor_key="size_factor")
+    vae = MULTIVI(
+        data,
+        n_genes=50,
+        n_regions=50,
+    )
+    vae.train(3)
+
 
 def test_early_stopping():
     n_epochs = 100
