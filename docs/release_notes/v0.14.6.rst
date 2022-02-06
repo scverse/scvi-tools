@@ -1,0 +1,28 @@
+New in 0.14.6 (2021-02-05)
+--------------------------
+
+Bug fixes, minor improvements of docs, code formatting.
+
+Changes
+~~~~~~~
+- Update black formatting to stable release (`#1324`_)
+- Refresh readme, move tasks image to docs (`#1311`_).
+- Add 0.14.5 release note to index (`#1296`_).
+- Add test to ensure extra :class:`~scvi.model.SCANVI` training of a pre-trained :class:`~scvi.model.SCVI` model does not change original model weights (`#1284`_).
+- Fix issue in :class:`~scvi.model.TOTALVI` protein background prior initialization to not include protein measurements that are known to be missing (`#1282`_).
+
+Contributors
+~~~~~~~~~~~~
+- `@adamgayoso`_
+- `@watiss`_
+- `@jjhong922`_
+
+.. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@watiss`: https://github.com/watiss
+.. _`@jjhong922`: https://github.com/jjhong922
+
+.. _`#1324` : https://github.com/YosefLab/scvi-tools/pull/1324
+.. _`#1311` : https://github.com/YosefLab/scvi-tools/pull/1311
+.. _`#1296` : https://github.com/YosefLab/scvi-tools/pull/1296
+.. _`#1284` : https://github.com/YosefLab/scvi-tools/pull/1284
+.. _`#1282` : https://github.com/YosefLab/scvi-tools/pull/1282
