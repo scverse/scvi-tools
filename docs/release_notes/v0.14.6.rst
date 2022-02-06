@@ -10,6 +10,7 @@ Changes
 - Add 0.14.5 release note to index (`#1296`_).
 - Add test to ensure extra :class:`~scvi.model.SCANVI` training of a pre-trained :class:`~scvi.model.SCVI` model does not change original model weights (`#1284`_).
 - Fix issue in :class:`~scvi.model.TOTALVI` protein background prior initialization to not include protein measurements that are known to be missing (`#1282`_).
+- Upper bound setuptools due to PyTorch import bug (`#1309`_).
 
 Contributors
 ~~~~~~~~~~~~
@@ -26,3 +27,5 @@ Contributors
 .. _`#1296` : https://github.com/YosefLab/scvi-tools/pull/1296
 .. _`#1284` : https://github.com/YosefLab/scvi-tools/pull/1284
 .. _`#1282` : https://github.com/YosefLab/scvi-tools/pull/1282
+.. _`#1309` : https://github.com/YosefLab/scvi-tools/pull/1309
+
