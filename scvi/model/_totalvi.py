@@ -19,6 +19,7 @@ from scvi.data.anndata.fields import (
     CategoricalObsField,
     LayerField,
     NumericalJointObsField,
+    NumericalObsField,
     ProteinObsmField,
 )
 from scvi.dataloaders import DataSplitter
@@ -154,9 +155,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
 
         n_batch = self.summary_stats.n_batch
-        library_log_means, library_log_vars = _init_library_size(
-            self.adata_manager, n_batch
+        use_size_factor_key = (
+            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
+        library_log_means, library_log_vars = None, None
+        if not use_size_factor_key:
+            library_log_means, library_log_vars = _init_library_size(
+                self.adata_manager, n_batch
+            )
 
         self.module = TOTALVAE(
             n_input_genes=self.summary_stats.n_vars,
@@ -172,6 +178,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             protein_batch_mask=batch_mask,
             protein_background_prior_mean=prior_mean,
             protein_background_prior_scale=prior_scale,
+            use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
             **model_kwargs,
@@ -1179,6 +1186,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         protein_names_uns_key: Optional[str] = None,
         batch_key: Optional[str] = None,
         layer: Optional[str] = None,
+        size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         **kwargs,
@@ -1196,6 +1204,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if it is a DataFrame, else will assign sequential names to proteins.
         %(param_batch_key)s
         %(param_layer)s
+        %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         %(param_copy)s
@@ -1212,6 +1221,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 REGISTRY_KEYS.LABELS_KEY, None
             ),  # Default labels field for compatibility with TOTALVAE
             batch_field,
+            NumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
+            ),
             CategoricalJointObsField(
                 REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),

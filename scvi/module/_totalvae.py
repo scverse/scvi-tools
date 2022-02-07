@@ -82,6 +82,9 @@ class TOTALVAE(BaseModuleClass):
         Array of proteins by batches, the prior initialization for the protein background mean (log scale)
     protein_background_prior_scale
         Array of proteins by batches, the prior initialization for the protein background scale (log scale)
+    use_size_factor_key
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
+        Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     library_log_means
@@ -115,6 +118,7 @@ class TOTALVAE(BaseModuleClass):
         encode_covariates: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
+        use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
@@ -134,7 +138,8 @@ class TOTALVAE(BaseModuleClass):
         self.latent_distribution = latent_distribution
         self.protein_batch_mask = protein_batch_mask
         self.encode_covariates = encode_covariates
-        self.use_observed_lib_size = use_observed_lib_size
+        self.use_size_factor_key = use_size_factor_key
+        self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_means is None:
                 raise ValueError(
@@ -233,6 +238,7 @@ class TOTALVAE(BaseModuleClass):
             dropout_rate=dropout_rate_decoder,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
+            scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
     def get_sample_dispersion(
@@ -345,6 +351,11 @@ class TOTALVAE(BaseModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
+        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
+        size_factor = (
+            tensors[size_factor_key] if size_factor_key in tensors.keys() else None
+        )
+
         return dict(
             z=z,
             library_gene=library_gene,
@@ -352,6 +363,7 @@ class TOTALVAE(BaseModuleClass):
             label=label,
             cat_covs=cat_covs,
             cont_covs=cont_covs,
+            size_factor=size_factor,
         )
 
     @auto_move_data
@@ -363,6 +375,7 @@ class TOTALVAE(BaseModuleClass):
         label: torch.Tensor,
         cont_covs=None,
         cat_covs=None,
+        size_factor=None,
         transform_batch: Optional[int] = None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
@@ -374,8 +387,11 @@ class TOTALVAE(BaseModuleClass):
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
+        if not self.use_size_factor_key:
+            size_factor = library_gene
+
         px_, py_, log_pro_back_mean = self.decoder(
-            decoder_input, library_gene, batch_index, *categorical_input
+            decoder_input, size_factor, batch_index, *categorical_input
         )
 
         if self.gene_dispersion == "gene-label":

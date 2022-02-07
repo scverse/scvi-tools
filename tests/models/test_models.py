@@ -1023,6 +1023,34 @@ def test_totalvi_model_library_size(save_path):
     model.get_latent_library_size()
 
 
+def test_totalvi_size_factor():
+    adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        size_factor_key="size_factor",
+    )
+    n_latent = 10
+
+    # Test size_factor_key overrides use_observed_lib_size.
+    model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
+    assert not hasattr(model.module, "library_log_means") and not hasattr(
+        model.module, "library_log_vars"
+    )
+    assert model.module.use_size_factor_key
+    model.train(1, train_size=0.5)
+
+    model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=True)
+    assert not hasattr(model.module, "library_log_means") and not hasattr(
+        model.module, "library_log_vars"
+    )
+    assert model.module.use_size_factor_key
+    model.train(1, train_size=0.5)
+
+
 def test_multiple_covariates_scvi(save_path):
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
