@@ -62,13 +62,13 @@ is structured, you may refer to [this](https://docs.scvi-tools.org/en/stable/use
 
 We recommend checking out the [skeleton
 repository](https://github.com/YosefLab/scvi-tools-skeleton) as a
-starting point for developing new models into scvi-tools.
+starting point for developing and deploying new models with scvi-tools.
 
 # Basic installation
 
 For conda,
 ```
-conda install scvi-tools -c bioconda -c conda-forge
+conda install scvi-tools -c conda-forge
 ```
 and for pip,
 ```
