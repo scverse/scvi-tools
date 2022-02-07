@@ -104,6 +104,6 @@ If you used scvi-tools in your research, please consider citing
          doi={10.1038/s41587-021-01206-w},
          url={https://doi.org/10.1038/s41587-021-01206-w}
 }
-
-along with the publicaton describing the model used. 
 ```
+along with the publicaton describing the model used. 
+
