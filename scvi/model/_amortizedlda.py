@@ -8,8 +8,9 @@ import pyro
 import torch
 from anndata import AnnData
 
-from scvi._constants import _CONSTANTS
-from scvi.data._anndata import _setup_anndata
+from scvi._constants import REGISTRY_KEYS
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import LayerField
 from scvi.module import AmortizedLDAPyroModule
 from scvi.utils import setup_anndata_dsp
 
@@ -58,7 +59,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         super().__init__(adata)
 
-        n_input = self.summary_stats["n_vars"]
+        n_input = self.summary_stats.n_vars
 
         if (
             cell_topic_prior is not None
@@ -95,12 +96,13 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         self.init_params_ = self._get_init_params(locals())
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
         layer: Optional[str] = None,
-        copy: bool = False,
+        **kwargs,
     ) -> Optional[AnnData]:
         """
         %(summary)s.
@@ -109,17 +111,16 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         ----------
         %(param_adata)s
         %(param_layer)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            layer=layer,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
 
     def get_feature_by_topic(self, n_samples=5000) -> pd.DataFrame:
         """
@@ -181,7 +182,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         transformed_xs = []
         for tensors in dl:
-            x = tensors[_CONSTANTS.X_KEY]
+            x = tensors[REGISTRY_KEYS.X_KEY]
             transformed_xs.append(
                 self.module.get_topic_distribution(x, n_samples=n_samples)
             )
@@ -226,7 +227,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         elbos = []
         for tensors in dl:
-            x = tensors[_CONSTANTS.X_KEY]
+            x = tensors[REGISTRY_KEYS.X_KEY]
             library = x.sum(dim=1)
             elbos.append(self.module.get_elbo(x, library, len(dl.indices)))
         return np.mean(elbos)
@@ -260,7 +261,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         adata = self._validate_anndata(adata)
 
         dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        total_counts = sum(tensors[_CONSTANTS.X_KEY].sum().item() for tensors in dl)
+        total_counts = sum(tensors[REGISTRY_KEYS.X_KEY].sum().item() for tensors in dl)
 
         return np.exp(
             self.get_elbo(adata=adata, indices=indices, batch_size=batch_size)

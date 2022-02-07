@@ -6,8 +6,9 @@ import numpy as np
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
-from scvi.data._anndata import _setup_anndata
+from scvi import REGISTRY_KEYS
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import CategoricalObsField, LayerField
 from scvi.model.base import (
     BaseModelClass,
     RNASeqMixin,
@@ -62,10 +63,13 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     ):
         super(CondSCVI, self).__init__(adata)
 
-        n_labels = self.summary_stats["n_labels"]
-        n_vars = self.summary_stats["n_vars"]
+        n_labels = self.summary_stats.n_labels
+        n_vars = self.summary_stats.n_vars
         if weight_obs:
-            ct_counts = adata.obs["_scvi_labels"].value_counts()[range(n_labels)].values
+            ct_counts = np.unique(
+                self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
+                return_counts=True,
+            )[1]
             ct_prop = ct_counts / np.sum(ct_counts)
             ct_prop[ct_prop < 0.05] = 0.05
             ct_prop = ct_prop / np.sum(ct_prop)
@@ -117,17 +121,14 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         adata = self._validate_anndata(adata)
 
-        mean_vprior = np.zeros(
-            (self.summary_stats["n_labels"], p, self.module.n_latent)
+        mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
+        var_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
+        labels_state_registry = self.adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
         )
-        var_vprior = np.zeros((self.summary_stats["n_labels"], p, self.module.n_latent))
-        key = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-            "original_key"
-        ]
-        mapping = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-            "mapping"
-        ]
-        for ct in range(self.summary_stats["n_labels"]):
+        key = labels_state_registry.original_key
+        mapping = labels_state_registry.categorical_mapping
+        for ct in range(self.summary_stats.n_labels):
             # pick p cells
             local_indices = np.random.choice(
                 np.where(adata.obs[key] == mapping[ct])[0], p
@@ -139,8 +140,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             mean = []
             var = []
             for tensors in scdl:
-                x = tensors[_CONSTANTS.X_KEY]
-                y = tensors[_CONSTANTS.LABELS_KEY]
+                x = tensors[REGISTRY_KEYS.X_KEY]
+                y = tensors[REGISTRY_KEYS.LABELS_KEY]
                 out = self.module.inference(x, y)
                 mean_, var_ = out["qz_m"], out["qz_v"]
                 mean += [mean_.cpu()]
@@ -205,31 +206,30 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             **kwargs,
         )
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
-        labels_key: str,
+        labels_key: Optional[str] = None,
         layer: Optional[str] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
         %(param_labels_key)s
         %(param_layer)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            labels_key=labels_key,
-            layer=layer,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)

@@ -20,7 +20,7 @@ Bug fixes
 - Fix `SaveBestState` warning (`#1024`_)
 - New default SCANVI max epochs if loaded with pretrained SCVI model (`#1025`_), restores old `<v0.9` behavior.
 - Fix marginal log likelihood computation, which was only being computed on final minibatch of a dataloader. This bug was introduced in the `0.9.X` versions (`#1033`_).
-- Fix bug where extra categoricals were not properly extended in :func:`~scvi.data.transfer_anndata_setup` (`#1030`_).
+- Fix bug where extra categoricals were not properly extended in ``transfer_anndata_setup`` (`#1030`_).
 
 
 Contributors

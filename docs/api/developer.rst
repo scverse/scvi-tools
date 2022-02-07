@@ -10,6 +10,26 @@ Import scvi-tools as::
 
 .. currentmodule:: scvi
 
+Data Registration
+-----------------
+
+.. currentmodule:: scvi
+
+AnnDataFields delineate how scvi-tools refers to fields in AnnData objects. The AnnDataManager provides an interface
+for operating over a collection of AnnDataFields and an AnnData object.
+
+
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   data.anndata.AnnDataManager
+   data.anndata.fields.BaseAnnDataField
+   data.anndata.fields.LayerField
+   data.anndata.fields.CategoricalObsField
+   data.anndata.fields.NumericalJointObsField
+   data.anndata.fields.CategoricalJointObsField
+
 
 Data Loaders
 ------------
@@ -68,7 +88,7 @@ These classes should be used to construct user-facing model classes.
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
     model.base.DifferentialComputation
-    
+
 Module
 ------
 
@@ -182,3 +202,4 @@ Utility functions used by scvi-tools.
 
    utils.track
    utils.setup_anndata_dsp
+   utils.attrdict

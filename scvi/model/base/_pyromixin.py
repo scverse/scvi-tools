@@ -109,7 +109,7 @@ class PyroSviTrainMixin:
         if batch_size is None:
             # use data splitter which moves data to GPU once
             data_splitter = DeviceBackedDataSplitter(
-                self.adata,
+                self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
@@ -117,7 +117,7 @@ class PyroSviTrainMixin:
             )
         else:
             data_splitter = DataSplitter(
-                self.adata,
+                self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
@@ -350,7 +350,9 @@ class PyroSampleMixin:
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
 
-        train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=batch_size)
+        train_dl = AnnDataLoader(
+            self.adata_manager, shuffle=False, batch_size=batch_size
+        )
         # sample local parameters
         i = 0
         for tensor_dict in track(

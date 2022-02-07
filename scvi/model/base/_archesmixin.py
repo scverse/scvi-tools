@@ -6,7 +6,9 @@ from typing import Optional, Union
 import torch
 from anndata import AnnData
 
-from scvi.data import transfer_anndata_setup
+from scvi.data.anndata import _constants
+from scvi.data.anndata._compat import manager_from_setup_dict
+from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_KWARGS_KEY
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.nn import FCLayers
 
@@ -69,7 +71,7 @@ class ArchesMixin:
         """
         use_gpu, device = parse_use_gpu_arg(use_gpu)
         if isinstance(reference_model, str):
-            (attr_dict, var_names, load_state_dict, _,) = _load_saved_files(
+            attr_dict, var_names, load_state_dict, _ = _load_saved_files(
                 reference_model, load_adata=False, map_location=device
             )
         else:
@@ -78,26 +80,50 @@ class ArchesMixin:
             var_names = reference_model.adata.var_names
             load_state_dict = deepcopy(reference_model.module.state_dict())
 
-        scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-
         if inplace_subset_query_vars:
             logger.debug("Subsetting query vars to reference vars.")
             adata._inplace_subset_var(var_names)
         _validate_var_names(adata, var_names)
 
-        version_split = scvi_setup_dict["scvi_version"].split(".")
+        if "scvi_setup_dict_" in attr_dict:
+            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+            cls.register_manager(
+                manager_from_setup_dict(
+                    cls, adata, scvi_setup_dict, extend_categories=True
+                )
+            )
+        else:
+            registry = attr_dict.pop("registry_")
+            if (
+                _MODEL_NAME_KEY in registry
+                and registry[_MODEL_NAME_KEY] != cls.__name__
+            ):
+                raise ValueError(
+                    "It appears you are loading a model from a different class."
+                )
+
+            if _SETUP_KWARGS_KEY not in registry:
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
+                )
+
+            cls.setup_anndata(
+                adata,
+                source_registry=registry,
+                extend_categories=True,
+                **registry[_SETUP_KWARGS_KEY]
+            )
+
+        adata_manager = cls.get_anndata_manager(adata, required=True)
+
+        version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
         if version_split[1] < "8" and version_split[0] == "0":
             warnings.warn(
                 "Query integration should be performed using models trained with version >= 0.8"
             )
 
-        transfer_anndata_setup(scvi_setup_dict, adata, extend_categories=True)
-
         model = _initialize_model(cls, adata, attr_dict)
-
-        # set saved attrs for loaded model
-        for attr, val in attr_dict.items():
-            setattr(model, attr, val)
 
         model.to_device(device)
 
