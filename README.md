@@ -93,14 +93,17 @@ Please be sure to install a version of [PyTorch](https://pytorch.org/) that is c
 If you used scvi-tools in your research, please consider citing
 
 ```
-@article{Gayoso2021scvitools,
-	author = {Gayoso, Adam and Lopez, Romain and Xing, Galen and Boyeau, Pierre and Wu, Katherine and Jayasuriya, Michael and Mehlman, Edouard and Langevin, Maxime and Liu, Yining and Samaran, Jules and Misrachi, Gabriel and Nazaret, Achille and Clivio, Oscar and Xu, Chenling and Ashuach, Tal and Lotfollahi, Mohammad and Svensson, Valentine and da Veiga Beltrame, Eduardo and Talavera-Lopez, Carlos and Pachter, Lior and Theis, Fabian J and Streets, Aaron and Jordan, Michael I and Regier, Jeffrey and Yosef, Nir},
-	title = {scvi-tools: a library for deep probabilistic analysis of single-cell omics data},
-	year = {2021},
-	doi = {10.1101/2021.04.28.441833},
-	publisher = {Cold Spring Harbor Laboratory},
-	URL = {https://www.biorxiv.org/content/early/2021/04/29/2021.04.28.441833},
-	eprint = {https://www.biorxiv.org/content/early/2021/04/29/2021.04.28.441833.full.pdf},
-	journal = {bioRxiv}
+@article{Gayoso2022,
+         author={Gayoso, Adam and Lopez, Romain and Xing, Galen and Boyeau, Pierre and Valiollah Pour Amiri, Valeh and Hong, Justin and Wu, Katherine and Jayasuriya, Michael and   Mehlman, Edouard and Langevin, Maxime and Liu, Yining and Samaran, Jules and Misrachi, Gabriel and Nazaret, Achille and Clivio, Oscar and Xu, Chenling and Ashuach, Tal and Gabitto, Mariano and Lotfollahi, Mohammad and Svensson, Valentine and da Veiga Beltrame, Eduardo and Kleshchevnikov, Vitalii and Talavera-L{\'o}pez, Carlos and Pachter, Lior and Theis, Fabian J. and Streets, Aaron and Jordan, Michael I. and Regier, Jeffrey and Yosef, Nir},
+         title={A Python library for probabilistic analysis of single-cell omics data},
+         journal={Nature Biotechnology},
+         year={2022},
+         month={Feb},
+         day={07},
+         issn={1546-1696},
+         doi={10.1038/s41587-021-01206-w},
+         url={https://doi.org/10.1038/s41587-021-01206-w}
 }
+
+along with the publicaton describing the model used. 
 ```
