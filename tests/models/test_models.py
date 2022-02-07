@@ -780,9 +780,24 @@ def test_scanvi(save_path):
     scvi_pxr = m.module.state_dict().get("px_r", None)
     assert scanvi_pxr is not None and scvi_pxr is not None
     assert scanvi_pxr is not scvi_pxr
+    scanvi_model.train(1)
+
+    # Test without label groups
     scanvi_model = scvi.model.SCANVI.from_scvi_model(
         m, "label_0", use_labels_groups=False
     )
+    scanvi_model.train(1)
+
+    # test from_scvi_model with size_factor
+    a = scvi.data.synthetic_iid()
+    a.obs["size_factor"] = np.random.randint(1, 5, size=(a.shape[0],))
+    SCVI.setup_anndata(
+        a, batch_key="batch", labels_key="labels", size_factor_key="size_factor"
+    )
+    m = SCVI(a, use_observed_lib_size=False)
+    a2 = scvi.data.synthetic_iid()
+    a2.obs["size_factor"] = np.random.randint(1, 5, size=(a2.shape[0],))
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
     scanvi_model.train(1)
 
 

@@ -17,6 +17,7 @@ from scvi.data.anndata.fields import (
     LabelsWithUnlabeledObsField,
     LayerField,
     NumericalJointObsField,
+    NumericalObsField,
 )
 from scvi.dataloaders import (
     AnnDataLoader,
@@ -123,9 +124,14 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
 
         n_batch = self.summary_stats.n_batch
-        library_log_means, library_log_vars = _init_library_size(
-            self.adata_manager, n_batch
+        use_size_factor_key = (
+            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
+        library_log_means, library_log_vars = None, None
+        if not use_size_factor_key:
+            library_log_means, library_log_vars = _init_library_size(
+                self.adata_manager, n_batch
+            )
 
         self.module = SCANVAE(
             n_input=self.summary_stats.n_vars,
@@ -139,6 +145,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             dropout_rate=dropout_rate,
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
+            use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
             **scanvae_model_kwargs,
@@ -381,11 +388,12 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         cls,
         adata: AnnData,
         unlabeled_category: Union[str, int, float],
+        layer: Optional[str] = None,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
+        size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
-        layer: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -393,9 +401,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         Parameters
         ----------
+        %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
-        %(param_layer)s
+        %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
@@ -405,6 +414,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             LabelsWithUnlabeledObsField(
                 REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
+            ),
+            NumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
             ),
             CategoricalJointObsField(
                 REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
