@@ -375,7 +375,7 @@ class DecoderSCVI(nn.Module):
         self,
         dispersion: str,
         z: torch.Tensor,
-        size_factor: torch.Tensor,
+        library: torch.Tensor,
         *cat_list: int,
     ):
         """
@@ -396,8 +396,8 @@ class DecoderSCVI(nn.Module):
             * ``'gene-cell'`` - dispersion can differ for every gene in every cell
         z :
             tensor with shape ``(n_input,)``
-        size_factor
-            size factor for ``px_scale``
+        library_size
+            library size
         cat_list
             list of category membership(s) for this sample
 
@@ -412,7 +412,7 @@ class DecoderSCVI(nn.Module):
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
-        px_rate = size_factor * px_scale  # torch.clamp( , max=12)
+        px_rate = torch.exp(library) * px_scale  # torch.clamp( , max=12)
         px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
         return px_scale, px_r, px_rate, px_dropout
 

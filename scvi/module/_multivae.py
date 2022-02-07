@@ -371,7 +371,9 @@ class MULTIVAE(BaseModuleClass):
 
         size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
         size_factor = (
-            tensors[size_factor_key] if size_factor_key in tensors.keys() else None
+            torch.log(tensors[size_factor_key])
+            if size_factor_key in tensors.keys()
+            else None
         )
 
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -425,7 +427,7 @@ class MULTIVAE(BaseModuleClass):
 
         # Expression Decoder
         if not self.use_size_factor_key:
-            size_factor = torch.exp(libsize_expr)
+            size_factor = libsize_expr
         px_scale, _, px_rate, px_dropout = self.z_decoder_expression(
             "gene", decoder_input, size_factor, batch_index, *categorical_input, labels
         )

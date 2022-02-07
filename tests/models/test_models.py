@@ -479,22 +479,22 @@ def test_new_setup_compat():
     model = SCVI(adata)
     model.view_anndata_setup(hide_state_registries=True)
 
-    registry = adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
-    registry_legacy_subset = {
-        k: v for k, v in registry.items() if k in LEGACY_REGISTRY_KEYS
+    field_registries = adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
+    field_registries_legacy_subset = {
+        k: v for k, v in field_registries.items() if k in LEGACY_REGISTRY_KEYS
     }
 
     # Backwards compatibility test.
     adata2_manager = manager_from_setup_dict(SCVI, adata2, LEGACY_SETUP_DICT)
     np.testing.assert_equal(
-        registry_legacy_subset,
+        field_registries_legacy_subset,
         adata2_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
 
     # Test transfer.
     adata3_manager = adata_manager.transfer_setup(adata3)
     np.testing.assert_equal(
-        registry,
+        field_registries,
         adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
 

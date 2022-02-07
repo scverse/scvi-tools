@@ -78,7 +78,7 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
     param_size_factor_key = """\
     size_factor_key
         key in `adata.obs` for size factor information. Instead of using library size as a size factor, the provided
-        size factor column will be used as a coefficient for a softplussed `px_scale` term."""
+        size factor column will be used as offset in the mean of the likelihood. Assumed to be on linear scale."""
 
     param_layer = """\
     layer

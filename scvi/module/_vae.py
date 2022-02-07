@@ -234,7 +234,9 @@ class VAE(BaseModuleClass):
 
         size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
         size_factor = (
-            tensors[size_factor_key] if size_factor_key in tensors.keys() else None
+            torch.log(tensors[size_factor_key])
+            if size_factor_key in tensors.keys()
+            else None
         )
 
         input_dict = dict(
@@ -337,7 +339,7 @@ class VAE(BaseModuleClass):
             batch_index = torch.ones_like(batch_index) * transform_batch
 
         if not self.use_size_factor_key:
-            size_factor = torch.exp(library)
+            size_factor = library
 
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             self.dispersion,
