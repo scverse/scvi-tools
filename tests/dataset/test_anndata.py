@@ -112,9 +112,27 @@ def test_clobber():
 
     adata_manager1 = m1.get_anndata_manager(adata)
     assert adata_manager1.summary_stats.n_batch == 1
+    # The underlying data is still 2 since we have not run _validate_anndata yet
+    # to re-transfer the setup of m1.
+    assert (
+        len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
+    )
+    m1._validate_anndata(adata)
+    assert (
+        len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
+    )
 
     adata_manager2 = m2.get_anndata_manager(adata)
     assert adata_manager2.summary_stats.n_batch == 2
+    # The underlying data is still 1 since we have not run _validate_anndata yet
+    # to re-transfer the setup of m2.
+    assert (
+        len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
+    )
+    m2._validate_anndata(adata)
+    assert (
+        len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
+    )
 
 
 def test_data_format():

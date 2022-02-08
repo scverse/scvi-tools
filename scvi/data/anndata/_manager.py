@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import sys
 from collections import defaultdict
-from typing import Optional, Sequence, Type
+from copy import deepcopy
+from typing import Optional, Sequence, Type, Union
+from uuid import uuid4
 
 import numpy as np
+import pandas as pd
 import rich
 from anndata import AnnData
 
@@ -49,11 +52,11 @@ class AnnDataManager:
         fields: Optional[Sequence[Type[BaseAnnDataField]]] = None,
         setup_method_args: Optional[dict] = None,
     ) -> None:
+        self.id = str(uuid4())
         self.adata = None
         self.fields = fields or []
         self._registry = {
             _constants._SCVI_VERSION_KEY: scvi.__version__,
-            _constants._SOURCE_SCVI_UUID_KEY: None,
             _constants._MODEL_NAME_KEY: None,
             _constants._SETUP_KWARGS_KEY: None,
             _constants._FIELD_REGISTRIES_KEY: defaultdict(dict),
@@ -97,23 +100,13 @@ class AnnDataManager:
         scvi_uuid = self.adata.uns[_constants._SCVI_UUID_KEY]
         self._registry[_constants._SCVI_UUID_KEY] = scvi_uuid
 
-    def _assign_source_uuid(self, source_registry: Optional[dict]):
+    def _assign_last_manager_uuid(self):
         """
-        Assigns a source UUID to the AnnData object.
-
-        If setup not transferred from a source, set to current UUID.
+        Assigns a last manager UUID to the AnnData object for future validation.
         """
         self._assert_anndata_registered()
 
-        if source_registry is None:
-            source_registry = self._registry
-        self._registry[_constants._SOURCE_SCVI_UUID_KEY] = self._registry[
-            _constants._SCVI_UUID_KEY
-        ]
-
-    def _freeze_fields(self):
-        """Freezes the fields associated with this instance."""
-        self.fields = tuple(self.fields)
+        self.adata.uns[_constants._LAST_MANAGER_UUID_KEY] = self.id
 
     def register_fields(
         self, adata: AnnData, source_registry: Optional[dict] = None, **transfer_kwargs
@@ -139,7 +132,6 @@ class AnnDataManager:
             )
 
         self._validate_anndata_object(adata)
-        self.adata = adata
         field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
 
         for field in self.fields:
@@ -160,13 +152,13 @@ class AnnDataManager:
                         source_registry[_constants._FIELD_REGISTRIES_KEY][
                             field.registry_key
                         ][_constants._STATE_REGISTRY_KEY],
-                        self.adata,
+                        adata,
                         **transfer_kwargs,
                     )
                 else:
                     field_registry[
                         _constants._STATE_REGISTRY_KEY
-                    ] = field.register_field(self.adata)
+                    ] = field.register_field(adata)
 
             # Compute and set summary stats for the given field.
             state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
@@ -174,9 +166,13 @@ class AnnDataManager:
                 state_registry
             )
 
-        self._freeze_fields()
+        self.adata = adata
         self._assign_uuid()
-        self._assign_source_uuid(source_registry)
+        self._assign_last_manager_uuid()
+
+        # Save arguments for register_fields.
+        self._source_registry = deepcopy(source_registry)
+        self._transfer_kwargs = deepcopy(transfer_kwargs)
 
     def transfer_setup(self, adata_target: AnnData, **kwargs) -> AnnDataManager:
         """
@@ -201,6 +197,16 @@ class AnnDataManager:
         )
         new_adata_manager.register_fields(adata_target, self._registry, **kwargs)
         return new_adata_manager
+
+    def validate(self) -> None:
+        """Checks if AnnData was last setup with this AnnDataManager instance and reregisters it if not."""
+        self._assert_anndata_registered()
+        last_manager_id = self.adata.uns[_constants._LAST_MANAGER_UUID_KEY]
+        # Re-register fields with same arguments if this AnnData object has been
+        # registered with a different AnnDataManager.
+        if last_manager_id != self.id:
+            adata, self.adata = self.adata, None  # Reset self.adata.
+            self.register_fields(adata, self._source_registry, **self._transfer_kwargs)
 
     def get_adata_uuid(self) -> str:
         """Returns the UUID for the AnnData object registered with this instance."""
@@ -240,7 +246,7 @@ class AnnDataManager:
 
         return attrdict(summary_stats)
 
-    def get_from_registry(self, registry_key: str) -> np.ndarray:
+    def get_from_registry(self, registry_key: str) -> Union[np.ndarray, pd.DataFrame]:
         """
         Returns the object in AnnData associated with the key in the data registry.
 
@@ -251,7 +257,7 @@ class AnnDataManager:
 
         Returns
         -------
-        The requested data as a NumPy array.
+        The requested data as a NumPy array or Pandas DataFrame.
         """
         data_loc = self.data_registry[registry_key]
         attr_name, attr_key = (
