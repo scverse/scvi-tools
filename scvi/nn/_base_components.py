@@ -165,18 +165,17 @@ class FCLayers(nn.Module):
                 "nb. categorical args provided doesn't match init. params."
             )
         
-        if self.batch_embedding:
-            one_hot_cat_list = self.batch_embedding(cat_list)
-        else:
-            for n_cat, cat in zip(self.n_cat_list, cat_list):
-                if n_cat and cat is None:
-                    raise ValueError("cat not provided while n_cat != 0 in init. params.")
-                if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
-                    if cat.size(1) != n_cat:
-                        one_hot_cat = one_hot(cat, n_cat)
-                    else:
-                        one_hot_cat = cat  # cat has already been one_hot encoded
-                    one_hot_cat_list += [one_hot_cat]
+        for n_cat, cat in zip(self.n_cat_list, cat_list):
+            if n_cat and cat is None:
+                raise ValueError("cat not provided while n_cat != 0 in init. params.")
+            if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
+                if self.batch_embedding:
+                    one_hot_cat = self.batch_embedding(cat.squeeze())
+                elif cat.size(1) != n_cat:
+                    one_hot_cat = one_hot(cat, n_cat)
+                else:
+                    one_hot_cat = cat  # cat has already been one_hot encoded
+                one_hot_cat_list += [one_hot_cat]
 
         for i, layers in enumerate(self.fc_layers):
             for layer in layers:
