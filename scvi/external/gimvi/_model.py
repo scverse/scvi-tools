@@ -83,12 +83,20 @@ class GIMVI(VAEMixin, BaseModelClass):
         **model_kwargs,
     ):
         super(GIMVI, self).__init__()
+        if adata_seq is adata_spatial:
+            raise ValueError(
+                "`adata_seq` and `adata_spatial` cannot point to the same object. "
+                "If you would really like to do this, make a copy of the object and pass it in as `adata_spatial`."
+            )
         self.adatas = [adata_seq, adata_spatial]
         self.adata_managers = {
-            "seq": self.get_anndata_manager(adata_seq, required=True),
-            "spatial": self.get_anndata_manager(adata_spatial, required=True),
+            "seq": self.get_latest_anndata_manager(adata_seq, required=True),
+            "spatial": self.get_latest_anndata_manager(adata_spatial, required=True),
         }
-        self.registries_ = [adm.registry for adm in self.adata_managers.values()]
+        self.registries_ = []
+        for adm in self.adata_managers.values():
+            self._register_manager_for_instance(adm)
+            self.registries_.append(adm.registry)
 
         seq_var_names = adata_seq.var_names
         spatial_var_names = adata_spatial.var_names

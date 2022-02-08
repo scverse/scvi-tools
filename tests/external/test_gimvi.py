@@ -65,9 +65,14 @@ def test_saving_and_loading(save_path):
             adata,
             batch_key="batch",
         )
+        adata2 = synthetic_iid()
+        GIMVI.setup_anndata(
+            adata2,
+            batch_key="batch",
+        )
 
         # GIMVI
-        model = GIMVI(adata, adata)
+        model = GIMVI(adata, adata2)
         model.train(3, train_size=0.5)
         z1 = model.get_latent_representation([adata])
         z2 = model.get_latent_representation([adata])
@@ -81,19 +86,20 @@ def test_saving_and_loading(save_path):
         model = GIMVI.load(save_path, prefix=prefix)
         model.get_latent_representation()
         tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+        tmp_adata2 = scvi.data.synthetic_iid(n_genes=200)
         with pytest.raises(ValueError):
             GIMVI.load(
-                save_path, adata_seq=tmp_adata, adata_spatial=tmp_adata, prefix=prefix
+                save_path, adata_seq=tmp_adata, adata_spatial=tmp_adata2, prefix=prefix
             )
         model = GIMVI.load(
-            save_path, adata_seq=adata, adata_spatial=adata, prefix=prefix
+            save_path, adata_seq=adata, adata_spatial=adata2, prefix=prefix
         )
         z2 = model.get_latent_representation([adata])
         np.testing.assert_array_equal(z1, z2)
         model = GIMVI.load(
             save_path,
             adata_seq=adata,
-            adata_spatial=adata,
+            adata_spatial=adata2,
             use_gpu=False,
             prefix=prefix,
         )

@@ -106,7 +106,7 @@ class AnnDataManager:
         """
         self._assert_anndata_registered()
 
-        self.adata.uns[_constants._LAST_MANAGER_UUID_KEY] = self.id
+        self.adata.uns[_constants._MANAGER_UUID_KEY] = self.id
 
     def register_fields(
         self, adata: AnnData, source_registry: Optional[dict] = None, **transfer_kwargs
@@ -166,13 +166,13 @@ class AnnDataManager:
                 state_registry
             )
 
-        self.adata = adata
-        self._assign_uuid()
-        self._assign_last_manager_uuid()
-
         # Save arguments for register_fields.
         self._source_registry = deepcopy(source_registry)
         self._transfer_kwargs = deepcopy(transfer_kwargs)
+
+        self.adata = adata
+        self._assign_uuid()
+        self._assign_last_manager_uuid()
 
     def transfer_setup(self, adata_target: AnnData, **kwargs) -> AnnDataManager:
         """
@@ -201,7 +201,7 @@ class AnnDataManager:
     def validate(self) -> None:
         """Checks if AnnData was last setup with this AnnDataManager instance and reregisters it if not."""
         self._assert_anndata_registered()
-        last_manager_id = self.adata.uns[_constants._LAST_MANAGER_UUID_KEY]
+        last_manager_id = self.adata.uns[_constants._MANAGER_UUID_KEY]
         # Re-register fields with same arguments if this AnnData object has been
         # registered with a different AnnDataManager.
         if last_manager_id != self.id:

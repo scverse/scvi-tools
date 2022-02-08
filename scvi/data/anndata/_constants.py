@@ -5,7 +5,7 @@ from typing import NamedTuple
 # Keys for UUIDs used for referencing model class manager stores.
 
 _SCVI_UUID_KEY = "_scvi_uuid"
-_LAST_MANAGER_UUID_KEY = "_scvi_last_manager_uuid"
+_MANAGER_UUID_KEY = "_scvi_manager_uuid"
 
 # scVI Registry Constants
 # -----------------------
