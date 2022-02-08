@@ -177,3 +177,6 @@ class SCVI(
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+    
+    def get_batch_embedding(self):
+        return self.module.batch_embedding

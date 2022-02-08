@@ -187,6 +187,7 @@ class VAE(BaseModuleClass):
             var_activation=var_activation,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
+        self.batch_embedding = torch.nn.Embedding(n_batch,embedding_dim=5)
         n_input_decoder = n_latent + n_continuous_cov
         self.decoder = DecoderSCVI(
             n_input_decoder,
@@ -197,6 +198,7 @@ class VAE(BaseModuleClass):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
+            batch_embedding=self.batch_embedding,
         )
 
     def _get_inference_input(self, tensors):
