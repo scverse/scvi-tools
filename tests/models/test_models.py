@@ -475,8 +475,8 @@ def test_new_setup_compat():
         categorical_covariate_keys=["cat1", "cat2"],
         continuous_covariate_keys=["cont1", "cont2"],
     )
-    adata_manager = SCVI.manager_store[adata.uns[_constants._SCVI_UUID_KEY]]
     model = SCVI(adata)
+    adata_manager = model.adata_manager
     model.view_anndata_setup(hide_state_registries=True)
 
     field_registries = adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
@@ -646,7 +646,8 @@ def test_data_splitter():
 def test_device_backed_data_splitter():
     a = synthetic_iid()
     SCVI.setup_anndata(a, batch_key="batch", labels_key="labels")
-    adata_manager = SCVI.get_anndata_manager(a)
+    model = SCVI(a, n_latent=5)
+    adata_manager = model.adata_manager
     # test leaving validataion_size empty works
     ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0, use_gpu=None)
     ds.setup()
@@ -656,7 +657,6 @@ def test_device_backed_data_splitter():
     assert len(loaded_x) == a.shape[0]
     np.testing.assert_array_equal(loaded_x.cpu().numpy(), a.X)
 
-    model = SCVI(a, n_latent=5)
     training_plan = TrainingPlan(model.module, len(ds.train_idx))
     runner = TrainRunner(
         model,
@@ -977,7 +977,6 @@ def test_totalvi(save_path):
     TOTALVI.setup_anndata(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )
-    print(TOTALVI.get_anndata_manager(adata)._registry)
     model = TOTALVI(adata)
     assert model.module.protein_batch_mask is not None
     model.train(1, train_size=0.5)

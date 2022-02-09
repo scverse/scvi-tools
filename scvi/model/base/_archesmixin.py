@@ -115,15 +115,14 @@ class ArchesMixin:
                 **registry[_SETUP_KWARGS_KEY]
             )
 
-        adata_manager = cls.get_anndata_manager(adata, required=True)
+        model = _initialize_model(cls, adata, attr_dict)
+        adata_manager = model.get_anndata_manager(adata, required=True)
 
         version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
         if version_split[1] < "8" and version_split[0] == "0":
             warnings.warn(
                 "Query integration should be performed using models trained with version >= 0.8"
             )
-
-        model = _initialize_model(cls, adata, attr_dict)
 
         model.to_device(device)
 
