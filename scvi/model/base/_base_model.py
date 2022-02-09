@@ -3,7 +3,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import NamedTuple, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Type, Union
 from uuid import uuid4
 
 import numpy as np
@@ -36,33 +36,25 @@ _UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained 
 _SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "kwargs"}
 
 
-class _ManagerStoreKey(NamedTuple):
-    """
-    Class representing keys used to retrieve :class:`~scvi.data.anndata.AnnDataManager` from ``cls._manager_store``.
-
-    Parameters
-    ----------
-    adata_id
-        UUID specific to an AnnData object.
-    model_instance_id
-        UUID specific to a model instance. Can be ``None`` if referring to the most recent :class:`~scvi.data.anndata.AnnDataManager`
-        instance that an AnnData object has been setup with. This instance is used for future model instance initializations
-        with the given AnnData object.
-    """
-
-    adata_id: str
-    model_instance_id: Optional[str]
-
-
 class BaseModelMetaClass(ABCMeta):
     """
     Metaclass for :class:`~scvi.model.base.BaseModelClass`.
 
-    Constructs a model class-specific mapping for :class:`~scvi.data.anndata.AnnDataManager` instances.
+    Constructs model class-specific mappings for :class:`~scvi.data.anndata.AnnDataManager` instances.
+    ``cls._setup_adata_manager_store`` maps from AnnData object UUIDs to :class:`~scvi.data.anndata.AnnDataManager` instances.
+    This mapping is populated everytime ``cls.setup_anndata()`` is called.
+    ``cls._per_isntance_manager_store`` maps from model instance UUIDs to AnnData UUID::class:`~scvi.data.anndata.AnnDataManager` mappings.
+    These :class:`~scvi.data.anndata.AnnDataManager` instances are tied to a single model instance and populated either
+    during model initialization or after running ``self._validate_anndata()``.
     """
 
     def __init__(cls, name, bases, dct):
-        cls._manager_store = dict()
+        cls._setup_adata_manager_store: Dict[
+            str, Type[AnnDataManager]
+        ] = dict()  # Maps adata id to AnnDataManager instances.
+        cls._per_instance_manager_store: Dict[
+            str, Dict[str, Type[AnnDataManager]]
+        ] = dict()  # Maps model instance id to AnnDataManager mappings.
         super().__init__(name, bases, dct)
 
 
@@ -135,21 +127,21 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Registers an :class:`~scvi.data.anndata.AnnDataManager` instance with this model class.
         """
         adata_id = adata_manager.get_adata_uuid()
-        manager_store_key = _ManagerStoreKey(adata_id=adata_id, model_instance_id=None)
-        cls._manager_store[manager_store_key] = adata_manager
+        cls._setup_adata_manager_store[adata_id] = adata_manager
 
     def _register_manager_for_instance(self, adata_manager: AnnDataManager):
         """
         Registers an :class:`~scvi.data.anndata.AnnDataManager` instance with this model instance.
 
-        Creates a model-instance specific mapping in ``cls._manager_store`` for this
+        Creates a model-instance specific mapping in ``cls._per_instance_manager_store`` for this
         :class:`~scvi.data.anndata.AnnDataManager` instance.
         """
+        if self.id not in self._per_instance_manager_store:
+            self._per_instance_manager_store[self.id] = dict()
+
         adata_id = adata_manager.get_adata_uuid()
-        manager_store_key = _ManagerStoreKey(
-            adata_id=adata_id, model_instance_id=self.id
-        )
-        self._manager_store[manager_store_key] = adata_manager
+        instance_manager_store = self._per_instance_manager_store[self.id]
+        instance_manager_store[adata_id] = adata_manager
 
     @classmethod
     def get_latest_anndata_manager(
@@ -176,9 +168,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             return None
 
         adata_id = adata.uns[_SCVI_UUID_KEY]
-        manager_store_key = _ManagerStoreKey(adata_id=adata_id, model_instance_id=None)
 
-        if manager_store_key not in cls._manager_store:
+        if adata_id not in cls._setup_adata_manager_store:
             if required:
                 raise ValueError(
                     f"Please set up your AnnData with {cls.__name__}.setup_anndata first. "
@@ -186,7 +177,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 )
             return None
 
-        adata_manager = cls._manager_store[manager_store_key]
+        adata_manager = cls._setup_adata_manager_store[adata_id]
         if adata_manager.adata is not adata:
             raise ValueError(
                 "The provided AnnData object does not match the AnnData object "
@@ -220,18 +211,21 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             return None
 
         adata_id = adata.uns[_SCVI_UUID_KEY]
-        manager_store_key = _ManagerStoreKey(
-            adata_id=adata_id, model_instance_id=self.id
-        )
-
-        if manager_store_key not in cls._manager_store:
+        if self.id not in cls._per_instance_manager_store:
+            if required:
+                raise AssertionError(
+                    "Unable to find instance specific manager store. "
+                    "The model has likely not been initialized with an AnnData object."
+                )
+            return None
+        elif adata_id not in cls._per_instance_manager_store[self.id]:
             if required:
                 raise AssertionError(
                     "Please call ``self._validate_anndata`` on this AnnData object."
                 )
             return None
 
-        adata_manager = cls._manager_store[manager_store_key]
+        adata_manager = cls._per_instance_manager_store[self.id][adata_id]
         if adata_manager.adata is not adata:
             raise ValueError(
                 "The provided AnnData object does not match the AnnData object "
