@@ -208,7 +208,8 @@ class AnnDataManager:
             adata, self.adata = self.adata, None  # Reset self.adata.
             self.register_fields(adata, self._source_registry, **self._transfer_kwargs)
 
-    def get_adata_uuid(self) -> str:
+    @property
+    def adata_uuid(self) -> str:
         """Returns the UUID for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
 
@@ -257,7 +258,7 @@ class AnnDataManager:
 
         Returns
         -------
-        The requested data as a NumPy array or Pandas DataFrame.
+        The requested data.
         """
         data_loc = self.data_registry[registry_key]
         attr_name, attr_key = (

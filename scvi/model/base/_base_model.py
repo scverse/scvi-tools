@@ -65,7 +65,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self.adata = adata
-            self.adata_manager = self.get_latest_anndata_manager(adata, required=True)
+            self.adata_manager = self._get_most_recent_anndata_manager(
+                adata, required=True
+            )
             self._register_manager_for_instance(self.adata_manager)
             # Suffix registry instance variable with _ to include it when saving the model.
             self.registry_ = self.adata_manager.registry
@@ -126,7 +128,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """
         Registers an :class:`~scvi.data.anndata.AnnDataManager` instance with this model class.
         """
-        adata_id = adata_manager.get_adata_uuid()
+        adata_id = adata_manager.adata_uuid
         cls._setup_adata_manager_store[adata_id] = adata_manager
 
     def _register_manager_for_instance(self, adata_manager: AnnDataManager):
@@ -139,19 +141,20 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if self.id not in self._per_instance_manager_store:
             self._per_instance_manager_store[self.id] = dict()
 
-        adata_id = adata_manager.get_adata_uuid()
+        adata_id = adata_manager.adata_uuid
         instance_manager_store = self._per_instance_manager_store[self.id]
         instance_manager_store[adata_id] = adata_manager
 
     @classmethod
-    def get_latest_anndata_manager(
+    def _get_most_recent_anndata_manager(
         cls, adata: AnnData, required: bool = False
     ) -> Optional[AnnDataManager]:
         """
         Retrieves the :class:`~scvi.data.anndata.AnnDataManager` for a given AnnData object specific to this model class.
 
-        Checks for the latest :class:`~scvi.data.anndata.AnnDataManager` created for the given AnnData object.
-        Used to retrieve the :class:`~scvi.data.anndata.AnnDataManager` created by ``setup_anndata()`` on model initialization.
+        Checks for the most recent :class:`~scvi.data.anndata.AnnDataManager` created for the given AnnData object via
+        ``setup_anndata()`` on model initialization. Unlike :meth:`scvi.model.base.BaseModelClass.get_anndata_manager`,
+        this method is not model instance specific and can be called before a model is fully initialized.
 
         Parameters
         ----------

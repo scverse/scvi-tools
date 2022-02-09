@@ -90,8 +90,10 @@ class GIMVI(VAEMixin, BaseModelClass):
             )
         self.adatas = [adata_seq, adata_spatial]
         self.adata_managers = {
-            "seq": self.get_latest_anndata_manager(adata_seq, required=True),
-            "spatial": self.get_latest_anndata_manager(adata_spatial, required=True),
+            "seq": self._get_most_recent_anndata_manager(adata_seq, required=True),
+            "spatial": self._get_most_recent_anndata_manager(
+                adata_spatial, required=True
+            ),
         }
         self.registries_ = []
         for adm in self.adata_managers.values():
