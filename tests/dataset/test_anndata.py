@@ -99,7 +99,7 @@ def test_transfer_anndata_setup():
     assert a2.obs["_scvi_batch"].all() == 1
 
 
-def test_clobber():
+def test_clobber_same_model():
     adata = scvi.data.synthetic_iid()
 
     scvi.model.SCVI.setup_anndata(adata)
@@ -132,6 +132,46 @@ def test_clobber():
     m2._validate_anndata(adata)
     assert (
         len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
+    )
+
+
+def test_clobber_different_models():
+    adata = scvi.data.synthetic_iid()
+
+    scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
+    m1 = scvi.model.SCVI(adata)
+    m1.train(1)
+
+    scvi.model.TOTALVI.setup_anndata(
+        adata,
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    m2 = scvi.model.TOTALVI(adata)
+    m2.train(1)
+
+    adata_manager1 = m1.get_anndata_manager(adata)
+    assert adata_manager1.summary_stats.n_batch == 2
+    # The underlying data is still 2 since we have not run _validate_anndata yet
+    # to re-transfer the setup of m1.
+    assert (
+        len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
+    )
+    m1._validate_anndata(adata)
+    assert (
+        len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
+    )
+
+    adata_manager2 = m2.get_anndata_manager(adata)
+    assert adata_manager2.summary_stats.n_batch == 1
+    # The underlying data is still 1 since we have not run _validate_anndata yet
+    # to re-transfer the setup of m2.
+    assert (
+        len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
+    )
+    m2._validate_anndata(adata)
+    assert (
+        len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
     )
 
 

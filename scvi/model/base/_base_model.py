@@ -349,6 +349,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 self.adata_manager.transfer_setup(adata)
             )
         else:
+            # Case where correct AnnDataManager is found, replay registration as necessary.
             adata_manager.validate()
 
         return adata

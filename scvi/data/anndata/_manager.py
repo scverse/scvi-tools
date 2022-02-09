@@ -100,7 +100,7 @@ class AnnDataManager:
         scvi_uuid = self.adata.uns[_constants._SCVI_UUID_KEY]
         self._registry[_constants._SCVI_UUID_KEY] = scvi_uuid
 
-    def _assign_last_manager_uuid(self):
+    def _assign_most_recent_manager_uuid(self):
         """
         Assigns a last manager UUID to the AnnData object for future validation.
         """
@@ -172,7 +172,7 @@ class AnnDataManager:
 
         self.adata = adata
         self._assign_uuid()
-        self._assign_last_manager_uuid()
+        self._assign_most_recent_manager_uuid()
 
     def transfer_setup(self, adata_target: AnnData, **kwargs) -> AnnDataManager:
         """
@@ -201,10 +201,10 @@ class AnnDataManager:
     def validate(self) -> None:
         """Checks if AnnData was last setup with this AnnDataManager instance and reregisters it if not."""
         self._assert_anndata_registered()
-        last_manager_id = self.adata.uns[_constants._MANAGER_UUID_KEY]
+        most_recent_manager_id = self.adata.uns[_constants._MANAGER_UUID_KEY]
         # Re-register fields with same arguments if this AnnData object has been
         # registered with a different AnnDataManager.
-        if last_manager_id != self.id:
+        if most_recent_manager_id != self.id:
             adata, self.adata = self.adata, None  # Reset self.adata.
             self.register_fields(adata, self._source_registry, **self._transfer_kwargs)
 
