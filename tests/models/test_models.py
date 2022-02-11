@@ -780,9 +780,24 @@ def test_scanvi(save_path):
     scvi_pxr = m.module.state_dict().get("px_r", None)
     assert scanvi_pxr is not None and scvi_pxr is not None
     assert scanvi_pxr is not scvi_pxr
+    scanvi_model.train(1)
+
+    # Test without label groups
     scanvi_model = scvi.model.SCANVI.from_scvi_model(
         m, "label_0", use_labels_groups=False
     )
+    scanvi_model.train(1)
+
+    # test from_scvi_model with size_factor
+    a = scvi.data.synthetic_iid()
+    a.obs["size_factor"] = np.random.randint(1, 5, size=(a.shape[0],))
+    SCVI.setup_anndata(
+        a, batch_key="batch", labels_key="labels", size_factor_key="size_factor"
+    )
+    m = SCVI(a, use_observed_lib_size=False)
+    a2 = scvi.data.synthetic_iid()
+    a2.obs["size_factor"] = np.random.randint(1, 5, size=(a2.shape[0],))
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
     scanvi_model.train(1)
 
 
@@ -1005,6 +1020,34 @@ def test_totalvi_model_library_size(save_path):
     model.get_elbo()
     model.get_marginal_ll(n_mc_samples=3)
     model.get_latent_library_size()
+
+
+def test_totalvi_size_factor():
+    adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        size_factor_key="size_factor",
+    )
+    n_latent = 10
+
+    # Test size_factor_key overrides use_observed_lib_size.
+    model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
+    assert not hasattr(model.module, "library_log_means") and not hasattr(
+        model.module, "library_log_vars"
+    )
+    assert model.module.use_size_factor_key
+    model.train(1, train_size=0.5)
+
+    model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=True)
+    assert not hasattr(model.module, "library_log_means") and not hasattr(
+        model.module, "library_log_vars"
+    )
+    assert model.module.use_size_factor_key
+    model.train(1, train_size=0.5)
 
 
 def test_multiple_covariates_scvi(save_path):

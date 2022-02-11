@@ -694,6 +694,8 @@ class DecoderTOTALVI(nn.Module):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
+    scale_activation
+        Activation layer to use for px_scale_decoder
     """
 
     def __init__(
@@ -707,6 +709,7 @@ class DecoderTOTALVI(nn.Module):
         dropout_rate: float = 0,
         use_batch_norm: float = True,
         use_layer_norm: float = False,
+        scale_activation: Literal["softmax", "softplus"] = "softmax",
     ):
         super().__init__()
         self.n_output_genes = n_output_genes
@@ -738,6 +741,10 @@ class DecoderTOTALVI(nn.Module):
             n_cat_list=n_cat_list,
             **linear_args,
         )
+        if scale_activation == "softmax":
+            self.px_scale_activation = nn.Softmax(dim=-1)
+        elif scale_activation == "softplus":
+            self.px_scale_activation = nn.Softplus()
 
         # background mean first decoder
         self.py_back_decoder = FCLayers(
@@ -853,7 +860,7 @@ class DecoderTOTALVI(nn.Module):
         px = self.px_decoder(z, *cat_list)
         px_cat_z = torch.cat([px, z], dim=-1)
         unnorm_px_scale = self.px_scale_decoder(px_cat_z, *cat_list)
-        px_["scale"] = nn.Softmax(dim=-1)(unnorm_px_scale)
+        px_["scale"] = self.px_scale_activation(unnorm_px_scale)
         px_["rate"] = library_gene * px_["scale"]
 
         py_back = self.py_back_decoder(z, *cat_list)
