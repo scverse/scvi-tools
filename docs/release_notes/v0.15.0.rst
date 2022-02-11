@@ -1,4 +1,4 @@
-New in 0.15.0 (2021-2-10)
+New in 0.15.0 (2021-MM-DD)
 --------------------------
 
 In this release, we have completely refactored the logic behind our data handling strategy (i.e. ``setup_anndata``) to allow for: 
@@ -6,6 +6,10 @@ In this release, we have completely refactored the logic behind our data handlin
 a. Readable data handling for existing models.
 b. Modular code for easy addition of custom data fields to incorporate into models.
 c. Avoidance of unexpected edge cases when more than one model is instantiated in one session.
+
+**Important Note:** This change will not break pipelines for model users (with the exception of a small change to :class:`~scvi.model.SCANVI`).
+However, there are several breaking changes for model developers. The data handling tutorial goes over these
+changes in detail.
 
 This refactor is centered around the new :class:`~scvi.data.anndata.AnnDataManager` class which orchestrates any data processing necessary
 for scvi-tools and stores necessary information, rather than adding additional fields to the AnnData input.
