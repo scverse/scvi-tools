@@ -15,14 +15,32 @@ logger = logging.getLogger(__name__)
 
 
 class BaseObsField(BaseAnnDataField):
-    """An abstract AnnDataField for .obs attributes in the AnnData data structure."""
+    """
+    An abstract AnnDataField for .obs attributes in the AnnData data structure.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    obs_key
+        Key to access the field in the AnnData obs mapping. If None, defaults to `registry_key`.
+    required
+        If False, allows for `obs_key is None` and marks the field as `is_empty`.
+    """
 
     _attr_name = _constants._ADATA_ATTRS.OBS
 
-    def __init__(self, registry_key: str, obs_key: str) -> None:
+    def __init__(
+        self, registry_key: str, obs_key: Optional[str], required: bool = True
+    ) -> None:
         super().__init__()
+        if required and obs_key is None:
+            raise ValueError(
+                "`obs_key` cannot be `None` if `required=True`. Please provide an `obs_key`."
+            )
         self._registry_key = registry_key
         self._attr_key = obs_key
+        self._is_empty = obs_key is None
 
     @property
     def registry_key(self) -> str:
@@ -38,7 +56,7 @@ class BaseObsField(BaseAnnDataField):
 
     @property
     def is_empty(self) -> bool:
-        return False
+        return self._is_empty
 
 
 class NumericalObsField(BaseObsField):

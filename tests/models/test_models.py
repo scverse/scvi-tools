@@ -15,7 +15,7 @@ import scvi
 from scvi.data import synthetic_iid
 from scvi.data._built_in_data._download import _download
 from scvi.data.anndata import _constants
-from scvi.data.anndata._compat import manager_from_setup_dict
+from scvi.data.anndata._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -37,6 +37,7 @@ from scvi.model import (
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager
 
+LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
     "scvi_version": "0.0.0",
     "categorical_mappings": {
@@ -84,12 +85,18 @@ LEGACY_SETUP_DICT = {
 
 def test_scvi(save_path):
     n_latent = 5
+
+    # Test with size factor.
     adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
     SCVI.setup_anndata(
         adata,
         batch_key="batch",
         labels_key="labels",
+        size_factor_key="size_factor",
     )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # Test with observed lib size.
     adata = synthetic_iid()
@@ -101,6 +108,7 @@ def test_scvi(save_path):
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
+    # Test without observed lib size.
     model = SCVI(
         adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False
     )
@@ -471,17 +479,22 @@ def test_new_setup_compat():
     adata_manager = model.adata_manager
     model.view_anndata_setup(hide_state_registries=True)
 
+    field_registries = adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
+    field_registries_legacy_subset = {
+        k: v for k, v in field_registries.items() if k in LEGACY_REGISTRY_KEYS
+    }
+
     # Backwards compatibility test.
     adata2_manager = manager_from_setup_dict(SCVI, adata2, LEGACY_SETUP_DICT)
     np.testing.assert_equal(
-        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        field_registries_legacy_subset,
         adata2_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
 
     # Test transfer.
     adata3_manager = adata_manager.transfer_setup(adata3)
     np.testing.assert_equal(
-        adata_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        field_registries,
         adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
 
@@ -767,9 +780,24 @@ def test_scanvi(save_path):
     scvi_pxr = m.module.state_dict().get("px_r", None)
     assert scanvi_pxr is not None and scvi_pxr is not None
     assert scanvi_pxr is not scvi_pxr
+    scanvi_model.train(1)
+
+    # Test without label groups
     scanvi_model = scvi.model.SCANVI.from_scvi_model(
         m, "label_0", use_labels_groups=False
     )
+    scanvi_model.train(1)
+
+    # test from_scvi_model with size_factor
+    a = scvi.data.synthetic_iid()
+    a.obs["size_factor"] = np.random.randint(1, 5, size=(a.shape[0],))
+    SCVI.setup_anndata(
+        a, batch_key="batch", labels_key="labels", size_factor_key="size_factor"
+    )
+    m = SCVI(a, use_observed_lib_size=False)
+    a2 = scvi.data.synthetic_iid()
+    a2.obs["size_factor"] = np.random.randint(1, 5, size=(a2.shape[0],))
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
     scanvi_model.train(1)
 
 
@@ -994,6 +1022,34 @@ def test_totalvi_model_library_size(save_path):
     model.get_latent_library_size()
 
 
+def test_totalvi_size_factor():
+    adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        size_factor_key="size_factor",
+    )
+    n_latent = 10
+
+    # Test size_factor_key overrides use_observed_lib_size.
+    model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
+    assert not hasattr(model.module, "library_log_means") and not hasattr(
+        model.module, "library_log_vars"
+    )
+    assert model.module.use_size_factor_key
+    model.train(1, train_size=0.5)
+
+    model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=True)
+    assert not hasattr(model.module, "library_log_means") and not hasattr(
+        model.module, "library_log_vars"
+    )
+    assert model.module.use_size_factor_key
+    model.train(1, train_size=0.5)
+
+
 def test_multiple_covariates_scvi(save_path):
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
@@ -1143,6 +1199,17 @@ def test_multivi():
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
     vae.differential_expression(groupby="labels", group1="label_1")
+
+    # Test with size factor
+    data = synthetic_iid()
+    data.obs["size_factor"] = np.random.randint(1, 5, size=(data.shape[0],))
+    MULTIVI.setup_anndata(data, batch_key="batch", size_factor_key="size_factor")
+    vae = MULTIVI(
+        data,
+        n_genes=50,
+        n_regions=50,
+    )
+    vae.train(3)
 
 
 def test_early_stopping():
