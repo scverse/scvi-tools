@@ -1,5 +1,6 @@
 from ._archesmixin import ArchesMixin
 from ._base_model import BaseModelClass
+from ._differential import DifferentialComputation
 from ._pyromixin import PyroJitGuideWarmup, PyroSampleMixin, PyroSviTrainMixin
 from ._rnamixin import RNASeqMixin
 from ._training_mixin import UnsupervisedTrainingMixin
@@ -14,4 +15,5 @@ __all__ = [
     "PyroSviTrainMixin",
     "PyroSampleMixin",
     "PyroJitGuideWarmup",
+    "DifferentialComputation",
 ]

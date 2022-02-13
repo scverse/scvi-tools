@@ -7,11 +7,13 @@ import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.module import Classifier
-from scvi.module.base import BaseModuleClass, PyroBaseModuleClass
+from scvi.module.base import BaseModuleClass, LossRecorder, PyroBaseModuleClass
 from scvi.nn import one_hot
+
+from ._metrics import ElboMetric
 
 
 def _compute_kl_weight(
@@ -54,6 +56,7 @@ class TrainingPlan(pl.LightningModule):
     module
         A module instance from class ``BaseModuleClass``.
     lr
+
         Learning rate used for optimization.
     weight_decay
         Weight decay used in optimizatoin.
@@ -121,11 +124,25 @@ class TrainingPlan(pl.LightningModule):
         self.loss_kwargs = loss_kwargs
 
         self._n_obs_training = None
+        self._n_obs_validation = None
 
         # automatic handling of kl weight
         self._loss_args = getfullargspec(self.module.loss)[0]
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
+
+        self.initialize_train_metrics()
+        self.initialize_val_metrics()
+
+    def initialize_train_metrics(self):
+        """Initialize train related metrics."""
+        self.elbo_train = ElboMetric(self.n_obs_training, mode="train")
+        self.elbo_train.reset()
+
+    def initialize_val_metrics(self):
+        """Initialize train related metrics."""
+        self.elbo_val = ElboMetric(self.n_obs_validation, mode="validation")
+        self.elbo_val.reset()
 
     @property
     def n_obs_training(self):
@@ -133,6 +150,10 @@ class TrainingPlan(pl.LightningModule):
         Number of observations in the training set.
 
         This will update the loss kwargs for loss rescaling.
+
+        Notes
+        -----
+        This can get set after initialization
         """
         return self._n_obs_training
 
@@ -141,68 +162,116 @@ class TrainingPlan(pl.LightningModule):
         if "n_obs" in self._loss_args:
             self.loss_kwargs.update({"n_obs": n_obs})
         self._n_obs_training = n_obs
+        self.initialize_train_metrics()
+
+    @property
+    def n_obs_validation(self):
+        """
+        Number of observations in the validation set.
+
+        This will update the loss kwargs for loss rescaling.
+
+        Notes
+        -----
+        This can get set after initialization
+        """
+        return self._n_obs_validation
+
+    @n_obs_validation.setter
+    def n_obs_validation(self, n_obs: int):
+        self._n_obs_validation = n_obs
+        self.initialize_val_metrics()
 
     def forward(self, *args, **kwargs):
         """Passthrough to `model.forward()`."""
         return self.module(*args, **kwargs)
 
+    @torch.no_grad()
+    def compute_and_log_metrics(
+        self,
+        loss_recorder: LossRecorder,
+        elbo_metric: ElboMetric,
+    ):
+        """
+        Computes and logs metrics.
+
+        Parameters
+        ----------
+        loss_recorder
+            LossRecorder object from scvi-tools module
+        metric_attr_name
+            The name of the torch metric object to use
+        """
+        rec_loss = loss_recorder.reconstruction_loss
+        n_obs_minibatch = rec_loss.shape[0]
+        rec_loss = rec_loss.sum()
+        kl_local = loss_recorder.kl_local.sum()
+        kl_global = loss_recorder.kl_global
+
+        # use the torchmetric object for the ELBO
+        elbo_metric(
+            rec_loss,
+            kl_local,
+            kl_global,
+            n_obs_minibatch,
+        )
+        # e.g., train or val mode
+        mode = elbo_metric.mode
+        # pytorch lightning handles everything with the torchmetric object
+        self.log(f"elbo_{mode}", elbo_metric, on_step=False, on_epoch=True)
+
+        # log elbo components
+        self.log(
+            f"reconstruction_loss_{mode}",
+            rec_loss / elbo_metric.n_obs_total,
+            reduce_fx=torch.sum,
+            on_step=False,
+            on_epoch=True,
+        )
+        self.log(
+            f"kl_local_{mode}",
+            kl_local / elbo_metric.n_obs_total,
+            reduce_fx=torch.sum,
+            on_step=False,
+            on_epoch=True,
+        )
+        # default aggregation is mean
+        self.log(
+            f"kl_global_{mode}",
+            kl_global,
+            on_step=False,
+            on_epoch=True,
+        )
+
+        # accumlate extra metrics passed to loss recorder
+        for extra_metric in loss_recorder.extra_metric_attrs:
+            met = getattr(loss_recorder, extra_metric)
+            if isinstance(met, torch.Tensor):
+                if met.shape != torch.Size([]):
+                    raise ValueError("Extra tracked metrics should be 0-d tensors.")
+                met = met.detach()
+            self.log(
+                f"{extra_metric}_{mode}",
+                met,
+                on_step=False,
+                on_epoch=True,
+            )
+
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        reconstruction_loss = scvi_loss.reconstruction_loss
-        # pytorch lightning automatically backprops on "loss"
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
-        # lightning wants non loss keys detached
-        return {
-            "loss": scvi_loss.loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
-            "kl_local_sum": scvi_loss.kl_local.sum().detach(),
-            "kl_global": scvi_loss.kl_global.detach(),
-            "n_obs": reconstruction_loss.shape[0],
-        }
-
-    def training_epoch_end(self, outputs):
-        n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
-        for tensors in outputs:
-            elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
-            rec_loss += tensors["reconstruction_loss_sum"]
-            kl_local += tensors["kl_local_sum"]
-            n_obs += tensors["n_obs"]
-        # kl global same for each minibatch
-        kl_global = outputs[0]["kl_global"]
-        elbo += kl_global
-        self.log("elbo_train", elbo / n_obs)
-        self.log("reconstruction_loss_train", rec_loss / n_obs)
-        self.log("kl_local_train", kl_local / n_obs)
-        self.log("kl_global_train", kl_global)
+        self.compute_and_log_metrics(scvi_loss, self.elbo_train)
+        return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
+        # loss kwargs here contains `n_obs` equal to n_training_obs
+        # so when relevant, the actual loss value is rescaled to number
+        # of training examples
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        reconstruction_loss = scvi_loss.reconstruction_loss
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
-        return {
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_loss.kl_local.sum(),
-            "kl_global": scvi_loss.kl_global,
-            "n_obs": reconstruction_loss.shape[0],
-        }
-
-    def validation_epoch_end(self, outputs):
-        """Aggregate validation step information."""
-        n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
-        for tensors in outputs:
-            elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
-            rec_loss += tensors["reconstruction_loss_sum"]
-            kl_local += tensors["kl_local_sum"]
-            n_obs += tensors["n_obs"]
-        # kl global same for each minibatch
-        kl_global = outputs[0]["kl_global"]
-        elbo += kl_global
-        self.log("elbo_validation", elbo / n_obs)
-        self.log("reconstruction_loss_validation", rec_loss / n_obs)
-        self.log("kl_local_validation", kl_local / n_obs)
-        self.log("kl_global_validation", kl_global)
+        self.compute_and_log_metrics(scvi_loss, self.elbo_val)
 
     def configure_optimizers(self):
         params = filter(lambda p: p.requires_grad, self.module.parameters())
@@ -357,7 +426,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             if self.scale_adversarial_loss == "auto"
             else self.scale_adversarial_loss
         )
-        batch_tensor = batch[_CONSTANTS.BATCH_KEY]
+        batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
         if optimizer_idx == 0:
             loss_kwargs = dict(kl_weight=self.kl_weight)
             inference_outputs, _, scvi_loss = self.forward(
@@ -370,15 +439,9 @@ class AdversarialTrainingPlan(TrainingPlan):
                 fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
                 loss += fool_loss * kappa
 
-            reconstruction_loss = scvi_loss.reconstruction_loss
             self.log("train_loss", loss, on_epoch=True)
-            return {
-                "loss": loss,
-                "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
-                "kl_local_sum": scvi_loss.kl_local.sum().detach(),
-                "kl_global": scvi_loss.kl_global.detach(),
-                "n_obs": reconstruction_loss.shape[0],
-            }
+            self.compute_and_log_metrics(scvi_loss, self.elbo_train)
+            return loss
 
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
@@ -390,13 +453,6 @@ class AdversarialTrainingPlan(TrainingPlan):
             loss *= kappa
 
             return loss
-
-    def training_epoch_end(self, outputs):
-        # only report from optimizer one loss signature
-        if self.adversarial_classifier:
-            super().training_epoch_end(outputs[0])
-        else:
-            super().training_epoch_end(outputs)
 
     def configure_optimizers(self):
         params1 = filter(lambda p: p.requires_grad, self.module.parameters())
@@ -528,19 +584,9 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         input_kwargs.update(self.loss_kwargs)
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
-        reconstruction_loss = scvi_losses.reconstruction_loss
         self.log("train_loss", loss, on_epoch=True)
-        loss_dict = {
-            "loss": loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum().detach(),
-            "kl_local_sum": scvi_losses.kl_local.sum().detach(),
-            "kl_global": scvi_losses.kl_global.detach(),
-            "n_obs": reconstruction_loss.shape[0],
-        }
-        if hasattr(scvi_losses, "classification_loss"):
-            loss_dict["classification_loss"] = scvi_losses.classification_loss.detach()
-            loss_dict["n_labelled_tensors"] = scvi_losses.n_labelled_tensors
-        return loss_dict
+        self.compute_and_log_metrics(scvi_losses, self.elbo_train)
+        return loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
@@ -558,52 +604,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         input_kwargs.update(self.loss_kwargs)
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
-        reconstruction_loss = scvi_losses.reconstruction_loss
         self.log("validation_loss", loss, on_epoch=True)
-        loss_dict = {
-            "loss": loss,
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_losses.kl_local.sum(),
-            "kl_global": scvi_losses.kl_global,
-            "n_obs": reconstruction_loss.shape[0],
-        }
-        if hasattr(scvi_losses, "classification_loss"):
-            loss_dict["classification_loss"] = scvi_losses.classification_loss
-            loss_dict["n_labelled_tensors"] = scvi_losses.n_labelled_tensors
-        return loss_dict
-
-    def training_epoch_end(self, outputs):
-        super().training_epoch_end(outputs)
-        classifier_loss, total_labelled_tensors = 0, 0
-
-        for tensors in outputs:
-            if "classification_loss" in tensors.keys():
-                n_labelled = tensors["n_labelled_tensors"]
-                total_labelled_tensors += n_labelled
-                classification_loss = tensors["classification_loss"]
-                classifier_loss += classification_loss * n_labelled
-
-        if total_labelled_tensors > 0:
-            self.log(
-                "classification_loss_train", classifier_loss / total_labelled_tensors
-            )
-
-    def validation_epoch_end(self, outputs):
-        super().validation_epoch_end(outputs)
-        classifier_loss, total_labelled_tensors = 0, 0
-
-        for tensors in outputs:
-            if "classification_loss" in tensors.keys():
-                n_labelled = tensors["n_labelled_tensors"]
-                total_labelled_tensors += n_labelled
-                classification_loss = tensors["classification_loss"]
-                classifier_loss += classification_loss * n_labelled
-
-        if total_labelled_tensors > 0:
-            self.log(
-                "classification_loss_validation",
-                classifier_loss / total_labelled_tensors,
-            )
+        self.compute_and_log_metrics(scvi_losses, self.elbo_val)
 
 
 class PyroTrainingPlan(pl.LightningModule):
@@ -772,8 +774,8 @@ class ClassifierTrainingPlan(pl.LightningModule):
         weight_decay: float = 1e-6,
         eps: float = 0.01,
         optimizer: Literal["Adam", "AdamW"] = "Adam",
-        data_key: str = _CONSTANTS.X_KEY,
-        labels_key: str = _CONSTANTS.LABELS_KEY,
+        data_key: str = REGISTRY_KEYS.X_KEY,
+        labels_key: str = REGISTRY_KEYS.LABELS_KEY,
         loss: Callable = torch.nn.CrossEntropyLoss,
     ):
         super().__init__()
