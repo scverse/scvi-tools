@@ -40,11 +40,17 @@ p.rubric {
 }
 
 div.nblast.container {
-    padding-bottom: 5px;
+    padding-bottom: 10px !important;
     padding-right: 0px;
     padding-left: 0px;
-    margin-bottom: 0.5rem !important;
 }
+
+div.nbinput.container {
+    padding-top: 10px !important;
+    padding-right: 0px;
+    padding-left: 0px;
+}
+
 
 div.nbinput.container div.input_area div[class*="highlight"] > pre {
     padding: 10px !important;
