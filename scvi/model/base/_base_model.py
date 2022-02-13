@@ -96,7 +96,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     @property
     def adata_manager(self) -> AnnDataManager:
-        """AnnDataManager instance associated with self.adata."""
+        """Manager instance associated with self.adata."""
         return self._adata_manager
 
     def to_device(self, device: Union[str, int]):
