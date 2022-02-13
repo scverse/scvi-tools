@@ -217,6 +217,9 @@ nbsphinx_thumbnails = {
 }
 
 
-# def setup(app):
-#     # https://github.com/pradyunsg/furo/issues/49
-#     app.config.pygments_dark_style = "default"
+def setup(app):
+    # https://github.com/pradyunsg/furo/issues/49
+    app.config.pygments_style = "default"
+    app.config.pygments_dark_style = "native"
+    app.add_stylesheet("css/override.css")
+    app.add_stylesheet("css/sphinx_gallery.css")
