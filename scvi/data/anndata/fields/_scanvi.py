@@ -55,7 +55,6 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
                 self._original_attr_key,
                 self.attr_key,
                 categorical_dtype=cat_dtype,
-                return_mapping=True,
             )
             remapped = True
         else:
