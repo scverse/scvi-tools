@@ -124,8 +124,8 @@ language = None
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
-# pygments_style = "default"
-# pygments_dark_style = "default"
+pygments_style = "default"
+pygments_dark_style = "native"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
@@ -144,7 +144,10 @@ html_theme_options = {
     "sidebar_hide_name": True,
     "light_css_variables": {
         "color-brand-primary": "#003262",
-        "color-brand-content": "#2a5adf",
+        "color-brand-content": "#003262",
+        "admonition-font-size": "var(--font-size-normal)",
+        "admonition-title-font-size": "var(--font-size-normal)",
+        "code-font-size": "var(--font-size--small)",
     },
 }
 # Add any paths that contain custom static files (such as style sheets) here,

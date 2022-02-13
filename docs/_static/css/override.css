@@ -5,15 +5,6 @@
 https://github.com/streamlink/streamlink/blob/17a4088c38709123c0bcab4a150549bd16d19e07/docs/_static/styles/custom.css
 */
 
-:root {
-    /* misc */
-    --sidebar-width: 18em;
-    --content-width: 65em;
-    --admonition-font-size: var(--font-size--normal);
-    --admonition-title-font-size: var(--font-size--normal);
-}
-
-
 dt:target, span.highlighted {
     background-color: #f0f0f0;
 }
@@ -38,35 +29,26 @@ p.rubric {
 }
 
 
-  /* from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
+  /* adapted from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
 
-  .nbinput .prompt,
-  .nboutput .prompt {
+.nbinput .prompt,
+.nboutput .prompt {
       display: none;
-  }
-  .nboutput .stderr{
+}
+.nboutput .stderr{
       display: none;
-  }
+}
 
-  div.nblast.container {
+div.nblast.container {
     padding-bottom: 5px;
     padding-right: 0px;
     padding-left: 0px;
     margin-bottom: 0.5rem !important;
 }
 
-div.nbinput.container, div.nboutput.container {
-    display: -webkit-flex;
-    display: flex;
-    align-items: flex-start;
-    margin-top: 0px;
-    margin-right: 0px;
-    margin-bottom: 5px;
-    margin-left: 0px;
-    padding-right: 0px;
-    padding-left: 0px;
-    padding-top: 0px
-    width: 100%;
+div.nbinput.container div.input_area div[class*="highlight"] > pre {
+    padding: 10px !important;
+    margin: 0;
 }
 
 p.topic-title {
@@ -97,7 +79,6 @@ p.topic-title {
   .intro-card .card-header {
     border: none;
     background-color:inherit;
-    color: #150458 !important;
     font-size: var(--pst-font-size-h5);
     font-weight: bold;
     padding: 2.5rem 0rem 0.5rem 0rem;
@@ -116,6 +97,5 @@ p.topic-title {
 
   .intro-card .btn-secondary {
       background-color: #484848;
-      border-color: #dcdcdc;
-      color: #484848;
+      /* border-color: #dcdcdc; */
   }
