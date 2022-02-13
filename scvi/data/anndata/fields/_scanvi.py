@@ -48,7 +48,8 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
             unlabeled_idx = unlabeled_idx[0][0]
             # move unlabeled category to be the last position
             mapping[unlabeled_idx], mapping[-1] = mapping[-1], mapping[unlabeled_idx]
-        else:
+        # could be in mapping in transfer case
+        elif self._unlabeled_category not in mapping:
             # no unlabeled category, so no need to remap
             # just put as last category
             mapping = np.asarray(list(mapping) + [self._unlabeled_category])
