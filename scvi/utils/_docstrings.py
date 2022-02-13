@@ -116,6 +116,7 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
             param_layer=self.param_layer,
             param_cat_cov_keys=self.param_cat_cov_keys,
             param_cont_cov_keys=self.param_cont_cov_keys,
+            param_size_factor_key=self.param_size_factor_key,
             param_copy=self.param_copy,
             returns=self.returns,
         )
