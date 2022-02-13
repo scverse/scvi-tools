@@ -48,23 +48,24 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
             unlabeled_idx = unlabeled_idx[0][0]
             # move unlabeled category to be the last position
             mapping[unlabeled_idx], mapping[-1] = mapping[-1], mapping[unlabeled_idx]
-            cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
-            # rerun setup for the batch column
-            mapping = _make_obs_column_categorical(
-                adata,
-                self._original_attr_key,
-                self.attr_key,
-                categorical_dtype=cat_dtype,
-            )
-            remapped = True
         else:
-            remapped = False
+            # no unlabeled category, so no need to remap
+            # just put as last category
+            mapping = np.asarray(list(mapping) + [self._unlabeled_category])
+
+        cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
+        # rerun setup for the batch column
+        mapping = _make_obs_column_categorical(
+            adata,
+            self._original_attr_key,
+            self.attr_key,
+            categorical_dtype=cat_dtype,
+        )
 
         return {
             self.CATEGORICAL_MAPPING_KEY: mapping,
             self.ORIGINAL_ATTR_KEY: self._original_attr_key,
             self.UNLABELED_CATEGORY: self._unlabeled_category,
-            self.WAS_REMAPPED: remapped,
         }
 
     def register_field(self, adata: AnnData) -> dict:
