@@ -52,7 +52,10 @@ extensions = [
     "sphinx_gallery.load_style",
     "sphinx_tabs.tabs",
     "sphinx_panels",
+    "sphinx_remove_toctrees",
 ]
+
+remove_from_toctrees = ["api/reference/*", "tutorials/notebooks/*"]
 
 # nbsphinx specific settings
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
