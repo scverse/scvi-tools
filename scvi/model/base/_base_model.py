@@ -70,8 +70,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             )
             self._register_manager_for_instance(self.adata_manager)
             # Suffix registry instance variable with _ to include it when saving the model.
-            self.registry_ = self.adata_manager.registry
-            self.summary_stats = self.adata_manager.summary_stats
+            self.registry_ = self._adata_manager.registry
+            self.summary_stats = self._adata_manager.summary_stats
 
         self.is_trained_ = False
         self._model_summary_string = ""
@@ -93,6 +93,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self._validate_anndata(adata)
         self._adata = adata
         self._adata_manager = self.get_anndata_manager(adata)
+        self.registry_ = self._adata_manager.registry
+        self.summary_stats = self._adata_manager.summary_stats
 
     @property
     def adata_manager(self) -> AnnDataManager:
