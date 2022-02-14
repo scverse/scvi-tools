@@ -68,9 +68,9 @@ sphinx = {version = ">=4.1,<4.4", optional = true}
 sphinx-autodoc-typehints = {version = "*", optional = true}
 sphinx-design = {version = "*", optional = true}
 sphinx-gallery = {version = ">0.6", optional = true}
-sphinx-panels = {version = "*", optional = true}
 sphinx_copybutton = {version = "<=0.3.1", optional = true}
 sphinx_remove_toctrees = {version = "*", optional = true}
+sphinxext-opengraph = {version = "*", optional = true}
 torch = ">=1.8.0"
 torchmetrics = ">=0.6.0"
 tqdm = ">=4.56.0"
@@ -89,9 +89,9 @@ docs = [
   "sphinx-autodoc-typehints",
   "sphinx_copybutton",
   "sphinx_gallery",
-  "sphinx-panels",
   "sphinx_remove_toctrees",
   "sphinx-design",
+  "sphinxext-opengraph",
 ]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc"]
 

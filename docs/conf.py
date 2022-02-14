@@ -52,9 +52,14 @@ extensions = [
     "sphinx_gallery.load_style",
     "sphinx_remove_toctrees",
     "sphinx_design",
+    "sphinxext.opengraph",
 ]
 
 remove_from_toctrees = ["tutorials/notebooks/*", "api/reference/*"]
+
+# for sharing urls with nice info
+ogp_site_url = "https://docs.scvi-tools.org/"
+ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
 
 # nbsphinx specific settings
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
