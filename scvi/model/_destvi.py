@@ -59,7 +59,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/DestVI_tutorial`
+    1. :doc:`/tutorials/notebooks/DestVI_tutorial`
     """
 
     def __init__(

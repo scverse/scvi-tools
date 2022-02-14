@@ -88,7 +88,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/AutoZI_tutorial`
+    1. :doc:`/tutorials/notebooks/AutoZI_tutorial`
     """
 
     def __init__(
