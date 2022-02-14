@@ -97,6 +97,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         super(SCANVI, self).__init__(adata)
         scanvae_model_kwargs = dict(model_kwargs)
 
+        warnings.warn(
+            "The `unlabeled_category` argument will be moved to `SCANVI.setup_anndata` in v0.15.0.",
+            FutureWarning,
+        )
         self.unlabeled_category_ = unlabeled_category
         has_unlabeled = self._set_indices_and_labels()
 
