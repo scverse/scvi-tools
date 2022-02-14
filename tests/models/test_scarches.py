@@ -176,9 +176,19 @@ def test_scanvi_online_update(save_path):
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
+    # query has all missing labels
     adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata2.obs["labels"] = "Unknown"
+
+    model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    model.train(max_epochs=1)
+    model.get_latent_representation()
+    model.predict()
+
+    # query has no missing labels
+    adata2 = synthetic_iid()
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
     model.train(max_epochs=1)
