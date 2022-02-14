@@ -6,75 +6,46 @@ Documentation
 * Interface for easy use of a range of probabilistic models for single-cell omics (e.g., scVI, scANVI, totalVI).
 * Tools to build new probabilistic models, which are powered by PyTorch, PyTorch Lightning, and Pyro.
 
-If you find a model useful for your research, please consider citing the corresponding publication, which can be found in the corresponding model documentation.
+If you find a model useful for your research, please consider citing the scvi-tools manuscript as well as the corresponding publication, which can be found in the corresponding model documentation.
 
-.. panels::
-    :card: + intro-card text-center
-    :column: col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex
-
-    ---
-    :img-top: _static/computer-24px.svg
-
-    Installation
-    ^^^^^^^^^^^^^^^
+.. card:: Installation :octicon:`plug;1em;`
+    :link: installation
+    :link-type: doc
 
     New to *scvi-tools*? Check out the installation guide.
 
-    +++
-
-    .. link-button:: installation
-            :type: ref
-            :text: To the installation guide
-            :classes: btn-block btn-secondary stretched-link
-
-    ---
-    :img-top: _static/play_circle_outline-24px.svg
-
-    User guide
-    ^^^^^^^^^^
+.. card:: User guide :octicon:`play;1em;`
+    :link: user_guide/index
+    :link-type: doc
 
     The user guide provides distilled mathematical descriptions of
     the models implemented in scvi-tools and connects the math
     with the code.
 
-    +++
-
-    .. link-button:: user_guide/index
-            :type: ref
-            :text: To the user guide
-            :classes: btn-block btn-secondary stretched-link
-
-    ---
-    :img-top: _static/library_books-24px.svg
-
-    API reference
-    ^^^^^^^^^^^^^
+.. card:: API reference :octicon:`book;1em;`
+    :link: api/index
+    :link-type: doc
 
     The API reference contains a detailed description of
     the scvi-tools API.
 
-    +++
-
-    .. link-button:: api/index
-            :type: ref
-            :text: To the API reference
-            :classes: btn-block btn-secondary stretched-link
-
-    ---
-    :img-top: _static/code-24px.svg
-
-    Tutorials
-    ^^^^^^^^^^^
+.. card:: Tutorials :octicon:`workflow;1em;`
+    :link: tutorials/index
+    :link-type: doc
 
     The tutorials walk you through real-world applications of scvi-tools models.
     Developer tutorials help you build new probabilistic models.
 
-    +++
+.. card:: Discussion :octicon:`megaphone;1em;`
+    :link: https://discourse.scvi-tools.org
 
-    .. link-button:: tutorials/index
-            :type: ref
-            :text: To the tutorials
-            :classes: btn-block btn-secondary stretched-link
+    Need help? Reach out on our forum to get your questions answered!
+
+
+.. card:: GitHub :octicon:`mark-github;1em;`
+    :link: https://github.com/yoseflab/scvi-tools
+
+    Find a bug? Interested in improving scvi-tools? Checkout our GitHub for the latest developments.
 
 
 .. toctree::

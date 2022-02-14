@@ -50,12 +50,11 @@ extensions = [
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
     "sphinx_copybutton",
     "sphinx_gallery.load_style",
-    "sphinx_tabs.tabs",
-    "sphinx_panels",
     "sphinx_remove_toctrees",
+    "sphinx_design",
 ]
 
-remove_from_toctrees = ["api/reference/*", "tutorials/notebooks/*"]
+remove_from_toctrees = ["tutorials/notebooks/*", "api/reference/*"]
 
 # nbsphinx specific settings
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
@@ -77,9 +76,6 @@ todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
 
-# sphinx-panels shouldn't add bootstrap css since the pydata-sphinx-theme
-# already loads it
-panels_add_bootstrap_css = True
 
 # The master toctree document.
 master_doc = "index"
