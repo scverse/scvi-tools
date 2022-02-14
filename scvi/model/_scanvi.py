@@ -212,7 +212,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             adata = scvi_model.adata
 
         scvi_setup_kwargs = scvi_model.adata_manager.registry[_SETUP_KWARGS_KEY]
-        cls.setup_anndata(adata, unlabeled_category, **scvi_setup_kwargs)
+        cls.setup_anndata(
+            adata, unlabeled_category=unlabeled_category, **scvi_setup_kwargs
+        )
         scanvi_model = cls(adata, **non_kwargs, **kwargs, **scanvi_kwargs)
         scvi_state_dict = scvi_model.module.state_dict()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)

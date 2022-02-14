@@ -166,7 +166,7 @@ def test_scanvi_online_update(save_path):
     new_labels = adata1.obs.labels.to_numpy()
     new_labels[0] = "Unknown"
     adata1.obs["labels"] = pd.Categorical(new_labels)
-    SCANVI.setup_anndata(adata1, "Unknown", batch_key="batch", labels_key="labels")
+    SCANVI.setup_anndata(adata1, "labels", "Unknown", batch_key="batch")
     model = SCANVI(
         adata1,
         n_latent=n_latent,
@@ -190,7 +190,7 @@ def test_scanvi_online_update(save_path):
     adata1 = synthetic_iid()
     new_labels = adata1.obs.labels.to_numpy()
     adata1.obs["labels"] = pd.Categorical(new_labels)
-    SCANVI.setup_anndata(adata1, "Unknown", batch_key="batch", labels_key="labels")
+    SCANVI.setup_anndata(adata1, "labels", "Unknown", batch_key="batch")
     model = SCANVI(adata1, n_latent=n_latent, encode_covariates=True)
     model.train(max_epochs=1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
@@ -253,7 +253,7 @@ def test_scanvi_online_update(save_path):
     # test saving and loading of online scanvi
     a = synthetic_iid()
     ref = a[a.obs["labels"] != "label_2"].copy()  # only has labels 0 and 1
-    SCANVI.setup_anndata(ref, "label_2", batch_key="batch", labels_key="labels")
+    SCANVI.setup_anndata(ref, "labels", "label_2", batch_key="batch")
     m = SCANVI(ref)
     m.train(max_epochs=1)
     m.save(save_path, overwrite=True)

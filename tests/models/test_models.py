@@ -451,7 +451,7 @@ def test_saving_and_loading(save_path):
         np.testing.assert_array_equal(p1, p2)
         assert model.is_trained is True
 
-    SCANVI.setup_anndata(adata, "label_0", batch_key="batch", labels_key="labels")
+    SCANVI.setup_anndata(adata, "labels", "label_0", batch_key="batch")
     test_save_load_scanvi(legacy=True)
     test_save_load_scanvi()
     # Test load prioritizes newer save paradigm and thus mismatches legacy save.
@@ -721,9 +721,9 @@ def test_scanvi(save_path):
     adata = synthetic_iid()
     SCANVI.setup_anndata(
         adata,
+        "labels",
         "label_0",
         batch_key="batch",
-        labels_key="labels",
     )
     model = SCANVI(adata, n_latent=10)
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
@@ -750,7 +750,10 @@ def test_scanvi(save_path):
     unknown_label = "asdf"
     a = scvi.data.synthetic_iid()
     scvi.model.SCANVI.setup_anndata(
-        a, unknown_label, batch_key="batch", labels_key="labels"
+        a,
+        "labels",
+        unknown_label,
+        batch_key="batch",
     )
     m = scvi.model.SCANVI(a)
     m.train(1)
@@ -759,7 +762,10 @@ def test_scanvi(save_path):
     unknown_label = "label_0"
     a = scvi.data.synthetic_iid()
     scvi.model.SCANVI.setup_anndata(
-        a, unknown_label, batch_key="batch", labels_key="labels"
+        a,
+        "labels",
+        unknown_label,
+        batch_key="batch",
     )
     m = scvi.model.SCANVI(a)
     m.train(1, train_size=0.9)
@@ -1069,9 +1075,9 @@ def test_multiple_covariates_scvi(save_path):
 
     SCANVI.setup_anndata(
         adata,
+        "labels",
         "Unknown",
         batch_key="batch",
-        labels_key="labels",
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
