@@ -79,7 +79,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/PeakVI`
+    1. :doc:`/tutorials/notebooks/PeakVI`
     """
 
     def __init__(
