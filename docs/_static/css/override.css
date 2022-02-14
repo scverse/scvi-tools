@@ -62,6 +62,14 @@ p.topic-title {
 }
 
 
+/* so that api methods are small in sidebar */
+li.toctree-l3 {
+    font-size: 81.25% !important;
+}
+li.toctree-l4 {
+    font-size: 75% !important;
+}
+
 
 
 /* Main index page overview cards */
