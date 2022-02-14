@@ -14,7 +14,7 @@ If you find a model useful for your research, please consider citing the scvi-to
 
     New to *scvi-tools*? Check out the installation guide.
 
-.. card:: User guide :octicon:`play;1em;`
+.. card:: User guide :octicon:`info;1em;`
     :link: user_guide/index
     :link-type: doc
 
@@ -29,7 +29,7 @@ If you find a model useful for your research, please consider citing the scvi-to
     The API reference contains a detailed description of
     the scvi-tools API.
 
-.. card:: Tutorials :octicon:`workflow;1em;`
+.. card:: Tutorials :octicon:`play;1em;`
     :link: tutorials/index
     :link-type: doc
 

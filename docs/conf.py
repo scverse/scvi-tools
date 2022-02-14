@@ -55,7 +55,7 @@ extensions = [
     "sphinxext.opengraph",
 ]
 
-remove_from_toctrees = ["tutorials/notebooks/*", "api/reference/*"]
+# remove_from_toctrees = ["tutorials/notebooks/*", "api/reference/*"]
 
 # for sharing urls with nice info
 ogp_site_url = "https://docs.scvi-tools.org/"
