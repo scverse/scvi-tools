@@ -3,7 +3,8 @@ Tutorials
 
 The easiest way to get familiar with scvi-tools is to follow along with our tutorials.
 Many are also designed to work seamlessly in Google Colab, a free cloud computing platform.
-Tutorials are designed to work with the latest installable version of scvi-tools.
+Tutorials by default work with the latest installable version of scvi-tools. To view older tutorials,
+change the documentation version using the tab at the bottom of the left sidebar.
 
 .. note:: For questions about using scvi-tools, or broader questions about modeling data, please use our forum_.
 
@@ -102,9 +103,9 @@ Here we feature tutorials to guide you through the construction of a model with 
 Glossary
 ^^^^^^^^^
 
-.. tabs::
+.. tab-set::
 
-    .. tab:: Model
+    .. tab-item:: Model
 
         A Model class inherits :class:`~scvi.model.base.BaseModelClass` and is the user-facing object for interacting with a module.
         The model has a `train` method that learns the parameters of the module, and also contains methods
@@ -112,7 +113,8 @@ Glossary
         Conventionally, the post-inference model methods should not store data into the AnnData object, but
         instead return "standard" Python objects, like numpy arrays or pandas dataframes.
 
-    .. tab:: Module
+
+    .. tab-item:: Module
 
         A module is the lower-level object that defines a generative model and inference scheme. A module will
         either inherit :class:`~scvi.module.base.BaseModuleClass` or :class:`~scvi.module.base.PyroBaseModuleClass`.
@@ -120,10 +122,9 @@ Glossary
         generative process and inference scheme are implemented respectively in the `generative` and `inference` methods,
         while the `loss` method computes the loss, e.g, ELBO in the case of variational inference.
 
-.. tabs::
+.. tab-set::
 
-    .. tab:: TrainingPlan
-
+    .. tab-item:: TrainingPlan
 
         The training plan is a PyTorch Lightning Module that is initialized with a scvi-tools module object.
         It configures the optimizers, defines the training step and validation step, and computes metrics to be
@@ -132,7 +133,8 @@ Glossary
         Overall, custom training plans can be used to develop complex inference schemes on top of modules.
 
 
-    .. tab:: Trainer
+
+    .. tab-item:: Trainer
 
         The :class:`~scvi.train.Trainer` is a lightweight wrapper of the PyTorch Lightning Trainer. It takes as input
         the training plan, a training data loader, and a validation dataloader. It performs the actual training loop, in
