@@ -83,9 +83,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/harmonization`
-    2. :doc:`/tutorials/notebooks/scarches_scvi_tools`
-    3. :doc:`/tutorials/notebooks/seed_labeling`
+    1. :doc:`/user_guide/notebooks/harmonization`
+    2. :doc:`/user_guide/notebooks/scarches_scvi_tools`
+    3. :doc:`/user_guide/notebooks/seed_labeling`
     """
 
     def __init__(
@@ -387,10 +387,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
+        labels_key: str,
         unlabeled_category: Union[str, int, float],
         layer: Optional[str] = None,
         batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
         size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
