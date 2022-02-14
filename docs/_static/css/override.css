@@ -6,7 +6,7 @@ https://github.com/streamlink/streamlink/blob/17a4088c38709123c0bcab4a150549bd16
 */
 
 /* for the sphinx design cards */
-:root {
+body {
     --sd-color-shadow: dimgrey;
 }
 
