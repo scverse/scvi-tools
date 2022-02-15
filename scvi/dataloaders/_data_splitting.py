@@ -12,6 +12,8 @@ from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 
+from ._samplers import BatchSampler, SubsetDistributedSampler
+
 
 def validate_data_split(
     n_samples: int, train_size: float, validation_size: Optional[float] = None
@@ -113,18 +115,21 @@ class DataSplitter(pl.LightningDataModule):
         self.train_idx = permutation[n_val : (n_val + n_train)]
         self.test_idx = permutation[(n_val + n_train) :]
 
-        gpus, self.device = parse_use_gpu_arg(self.use_gpu, return_device=True)
+        # gpus, self.device = parse_use_gpu_arg(self.use_gpu, return_device=True)
+        gpus = self.use_gpu
         self.pin_memory = (
             True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
         )
+        self.sampler_cls = SubsetDistributedSampler if gpus > 1 else BatchSampler
 
     def train_dataloader(self):
         return AnnDataLoader(
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
-            drop_last=3,
+            drop_last=True,
             pin_memory=self.pin_memory,
+            sampler_cls=self.sampler_cls,
             **self.data_loader_kwargs,
         )
 
@@ -134,8 +139,9 @@ class DataSplitter(pl.LightningDataModule):
                 self.adata_manager,
                 indices=self.val_idx,
                 shuffle=False,
-                drop_last=3,
+                drop_last=True,
                 pin_memory=self.pin_memory,
+                sampler_cls=self.sampler_cls,
                 **self.data_loader_kwargs,
             )
         else:
@@ -147,8 +153,9 @@ class DataSplitter(pl.LightningDataModule):
                 self.adata_manager,
                 indices=self.test_idx,
                 shuffle=False,
-                drop_last=3,
+                drop_last=True,
                 pin_memory=self.pin_memory,
+                sampler_cls=self.sampler_cls,
                 **self.data_loader_kwargs,
             )
         else:

@@ -60,10 +60,9 @@ class TrainRunner:
         self.training_plan = training_plan
         self.data_splitter = data_splitter
         self.model = model
-        gpus, device = parse_use_gpu_arg(use_gpu)
-        self.gpus = gpus
-        self.device = device
-        self.trainer = Trainer(max_epochs=max_epochs, gpus=gpus, **trainer_kwargs)
+        # gpus, device = parse_use_gpu_arg(use_gpu)
+        self.gpus = use_gpu
+        self.trainer = Trainer(max_epochs=max_epochs, gpus=self.gpus, **trainer_kwargs)
 
     def __call__(self):
         if hasattr(self.data_splitter, "n_train"):
@@ -81,7 +80,6 @@ class TrainRunner:
 
         self.model.module.eval()
         self.model.is_trained_ = True
-        self.model.to_device(self.device)
         self.model.trainer = self.trainer
 
     def _update_history(self):
