@@ -291,7 +291,6 @@ class VAE(BaseModuleClass):
                 )
             else:
                 library = ql.sample((n_samples,))
-
         outputs = dict(z=z, qz=qz, ql=ql, library=library)
         return outputs
 

@@ -230,6 +230,7 @@ class SCANVAE(VAE):
         px_dropout = generative_ouputs["px_dropout"]
         qz1 = inference_outputs["qz"]
         z1 = inference_outputs["z"]
+        ql = inference_outputs["ql"]
         x = tensors[_CONSTANTS.X_KEY]
         batch_index = tensors[_CONSTANTS.BATCH_KEY]
 
