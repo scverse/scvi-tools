@@ -64,14 +64,14 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def __init__(self, adata: Optional[AnnData] = None):
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
-            self.adata = adata
-            self.adata_manager = self._get_most_recent_anndata_manager(
+            self._adata = adata
+            self._adata_manager = self._get_most_recent_anndata_manager(
                 adata, required=True
             )
             self._register_manager_for_instance(self.adata_manager)
             # Suffix registry instance variable with _ to include it when saving the model.
-            self.registry_ = self.adata_manager.registry
-            self.summary_stats = self.adata_manager.summary_stats
+            self.registry_ = self._adata_manager.registry
+            self.summary_stats = self._adata_manager.summary_stats
 
         self.is_trained_ = False
         self._model_summary_string = ""
@@ -80,6 +80,26 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.validation_indices_ = None
         self.history_ = None
         self._data_loader_cls = AnnDataLoader
+
+    @property
+    def adata(self) -> AnnData:
+        """Data attached to model instance."""
+        return self._adata
+
+    @adata.setter
+    def adata(self, adata: AnnData):
+        if adata is None:
+            raise ValueError("adata cannot be None.")
+        self._validate_anndata(adata)
+        self._adata = adata
+        self._adata_manager = self.get_anndata_manager(adata, required=True)
+        self.registry_ = self._adata_manager.registry
+        self.summary_stats = self._adata_manager.summary_stats
+
+    @property
+    def adata_manager(self) -> AnnDataManager:
+        """Manager instance associated with self.adata."""
+        return self._adata_manager
 
     def to_device(self, device: Union[str, int]):
         """
