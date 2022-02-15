@@ -10,7 +10,7 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata._constants import _SETUP_KWARGS_KEY
+from scvi.data.anndata._constants import _SETUP_ARGS_KEY
 from scvi.data.anndata.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -207,9 +207,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if adata is None:
             adata = scvi_model.adata
 
-        scvi_setup_kwargs = scvi_model.adata_manager.registry[_SETUP_KWARGS_KEY]
+        scvi_setup_args = scvi_model.adata_manager.registry[_SETUP_ARGS_KEY]
         cls.setup_anndata(
-            adata, unlabeled_category=unlabeled_category, **scvi_setup_kwargs
+            adata, unlabeled_category=unlabeled_category, **scvi_setup_args
         )
         scanvi_model = cls(adata, **non_kwargs, **kwargs, **scanvi_kwargs)
         scvi_state_dict = scvi_model.module.state_dict()

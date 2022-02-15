@@ -125,7 +125,7 @@ def manager_from_setup_dict(
         Keyword arguments to modify transfer behavior.
     """
     fields = []
-    setup_kwargs = dict()
+    setup_args = dict()
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
     categorical_mappings = setup_dict["categorical_mappings"]
     for registry_key, adata_mapping in data_registry.items():
@@ -138,15 +138,15 @@ def manager_from_setup_dict(
         attr_key = adata_mapping[_constants._DR_ATTR_KEY]
         if attr_name == _constants._ADATA_ATTRS.X:
             field = LayerField(REGISTRY_KEYS.X_KEY, None)
-            setup_kwargs["layer"] = None
+            setup_args["layer"] = None
         elif attr_name == _constants._ADATA_ATTRS.LAYERS:
             field = LayerField(REGISTRY_KEYS.X_KEY, attr_key)
-            setup_kwargs["layer"] = attr_key
+            setup_args["layer"] = attr_key
         elif attr_name == _constants._ADATA_ATTRS.OBS:
             if new_registry_key in {REGISTRY_KEYS.BATCH_KEY, REGISTRY_KEYS.LABELS_KEY}:
                 original_key = categorical_mappings[attr_key]["original_key"]
                 field = CategoricalObsField(new_registry_key, original_key)
-                setup_kwargs[f"{new_registry_key}_key"] = original_key
+                setup_args[f"{new_registry_key}_key"] = original_key
             elif new_registry_key == REGISTRY_KEYS.INDICES_KEY:
                 adata.obs[attr_key] = np.arange(adata.n_obs).astype("int64")
                 field = NumericalObsField(new_registry_key, attr_key)
@@ -154,11 +154,11 @@ def manager_from_setup_dict(
             if new_registry_key == REGISTRY_KEYS.CONT_COVS_KEY:
                 obs_keys = setup_dict["extra_continuous_keys"]
                 field = NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, obs_keys)
-                setup_kwargs["continuous_covariate_keys"] = obs_keys
+                setup_args["continuous_covariate_keys"] = obs_keys
             elif new_registry_key == REGISTRY_KEYS.CAT_COVS_KEY:
                 obs_keys = setup_dict["extra_categoricals"]["keys"]
                 field = CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, obs_keys)
-                setup_kwargs["categorical_covariate_keys"] = obs_keys
+                setup_args["categorical_covariate_keys"] = obs_keys
             elif new_registry_key == REGISTRY_KEYS.PROTEIN_EXP_KEY:
                 protein_names = setup_dict["protein_names"]
                 adata.uns["_protein_names"] = protein_names
@@ -169,8 +169,8 @@ def manager_from_setup_dict(
                     batch_key="_scvi_batch",
                     colnames_uns_key="_protein_names",
                 )
-                setup_kwargs["protein_expression_obsm_key"] = attr_key
-                setup_kwargs["protein_names_uns_key"] = "_protein_names"
+                setup_args["protein_expression_obsm_key"] = attr_key
+                setup_args["protein_names_uns_key"] = "_protein_names"
             else:
                 raise NotImplementedError(
                     f"Unrecognized .obsm attribute {attr_key} registered as {new_registry_key}. Backwards compatibility unavailable."
@@ -183,7 +183,7 @@ def manager_from_setup_dict(
 
     setup_method_args = {
         _constants._MODEL_NAME_KEY: cls.__name__,
-        _constants._SETUP_KWARGS_KEY: setup_kwargs,
+        _constants._SETUP_ARGS_KEY: setup_args,
     }
     adata_manager = AnnDataManager(fields=fields, setup_method_args=setup_method_args)
 

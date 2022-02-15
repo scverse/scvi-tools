@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from scvi import REGISTRY_KEYS
 from scvi.data.anndata import AnnDataManager
 from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_KWARGS_KEY
+from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.anndata.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_use_gpu_arg
@@ -525,14 +525,14 @@ class GIMVI(VAEMixin, BaseModelClass):
                         "It appears you are loading a model from a different class."
                     )
 
-                if _SETUP_KWARGS_KEY not in registry:
+                if _SETUP_ARGS_KEY not in registry:
                     raise ValueError(
                         "Saved model does not contain original setup inputs. "
                         "Cannot load the original setup."
                     )
 
                 cls.setup_anndata(
-                    adata, source_registry=registry, **registry[_SETUP_KWARGS_KEY]
+                    adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
                 )
 
         # get the parameters for the class init signiture

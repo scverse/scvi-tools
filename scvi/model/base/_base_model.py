@@ -18,7 +18,7 @@ from scvi.data.anndata._compat import manager_from_setup_dict
 from scvi.data.anndata._constants import (
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
-    _SETUP_KWARGS_KEY,
+    _SETUP_ARGS_KEY,
 )
 from scvi.data.anndata._utils import _assign_adata_uuid
 from scvi.dataloaders import AnnDataLoader
@@ -117,11 +117,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         setup_locals.pop("adata")
         cls = setup_locals.pop("cls")
         model_name = cls.__name__
-        setup_kwargs = dict()
+        setup_args = dict()
         for k, v in setup_locals.items():
             if k not in _SETUP_INPUTS_EXCLUDED_PARAMS:
-                setup_kwargs[k] = v
-        return {_MODEL_NAME_KEY: model_name, _SETUP_KWARGS_KEY: setup_kwargs}
+                setup_args[k] = v
+        return {_MODEL_NAME_KEY: model_name, _SETUP_ARGS_KEY: setup_args}
 
     @classmethod
     def register_manager(cls, adata_manager: AnnDataManager):
@@ -570,7 +570,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     "It appears you are loading a model from a different class."
                 )
 
-            if _SETUP_KWARGS_KEY not in registry:
+            if _SETUP_ARGS_KEY not in registry:
                 raise ValueError(
                     "Saved model does not contain original setup inputs. "
                     "Cannot load the original setup."
@@ -580,7 +580,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             # the saved model. This enables simple backwards compatibility in the case of
             # newly introduced fields or parameters.
             cls.setup_anndata(
-                adata, source_registry=registry, **registry[_SETUP_KWARGS_KEY]
+                adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
             )
 
         model = _initialize_model(cls, adata, attr_dict)
@@ -633,6 +633,17 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         on a model-specific instance of :class:`~scvi.data.anndata.AnnDataManager`.
         """
 
+    @staticmethod
+    def view_setup_args(source: Union[Type["BaseModelClass"], str, dict]) -> None:
+        """
+        Print args used to setup a saved model.
+
+        Parameters
+        ----------
+        source
+            Model instance, model save dir path, or model registry.
+        """
+
     def view_anndata_setup(
         self, adata: Optional[AnnData] = None, hide_state_registries: bool = False
     ) -> None:
@@ -644,6 +655,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata
             AnnData object setup with ``setup_anndata`` or
             :meth:`~scvi.data.anndata.AnnDataManager.transfer_setup`.
+        hide_state_registries
+            If True, prints a shortened summary without details of each state registry.
         """
         if adata is None:
             adata = self.adata

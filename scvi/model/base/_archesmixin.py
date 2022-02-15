@@ -8,7 +8,7 @@ from anndata import AnnData
 
 from scvi.data.anndata import _constants
 from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_KWARGS_KEY
+from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.nn import FCLayers
 
@@ -102,7 +102,7 @@ class ArchesMixin:
                     "It appears you are loading a model from a different class."
                 )
 
-            if _SETUP_KWARGS_KEY not in registry:
+            if _SETUP_ARGS_KEY not in registry:
                 raise ValueError(
                     "Saved model does not contain original setup inputs. "
                     "Cannot load the original setup."
@@ -112,7 +112,7 @@ class ArchesMixin:
                 adata,
                 source_registry=registry,
                 extend_categories=True,
-                **registry[_SETUP_KWARGS_KEY]
+                **registry[_SETUP_ARGS_KEY]
             )
 
         model = _initialize_model(cls, adata, attr_dict)
