@@ -135,7 +135,9 @@ class CategoricalObsField(BaseObsField):
 
         super().register_field(adata)
         categorical_mapping = _make_obs_column_categorical(
-            adata, self._original_attr_key, self.attr_key, return_mapping=True
+            adata,
+            self._original_attr_key,
+            self.attr_key,
         )
         return {
             self.CATEGORICAL_MAPPING_KEY: categorical_mapping,
@@ -174,7 +176,6 @@ class CategoricalObsField(BaseObsField):
             self._original_attr_key,
             self.attr_key,
             categorical_dtype=cat_dtype,
-            return_mapping=True,
         )
         return {
             self.CATEGORICAL_MAPPING_KEY: new_mapping,

@@ -110,11 +110,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             self._dl_cls = AnnDataLoader
 
         # ignores unlabeled catgegory
-        n_labels = (
-            self.summary_stats.n_labels - 1
-            if self.has_unlabeled
-            else self.summary_stats.n_labels
-        )
+        n_labels = self.summary_stats.n_labels - 1
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
                 REGISTRY_KEYS.CAT_COVS_KEY
@@ -212,7 +208,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             adata = scvi_model.adata
 
         scvi_setup_kwargs = scvi_model.adata_manager.registry[_SETUP_KWARGS_KEY]
-        cls.setup_anndata(adata, unlabeled_category, **scvi_setup_kwargs)
+        cls.setup_anndata(
+            adata, unlabeled_category=unlabeled_category, **scvi_setup_kwargs
+        )
         scanvi_model = cls(adata, **non_kwargs, **kwargs, **scanvi_kwargs)
         scvi_state_dict = scvi_model.module.state_dict()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
@@ -228,7 +226,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             REGISTRY_KEYS.LABELS_KEY
         )
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
-        self.has_unlabeled = labels_state_registry.was_remapped
 
         labels = self.get_from_registry(self.adata, REGISTRY_KEYS.LABELS_KEY)
         self._label_mapping = labels_state_registry.categorical_mapping
@@ -387,10 +384,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
+        labels_key: str,
         unlabeled_category: Union[str, int, float],
         layer: Optional[str] = None,
         batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
         size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,

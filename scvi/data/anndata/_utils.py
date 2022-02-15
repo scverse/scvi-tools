@@ -121,7 +121,6 @@ def _make_obs_column_categorical(
     column_key,
     alternate_column_key,
     categorical_dtype=None,
-    return_mapping=False,
 ):
     """
     Makes the data in column_key in obs all categorical.
@@ -146,16 +145,6 @@ def _make_obs_column_categorical(
         )
     adata.obs[alternate_column_key] = codes
 
-    if not return_mapping:
-        # store categorical mappings
-        store_dict = {
-            alternate_column_key: {"original_key": column_key, "mapping": mapping}
-        }
-
-        if "categorical_mappings" not in adata.uns["_scvi"].keys():
-            adata.uns["_scvi"]["categorical_mappings"] = dict()
-        adata.uns["_scvi"]["categorical_mappings"].update(store_dict)
-
     # make sure each category contains enough cells
     unique, counts = np.unique(adata.obs[alternate_column_key], return_counts=True)
     if np.min(counts) < 3:
@@ -171,7 +160,7 @@ def _make_obs_column_categorical(
             "Is adata.obs['{}'] continuous? SCVI doesn't support continuous obs yet."
         )
 
-    return mapping if return_mapping else alternate_column_key
+    return mapping
 
 
 def _assign_adata_uuid(adata: anndata.AnnData, overwrite: bool = False) -> None:
