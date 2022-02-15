@@ -56,8 +56,10 @@ class LossRecorder:
         self._kl_global = (
             kl_global if isinstance(kl_global, dict) else dict(kl_global=kl_global)
         )
+        self.extra_metric_attrs = []
         for key, value in kwargs.items():
             setattr(self, key, value)
+            self.extra_metric_attrs.append(key)
 
     @staticmethod
     def _get_dict_sum(dictionary):

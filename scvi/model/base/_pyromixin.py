@@ -109,7 +109,7 @@ class PyroSviTrainMixin:
         if batch_size is None:
             # use data splitter which moves data to GPU once
             data_splitter = DeviceBackedDataSplitter(
-                self.adata,
+                self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
@@ -117,7 +117,7 @@ class PyroSviTrainMixin:
             )
         else:
             data_splitter = DataSplitter(
-                self.adata,
+                self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
@@ -158,7 +158,7 @@ class PyroSampleMixin:
         args,
         kwargs,
         return_sites: Optional[list] = None,
-        sample_observed: bool = False,
+        return_observed: bool = False,
     ):
         """
         Get one sample from posterior distribution.
@@ -169,35 +169,44 @@ class PyroSampleMixin:
             arguments to model and guide
         kwargs
             arguments to model and guide
+        return_sites
+            List of variables for which to generate posterior samples, defaults to all variables.
+        return_observed
+            Record samples of observed variables.
 
         Returns
         -------
         Dictionary with a sample for each variable
         """
-        guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
-        model_trace = poutine.trace(
-            poutine.replay(self.module.model, guide_trace)
-        ).get_trace(*args, **kwargs)
+        if isinstance(self.module.guide, poutine.messenger.Messenger):
+            # This already includes trace-replay behavior.
+            sample = self.module.guide(*args, **kwargs)
+        else:
+            guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
+            model_trace = poutine.trace(
+                poutine.replay(self.module.model, guide_trace)
+            ).get_trace(*args, **kwargs)
+            sample = {
+                name: site["value"]
+                for name, site in model_trace.nodes.items()
+                if (
+                    (site["type"] == "sample")  # sample statement
+                    and (
+                        (return_sites is None) or (name in return_sites)
+                    )  # selected in return_sites list
+                    and (
+                        (
+                            (not site.get("is_observed", True)) or return_observed
+                        )  # don't save observed unless requested
+                        or (site.get("infer", False).get("_deterministic", False))
+                    )  # unless it is deterministic
+                    and not isinstance(
+                        site.get("fn", None), poutine.subsample_messenger._Subsample
+                    )  # don't save plates
+                )
+            }
 
-        sample = {
-            name: site["value"].cpu().numpy()
-            for name, site in model_trace.nodes.items()
-            if (
-                (site["type"] == "sample")  # sample statement
-                and (
-                    (return_sites is None) or (name in return_sites)
-                )  # selected in return_sites list
-                and (
-                    (
-                        (not site.get("is_observed", True)) or sample_observed
-                    )  # don't save observed unless requested
-                    or (site.get("infer", False).get("_deterministic", False))
-                )  # unless it is deterministic
-                and not isinstance(
-                    site.get("fn", None), poutine.subsample_messenger._Subsample
-                )  # don't save plates
-            )
-        }
+        sample = {name: site.cpu().numpy() for name, site in sample.items()}
 
         return sample
 
@@ -219,6 +228,10 @@ class PyroSampleMixin:
             arguments to model and guide
         kwargs
             keyword arguments to model and guide
+        return_sites
+            List of variables for which to generate posterior samples, defaults to all variables.
+        return_observed
+            Record samples of observed variables.
         show_progress
             show progress bar
 
@@ -228,7 +241,7 @@ class PyroSampleMixin:
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
         samples = self._get_one_posterior_sample(
-            args, kwargs, return_sites=return_sites, sample_observed=return_observed
+            args, kwargs, return_sites=return_sites, return_observed=return_observed
         )
         samples = {k: [v] for k, v in samples.items()}
 
@@ -241,7 +254,7 @@ class PyroSampleMixin:
 
             # generate new sample
             samples_ = self._get_one_posterior_sample(
-                args, kwargs, return_sites=return_sites, sample_observed=return_observed
+                args, kwargs, return_sites=return_sites, return_observed=return_observed
             )
 
             # add new sample
@@ -262,7 +275,12 @@ class PyroSampleMixin:
         else:
             return obs_plate_sites
 
-    def _get_obs_plate_sites(self, args, kwargs):
+    def _get_obs_plate_sites(
+        self,
+        args: list,
+        kwargs: dict,
+        return_observed: bool = False,
+    ):
         """
         Automatically guess which model sites belong to observation/minibatch plate.
 
@@ -274,6 +292,8 @@ class PyroSampleMixin:
             Arguments to the model.
         kwargs
             Keyword arguments to the model.
+        return_observed
+            Record samples of observed variables.
 
         Returns
         -------
@@ -286,7 +306,18 @@ class PyroSampleMixin:
         obs_plate = {
             name: site["cond_indep_stack"][0].dim
             for name, site in trace.nodes.items()
-            if site["type"] == "sample"
+            if (
+                (site["type"] == "sample")  # sample statement
+                and (
+                    (
+                        (not site.get("is_observed", True)) or return_observed
+                    )  # don't save observed unless requested
+                    or (site.get("infer", False).get("_deterministic", False))
+                )  # unless it is deterministic
+                and not isinstance(
+                    site.get("fn", None), poutine.subsample_messenger._Subsample
+                )  # don't save plates
+            )
             if any(f.name == plate_name for f in site["cond_indep_stack"])
         }
 
@@ -319,7 +350,9 @@ class PyroSampleMixin:
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
 
-        train_dl = AnnDataLoader(self.adata, shuffle=False, batch_size=batch_size)
+        train_dl = AnnDataLoader(
+            self.adata_manager, shuffle=False, batch_size=batch_size
+        )
         # sample local parameters
         i = 0
         for tensor_dict in track(
@@ -333,7 +366,10 @@ class PyroSampleMixin:
             self.to_device(device)
 
             if i == 0:
-                obs_plate_sites = self._get_obs_plate_sites(args, kwargs)
+                return_observed = getattr(sample_kwargs, "return_observed", False)
+                obs_plate_sites = self._get_obs_plate_sites(
+                    args, kwargs, return_observed=return_observed
+                )
                 if len(obs_plate_sites) == 0:
                     # if no local variables - don't sample
                     break
@@ -406,7 +442,7 @@ class PyroSampleMixin:
         ----------
         num_samples
             Number of posterior samples to generate.
-        return_site
+        return_sites
             List of variables for which to generate posterior samples, defaults to all variables.
         use_gpu
             Load model on default GPU if available (if None or True),
@@ -416,7 +452,7 @@ class PyroSampleMixin:
         return_observed
             Return observed sites/variables? Observed count matrix can be very large so not returned by default.
         return_samples
-            Return samples in addition to sample mean, 5%/95% quantile and SD?
+            Return all generated posterior samples in addition to sample mean, 5%/95% quantile and SD?
         summary_fun
              a dict in the form {"means": np.mean, "std": np.std} which specifies posterior distribution
              summaries to compute and which names to use. See below for default returns.

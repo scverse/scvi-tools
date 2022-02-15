@@ -7,7 +7,7 @@ from scipy.special import logit
 from torch.distributions import Beta, Gamma, Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import LossRecorder, auto_move_data
 from scvi.nn import one_hot
@@ -286,6 +286,7 @@ class AutoZIVAE(VAE):
         library,
         batch_index: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
+        size_factor=None,
         cont_covs=None,
         cat_covs=None,
         n_samples: int = 1,
@@ -298,6 +299,7 @@ class AutoZIVAE(VAE):
             cont_covs=cont_covs,
             cat_covs=cat_covs,
             y=y,
+            size_factor=size_factor,
         )
         # Rescale dropout
         outputs["px_dropout"] = self.rescale_dropout(
@@ -364,13 +366,12 @@ class AutoZIVAE(VAE):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # Parameters for z latent distribution
         qz = inference_outputs["qz"]
-        ql = inference_outputs["ql"]
         px_rate = generative_outputs["px_rate"]
         px_r = generative_outputs["px_r"]
         px_dropout = generative_outputs["px_dropout"]
         bernoulli_params = generative_outputs["bernoulli_params"]
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         # KL divergences wrt z_n,l_n
         mean = torch.zeros_like(qz.loc)
@@ -378,6 +379,8 @@ class AutoZIVAE(VAE):
 
         kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
         if not self.use_observed_lib_size:
+            ql = inference_outputs["ql"]
+
             (
                 local_library_log_means,
                 local_library_log_vars,

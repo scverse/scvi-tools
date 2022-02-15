@@ -1,87 +1,52 @@
 Documentation
-~~~~~~~~~~~~~
-``scvi-tools`` (single-cell variational inference tools) [Gayoso21]_ is a package for end-to-end analysis of single-cell omics data primarily developed and maintained by the `Yosef Lab
+********************
+``scvi-tools`` (single-cell variational inference tools) [Gayoso22]_ is a package for end-to-end analysis of single-cell omics data primarily developed and maintained by the `Yosef Lab
 <https://yoseflab.github.io/>`_ at UC Berkeley. ``scvi-tools`` has two components
 
 * Interface for easy use of a range of probabilistic models for single-cell omics (e.g., scVI, scANVI, totalVI).
 * Tools to build new probabilistic models, which are powered by PyTorch, PyTorch Lightning, and Pyro.
 
-If you find a model useful for your research, please consider citing the corresponding publication, which can be found in the corresponding model documentation.
+If you find a model useful for your research, please consider citing the scvi-tools manuscript as well as the corresponding publication, which can be found in the corresponding model documentation.
+
+.. card:: Installation :octicon:`plug;1em;`
+    :link: installation
+    :link-type: doc
+
+    New to *scvi-tools*? Check out the installation guide.
+
+.. card:: User guide :octicon:`info;1em;`
+    :link: user_guide/index
+    :link-type: doc
+
+    The user guide provides distilled mathematical descriptions of
+    the models implemented in scvi-tools and connects the math
+    with the code.
+
+.. card:: API reference :octicon:`book;1em;`
+    :link: api/index
+    :link-type: doc
+
+    The API reference contains a detailed description of
+    the scvi-tools API.
+
+.. card:: Tutorials :octicon:`play;1em;`
+    :link: tutorials/index
+    :link-type: doc
+
+    The tutorials walk you through real-world applications of scvi-tools models.
+    Developer tutorials help you build new probabilistic models.
+
+.. card:: Discussion :octicon:`megaphone;1em;`
+    :link: https://discourse.scvi-tools.org
+
+    Need help? Reach out on our forum to get your questions answered!
 
 
-.. raw:: html
+.. card:: GitHub :octicon:`mark-github;1em;`
+    :link: https://github.com/yoseflab/scvi-tools
 
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
-                <img src="_static/computer-24px.svg" class="card-img-top" alt="installation with scvi action icon" height="52">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">Installation</h5>
-                    <p class="card-text">New to <em>scvi-tools</em>? Check out the installation guide.
-                    </p>
+    Find a bug? Interested in improving scvi-tools? Checkout our GitHub for the latest developments.
 
-.. container:: custom-button
-
-    :doc:`To the installation guide<installation>`
-
-.. raw:: html
-
-                </div>
-                </div>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
-                <img src="_static/play_circle_outline-24px.svg" class="card-img-top" alt="scvi user guide action icon" height="52">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">User guide</h5>
-                    <p class="card-text">The tutorials provide in-depth information on running scvi-tools models.</p>
-
-.. container:: custom-button
-
-    :doc:`To the user guide<user_guide/user>`
-
-.. raw:: html
-
-                </div>
-                </div>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
-                <img src="_static/library_books-24px.svg" class="card-img-top" alt="api of scvi action icon" height="52">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">API reference</h5>
-                    <p class="card-text">The API reference contains a detailed description of
-                    the scvi-tools API.</p>
-
-.. container:: custom-button
-
-    :doc:`To the API reference<api/index>`
-
-.. raw:: html
-
-                </div>
-                </div>
-            </div>
-            <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 d-flex">
-                <div class="card text-center intro-card shadow">
-                <img src="_static/code-24px.svg" class="card-img-top" alt="contribute to scvi-tools action icon" height="52">
-                <div class="card-body flex-fill">
-                    <h5 class="card-title">Developer guide</h5>
-                    <p class="card-text">Want to develop new models with scvi-tools? The developer guide
-                    will help you through the process.</p>
-
-.. container:: custom-button
-
-    :doc:`To the developer guide<user_guide/developer>`
-
-.. raw:: html
-
-                </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
 .. toctree::
    :maxdepth: 3
@@ -96,3 +61,4 @@ If you find a model useful for your research, please consider citing the corresp
    references
    contributing/index
    Discussion <https://discourse.scvi-tools.org>
+   GitHub <https://github.com/YosefLab/scvi-tools>

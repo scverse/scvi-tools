@@ -12,14 +12,13 @@ Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://gith
 [![Join the chat at https://gitter.im/scvi-tools/development](https://badges.gitter.im/scvi-tools/development.svg)](https://gitter.im/scvi-tools/development?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 [scvi-tools](https://scvi-tools.org/) (single-cell variational inference
-tools) is a package for probabilistic modeling of single-cell omics
+tools) is a package for probabilistic modeling and analysis of single-cell omics
 data, built on top of [PyTorch](https://pytorch.org) and
 [AnnData](https://anndata.readthedocs.io/en/latest/).
 
-# Available implementations of single-cell omics models
+# Analysis of single-cell omics data
 
-scvi-tools contains scalable implementations of several models that
-facilitate a broad number of tasks across many omics, including:
+scvi-tools is composed of models that can perform one or more tasks in single-cell omics data analysis. scvi-tools currently hosts implementations of:
 
 -   [scVI](https://rdcu.be/bdHYQ) for analysis of single-cell RNA-seq
     data, as well as its improved differential expression
@@ -58,17 +57,18 @@ scvi-tools contains the building blocks to develop and deploy novel probablistic
 models. These building blocks are powered by popular probabilistic and
 machine learning frameworks such as [PyTorch
 Lightning](https://www.pytorchlightning.ai/) and
-[Pyro](https://pyro.ai/).
+[Pyro](https://pyro.ai/). For an overview of how the scvi-tools package
+is structured, you may refer to [this](https://docs.scvi-tools.org/en/stable/user_guide/background/codebase_overview.html) page.
 
 We recommend checking out the [skeleton
 repository](https://github.com/YosefLab/scvi-tools-skeleton) as a
-starting point for developing new models into scvi-tools.
+starting point for developing and deploying new models with scvi-tools.
 
 # Basic installation
 
 For conda,
 ```
-conda install scvi-tools -c bioconda -c conda-forge
+conda install scvi-tools -c conda-forge
 ```
 and for pip,
 ```
@@ -93,14 +93,17 @@ Please be sure to install a version of [PyTorch](https://pytorch.org/) that is c
 If you used scvi-tools in your research, please consider citing
 
 ```
-@article{Gayoso2021scvitools,
-	author = {Gayoso, Adam and Lopez, Romain and Xing, Galen and Boyeau, Pierre and Wu, Katherine and Jayasuriya, Michael and Mehlman, Edouard and Langevin, Maxime and Liu, Yining and Samaran, Jules and Misrachi, Gabriel and Nazaret, Achille and Clivio, Oscar and Xu, Chenling and Ashuach, Tal and Lotfollahi, Mohammad and Svensson, Valentine and da Veiga Beltrame, Eduardo and Talavera-Lopez, Carlos and Pachter, Lior and Theis, Fabian J and Streets, Aaron and Jordan, Michael I and Regier, Jeffrey and Yosef, Nir},
-	title = {scvi-tools: a library for deep probabilistic analysis of single-cell omics data},
-	year = {2021},
-	doi = {10.1101/2021.04.28.441833},
-	publisher = {Cold Spring Harbor Laboratory},
-	URL = {https://www.biorxiv.org/content/early/2021/04/29/2021.04.28.441833},
-	eprint = {https://www.biorxiv.org/content/early/2021/04/29/2021.04.28.441833.full.pdf},
-	journal = {bioRxiv}
+@article{Gayoso2022,
+         author={Gayoso, Adam and Lopez, Romain and Xing, Galen and Boyeau, Pierre and Valiollah Pour Amiri, Valeh and Hong, Justin and Wu, Katherine and Jayasuriya, Michael and   Mehlman, Edouard and Langevin, Maxime and Liu, Yining and Samaran, Jules and Misrachi, Gabriel and Nazaret, Achille and Clivio, Oscar and Xu, Chenling and Ashuach, Tal and Gabitto, Mariano and Lotfollahi, Mohammad and Svensson, Valentine and da Veiga Beltrame, Eduardo and Kleshchevnikov, Vitalii and Talavera-L{\'o}pez, Carlos and Pachter, Lior and Theis, Fabian J. and Streets, Aaron and Jordan, Michael I. and Regier, Jeffrey and Yosef, Nir},
+         title={A Python library for probabilistic analysis of single-cell omics data},
+         journal={Nature Biotechnology},
+         year={2022},
+         month={Feb},
+         day={07},
+         issn={1546-1696},
+         doi={10.1038/s41587-021-01206-w},
+         url={https://doi.org/10.1038/s41587-021-01206-w}
 }
 ```
+along with the publicaton describing the model used. 
+

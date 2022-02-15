@@ -3,11 +3,11 @@
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
 
-from ._constants import _CONSTANTS
+from ._constants import REGISTRY_KEYS
 from ._settings import settings
 
 # this import needs to come after prior imports to prevent circular import
-from . import data, model, external
+from . import data, model, external, utils
 
 # https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094
 # https://github.com/python-poetry/poetry/issues/144#issuecomment-623927302
@@ -21,4 +21,4 @@ __version__ = importlib_metadata.version(package_name)
 settings.verbosity = logging.INFO
 test_var = "test"
 
-__all__ = ["settings", "_CONSTANTS", "data", "model", "external"]
+__all__ = ["settings", "REGISTRY_KEYS", "data", "model", "external", "utils"]

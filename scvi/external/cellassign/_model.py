@@ -1,20 +1,26 @@
 import logging
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
-import scvi
-from scvi import _CONSTANTS
-from scvi.data import register_tensor_from_anndata
+from scvi import REGISTRY_KEYS
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+    NumericalObsField,
+)
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
-from scvi.train import TrainingPlan, TrainRunner
+from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
+from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +34,11 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        single-cell AnnData object that has been registered via :meth:`~scvi.external.CellAssign.setup_anndata`.
         The object should be subset to contain the same genes as the cell type marker dataframe.
     cell_type_markers
         Binary marker gene DataFrame of genes by cell types. Gene names corresponding to `adata.var_names`
         should be in DataFrame index, and cell type labels should be the columns.
-    size_factor_key
-        Key in `adata.obs` with continuous valued size factors.
     **model_kwargs
         Keyword args for :class:`~scvi.external.cellassign.CellAssignModule`
 
@@ -45,8 +49,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     >>> adata.obs["size_factor"] = library_size / np.mean(library_size)
     >>> marker_gene_mat = pd.read_csv(path_to_marker_gene_csv)
     >>> bdata = adata[:, adata.var.index.isin(marker_gene_mat.index)].copy()
-    >>> scvi.data.setup_anndata(bdata)
-    >>> model = CellAssign(bdata, marker_gene_mat, size_factor_key='size_factor')
+    >>> CellAssign.setup_anndata(bdata, size_factor_key="size_factor")
+    >>> model = CellAssign(bdata, marker_gene_mat)
     >>> model.train()
     >>> predictions = model.predict(bdata)
 
@@ -60,7 +64,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: AnnData,
         cell_type_markers: pd.DataFrame,
-        size_factor_key: str,
         **model_kwargs,
     ):
         try:
@@ -71,18 +74,19 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             )
         super().__init__(adata)
 
-        register_tensor_from_anndata(adata, "_size_factor", "obs", size_factor_key)
-
-        self.n_genes = self.summary_stats["n_vars"]
+        self.n_genes = self.summary_stats.n_vars
         self.cell_type_markers = cell_type_markers
         rho = torch.Tensor(cell_type_markers.to_numpy())
         n_cats_per_cov = (
-            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
-            if "extra_categoricals" in self.scvi_setup_dict_
+            self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).n_cats_per_key
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
 
-        x = scvi.data.get_from_registry(adata, _CONSTANTS.X_KEY)
+        adata = self._validate_anndata(adata)
+        x = self.get_from_registry(adata, REGISTRY_KEYS.X_KEY)
         col_means = np.asarray(np.mean(x, 0)).ravel()  # (g)
         col_means_mu, col_means_std = np.mean(col_means), np.std(col_means)
         col_means_normalized = torch.Tensor((col_means - col_means_mu) / col_means_std)
@@ -95,9 +99,9 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             rho=rho,
             basis_means=basis_means,
             b_g_0=col_means_normalized,
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=self.summary_stats.n_batch,
             n_cats_per_cov=n_cats_per_cov,
-            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -181,7 +185,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
 
         if early_stopping:
             early_stopping_callback = [
-                EarlyStopping(
+                LoudEarlyStopping(
                     monitor="elbo_validation",
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
@@ -201,7 +205,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
         data_splitter = DataSplitter(
-            self.adata,
+            self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
@@ -217,6 +221,48 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             **kwargs,
         )
         return runner()
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        cls,
+        adata: AnnData,
+        size_factor_key: str,
+        batch_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        layer: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        size_factor_key
+            key in `adata.obs` with continuous valued size factors.
+        %(param_batch_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
 
 
 class ClampCallback(Callback):

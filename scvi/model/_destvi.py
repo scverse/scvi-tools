@@ -1,5 +1,4 @@
 import logging
-import warnings
 from collections import OrderedDict
 from typing import Dict, Optional, Sequence, Union
 
@@ -8,10 +7,13 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi.data import register_tensor_from_anndata
+from scvi import REGISTRY_KEYS
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import LayerField, NumericalObsField
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
+from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     st_adata
-        spatial transcriptomics AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        spatial transcriptomics AnnData object that has been registered via :meth:`~scvi.model.DestVI.setup_anndata`.
     cell_type_mapping
         mapping between numerals and cell type labels
     decoder_state_dict
@@ -44,10 +46,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> sc_adata = anndata.read_h5ad(path_to_scRNA_anndata)
-    >>> scvi.data.setup_anndata(sc_adata)
-    >>> sc_model = scvi.CondSCVI(sc_adata)
+    >>> scvi.model.CondSCVI.setup_anndata(sc_adata)
+    >>> sc_model = scvi.model.CondSCVI(sc_adata)
     >>> st_adata = anndata.read_h5ad(path_to_ST_anndata)
-    >>> scvi.data.setup_anndata(st_adata)
+    >>> DestVI.setup_anndata(st_adata)
     >>> spatial_model = DestVI.from_rna_model(st_adata, sc_model)
     >>> spatial_model.train(max_epochs=2000)
     >>> st_adata.obsm["proportions"] = spatial_model.get_proportions(st_adata)
@@ -57,7 +59,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/DestVI_tutorial`
+    1. :doc:`/tutorials/notebooks/DestVI_tutorial`
     """
 
     def __init__(
@@ -72,8 +74,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         n_layers: int,
         **module_kwargs,
     ):
-        st_adata.obs["_indices"] = np.arange(st_adata.n_obs)
-        register_tensor_from_anndata(st_adata, "ind_x", "obs", "_indices")
         super(DestVI, self).__init__(st_adata)
         self.module = MRDeconv(
             n_spots=st_adata.n_obs,
@@ -97,6 +97,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: CondSCVI,
         vamp_prior_p: int = 50,
+        layer: Optional[str] = None,
         **module_kwargs,
     ):
         """
@@ -116,9 +117,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         decoder_state_dict = sc_model.module.decoder.state_dict()
         px_decoder_state_dict = sc_model.module.px_decoder.state_dict()
         px_r = sc_model.module.px_r.detach().cpu().numpy()
-        mapping = sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-            "mapping"
-        ]
+        mapping = sc_model.adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        ).categorical_mapping
         if vamp_prior_p is None:
             mean_vprior = None
             var_vprior = None
@@ -127,6 +128,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 sc_model.adata, p=vamp_prior_p
             )
 
+        cls.setup_anndata(st_adata, layer=layer)
         return cls(
             st_adata,
             mapping,
@@ -161,10 +163,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
         """
-        if self.is_trained_ is False:
-            warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
-            )
+        self._check_if_trained()
 
         column_names = self.cell_type_mapping
         index_names = self.adata.obs.index
@@ -216,10 +215,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         return_numpy
             if activated, will return a numpy array of shape is n_spots x n_latent x n_labels.
         """
-        if self.is_trained_ is False:
-            warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
-            )
+        self._check_if_trained()
 
         column_names = np.arange(self.module.n_latent)
         index_names = self.adata.obs.index
@@ -276,10 +272,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         -------
         Pandas dataframe of gene_expression
         """
-        if self.is_trained_ is False:
-            warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
-            )
+        self._check_if_trained()
 
         if label not in self.cell_type_mapping:
             raise ValueError("Unknown cell type")
@@ -291,7 +284,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         scale = []
         for tensors in stdl:
             generative_inputs = self.module._get_generative_input(tensors, None)
-            x, ind_x = generative_inputs["x"], generative_inputs["ind_x"]
+            x, ind_x = (
+                generative_inputs["x"],
+                generative_inputs["ind_x"],
+            )
             px_scale = self.module.get_ct_specific_expression(x, ind_x, y)
             scale += [px_scale.cpu()]
 
@@ -358,3 +354,31 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        cls,
+        adata: AnnData,
+        layer: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_layer)s
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+        # add index for each cell (provided to pyro plate for correct minibatching)
+        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)

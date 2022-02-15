@@ -1,11 +1,22 @@
 import logging
+from typing import List, Optional
 
 from anndata import AnnData
 
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+    NumericalObsField,
+)
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
+from scvi.utils import setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -21,7 +32,7 @@ class SCVI(
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -54,7 +65,7 @@ class SCVI(
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch")
+    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.SCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
@@ -85,18 +96,27 @@ class SCVI(
         super(SCVI, self).__init__(adata)
 
         n_cats_per_cov = (
-            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
-            if "extra_categoricals" in self.scvi_setup_dict_
+            self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).n_cats_per_key
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
-        n_batch = self.summary_stats["n_batch"]
-        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+        n_batch = self.summary_stats.n_batch
+        use_size_factor_key = (
+            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+        )
+        library_log_means, library_log_vars = None, None
+        if not use_size_factor_key:
+            library_log_means, library_log_vars = _init_library_size(
+                self.adata_manager, n_batch
+            )
 
         self.module = VAE(
-            n_input=self.summary_stats["n_vars"],
+            n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
-            n_labels=self.summary_stats["n_labels"],
-            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_labels=self.summary_stats.n_labels,
+            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
             n_latent=n_latent,
@@ -105,6 +125,7 @@ class SCVI(
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
+            use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
             **model_kwargs,
@@ -122,3 +143,49 @@ class SCVI(
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        cls,
+        adata: AnnData,
+        layer: Optional[str] = None,
+        batch_key: Optional[str] = None,
+        labels_key: Optional[str] = None,
+        size_factor_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        **kwargs,
+    ):
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_layer)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            NumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
+            ),
+            CategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
