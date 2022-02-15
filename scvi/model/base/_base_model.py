@@ -92,7 +92,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             raise ValueError("adata cannot be None.")
         self._validate_anndata(adata)
         self._adata = adata
-        self._adata_manager = self.get_anndata_manager(adata)
+        self._adata_manager = self.get_anndata_manager(adata, required=True)
         self.registry_ = self._adata_manager.registry
         self.summary_stats = self._adata_manager.summary_stats
 

@@ -289,7 +289,15 @@ def test_setting_adata_attr():
 
     adata2 = synthetic_iid()
     model.adata = adata2
-    model.get_latent_representation()
+
+    with pytest.raises(AssertionError):
+        rep = model.get_latent_representation(adata)
+        rep2 = model.get_latent_representation()
+        np.testing.assert_array_equal(rep, rep2)
+
+    orig_manager = model.get_anndata_manager(adata)
+    assert model.registry_ is not orig_manager.registry
+    assert model.summary_stats is not orig_manager.summary_stats
 
     adata3 = synthetic_iid()
     del adata3.obs["batch"]
