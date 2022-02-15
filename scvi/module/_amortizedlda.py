@@ -200,7 +200,9 @@ class AmortizedLDAPyroGuide(PyroModule):
         with pyro.plate(
             "cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]
         ), poutine.scale(None, kl_weight):
-            cell_topic_posterior_mu, cell_topic_posterior_sigma, _ = self.encoder(x)
+            cell_topic_posterior, _ = self.encoder(x)
+            cell_topic_posterior_mu = cell_topic_posterior.loc
+            cell_topic_posterior_sigma = 2.0 * cell_topic_posterior.scale.log()
             pyro.sample(
                 "log_cell_topic_dist",
                 dist.Normal(
@@ -327,12 +329,9 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         -------
         A `x.shape[0] x n_topics` tensor containing the normalized topic distribution.
         """
-        (
-            cell_topic_dist_mu,
-            cell_topic_dist_sigma,
-            _,
-        ) = self.guide.encoder(x)
-        cell_topic_dist_mu = cell_topic_dist_mu.detach().cpu()
+        cell_topic_dist, _ = self.guide.encoder(x)
+        cell_topic_dist_mu = cell_topic_dist.loc.detach().cpu()
+        cell_topic_dist_sigma = 2.0 * cell_topic_dist.scale.log()
         cell_topic_dist_sigma = F.softplus(cell_topic_dist_sigma.detach().cpu())
         return torch.mean(
             F.softmax(

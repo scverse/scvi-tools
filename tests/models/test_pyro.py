@@ -457,9 +457,9 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
         with pyro.plate("data", x.shape[0]):
             # use the encoder to get the parameters used to define q(z|x)
             x_ = torch.log(1 + x)
-            z_loc, z_scale, _ = self.encoder(x_)
+            qz, _ = self.encoder(x_)
             # sample the latent code z
-            pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
+            pyro.sample("latent", dist.Normal(qz.loc, qz.scale).to_event(1))
 
 
 class FunctionBasedPyroModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass):
