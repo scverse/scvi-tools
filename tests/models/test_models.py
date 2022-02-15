@@ -280,6 +280,33 @@ def test_scvi_sparse(save_path):
     model.differential_expression(groupby="labels", group1="label_1")
 
 
+def test_setting_adata_attr():
+    n_latent = 5
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata, batch_key="batch")
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, train_size=0.5)
+
+    adata2 = synthetic_iid()
+    model.adata = adata2
+
+    with pytest.raises(AssertionError):
+        rep = model.get_latent_representation(adata)
+        rep2 = model.get_latent_representation()
+        np.testing.assert_array_equal(rep, rep2)
+
+    orig_manager = model.get_anndata_manager(adata)
+    assert model.registry_ is not orig_manager.registry
+    assert model.summary_stats is not orig_manager.summary_stats
+
+    adata3 = synthetic_iid()
+    del adata3.obs["batch"]
+    # validation catches no batch
+    with pytest.raises(KeyError):
+        model.adata = adata3
+        model.get_latent_representation()
+
+
 def test_saving_and_loading(save_path):
     def legacy_save(
         model,
