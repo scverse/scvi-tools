@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 
-from scvi._constants import _CONSTANTS
+from scvi._constants import REGISTRY_KEYS
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import Encoder
 
@@ -38,7 +38,7 @@ def logistic_normal_approximation(
     """
     K = alpha.shape[0]
     mu = torch.log(alpha) - torch.log(alpha).sum() / K
-    sigma = torch.sqrt((1 - 2 / K) / alpha + torch.sum(1 / alpha) / K ** 2)
+    sigma = torch.sqrt((1 - 2 / K) / alpha + torch.sum(1 / alpha) / K**2)
     return mu, sigma
 
 
@@ -98,7 +98,7 @@ class AmortizedLDAPyroModel(PyroModule):
         tensor_dict: Dict[str, torch.Tensor]
     ) -> Union[Iterable, dict]:
 
-        x = tensor_dict[_CONSTANTS.X_KEY]
+        x = tensor_dict[REGISTRY_KEYS.X_KEY]
         library = torch.sum(x, dim=1)
         return (x, library), {}
 

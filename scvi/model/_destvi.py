@@ -7,8 +7,9 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi.data import register_tensor_from_anndata
-from scvi.data._anndata import _setup_anndata
+from scvi import REGISTRY_KEYS
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import LayerField, NumericalObsField
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
@@ -58,7 +59,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/DestVI_tutorial`
+    1. :doc:`/tutorials/notebooks/DestVI_tutorial`
     """
 
     def __init__(
@@ -73,8 +74,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         n_layers: int,
         **module_kwargs,
     ):
-        st_adata.obs["_indices"] = np.arange(st_adata.n_obs)
-        register_tensor_from_anndata(st_adata, "ind_x", "obs", "_indices")
         super(DestVI, self).__init__(st_adata)
         self.module = MRDeconv(
             n_spots=st_adata.n_obs,
@@ -98,6 +97,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: CondSCVI,
         vamp_prior_p: int = 50,
+        layer: Optional[str] = None,
         **module_kwargs,
     ):
         """
@@ -117,9 +117,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         decoder_state_dict = sc_model.module.decoder.state_dict()
         px_decoder_state_dict = sc_model.module.px_decoder.state_dict()
         px_r = sc_model.module.px_r.detach().cpu().numpy()
-        mapping = sc_model.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-            "mapping"
-        ]
+        mapping = sc_model.adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        ).categorical_mapping
         if vamp_prior_p is None:
             mean_vprior = None
             var_vprior = None
@@ -128,6 +128,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 sc_model.adata, p=vamp_prior_p
             )
 
+        cls.setup_anndata(st_adata, layer=layer)
         return cls(
             st_adata,
             mapping,
@@ -283,7 +284,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         scale = []
         for tensors in stdl:
             generative_inputs = self.module._get_generative_input(tensors, None)
-            x, ind_x = generative_inputs["x"], generative_inputs["ind_x"]
+            x, ind_x = (
+                generative_inputs["x"],
+                generative_inputs["ind_x"],
+            )
             px_scale = self.module.get_ct_specific_expression(x, ind_x, y)
             scale += [px_scale.cpu()]
 
@@ -351,28 +355,30 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             **kwargs,
         )
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
         layer: Optional[str] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
         %(param_layer)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            layer=layer,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        # add index for each cell (provided to pyro plate for correct minibatching)
+        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)

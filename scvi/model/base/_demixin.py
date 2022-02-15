@@ -78,7 +78,7 @@ class DEMixin:
         adata = self._validate_anndata(adata)
         adata.uns["_scvi"]["_requires_validation"] = False
         fn_kwargs = dict() if fn_kwargs is None else fn_kwargs
-        col_names = _get_var_names_from_setup_anndata(adata)
+        col_names = adata.var_names
         if importance_sampling:
             model_fn = partial(
                 self.get_population_expression,
@@ -95,7 +95,7 @@ class DEMixin:
             )
 
         result = _de_core(
-            adata,
+            self.get_anndata_manager(adata, required=True),
             model_fn,
             groupby,
             group1,

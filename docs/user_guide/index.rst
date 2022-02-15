@@ -1,6 +1,12 @@
 User guide
 ===========
 
+scvi-tools is composed of models that can perform one or many analysis tasks. In the user guide, we provide an overview of each model with emphasis on the math behind the model, how it connects to the code, and how the code connects to analysis.
+
+.. figure:: /_static/tasks.png
+   :class: img-fluid
+   :align: center
+   :alt: Overview of tasks
 
 scRNA-seq analysis
 --------------------
@@ -23,21 +29,13 @@ scRNA-seq analysis
      - scVI tasks with linear decoder
    * - :doc:`/user_guide/models/autozi`
      - [Clivio19]_
-     -  for assessing gene-specific levels of zero-inflation in scRNA-seq data 
+     -  for assessing gene-specific levels of zero-inflation in scRNA-seq data
    * - :doc:`/user_guide/models/cellassign`
      - [Zhang19]_
      - Marker-based automated annotation
    * - :doc:`/user_guide/models/solo`
      - [Bernstein19]_
      - Doublet detection
-
-.. toctree::
-    :maxdepth: 2
-    :hidden:
-
-    models/scvi
-    models/linearscvi
-    models/cellassign
 
 
 ATAC-seq analysis
@@ -53,13 +51,6 @@ ATAC-seq analysis
    * - :doc:`/user_guide/models/peakvi`
      - [Ashuach21]_
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
-
-.. toctree::
-    :maxdepth: 2
-    :hidden:
-
-    models/peakvi
-
 
 Multimodal analysis
 --------------------
@@ -78,12 +69,6 @@ CITE-seq
      - [GayosoSteier21]_
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, protein imputation, imputation, normalization of other cell- and sample-level confounding factors
 
-.. toctree::
-    :maxdepth: 2
-    :hidden:
-
-    models/totalvi
-
 Multiome
 ^^^^^^^^
 
@@ -97,12 +82,6 @@ Multiome
    * - :doc:`/user_guide/models/multivi`
      - [AshuachGabitto21]_
      - Integration of paired/unpaired multiome data, missing modality imputation, normalization of other cell- and sample-level confounding factors
-
-.. toctree::
-    :maxdepth: 2
-    :hidden:
-
-    models/multivi
 
 
 Spatial transcriptomics analysis
@@ -125,15 +104,6 @@ Spatial transcriptomics analysis
      - [Lopez19]_
      - Imputation of missing spatial genes
 
-.. toctree::
-    :maxdepth: 2
-    :hidden:
-
-    models/destvi
-    models/stereoscope
-    model/gimvi
-
-
 General purpose analysis
 ------------------------
 
@@ -146,25 +116,15 @@ General purpose analysis
      - Tasks
    * - :doc:`/user_guide/models/amortizedlda`
      - [Blei03]_
-     - Topic modeling 
-
-.. toctree::
-    :maxdepth: 2
-    :hidden:
-
-    models/amortizedlda
+     - Topic modeling
 
 
 Background
 -----------------
 
-.. toctree::
-    :maxdepth: 2
-
-    background/variational_inference
-    background/differential_expression
-    background/counterfactual_prediction
-    background/transfer_learning
-    background/codebase_overview
-
+- :doc:`/user_guide/background/variational_inference`
+- :doc:`/user_guide/background/differential_expression`
+- :doc:`/user_guide/background/counterfactual_prediction`
+- :doc:`/user_guide/background/transfer_learning`
+- :doc:`/user_guide/background/codebase_overview`
 

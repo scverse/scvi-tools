@@ -8,10 +8,10 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 
-from .._utils import _get_batch_code_from_category, _get_var_names_from_setup_anndata
+from .._utils import _get_batch_code_from_category
 
 logger = logging.getLogger(__name__)
 
@@ -94,12 +94,14 @@ class RNASeqMixin:
             adata=adata, indices=indices, batch_size=batch_size
         )
 
-        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+        transform_batch = _get_batch_code_from_category(
+            self.get_anndata_manager(adata, required=True), transform_batch
+        )
 
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = _get_var_names_from_setup_anndata(adata)
+            all_genes = adata.var_names
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
 
         if n_samples > 1 and return_mean is False:
@@ -201,7 +203,7 @@ class RNASeqMixin:
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = _get_var_names_from_setup_anndata(adata)
+            all_genes = adata.var_names
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
 
         x_new = []
@@ -255,7 +257,7 @@ class RNASeqMixin:
 
         data_loader_list = []
         for tensors in scdl:
-            x = tensors[_CONSTANTS.X_KEY]
+            x = tensors[REGISTRY_KEYS.X_KEY]
             generative_kwargs = self._get_transform_batch_gen_kwargs(transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
             _, generative_outputs = self.module.forward(
@@ -334,7 +336,9 @@ class RNASeqMixin:
 
         adata = self._validate_anndata(adata)
 
-        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+        transform_batch = _get_batch_code_from_category(
+            self.get_anndata_manager(adata, required=True), transform_batch
+        )
 
         corr_mats = []
         for b in transform_batch:
@@ -363,7 +367,7 @@ class RNASeqMixin:
                 )
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
-        var_names = _get_var_names_from_setup_anndata(adata)
+        var_names = adata.var_names
         return pd.DataFrame(corr_matrix, index=var_names, columns=var_names)
 
     @torch.no_grad()

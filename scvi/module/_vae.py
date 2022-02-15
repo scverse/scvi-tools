@@ -9,7 +9,7 @@ from torch import logsumexp
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
@@ -72,6 +72,9 @@ class VAE(BaseModuleClass):
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     use_layer_norm
         Whether to use layer norm in layers
+    use_size_factor_key
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
+        Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     library_log_means
@@ -104,6 +107,7 @@ class VAE(BaseModuleClass):
         deeply_inject_covariates: bool = True,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
@@ -120,7 +124,8 @@ class VAE(BaseModuleClass):
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
 
-        self.use_observed_lib_size = use_observed_lib_size
+        self.use_size_factor_key = use_size_factor_key
+        self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_means is None:
                 raise ValueError(
@@ -197,16 +202,17 @@ class VAE(BaseModuleClass):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
+            scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
     def _get_inference_input(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         input_dict = dict(
@@ -217,22 +223,31 @@ class VAE(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
         library = inference_outputs["library"]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        y = tensors[REGISTRY_KEYS.LABELS_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-        input_dict = {
-            "z": z,
-            "library": library,
-            "batch_index": batch_index,
-            "y": y,
-            "cont_covs": cont_covs,
-            "cat_covs": cat_covs,
-        }
+
+        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
+        size_factor = (
+            torch.log(tensors[size_factor_key])
+            if size_factor_key in tensors.keys()
+            else None
+        )
+
+        input_dict = dict(
+            z=z,
+            library=library,
+            batch_index=batch_index,
+            y=y,
+            cont_covs=cont_covs,
+            cat_covs=cat_covs,
+            size_factor=size_factor,
+        )
         return input_dict
 
     def _compute_local_library_params(self, batch_index):
@@ -321,6 +336,7 @@ class VAE(BaseModuleClass):
         batch_index,
         cont_covs=None,
         cat_covs=None,
+        size_factor=None,
         y=None,
         transform_batch=None,
     ):
@@ -335,8 +351,16 @@ class VAE(BaseModuleClass):
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
+        if not self.use_size_factor_key:
+            size_factor = library
+
         px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, decoder_input, library, batch_index, *categorical_input, y
+            self.dispersion,
+            decoder_input,
+            size_factor,
+            batch_index,
+            *categorical_input,
+            y,
         )
         if self.dispersion == "gene-label":
             px_r = F.linear(
@@ -360,8 +384,8 @@ class VAE(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]
@@ -502,6 +526,7 @@ class VAE(BaseModuleClass):
         Increasing this value can speed up the computation but might also cause
         numerical overflows
         """
+
         n_passes = int(n_mc_samples // n_samples_per_pass)
         if n_passes == 0:
             n_passes = 1
@@ -535,8 +560,8 @@ class VAE(BaseModuleClass):
         gen_inputs = self._get_generative_input(tensors, inference_outputs)
         gen_outputs = self.generative(**gen_inputs)
         z = inference_outputs["z"]
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         log_px_latents = -self.get_reconstruction_loss(
             x, gen_outputs["px_rate"], gen_outputs["px_r"], gen_outputs["px_dropout"]
         )

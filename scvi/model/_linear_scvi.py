@@ -4,9 +4,11 @@ from typing import Optional
 import pandas as pd
 from anndata import AnnData
 
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.data._anndata import _setup_anndata
-from scvi.model._utils import _get_var_names_from_setup_anndata, _init_library_size
+from scvi.data.anndata import AnnDataManager
+from scvi.data.anndata.fields import CategoricalObsField, LayerField
+from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import LDVAE
 from scvi.utils import setup_anndata_dsp
@@ -84,11 +86,13 @@ class LinearSCVI(
     ):
         super(LinearSCVI, self).__init__(adata)
 
-        n_batch = self.summary_stats["n_batch"]
-        library_log_means, library_log_vars = _init_library_size(adata, n_batch)
+        n_batch = self.summary_stats.n_batch
+        library_log_means, library_log_vars = _init_library_size(
+            self.adata_manager, n_batch
+        )
 
         self.module = LDVAE(
-            n_input=self.summary_stats["n_vars"],
+            n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,
             n_latent=n_latent,
@@ -124,41 +128,40 @@ class LinearSCVI(
 
         """
         cols = ["Z_{}".format(i) for i in range(self.n_latent)]
-        var_names = _get_var_names_from_setup_anndata(self.adata)
+        var_names = self.adata.var_names
         loadings = pd.DataFrame(
             self.module.get_loadings(), index=var_names, columns=cols
         )
 
         return loadings
 
-    @staticmethod
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
+        cls,
         adata: AnnData,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
         layer: Optional[str] = None,
-        copy: bool = False,
-    ) -> Optional[AnnData]:
+        **kwargs,
+    ):
         """
         %(summary)s.
 
         Parameters
         ----------
-        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_layer)s
-        %(param_copy)s
-
-        Returns
-        -------
-        %(returns)s
         """
-        return _setup_anndata(
-            adata,
-            batch_key=batch_key,
-            labels_key=labels_key,
-            layer=layer,
-            copy=copy,
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
         )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)

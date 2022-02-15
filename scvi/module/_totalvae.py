@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import (
     NegativeBinomial,
@@ -82,6 +82,9 @@ class TOTALVAE(BaseModuleClass):
         Array of proteins by batches, the prior initialization for the protein background mean (log scale)
     protein_background_prior_scale
         Array of proteins by batches, the prior initialization for the protein background scale (log scale)
+    use_size_factor_key
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
+        Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     library_log_means
@@ -115,6 +118,7 @@ class TOTALVAE(BaseModuleClass):
         encode_covariates: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
+        use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
@@ -134,7 +138,8 @@ class TOTALVAE(BaseModuleClass):
         self.latent_distribution = latent_distribution
         self.protein_batch_mask = protein_batch_mask
         self.encode_covariates = encode_covariates
-        self.use_observed_lib_size = use_observed_lib_size
+        self.use_size_factor_key = use_size_factor_key
+        self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_means is None:
                 raise ValueError(
@@ -233,6 +238,7 @@ class TOTALVAE(BaseModuleClass):
             dropout_rate=dropout_rate_decoder,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
+            scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
     def get_sample_dispersion(
@@ -318,14 +324,14 @@ class TOTALVAE(BaseModuleClass):
         return reconst_loss_gene, reconst_loss_protein
 
     def _get_inference_input(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         input_dict = dict(
@@ -336,14 +342,19 @@ class TOTALVAE(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
         library_gene = inference_outputs["library_gene"]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        label = tensors[_CONSTANTS.LABELS_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        label = tensors[REGISTRY_KEYS.LABELS_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+
+        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
+        size_factor = (
+            tensors[size_factor_key] if size_factor_key in tensors.keys() else None
+        )
 
         return dict(
             z=z,
@@ -352,6 +363,7 @@ class TOTALVAE(BaseModuleClass):
             label=label,
             cat_covs=cat_covs,
             cont_covs=cont_covs,
+            size_factor=size_factor,
         )
 
     @auto_move_data
@@ -363,6 +375,7 @@ class TOTALVAE(BaseModuleClass):
         label: torch.Tensor,
         cont_covs=None,
         cat_covs=None,
+        size_factor=None,
         transform_batch: Optional[int] = None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
@@ -374,8 +387,11 @@ class TOTALVAE(BaseModuleClass):
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
+        if not self.use_size_factor_key:
+            size_factor = library_gene
+
         px_, py_, log_pro_back_mean = self.decoder(
-            decoder_input, library_gene, batch_index, *categorical_input
+            decoder_input, size_factor, batch_index, *categorical_input
         )
 
         if self.gene_dispersion == "gene-label":
@@ -566,9 +582,9 @@ class TOTALVAE(BaseModuleClass):
         px_ = generative_outputs["px_"]
         py_ = generative_outputs["py_"]
 
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
 
         if self.protein_batch_mask is not None:
             pro_batch_mask_minibatch = torch.zeros_like(y)
@@ -661,8 +677,8 @@ class TOTALVAE(BaseModuleClass):
     @torch.no_grad()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples, observation_specific: bool = False):
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         to_sum = torch.zeros(x.size()[0], n_mc_samples)
 
         for i in range(n_mc_samples):

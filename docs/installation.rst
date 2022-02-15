@@ -36,7 +36,7 @@ Conda
 
 ::
 
-    conda install scvi-tools -c bioconda -c conda-forge
+    conda install scvi-tools -c conda-forge
 
 Pip
 ~~~

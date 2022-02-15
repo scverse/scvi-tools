@@ -30,7 +30,7 @@ import scvi  # noqa
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-needs_sphinx = "3.4"  # Nicer param docs
+needs_sphinx = "4.3"  # Nicer param docs
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
@@ -50,9 +50,16 @@ extensions = [
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
     "sphinx_copybutton",
     "sphinx_gallery.load_style",
-    "sphinx_tabs.tabs",
-    "sphinx_panels",
+    "sphinx_remove_toctrees",
+    "sphinx_design",
+    "sphinxext.opengraph",
 ]
+
+# remove_from_toctrees = ["tutorials/notebooks/*", "api/reference/*"]
+
+# for sharing urls with nice info
+ogp_site_url = "https://docs.scvi-tools.org/"
+ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
 
 # nbsphinx specific settings
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
@@ -74,9 +81,6 @@ todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
 
-# sphinx-panels shouldn't add bootstrap css since the pydata-sphinx-theme
-# already loads it
-panels_add_bootstrap_css = False
 
 # The master toctree document.
 master_doc = "index"
@@ -98,9 +102,9 @@ intersphinx_mapping = dict(
 
 
 # General information about the project.
-project = u"scvi-tools"
-copyright = u"2021, Yosef Lab, UC Berkeley"
-author = u"Romain Lopez, Adam Gayoso, Pierre Boyeau, Galen Xing"
+project = "scvi-tools"
+copyright = "2021, Yosef Lab, UC Berkeley"
+author = "Romain Lopez, Adam Gayoso, Pierre Boyeau, Galen Xing"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -125,7 +129,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "default"
-pygments_dark_style = "default"
+pygments_dark_style = "native"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
@@ -133,23 +137,22 @@ todo_include_todos = False
 
 # -- Options for HTML output -------------------------------------------
 
-html_show_sourcelink = True
-html_theme = "pydata_sphinx_theme"
+# html_show_sourcelink = True
+html_theme = "furo"
 
-html_context = dict(
-    # display_github=True,  # Integrate GitHub
-    github_user="YosefLab",  # Username
-    github_repo="scvi-tools",  # Repo name
-    github_version="master",  # Version
-    doc_path="docs/",  # Path in the checkout to the docs root
-)
 # Set link name generated in the top bar.
 html_title = "scvi-tools"
 html_logo = "_static/logo.png"
 
 html_theme_options = {
-    "github_url": "https://github.com/YosefLab/scvi-tools",
-    "twitter_url": "https://twitter.com/YosefLab",
+    "sidebar_hide_name": True,
+    "light_css_variables": {
+        "color-brand-primary": "#003262",
+        "color-brand-content": "#003262",
+        "admonition-font-size": "var(--font-size-normal)",
+        "admonition-title-font-size": "var(--font-size-normal)",
+        "code-font-size": "var(--font-size--small)",
+    },
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -181,6 +184,7 @@ nbsphinx_prolog = r"""
         <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/tree/{version}/">{docname}</a>.
         Interactive online version:
         <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+        Some tutorial content may look better in light mode.
         </p>
     </div>
 """.format(
@@ -213,8 +217,3 @@ nbsphinx_thumbnails = {
     "tutorials/notebooks/cell2location_lymph_node_spatial_tutorial": "_static/tutorials/cell2location.png",
     "tutorials/notebooks/tabula_muris": "_static/tutorials/muris-mouse.png",
 }
-
-
-def setup(app):
-    # https://github.com/pradyunsg/furo/issues/49
-    app.config.pygments_dark_style = "default"
