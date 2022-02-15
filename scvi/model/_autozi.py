@@ -217,8 +217,6 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 px_dropout = gen_outputs["px_dropout"]
                 qz = inf_outputs["qz"]
                 z = inf_outputs["z"]
-                ql = inf_outputs["ql"]
-                library = inf_outputs["library"]
 
                 # Reconstruction Loss
                 bernoulli_params_batch = self.module.reshape_bernoulli(
@@ -235,19 +233,18 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
 
                 # Log-probabilities
-                log_prob_sum = torch.zeros(qz.loc.shape[0]).to(self.device)
                 p_z = (
                     Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale))
                     .log_prob(z)
                     .sum(dim=-1)
                 )
                 p_x_zld = -reconst_loss
-                log_prob_sum += p_z + p_x_zld
-
                 q_z_x = qz.log_prob(z).sum(dim=-1)
-                log_prob_sum -= q_z_x
+                log_prob_sum = p_z + p_x_zld - q_z_x
 
                 if not self.use_observed_lib_size:
+                    ql = inf_outputs["ql"]
+                    library = inf_outputs["library"]
                     (
                         local_library_log_means,
                         local_library_log_vars,
