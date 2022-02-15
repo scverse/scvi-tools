@@ -58,7 +58,7 @@ class AnnDataManager:
         self._registry = {
             _constants._SCVI_VERSION_KEY: scvi.__version__,
             _constants._MODEL_NAME_KEY: None,
-            _constants._SETUP_KWARGS_KEY: None,
+            _constants._SETUP_ARGS_KEY: None,
             _constants._FIELD_REGISTRIES_KEY: defaultdict(dict),
         }
         if setup_method_args is not None:
@@ -88,7 +88,7 @@ class AnnDataManager:
         return {
             k: v
             for k, v in self._registry.items()
-            if k in {_constants._MODEL_NAME_KEY, _constants._SETUP_KWARGS_KEY}
+            if k in {_constants._MODEL_NAME_KEY, _constants._SETUP_ARGS_KEY}
         }
 
     def _assign_uuid(self):
@@ -328,10 +328,36 @@ class AnnDataManager:
 
         return t
 
+    @staticmethod
+    def view_setup_method_args(registry: dict) -> None:
+        """
+        Prints setup kwargs used to produce a given registry.
+
+        Parameters
+        ----------
+        registry
+            Registry produced by an AnnDataManager.
+        """
+        model_name = registry[_constants._MODEL_NAME_KEY]
+        setup_args = registry[_constants._SETUP_ARGS_KEY]
+        if model_name is not None and setup_args is not None:
+            rich.print(f"Setup via `{model_name}.setup_anndata` with arguments:")
+            rich.pretty.pprint(setup_args)
+            rich.print()
+
     def view_registry(self, hide_state_registries: bool = False) -> None:
-        """Prints summary of the registry."""
+        """
+        Prints summary of the registry.
+
+        Parameters
+        ----------
+        hide_state_registries
+            If True, prints a shortened summary without details of each state registry.
+        """
         version = self._registry[_constants._SCVI_VERSION_KEY]
-        rich.print("Anndata setup with scvi-tools version {}.".format(version))
+        rich.print(f"Anndata setup with scvi-tools version {version}.")
+        rich.print()
+        self.view_setup_method_args(self._registry)
 
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
