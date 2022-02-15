@@ -345,6 +345,7 @@ def test_saving_and_loading(save_path):
             )
         else:
             model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+            model.view_setup_args(save_path, prefix=prefix)
         model = cls.load(save_path, prefix=prefix)
         model.get_latent_representation()
 
@@ -401,6 +402,7 @@ def test_saving_and_loading(save_path):
             )
         else:
             model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+            model.view_setup_args(save_path, prefix=prefix)
         model = AUTOZI.load(save_path, prefix=prefix)
         model.get_latent_representation()
         tmp_adata = scvi.data.synthetic_iid(n_genes=200)
@@ -436,6 +438,7 @@ def test_saving_and_loading(save_path):
             )
         else:
             model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+            model.view_setup_args(save_path, prefix=prefix)
         model = SCANVI.load(save_path, prefix=prefix)
         model.get_latent_representation()
         tmp_adata = scvi.data.synthetic_iid(n_genes=200)

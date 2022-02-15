@@ -114,7 +114,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Must be called with ``**locals()`` at the start of the ``setup_anndata`` method
         to avoid the inclusion of any extraneous variables.
         """
-        setup_locals.pop("adata")
         cls = setup_locals.pop("cls")
         model_name = cls.__name__
         setup_args = dict()
@@ -634,15 +633,27 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """
 
     @staticmethod
-    def view_setup_args(source: Union[Type["BaseModelClass"], str, dict]) -> None:
+    def view_setup_args(dir_path: str, prefix: Optional[str] = None) -> None:
         """
         Print args used to setup a saved model.
 
         Parameters
         ----------
-        source
-            Model instance, model save dir path, or model registry.
+        dir_path
+            Path to saved outputs.
+        prefix
+            Prefix of saved file names.
         """
+        attr_dict = _load_saved_files(dir_path, False, prefix=prefix)[0]
+
+        # Legacy support for old setup dict format.
+        if "scvi_setup_dict_" in attr_dict:
+            raise NotImplementedError(
+                "Viewing setup args for pre v0.15.0 models is unsupported."
+            )
+
+        registry = attr_dict.pop("registry_")
+        AnnDataManager.view_setup_method_args(registry)
 
     def view_anndata_setup(
         self, adata: Optional[AnnData] = None, hide_state_registries: bool = False
