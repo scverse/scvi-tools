@@ -1,10 +1,9 @@
 import math
-from typing import Optional, TypeVar, Union, Iterator
+from typing import Iterator, Optional, TypeVar, Union
 
 import numpy as np
 import torch
 import torch.distributed as dist
-
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data.sampler import Sampler
 
