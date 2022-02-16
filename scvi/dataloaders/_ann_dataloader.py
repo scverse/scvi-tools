@@ -69,8 +69,7 @@ class AnnDataLoader(DataLoader):
             "shuffle": shuffle,
             "drop_last": drop_last,
         }
-        if sampler_cls == BatchSampler:
-            sampler_kwargs.update({"batch_size": batch_size})
+        sampler_kwargs.update({"batch_size": batch_size})
 
         if indices is None:
             indices = np.arange(len(self.dataset))
