@@ -121,6 +121,7 @@ class DataSplitter(pl.LightningDataModule):
             True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
         )
         self.sampler_cls = SubsetDistributedSampler if gpus > 1 else BatchSampler
+        self.sampler_cls = SubsetDistributedSampler
 
     def train_dataloader(self):
         return AnnDataLoader(
