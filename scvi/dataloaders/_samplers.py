@@ -129,4 +129,4 @@ class SubsetDistributedSampler(DistributedSampler):
 
     def __iter__(self) -> Iterator[T_co]:
         super_iter = super().__iter__()
-        return iter(torch.from_numpy(self.indices[np.asarray(list(super_iter))]))
+        return iter(list(self.indices[np.asarray(list(super_iter))]))
