@@ -4,6 +4,8 @@ from typing import Optional, Union
 
 import numpy as np
 from torch.utils.data import DataLoader
+from catalyst.data.sampler import DistributedSamplerWrapper
+
 
 from scvi.data.anndata import AnnDataManager
 
@@ -70,9 +72,6 @@ class AnnDataLoader(DataLoader):
         }
         if sampler_cls == BatchSampler:
             sampler_kwargs.update({"batch_size": batch_size})
-            dl_batch_size = None
-        else:
-            dl_batch_size = batch_size
 
         if indices is None:
             indices = np.arange(len(self.dataset))
@@ -89,17 +88,18 @@ class AnnDataLoader(DataLoader):
         try:
             import torch_xla.core.xla_model as xm
 
-            self.sampler_kwargs.update(
+            distributed_sampler_kwargs.update(
                 dict(num_replicas=xm.xrt_world_size(), rank=xm.get_ordinal())
             )
         except ModuleNotFoundError:
-            self.sampler_kwargs.update({})
+            distributed_sampler_kwargs = {}
 
-        sampler = sampler_cls(**self.sampler_kwargs)
+        sampler = BatchSampler(**self.sampler_kwargs)
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
+
+        if sampler_cls == SubsetDistributedSampler:
+            sampler = DistributedSamplerWrapper(sampler, **distributed_sampler_kwargs)
         # do not touch batch size here, sampler gives batched indices
-        self.data_loader_kwargs.update(
-            {"sampler": sampler, "batch_size": dl_batch_size}
-        )
+        self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
 
         super().__init__(self.dataset, **self.data_loader_kwargs)
