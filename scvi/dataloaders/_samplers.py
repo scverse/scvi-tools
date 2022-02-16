@@ -128,5 +128,5 @@ class SubsetDistributedSampler(DistributedSampler):
         self.indices = np.asarray(indices)
 
     def __iter__(self) -> Iterator[T_co]:
-        iter = super().__iter__()
-        return iter(torch.from_numpy(self.indices[list(iter)]))
+        super_iter = super().__iter__()
+        return iter(torch.from_numpy(self.indices[np.asarray(list(super_iter))]))
