@@ -115,6 +115,8 @@ class AnnTorchDataset(Dataset):
                 data_numpy[key] = data.iloc[idx, :].to_numpy().astype(dtype)
             else:
                 data_numpy[key] = data[idx].toarray().astype(dtype)
+                if data_numpy[key].shape[0] == 1:
+                    data_numpy[key] = data_numpy[key].ravel()
 
         return data_numpy
 
