@@ -87,8 +87,8 @@ class AnnDataLoader(DataLoader):
         try:
             import torch_xla.core.xla_model as xm
 
-            distributed_sampler_kwargs.update(
-                dict(num_replicas=xm.xrt_world_size(), rank=xm.get_ordinal())
+            distributed_sampler_kwargs = dict(
+                num_replicas=xm.xrt_world_size(), rank=xm.get_ordinal()
             )
         except ModuleNotFoundError:
             distributed_sampler_kwargs = {}
