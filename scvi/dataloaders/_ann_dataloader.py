@@ -85,6 +85,16 @@ class AnnDataLoader(DataLoader):
 
         self.indices = indices
         self.sampler_kwargs = sampler_kwargs
+
+        try:
+            import torch_xla.core.xla_model as xm
+
+            self.sampler_kwargs.update(
+                dict(num_replicas=xm.xrt_world_size(), rank=xm.get_ordinal())
+            )
+        except ModuleNotFoundError:
+            self.sampler_kwargs.update({})
+
         sampler = sampler_cls(**self.sampler_kwargs)
         self.data_loader_kwargs = copy.copy(data_loader_kwargs)
         # do not touch batch size here, sampler gives batched indices
