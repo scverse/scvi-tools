@@ -3,9 +3,8 @@ import logging
 from typing import Optional, Union
 
 import numpy as np
-from torch.utils.data import DataLoader
 from catalyst.data.sampler import DistributedSamplerWrapper
-
+from torch.utils.data import DataLoader
 
 from scvi.data.anndata import AnnDataManager
 
