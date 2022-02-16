@@ -372,7 +372,6 @@ class AutoZIVAE(VAE):
         bernoulli_params = generative_outputs["bernoulli_params"]
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
         # KL divergences wrt z_n,l_n
         mean = torch.zeros_like(qz.loc)
         scale = torch.ones_like(qz.scale)
