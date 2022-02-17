@@ -96,7 +96,7 @@ The latent variables, along with their description are summarized in the followi
      - Low-dimensional representation capturing the state of a cell.
      - N/A
    * - :math:`\rho_n \in \Delta^{G-1}`
-     - Denoised/normalized gene expression.
+     - Denoised/normalized gene expression. This is a vector that sums to 1 within a cell, unless `size_factor_key is not None` in :class:`~scvi.model.MULTVI.setup_anndata`, in which case this is only forced to be non-negative via softplus.
      - ``px_scale``
    * - :math:`\ell_n \in (0, \infty)`
      - Library size for RNA.
@@ -108,7 +108,7 @@ The latent variables, along with their description are summarized in the followi
      - Accessibility probability estimate
      - N/A
    * - :math:`\ell_n \in \left[0,1\right]`
-     - Cell-wise scaling factor
+     - Cell-wise scaling factor. Learned, but can be set manually with `size_factor_key` in :class:`~scvi.model.MULTIVI.setup_anndata`.
      - ``d``
    * - :math:`r_j \in \left[0,1\right]`
      - Region-wise scaling factor
