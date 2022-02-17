@@ -202,7 +202,7 @@ class AmortizedLDAPyroGuide(PyroModule):
         ), poutine.scale(None, kl_weight):
             cell_topic_posterior, _ = self.encoder(x)
             cell_topic_posterior_mu = cell_topic_posterior.loc
-            cell_topic_posterior_sigma = cell_topic_posterior.scale ** 2
+            cell_topic_posterior_sigma = cell_topic_posterior.scale**2
             pyro.sample(
                 "log_cell_topic_dist",
                 dist.Normal(
