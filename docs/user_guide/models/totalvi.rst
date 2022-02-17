@@ -115,7 +115,7 @@ The latent variables, along with their description are summarized in the followi
      - Low-dimensional representation capturing joint state of a cell
      - N/A
    * - :math:`\rho_n \in \Delta^{G-1}`
-     - Denoised/normalized gene expression. This is a vector that sums to 1 within a cell, unless `size_factor_key is not None` in :class:`~scvi.model.TOTALVI.setup_anndata`, in which case this is only force to be non-negative via softplus.
+     - Denoised/normalized gene expression. This is a vector that sums to 1 within a cell, unless `size_factor_key is not None` in :class:`~scvi.model.TOTALVI.setup_anndata`, in which case this is only forced to be non-negative via softplus.
      - ``px_["scale"]``
    * - :math:`\alpha_n \in [1, \infty)^T`
      - Foreground scaling factor for proteins, identifies the mixture distribution (see below)

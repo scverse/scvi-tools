@@ -90,7 +90,7 @@ The latent variables, along with their description are summarized in the followi
      - Low-dimensional representation capturing the state of a cell.
      - N/A
    * - :math:`\rho_n \in \Delta^{G-1}`
-     - Denoised/normalized gene expression. This is a vector that sums to 1 within a cell, unless `size_factor_key is not None` in :class:`~scvi.model.SCVI.setup_anndata`, in which case this is only force to be non-negative via softplus.
+     - Denoised/normalized gene expression. This is a vector that sums to 1 within a cell, unless `size_factor_key is not None` in :class:`~scvi.model.SCVI.setup_anndata`, in which case this is only forced to be non-negative via softplus.
      - ``px_scale``
    * - :math:`\ell_n \in (0, \infty)`
      - Library size for RNA. Here it is modeled as a latent variable, but the recent default for scVI is to treat library size as observed, equal to the total RNA UMI count of a cell. This can be controlled by passing ``use_observed_lib_size=False`` to :class:`~scvi.model.SCVI`. The library size can also be set manually using `size_factor_key` in :class:`~scvi.model.SCVI.setup_anndata`.
