@@ -65,7 +65,7 @@ cellular state as a continuous, low-dimensional random variable, and has the sam
 However, the prior for this variable takes into account the partial cell-type information to better structure the latent space.
 
 The rest of the model closely follows scVI. In particular, it represents the library size as a random variable,
-and gene expression likelihoods as negative binomial distributions parameterized by functions of :math:`z_n, l_n`,
+and gene expression likelihoods as negative binomial distributions parameterized by functions of :math:`z_n, \ell_n`,
 condition to the batch assignments :math:`s_n`.
 
 .. figure:: figures/scanvi_pgm.png
@@ -105,10 +105,10 @@ scANVI assumes the following factorization for the inference model
    :nowrap:
 
    \begin{align}
-      q_\eta(z_n, l_n, u_n, c_n \mid x_n)
+      q_\eta(z_n, \ell_n, u_n, c_n \mid x_n)
       =
       q_\eta(z_n \mid x_n)
-      q_\eta(l_n \mid x_n)
+      q_\eta(\ell_n \mid x_n)
       q_\eta(c_n \mid z_n)
       q_\eta(u_n \mid c_n, z_n)
    \end{align}

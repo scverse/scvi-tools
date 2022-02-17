@@ -90,10 +90,10 @@ The latent variables, along with their description are summarized in the followi
      - Low-dimensional representation capturing the state of a cell.
      - N/A
    * - :math:`\rho_n \in \Delta^{G-1}`
-     - Denoised/normalized gene expression.
+     - Denoised/normalized gene expression. This is a vector that sums to 1 within a cell, unless `size_factor_key is not None` in :class:`~scvi.model.SCVI.setup_anndata`, in which case this is only force to be non-negative via softplus.
      - ``px_scale``
    * - :math:`\ell_n \in (0, \infty)`
-     - Library size for RNA. Here it is modeled as a latent variable, but the recent default for scVI is to treat library size as observed, equal to the total RNA UMI count of a cell. This can be controlled by passing ``use_observed_lib_size=False`` to :class:`~scvi.model.SCVI`.
+     - Library size for RNA. Here it is modeled as a latent variable, but the recent default for scVI is to treat library size as observed, equal to the total RNA UMI count of a cell. This can be controlled by passing ``use_observed_lib_size=False`` to :class:`~scvi.model.SCVI`. The library size can also be set manually using `size_factor_key` in :class:`~scvi.model.SCVI.setup_anndata`.
      - N/A
    * - :math:`\theta_g \in (0, \infty)`
      - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model intialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
