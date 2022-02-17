@@ -13,12 +13,14 @@ from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import LDVAE
 from scvi.utils import setup_anndata_dsp
 
-from .base import BaseModelClass, RNASeqMixin, VAEMixin
+from .base import BaseModelClass, DEMixin, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 
 
-class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class LinearSCVI(
+    RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, DEMixin, BaseModelClass
+):
     """
     Linearly-decoded VAE [Svensson20]_.
 

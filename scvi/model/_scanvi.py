@@ -31,12 +31,12 @@ from scvi.train._callbacks import SubSampleLabels
 from scvi.utils import setup_anndata_dsp
 
 from ._scvi import SCVI
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from .base import ArchesMixin, BaseModelClass, DEMixin, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 
 
-class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
+class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, DEMixin, BaseModelClass):
     """
     Single-cell annotation using variational inference [Xu21]_.
 
@@ -336,7 +336,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
