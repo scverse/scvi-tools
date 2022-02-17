@@ -516,18 +516,14 @@ class VAE(BaseModuleClass):
             reconst_loss = losses.reconstruction_loss
 
             # Log-probabilities
-            log_prob_sum = torch.zeros(qz.loc.shape[0]).to(self.device)
-
             p_z = (
                 Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale))
                 .log_prob(z)
                 .sum(dim=-1)
             )
             p_x_zl = -reconst_loss
-            log_prob_sum += p_z + p_x_zl
-
             q_z_x = qz.log_prob(z).sum(dim=-1)
-            log_prob_sum -= q_z_x
+            log_prob_sum = p_z + p_x_zl - q_z_x
 
             if not self.use_observed_lib_size:
                 (
