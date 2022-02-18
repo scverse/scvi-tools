@@ -75,6 +75,7 @@ class VAEC(BaseModuleClass):
             inject_covariates=True,
             use_batch_norm=False,
             use_layer_norm=True,
+            return_dist=True,
         )
 
         # decoder goes from n_latent-dimensional space to n_input-d data

@@ -180,6 +180,7 @@ class MULTIVAE(BaseModuleClass):
             var_eps=0,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
+            return_dist=True,
         )
 
         ## expression encoder
@@ -195,6 +196,7 @@ class MULTIVAE(BaseModuleClass):
             var_eps=0,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
+            return_dist=True,
         )
 
         # expression decoder

@@ -134,6 +134,7 @@ class JVAE(BaseModuleClass):
             n_layers_individual=n_layers_encoder_individual,
             n_layers_shared=n_layers_encoder_shared,
             dropout_rate=dropout_rate_encoder,
+            return_dist=True,
         )
 
         self.l_encoders = ModuleList(
@@ -143,6 +144,7 @@ class JVAE(BaseModuleClass):
                     1,
                     n_layers=1,
                     dropout_rate=dropout_rate_encoder,
+                    return_dist=True,
                 )
                 if self.model_library_bools[i]
                 else None

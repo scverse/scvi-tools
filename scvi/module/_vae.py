@@ -177,6 +177,7 @@ class VAE(BaseModuleClass):
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
             var_activation=var_activation,
+            return_dist=True,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(
@@ -190,6 +191,7 @@ class VAE(BaseModuleClass):
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
             var_activation=var_activation,
+            return_dist=True,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         n_input_decoder = n_latent + n_continuous_cov
@@ -611,6 +613,7 @@ class LDVAE(VAE):
             distribution=latent_distribution,
             use_batch_norm=True,
             use_layer_norm=False,
+            return_dist=True,
         )
         self.l_encoder = Encoder(
             n_input,
@@ -620,6 +623,7 @@ class LDVAE(VAE):
             dropout_rate=dropout_rate,
             use_batch_norm=True,
             use_layer_norm=False,
+            return_dist=True,
         )
         self.decoder = LinearDecoderSCVI(
             n_latent,

@@ -162,7 +162,7 @@ class AmortizedLDAPyroGuide(PyroModule):
         # Populated by PyroTrainingPlan.
         self.n_obs = None
 
-        self.encoder = Encoder(n_input, n_topics, distribution="ln")
+        self.encoder = Encoder(n_input, n_topics, distribution="ln", return_dist=True)
         (
             topic_feature_posterior_mu,
             topic_feature_posterior_sigma,

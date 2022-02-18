@@ -140,6 +140,7 @@ class SCANVAE(VAE):
             dropout_rate=dropout_rate,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
+            return_dist=True,
         )
         self.decoder_z1_z2 = Decoder(
             n_latent,

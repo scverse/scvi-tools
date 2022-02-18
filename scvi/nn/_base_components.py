@@ -244,6 +244,7 @@ class Encoder(nn.Module):
         distribution: str = "normal",
         var_eps: float = 1e-4,
         var_activation: Optional[Callable] = None,
+        return_dist: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -261,6 +262,7 @@ class Encoder(nn.Module):
         )
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
+        self.return_dist = return_dist
 
         if distribution == "ln":
             self.z_transformation = nn.Softmax(dim=-1)
@@ -295,7 +297,9 @@ class Encoder(nn.Module):
         q_v = self.var_activation(self.var_encoder(q)) + self.var_eps
         dist = Normal(q_m, q_v.sqrt())
         latent = self.z_transformation(dist.rsample())
-        return dist, latent
+        if self.return_dist:
+            return dist, latent
+        return q_m, q_v, latent
 
 
 # Decoder
@@ -559,6 +563,7 @@ class MultiEncoder(nn.Module):
         n_layers_shared: int = 2,
         n_cat_list: Iterable[int] = None,
         dropout_rate: float = 0.1,
+        return_dist: bool = False,
     ):
         super().__init__()
 
@@ -588,6 +593,7 @@ class MultiEncoder(nn.Module):
 
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
+        self.return_dist = return_dist
 
     def forward(self, x: torch.Tensor, head_id: int, *cat_list: int):
         q = self.encoders[head_id](x, *cat_list)
@@ -597,7 +603,9 @@ class MultiEncoder(nn.Module):
         q_v = torch.exp(self.var_encoder(q))
         dist = Normal(q_m, q_v.sqrt())
         latent = dist.rsample()
-        return dist, latent
+        if self.return_dist:
+            return dist, latent
+        return q_m, q_v, latent
 
 
 class MultiDecoder(nn.Module):
