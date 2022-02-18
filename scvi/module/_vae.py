@@ -354,15 +354,15 @@ class VAE(BaseModuleClass):
         px_r = torch.exp(px_r)
 
         if self.gene_likelihood == "zinb":
-            px_latents = ZeroInflatedNegativeBinomial(
+            px = ZeroInflatedNegativeBinomial(
                 mu=px_rate, theta=px_r, zi_logits=px_dropout
             )
         elif self.gene_likelihood == "nb":
-            px_latents = NegativeBinomial(mu=px_rate, theta=px_r)
+            px = NegativeBinomial(mu=px_rate, theta=px_r)
         elif self.gene_likelihood == "poisson":
-            px_latents = Poisson(px_rate)
+            px = Poisson(px_rate)
         return dict(
-            px_latents=px_latents,
+            px=px,
             px_scale=px_scale,
             px_r=px_r,
             px_rate=px_rate,
@@ -400,7 +400,7 @@ class VAE(BaseModuleClass):
         else:
             kl_divergence_l = 0.0
 
-        reconst_loss = -generative_outputs["px_latents"].log_prob(x).sum(-1)
+        reconst_loss = -generative_outputs["px"].log_prob(x).sum(-1)
 
         kl_local_for_warmup = kl_divergence_z
         kl_local_no_warmup = kl_divergence_l
