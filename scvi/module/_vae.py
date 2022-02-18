@@ -101,7 +101,7 @@ class VAE(BaseModuleClass):
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
-        gene_likelihood: str = "zinb",
+        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         latent_distribution: str = "normal",
         encode_covariates: bool = False,
         deeply_inject_covariates: bool = True,
@@ -442,34 +442,21 @@ class VAE(BaseModuleClass):
             tensor with shape (n_cells, n_genes, n_samples)
         """
         inference_kwargs = dict(n_samples=n_samples)
-        inference_outputs, generative_outputs, = self.forward(
+        _, generative_outputs, = self.forward(
             tensors,
             inference_kwargs=inference_kwargs,
             compute_loss=False,
         )
 
-        px_r = generative_outputs["px_r"]
         px_rate = generative_outputs["px_rate"]
-        px_dropout = generative_outputs["px_dropout"]
 
+        dist = generative_outputs["px"]
         if self.gene_likelihood == "poisson":
             l_train = px_rate
             l_train = torch.clamp(l_train, max=1e8)
             dist = torch.distributions.Poisson(
                 l_train
             )  # Shape : (n_samples, n_cells_batch, n_genes)
-        elif self.gene_likelihood == "nb":
-            dist = NegativeBinomial(mu=px_rate, theta=px_r)
-        elif self.gene_likelihood == "zinb":
-            dist = ZeroInflatedNegativeBinomial(
-                mu=px_rate, theta=px_r, zi_logits=px_dropout
-            )
-        else:
-            raise ValueError(
-                "{} reconstruction error not handled right now".format(
-                    self.module.gene_likelihood
-                )
-            )
         if n_samples > 1:
             exprs = dist.sample().permute(
                 [1, 2, 0]
@@ -478,23 +465,6 @@ class VAE(BaseModuleClass):
             exprs = dist.sample()
 
         return exprs.cpu()
-
-    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout) -> torch.Tensor:
-        if self.gene_likelihood == "zinb":
-            reconst_loss = (
-                -ZeroInflatedNegativeBinomial(
-                    mu=px_rate, theta=px_r, zi_logits=px_dropout
-                )
-                .log_prob(x)
-                .sum(dim=-1)
-            )
-        elif self.gene_likelihood == "nb":
-            reconst_loss = (
-                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
-            )
-        elif self.gene_likelihood == "poisson":
-            reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
-        return reconst_loss
 
     @torch.no_grad()
     @auto_move_data
@@ -592,6 +562,7 @@ class LDVAE(VAE):
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
+        * ``'poisson'`` - Poisson distribution
     use_batch_norm
         Bool whether to use batch norm in decoder
     bias

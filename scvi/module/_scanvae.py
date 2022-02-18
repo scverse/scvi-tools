@@ -225,9 +225,7 @@ class SCANVAE(VAE):
         labelled_tensors=None,
         classification_ratio=None,
     ):
-        px_r = generative_ouputs["px_r"]
-        px_rate = generative_ouputs["px_rate"]
-        px_dropout = generative_ouputs["px_dropout"]
+        px = generative_ouputs["px"]
         qz1 = inference_outputs["qz"]
         z1 = inference_outputs["z"]
         x = tensors[REGISTRY_KEYS.X_KEY]
@@ -243,8 +241,7 @@ class SCANVAE(VAE):
         ys, z1s = broadcast_labels(y, z1, n_broadcast=self.n_labels)
         qz2, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
-
-        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
+        reconst_loss = -px.log_prob(x).sum(-1)
 
         # KL Divergence
         mean = torch.zeros_like(qz2.loc)
