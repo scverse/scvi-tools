@@ -76,7 +76,7 @@ class SimpleLogger(LightningLoggerBase):
         self.experiment.log_metrics(metrics, step)
 
     @property
-    def history(self) -> Dict[pd.DataFrame]:
+    def history(self) -> Dict[str, pd.DataFrame]:
         return self.experiment.data
 
     @property
