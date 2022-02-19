@@ -2,16 +2,12 @@ import logging
 from functools import partial
 from typing import Iterable, Optional, Sequence, Union
 
-import numpy as np
 import pandas as pd
-import torch
 from anndata import AnnData
-from sklearn.covariance import EllipticEnvelope
-from torch.distributions import Categorical, Normal
 
 from scvi._compat import Literal
 from scvi._utils import _doc_params
-from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
+from scvi.model._utils import scrna_raw_counts_properties
 from scvi.model.base._utils import _de_core
 from scvi.utils._docstrings import doc_differential_expression
 
