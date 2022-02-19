@@ -45,17 +45,12 @@ class DEMixin:
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        pseudocounts: float = 0.0,
-        fn_kwargs: Optional[dict] = None,
-        importance_sampling: Optional[bool] = False,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
         A unified method for differential expression analysis.
 
         Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
-        When using the change method, uses either the plugin estimator
-        or importance sampling for improved FDR control.
 
         Parameters
         ----------
@@ -94,8 +89,6 @@ class DEMixin:
             batch_correction,
             fdr_target,
             silent,
-            pseudocounts=pseudocounts,
-            use_permutation=True,
             **kwargs,
         )
 
