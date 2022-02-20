@@ -81,10 +81,12 @@ class SimpleLogger(LightningLoggerBase):
 
     @property
     def version(self) -> int:
-        """Gets the version of the experiment.
+        """
+        Gets the version of the experiment.
 
-        Returns:
-            The version of the experiment if it is specified, else the next version.
+        Returns
+        -------
+        The version of the experiment if it is specified, else the next version.
         """
         if self._version is None:
             self._version = 1
