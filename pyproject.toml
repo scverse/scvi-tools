@@ -41,6 +41,7 @@ importlib-metadata = {version = "^1.0", python = "<3.8"}
 ipython = {version = ">=7.20", optional = true, python = ">=3.7"}
 ipywidgets = "*"
 isort = {version = ">=5.7", optional = true}
+jax = {version = "*", extras = ["cpu"]}
 jupyter = {version = ">=1.0", optional = true}
 leidenalg = {version = "*", optional = true}
 loompy = {version = ">=3.0.6", optional = true}
@@ -50,7 +51,9 @@ nbsphinx = {version = "*", optional = true}
 nbsphinx-link = {version = "*", optional = true}
 numba = ">=0.41.0"
 numpy = ">=1.17.0"
+numpyro = "*"
 openpyxl = ">=3.0"
+optax = "*"
 pandas = ">=1.0"
 pre-commit = {version = ">=2.7.1", optional = true}
 pymde = {version = "*", optional = true}
