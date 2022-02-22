@@ -31,6 +31,7 @@ from scvi.model import (
     TOTALVI,
     CondSCVI,
     DestVI,
+    JaxSCVI,
     LinearSCVI,
 )
 from scvi.model.utils import mde
@@ -81,6 +82,19 @@ LEGACY_SETUP_DICT = {
         "n_continuous_covs": 2,
     },
 }
+
+
+def test_jax_scvi():
+    n_latent = 5
+
+    # Test with size factor.
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+    model = JaxSCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
 
 def test_scvi(save_path):
