@@ -95,6 +95,7 @@ def test_jax_scvi():
     )
     model = JaxSCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.get_latent_representation()
 
 
 def test_scvi(save_path):

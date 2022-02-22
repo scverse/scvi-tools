@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Union
+from typing import List, Optional, Sequence, Union
 
 import jax
 import jax.numpy as jnp
@@ -290,7 +290,53 @@ class JaxSCVI(BaseModelClass):
         self.train_state = state
         self.params = state.params
         self.history_ = history
+        self.is_trained_ = True
 
-    def get_latent_representation(self):
+    def get_latent_representation(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        give_mean: bool = True,
+        mc_samples: int = 5000,
+        batch_size: Optional[int] = None,
+    ) -> np.ndarray:
+        r"""
+        Return the latent representation for each cell.
 
-        pass
+        This is denoted as :math:`z_n` in our manuscripts.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        give_mean
+            Give mean of distribution or sample from it.
+        mc_samples
+            For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
+            samples to take for computing mean.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+
+        Returns
+        -------
+        latent_representation : np.ndarray
+            Low-dimensional representation for each cell
+        """
+        self._check_if_trained(warn=False)
+
+        adata = self._validate_anndata(adata)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
+        )
+        latent = []
+        rng_key = random.PRNGKey(0)
+        rng, key = random.split(rng_key)
+        for array_dict in scdl:
+            out = self.module.apply({"params": self.params}, array_dict, key)
+            latent.append(out.mean)
+        latent = jnp.concatenate(latent)
+
+        return np.array(jax.device_get(latent))
