@@ -282,7 +282,7 @@ class JaxSCVI(BaseModelClass):
                     state, value = train_step(state, data, key, kl_weight=kl_weight)
                     epoch_loss += value
                     counter += 1
-                history += [epoch_loss / counter]
+                history += [jax.device_get(epoch_loss) / counter]
                 t.set_postfix_str(
                     f"Epoch {i}, Loss: {epoch_loss / counter}, KL weight: {kl_weight}"
                 )
@@ -331,12 +331,18 @@ class JaxSCVI(BaseModelClass):
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
+
+        @jax.jit
+        def _get_val(array_dict, key):
+            out = self.module.apply({"params": self.params}, array_dict, key)
+            return out.mean
+
         latent = []
         rng_key = random.PRNGKey(0)
         rng, key = random.split(rng_key)
         for array_dict in scdl:
-            out = self.module.apply({"params": self.params}, array_dict, key)
-            latent.append(out.mean)
+            mean = _get_val(array_dict, key)
+            latent.append(mean)
         latent = jnp.concatenate(latent)
 
         return np.array(jax.device_get(latent))
