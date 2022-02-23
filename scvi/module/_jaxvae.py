@@ -13,6 +13,7 @@ from scvi import REGISTRY_KEYS
 class Dense(nn.Dense):
     def __init__(self, *args, **kwargs):
         # https://github.com/google/jax/blob/ab15db7d8658825afa9709df46f0dea76688d309/jax/_src/nn/initializers.py#L169
+        # sqrt 5 comes from PyTorch
         init = variance_scaling(math.sqrt(5.0), "fan_in", "uniform")
         kwargs.update({"kernel_init": init})
         super().__init__(*args, **kwargs)
@@ -60,10 +61,12 @@ class FlaxDecoder(nn.Module):
     is_training: Optional[bool] = None
 
     @nn.compact
-    def __call__(self, inputs, is_training):
+    def __call__(self, z, batch, is_training):
         disp = self.param("disp", lambda rng, shape: jnp.ones(shape), (self.n_input, 1))
         is_training = nn.merge_param("is_training", self.is_training, is_training)
-        h = Dense(self.n_hidden)(inputs)
+        h = Dense(self.n_hidden)(z)
+        h += Dense(self.n_hidden)(batch)
+
         h = nn.LayerNorm(
             use_scale=False,
             use_bias=False,
@@ -71,7 +74,7 @@ class FlaxDecoder(nn.Module):
         h = nn.relu(h)
         h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
         # skip connection
-        h = Dense(self.n_hidden)(jnp.concatenate([h, inputs], axis=-1))
+        h = Dense(self.n_hidden)(jnp.concatenate([h, batch], axis=-1))
         h = nn.LayerNorm(
             use_scale=False,
             use_bias=False,
@@ -116,12 +119,11 @@ class JaxVAE(nn.Module):
         qz = dist.Normal(mean, stddev)
         z_rng = self.make_rng("z")
         z = qz.rsample(z_rng)
-        dec_input = jnp.concatenate([z, batch], axis=-1)
         rho_unnorm, disp = FlaxDecoder(
             n_input=self.n_input,
             dropout_rate=self.dropout_rate,
             n_hidden=self.n_hidden,
-        )(dec_input, self.is_training)
+        )(z, batch, self.is_training)
         disp_ = jnp.exp(disp)
         rho = jax.nn.softmax(rho_unnorm, axis=-1)
         total_count = x.sum(-1)[:, jnp.newaxis]
