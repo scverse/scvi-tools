@@ -4,9 +4,11 @@ from typing import Optional
 import rich
 from anndata import AnnData
 
-from scvi.data._utils import _check_nonnegative_integers
-from scvi.data.anndata import _constants
-from scvi.data.anndata._utils import _verify_and_correct_data_format
+from scvi.data import _constants
+from scvi.data._utils import (
+    _check_nonnegative_integers,
+    _verify_and_correct_data_format,
+)
 
 from ._base_field import BaseAnnDataField
 

@@ -21,6 +21,7 @@ from ._datasets import (
     spleen_lymph_cite_seq,
     synthetic_iid,
 )
+from ._manager import AnnDataManager
 from ._preprocessing import (
     organize_cite_seq_10x,
     organize_multiome_anndatas,
@@ -29,6 +30,7 @@ from ._preprocessing import (
 from ._read import read_10x_atac, read_10x_multiome
 
 __all__ = [
+    "AnnDataManager",
     "poisson_gene_selection",
     "organize_cite_seq_10x",
     "pbmcs_10x_cite_seq",

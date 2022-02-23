@@ -6,8 +6,8 @@ import rich
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
-from scvi.data.anndata import _constants
-from scvi.data.anndata._utils import _make_obs_column_categorical, get_anndata_attribute
+from scvi.data import _constants
+from scvi.data._utils import _make_obs_column_categorical, get_anndata_attribute
 
 from ._base_field import BaseAnnDataField
 

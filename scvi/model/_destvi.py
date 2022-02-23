@@ -8,8 +8,8 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import LayerField, NumericalObsField
+from scvi.data import AnnDataManager
+from scvi.data.fields import LayerField, NumericalObsField
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
