@@ -241,12 +241,12 @@ class JaxSCVI(BaseModelClass):
         module_kwargs.update(dict(is_training=True))
         module = self._get_module(module_kwargs)
 
-        init_rngs = {
+        self.rngs = {
             "params": random.PRNGKey(0),
             "dropout": random.PRNGKey(1),
             "z": random.PRNGKey(2),
         }
-        params = module.init(init_rngs, next(iter(train_loader)))["params"]
+        params = module.init(self.rngs, next(iter(train_loader)))["params"]
 
         state = train_state.TrainState.create(
             apply_fn=module.apply,
@@ -276,7 +276,6 @@ class JaxSCVI(BaseModelClass):
 
         history = []
         epoch = 0
-        rngs = init_rngs
         with tqdm.trange(1, max_epochs + 1) as t:
             for i in t:
                 epoch += 1
@@ -285,8 +284,8 @@ class JaxSCVI(BaseModelClass):
                 for data in train_loader:
                     kl_weight = min(1.0, epoch / 400.0)
                     # gets new key for each epoch
-                    state, value, rngs = train_step(
-                        state, data, rngs, kl_weight=kl_weight
+                    state, value, self.rngs = train_step(
+                        state, data, self.rngs, kl_weight=kl_weight
                     )
                     epoch_loss += value
                     counter += 1
@@ -299,7 +298,6 @@ class JaxSCVI(BaseModelClass):
         self.params = state.params
         self.history_ = history
         self.is_trained_ = True
-        self.rngs = rngs
 
         self.module_kwargs.update(dict(is_training=False))
         self._module = None
@@ -351,9 +349,8 @@ class JaxSCVI(BaseModelClass):
             return out.mean, rngs
 
         latent = []
-        rngs = self.rngs
         for array_dict in scdl:
-            mean, rngs = _get_val(array_dict, rngs)
+            mean, self.rngs = _get_val(array_dict, self.rngs)
             latent.append(mean)
         latent = jnp.concatenate(latent)
 
