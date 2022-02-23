@@ -320,6 +320,9 @@ class JaxSCVI(BaseModelClass):
 
         self.module_kwargs.update(dict(is_training=False))
         self._module = None
+        self.bound_module = self.module.bind(
+            {"params": self.params, "batch_stats": self.batch_stats}, rngs=self.rngs
+        )
 
     def get_latent_representation(
         self,
@@ -362,18 +365,13 @@ class JaxSCVI(BaseModelClass):
         )
 
         @jax.jit
-        def _get_val(array_dict, rngs):
-            rngs = {k: random.split(v)[1] for k, v in rngs.items()}
-            out = self.module.apply(
-                {"params": self.params, "batch_stats": self.batch_stats},
-                array_dict,
-                rngs=rngs,
-            )
-            return out.mean, rngs
+        def _get_val(array_dict):
+            out = self.bound_module(array_dict)
+            return out.mean
 
         latent = []
         for array_dict in scdl:
-            mean, self.rngs = _get_val(array_dict, self.rngs)
+            mean = _get_val(array_dict)
             latent.append(mean)
         latent = jnp.concatenate(latent)
 
