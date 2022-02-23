@@ -43,9 +43,9 @@ class FlaxEncoder(nn.Module):
         h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
 
         mean = Dense(self.n_latent)(h)
-        log_concentration = Dense(self.n_latent)(h)
+        log_var = Dense(self.n_latent)(h)
 
-        return mean, nn.softplus(log_concentration)
+        return mean, jnp.exp(log_var)
 
 
 class FlaxDecoder(nn.Module):
@@ -56,7 +56,9 @@ class FlaxDecoder(nn.Module):
 
     @nn.compact
     def __call__(self, z, batch, is_training):
-        disp = self.param("disp", lambda rng, shape: jnp.ones(shape), (self.n_input, 1))
+        disp = self.param(
+            "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
+        )
         is_training = nn.merge_param("is_training", self.is_training, is_training)
         h = Dense(self.n_hidden)(z)
         h += Dense(self.n_hidden)(batch)

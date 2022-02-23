@@ -268,6 +268,7 @@ class JaxSCVI(BaseModelClass):
             x = array_dict[REGISTRY_KEYS.X_KEY]
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
 
+            # batch stats can't be passed here
             def loss_fn(params):
                 vars_in = {"params": params, "batch_stats": state.batch_stats}
                 outputs, new_model_state = state.apply_fn(
