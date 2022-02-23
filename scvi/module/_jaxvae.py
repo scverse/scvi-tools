@@ -1,4 +1,3 @@
-import math
 from typing import NamedTuple, Optional
 
 import jax
@@ -14,8 +13,9 @@ class Dense(nn.Dense):
     def __init__(self, *args, **kwargs):
         # https://github.com/google/jax/blob/ab15db7d8658825afa9709df46f0dea76688d309/jax/_src/nn/initializers.py#L169
         # sqrt 5 comes from PyTorch
-        init = variance_scaling(math.sqrt(5.0), "fan_in", "uniform")
-        kwargs.update({"kernel_init": init})
+        kernel_init = variance_scaling(5.0, "fan_in", "uniform")
+        bias_init = variance_scaling(5.0, "fan_in", "uniform", in_axis=-1)
+        kwargs.update({"kernel_init": kernel_init, "bias_init": bias_init})
         super().__init__(*args, **kwargs)
 
 
