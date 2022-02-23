@@ -13,14 +13,10 @@ import torch
 from anndata import AnnData
 
 from scvi import settings
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import (
-    _MODEL_NAME_KEY,
-    _SCVI_UUID_KEY,
-    _SETUP_ARGS_KEY,
-)
-from scvi.data.anndata._utils import _assign_adata_uuid
+from scvi.data import AnnDataManager
+from scvi.data._compat import manager_from_setup_dict
+from scvi.data._constants import _MODEL_NAME_KEY, _SCVI_UUID_KEY, _SETUP_ARGS_KEY
+from scvi.data._utils import _assign_adata_uuid
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.module.base import PyroBaseModuleClass
@@ -40,11 +36,11 @@ class BaseModelMetaClass(ABCMeta):
     """
     Metaclass for :class:`~scvi.model.base.BaseModelClass`.
 
-    Constructs model class-specific mappings for :class:`~scvi.data.anndata.AnnDataManager` instances.
-    ``cls._setup_adata_manager_store`` maps from AnnData object UUIDs to :class:`~scvi.data.anndata.AnnDataManager` instances.
+    Constructs model class-specific mappings for :class:`~scvi.data.AnnDataManager` instances.
+    ``cls._setup_adata_manager_store`` maps from AnnData object UUIDs to :class:`~scvi.data.AnnDataManager` instances.
     This mapping is populated everytime ``cls.setup_anndata()`` is called.
-    ``cls._per_isntance_manager_store`` maps from model instance UUIDs to AnnData UUID::class:`~scvi.data.anndata.AnnDataManager` mappings.
-    These :class:`~scvi.data.anndata.AnnDataManager` instances are tied to a single model instance and populated either
+    ``cls._per_isntance_manager_store`` maps from model instance UUIDs to AnnData UUID::class:`~scvi.data.AnnDataManager` mappings.
+    These :class:`~scvi.data.AnnDataManager` instances are tied to a single model instance and populated either
     during model initialization or after running ``self._validate_anndata()``.
     """
 
@@ -145,17 +141,17 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     @classmethod
     def register_manager(cls, adata_manager: AnnDataManager):
         """
-        Registers an :class:`~scvi.data.anndata.AnnDataManager` instance with this model class.
+        Registers an :class:`~scvi.data.AnnDataManager` instance with this model class.
         """
         adata_id = adata_manager.adata_uuid
         cls._setup_adata_manager_store[adata_id] = adata_manager
 
     def _register_manager_for_instance(self, adata_manager: AnnDataManager):
         """
-        Registers an :class:`~scvi.data.anndata.AnnDataManager` instance with this model instance.
+        Registers an :class:`~scvi.data.AnnDataManager` instance with this model instance.
 
         Creates a model-instance specific mapping in ``cls._per_instance_manager_store`` for this
-        :class:`~scvi.data.anndata.AnnDataManager` instance.
+        :class:`~scvi.data.AnnDataManager` instance.
         """
         if self.id not in self._per_instance_manager_store:
             self._per_instance_manager_store[self.id] = dict()
@@ -169,9 +165,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         cls, adata: AnnData, required: bool = False
     ) -> Optional[AnnDataManager]:
         """
-        Retrieves the :class:`~scvi.data.anndata.AnnDataManager` for a given AnnData object specific to this model class.
+        Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model class.
 
-        Checks for the most recent :class:`~scvi.data.anndata.AnnDataManager` created for the given AnnData object via
+        Checks for the most recent :class:`~scvi.data.AnnDataManager` created for the given AnnData object via
         ``setup_anndata()`` on model initialization. Unlike :meth:`scvi.model.base.BaseModelClass.get_anndata_manager`,
         this method is not model instance specific and can be called before a model is fully initialized.
 
@@ -212,9 +208,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self, adata: AnnData, required: bool = False
     ) -> Optional[AnnDataManager]:
         """
-        Retrieves the :class:`~scvi.data.anndata.AnnDataManager` for a given AnnData object specific to this model instance.
+        Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model instance.
 
-        Requires ``self.id`` has been set. Checks for an :class:`~scvi.data.anndata.AnnDataManager`
+        Requires ``self.id`` has been set. Checks for an :class:`~scvi.data.AnnDataManager`
         specific to this model instance.
 
         Parameters
@@ -362,7 +358,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 + "attempting to transfer AnnData setup"
             )
             self._register_manager_for_instance(
-                self.adata_manager.transfer_setup(adata)
+                self.adata_manager.transfer_fields(adata)
             )
         else:
             # Case where correct AnnDataManager is found, replay registration as necessary.
@@ -649,7 +645,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Each model class deriving from this class provides parameters to this method
         according to its needs. To operate correctly with the model initialization,
         the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
-        on a model-specific instance of :class:`~scvi.data.anndata.AnnDataManager`.
+        on a model-specific instance of :class:`~scvi.data.AnnDataManager`.
         """
 
     @staticmethod
@@ -686,7 +682,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         ----------
         adata
             AnnData object setup with ``setup_anndata`` or
-            :meth:`~scvi.data.anndata.AnnDataManager.transfer_setup`.
+            :meth:`~scvi.data.AnnDataManager.transfer_fields`.
         hide_state_registries
             If True, prints a shortened summary without details of each state registry.
         """

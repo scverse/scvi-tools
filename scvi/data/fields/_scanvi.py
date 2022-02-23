@@ -4,7 +4,7 @@ import numpy as np
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
-from scvi.data.anndata._utils import _make_obs_column_categorical
+from scvi.data._utils import _make_obs_column_categorical
 
 from ._obs_field import CategoricalObsField
 

@@ -12,9 +12,8 @@ from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
 
 from scvi import REGISTRY_KEYS
-from scvi.data import synthetic_iid
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import CategoricalObsField, LayerField, NumericalObsField
+from scvi.data import AnnDataManager, synthetic_iid
+from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.dataloaders import AnnDataLoader
 from scvi.model import AmortizedLDA
 from scvi.model.base import (

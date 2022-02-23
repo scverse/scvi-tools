@@ -3,7 +3,7 @@ from typing import List, Optional, Union
 import numpy as np
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
+from scvi.data import AnnDataManager
 
 from ._concat_dataloader import ConcatDataLoader
 
@@ -15,7 +15,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
+        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     unlabeled_category
         Category to treat as unlabeled
     n_samples_per_label

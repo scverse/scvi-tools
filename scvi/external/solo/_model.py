@@ -10,8 +10,8 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import CategoricalObsField, LayerField
+from scvi.data import AnnDataManager
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
@@ -136,7 +136,7 @@ class SOLO(BaseModelClass):
         ).original_key
 
         if adata is not None:
-            adata_manager = orig_adata_manager.transfer_setup(adata)
+            adata_manager = orig_adata_manager.transfer_fields(adata)
             cls.register_manager(adata_manager)
         else:
             adata_manager = orig_adata_manager

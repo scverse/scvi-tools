@@ -12,9 +12,9 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._utils import _doc_params
+from scvi.data import AnnDataManager
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import (
+from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
