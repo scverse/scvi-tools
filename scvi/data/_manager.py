@@ -174,7 +174,7 @@ class AnnDataManager:
         self._assign_uuid()
         self._assign_most_recent_manager_uuid()
 
-    def transfer_setup(self, adata_target: AnnData, **kwargs) -> AnnDataManager:
+    def transfer_fields(self, adata_target: AnnData, **kwargs) -> AnnDataManager:
         """
         Transfers an existing setup to each field associated with this instance with the target AnnData object.
 

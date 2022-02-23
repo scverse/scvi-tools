@@ -113,7 +113,7 @@ def manager_from_setup_dict(
 
     Only to be used for backwards compatibility when loading setup dictionaries for models.
     Infers the AnnDataField instances used to define the :class:`~scvi.data.AnnDataManager` instance,
-    then uses the :meth:`~scvi.data.AnnDataManager.transfer_setup` method to register the new AnnData object.
+    then uses the :meth:`~scvi.data.AnnDataManager.transfer_fields` method to register the new AnnData object.
 
     Parameters
     ----------

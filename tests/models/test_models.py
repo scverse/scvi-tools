@@ -521,7 +521,7 @@ def test_new_setup_compat():
     )
 
     # Test transfer.
-    adata3_manager = adata_manager.transfer_setup(adata3)
+    adata3_manager = adata_manager.transfer_fields(adata3)
     np.testing.assert_equal(
         field_registries,
         adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],

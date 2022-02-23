@@ -136,7 +136,7 @@ class SOLO(BaseModelClass):
         ).original_key
 
         if adata is not None:
-            adata_manager = orig_adata_manager.transfer_setup(adata)
+            adata_manager = orig_adata_manager.transfer_fields(adata)
             cls.register_manager(adata_manager)
         else:
             adata_manager = orig_adata_manager

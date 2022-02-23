@@ -358,7 +358,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 + "attempting to transfer AnnData setup"
             )
             self._register_manager_for_instance(
-                self.adata_manager.transfer_setup(adata)
+                self.adata_manager.transfer_fields(adata)
             )
         else:
             # Case where correct AnnDataManager is found, replay registration as necessary.
@@ -682,7 +682,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         ----------
         adata
             AnnData object setup with ``setup_anndata`` or
-            :meth:`~scvi.data.AnnDataManager.transfer_setup`.
+            :meth:`~scvi.data.AnnDataManager.transfer_fields`.
         hide_state_registries
             If True, prints a shortened summary without details of each state registry.
         """
