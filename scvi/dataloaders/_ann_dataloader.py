@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from scvi.data.anndata import AnnDataManager
+from scvi.data import AnnDataManager
 
 from ._anntorchdataset import AnnTorchDataset
 
@@ -93,7 +93,7 @@ class AnnDataLoader(DataLoader):
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
+        :class:`~scvi.data.AnnDataManager` object with a registered AnnData object.
     shuffle
         Whether the data should be shuffled
     indices
@@ -120,16 +120,16 @@ class AnnDataLoader(DataLoader):
     ):
 
         if adata_manager.adata is None:
-            raise ValueError("Please run setup_anndata() on your anndata object first.")
+            raise ValueError(
+                "Please run register_fields() on your AnnDataManager object first."
+            )
 
         if data_and_attributes is not None:
             data_registry = adata_manager.data_registry
             for key in data_and_attributes.keys():
                 if key not in data_registry.keys():
                     raise ValueError(
-                        "{} required for model but not included when setup_anndata was run".format(
-                            key
-                        )
+                        f"{key} required for model but not registered with AnnDataManager."
                     )
 
         self.dataset = AnnTorchDataset(

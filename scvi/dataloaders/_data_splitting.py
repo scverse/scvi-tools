@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.data.anndata import AnnDataManager
+from scvi.data import AnnDataManager
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -61,7 +61,7 @@ class DataSplitter(pl.LightningDataModule):
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
+        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
         float, or None (default is 0.9)
     validation_size
@@ -166,7 +166,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
+        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     unlabeled_category
         Category to treat as unlabeled
     train_size
@@ -336,7 +336,7 @@ class DeviceBackedDataSplitter(DataSplitter):
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
+        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
         float, or None (default is 0.9)
     validation_size

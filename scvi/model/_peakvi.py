@@ -11,8 +11,8 @@ from scipy.sparse import csr_matrix, vstack
 from scvi._compat import Literal
 from scvi._constants import REGISTRY_KEYS
 from scvi._utils import _doc_params
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import (
+from scvi.data import AnnDataManager
+from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,

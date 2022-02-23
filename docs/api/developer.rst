@@ -23,15 +23,15 @@ for operating over a collection of AnnDataFields and an AnnData object.
    :toctree: reference/
    :nosignatures:
 
-   data.anndata.AnnDataManager
-   data.anndata.fields.BaseAnnDataField
-   data.anndata.fields.LayerField
-   data.anndata.fields.CategoricalObsField
-   data.anndata.fields.NumericalJointObsField
-   data.anndata.fields.CategoricalJointObsField
-   data.anndata.fields.ObsmField
-   data.anndata.fields.ProteinObsmField
-   data.anndata.fields.LabelsWithUnlabeledObsField
+   data.AnnDataManager
+   data.fields.BaseAnnDataField
+   data.fields.LayerField
+   data.fields.CategoricalObsField
+   data.fields.NumericalJointObsField
+   data.fields.CategoricalJointObsField
+   data.fields.ObsmField
+   data.fields.ProteinObsmField
+   data.fields.LabelsWithUnlabeledObsField
 
 
 Data Loaders
