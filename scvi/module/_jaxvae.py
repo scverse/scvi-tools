@@ -1,5 +1,5 @@
 import math
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import jax
 import jax.numpy as jnp
@@ -23,12 +23,14 @@ class FlaxEncoder(nn.Module):
     n_latent: int
     n_hidden: int
     dropout_rate: int
+    is_training: Optional[bool] = None
 
     @nn.compact
     def __call__(self, inputs, is_training):
-        inputs_ = jnp.log1p(inputs)
 
-        # k1, k2 = hk.next_rng_keys(2)
+        is_training = nn.merge_param("is_training", self.is_training, is_training)
+
+        inputs_ = jnp.log1p(inputs)
 
         h = Dense(self.n_hidden)(inputs_)
         h = nn.LayerNorm(
@@ -36,14 +38,14 @@ class FlaxEncoder(nn.Module):
             use_bias=False,
         )(h)
         h = nn.relu(h)
-        # h = nn.Dropout(dropout_rate)(h)
+        h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
         h = Dense(self.n_hidden)(h)
         h = nn.LayerNorm(
             use_scale=False,
             use_bias=False,
         )(h)
         h = nn.relu(h)
-        # h = nn.Dropout(dropout_rate)(h)
+        h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
 
         mean = Dense(self.n_latent)(h)
         log_concentration = Dense(self.n_latent)(h)
@@ -55,22 +57,19 @@ class FlaxDecoder(nn.Module):
     n_input: int
     dropout_rate: float
     n_hidden: int
+    is_training: Optional[bool] = None
 
     @nn.compact
     def __call__(self, inputs, is_training):
-        # disp = nn.get_parameter("disp", (self.n_input,1), init=jnp.ones)
         disp = self.param("disp", lambda rng, shape: jnp.ones(shape), (self.n_input, 1))
-
-        # k1, k2 = nn.next_rng_keys(2)
-
-        # print(inputs.shape, self.n_hidden)
+        is_training = nn.merge_param("is_training", self.is_training, is_training)
         h = Dense(self.n_hidden)(inputs)
         h = nn.LayerNorm(
             use_scale=False,
             use_bias=False,
         )(h)
         h = nn.relu(h)
-        # h = nn.Dropout(dropout_rate)(h)
+        h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
         # skip connection
         h = Dense(self.n_hidden)(jnp.concatenate([h, inputs], axis=-1))
         h = nn.LayerNorm(
@@ -78,7 +77,7 @@ class FlaxDecoder(nn.Module):
             use_bias=False,
         )(h)
         h = nn.relu(h)
-        # h = nn.Dropout(dropout_rate)(h)
+        h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
         h = Dense(self.n_input)(h)
         return h, disp.ravel()
 
@@ -99,7 +98,7 @@ class JaxVAE(nn.Module):
     n_layers: int = 1
 
     @nn.compact
-    def __call__(self, array_dict, z_rng) -> VAEOutput:
+    def __call__(self, array_dict) -> VAEOutput:
 
         x = array_dict[REGISTRY_KEYS.X_KEY]
         batch = array_dict[REGISTRY_KEYS.BATCH_KEY]
@@ -113,7 +112,10 @@ class JaxVAE(nn.Module):
             dropout_rate=self.dropout_rate,
         )(x, self.is_training)
         stddev = jnp.sqrt(var) + 1e-4
-        z = mean + stddev * jax.random.normal(z_rng, mean.shape)
+
+        qz = dist.Normal(mean, stddev)
+        z_rng = self.make_rng("z")
+        z = qz.rsample(z_rng)
         dec_input = jnp.concatenate([z, batch], axis=-1)
         rho_unnorm, disp = FlaxDecoder(
             n_input=self.n_input,

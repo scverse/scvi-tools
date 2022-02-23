@@ -116,6 +116,7 @@ class JaxSCVI(BaseModelClass):
             n_latent=n_latent,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
+            is_training=False,
         )
         self.module_kwargs.update(model_kwargs)
         self._module = None
@@ -236,12 +237,16 @@ class JaxSCVI(BaseModelClass):
         data_splitter.setup()
         train_loader = data_splitter.train_dataloader()
 
-        rng = jax.random.PRNGKey(0)
-        rng, init_rng = jax.random.split(rng)
+        module_kwargs = self.module_kwargs.copy()
+        module_kwargs.update(dict(is_training=True))
+        module = self._get_module(module_kwargs)
 
-        module = self.module
-
-        params = module.init(rng, next(iter(train_loader)), rng)["params"]
+        init_rngs = {
+            "params": random.PRNGKey(0),
+            "dropout": random.PRNGKey(1),
+            "z": random.PRNGKey(2),
+        }
+        params = module.init(init_rngs, next(iter(train_loader)))["params"]
 
         state = train_state.TrainState.create(
             apply_fn=module.apply,
@@ -250,12 +255,11 @@ class JaxSCVI(BaseModelClass):
         )
 
         @jax.jit
-        def train_step(state, array_dict, z_rng, kl_weight=1) -> jnp.ndarray:
-            """ELBO loss: E_p[log(x)] - KL(d||q), where p ~ Be(0.5) and q ~ N(0,1)."""
+        def train_step(state, array_dict, rngs, kl_weight=1) -> jnp.ndarray:
             x = array_dict[REGISTRY_KEYS.X_KEY]
 
             def loss_fn(params):
-                outputs = module.apply({"params": params}, array_dict, z_rng)
+                outputs = module.apply({"params": params}, array_dict, rngs=rngs)
                 log_likelihood = outputs.nb.log_prob(x).sum(-1)
                 mean = outputs.mean
                 scale = outputs.stddev
@@ -278,8 +282,9 @@ class JaxSCVI(BaseModelClass):
                 counter = 0
                 for data in train_loader:
                     kl_weight = min(1.0, epoch / 400.0)
-                    rng, key = random.split(rng)
-                    state, value = train_step(state, data, key, kl_weight=kl_weight)
+                    # gets new key for each epoch
+                    rngs = {k: random.split(v)[1] for k, v in init_rngs.items()}
+                    state, value = train_step(state, data, rngs, kl_weight=kl_weight)
                     epoch_loss += value
                     counter += 1
                 history += [jax.device_get(epoch_loss) / counter]
@@ -291,6 +296,10 @@ class JaxSCVI(BaseModelClass):
         self.params = state.params
         self.history_ = history
         self.is_trained_ = True
+        self.rngs = rngs
+
+        self.module_kwargs.update(dict(is_training=False))
+        self._module = None
 
     def get_latent_representation(
         self,
@@ -333,15 +342,14 @@ class JaxSCVI(BaseModelClass):
         )
 
         @jax.jit
-        def _get_val(array_dict, key):
-            out = self.module.apply({"params": self.params}, array_dict, key)
+        def _get_val(array_dict, rngs):
+            out = self.module.apply({"params": self.params}, array_dict, rngs=rngs)
             return out.mean
 
         latent = []
-        rng_key = random.PRNGKey(0)
-        rng, key = random.split(rng_key)
         for array_dict in scdl:
-            mean = _get_val(array_dict, key)
+            rngs = {k: random.split(v)[1] for k, v in self.rngs.items()}
+            mean = _get_val(array_dict, rngs)
             latent.append(mean)
         latent = jnp.concatenate(latent)
 
