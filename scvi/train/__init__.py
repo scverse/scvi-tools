@@ -1,4 +1,4 @@
-from ._callbacks import LoudEarlyStopping
+from ._callbacks import LoudEarlyStopping, SaveBestState
 from ._trainer import Trainer
 from ._trainingplans import (
     AdversarialTrainingPlan,
@@ -18,4 +18,5 @@ __all__ = [
     "ClassifierTrainingPlan",
     "TrainRunner",
     "LoudEarlyStopping",
+    "SaveBestState",
 ]
