@@ -257,6 +257,7 @@ class JaxSCVI(BaseModelClass):
         @jax.jit
         def train_step(state, array_dict, rngs, kl_weight=1) -> jnp.ndarray:
             x = array_dict[REGISTRY_KEYS.X_KEY]
+            rngs = {k: random.split(v)[1] for k, v in rngs.items()}
 
             def loss_fn(params):
                 outputs = module.apply({"params": params}, array_dict, rngs=rngs)
@@ -271,10 +272,11 @@ class JaxSCVI(BaseModelClass):
 
             value, grads = jax.value_and_grad(loss_fn)(state.params)
             state = state.apply_gradients(grads=grads)
-            return state, value
+            return state, value, rngs
 
         history = []
         epoch = 0
+        rngs = init_rngs
         with tqdm.trange(1, max_epochs + 1) as t:
             for i in t:
                 epoch += 1
@@ -283,8 +285,9 @@ class JaxSCVI(BaseModelClass):
                 for data in train_loader:
                     kl_weight = min(1.0, epoch / 400.0)
                     # gets new key for each epoch
-                    rngs = {k: random.split(v)[1] for k, v in init_rngs.items()}
-                    state, value = train_step(state, data, rngs, kl_weight=kl_weight)
+                    state, value, rngs = train_step(
+                        state, data, rngs, kl_weight=kl_weight
+                    )
                     epoch_loss += value
                     counter += 1
                 history += [jax.device_get(epoch_loss) / counter]
@@ -343,13 +346,14 @@ class JaxSCVI(BaseModelClass):
 
         @jax.jit
         def _get_val(array_dict, rngs):
+            rngs = {k: random.split(v)[1] for k, v in rngs.items()}
             out = self.module.apply({"params": self.params}, array_dict, rngs=rngs)
-            return out.mean
+            return out.mean, rngs
 
         latent = []
+        rngs = self.rngs
         for array_dict in scdl:
-            rngs = {k: random.split(v)[1] for k, v in self.rngs.items()}
-            mean = _get_val(array_dict, rngs)
+            mean, rngs = _get_val(array_dict, rngs)
             latent.append(mean)
         latent = jnp.concatenate(latent)
 
