@@ -1,11 +1,21 @@
+import math
 from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 from flax import linen as nn
+from flax.linen.initializers import variance_scaling
 
 from scvi import REGISTRY_KEYS
+
+
+class Dense(nn.Dense):
+    def __init__(self, *args, **kwargs):
+        # https://github.com/google/jax/blob/ab15db7d8658825afa9709df46f0dea76688d309/jax/_src/nn/initializers.py#L169
+        init = variance_scaling(math.sqrt(5.0), "fan_in", "uniform")
+        kwargs.update({"kernel_init": init})
+        super().__init__(*args, **kwargs)
 
 
 class FlaxEncoder(nn.Module):
@@ -20,14 +30,14 @@ class FlaxEncoder(nn.Module):
 
         # k1, k2 = hk.next_rng_keys(2)
 
-        h = nn.Dense(self.n_hidden)(inputs_)
+        h = Dense(self.n_hidden)(inputs_)
         h = nn.LayerNorm(
             use_scale=False,
             use_bias=False,
         )(h)
         h = nn.relu(h)
         # h = nn.Dropout(dropout_rate)(h)
-        h = nn.Dense(self.n_hidden)(h)
+        h = Dense(self.n_hidden)(h)
         h = nn.LayerNorm(
             use_scale=False,
             use_bias=False,
@@ -35,8 +45,8 @@ class FlaxEncoder(nn.Module):
         h = nn.relu(h)
         # h = nn.Dropout(dropout_rate)(h)
 
-        mean = nn.Dense(self.n_latent)(h)
-        log_concentration = nn.Dense(self.n_latent)(h)
+        mean = Dense(self.n_latent)(h)
+        log_concentration = Dense(self.n_latent)(h)
 
         return mean, nn.softplus(log_concentration)
 
@@ -54,7 +64,7 @@ class FlaxDecoder(nn.Module):
         # k1, k2 = nn.next_rng_keys(2)
 
         # print(inputs.shape, self.n_hidden)
-        h = nn.Dense(self.n_hidden)(inputs)
+        h = Dense(self.n_hidden)(inputs)
         h = nn.LayerNorm(
             use_scale=False,
             use_bias=False,
@@ -62,14 +72,14 @@ class FlaxDecoder(nn.Module):
         h = nn.relu(h)
         # h = nn.Dropout(dropout_rate)(h)
         # skip connection
-        h = nn.Dense(self.n_hidden)(jnp.concatenate([h, inputs], axis=-1))
+        h = Dense(self.n_hidden)(jnp.concatenate([h, inputs], axis=-1))
         h = nn.LayerNorm(
             use_scale=False,
             use_bias=False,
         )(h)
         h = nn.relu(h)
         # h = nn.Dropout(dropout_rate)(h)
-        h = nn.Dense(self.n_input)(h)
+        h = Dense(self.n_input)(h)
         return h, disp.ravel()
 
 
