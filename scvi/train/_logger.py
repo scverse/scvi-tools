@@ -58,10 +58,8 @@ class SimpleLogger(LightningLoggerBase):
     @rank_zero_experiment
     def experiment(self):
         """Return the experiment object associated with this logger."""
-        if self._experiment:
-            return self._experiment
-
-        self._experiment = SimpleExperiment()
+        if self._experiment is None:
+            self._experiment = SimpleExperiment()
         return self._experiment
 
     @rank_zero_only
