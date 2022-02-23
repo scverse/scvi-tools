@@ -6,8 +6,8 @@ import pandas as pd
 import rich
 from anndata import AnnData
 
-from scvi.data.anndata import _constants
-from scvi.data.anndata._utils import get_anndata_attribute
+from scvi.data import _constants
+from scvi.data._utils import get_anndata_attribute
 
 
 class BaseAnnDataField(ABC):
@@ -74,7 +74,7 @@ class BaseAnnDataField(ABC):
         Parameters
         ----------
         state_registry
-            state_registry dictionary created after registering an AnnData using an :class:`~scvi.data.anndata.AnnDataManager` object.
+            state_registry dictionary created after registering an AnnData using an :class:`~scvi.data.AnnDataManager` object.
         adata_target
             AnnData object that is being registered.
         **kwargs
@@ -95,7 +95,7 @@ class BaseAnnDataField(ABC):
         Parameters
         ----------
         state_registry
-            Dictionary returned by :meth:`~scvi.data.anndata.fields.BaseAnnDataField.register_field`.
+            Dictionary returned by :meth:`~scvi.data.fields.BaseAnnDataField.register_field`.
             Summary stats should always be a function of information stored in this dictionary.
 
         Returns
@@ -114,7 +114,7 @@ class BaseAnnDataField(ABC):
         Parameters
         ----------
         state_registry
-            Dictionary returned by :meth:`~scvi.data.anndata.fields.BaseAnnDataField.register_field`.
+            Dictionary returned by :meth:`~scvi.data.fields.BaseAnnDataField.register_field`.
             Printed summary should always be a function of information stored in this dictionary.
 
         Returns

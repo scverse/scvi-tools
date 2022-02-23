@@ -10,10 +10,10 @@ from anndata import AnnData
 from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
-from scvi.data.anndata.fields import CategoricalObsField, LayerField
+from scvi.data import AnnDataManager
+from scvi.data._compat import manager_from_setup_dict
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, VAEMixin

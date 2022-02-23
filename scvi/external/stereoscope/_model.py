@@ -8,8 +8,8 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import CategoricalObsField, LayerField, NumericalObsField
+from scvi.data import AnnDataManager
+from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.utils import setup_anndata_dsp

@@ -6,9 +6,9 @@ from typing import Optional, Union
 import torch
 from anndata import AnnData
 
-from scvi.data.anndata import _constants
-from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
+from scvi.data import _constants
+from scvi.data._compat import manager_from_setup_dict
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.nn import FCLayers
 

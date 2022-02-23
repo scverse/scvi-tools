@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from scvi.data.anndata import AnnDataManager
+from scvi.data import AnnDataManager
 
 from ._anntorchdataset import AnnTorchDataset
 
@@ -93,7 +93,7 @@ class AnnDataLoader(DataLoader):
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
+        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     shuffle
         Whether the data should be shuffled
     indices

@@ -43,7 +43,7 @@ class AnnDataManager:
     Notes
     -----
     This class is not initialized with a specific AnnData object, but later sets ``self.adata``
-    via :meth:`~scvi.data.anndata.AnnDataManager.register_fields`. This decouples the generalized
+    via :meth:`~scvi.data.AnnDataManager.register_fields`. This decouples the generalized
     definition of the scvi-tools interface with the registration of an instance of data.
     """
 
@@ -79,10 +79,10 @@ class AnnDataManager:
 
     def _get_setup_method_args(self) -> dict:
         """
-        Returns the ``setup_anndata`` method arguments used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance.
+        Returns the ``setup_anndata`` method arguments used to initialize this :class:`~scvi.data.AnnDataManager` instance.
 
         Returns the ``setup_anndata`` method arguments, including the model name,
-        that were used to initialize this :class:`~scvi.data.anndata.AnnDataManager` instance
+        that were used to initialize this :class:`~scvi.data.AnnDataManager` instance
         in the form of a dictionary.
         """
         return {
@@ -122,7 +122,7 @@ class AnnDataManager:
         adata
             AnnData object to be registered.
         source_registry
-            Registry created after registering an AnnData using an :class:`~scvi.data.anndata.AnnDataManager` object.
+            Registry created after registering an AnnData using an :class:`~scvi.data.AnnDataManager` object.
         transfer_kwargs
             Additional keywords which modify transfer behavior. Only applicable if ``source_registry`` is set.
         """
@@ -178,7 +178,7 @@ class AnnDataManager:
         """
         Transfers an existing setup to each field associated with this instance with the target AnnData object.
 
-        Creates a new :class:`~scvi.data.anndata.AnnDataManager` instance with the same set of fields.
+        Creates a new :class:`~scvi.data.AnnDataManager` instance with the same set of fields.
         Then, registers the fields with a target AnnData object, incorporating details of the
         source registry where necessary (e.g. for validation or modified data setup).
 

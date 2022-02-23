@@ -12,10 +12,9 @@ from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
-from scvi.data import synthetic_iid
+from scvi.data import _constants, synthetic_iid
 from scvi.data._built_in_data._download import _download
-from scvi.data.anndata import _constants
-from scvi.data.anndata._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
+from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
