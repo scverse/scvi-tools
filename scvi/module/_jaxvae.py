@@ -34,17 +34,11 @@ class FlaxEncoder(nn.Module):
         inputs_ = jnp.log1p(inputs)
 
         h = Dense(self.n_hidden)(inputs_)
-        h = nn.LayerNorm(
-            use_scale=False,
-            use_bias=False,
-        )(h)
+        h = nn.BatchNorm(momentum=0.9)(h, use_running_average=not is_training)
         h = nn.relu(h)
         h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
         h = Dense(self.n_hidden)(h)
-        h = nn.LayerNorm(
-            use_scale=False,
-            use_bias=False,
-        )(h)
+        h = nn.BatchNorm(momentum=0.9)(h, use_running_average=not is_training)
         h = nn.relu(h)
         h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
 
@@ -67,18 +61,13 @@ class FlaxDecoder(nn.Module):
         h = Dense(self.n_hidden)(z)
         h += Dense(self.n_hidden)(batch)
 
-        h = nn.LayerNorm(
-            use_scale=False,
-            use_bias=False,
-        )(h)
+        h = nn.BatchNorm(momentum=0.9)(h, use_running_average=not is_training)
         h = nn.relu(h)
         h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
         # skip connection
         h = Dense(self.n_hidden)(jnp.concatenate([h, batch], axis=-1))
-        h = nn.LayerNorm(
-            use_scale=False,
-            use_bias=False,
-        )(h)
+        h = nn.BatchNorm(momentum=0.9)(h, use_running_average=not is_training)
+
         h = nn.relu(h)
         h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
         h = Dense(self.n_input)(h)

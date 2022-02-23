@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Sequence, Union
+from typing import Any, List, Optional, Sequence, Union
 
 import jax
 import jax.numpy as jnp
@@ -8,6 +8,7 @@ import numpyro.distributions as dist
 import optax
 import tqdm
 from anndata import AnnData
+from flax.core import FrozenDict
 from flax.training import train_state
 from jax import random
 
@@ -29,6 +30,10 @@ from scvi.utils import setup_anndata_dsp
 from .base import BaseModelClass
 
 logger = logging.getLogger(__name__)
+
+
+class TrainState(train_state.TrainState):
+    batch_stats: FrozenDict[str, Any]
 
 
 class JaxSCVI(BaseModelClass):
@@ -199,6 +204,7 @@ class JaxSCVI(BaseModelClass):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
+        lr: float = 1e-3,
         **trainer_kwargs,
     ):
         """
@@ -246,12 +252,15 @@ class JaxSCVI(BaseModelClass):
             "dropout": random.PRNGKey(1),
             "z": random.PRNGKey(2),
         }
-        params = module.init(self.rngs, next(iter(train_loader)))["params"]
+        module_init = module.init(self.rngs, next(iter(train_loader)))
+        params = module_init["params"]
+        batch_stats = module_init["batch_stats"]
 
-        state = train_state.TrainState.create(
+        state = TrainState.create(
             apply_fn=module.apply,
             params=params,
-            tx=optax.adam(1e-3),
+            tx=optax.adamw(lr, eps=0.01, weight_decay=1e-6),
+            batch_stats=batch_stats,
         )
 
         @jax.jit
@@ -260,7 +269,11 @@ class JaxSCVI(BaseModelClass):
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
 
             def loss_fn(params):
-                outputs = module.apply({"params": params}, array_dict, rngs=rngs)
+                vars_in = {"params": params, "batch_stats": state.batch_stats}
+                outputs, new_model_state = state.apply_fn(
+                    vars_in, array_dict, rngs=rngs, mutable=["batch_stats"]
+                )
+
                 log_likelihood = outputs.nb.log_prob(x).sum(-1)
                 mean = outputs.mean
                 scale = outputs.stddev
@@ -268,11 +281,15 @@ class JaxSCVI(BaseModelClass):
                 posterior = dist.Normal(mean, scale)
                 kl = dist.kl_divergence(posterior, prior).sum(-1)
                 elbo = log_likelihood - kl_weight * kl
-                return -jnp.mean(elbo)
+                return -jnp.mean(elbo), new_model_state
 
-            value, grads = jax.value_and_grad(loss_fn)(state.params)
-            state = state.apply_gradients(grads=grads)
-            return state, value, rngs
+            (loss, new_model_state), grads = jax.value_and_grad(loss_fn, has_aux=True)(
+                state.params
+            )
+            new_state = state.apply_gradients(
+                grads=grads, batch_stats=new_model_state["batch_stats"]
+            )
+            return new_state, loss, rngs
 
         history = []
         epoch = 0
@@ -296,6 +313,7 @@ class JaxSCVI(BaseModelClass):
 
         self.train_state = state
         self.params = state.params
+        self.batch_stats = state.batch_stats
         self.history_ = history
         self.is_trained_ = True
 
@@ -345,7 +363,11 @@ class JaxSCVI(BaseModelClass):
         @jax.jit
         def _get_val(array_dict, rngs):
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
-            out = self.module.apply({"params": self.params}, array_dict, rngs=rngs)
+            out = self.module.apply(
+                {"params": self.params, "batch_stats": self.batch_stats},
+                array_dict,
+                rngs=rngs,
+            )
             return out.mean, rngs
 
         latent = []
