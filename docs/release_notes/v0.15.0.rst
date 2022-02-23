@@ -40,8 +40,8 @@ Breaking changes
         2. ``setup_anndata()`` functions are now class functions and follow a specific structure. Please refer to :meth:`~scvi.model.SCVI.setup_anndata` for an example.
         3. ``scvi.data.get_from_registry()`` has been removed. This method can be replaced by :meth:`scvi.data.anndata.AnnDataManager.get_from_registry`.
         4. The setup dict stored directly on the AnnData object, ``adata["_scvi"]``, has been deprecated. Instead, this information now lives in :attr:`scvi.data.anndata.AnnDataManager.registry`.
-            - The data registry can be accessed at :attr:`~scvi.data.anndata.AnnDataManager.data_registry`.
-            - Summary stats can be accessed at :attr:`~scvi.data.anndata.AnnDataManager.summary_stats`.
+            - The data registry can be accessed at :attr:`scvi.data.anndata.AnnDataManager.data_registry`.
+            - Summary stats can be accessed at :attr:`scvi.data.anndata.AnnDataManager.summary_stats`.
             - Any field-specific information (e.g. ``adata.obs["categorical_mappings"]``) now lives in field-specific state registries. These can be retrieved via the function :meth:`~scvi.data.anndata.AnnDataManager.get_state_registry`.
         5. ``register_tensor_from_anndata()`` has been removed. To register tensors with no relevant ``AnnDataField`` subclass, create a new
            a new subclass of :class:`~scvi.data.anndata.fields.BaseAnnDataField` and add it to appropriate model's ``setup_anndata()`` function.
