@@ -29,6 +29,9 @@ for operating over a collection of AnnDataFields and an AnnData object.
    data.fields.CategoricalObsField
    data.fields.NumericalJointObsField
    data.fields.CategoricalJointObsField
+   data.fields.ObsmField
+   data.fields.ProteinObsmField
+   data.fields.LabelsWithUnlabeledObsField
 
 
 Data Loaders
@@ -187,6 +190,8 @@ TrainingPlans define train/test/val optimization steps for modules.
    train.Trainer
    train.TrainingPlan
    train.TrainRunner
+   train.SaveBestState
+   train.LoudEarlyStopping
 
 
 Utilities
