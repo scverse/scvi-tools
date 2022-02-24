@@ -53,6 +53,8 @@ numpy = ">=1.17.0"
 openpyxl = ">=3.0"
 pandas = ">=1.0"
 pre-commit = {version = ">=2.7.1", optional = true}
+pymde = {version = "*", optional = true}
+pynndescent = {version = "*", optional = true}
 pyro-ppl = ">=1.6.0"
 pytest = {version = ">=4.4", optional = true}
 python = ">=3.7,<4.0"
@@ -93,7 +95,7 @@ docs = [
   "sphinx-design",
   "sphinxext-opengraph",
 ]
-tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc"]
+tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent"]
 
 [tool.poetry.dev-dependencies]
 
