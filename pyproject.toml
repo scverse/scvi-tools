@@ -95,7 +95,7 @@ docs = [
   "sphinx-design",
   "sphinxext-opengraph",
 ]
-tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent"]
+tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde"]
 
 [tool.poetry.dev-dependencies]
 
