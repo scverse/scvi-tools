@@ -1,3 +1,4 @@
+from . import utils
 from ._amortizedlda import AmortizedLDA
 from ._autozi import AUTOZI
 from ._condscvi import CondSCVI
@@ -20,4 +21,5 @@ __all__ = [
     "DestVI",
     "MULTIVI",
     "AmortizedLDA",
+    "utils",
 ]

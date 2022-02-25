@@ -95,7 +95,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
 Utilities
 ~~~~~~~~~~
 
-Here we maintain a miscellaneous general methods.
+Here we maintain miscellaneous general methods.
 
 .. autosummary::
    :toctree: reference/

@@ -25,7 +25,9 @@ def mde(
         Whether to run on cpu or gpu ("cuda"). If None, tries to run on gpu if available.
     kwargs
         Keyword args to :func:`pymde.preserve_neighbors`
-
+    Returns
+    -------
+    The pymde embedding, defaults to two dimensions.
 
     Notes
     -----
@@ -39,9 +41,14 @@ def mde(
 
     Agrawal, Akshay, Alnur Ali, and Stephen Boyd. "Minimum-distortion embedding." arXiv preprint arXiv:2103.02559 (2021).
 
-    Returns
-    -------
-    The pymde embedding, defaults to two dimensions.
+    Examples
+    --------
+    >>> adata = anndata.read_h5ad(path_to_anndata)
+    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
+    >>> vae = scvi.model.SCVI(adata)
+    >>> vae.train()
+    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+    >>> adata.obsm["X_mde"] = scvi.model.utils.mde(adata.obsm["X_scVI"])
     """
     try:
         import pymde
