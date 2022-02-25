@@ -1,5 +1,6 @@
 import logging
 import warnings
+from copy import deepcopy
 from typing import List, Optional, Sequence, Union
 
 import numpy as np
@@ -170,22 +171,27 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         cls,
         scvi_model: SCVI,
         unlabeled_category: str,
+        labels_key: Optional[str] = None,
         adata: Optional[AnnData] = None,
         **scanvi_kwargs,
     ):
         """
-        Initialize scanVI model with weights from pretrained scVI model.
+        Initialize scanVI model with weights from pretrained :class:`~scvi.model.SCVI` model.
 
         Parameters
         ----------
         scvi_model
             Pretrained scvi model
+        labels_key
+            key in `adata.obs` for label information. Label categories can not be different if
+            labels_key was used to setup the SCVI model. If None, uses the `labels_key` used to
+            setup the SCVI model. If that was None, and error is raised.
         unlabeled_category
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
             AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
         scanvi_kwargs
-            kwargs for scanVI model
+            kwargs for scANVI model
         """
         scvi_model._check_if_trained(
             message="Passed in scvi model hasn't been trained yet."
@@ -206,10 +212,22 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         if adata is None:
             adata = scvi_model.adata
+        else:
+            # validate new anndata against old model
+            scvi_model._validate_anndata(adata)
 
-        scvi_setup_args = scvi_model.adata_manager.registry[_SETUP_ARGS_KEY]
+        scvi_setup_args = deepcopy(scvi_model.adata_manager.registry[_SETUP_ARGS_KEY])
+        scvi_labels_key = scvi_setup_args["labels_key"]
+        if labels_key is None and scvi_labels_key is None:
+            raise ValueError(
+                "A `labels_key` is necessary as the SCVI model was initialized without one."
+            )
+        if scvi_labels_key is None:
+            scvi_setup_args.update(dict(labels_key=labels_key))
         cls.setup_anndata(
-            adata, unlabeled_category=unlabeled_category, **scvi_setup_args
+            adata,
+            unlabeled_category=unlabeled_category,
+            **scvi_setup_args,
         )
         scanvi_model = cls(adata, **non_kwargs, **kwargs, **scanvi_kwargs)
         scvi_state_dict = scvi_model.module.state_dict()
