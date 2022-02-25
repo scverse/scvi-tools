@@ -59,6 +59,7 @@ def mde(
         repulsive_fraction=0.7,
         verbose=False,
         device=device,
+        n_neighbors=15,
     )
     _kwargs.update(kwargs)
 
