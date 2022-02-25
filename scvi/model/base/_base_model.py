@@ -142,6 +142,16 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def register_manager(cls, adata_manager: AnnDataManager):
         """
         Registers an :class:`~scvi.data.AnnDataManager` instance with this model class.
+
+        Stores the :class:`~scvi.data.AnnDataManager` reference in a class-specific manager store.
+        Intended for use in the ``setup_anndata()`` class method followed up by retrieval of the
+        :class:`~scvi.data.AnnDataManager` via the ``_get_most_recent_anndata_manager()`` method in
+        the model init method.
+
+        Notes
+        -----
+        Subsequent calls to this method with an :class:`~scvi.data.AnnDataManager` instance referring to the same
+        underlying AnnData object will overwrite the reference to previous :class:`~scvi.data.AnnDataManager`.
         """
         adata_id = adata_manager.adata_uuid
         cls._setup_adata_manager_store[adata_id] = adata_manager
