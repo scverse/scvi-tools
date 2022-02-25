@@ -1,5 +1,6 @@
 import logging
 import warnings
+from copy import deepcopy
 from typing import List, Optional, Sequence, Union
 
 import numpy as np
@@ -215,7 +216,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             # validate new anndata against old model
             scvi_model._validate_anndata(adata)
 
-        scvi_setup_args = scvi_model.adata_manager.registry[_SETUP_ARGS_KEY]
+        scvi_setup_args = deepcopy(scvi_model.adata_manager.registry[_SETUP_ARGS_KEY])
         scvi_labels_key = scvi_setup_args["labels_key"]
         if labels_key is None and scvi_labels_key is None:
             raise ValueError(
