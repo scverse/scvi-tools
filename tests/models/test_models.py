@@ -33,6 +33,7 @@ from scvi.model import (
     DestVI,
     LinearSCVI,
 )
+from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager
 
@@ -41,11 +42,11 @@ LEGACY_SETUP_DICT = {
     "scvi_version": "0.0.0",
     "categorical_mappings": {
         "_scvi_batch": {
-            "original_key": "batch",
+            "original_key": "testbatch",
             "mapping": np.array(["batch_0", "batch_1"], dtype=object),
         },
         "_scvi_labels": {
-            "original_key": "labels",
+            "original_key": "testlabels",
             "mapping": np.array(["label_0", "label_1", "label_2"], dtype=object),
         },
     },
@@ -96,6 +97,9 @@ def test_scvi(save_path):
     )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    # test mde
+    mde(model.get_latent_representation())
 
     # Test with observed lib size.
     adata = synthetic_iid()
@@ -494,13 +498,17 @@ def test_new_setup_compat():
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    # Handle edge case where registry_key != obs_key.
+    adata.obs.rename(
+        columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True
+    )
     adata2 = adata.copy()
     adata3 = adata.copy()
 
     SCVI.setup_anndata(
         adata,
-        batch_key="batch",
-        labels_key="labels",
+        batch_key="testbatch",
+        labels_key="testlabels",
         categorical_covariate_keys=["cat1", "cat2"],
         continuous_covariate_keys=["cont1", "cont2"],
     )
@@ -804,11 +812,17 @@ def test_scanvi(save_path):
     SCVI.setup_anndata(
         a,
         batch_key="batch",
-        labels_key="labels",
     )
     m = SCVI(a, use_observed_lib_size=False)
     a2 = scvi.data.synthetic_iid()
-    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(
+        m, "label_0", labels_key="labels", adata=a2
+    )
+    with pytest.raises(ValueError):
+        scanvi_model = scvi.model.SCANVI.from_scvi_model(
+            m, "label_0", labels_key=None, adata=a2
+        )
+
     # make sure the state_dicts are different objects for the two models
     assert scanvi_model.module.state_dict() is not m.module.state_dict()
     scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
@@ -819,7 +833,7 @@ def test_scanvi(save_path):
 
     # Test without label groups
     scanvi_model = scvi.model.SCANVI.from_scvi_model(
-        m, "label_0", use_labels_groups=False
+        m, "label_0", labels_key="labels", use_labels_groups=False
     )
     scanvi_model.train(1)
 
