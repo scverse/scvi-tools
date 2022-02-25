@@ -33,6 +33,7 @@ from scvi.model import (
     DestVI,
     LinearSCVI,
 )
+from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager
 
@@ -96,6 +97,9 @@ def test_scvi(save_path):
     )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    # test mde
+    mde(model.get_latent_representation())
 
     # Test with observed lib size.
     adata = synthetic_iid()
