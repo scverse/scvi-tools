@@ -1,9 +1,11 @@
-from typing import Union, Optional
+from typing import Optional, Union
+
 import numpy as np
 import pandas as pd
-from scipy.sparse import spmatrix
-from scvi._compat import Literal
 import torch
+from scipy.sparse import spmatrix
+from torch import Tensor
+from scvi._compat import Literal
 
 
 def mde(
