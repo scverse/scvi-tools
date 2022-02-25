@@ -825,7 +825,7 @@ def test_scanvi(save_path):
 
     # Test without label groups
     scanvi_model = scvi.model.SCANVI.from_scvi_model(
-        m, "label_0", use_labels_groups=False
+        m, "label_0", labels_key="labels", use_labels_groups=False
     )
     scanvi_model.train(1)
 
