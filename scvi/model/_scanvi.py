@@ -212,7 +212,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             adata = scvi_model.adata
         else:
             # validate new anndata against old model
-            scvi_model.adata_manager.transfer_fields(adata)
+            scvi_model._validate_anndata(adata)
 
         scvi_setup_args = scvi_model.adata_manager.registry[_SETUP_ARGS_KEY]
         cls.setup_anndata(
