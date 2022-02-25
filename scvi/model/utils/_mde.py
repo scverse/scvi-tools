@@ -2,13 +2,12 @@ from typing import Union, Optional
 import numpy as np
 import pandas as pd
 from scipy.sparse import spmatrix
-from torch import Tensor, isin
 from scvi._compat import Literal
 import torch
 
 
 def mde(
-    data: Union[np.ndarray, pd.DataFrame, spmatrix, Tensor],
+    data: Union[np.ndarray, pd.DataFrame, spmatrix, torch.Tensor],
     device: Optional[Literal["cpu", "cuda"]] = None,
     **kwargs,
 ) -> np.ndarray:
