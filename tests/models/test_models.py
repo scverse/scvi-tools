@@ -41,11 +41,11 @@ LEGACY_SETUP_DICT = {
     "scvi_version": "0.0.0",
     "categorical_mappings": {
         "_scvi_batch": {
-            "original_key": "batch",
+            "original_key": "testbatch",
             "mapping": np.array(["batch_0", "batch_1"], dtype=object),
         },
         "_scvi_labels": {
-            "original_key": "labels",
+            "original_key": "testlabels",
             "mapping": np.array(["label_0", "label_1", "label_2"], dtype=object),
         },
     },
@@ -494,13 +494,17 @@ def test_new_setup_compat():
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    # Handle edge case where registry_key != obs_key.
+    adata.obs.rename(
+        columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True
+    )
     adata2 = adata.copy()
     adata3 = adata.copy()
 
     SCVI.setup_anndata(
         adata,
-        batch_key="batch",
-        labels_key="labels",
+        batch_key="testbatch",
+        labels_key="testlabels",
         categorical_covariate_keys=["cat1", "cat2"],
         continuous_covariate_keys=["cont1", "cont2"],
     )
