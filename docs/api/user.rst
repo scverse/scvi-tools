@@ -92,6 +92,16 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.organize_cite_seq_10x
    data.organize_multiome_anndatas
 
+Utilities
+~~~~~~~~~~
+
+Here we maintain a miscellaneous general methods.
+
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   model.utils.mde
 
 Configuration
 ~~~~~~~~~~~~~
