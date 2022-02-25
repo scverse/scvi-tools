@@ -215,9 +215,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             scvi_model._validate_anndata(adata)
 
         scvi_setup_args = scvi_model.adata_manager.registry[_SETUP_ARGS_KEY]
+        scvi_setup_args.update(dict(labels_key=labels_key))
         cls.setup_anndata(
             adata,
-            labels_key=labels_key,
             unlabeled_category=unlabeled_category,
             **scvi_setup_args,
         )
