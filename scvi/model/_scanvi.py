@@ -169,8 +169,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def from_scvi_model(
         cls,
         scvi_model: SCVI,
-        labels_key: str,
         unlabeled_category: str,
+        labels_key: Optional[str] = None,
         adata: Optional[AnnData] = None,
         **scanvi_kwargs,
     ):
@@ -183,7 +183,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Pretrained scvi model
         labels_key
             key in `adata.obs` for label information. Label categories can not be different if
-            labels_key was used to setup the SCVI model.
+            labels_key was used to setup the SCVI model. If None, uses the `labels_key` used to
+            setup the SCVI model. If that was None, and error is raised.
         unlabeled_category
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
@@ -215,7 +216,13 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             scvi_model._validate_anndata(adata)
 
         scvi_setup_args = scvi_model.adata_manager.registry[_SETUP_ARGS_KEY]
-        scvi_setup_args.update(dict(labels_key=labels_key))
+        scvi_labels_key = scvi_setup_args["labels_key"]
+        if labels_key is None and scvi_labels_key is None:
+            raise ValueError(
+                "A `labels_key` is necessary as the SCVI model was initialized without one."
+            )
+        if scvi_labels_key is None:
+            scvi_setup_args.update(dict(labels_key=labels_key))
         cls.setup_anndata(
             adata,
             unlabeled_category=unlabeled_category,
