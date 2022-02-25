@@ -169,23 +169,27 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def from_scvi_model(
         cls,
         scvi_model: SCVI,
+        labels_key: str,
         unlabeled_category: str,
         adata: Optional[AnnData] = None,
         **scanvi_kwargs,
     ):
         """
-        Initialize scanVI model with weights from pretrained scVI model.
+        Initialize scanVI model with weights from pretrained :class:`~scvi.model.SCVI` model.
 
         Parameters
         ----------
         scvi_model
             Pretrained scvi model
+        labels_key
+            key in `adata.obs` for label information. Label categories can not be different if
+            labels_key was used to setup the SCVI model.
         unlabeled_category
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
             AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
         scanvi_kwargs
-            kwargs for scanVI model
+            kwargs for scANVI model
         """
         scvi_model._check_if_trained(
             message="Passed in scvi model hasn't been trained yet."
@@ -206,10 +210,16 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         if adata is None:
             adata = scvi_model.adata
+        else:
+            # validate new anndata against old model
+            scvi_model.adata_manager.transfer_fields(adata)
 
         scvi_setup_args = scvi_model.adata_manager.registry[_SETUP_ARGS_KEY]
         cls.setup_anndata(
-            adata, unlabeled_category=unlabeled_category, **scvi_setup_args
+            adata,
+            labels_key=labels_key,
+            unlabeled_category=unlabeled_category,
+            **scvi_setup_args,
         )
         scanvi_model = cls(adata, **non_kwargs, **kwargs, **scanvi_kwargs)
         scvi_state_dict = scvi_model.module.state_dict()
