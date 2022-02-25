@@ -808,11 +808,17 @@ def test_scanvi(save_path):
     SCVI.setup_anndata(
         a,
         batch_key="batch",
-        labels_key="labels",
     )
     m = SCVI(a, use_observed_lib_size=False)
     a2 = scvi.data.synthetic_iid()
-    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(
+        m, "label_0", labels_key="labels", adata=a2
+    )
+    with pytest.raises(ValueError):
+        scanvi_model = scvi.model.SCANVI.from_scvi_model(
+            m, "label_0", labels_key=None, adata=a2
+        )
+
     # make sure the state_dicts are different objects for the two models
     assert scanvi_model.module.state_dict() is not m.module.state_dict()
     scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
@@ -823,7 +829,7 @@ def test_scanvi(save_path):
 
     # Test without label groups
     scanvi_model = scvi.model.SCANVI.from_scvi_model(
-        m, "label_0", use_labels_groups=False
+        m, "label_0", labels_key="labels", use_labels_groups=False
     )
     scanvi_model.train(1)
 
