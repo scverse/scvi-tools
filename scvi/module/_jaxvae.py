@@ -99,6 +99,7 @@ class JaxVAE(nn.Module):
     is_training: bool = False
     n_layers: int = 1
     gene_likelihood: str = "nb"
+    eps: float = 1e-8
 
     @nn.compact
     def __call__(self, array_dict) -> VAEOutput:
@@ -114,7 +115,7 @@ class JaxVAE(nn.Module):
             n_hidden=self.n_hidden,
             dropout_rate=self.dropout_rate,
         )(x, self.is_training)
-        stddev = jnp.sqrt(var) + 1e-4
+        stddev = jnp.sqrt(var) + self.eps
 
         qz = dist.Normal(mean, stddev)
         z_rng = self.make_rng("z")
@@ -130,7 +131,7 @@ class JaxVAE(nn.Module):
         mu = total_count * rho
 
         if self.gene_likelihood == "nb":
-            nb_logits = jnp.log(mu + 1e-6) - jnp.log(disp_ + 1e-6)
+            nb_logits = jnp.log(mu + self.eps) - jnp.log(disp_ + self.eps)
             disp_ = jnp.exp(disp)
             px = dist.NegativeBinomialLogits(logits=nb_logits, total_count=disp_)
         else:
