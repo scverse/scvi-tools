@@ -178,9 +178,6 @@ class JaxSCVI(BaseModelClass):
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
-        if use_gpu is False:
-            jax.config.update("jax_platform_name", "cpu")
-
         data_splitter = DataSplitter(
             self.adata_manager,
             train_size=train_size,
@@ -197,10 +194,19 @@ class JaxSCVI(BaseModelClass):
         module_kwargs.update(dict(is_training=True))
         module = self._get_module(module_kwargs)
 
+        # if key is generated on CPU, model params will be on CPU
+        # we have to pay the price of a JIT compilation though
+        if use_gpu is False:
+            key = jax.jit(lambda i: random.PRNGKey(i), backend="cpu")
+        else:
+            # dummy function
+            def key(i: int):
+                return random.PRNGKey(i)
+
         self.rngs = {
-            "params": random.PRNGKey(0),
-            "dropout": random.PRNGKey(1),
-            "z": random.PRNGKey(2),
+            "params": key(0),
+            "dropout": key(1),
+            "z": key(2),
         }
         module_init = module.init(self.rngs, next(iter(train_loader)))
         params = module_init["params"]
