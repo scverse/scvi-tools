@@ -181,7 +181,7 @@ class SpatialDeconv(BaseModuleClass):
 
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[REGISTRY_KEYS.X_KEY]
-        ind_x = tensors["ind_x"]
+        ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long()
 
         input_dict = dict(x=x, ind_x=ind_x)
         return input_dict
@@ -203,7 +203,7 @@ class SpatialDeconv(BaseModuleClass):
             [beta.unsqueeze(1) * w, eps.unsqueeze(1)], dim=1
         )  # n_genes, n_labels + 1
         # subsample observations
-        v_ind = v[:, ind_x.long()[:, 0]]  # labels + 1, batch_size
+        v_ind = v[:, ind_x[:, 0]]  # labels + 1, batch_size
         px_rate = torch.transpose(
             torch.matmul(r_hat, v_ind), 0, 1
         )  # batch_size, n_genes
