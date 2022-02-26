@@ -6,6 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 import numpyro.distributions as dist
 import optax
+import pandas as pd
 import tqdm
 from anndata import AnnData
 from flax.core import FrozenDict
@@ -32,7 +33,9 @@ class TrainState(train_state.TrainState):
 
 class JaxSCVI(BaseModelClass):
     """
-    single-cell Variational Inference [Lopez18]_, but with a Jax backend.
+    EXPERIMENTAL single-cell Variational Inference [Lopez18]_, but with a Jax backend.
+
+    This implementation is in a very experimental state. API is completely subject to change.
 
     Parameters
     ----------
@@ -59,7 +62,6 @@ class JaxSCVI(BaseModelClass):
     >>> vae = scvi.model.SCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
-    >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()
     """
 
     def __init__(
@@ -176,12 +178,16 @@ class JaxSCVI(BaseModelClass):
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
+        if use_gpu is False:
+            jax.config.update("jax_platform_name", "cpu")
+
         data_splitter = DataSplitter(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            use_gpu=use_gpu,
+            # for pinning memory only
+            use_gpu=False,
             iter_ndarray=True,
         )
         data_splitter.setup()
@@ -219,7 +225,7 @@ class JaxSCVI(BaseModelClass):
                     vars_in, array_dict, rngs=rngs, mutable=["batch_stats"]
                 )
 
-                log_likelihood = outputs.nb.log_prob(x).sum(-1)
+                log_likelihood = outputs.px.log_prob(x).sum(-1)
                 mean = outputs.mean
                 scale = outputs.stddev
                 prior = dist.Normal(jnp.zeros_like(mean), jnp.ones_like(scale))
@@ -259,7 +265,7 @@ class JaxSCVI(BaseModelClass):
         self.train_state = state
         self.params = state.params
         self.batch_stats = state.batch_stats
-        self.history_ = history
+        self.history_ = pd.DataFrame(history, columns=["loss"])
         self.is_trained_ = True
 
         self.module_kwargs.update(dict(is_training=False))
@@ -272,8 +278,6 @@ class JaxSCVI(BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
-        give_mean: bool = True,
-        mc_samples: int = 5000,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
         r"""
@@ -288,11 +292,6 @@ class JaxSCVI(BaseModelClass):
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
-        give_mean
-            Give mean of distribution or sample from it.
-        mc_samples
-            For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
-            samples to take for computing mean.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 

@@ -87,7 +87,7 @@ class FlaxDecoder(nn.Module):
 class VAEOutput(NamedTuple):
     mean: jnp.ndarray
     stddev: jnp.ndarray
-    nb: dist.NegativeBinomialLogits
+    px: dist.NegativeBinomialLogits
 
 
 class JaxVAE(nn.Module):
@@ -132,8 +132,8 @@ class JaxVAE(nn.Module):
         if self.gene_likelihood == "nb":
             nb_logits = jnp.log(mu + 1e-6) - jnp.log(disp_ + 1e-6)
             disp_ = jnp.exp(disp)
-            nb = dist.NegativeBinomialLogits(logits=nb_logits, total_count=disp_)
+            px = dist.NegativeBinomialLogits(logits=nb_logits, total_count=disp_)
         else:
-            nb = dist.Poisson(mu)
+            px = dist.Poisson(mu)
 
-        return VAEOutput(mean, stddev, nb)
+        return VAEOutput(mean, stddev, px)
