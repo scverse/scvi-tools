@@ -344,7 +344,7 @@ class MRDeconv(BaseModuleClass):
         gamma_select = gamma_ind[
             :, y_torch, torch.arange(ind_x.shape[0])
         ].T  # minibatch_size, n_latent
-        h = self.decoder(gamma_select, y_torch)
+        h = self.decoder(gamma_select, y_torch.unsqueeze(1))
         px_scale = self.px_decoder(h)  # (minibatch, n_genes)
         px_ct = torch.exp(self.px_o).unsqueeze(0) * beta.unsqueeze(0) * px_scale
         return px_ct  # shape (minibatch, genes)
