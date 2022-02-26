@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 import jax
 import jax.numpy as jnp
@@ -15,13 +15,7 @@ from jax import random
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data import AnnDataManager
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-)
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size
 from scvi.module import JaxVAE
@@ -48,28 +42,13 @@ class JaxSCVI(BaseModelClass):
         Number of nodes per hidden layer.
     n_latent
         Dimensionality of the latent space.
-    n_layers
-        Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
         Dropout rate for neural networks.
-    dispersion
-        One of the following:
-
-        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-        * ``'gene-batch'`` - dispersion can differ between different batches
-        * ``'gene-label'`` - dispersion can differ between different labels
-        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     gene_likelihood
         One of:
 
         * ``'nb'`` - Negative binomial distribution
-        * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
-    latent_distribution
-        One of:
-
-        * ``'normal'`` - Normal distribution
-        * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     **model_kwargs
         Keyword args for :class:`~scvi.module.JaxVAE`
 
@@ -88,11 +67,8 @@ class JaxSCVI(BaseModelClass):
         adata: AnnData,
         n_hidden: int = 128,
         n_latent: int = 10,
-        n_layers: int = 1,
         dropout_rate: float = 0.1,
-        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
-        latent_distribution: Literal["normal", "ln"] = "normal",
+        gene_likelihood: Literal["nb", "poisson"] = "nb",
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -119,25 +95,14 @@ class JaxSCVI(BaseModelClass):
             n_batch=n_batch,
             n_hidden=n_hidden,
             n_latent=n_latent,
-            n_layers=n_layers,
             dropout_rate=dropout_rate,
             is_training=False,
+            gene_likelihood=gene_likelihood,
         )
         self.module_kwargs.update(model_kwargs)
         self._module = None
 
-        self._model_summary_string = (
-            "SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
-            "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
-        ).format(
-            n_hidden,
-            n_latent,
-            n_layers,
-            dropout_rate,
-            dispersion,
-            gene_likelihood,
-            latent_distribution,
-        )
+        self._model_summary_string = ""
         self.init_params_ = self._get_init_params(locals())
 
     @classmethod
@@ -147,10 +112,6 @@ class JaxSCVI(BaseModelClass):
         adata: AnnData,
         layer: Optional[str] = None,
         batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
         **kwargs,
     ):
         """
@@ -160,25 +121,11 @@ class JaxSCVI(BaseModelClass):
         ----------
         %(param_layer)s
         %(param_batch_key)s
-        %(param_labels_key)s
-        %(param_size_factor_key)s
-        %(param_cat_cov_keys)s
-        %(param_cont_cov_keys)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            NumericalObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
@@ -205,7 +152,6 @@ class JaxSCVI(BaseModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         lr: float = 1e-3,
-        **trainer_kwargs,
     ):
         """
         Train the model.
@@ -225,8 +171,6 @@ class JaxSCVI(BaseModelClass):
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
             Minibatch size to use during training.
-        **trainer_kwargs
-            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
             n_cells = self.adata.n_obs
@@ -376,3 +320,16 @@ class JaxSCVI(BaseModelClass):
         latent = jnp.concatenate(latent)
 
         return np.array(jax.device_get(latent))
+
+    def save(self):
+        raise NotImplementedError
+
+    def load(self):
+        raise NotImplementedError
+
+    def to_device(self):
+        raise NotImplementedError
+
+    @property
+    def device(self):
+        pass

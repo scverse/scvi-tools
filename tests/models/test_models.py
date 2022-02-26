@@ -94,7 +94,11 @@ def test_jax_scvi():
         batch_key="batch",
     )
     model = JaxSCVI(adata, n_latent=n_latent)
-    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(1, train_size=0.5)
+    model.get_latent_representation()
+
+    model = JaxSCVI(adata, n_latent=n_latent, gene_likelihood="poisson")
+    model.train(1, train_size=0.5)
     model.get_latent_representation()
 
 
