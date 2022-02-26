@@ -131,8 +131,9 @@ class JaxVAE(nn.Module):
         mu = total_count * rho
 
         if self.gene_likelihood == "nb":
+            nb_logits = jnp.log(mu + self.eps) - jnp.log(disp_ + self.eps)
             disp_ = jnp.exp(disp)
-            px = dist.NegativeBinomial2(mean=mu, concentration=disp_)
+            px = dist.NegativeBinomialLogits(logits=nb_logits, total_count=disp_)
         else:
             px = dist.Poisson(mu)
 
