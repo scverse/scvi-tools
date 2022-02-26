@@ -139,7 +139,7 @@ def test_scvi(save_path):
 
     # tests __repr__
     print(model)
-    # test view_registry
+    # test view_anndata_setup
     model.view_anndata_setup()
     model.view_anndata_setup(hide_state_registries=True)
 
@@ -153,7 +153,7 @@ def test_scvi(save_path):
     model.get_normalized_expression(transform_batch="batch_1")
 
     adata2 = synthetic_iid()
-    # test view_registry with different anndata before transfer setup
+    # test view_anndata_setup with different anndata before transfer setup
     with pytest.raises(ValueError):
         model.view_anndata_setup(adata=adata2)
         model.view_anndata_setup(adata=adata2, hide_state_registries=True)
@@ -165,7 +165,7 @@ def test_scvi(save_path):
     assert latent.shape == (3, n_latent)
     denoised = model.get_normalized_expression(adata2)
     assert denoised.shape == adata.shape
-    # test view_registry with different anndata after transfer setup
+    # test view_anndata_setup with different anndata after transfer setup
     model.view_anndata_setup(adata=adata2)
     model.view_anndata_setup(adata=adata2, hide_state_registries=True)
 
@@ -1221,11 +1221,13 @@ def test_destvi(save_path):
     # step 2 learn destVI with multiple amortization scheme
 
     for amor_scheme in ["both", "none", "proportion", "latent"]:
+        DestVI.setup_anndata(dataset, layer=None)
         spatial_model = DestVI.from_rna_model(
             dataset,
             sc_model,
             amortization=amor_scheme,
         )
+        spatial_model.view_anndata_setup()
         spatial_model.train(max_epochs=1)
         assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
 
