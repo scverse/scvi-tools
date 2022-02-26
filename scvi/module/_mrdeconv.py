@@ -140,7 +140,7 @@ class MRDeconv(BaseModuleClass):
 
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[REGISTRY_KEYS.X_KEY]
-        ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long()
+        ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
 
         input_dict = dict(x=x, ind_x=ind_x)
         return input_dict
@@ -165,14 +165,12 @@ class MRDeconv(BaseModuleClass):
                 (self.n_latent, self.n_labels, -1)
             )
         else:
-            gamma_ind = self.gamma[
-                :, :, ind_x[:, 0]
-            ]  # n_latent, n_labels, minibatch_size
+            gamma_ind = self.gamma[:, :, ind_x]  # n_latent, n_labels, minibatch_size
 
         if self.amortization in ["both", "proportion"]:
             v_ind = self.V_encoder(x_)
         else:
-            v_ind = self.V[:, ind_x[:, 0]].T  # minibatch_size, labels + 1
+            v_ind = self.V[:, ind_x].T  # minibatch_size, labels + 1
         v_ind = torch.nn.functional.softplus(v_ind)
 
         # reshape and get gene expression value for all minibatch
