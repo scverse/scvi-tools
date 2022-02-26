@@ -272,11 +272,6 @@ class AnnDataManager:
         """Returns the state registry for the AnnDataField registered with this instance."""
         self._assert_anndata_registered()
 
-        print(
-            self._registry[_constants._FIELD_REGISTRIES_KEY][registry_key][
-                _constants._STATE_REGISTRY_KEY
-            ]
-        )
         return attrdict(
             self._registry[_constants._FIELD_REGISTRIES_KEY][registry_key][
                 _constants._STATE_REGISTRY_KEY
