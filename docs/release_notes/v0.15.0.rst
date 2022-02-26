@@ -34,7 +34,7 @@ Changes
 - Fix for :class:`~scvi.external.SOLO` when :class:`~scvi.model.SCVI` was setup with a `labels_key` (`#1354`_)
 - Updates to tutorials (`#1369`_, `#1371`_)
 - Furo docs theme (`#1290`_)
-- Add :class:`scvi.model.JaxSCVI` and :class:`scvi.model.JaxSCVI` :class:`scvi.module.JaxVAE` (`#1367`_).
+- Add :class:`scvi.model.JaxSCVI` and :class:`scvi.module.JaxVAE`, drop Numba dependency for checking if data is count data (`#1367`_).
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
