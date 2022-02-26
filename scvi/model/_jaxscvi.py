@@ -37,7 +37,7 @@ class JaxSCVI(BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.JaxSCVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
