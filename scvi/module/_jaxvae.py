@@ -121,7 +121,7 @@ class JaxVAE(nn.Module):
         z = qz.rsample(z_rng)
         rho_unnorm, disp = FlaxDecoder(
             n_input=self.n_input,
-            dropout_rate=self.dropout_rate,
+            dropout_rate=0.0,
             n_hidden=self.n_hidden,
         )(z, batch, self.is_training)
         disp_ = jnp.exp(disp)
