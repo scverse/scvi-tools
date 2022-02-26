@@ -60,6 +60,7 @@ class BaseAnnDataField(ABC):
             stored directly on the AnnData object.
         """
         self.validate_field(adata)
+        return dict()
 
     @abstractmethod
     def transfer_field(
@@ -86,6 +87,7 @@ class BaseAnnDataField(ABC):
             A dictionary containing any additional state required for scvi-tools models not
             stored directly on the AnnData object.
         """
+        return dict()
 
     @abstractmethod
     def get_summary_stats(self, state_registry: dict) -> dict:

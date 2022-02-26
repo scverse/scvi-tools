@@ -77,7 +77,7 @@ class NumericalObsField(BaseObsField):
             raise KeyError(f"{self.attr_key} not found in adata.obs.")
 
     def register_field(self, adata: AnnData) -> dict:
-        super().register_field(adata)
+        return super().register_field(adata)
 
     def transfer_field(
         self,
