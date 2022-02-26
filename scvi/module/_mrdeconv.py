@@ -330,7 +330,7 @@ class MRDeconv(BaseModuleClass):
         """
         # cell-type specific gene expression, shape (minibatch, celltype, gene).
         beta = torch.nn.functional.softplus(self.beta)  # n_genes
-        y_torch = y * torch.ones_like(ind_x)
+        y_torch = (y * torch.ones_like(ind_x)).ravel()
         # obtain the relevant gammas
         if self.amortization in ["both", "latent"]:
             x_ = torch.log(1 + x)
@@ -338,13 +338,11 @@ class MRDeconv(BaseModuleClass):
                 (self.n_latent, self.n_labels, -1)
             )
         else:
-            gamma_ind = self.gamma[
-                :, :, ind_x[:, 0]
-            ]  # n_latent, n_labels, minibatch_size
+            gamma_ind = self.gamma[:, :, ind_x]  # n_latent, n_labels, minibatch_size
 
         # calculate cell type specific expression
         gamma_select = gamma_ind[
-            :, y_torch[:, 0], torch.arange(ind_x.shape[0])
+            :, y_torch, torch.arange(ind_x.shape[0])
         ].T  # minibatch_size, n_latent
         h = self.decoder(gamma_select, y_torch)
         px_scale = self.px_decoder(h)  # (minibatch, n_genes)
