@@ -97,7 +97,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: CondSCVI,
         vamp_prior_p: int = 50,
-        layer: Optional[str] = None,
         **module_kwargs,
     ):
         """
@@ -106,7 +105,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         st_adata
-            registed anndata object
+            registered anndata object
         sc_model
             trained CondSCVI model
         vamp_prior_p
@@ -128,7 +127,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 sc_model.adata, p=vamp_prior_p
             )
 
-        cls.setup_anndata(st_adata, layer=layer)
         return cls(
             st_adata,
             mapping,
