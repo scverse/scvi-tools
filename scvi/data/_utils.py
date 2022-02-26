@@ -5,11 +5,12 @@ from uuid import uuid4
 
 import anndata
 import h5py
+import jax
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
 from anndata._core.sparse_dataset import SparseDataset
-from numba import boolean, float32, float64, int32, int64, vectorize
 
 from . import _constants
 
@@ -196,22 +197,17 @@ def _check_nonnegative_integers(
 
     n = len(data)
     inds = np.random.permutation(n)[:20]
-    check = data.flat[inds]
-    return ~np.any(_is_not_count(check))
+    check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
+    negative, non_integer = _is_count(check)
+    return not (negative or non_integer)
 
 
-@vectorize(
-    [
-        boolean(int32),
-        boolean(int64),
-        boolean(float32),
-        boolean(float64),
-    ],
-    target="parallel",
-    cache=True,
-)
-def _is_not_count(d):
-    return d < 0 or d % 1 != 0
+@jax.jit
+def _is_count(data: jnp.ndarray):
+    negative = jnp.any(data < 0)
+    non_integer = jnp.any(data % 1 != 0)
+
+    return negative, non_integer
 
 
 def _get_batch_mask_protein_data(
