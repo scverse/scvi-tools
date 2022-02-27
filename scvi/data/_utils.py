@@ -196,7 +196,7 @@ def _check_nonnegative_integers(
     else:
         raise TypeError("data type not understood")
 
-    inds = np.random.choice(data, size=(n_to_check,))
+    inds = np.random.choice(len(data), size=(n_to_check,))
     check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
     negative, non_integer = _is_count(check)
     return not (negative or non_integer)
