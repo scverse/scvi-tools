@@ -100,21 +100,24 @@ class AnnTorchDataset(Dataset):
             # need to sort idxs for h5py datasets
             idx = idx[np.argsort(idx)]
         for key, dtype in self.attributes_and_types.items():
-            data = self.data[key]
+            cur_data = self.data[key]
             # for backed anndata
-            if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
-                data_numpy = data[idx]
-                if issparse(data):
-                    data_numpy = data_numpy.toarray()
-                data_numpy = data_numpy.astype(dtype)
-            elif isinstance(data, np.ndarray):
-                data_numpy[key] = data[idx].astype(dtype)
-            elif isinstance(data, pd.DataFrame):
-                data_numpy[key] = data.iloc[idx, :].to_numpy().astype(dtype)
-            elif issparse(data):
-                data_numpy[key] = data[idx].toarray().astype(dtype)
+            if isinstance(cur_data, h5py.Dataset) or isinstance(
+                cur_data, SparseDataset
+            ):
+                sliced_data = cur_data[idx]
+                if issparse(cur_data):
+                    sliced_data = sliced_data.toarray()
+                sliced_data = sliced_data.astype(dtype)
+            elif isinstance(cur_data, np.ndarray):
+                sliced_data = cur_data[idx].astype(dtype)
+            elif isinstance(cur_data, pd.DataFrame):
+                sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
+            elif issparse(cur_data):
+                sliced_data = cur_data[idx].toarray().astype(dtype)
             else:
                 raise TypeError(f"{key} is not a supported type")
+            data_numpy[key] = sliced_data
 
         return data_numpy
 
