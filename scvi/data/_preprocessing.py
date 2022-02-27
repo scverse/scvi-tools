@@ -109,18 +109,18 @@ def poisson_gene_selection(
         if use_gpu is True:
             scaled_means = scaled_means.cuda()
         dev = scaled_means.device
-        total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(dev)
+        total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel(), device=dev)
 
         observed_fraction_zeros = torch.from_numpy(
-            np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel()
-        ).to(dev)
+            np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel(), device=dev
+        )
 
         # Calculate probability of zero for a Poisson model.
         # Perform in batches to save memory.
         minibatch_size = min(total_counts.shape[0], minibatch_size)
         n_batches = total_counts.shape[0] // minibatch_size
 
-        expected_fraction_zeros = torch.zeros(scaled_means.shape).to(dev)
+        expected_fraction_zeros = torch.zeros(scaled_means.shape, device=dev)
 
         for i in range(n_batches):
             total_counts_batch = total_counts[
@@ -141,7 +141,7 @@ def poisson_gene_selection(
         observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
         expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
-        extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
+        extra_zeros = torch.zeros(expected_fraction_zeros.shape, device=dev)
         for i in track(
             range(n_samples),
             description="Sampling from binomial...",
