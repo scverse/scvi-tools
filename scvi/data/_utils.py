@@ -178,7 +178,8 @@ def _assign_adata_uuid(adata: anndata.AnnData, overwrite: bool = False) -> None:
 
 
 def _check_nonnegative_integers(
-    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix, h5py.Dataset]
+    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix, h5py.Dataset],
+    n_to_check: int = 20,
 ):
     """Approximately checks values of data to ensure it is count data."""
 
@@ -195,8 +196,7 @@ def _check_nonnegative_integers(
     else:
         raise TypeError("data type not understood")
 
-    n = len(data)
-    inds = np.random.permutation(n)[:20]
+    inds = np.random.choice(data, size=(n_to_check,))
     check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
     negative, non_integer = _is_count(check)
     return not (negative or non_integer)
