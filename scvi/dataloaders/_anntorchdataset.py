@@ -100,6 +100,8 @@ class AnnTorchDataset(Dataset):
             idx = idx[np.argsort(idx)]
         for key, dtype in self.attributes_and_types.items():
             data = self.data[key]
+            _idx = idx
+            idx = slice(None)
             # for backed anndata
             if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
                 data = data[idx]
@@ -109,6 +111,7 @@ class AnnTorchDataset(Dataset):
                 data_numpy[key] = data.iloc[idx, :].to_numpy().astype(dtype)
             else:
                 data_numpy[key] = data[idx].toarray().astype(dtype)
+            idx = _idx
 
         return data_numpy
 
