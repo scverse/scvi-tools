@@ -4,7 +4,6 @@ from typing import Any, Optional, Sequence, Union
 import jax
 import jax.numpy as jnp
 import numpy as np
-import numpyro.distributions as dist
 import optax
 import pandas as pd
 import tqdm
@@ -221,7 +220,6 @@ class JaxSCVI(BaseModelClass):
 
         @jax.jit
         def train_step(state, array_dict, rngs, kl_weight=1) -> jnp.ndarray:
-            x = array_dict[REGISTRY_KEYS.X_KEY]
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
 
             # batch stats can't be passed here
@@ -230,48 +228,47 @@ class JaxSCVI(BaseModelClass):
                 outputs, new_model_state = state.apply_fn(
                     vars_in, array_dict, rngs=rngs, mutable=["batch_stats"]
                 )
+                rec_loss = outputs.rec_loss
+                kl_div = outputs.kl
+                loss = rec_loss + kl_div
+                elbo = rec_loss + kl_div
+                return jnp.mean(loss), (jnp.mean(elbo), new_model_state)
 
-                log_likelihood = outputs.px.log_prob(x).sum(-1)
-                mean = outputs.mean
-                scale = outputs.stddev
-                prior = dist.Normal(jnp.zeros_like(mean), jnp.ones_like(scale))
-                posterior = dist.Normal(mean, scale)
-                kl = dist.kl_divergence(posterior, prior).sum(-1)
-                elbo = log_likelihood - kl_weight * kl
-                return -jnp.mean(elbo), new_model_state
-
-            (loss, new_model_state), grads = jax.value_and_grad(loss_fn, has_aux=True)(
-                state.params
-            )
+            (loss, (elbo, new_model_state)), grads = jax.value_and_grad(
+                loss_fn, has_aux=True
+            )(state.params)
             new_state = state.apply_gradients(
                 grads=grads, batch_stats=new_model_state["batch_stats"]
             )
-            return new_state, loss, rngs
+            return new_state, loss, elbo, rngs
 
-        history = []
+        history = dict(elbo_train=[], loss_train=[])
         epoch = 0
         with tqdm.trange(1, max_epochs + 1) as t:
             for i in t:
                 epoch += 1
                 epoch_loss = 0
+                epoch_elbo = 0
                 counter = 0
                 for data in train_loader:
                     kl_weight = min(1.0, epoch / 400.0)
                     # gets new key for each epoch
-                    state, value, self.rngs = train_step(
+                    state, loss, elbo, self.rngs = train_step(
                         state, data, self.rngs, kl_weight=kl_weight
                     )
-                    epoch_loss += value
+                    epoch_loss += loss
+                    epoch_elbo += elbo
                     counter += 1
-                history += [jax.device_get(epoch_loss) / counter]
+                history["loss_train"] += [jax.device_get(epoch_loss) / counter]
+                history["elbo_train"] += [jax.device_get(epoch_elbo) / counter]
                 t.set_postfix_str(
-                    f"Epoch {i}, Loss: {epoch_loss / counter}, KL weight: {kl_weight}"
+                    f"Epoch {i}, Elbo: {epoch_elbo / counter}, KL weight: {kl_weight}"
                 )
 
         self.train_state = state
         self.params = state.params
         self.batch_stats = state.batch_stats
-        self.history_ = pd.DataFrame(history, columns=["loss"])
+        self.history_ = {k: pd.DataFrame(v, columns=[k]) for k, v in history.items()}
         self.is_trained_ = True
 
         self.module_kwargs.update(dict(is_training=False))
@@ -316,7 +313,7 @@ class JaxSCVI(BaseModelClass):
         @jax.jit
         def _get_val(array_dict):
             out = self.bound_module(array_dict)
-            return out.mean
+            return out.qz.mean
 
         latent = []
         for array_dict in scdl:

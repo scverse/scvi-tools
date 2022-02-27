@@ -85,9 +85,10 @@ class FlaxDecoder(nn.Module):
 
 
 class VAEOutput(NamedTuple):
-    mean: jnp.ndarray
-    stddev: jnp.ndarray
+    rec_loss: jnp.ndarray
+    kl: jnp.ndarray
     px: dist.NegativeBinomialLogits
+    qz: dist.Normal
 
 
 class JaxVAE(nn.Module):
@@ -137,4 +138,7 @@ class JaxVAE(nn.Module):
         else:
             px = dist.Poisson(mu)
 
-        return VAEOutput(mean, stddev, px)
+        rec_loss = -px.log_prob(x).sum(-1)
+        kl_div = dist.kl_divergence(qz, dist.Normal(0, 1)).sum(-1)
+
+        return VAEOutput(rec_loss, kl_div, px, qz)
