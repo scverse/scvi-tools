@@ -5,6 +5,7 @@ import h5py
 import numpy as np
 import pandas as pd
 from anndata._core.sparse_dataset import SparseDataset
+from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
 from scvi.data import AnnDataManager
@@ -100,18 +101,20 @@ class AnnTorchDataset(Dataset):
             idx = idx[np.argsort(idx)]
         for key, dtype in self.attributes_and_types.items():
             data = self.data[key]
-            _idx = idx
-            idx = slice(None)
             # for backed anndata
             if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
-                data = data[idx]
-            if isinstance(data, np.ndarray):
+                data_numpy = data[idx]
+                if issparse(data):
+                    data_numpy = data_numpy.toarray()
+                data_numpy = data_numpy.astype(dtype)
+            elif isinstance(data, np.ndarray):
                 data_numpy[key] = data[idx].astype(dtype)
             elif isinstance(data, pd.DataFrame):
                 data_numpy[key] = data.iloc[idx, :].to_numpy().astype(dtype)
-            else:
+            elif issparse(data):
                 data_numpy[key] = data[idx].toarray().astype(dtype)
-            idx = _idx
+            else:
+                raise TypeError(f"{key} is not a supported type")
 
         return data_numpy
 
