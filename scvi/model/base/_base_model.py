@@ -538,9 +538,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def load(
         cls,
         dir_path: str,
-        prefix: Optional[str] = None,
         adata: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        prefix: Optional[str] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -549,8 +549,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         ----------
         dir_path
             Path to saved outputs.
-        prefix
-            Prefix of saved file names.
         adata
             AnnData organized in the same way as data used to train model.
             It is not necessary to run setup_anndata,
@@ -559,6 +557,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        prefix
+            Prefix of saved file names.
 
         Returns
         -------
