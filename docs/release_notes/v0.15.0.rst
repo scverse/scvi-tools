@@ -1,4 +1,4 @@
-New in 0.15.0 (2021-MM-DD)
+New in 0.15.0 (2021-02-28)
 --------------------------
 
 In this release, we have completely refactored the logic behind our data handling strategy (i.e. ``setup_anndata``) to allow for:
