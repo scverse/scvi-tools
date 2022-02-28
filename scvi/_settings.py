@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 from typing import Union
 
@@ -38,6 +39,10 @@ class ScviConfig:
     To set the number of threads PyTorch will use
 
     >>> scvi.settings.num_threads = 2
+
+    To prevent Jax from preallocating GPU memory on start (default)
+
+    >>> scvi.settings.jax_preallocate_gpu_memory = False
     """
 
     def __init__(
@@ -49,6 +54,7 @@ class ScviConfig:
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
         dl_pin_memory_gpu_training: bool = True,
+        jax_preallocate_gpu_memory: bool = False,
     ):
 
         self.verbosity = verbosity
@@ -61,6 +67,7 @@ class ScviConfig:
         self.dl_num_workers = dl_num_workers
         self.dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
         self._num_threads = None
+        self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
 
     @property
     def batch_size(self) -> int:
@@ -189,6 +196,31 @@ class ScviConfig:
         formatter = logging.Formatter("%(message)s")
         ch.setFormatter(formatter)
         scvi_logger.addHandler(ch)
+
+    @property
+    def jax_preallocate_gpu_memory(self):
+        """
+        Jax GPU memory allocation settings.
+
+        If False, Jax will ony preallocate GPU memory it needs.
+        If float in (0, 1), Jax will preallocate GPU memory to that
+        fraction of the GPU memory.
+        """
+        return self._jax_gpu
+
+    @jax_preallocate_gpu_memory.setter
+    def jax_preallocate_gpu_memory(self, value: Union[float, bool]):
+        # see https://jax.readthedocs.io/en/latest/gpu_memory_allocation.html#gpu-memory-allocation
+        if value is False:
+            os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+        elif isinstance(value, float):
+            if value > 0.99 or value < 0:
+                raise ValueError("Need to use a value between 0 and 1")
+            # format is ".XX"
+            os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = str(value)[1:4]
+        else:
+            raise ValueError("value not understood, need bool or float in (0, 1)")
+        self._jax_gpu = value
 
 
 settings = ScviConfig()
