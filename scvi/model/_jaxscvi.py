@@ -245,24 +245,29 @@ class JaxSCVI(BaseModelClass):
         history = dict(elbo_train=[], loss_train=[])
         epoch = 0
         with tqdm.trange(1, max_epochs + 1) as t:
-            for i in t:
-                epoch += 1
-                epoch_loss = 0
-                epoch_elbo = 0
-                counter = 0
-                for data in train_loader:
-                    kl_weight = min(1.0, epoch / 400.0)
-                    # gets new key for each epoch
-                    state, loss, elbo, self.rngs = train_step(
-                        state, data, self.rngs, kl_weight=kl_weight
+            try:
+                for i in t:
+                    epoch += 1
+                    epoch_loss = 0
+                    epoch_elbo = 0
+                    counter = 0
+                    for data in train_loader:
+                        kl_weight = min(1.0, epoch / 400.0)
+                        # gets new key for each epoch
+                        state, loss, elbo, self.rngs = train_step(
+                            state, data, self.rngs, kl_weight=kl_weight
+                        )
+                        epoch_loss += loss
+                        epoch_elbo += elbo
+                        counter += 1
+                    history["loss_train"] += [jax.device_get(epoch_loss) / counter]
+                    history["elbo_train"] += [jax.device_get(epoch_elbo) / counter]
+                    t.set_postfix_str(
+                        f"Epoch {i}, Elbo: {epoch_elbo / counter}, KL weight: {kl_weight}"
                     )
-                    epoch_loss += loss
-                    epoch_elbo += elbo
-                    counter += 1
-                history["loss_train"] += [jax.device_get(epoch_loss) / counter]
-                history["elbo_train"] += [jax.device_get(epoch_elbo) / counter]
-                t.set_postfix_str(
-                    f"Epoch {i}, Elbo: {epoch_elbo / counter}, KL weight: {kl_weight}"
+            except KeyboardInterrupt:
+                logger.info(
+                    "Keyboard interrupt detected. Attempting graceful shutdown."
                 )
 
         self.train_state = state
