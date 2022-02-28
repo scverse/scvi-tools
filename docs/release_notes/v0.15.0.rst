@@ -1,7 +1,7 @@
 New in 0.15.0 (2021-MM-DD)
 --------------------------
 
-In this release, we have completely refactored the logic behind our data handling strategy (i.e. ``setup_anndata``) to allow for: 
+In this release, we have completely refactored the logic behind our data handling strategy (i.e. ``setup_anndata``) to allow for:
 
 a. Readable data handling for existing models.
 b. Modular code for easy addition of custom data fields to incorporate into models.
@@ -19,7 +19,7 @@ for scvi-tools and stores necessary information, rather than adding additional f
    :align: center
    :alt: Schematic of data handling strategy with AnnDataManager
 
-   Schematic of data handling strategy with AnnDataManager
+   Schematic of data handling strategy with :class:`~scvi.data.AnnDataManager`
 
 Changes
 ~~~~~~~
@@ -27,6 +27,11 @@ Changes
 - Prevent clobbering between models using the same AnnData object with model instance specific :class:`~scvi.data.AnnDataManager` mappings (`#1342`_).
 - Add ``size_factor_key`` to :class:`~scvi.model.SCVI`, :class:`~scvi.model.MULTIVI`, :class:`~scvi.model.SCANVI`, and :class:`~scvi.model.TOTALVI` (`#1334`_).
 - Add references to the scvi-tools journal publication to the README (`#1338`_, `#1339`_).
+- Addition of :func:`scvi.model.utils.mde` (`#1372`_) for accelerated visualization of scvi-tools embeddings.
+- Documentation and user guide fixes (`#1364`_, `#1361`_)
+- Fix for :class:`~scvi.external.SOLO` when :class:`~scvi.model.SCVI` was setup with a `labels_key` (`#1354`_)
+- Updates to tutorials (`#1369`_, `#1371`_)
+- Furo docs theme (`#1290`_)
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -48,12 +53,12 @@ Breaking changes
 
 Contributors
 ~~~~~~~~~~~~
-- `@adamgayoso`_
 - `@jjhong922`_
+- `@adamgayoso`_
 - `@watiss`_
 
-.. _`@adamgayoso`: https://github.com/adamgayoso
 .. _`@jjhong922`: https://github.com/jjhong922
+.. _`@adamgayoso`: https://github.com/adamgayoso
 .. _`@watiss`: https://github.com/watiss
 
 .. _`#1237`: https://github.com/YosefLab/scvi-tools/pull/1237
@@ -63,3 +68,10 @@ Contributors
 .. _`#1338`: https://github.com/YosefLab/scvi-tools/pull/1338
 .. _`#1339`: https://github.com/YosefLab/scvi-tools/pull/1339
 .. _`#1342`: https://github.com/YosefLab/scvi-tools/pull/1342
+.. _`#1372`: https://github.com/YosefLab/scvi-tools/pull/1372
+.. _`#1361`: https://github.com/YosefLab/scvi-tools/pull/1361
+.. _`#1364`: https://github.com/YosefLab/scvi-tools/pull/1364
+.. _`#1354`: https://github.com/YosefLab/scvi-tools/pull/1354
+.. _`#1369`: https://github.com/YosefLab/scvi-tools/pull/1369
+.. _`#1371`: https://github.com/YosefLab/scvi-tools/pull/1371
+.. _`#1290`: https://github.com/YosefLab/scvi-tools/pull/1290
