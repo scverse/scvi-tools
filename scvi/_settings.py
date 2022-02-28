@@ -57,7 +57,6 @@ class ScviConfig:
         jax_preallocate_gpu_memory: bool = False,
     ):
 
-        self.verbosity = verbosity
         self.seed = seed
         self.batch_size = batch_size
         if progress_bar_style not in ["rich", "tqdm"]:
@@ -68,6 +67,7 @@ class ScviConfig:
         self.dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
         self._num_threads = None
         self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
+        self.verbosity = verbosity
 
     @property
     def batch_size(self) -> int:
@@ -178,7 +178,9 @@ class ScviConfig:
             console = Console(force_terminal=True)
             if console.is_jupyter is True:
                 console.is_jupyter = False
-            ch = RichHandler(show_path=False, console=console, show_time=False)
+            ch = RichHandler(
+                level=level, show_path=False, console=console, show_time=False
+            )
             formatter = logging.Formatter("%(message)s")
             ch.setFormatter(formatter)
             scvi_logger.addHandler(ch)
@@ -192,7 +194,7 @@ class ScviConfig:
         This is useful if piping outputs to a file.
         """
         scvi_logger.removeHandler(scvi_logger.handlers[0])
-        ch = RichHandler(show_path=False, show_time=False)
+        ch = RichHandler(level=self._verbosity, show_path=False, show_time=False)
         formatter = logging.Formatter("%(message)s")
         ch.setFormatter(formatter)
         scvi_logger.addHandler(ch)
