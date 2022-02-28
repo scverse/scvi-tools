@@ -115,6 +115,7 @@ Existing module classes with respective generative and inference procedures.
    module.VAE
    module.VAEC
    module.AmortizedLDAPyroModule
+   module.JaxVAE
 
 
 External module
