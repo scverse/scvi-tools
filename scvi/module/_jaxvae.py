@@ -28,13 +28,13 @@ class FlaxEncoder(nn.Module):
     is_training: Optional[bool] = None
 
     @nn.compact
-    def __call__(self, input: jnp.ndarray, is_training: bool):
+    def __call__(self, x: jnp.ndarray, is_training: bool):
 
         is_training = nn.merge_param("is_training", self.is_training, is_training)
 
-        input_ = jnp.log1p(input)
+        x_ = jnp.log1p(x)
 
-        h = Dense(self.n_hidden)(input_)
+        h = Dense(self.n_hidden)(x_)
         h = nn.BatchNorm(momentum=0.99, epsilon=0.001)(
             h, use_running_average=not is_training
         )
