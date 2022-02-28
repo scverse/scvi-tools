@@ -99,6 +99,8 @@ intersphinx_mapping = dict(
     pytorch_lightning=("https://pytorch-lightning.readthedocs.io/en/stable/", None),
     pyro=("http://docs.pyro.ai/en/stable/", None),
     pymde=("https://pymde.org/", None),
+    flax=("https://flax.readthedocs.io/en/latest/", None),
+    jax=("https://jax.readthedocs.io/en/latest/", None),
 )
 
 

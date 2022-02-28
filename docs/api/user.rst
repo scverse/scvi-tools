@@ -31,6 +31,7 @@ Model
    model.TOTALVI
    model.MULTIVI
    model.AmortizedLDA
+   model.JaxSCVI
 
 
 

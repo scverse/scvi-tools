@@ -106,6 +106,8 @@ class AnnDataLoader(DataLoader):
         If ``None``, defaults to all registered data.
     data_loader_kwargs
         Keyword arguments for :class:`~torch.utils.data.DataLoader`
+    iter_ndarray
+        Whether to iterate over numpy arrays instead of torch tensors
     """
 
     def __init__(
@@ -116,6 +118,7 @@ class AnnDataLoader(DataLoader):
         batch_size=128,
         data_and_attributes: Optional[dict] = None,
         drop_last: Union[bool, int] = False,
+        iter_ndarray: bool = False,
         **data_loader_kwargs,
     ):
 
@@ -158,4 +161,12 @@ class AnnDataLoader(DataLoader):
         # do not touch batch size here, sampler gives batched indices
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
 
+        if iter_ndarray:
+            self.data_loader_kwargs.update({"collate_fn": _dummy_collate})
+
         super().__init__(self.dataset, **self.data_loader_kwargs)
+
+
+def _dummy_collate(b):
+    """Dummy collate to have dataloader return numpy ndarrays."""
+    return b
