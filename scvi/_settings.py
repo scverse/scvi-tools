@@ -216,7 +216,7 @@ class ScviConfig:
         if value is False:
             os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
         elif isinstance(value, float):
-            if value > 0.99 or value < 0:
+            if value >= 1 or value <= 0:
                 raise ValueError("Need to use a value between 0 and 1")
             # format is ".XX"
             os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = str(value)[1:4]

@@ -17,7 +17,6 @@ from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import _init_library_size
 from scvi.module import JaxVAE
 from scvi.utils import setup_anndata_dsp
 
@@ -74,22 +73,7 @@ class JaxSCVI(BaseModelClass):
     ):
         super().__init__(adata)
 
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
-        )
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = (
-            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-        )
-        library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
-            library_log_means, library_log_vars = _init_library_size(
-                self.adata_manager, n_batch
-            )
 
         self.module_kwargs = dict(
             n_input=self.summary_stats.n_vars,
@@ -339,4 +323,4 @@ class JaxSCVI(BaseModelClass):
 
     @property
     def device(self):
-        pass
+        raise NotImplementedError

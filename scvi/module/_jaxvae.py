@@ -1,7 +1,8 @@
-from typing import NamedTuple, Optional
+from typing import Dict, NamedTuple, Optional
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import numpyro.distributions as dist
 from flax import linen as nn
 from flax.linen.initializers import variance_scaling
@@ -27,13 +28,13 @@ class FlaxEncoder(nn.Module):
     is_training: Optional[bool] = None
 
     @nn.compact
-    def __call__(self, inputs, is_training):
+    def __call__(self, input: jnp.ndarray, is_training: bool):
 
         is_training = nn.merge_param("is_training", self.is_training, is_training)
 
-        inputs_ = jnp.log1p(inputs)
+        input_ = jnp.log1p(input)
 
-        h = Dense(self.n_hidden)(inputs_)
+        h = Dense(self.n_hidden)(input_)
         h = nn.BatchNorm(momentum=0.99, epsilon=0.001)(
             h, use_running_average=not is_training
         )
@@ -59,7 +60,7 @@ class FlaxDecoder(nn.Module):
     is_training: Optional[bool] = None
 
     @nn.compact
-    def __call__(self, z, batch, is_training):
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, is_training: bool):
         disp = self.param(
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
@@ -103,7 +104,7 @@ class JaxVAE(nn.Module):
     eps: float = 1e-8
 
     @nn.compact
-    def __call__(self, array_dict) -> VAEOutput:
+    def __call__(self, array_dict: Dict[str, np.ndarray]) -> VAEOutput:
 
         x = array_dict[REGISTRY_KEYS.X_KEY]
         batch = array_dict[REGISTRY_KEYS.BATCH_KEY]
