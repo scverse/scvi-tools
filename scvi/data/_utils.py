@@ -203,7 +203,7 @@ def _check_nonnegative_integers(
 
 
 @jax.jit
-def _is_count(data: jnp.ndarray):
+def _is_not_count_val(data: jnp.ndarray):
     negative = jnp.any(data < 0)
     non_integer = jnp.any(data % 1 != 0)
 
