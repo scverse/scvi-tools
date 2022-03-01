@@ -69,6 +69,7 @@ Parameterizable probability distributions.
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
+   distributions.JaxNegativeBinomialMeanDisp
 
 
 Model (Base)
