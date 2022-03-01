@@ -6,55 +6,9 @@ import numpy as np
 import numpyro.distributions as dist
 from flax import linen as nn
 from flax.linen.initializers import variance_scaling
-from numpyro.distributions import constraints
-from numpyro.distributions.util import promote_shapes, validate_sample
 
 from scvi import REGISTRY_KEYS
-
-
-class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
-    """Negative binomial parameterized by mean and inverse dispersion."""
-
-    arg_constraints = {
-        "mean": constraints.positive,
-        "inverse_dispersion": constraints.positive,
-    }
-    support = constraints.nonnegative_integer
-
-    def __init__(
-        self,
-        mean: jnp.ndarray,
-        inverse_dispersion: jnp.ndarray,
-        validate_args: Optional[bool] = None,
-        eps: float = 1e-8,
-    ):
-        self._inverse_dispersion, self._mean = promote_shapes(inverse_dispersion, mean)
-        self._eps = eps
-        super().__init__(mean, inverse_dispersion, validate_args=validate_args)
-
-    @property
-    def mean(self):
-        return self._mean
-
-    @validate_sample
-    def log_prob(self, value):
-        # theta is inverse_dispersion
-        theta = self._inverse_dispersion
-        mu = self._mean
-        eps = self._eps
-        lgamma = jax.scipy.special.gammaln
-
-        log_theta_mu_eps = jnp.log(theta + mu + eps)
-
-        res = (
-            theta * (jnp.log(theta + eps) - log_theta_mu_eps)
-            + value * (jnp.log(mu + eps) - log_theta_mu_eps)
-            + lgamma(value + theta)
-            - lgamma(theta)
-            - lgamma(value + 1)
-        )
-
-        return res
+from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 
 
 class Dense(nn.Dense):
@@ -135,7 +89,7 @@ class FlaxDecoder(nn.Module):
 class VAEOutput(NamedTuple):
     rec_loss: jnp.ndarray
     kl: jnp.ndarray
-    px: JaxNegativeBinomialMeanDisp
+    px: NegativeBinomial
     qz: dist.Normal
 
 
@@ -181,7 +135,7 @@ class JaxVAE(nn.Module):
 
         if self.gene_likelihood == "nb":
             disp_ = jnp.exp(disp)
-            px = JaxNegativeBinomialMeanDisp(mean=mu, inverse_dispersion=disp_)
+            px = NegativeBinomial(mean=mu, inverse_dispersion=disp_)
         else:
             px = dist.Poisson(mu)
 
