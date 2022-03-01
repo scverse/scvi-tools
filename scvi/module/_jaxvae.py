@@ -28,10 +28,9 @@ class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
         validate_args: Optional[bool] = None,
         eps: float = 1e-8,
     ):
-        rate = inverse_dispersion / mean
         self._inverse_dispersion, self._mean = promote_shapes(inverse_dispersion, mean)
         self._eps = eps
-        super().__init__(inverse_dispersion, rate, validate_args=validate_args)
+        super().__init__(mean, inverse_dispersion, validate_args=validate_args)
 
     @property
     def mean(self):
