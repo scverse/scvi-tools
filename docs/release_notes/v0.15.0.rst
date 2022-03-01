@@ -1,4 +1,4 @@
-New in 0.15.0 (2021-02-28)
+New in 0.15.0 (2022-02-28)
 --------------------------
 
 In this release, we have completely refactored the logic behind our data handling strategy (i.e. ``setup_anndata``) to allow for:
@@ -20,7 +20,7 @@ for scvi-tools and stores necessary information, rather than adding additional f
    :alt: Schematic of data handling strategy with AnnDataManager
 
    Schematic of data handling strategy with :class:`~scvi.data.AnnDataManager`
-   
+
 We also have an exciting new experimental Jax-based scVI implementation via :class:`~scvi.model.JaxSCVI`. While this implementation has limited functionality, we have found it to be substantially faster than the PyTorch-based implementation. For example, on a 10-core Intel CPU, Jax on only a CPU can be as fast as PyTorch with a GPU (RTX3090). We will be planning further Jax integrations in the next releases.
 
 Changes
