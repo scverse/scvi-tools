@@ -5,7 +5,7 @@ profile = "black"
 skip_glob = ["docs/*", "scvi/__init__.py"]
 
 [tool.poetry]
-authors = ["Romain Lopez <romain_lopez@gmail.com>", "Adam Gayoso <adamgayoso@berkeley.edu>", "Galen Xing <gx2113@columbia.edu>"]
+authors = ["The scvi-tools development team <adamgayoso@berkeley.edu>"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
@@ -20,7 +20,7 @@ classifiers = [
 ]
 description = "Deep probabilistic analysis of single-cell omics data."
 documentation = "https://scvi-tools.org"
-homepage = "https://github.com/YosefLab/scvi-tools"
+homepage = "https://github.com/scverse/scvi-tools"
 license = "BSD-3-Clause"
 name = "scvi-tools"
 packages = [
