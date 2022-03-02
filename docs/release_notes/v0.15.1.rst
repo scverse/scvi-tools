@@ -4,7 +4,7 @@ New in 0.15.1 (2022-MM-DD)
 
 Changes
 ~~~~~~~
-- Remove ``labels_key`` from MULTIVI as it is not used in the model (`#1393`_).
+- Remove ``labels_key`` from :class:`~scvi.model.MULTIVI` as it is not used in the model (`#1393`_).
 
 Contributors
 ~~~~~~~~~~~~
