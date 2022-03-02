@@ -4,7 +4,7 @@ New in 0.15.1 (2022-MM-DD)
 
 Changes
 ~~~~~~~
-- Remove ``labels_key`` from MULTIVI as it is not used in the model (`#1392`_).
+- Remove ``labels_key`` from MULTIVI as it is not used in the model (`#1393`_).
 
 Contributors
 ~~~~~~~~~~~~
@@ -16,5 +16,5 @@ Contributors
 .. _`@adamgayoso`: https://github.com/adamgayoso
 .. _`@watiss`: https://github.com/watiss
 
-.. _`#1392`: https://github.com/YosefLab/scvi-tools/pull/1392
+.. _`#1393`: https://github.com/YosefLab/scvi-tools/pull/1393
 
