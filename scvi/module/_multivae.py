@@ -57,8 +57,6 @@ class MULTIVAE(BaseModuleClass):
         Number of input genes.
     n_batch
         Number of batches, if 0, no batch correction is performed.
-    n_labels
-        Number of labels, if 0, all cells are assumed to have the same label
     gene_likelihood
         The distribution to use for gene expression data. One of the following
         * ``'zinb'`` - Zero-Inflated Negative Binomial
@@ -109,7 +107,6 @@ class MULTIVAE(BaseModuleClass):
         n_input_regions: int = 0,
         n_input_genes: int = 0,
         n_batch: int = 0,
-        n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         n_hidden: Optional[int] = None,
         n_latent: Optional[int] = None,
@@ -137,7 +134,6 @@ class MULTIVAE(BaseModuleClass):
             else n_hidden
         )
         self.n_batch = n_batch
-        self.n_labels = n_labels
 
         self.gene_likelihood = gene_likelihood
         self.latent_distribution = latent_distribution
@@ -367,7 +363,6 @@ class MULTIVAE(BaseModuleClass):
         z = inference_outputs["z"]
         qz_m = inference_outputs["qz_m"]
         libsize_expr = inference_outputs["libsize_expr"]
-        labels = tensors[REGISTRY_KEYS.LABELS_KEY]
 
         size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
         size_factor = (
@@ -393,7 +388,6 @@ class MULTIVAE(BaseModuleClass):
             cont_covs=cont_covs,
             cat_covs=cat_covs,
             libsize_expr=libsize_expr,
-            labels=labels,
             size_factor=size_factor,
         )
         return input_dict
@@ -407,7 +401,6 @@ class MULTIVAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
         libsize_expr=None,
-        labels=None,
         size_factor=None,
         use_z_mean=False,
     ):
@@ -429,7 +422,7 @@ class MULTIVAE(BaseModuleClass):
         if not self.use_size_factor_key:
             size_factor = libsize_expr
         px_scale, _, px_rate, px_dropout = self.z_decoder_expression(
-            "gene", decoder_input, size_factor, batch_index, *categorical_input, labels
+            "gene", decoder_input, size_factor, batch_index, *categorical_input
         )
 
         return dict(
