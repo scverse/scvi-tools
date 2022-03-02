@@ -107,7 +107,7 @@ intersphinx_mapping = dict(
 # General information about the project.
 project = "scvi-tools"
 copyright = "2021, Yosef Lab, UC Berkeley"
-author = "Romain Lopez, Adam Gayoso, Pierre Boyeau, Galen Xing"
+author = "The scvi-tools development team"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
