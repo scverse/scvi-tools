@@ -1,0 +1,20 @@
+New in 0.15.1 (2022-MM-DD)
+--------------------------
+
+
+Changes
+~~~~~~~
+- Remove ``labels_key`` from :class:`~scvi.model.MULTIVI` as it is not used in the model (`#1393`_).
+
+Contributors
+~~~~~~~~~~~~
+- `@jjhong922`_
+- `@adamgayoso`_
+- `@watiss`_
+
+.. _`@jjhong922`: https://github.com/jjhong922
+.. _`@adamgayoso`: https://github.com/adamgayoso
+.. _`@watiss`: https://github.com/watiss
+
+.. _`#1393`: https://github.com/YosefLab/scvi-tools/pull/1393
+
