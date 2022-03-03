@@ -6,10 +6,10 @@ Many are also designed to work seamlessly in Google Colab, a free cloud computin
 Tutorials by default work with the latest installable version of scvi-tools. To view older tutorials,
 change the documentation version using the tab at the bottom of the left sidebar.
 
-.. note:: For questions about using scvi-tools, or broader questions about modeling data, please use our forum_.
+.. note:: For questions about using scvi-tools, or broader questions about modeling data, please use our forum_. Checkout the ecosystem_ for additional models powered by scvi-tools.
 
 .. _forum: https://discourse.scvi-tools.org/
-
+.. _ecosystem: https://scvi-tools.org/ecosystem
 
 Quick start
 -----------
