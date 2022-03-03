@@ -73,11 +73,9 @@ class FlaxDecoder(nn.Module):
         )
         h = nn.relu(h)
         h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
-        if h.ndim == 3:
-            n_samples = h.shape[0]
-            batch = jnp.repeat(batch[None], repeats=n_samples, axis=0)
         # skip connection
-        h = Dense(self.n_hidden)(jnp.concatenate([h, batch], axis=-1))
+        h = Dense(self.n_hidden)(h)
+        h += Dense(self.n_hidden)(batch)
         h = nn.BatchNorm(momentum=0.99, epsilon=0.001)(
             h, use_running_average=not is_training
         )

@@ -304,14 +304,15 @@ class JaxSCVI(BaseModelClass):
         @jax.jit
         def _get_val(array_dict):
             out = self.bound_module(array_dict, n_samples=mc_samples)
-            if give_mean:
-                return out.qz.mean
-            else:
-                return out.z
+            return out
 
         latent = []
         for array_dict in scdl:
-            z = _get_val(array_dict)
+            out = _get_val(array_dict)
+            if give_mean:
+                z = out.qz.mean
+            else:
+                z = out.z
             latent.append(z)
         concat_axis = 0 if ((mc_samples == 1) or give_mean) else 1
         latent = jnp.concatenate(latent, axis=concat_axis)
