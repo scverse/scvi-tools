@@ -8,6 +8,7 @@ from flax import linen as nn
 from flax.linen.initializers import variance_scaling
 
 from scvi import REGISTRY_KEYS
+from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 
 
 class Dense(nn.Dense):
@@ -89,7 +90,7 @@ class FlaxDecoder(nn.Module):
 class VAEOutput(NamedTuple):
     rec_loss: jnp.ndarray
     kl: jnp.ndarray
-    px: dist.NegativeBinomialLogits
+    px: NegativeBinomial
     qz: dist.Normal
     z: jnp.ndarray
 
@@ -138,9 +139,8 @@ class JaxVAE(nn.Module):
         mu = total_count * rho
 
         if self.gene_likelihood == "nb":
-            nb_logits = jnp.log(mu + self.eps) - jnp.log(disp_ + self.eps)
             disp_ = jnp.exp(disp)
-            px = dist.NegativeBinomialLogits(logits=nb_logits, total_count=disp_)
+            px = NegativeBinomial(mean=mu, inverse_dispersion=disp_)
         else:
             px = dist.Poisson(mu)
 

@@ -1,4 +1,4 @@
-New in 0.15.0 (2021-02-28)
+New in 0.15.0 (2022-02-28)
 --------------------------
 
 In this release, we have completely refactored the logic behind our data handling strategy (i.e. ``setup_anndata``) to allow for:
@@ -20,7 +20,7 @@ for scvi-tools and stores necessary information, rather than adding additional f
    :alt: Schematic of data handling strategy with AnnDataManager
 
    Schematic of data handling strategy with :class:`~scvi.data.AnnDataManager`
-   
+
 We also have an exciting new experimental Jax-based scVI implementation via :class:`~scvi.model.JaxSCVI`. While this implementation has limited functionality, we have found it to be substantially faster than the PyTorch-based implementation. For example, on a 10-core Intel CPU, Jax on only a CPU can be as fast as PyTorch with a GPU (RTX3090). We will be planning further Jax integrations in the next releases.
 
 Changes
@@ -31,7 +31,7 @@ Changes
 - Add references to the scvi-tools journal publication to the README (`#1338`_, `#1339`_).
 - Addition of :func:`scvi.model.utils.mde` (`#1372`_) for accelerated visualization of scvi-tools embeddings.
 - Documentation and user guide fixes (`#1364`_, `#1361`_)
-- Fix for :class:`~scvi.external.SOLO` when :class:`~scvi.model.SCVI` was setup with a `labels_key` (`#1354`_)
+- Fix for :class:`~scvi.external.SOLO` when :class:`~scvi.model.SCVI` was setup with a ``labels_key`` (`#1354`_)
 - Updates to tutorials (`#1369`_, `#1371`_)
 - Furo docs theme (`#1290`_)
 - Add :class:`scvi.model.JaxSCVI` and :class:`scvi.module.JaxVAE`, drop Numba dependency for checking if data is count data (`#1367`_).
