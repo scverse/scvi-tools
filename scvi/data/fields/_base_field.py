@@ -25,6 +25,11 @@ class BaseAnnDataField(ABC):
 
     @property
     @abstractmethod
+    def mod_key(self) -> str:
+        """The modality key where the data is stored. Only applicable to MuData objects."""
+
+    @property
+    @abstractmethod
     def attr_name(self) -> str:
         """The name of the AnnData attribute where the data is stored."""
 
@@ -142,6 +147,7 @@ class BaseAnnDataField(ABC):
             return dict()
 
         return {
+            _constants._DR_MOD_KEY: self.mod_key,
             _constants._DR_ATTR_NAME: self.attr_name,
             _constants._DR_ATTR_KEY: self.attr_key,
         }

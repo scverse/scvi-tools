@@ -7,6 +7,7 @@ import anndata
 import h5py
 import jax
 import jax.numpy as jnp
+import mudata
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
@@ -19,9 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 def get_anndata_attribute(
-    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+    adata: Union[anndata.AnnData, mudata.MuData],
+    attr_name: str,
+    attr_key: Optional[str],
+    mod_key: Optional[str] = None,
 ) -> Union[np.ndarray, pd.DataFrame]:
     """Returns the requested data from a given AnnData object."""
+    if mod_key is not None:
+        adata = adata.mod[mod_key]
     adata_attr = getattr(adata, attr_name)
     if attr_key is None:
         field = adata_attr
@@ -42,10 +48,11 @@ def get_anndata_attribute(
 
 
 def _set_data_in_registry(
-    adata: anndata.AnnData,
+    adata: Union[anndata.AnnData, mudata.MuData],
     data: Union[np.ndarray, pd.DataFrame],
     attr_name: str,
     attr_key: Optional[str],
+    mod_key: Optional[str] = None,
 ):
     """
     Sets the data in the AnnData object according to the attr_name and attr_key.
@@ -65,6 +72,9 @@ def _set_data_in_registry(
     attr_key
         Key in AnnData attribute under which to store data in.
     """
+    if mod_key is not None:
+        adata = adata.mod[mod_key]
+
     if attr_key is None:
         setattr(adata, attr_name, data)
 
@@ -78,7 +88,10 @@ def _set_data_in_registry(
 
 
 def _verify_and_correct_data_format(
-    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+    adata: anndata.AnnData,
+    attr_name: str,
+    attr_key: Optional[str],
+    mod_key: Optional[str] = None,
 ):
     """
     Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
@@ -92,7 +105,7 @@ def _verify_and_correct_data_format(
     attr_key
         Attribute key where data is stored, if applicable.
     """
-    data = get_anndata_attribute(adata, attr_name, attr_key)
+    data = get_anndata_attribute(adata, attr_name, attr_key, mod_key=mod_key)
     data_loc_str = (
         f"adata.{attr_name}[{attr_key}]"
         if attr_key is not None

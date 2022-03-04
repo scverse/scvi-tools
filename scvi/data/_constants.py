@@ -23,6 +23,7 @@ _SUMMARY_STATS_KEY = "summary_stats"
 # ----------------------------
 # Keys used in the data registry.
 
+_DR_MOD_KEY = "mod_key"
 _DR_ATTR_NAME = "attr_name"
 _DR_ATTR_KEY = "attr_key"
 
