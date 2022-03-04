@@ -114,6 +114,9 @@ class JaxVAE(nn.Module):
     gene_likelihood: str = "nb"
     eps: float = 1e-8
 
+    def setup(self):
+        pass
+
     def __call__(self, array_dict: Dict[str, np.ndarray]) -> VAEOutput:
 
         x = array_dict[REGISTRY_KEYS.X_KEY]
