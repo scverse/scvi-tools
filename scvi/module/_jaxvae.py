@@ -74,6 +74,7 @@ class FlaxDecoder(nn.Module):
         self.dense2 = Dense(self.n_hidden)
         self.dense3 = Dense(self.n_hidden)
         self.dense4 = Dense(self.n_input)
+        self.dense5 = Dense(self.n_input)
 
         training = not self.is_training
         self.batchnorm1 = nn.BatchNorm(
@@ -97,12 +98,13 @@ class FlaxDecoder(nn.Module):
         h = self.batchnorm1(h)
         h = nn.relu(h)
         h = self.dropout1(h)
+        h = self.dense3(h)
         # skip connection
-        h = self.dense3(jnp.concatenate([h, batch], axis=-1))
+        h += self.dense4(batch)
         h = self.batchnorm2(h)
         h = nn.relu(h)
         h = self.dropout2(h)
-        h = self.dense4(h)
+        h = self.dense5(h)
         return h, self.disp.ravel()
 
 
@@ -111,6 +113,7 @@ class VAEOutput(NamedTuple):
     kl: jnp.ndarray
     px: NegativeBinomial
     qz: dist.Normal
+    z: jnp.ndarray
 
 
 class JaxVAE(nn.Module):
@@ -140,7 +143,9 @@ class JaxVAE(nn.Module):
             is_training=self.is_training,
         )
 
-    def __call__(self, array_dict: Dict[str, np.ndarray]) -> VAEOutput:
+    def __call__(
+        self, array_dict: Dict[str, np.ndarray], n_samples: int = 1
+    ) -> VAEOutput:
 
         x = array_dict[REGISTRY_KEYS.X_KEY]
         batch = array_dict[REGISTRY_KEYS.BATCH_KEY]
@@ -152,8 +157,10 @@ class JaxVAE(nn.Module):
 
         qz = dist.Normal(mean, stddev)
         z_rng = self.make_rng("z")
-        z = qz.rsample(z_rng)
+        sample_shape = () if n_samples == 1 else (n_samples,)
+        z = qz.rsample(z_rng, sample_shape=sample_shape)
         rho_unnorm, disp = self.decoder(z, batch)
+
         disp_ = jnp.exp(disp)
         rho = jax.nn.softmax(rho_unnorm, axis=-1)
         total_count = x.sum(-1)[:, jnp.newaxis]
@@ -168,4 +175,4 @@ class JaxVAE(nn.Module):
         rec_loss = -px.log_prob(x).sum(-1)
         kl_div = dist.kl_divergence(qz, dist.Normal(0, 1)).sum(-1)
 
-        return VAEOutput(rec_loss, kl_div, px, qz)
+        return VAEOutput(rec_loss, kl_div, px, qz, z)

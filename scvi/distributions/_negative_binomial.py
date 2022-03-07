@@ -570,6 +570,10 @@ class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
     def mean(self):
         return self._mean
 
+    @property
+    def inverse_dispersion(self):
+        return self._inverse_dispersion
+
     @validate_sample
     def log_prob(self, value):
         # theta is inverse_dispersion

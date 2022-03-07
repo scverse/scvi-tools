@@ -270,6 +270,8 @@ class JaxSCVI(BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
+        give_mean: bool = True,
+        mc_samples: int = 1,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
         r"""
@@ -301,14 +303,19 @@ class JaxSCVI(BaseModelClass):
 
         @jax.jit
         def _get_val(array_dict):
-            out = self.bound_module(array_dict)
-            return out.qz.mean
+            out = self.bound_module(array_dict, n_samples=mc_samples)
+            return out
 
         latent = []
         for array_dict in scdl:
-            mean = _get_val(array_dict)
-            latent.append(mean)
-        latent = jnp.concatenate(latent)
+            out = _get_val(array_dict)
+            if give_mean:
+                z = out.qz.mean
+            else:
+                z = out.z
+            latent.append(z)
+        concat_axis = 0 if ((mc_samples == 1) or give_mean) else 1
+        latent = jnp.concatenate(latent, axis=concat_axis)
 
         return np.array(jax.device_get(latent))
 
