@@ -85,10 +85,12 @@ class FlaxDecoder(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=training)
         self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=training)
 
-    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray):
-        disp = self.param(
+        self.disp = self.param(
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
+
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray):
+
         h = self.dense1(z)
         h += self.dense2(batch)
 
@@ -101,7 +103,7 @@ class FlaxDecoder(nn.Module):
         h = nn.relu(h)
         h = self.dropout2(h)
         h = self.dense4(self.n_input)(h)
-        return h, disp.ravel()
+        return h, self.disp.ravel()
 
 
 class VAEOutput(NamedTuple):
