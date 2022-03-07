@@ -73,7 +73,7 @@ class FlaxDecoder(nn.Module):
         self.dense1 = Dense(self.n_hidden)
         self.dense2 = Dense(self.n_hidden)
         self.dense3 = Dense(self.n_hidden)
-        self.dense4 = Dense(self.n_input)
+        self.dense4 = Dense(self.n_hidden)
         self.dense5 = Dense(self.n_input)
 
         training = not self.is_training
