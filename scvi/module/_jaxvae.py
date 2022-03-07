@@ -44,7 +44,7 @@ class FlaxEncoder(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=training)
         self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=training)
 
-    def __call__(self, x: jnp.ndarray, is_training: bool):
+    def __call__(self, x: jnp.ndarray):
 
         x_ = jnp.log1p(x)
 
@@ -85,7 +85,7 @@ class FlaxDecoder(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=training)
         self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=training)
 
-    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, is_training: bool):
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray):
         disp = self.param(
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
