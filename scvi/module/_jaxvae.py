@@ -102,7 +102,7 @@ class FlaxDecoder(nn.Module):
         h = self.batchnorm2(h)
         h = nn.relu(h)
         h = self.dropout2(h)
-        h = self.dense4(self.n_input)(h)
+        h = self.dense4(h)
         return h, self.disp.ravel()
 
 
