@@ -203,20 +203,21 @@ class JaxSCVI(BaseModelClass):
         )
 
         @jax.jit
-        def train_step(state, array_dict, rngs, kl_weight=1) -> jnp.ndarray:
+        def train_step(state, model_args, rngs) -> jnp.ndarray:
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
 
             # batch stats can't be passed here
             def loss_fn(params):
                 vars_in = {"params": params, "batch_stats": state.batch_stats}
                 outputs, new_model_state = state.apply_fn(
-                    vars_in, array_dict, rngs=rngs, mutable=["batch_stats"]
+                    vars_in, *model_args, rngs=rngs, mutable=["batch_stats"]
                 )
-                rec_loss = outputs.rec_loss
-                kl_div = outputs.kl
-                loss = rec_loss + kl_div
-                elbo = rec_loss + kl_div
-                return jnp.mean(loss), (jnp.mean(elbo), new_model_state)
+                loss_recorder = outputs[2]
+                loss = loss_recorder.loss
+                elbo = jnp.mean(
+                    loss_recorder.reconstruction_loss + loss_recorder.kl_local
+                )
+                return loss, (elbo, new_model_state)
 
             (loss, (elbo, new_model_state)), grads = jax.value_and_grad(
                 loss_fn, has_aux=True
@@ -239,7 +240,9 @@ class JaxSCVI(BaseModelClass):
                         kl_weight = min(1.0, epoch / 400.0)
                         # gets new key for each epoch
                         state, loss, elbo, self.rngs = train_step(
-                            state, data, self.rngs, kl_weight=kl_weight
+                            state,
+                            [data, None, None, None, None, dict(kl_weight=kl_weight)],
+                            self.rngs,
                         )
                         epoch_loss += loss
                         epoch_elbo += elbo
@@ -303,16 +306,17 @@ class JaxSCVI(BaseModelClass):
 
         @jax.jit
         def _get_val(array_dict):
-            out = self.bound_module(array_dict, n_samples=mc_samples)
+            inference_input = self.bound_module._get_inference_input(array_dict)
+            out = self.bound_module.inference(**inference_input, n_samples=mc_samples)
             return out
 
         latent = []
         for array_dict in scdl:
             out = _get_val(array_dict)
             if give_mean:
-                z = out.qz.mean
+                z = out["qz"].mean
             else:
-                z = out.z
+                z = out["z"]
             latent.append(z)
         concat_axis = 0 if ((mc_samples == 1) or give_mean) else 1
         latent = jnp.concatenate(latent, axis=concat_axis)

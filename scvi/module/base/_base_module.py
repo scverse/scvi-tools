@@ -1,8 +1,10 @@
 from abc import abstractmethod
 from typing import Callable, Dict, Iterable, Optional, Tuple, Union
 
+import jax.numpy as jnp
 import torch
 import torch.nn as nn
+from flax import linen
 from pyro.infer.predictive import Predictive
 
 from ._decorators import auto_move_data
@@ -36,14 +38,35 @@ class LossRecorder:
 
     def __init__(
         self,
-        loss: Union[Dict[str, torch.Tensor], torch.Tensor],
+        loss: Union[
+            Dict[str, Union[torch.Tensor, jnp.ndarray]],
+            Union[torch.Tensor, jnp.ndarray],
+        ],
         reconstruction_loss: Union[
-            Dict[str, torch.Tensor], torch.Tensor
-        ] = torch.tensor(0.0),
-        kl_local: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.tensor(0.0),
-        kl_global: Union[Dict[str, torch.Tensor], torch.Tensor] = torch.tensor(0.0),
+            Dict[str, Union[torch.Tensor, jnp.ndarray]],
+            Union[torch.Tensor, jnp.ndarray],
+        ] = None,
+        kl_local: Union[
+            Dict[str, Union[torch.Tensor, jnp.ndarray]],
+            Union[torch.Tensor, jnp.ndarray],
+        ] = None,
+        kl_global: Union[
+            Dict[str, Union[torch.Tensor, jnp.ndarray]],
+            Union[torch.Tensor, jnp.ndarray],
+        ] = None,
         **kwargs,
     ):
+
+        default = (
+            torch.tensor(0.0) if isinstance(loss, torch.Tensor) else jnp.array(0.0)
+        )
+        if reconstruction_loss is None:
+            reconstruction_loss = default
+        if kl_local is None:
+            kl_local = default
+        if kl_global is None:
+            kl_global = default
+
         self._loss = loss if isinstance(loss, dict) else dict(loss=loss)
         self._reconstruction_loss = (
             reconstruction_loss
@@ -69,19 +92,19 @@ class LossRecorder:
         return total
 
     @property
-    def loss(self) -> torch.Tensor:
+    def loss(self) -> Union[torch.Tensor, jnp.ndarray]:
         return self._get_dict_sum(self._loss)
 
     @property
-    def reconstruction_loss(self) -> torch.Tensor:
+    def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:
         return self._get_dict_sum(self._reconstruction_loss)
 
     @property
-    def kl_local(self) -> torch.Tensor:
+    def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:
         return self._get_dict_sum(self._kl_local)
 
     @property
-    def kl_global(self) -> torch.Tensor:
+    def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:
         return self._get_dict_sum(self._kl_global)
 
 
@@ -343,3 +366,122 @@ class PyroBaseModuleClass(nn.Module):
     def forward(self, *args, **kwargs):
         """Passthrough to Pyro model."""
         return self.model(*args, **kwargs)
+
+
+class JaxBaseModuleClass(linen.Module):
+    def __init__(*args, **kwargs):
+        super().__init__(**kwargs)
+
+    @abstractmethod
+    def setup(self):
+        pass
+
+    def __call__(
+        self,
+        tensors,
+        get_inference_input_kwargs: Optional[dict] = None,
+        get_generative_input_kwargs: Optional[dict] = None,
+        inference_kwargs: Optional[dict] = None,
+        generative_kwargs: Optional[dict] = None,
+        loss_kwargs: Optional[dict] = None,
+        compute_loss=True,
+    ) -> Union[
+        Tuple[jnp.ndarray, jnp.ndarray],
+        Tuple[jnp.ndarray, jnp.ndarray, LossRecorder],
+    ]:
+        """
+        Forward pass through the network.
+
+        Parameters
+        ----------
+        tensors
+            tensors to pass through
+        get_inference_input_kwargs
+            Keyword args for `_get_inference_input()`
+        get_generative_input_kwargs
+            Keyword args for `_get_generative_input()`
+        inference_kwargs
+            Keyword args for `inference()`
+        generative_kwargs
+            Keyword args for `generative()`
+        loss_kwargs
+            Keyword args for `loss()`
+        compute_loss
+            Whether to compute loss on forward pass. This adds
+            another return value.
+        """
+        inference_kwargs = _get_dict_if_none(inference_kwargs)
+        generative_kwargs = _get_dict_if_none(generative_kwargs)
+        loss_kwargs = _get_dict_if_none(loss_kwargs)
+        get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
+        get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
+
+        inference_inputs = self._get_inference_input(
+            tensors, **get_inference_input_kwargs
+        )
+        inference_outputs = self.inference(**inference_inputs, **inference_kwargs)
+        generative_inputs = self._get_generative_input(
+            tensors, inference_outputs, **get_generative_input_kwargs
+        )
+        generative_outputs = self.generative(**generative_inputs, **generative_kwargs)
+        if compute_loss:
+            losses = self.loss(
+                tensors, inference_outputs, generative_outputs, **loss_kwargs
+            )
+            return inference_outputs, generative_outputs, losses
+        else:
+            return inference_outputs, generative_outputs
+
+    @abstractmethod
+    def _get_inference_input(self, tensors: Dict[str, jnp.ndarray], **kwargs):
+        """Parse tensors dictionary for inference related values."""
+
+    @abstractmethod
+    def _get_generative_input(
+        self,
+        tensors: Dict[str, jnp.ndarray],
+        inference_outputs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        """Parse tensors dictionary for generative related values."""
+
+    @abstractmethod
+    def inference(
+        self,
+        *args,
+        **kwargs,
+    ) -> dict:
+        """
+        Run the inference (recognition) model.
+
+        In the case of variational inference, this function will perform steps related to
+        computing variational distribution parameters. In a VAE, this will involve running
+        data through encoder networks.
+
+        This function should return a dictionary with str keys and :class:`~jnp.ndarray` values.
+        """
+        pass
+
+    @abstractmethod
+    def generative(self, *args, **kwargs) -> dict:
+        """
+        Run the generative model.
+
+        This function should return the parameters associated with the likelihood of the data.
+        This is typically written as :math:`p(x|z)`.
+
+        This function should return a dictionary with str keys and :class:`~jnp.ndarray` values.
+        """
+        pass
+
+    @abstractmethod
+    def loss(self, *args, **kwargs) -> LossRecorder:
+        """
+        Compute the loss for a minibatch of data.
+
+        This function uses the outputs of the inference and generative functions to compute
+        a loss. This many optionally include other penalty terms, which should be computed here.
+
+        This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
+        """
+        pass
