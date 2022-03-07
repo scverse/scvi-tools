@@ -75,7 +75,8 @@ class FlaxDecoder(nn.Module):
         h = nn.relu(h)
         h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
         # skip connection
-        h = Dense(self.n_hidden)(jnp.concatenate([h, batch], axis=-1))
+        h = Dense(self.n_hidden)(h)
+        h += Dense(self.n_hidden)(batch)
         h = nn.BatchNorm(momentum=0.99, epsilon=0.001)(
             h, use_running_average=not is_training
         )
@@ -91,6 +92,7 @@ class VAEOutput(NamedTuple):
     kl: jnp.ndarray
     px: NegativeBinomial
     qz: dist.Normal
+    z: jnp.ndarray
 
 
 class JaxVAE(nn.Module):
@@ -105,7 +107,9 @@ class JaxVAE(nn.Module):
     eps: float = 1e-8
 
     @nn.compact
-    def __call__(self, array_dict: Dict[str, np.ndarray]) -> VAEOutput:
+    def __call__(
+        self, array_dict: Dict[str, np.ndarray], n_samples: int = 1
+    ) -> VAEOutput:
 
         x = array_dict[REGISTRY_KEYS.X_KEY]
         batch = array_dict[REGISTRY_KEYS.BATCH_KEY]
@@ -122,7 +126,8 @@ class JaxVAE(nn.Module):
 
         qz = dist.Normal(mean, stddev)
         z_rng = self.make_rng("z")
-        z = qz.rsample(z_rng)
+        sample_shape = () if n_samples == 1 else (n_samples,)
+        z = qz.rsample(z_rng, sample_shape=sample_shape)
         rho_unnorm, disp = FlaxDecoder(
             n_input=self.n_input,
             dropout_rate=0.0,
@@ -142,4 +147,4 @@ class JaxVAE(nn.Module):
         rec_loss = -px.log_prob(x).sum(-1)
         kl_div = dist.kl_divergence(qz, dist.Normal(0, 1)).sum(-1)
 
-        return VAEOutput(rec_loss, kl_div, px, qz)
+        return VAEOutput(rec_loss, kl_div, px, qz, z)
