@@ -369,11 +369,22 @@ class PyroBaseModuleClass(nn.Module):
 
 
 class JaxBaseModuleClass(linen.Module):
+    """Abstract class for Jax-based scvi-tools modules."""
+
     def __init__(*args, **kwargs):
         super().__init__(**kwargs)
 
     @abstractmethod
     def setup(self):
+        """
+        Flax setup method.
+
+        With scvi-tools we prefer to use the setup parameterization of
+        flax.linen Modules. This lends the interface to be more like
+        PyTorch. More about this can be found here:
+
+        https://flax.readthedocs.io/en/latest/design_notes/setup_or_nncompact.html
+        """
         pass
 
     def __call__(
