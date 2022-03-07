@@ -16,8 +16,8 @@ class Dense(nn.Dense):
         # scale set to reimplement pytorch init
         scale = 1 / 3
         kernel_init = variance_scaling(scale, "fan_in", "uniform")
-        bias_init = variance_scaling(scale, "fan_in", "uniform", in_axis=-1)
-        kwargs.update({"kernel_init": kernel_init, "bias_init": bias_init})
+        # bias init can't see input shape so don't include here
+        kwargs.update({"kernel_init": kernel_init})
         super().__init__(*args, **kwargs)
 
 
