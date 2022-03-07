@@ -34,24 +34,28 @@ class FlaxEncoder(nn.Module):
         self.dense3 = Dense(self.n_latent)
         self.dense4 = Dense(self.n_latent)
 
-    def __call__(self, x: jnp.ndarray, is_training: bool):
+        training = not self.is_training
+        self.batchnorm1 = nn.BatchNorm(
+            momentum=0.99, epsilon=0.001, use_running_average=training
+        )
+        self.batchnorm2 = nn.BatchNorm(
+            momentum=0.99, epsilon=0.001, use_running_average=training
+        )
+        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=training)
+        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=training)
 
-        is_training = nn.merge_param("is_training", self.is_training, is_training)
+    def __call__(self, x: jnp.ndarray, is_training: bool):
 
         x_ = jnp.log1p(x)
 
         h = self.dense1(x_)
-        h = nn.BatchNorm(momentum=0.99, epsilon=0.001)(
-            h, use_running_average=not is_training
-        )
+        h = self.batchnorm1(h)
         h = nn.relu(h)
-        h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
+        h = self.dropout1(h)
         h = self.dense2(h)
-        h = nn.BatchNorm(momentum=0.99, epsilon=0.001)(
-            h, use_running_average=not is_training
-        )
+        h = self.batchnorm2(h)
         h = nn.relu(h)
-        h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
+        h = self.dropout2(h)
 
         mean = self.dense3(h)
         log_var = self.dense4(h)
@@ -71,27 +75,31 @@ class FlaxDecoder(nn.Module):
         self.dense3 = Dense(self.n_hidden)
         self.dense4 = Dense(self.n_input)
 
+        training = not self.is_training
+        self.batchnorm1 = nn.BatchNorm(
+            momentum=0.99, epsilon=0.001, use_running_average=training
+        )
+        self.batchnorm2 = nn.BatchNorm(
+            momentum=0.99, epsilon=0.001, use_running_average=training
+        )
+        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=training)
+        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=training)
+
     def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, is_training: bool):
         disp = self.param(
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
-        is_training = nn.merge_param("is_training", self.is_training, is_training)
         h = self.dense1(z)
         h += self.dense2(batch)
 
-        h = nn.BatchNorm(momentum=0.99, epsilon=0.001)(
-            h, use_running_average=not is_training
-        )
+        h = self.batchnorm1(h)
         h = nn.relu(h)
-        h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
+        h = self.dropout1(h)
         # skip connection
         h = self.dense3(jnp.concatenate([h, batch], axis=-1))
-        h = nn.BatchNorm(momentum=0.99, epsilon=0.001)(
-            h, use_running_average=not is_training
-        )
-
+        h = self.batchnorm2(h)
         h = nn.relu(h)
-        h = nn.Dropout(self.dropout_rate)(h, deterministic=not is_training)
+        h = self.dropout2(h)
         h = self.dense4(self.n_input)(h)
         return h, disp.ravel()
 
@@ -115,7 +123,20 @@ class JaxVAE(nn.Module):
     eps: float = 1e-8
 
     def setup(self):
-        pass
+        self.encoder = FlaxEncoder(
+            n_input=self.n_input,
+            n_latent=self.n_latent,
+            n_hidden=self.n_hidden,
+            dropout_rate=self.dropout_rate,
+            is_training=self.is_training,
+        )
+
+        self.decoder = FlaxDecoder(
+            n_input=self.n_input,
+            dropout_rate=0.0,
+            n_hidden=self.n_hidden,
+            is_training=self.is_training,
+        )
 
     def __call__(self, array_dict: Dict[str, np.ndarray]) -> VAEOutput:
 
@@ -124,22 +145,13 @@ class JaxVAE(nn.Module):
 
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch, self.n_batch).squeeze(-2)
-        mean, var = FlaxEncoder(
-            n_input=self.n_input,
-            n_latent=self.n_latent,
-            n_hidden=self.n_hidden,
-            dropout_rate=self.dropout_rate,
-        )(x, self.is_training)
+        mean, var = self.encoder(x)
         stddev = jnp.sqrt(var) + self.eps
 
         qz = dist.Normal(mean, stddev)
         z_rng = self.make_rng("z")
         z = qz.rsample(z_rng)
-        rho_unnorm, disp = FlaxDecoder(
-            n_input=self.n_input,
-            dropout_rate=0.0,
-            n_hidden=self.n_hidden,
-        )(z, batch, self.is_training)
+        rho_unnorm, disp = self.decoder(z, batch)
         disp_ = jnp.exp(disp)
         rho = jax.nn.softmax(rho_unnorm, axis=-1)
         total_count = x.sum(-1)[:, jnp.newaxis]
