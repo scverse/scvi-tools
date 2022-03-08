@@ -281,6 +281,7 @@ class JaxSCVI(BaseModelClass):
                         check_val_every_n_epoch is not None
                         and check_val_every_n_epoch % epoch == 1
                     ):
+                        val_counter = 0
                         val_epoch_loss = 0
                         val_epoch_elbo = 0
                         for data in val_dataloader:
@@ -291,11 +292,12 @@ class JaxSCVI(BaseModelClass):
                             )
                             val_epoch_loss += val_loss
                             val_epoch_elbo += val_elbo
+                            val_counter += 1
                         history["loss_validation"] += [
-                            jax.device_get(val_epoch_loss) / counter
+                            jax.device_get(val_epoch_loss) / val_counter
                         ]
                         history["elbo_validation"] += [
-                            jax.device_get(val_epoch_elbo) / counter
+                            jax.device_get(val_epoch_elbo) / val_counter
                         ]
 
             except KeyboardInterrupt:
