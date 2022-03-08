@@ -279,7 +279,7 @@ class JaxSCVI(BaseModelClass):
                     # validation loop
                     if (
                         check_val_every_n_epoch is not None
-                        and check_val_every_n_epoch % epoch == 1
+                        and check_val_every_n_epoch % epoch == 0
                     ):
                         val_counter = 0
                         val_epoch_loss = 0
