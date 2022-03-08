@@ -237,8 +237,8 @@ class JaxSCVI(BaseModelClass):
         @jax.jit
         def validation_step(state, array_dict, rngs, kwargs):
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
-
-            outputs, _ = state.apply_fn(state.params, array_dict, rngs, **kwargs)
+            vars_in = {"params": params, "batch_stats": state.batch_stats}
+            outputs, _ = state.apply_fn(vars_in, array_dict, rngs=rngs, **kwargs)
             loss_recorder = outputs[2]
             loss = loss_recorder.loss
             elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
