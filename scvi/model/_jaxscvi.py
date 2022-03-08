@@ -182,7 +182,7 @@ class JaxSCVI(BaseModelClass):
 
         module_kwargs = self.module_kwargs.copy()
         module_kwargs.update(dict(is_training=True))
-        module = self._get_module(module_kwargs)
+        train_module = self._get_module(module_kwargs)
 
         # if key is generated on CPU, model params will be on CPU
         # we have to pay the price of a JIT compilation though
@@ -198,12 +198,12 @@ class JaxSCVI(BaseModelClass):
             "dropout": key(1),
             "z": key(2),
         }
-        module_init = module.init(self.rngs, next(iter(train_loader)))
+        module_init = train_module.init(self.rngs, next(iter(train_loader)))
         params = module_init["params"]
         batch_stats = module_init["batch_stats"]
 
         state = TrainState.create(
-            apply_fn=module.apply,
+            apply_fn=train_module.apply,
             params=params,
             tx=optax.adamw(lr, eps=0.01, weight_decay=1e-6),
             batch_stats=batch_stats,
@@ -235,17 +235,21 @@ class JaxSCVI(BaseModelClass):
             return new_state, loss, elbo, rngs
 
         @jax.jit
-        def validation_step(state, array_dict, rngs, kwargs):
+        def validation_step(array_dict, rngs, kwargs):
+            # note that self.module has is_training = False
+            module = self.module
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
             vars_in = {"params": params, "batch_stats": state.batch_stats}
-            outputs, _ = state.apply_fn(vars_in, array_dict, rngs=rngs, **kwargs)
+            outputs = module.apply(vars_in, array_dict, rngs=rngs, **kwargs)
             loss_recorder = outputs[2]
             loss = loss_recorder.loss
             elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
 
             return loss, elbo
 
-        history = dict(elbo_train=[], loss_train=[])
+        history = dict(
+            elbo_train=[], loss_train=[], elbo_validation=[], loss_validation=[]
+        )
         epoch = 0
         with tqdm.trange(1, max_epochs + 1) as t:
             try:
@@ -281,7 +285,6 @@ class JaxSCVI(BaseModelClass):
                         val_epoch_elbo = 0
                         for data in val_dataloader:
                             val_loss, val_elbo = validation_step(
-                                state,
                                 data,
                                 self.rngs,
                                 kwargs=dict(loss_kwargs=dict(kl_weight=kl_weight)),
