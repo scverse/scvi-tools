@@ -235,11 +235,11 @@ class JaxSCVI(BaseModelClass):
             return new_state, loss, elbo, rngs
 
         @jax.jit
-        def validation_step(array_dict, rngs, kwargs):
+        def validation_step(state, array_dict, rngs, kwargs):
             # note that self.module has is_training = False
             module = self.module
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
-            vars_in = {"params": params, "batch_stats": state.batch_stats}
+            vars_in = {"params": state.params, "batch_stats": state.batch_stats}
             outputs = module.apply(vars_in, array_dict, rngs=rngs, **kwargs)
             loss_recorder = outputs[2]
             loss = loss_recorder.loss
@@ -286,6 +286,7 @@ class JaxSCVI(BaseModelClass):
                         val_epoch_elbo = 0
                         for data in val_dataloader:
                             val_loss, val_elbo = validation_step(
+                                state,
                                 data,
                                 self.rngs,
                                 kwargs=dict(loss_kwargs=dict(kl_weight=kl_weight)),
