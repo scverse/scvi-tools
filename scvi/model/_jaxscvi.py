@@ -132,6 +132,7 @@ class JaxSCVI(BaseModelClass):
     def train(
         self,
         max_epochs: Optional[int] = None,
+        check_val_every_n_epoch: Optional[int] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
@@ -172,6 +173,12 @@ class JaxSCVI(BaseModelClass):
         )
         data_splitter.setup()
         train_loader = data_splitter.train_dataloader()
+        val_dataloader = data_splitter.val_dataloader()
+
+        if val_dataloader is None:
+            raise UserWarning(
+                "No observations in the validation loop. No validation metrics will be recorded."
+            )
 
         module_kwargs = self.module_kwargs.copy()
         module_kwargs.update(dict(is_training=True))
@@ -203,7 +210,7 @@ class JaxSCVI(BaseModelClass):
         )
 
         @jax.jit
-        def train_step(state, array_dict, rngs, kwargs) -> jnp.ndarray:
+        def train_step(state, array_dict, rngs, kwargs):
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
 
             # batch stats can't be passed here
@@ -226,6 +233,17 @@ class JaxSCVI(BaseModelClass):
                 grads=grads, batch_stats=new_model_state["batch_stats"]
             )
             return new_state, loss, elbo, rngs
+
+        @jax.jit
+        def validation_step(state, array_dict, rngs, kwargs):
+            rngs = {k: random.split(v)[1] for k, v in rngs.items()}
+
+            outputs, _ = state.apply_fn(state.params, array_dict, rngs, **kwargs)
+            loss_recorder = outputs[2]
+            loss = loss_recorder.loss
+            elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
+
+            return loss, elbo
 
         history = dict(elbo_train=[], loss_train=[])
         epoch = 0
@@ -253,6 +271,30 @@ class JaxSCVI(BaseModelClass):
                     t.set_postfix_str(
                         f"Epoch {i}, Elbo: {epoch_elbo / counter}, KL weight: {kl_weight}"
                     )
+
+                    # validation loop
+                    if (
+                        check_val_every_n_epoch is not None
+                        and check_val_every_n_epoch % epoch == 1
+                    ):
+                        val_epoch_loss = 0
+                        val_epoch_elbo = 0
+                        for data in val_dataloader:
+                            val_loss, val_elbo = validation_step(
+                                state,
+                                data,
+                                self.rngs,
+                                kwargs=dict(loss_kwargs=dict(kl_weight=kl_weight)),
+                            )
+                            val_epoch_loss += val_loss
+                            val_epoch_elbo += val_elbo
+                        history["loss_validation"] += [
+                            jax.device_get(val_epoch_loss) / counter
+                        ]
+                        history["elbo_validation"] += [
+                            jax.device_get(val_epoch_elbo) / counter
+                        ]
+
             except KeyboardInterrupt:
                 logger.info(
                     "Keyboard interrupt detected. Attempting graceful shutdown."
