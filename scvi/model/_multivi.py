@@ -1,9 +1,8 @@
 import logging
-from functools import partial
-from typing import Dict, Iterable, Optional, Sequence, Tuple, TypeVar, Union
-
 import warnings
 from collections.abc import Iterable as IterableClass
+from functools import partial
+from typing import Dict, Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -22,6 +21,7 @@ from scvi.data.fields import (
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
+    ProteinObsmField,
 )
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
@@ -113,7 +113,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: AnnData,
         n_genes: int,
         n_regions: int,
-        n_proteins: int,
         n_hidden: Optional[int] = None,
         n_latent: Optional[int] = None,
         n_layers_encoder: int = 2,
@@ -143,13 +142,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             else []
         )
 
+        n_proteins = self.summary_stats.n_proteins
+
         use_size_factor_key = (
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
         if REGISTRY_KEYS.PROTEIN_EXP_KEY in self.adata_manager.data_registry:
             batch_mask = self.adata_manager.get_state_registry(
                 REGISTRY_KEYS.PROTEIN_EXP_KEY
-            ).protein_batch_mask
+            ).get("protein_batch_mask")
         else:
             batch_mask = None
         if empirical_protein_background_prior:
@@ -465,6 +466,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         normalize_cells: bool = False,
         normalize_regions: bool = False,
         batch_size: int = 128,
+        return_numpy: bool = False,
     ) -> Union[np.ndarray, csr_matrix]:
 
         if self.n_regions == 0:
@@ -654,7 +656,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         n_samples_overall: Optional[int] = None,
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        gene_list: Optional[Sequence[str]] = None,
         use_z_mean: bool = True,
         n_samples: int = 1,
         batch_size: Optional[int] = None,
@@ -682,10 +683,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             - None, then real observed batch is used
             - int, then batch transform_batch is used
             - List[int], then average over batches in list
-        gene_list
-            Return frequencies of expression for a subset of genes.
-            This can save memory when working with large datasets and few genes are
-            of interest.
         protein_list
             Return protein expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
@@ -731,19 +728,13 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
 
-        if gene_list is None:
-            gene_mask = slice(None)
-        else:
-            all_genes = _get_var_names_from_setup_anndata(adata)
-            gene_mask = [gene in gene_list for gene in all_genes]
-
         exprs = []
         for tensors in scdl:
             per_batch_exprs = []
             for batch in transform_batch:
                 if batch is not None:
-                    batch_indices = tensors[_CONSTANTS.BATCH_KEY]
-                    tensors[_CONSTANTS.BATCH_KEY] = (
+                    batch_indices = tensors[REGISTRY_KEYS.BATCH_KEY]
+                    tensors[REGISTRY_KEYS.BATCH_KEY] = (
                         torch.ones_like(batch_indices) * batch
                     )
                 _, generative_outputs = self.module.forward(
@@ -852,7 +843,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         transform_batch = _get_batch_code_from_category(adata, transform_batch)
         for tensors in post:
-            y = tensors[_CONSTANTS.PROTEIN_EXP_KEY]
+            y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
@@ -1098,6 +1089,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
+        protein_expression_obsm_key: Optional[str] = None,
+        protein_names_uns_key: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -1112,9 +1105,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         %(param_cont_cov_keys)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
+        batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            batch_field,
             NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
             ),
@@ -1123,6 +1117,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             ),
             NumericalJointObsField(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
+            ProteinObsmField(
+                REGISTRY_KEYS.PROTEIN_EXP_KEY,
+                protein_expression_obsm_key,
+                use_batch_mask=True,
+                batch_key=batch_field.attr_key,
+                colnames_uns_key=protein_names_uns_key,
+                is_count_data=True,
+                required=False,
             ),
         ]
         adata_manager = AnnDataManager(

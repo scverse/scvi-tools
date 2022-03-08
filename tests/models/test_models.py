@@ -1252,6 +1252,7 @@ def test_multivi():
     MULTIVI.setup_anndata(
         data,
         batch_key="batch",
+        protein_exp_key="protein_expression",
     )
     vae = MULTIVI(
         data,
@@ -1276,7 +1277,25 @@ def test_multivi():
     # Test with size factor
     data = synthetic_iid()
     data.obs["size_factor"] = np.random.randint(1, 5, size=(data.shape[0],))
-    MULTIVI.setup_anndata(data, batch_key="batch", size_factor_key="size_factor")
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+        size_factor_key="size_factor",
+        protein_expression_obsm_key="protein_expression",
+    )
+    vae = MULTIVI(
+        data,
+        n_genes=50,
+        n_regions=50,
+    )
+    vae.train(3)
+
+    # Test with no protein
+    data = synthetic_iid()
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+    )
     vae = MULTIVI(
         data,
         n_genes=50,

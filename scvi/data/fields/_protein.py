@@ -50,6 +50,7 @@ class ProteinObsmField(ObsmField):
         colnames_uns_key: Optional[str] = None,
         is_count_data: bool = False,
         correct_data_format: bool = True,
+        required: bool = False,
     ) -> None:
         if use_batch_mask and batch_key is None:
             raise ValueError(
@@ -62,6 +63,7 @@ class ProteinObsmField(ObsmField):
             colnames_uns_key=colnames_uns_key,
             is_count_data=is_count_data,
             correct_data_format=correct_data_format,
+            required=required,
         )
         self.use_batch_mask = use_batch_mask
         self.batch_key = batch_key

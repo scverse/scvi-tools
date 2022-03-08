@@ -74,6 +74,7 @@ class ObsmField(BaseObsmField):
         colnames_uns_key: Optional[str] = None,
         is_count_data: bool = False,
         correct_data_format: bool = True,
+        required: bool = True,
     ) -> None:
         super().__init__(registry_key)
         self._attr_key = obsm_key
@@ -81,6 +82,7 @@ class ObsmField(BaseObsmField):
         self.is_count_data = is_count_data
         self.correct_data_format = correct_data_format
         self.count_stat_key = f"n_{self.registry_key}"
+        self._is_empty = obsm_key is None
 
     @property
     def attr_key(self) -> str:
@@ -88,7 +90,7 @@ class ObsmField(BaseObsmField):
 
     @property
     def is_empty(self) -> bool:
-        return False
+        return self._is_empty
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
@@ -159,7 +161,10 @@ class ObsmField(BaseObsmField):
         return {self.COLUMN_NAMES_KEY: state_registry[self.COLUMN_NAMES_KEY].copy()}
 
     def get_summary_stats(self, state_registry: dict) -> dict:
-        n_obsm_cols = len(state_registry[self.COLUMN_NAMES_KEY])
+        if self.is_empty:
+            n_obsm_cols = 0
+        else:
+            n_obsm_cols = len(state_registry[self.COLUMN_NAMES_KEY])
         return {self.count_stat_key: n_obsm_cols}
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
