@@ -203,14 +203,14 @@ class JaxSCVI(BaseModelClass):
         )
 
         @jax.jit
-        def train_step(state, model_args, rngs) -> jnp.ndarray:
+        def train_step(state, array_dict, rngs, kwargs) -> jnp.ndarray:
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
 
             # batch stats can't be passed here
             def loss_fn(params):
                 vars_in = {"params": params, "batch_stats": state.batch_stats}
                 outputs, new_model_state = state.apply_fn(
-                    vars_in, *model_args, rngs=rngs, mutable=["batch_stats"]
+                    vars_in, array_dict, rngs=rngs, mutable=["batch_stats"], **kwargs
                 )
                 loss_recorder = outputs[2]
                 loss = loss_recorder.loss
@@ -241,8 +241,9 @@ class JaxSCVI(BaseModelClass):
                         # gets new key for each epoch
                         state, loss, elbo, self.rngs = train_step(
                             state,
-                            [data, None, None, None, None, dict(kl_weight=kl_weight)],
+                            data,
                             self.rngs,
+                            kwargs=dict(loss_kwargs=dict(kl_weight=kl_weight)),
                         )
                         epoch_loss += loss
                         epoch_elbo += elbo

@@ -389,7 +389,7 @@ class JaxBaseModuleClass(linen.Module):
 
     def __call__(
         self,
-        tensors,
+        tensors: Dict[str, jnp.ndarray],
         get_inference_input_kwargs: Optional[dict] = None,
         get_generative_input_kwargs: Optional[dict] = None,
         inference_kwargs: Optional[dict] = None,
