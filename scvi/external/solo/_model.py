@@ -417,7 +417,7 @@ class SOLO(BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=False),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(
