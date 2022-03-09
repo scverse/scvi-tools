@@ -210,7 +210,7 @@ class JaxSCVI(BaseModelClass):
         )
 
         @jax.jit
-        def train_step(state, array_dict, rngs, kwargs):
+        def train_step(state, array_dict, rngs, **kwargs):
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
 
             # batch stats can't be passed here
@@ -235,7 +235,7 @@ class JaxSCVI(BaseModelClass):
             return new_state, loss, elbo, rngs
 
         @jax.jit
-        def validation_step(state, array_dict, rngs, kwargs):
+        def validation_step(state, array_dict, rngs, **kwargs):
             # note that self.module has is_training = False
             module = self.module
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
@@ -265,7 +265,7 @@ class JaxSCVI(BaseModelClass):
                             state,
                             data,
                             self.rngs,
-                            kwargs=dict(loss_kwargs=dict(kl_weight=kl_weight)),
+                            loss_kwargs=dict(kl_weight=kl_weight),
                         )
                         epoch_loss += loss
                         epoch_elbo += elbo
@@ -289,7 +289,7 @@ class JaxSCVI(BaseModelClass):
                                 state,
                                 data,
                                 self.rngs,
-                                kwargs=dict(loss_kwargs=dict(kl_weight=kl_weight)),
+                                loss_kwargs=dict(kl_weight=kl_weight),
                             )
                             val_epoch_loss += val_loss
                             val_epoch_elbo += val_elbo
