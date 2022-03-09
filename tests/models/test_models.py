@@ -992,6 +992,12 @@ def test_totalvi(save_path):
     norm_exp = model.get_normalized_expression(adata2, indices=[1, 2, 3])
     assert norm_exp[0].shape == (3, adata2.n_vars)
     assert norm_exp[1].shape == (3, adata2.obsm["protein_expression"].shape[1])
+    norm_exp = model.get_normalized_expression(
+        adata2,
+        gene_list=adata2.var_names[:5].to_list(),
+        protein_list=adata2.uns["protein_names"][:3],
+        transform_batch=["batch_0", "batch_1"],
+    )
 
     latent_lib_size = model.get_latent_library_size(adata2, indices=[1, 2, 3])
     assert latent_lib_size.shape == (3, 1)

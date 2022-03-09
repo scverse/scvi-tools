@@ -466,8 +466,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in post:
             x = tensors[REGISTRY_KEYS.X_KEY]
             y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
-            px_scale = torch.zeros_like(x)
-            py_scale = torch.zeros_like(y)
+            px_scale = torch.zeros_like(x)[..., gene_mask]
+            py_scale = torch.zeros_like(y)[..., protein_mask]
             if n_samples > 1:
                 px_scale = torch.stack(n_samples * [px_scale])
                 py_scale = torch.stack(n_samples * [py_scale])
@@ -481,10 +481,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     compute_loss=False,
                 )
                 if library_size == "latent":
-                    px_scale += generative_outputs["px_"]["rate"].cpu()
+                    px_scale += generative_outputs["px_"]["rate"].cpu()[..., gene_mask]
                 else:
-                    px_scale += generative_outputs["px_"]["scale"].cpu()
-                px_scale = px_scale[..., gene_mask]
+                    px_scale += generative_outputs["px_"]["scale"].cpu()[..., gene_mask]
 
                 py_ = generative_outputs["py_"]
                 # probability of background
