@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import torch
 import torch.nn as nn
 from flax import linen
+from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 
 from ._decorators import auto_move_data
@@ -198,7 +199,7 @@ class BaseModuleClass(nn.Module):
         self,
         *args,
         **kwargs,
-    ) -> dict:
+    ) -> Dict[str, Union[torch.Tensor, torch.distributions.Distribution]]:
         """
         Run the inference (recognition) model.
 
@@ -211,7 +212,9 @@ class BaseModuleClass(nn.Module):
         pass
 
     @abstractmethod
-    def generative(self, *args, **kwargs) -> dict:
+    def generative(
+        self, *args, **kwargs
+    ) -> Dict[str, Union[torch.Tensor, torch.distributions.Distribution]]:
         """
         Run the generative model.
 
@@ -371,9 +374,6 @@ class PyroBaseModuleClass(nn.Module):
 class JaxBaseModuleClass(linen.Module):
     """Abstract class for Jax-based scvi-tools modules."""
 
-    def __init__(*args, **kwargs):
-        super().__init__(**kwargs)
-
     @abstractmethod
     def setup(self):
         """
@@ -461,7 +461,7 @@ class JaxBaseModuleClass(linen.Module):
         self,
         *args,
         **kwargs,
-    ) -> dict:
+    ) -> Dict[str, Union[jnp.ndarray, Distribution]]:
         """
         Run the inference (recognition) model.
 
@@ -474,7 +474,9 @@ class JaxBaseModuleClass(linen.Module):
         pass
 
     @abstractmethod
-    def generative(self, *args, **kwargs) -> dict:
+    def generative(
+        self, *args, **kwargs
+    ) -> Dict[str, Union[jnp.ndarray, Distribution]]:
         """
         Run the generative model.
 
