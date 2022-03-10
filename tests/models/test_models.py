@@ -225,7 +225,7 @@ def test_scvi(save_path):
     model._validate_anndata(adata2)
     model.get_elbo(adata2)
 
-    # test automatic transfer_anndata_setup + on a view
+    # test automatic transfer_anndata_setup on a view
     adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
@@ -235,6 +235,18 @@ def test_scvi(save_path):
     model = SCVI(adata)
     adata2 = synthetic_iid()
     model.get_elbo(adata2[:10])
+
+    # test automatic transfer_anndata_setup on a copy
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    adata2 = adata.copy()
+    model.get_elbo(adata2)
+    assert adata.uns[_constants._SCVI_UUID_KEY] != adata2.uns[_constants._SCVI_UUID_KEY]
 
     # test mismatched categories raises ValueError
     adata2 = synthetic_iid()
