@@ -39,6 +39,7 @@ class LayerField(BaseAnnDataField):
         layer: Optional[str],
         is_count_data: bool = True,
         correct_data_format: bool = True,
+        mod_key: Optional[str] = True,
     ) -> None:
         super().__init__()
         self._registry_key = registry_key
@@ -48,6 +49,7 @@ class LayerField(BaseAnnDataField):
             else _constants._ADATA_ATTRS.LAYERS
         )
         self._attr_key = layer
+        self._mod_key = mod_key
         self.is_count_data = is_count_data
         self.correct_data_format = correct_data_format
 
@@ -62,6 +64,10 @@ class LayerField(BaseAnnDataField):
     @property
     def attr_key(self) -> Optional[str]:
         return self._attr_key
+
+    @property
+    def mod_key(self) -> Optional[str]:
+        return self._mod_key
 
     @property
     def is_empty(self) -> bool:

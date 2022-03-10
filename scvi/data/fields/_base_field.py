@@ -25,11 +25,6 @@ class BaseAnnDataField(ABC):
 
     @property
     @abstractmethod
-    def mod_key(self) -> str:
-        """The modality key where the data is stored. Only applicable to MuData objects."""
-
-    @property
-    @abstractmethod
     def attr_name(self) -> str:
         """The name of the AnnData attribute where the data is stored."""
 
@@ -37,6 +32,11 @@ class BaseAnnDataField(ABC):
     @abstractmethod
     def attr_key(self) -> Optional[str]:
         """The key of the data field within the relevant AnnData attribute."""
+
+    @property
+    def mod_key(self) -> Optional[str]:
+        """The modality key where the data is stored. Only applicable to MuData objects."""
+        return None
 
     @property
     @abstractmethod
@@ -134,7 +134,9 @@ class BaseAnnDataField(ABC):
         """Returns the requested data as determined by the field for a given AnnData object."""
         if self.is_empty:
             raise AssertionError(f"The {self.registry_key} field is empty.")
-        return get_anndata_attribute(adata, self.attr_name, self.attr_key)
+        return get_anndata_attribute(
+            adata, self.attr_name, self.attr_key, mod_key=self.mod_key
+        )
 
     def get_data_registry(self) -> dict:
         """
