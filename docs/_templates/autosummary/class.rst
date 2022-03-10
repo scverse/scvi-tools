@@ -37,8 +37,8 @@
    {% if attributes %}
 
    {% for item in attributes %}
-   {{ item }}
-   ~~~~~~~~~~~~~~~~~~~~
+   {{ item | escape | underline}}
+
    .. autoattribute:: {{ item }}
    {%- endfor %}
 
@@ -50,8 +50,8 @@
 
    {% for item in methods %}
    {%- if item != '__init__' %}
-   {{ item }}
-   ~~~~~~~~~~~~~~~~~~~~
+   {{ item | escape | underline}}
+
    .. automethod:: {{ item }}
    {%- endif -%}
    {%- endfor %}
