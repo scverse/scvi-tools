@@ -256,10 +256,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         adata_manager = cls._per_instance_manager_store[self.id][adata_id]
         if adata_manager.adata is not adata:
-            raise ValueError(
-                "The provided AnnData object does not match the AnnData object "
-                "previously provided for setup. Did you make a copy?"
+            logger.info(
+                "AnnData object appears to be a copy. Attempting to transfer setup."
             )
+            _assign_adata_uuid(adata, overwrite=True)
+            adata_manager = self.adata_manager.transfer_fields(adata)
+            self._register_manager_for_instance(adata_manager)
 
         return adata_manager
 
@@ -356,7 +358,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if adata.is_view:
             if copy_if_view:
                 logger.info("Received view of anndata, making copy.")
-                adata = adata.copy()
+                adata._init_as_actual(adata.copy())
                 # Reassign AnnData UUID to produce a separate AnnDataManager.
                 _assign_adata_uuid(adata, overwrite=True)
             else:
