@@ -49,7 +49,6 @@
    {% if methods %}
 
    {% for item in methods %}
-   .. automethod:: {{ item }}
       {%- if item != '__init__' and item not in inherited_members%}
         .. automethod:: {{ item }}
       {%- endif -%}

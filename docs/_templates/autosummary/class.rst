@@ -44,7 +44,6 @@
    {% if methods %}
 
    {% for item in methods %}
-   .. automethod:: {{ item }}
       {%- if item != '__init__' %}
         .. automethod:: {{ item }}
       {%- endif -%}
