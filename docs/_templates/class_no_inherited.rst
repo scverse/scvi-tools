@@ -42,7 +42,7 @@
    {% if attributes %}
 
    {% for item in attributes %}
-   :hidden: {{ item }}
+   {{ item }}
    ~~~~~~~~~~~~~~~~~~~~
    .. autoattribute:: {{ item }}
    {%- endfor %}
@@ -55,7 +55,7 @@
 
    {% for item in methods %}
    {%- if item != '__init__' and item not in inherited_members%}
-   :hidden: {{ item }}
+   {{ item }}
    ~~~~~~~~~~~~~~~~~~~~
    .. automethod:: {{ item }}
    {%- endif -%}
