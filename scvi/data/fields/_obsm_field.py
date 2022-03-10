@@ -11,6 +11,7 @@ from pandas.api.types import CategoricalDtype
 from scvi.data import _constants
 from scvi.data._utils import (
     _check_nonnegative_integers,
+    _make_column_categorical,
     _verify_and_correct_data_format,
 )
 
@@ -306,16 +307,15 @@ class CategoricalJointObsField(JointObsField):
         categories = dict()
         obsm_df = adata.obsm[self.attr_key]
         for key in self.obs_keys:
-            if category_dict is None:
-                categorical_obs = obsm_df[key].astype("category")
-                mapping = categorical_obs.cat.categories.to_numpy(copy=True)
-                categories[key] = mapping
-            else:
-                possible_cats = category_dict[key]
-                categorical_obs = obsm_df[key].astype(
-                    CategoricalDtype(categories=possible_cats)
-                )
-            obsm_df[key] = categorical_obs.cat.codes
+            categorical_dtype = (
+                CategoricalDtype(categories=category_dict[key])
+                if category_dict is not None
+                else None
+            )
+            mapping = _make_column_categorical(
+                obsm_df, key, key, categorical_dtype=categorical_dtype
+            )
+            categories[key] = mapping
 
         store_cats = categories if category_dict is None else category_dict
 

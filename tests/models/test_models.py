@@ -225,7 +225,7 @@ def test_scvi(save_path):
     model._validate_anndata(adata2)
     model.get_elbo(adata2)
 
-    # test automatic transfer_anndata_setup + on a view
+    # test automatic transfer_anndata_setup on a view
     adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
@@ -235,6 +235,18 @@ def test_scvi(save_path):
     model = SCVI(adata)
     adata2 = synthetic_iid()
     model.get_elbo(adata2[:10])
+
+    # test automatic transfer_anndata_setup on a copy
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    adata2 = adata.copy()
+    model.get_elbo(adata2)
+    assert adata.uns[_constants._SCVI_UUID_KEY] != adata2.uns[_constants._SCVI_UUID_KEY]
 
     # test mismatched categories raises ValueError
     adata2 = synthetic_iid()
@@ -992,6 +1004,12 @@ def test_totalvi(save_path):
     norm_exp = model.get_normalized_expression(adata2, indices=[1, 2, 3])
     assert norm_exp[0].shape == (3, adata2.n_vars)
     assert norm_exp[1].shape == (3, adata2.obsm["protein_expression"].shape[1])
+    norm_exp = model.get_normalized_expression(
+        adata2,
+        gene_list=adata2.var_names[:5].to_list(),
+        protein_list=adata2.uns["protein_names"][:3],
+        transform_batch=["batch_0", "batch_1"],
+    )
 
     latent_lib_size = model.get_latent_library_size(adata2, indices=[1, 2, 3])
     assert latent_lib_size.shape == (3, 1)
