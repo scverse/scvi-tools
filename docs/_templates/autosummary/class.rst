@@ -8,8 +8,7 @@
 
    {% block attributes %}
    {% if attributes %}
-   Attributes
-   ^^^^^^^^^^
+   .. rubric:: Attributes
 
    .. autosummary::
    {% for item in attributes %}
@@ -20,8 +19,7 @@
 
    {% block methods %}
    {% if methods %}
-   Methods
-   ^^^^^^^
+   .. rubric:: Methods
 
    .. autosummary::
    {% for item in methods %}
@@ -29,5 +27,28 @@
         ~{{ fullname }}.{{ item }}
       {%- endif -%}
    {%- endfor %}
+   {% endif %}
+   {% endblock %}
+
+   {% block attributes_documentation %}
+   {% if attributes %}
+
+   {% for item in attributes %}
+   .. autoattribute:: {{ item }}
+   {%- endfor %}
+
+   {% endif %}
+   {% endblock %}
+
+   {% block methods_documentation %}
+   {% if methods %}
+
+   {% for item in methods %}
+   .. automethod:: {{ item }}
+      {%- if item != '__init__' %}
+        .. automethod:: {{ item }}
+      {%- endif -%}
+   {%- endfor %}
+
    {% endif %}
    {% endblock %}
