@@ -11,6 +11,10 @@ Changes
 - :class:`~scvi.external.SOLO` no longer warns about count data (`#1411`_).
 - Error gracefully when NaNs present in :class:`~scvi.data.fields.CategoricalJointObsmField` (`#1417`_).
 
+Bug fixes
+~~~~~~~~~~
+- Fix an issue with using gene lists and proteins lists as well as `transform_batch` for :class:`~scvi.model.TOTALVI` (`#1413`_).
+
 Contributors
 ~~~~~~~~~~~~
 - `@jjhong922`_
@@ -26,4 +30,5 @@ Contributors
 .. _`#1386`: https://github.com/YosefLab/scvi-tools/pull/1386
 .. _`#1403`: https://github.com/YosefLab/scvi-tools/pull/1403
 .. _`#1411`: https://github.com/YosefLab/scvi-tools/pull/1411
+.. _`#1413`: https://github.com/YosefLab/scvi-tools/pull/1413
 .. _`#1417`: https://github.com/YosefLab/scvi-tools/pull/1417
