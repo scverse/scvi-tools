@@ -7,7 +7,7 @@ from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
 from scvi.data import _constants
-from scvi.data._utils import _make_obs_column_categorical, get_anndata_attribute
+from scvi.data._utils import _make_column_categorical, get_anndata_attribute
 
 from ._base_field import BaseAnnDataField
 
@@ -134,8 +134,8 @@ class CategoricalObsField(BaseObsField):
             self._setup_default_attr(adata)
 
         super().register_field(adata)
-        categorical_mapping = _make_obs_column_categorical(
-            adata,
+        categorical_mapping = _make_column_categorical(
+            adata.obs,
             self._original_attr_key,
             self.attr_key,
         )
@@ -171,8 +171,8 @@ class CategoricalObsField(BaseObsField):
                         f"Cannot transfer setup without `extend_categories = True`."
                     )
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
-        new_mapping = _make_obs_column_categorical(
-            adata_target,
+        new_mapping = _make_column_categorical(
+            adata_target.obs,
             self._original_attr_key,
             self.attr_key,
             categorical_dtype=cat_dtype,
