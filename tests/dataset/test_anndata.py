@@ -299,6 +299,19 @@ def test_setup_anndata():
         np.zeros((adata.shape[0], 1)),
     )
 
+    # test error is thrown when categorical obs field contains nans
+    adata = synthetic_iid()
+    adata.obs["batch"][:10] = np.nan
+    with pytest.raises(ValueError):
+        generic_setup_adata_manager(adata, batch_key="batch")
+
+    # test error is thrown when categorical joint obsm field contains nans
+    adata = synthetic_iid()
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat1"][:10] = np.nan
+    with pytest.raises(ValueError):
+        generic_setup_adata_manager(adata, categorical_covariate_keys=["cat1"])
+
 
 def test_save_setup_anndata(save_path):
     adata = synthetic_iid()
