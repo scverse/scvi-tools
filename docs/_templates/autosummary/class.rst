@@ -35,10 +35,9 @@
 
    {% for item in attributes %}
 {{ item }}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
 
-   .. currentmodule:: {{ module }}
-   .. autoattribute:: ~{{ fullname }}.{{ item }}
+   .. autoattribute:: {{ [objname, item] | join(".") }}
    {%- endfor %}
 
    {% endif %}
@@ -50,10 +49,9 @@
    {% for item in methods %}
    {%- if item != '__init__' %}
 {{ item }}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
 
-   .. currentmodule:: {{ module }}
-   .. automethod:: ~{{ fullname }}.{{ item }}
+   .. automethod:: {{ [objname, item] | join(".") }}
    {%- endif -%}
    {%- endfor %}
 

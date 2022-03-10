@@ -39,7 +39,10 @@
    {% if attributes %}
 
    {% for item in attributes %}
-   .. autoattribute:: {{ item }}
+{{ item }}
+~~~~~~~~~~
+
+   .. autoattribute:: {{ [objname, item] | join(".") }}
    {%- endfor %}
 
    {% endif %}
@@ -50,7 +53,10 @@
 
    {% for item in methods %}
    {%- if item != '__init__' and item not in inherited_members%}
-   .. automethod:: {{ item }}
+{{ item }}
+~~~~~~~~~~
+
+   .. automethod:: {{ [objname, item] | join(".") }}
    {%- endif -%}
    {%- endfor %}
 
