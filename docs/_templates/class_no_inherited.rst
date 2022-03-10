@@ -1,3 +1,6 @@
+.. role:: hidden
+    :class: hidden-section
+
 {{ fullname | escape | underline}}
 
 .. currentmodule:: {{ module }}
@@ -39,6 +42,8 @@
    {% if attributes %}
 
    {% for item in attributes %}
+   :hidden: {{ item }}
+   ~~~~~~~~~~~~~~~~~~~~
    .. autoattribute:: {{ item }}
    {%- endfor %}
 
@@ -50,6 +55,8 @@
 
    {% for item in methods %}
    {%- if item != '__init__' and item not in inherited_members%}
+   :hidden: {{ item }}
+   ~~~~~~~~~~~~~~~~~~~~
    .. automethod:: {{ item }}
    {%- endif -%}
    {%- endfor %}
