@@ -119,7 +119,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.module.to(my_device)
 
     @property
-    def device(self):
+    def device(self) -> str:
+        """The current device that the module's params are on."""
         return self.module.device
 
     @staticmethod
@@ -393,19 +394,23 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 raise RuntimeError(message)
 
     @property
-    def is_trained(self):
+    def is_trained(self) -> bool:
+        """Whether the model has been trained."""
         return self.is_trained_
 
     @property
-    def test_indices(self):
+    def test_indices(self) -> np.ndarray:
+        """Observations that are in test set."""
         return self.test_indices_
 
     @property
-    def train_indices(self):
+    def train_indices(self) -> np.ndarray:
+        """Observations that are in train set."""
         return self.train_indices_
 
     @property
-    def validation_indices(self):
+    def validation_indices(self) -> np.ndarray:
+        """Observations that are in validation set."""
         return self.validation_indices_
 
     @train_indices.setter
