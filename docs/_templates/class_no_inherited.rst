@@ -9,10 +9,10 @@
 
    {% block attributes %}
    {% if attributes %}
-   .. rubric:: Attributes
+   Attributes
+   ^^^^^^^^^^
 
    .. autosummary::
-      :toctree: .
     {% for item in attributes %}
         {%- if item not in inherited_members%}
             ~{{ fullname }}.{{ item }}
@@ -24,10 +24,10 @@
 
    {% block methods %}
    {% if methods %}
-   .. rubric:: Methods
+   Methods
+   ^^^^^^^
 
    .. autosummary::
-      :toctree: .
    {% for item in methods %}
       {%- if item != '__init__' and item not in inherited_members%}
         ~{{ fullname }}.{{ item }}

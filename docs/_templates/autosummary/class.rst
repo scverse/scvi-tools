@@ -8,10 +8,10 @@
 
    {% block attributes %}
    {% if attributes %}
-   .. rubric:: Attributes
+   Attributes
+   ^^^^^^^^^^
 
    .. autosummary::
-      :toctree: .
    {% for item in attributes %}
       ~{{ fullname }}.{{ item }}
    {%- endfor %}
@@ -20,10 +20,10 @@
 
    {% block methods %}
    {% if methods %}
-   .. rubric:: Methods
+   Methods
+   ^^^^^^^
 
    .. autosummary::
-      :toctree: .
    {% for item in methods %}
       {%- if item != '__init__' %}
         ~{{ fullname }}.{{ item }}
