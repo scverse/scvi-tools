@@ -140,8 +140,9 @@ def _make_column_categorical(
 
     # put codes in .obs[alternate_column_key]
     codes = categorical_obs.cat.codes
+    unique, counts = np.unique(codes, return_counts=True)
     mapping = categorical_obs.cat.categories.to_numpy(copy=True)
-    if -1 in np.unique(codes):
+    if -1 in unique:
         received_categories = df[column_key].astype("category").cat.categories
         raise ValueError(
             'Making .obs["{}"] categorical failed. Expected categories: {}. '
@@ -150,11 +151,10 @@ def _make_column_categorical(
     df[alternate_column_key] = codes
 
     # make sure each category contains enough cells
-    unique, counts = np.unique(getattr(df, alternate_column_key), return_counts=True)
     if np.min(counts) < 3:
         category = unique[np.argmin(counts)]
         warnings.warn(
-            "Category {} in adata.obs['{}'] has fewer than 3 cells. SCVI may not train properly.".format(
+            "Category {} in adata.obs['{}'] has fewer than 3 cells. Models may not train properly.".format(
                 category, alternate_column_key
             )
         )
