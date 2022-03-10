@@ -8,8 +8,8 @@
 
 {% block attributes %}
 {% if attributes %}
-Attributes
-~~~~~~~~~~
+Attributes table
+~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
 {% for item in attributes %}
@@ -20,8 +20,8 @@ Attributes
 
 {% block methods %}
 {% if methods %}
-Methods
-~~~~~~~~
+Methods table
+~~~~~~~~~~~~~
 
 .. autosummary::
 {% for item in methods %}
@@ -34,10 +34,12 @@ Methods
 
 {% block attributes_documentation %}
 {% if attributes %}
+Attributes
+~~~~~~~~~~~
 
 {% for item in attributes %}
 {{ item }}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoattribute:: {{ [objname, item] | join(".") }}
 {%- endfor %}
@@ -47,11 +49,13 @@ Methods
 
 {% block methods_documentation %}
 {% if methods %}
+Methods
+~~~~~~~
 
 {% for item in methods %}
 {%- if item != '__init__' %}
 {{ item }}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automethod:: {{ [objname, item] | join(".") }}
 {%- endif -%}
