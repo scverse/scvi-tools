@@ -6,54 +6,56 @@
 
 .. autoclass:: {{ objname }}
 
-   {% block attributes %}
-   {% if attributes %}
-   .. rubric:: Attributes
-
-   .. autosummary::
-   {% for item in attributes %}
-      ~{{ fullname }}.{{ item }}
-   {%- endfor %}
-   {% endif %}
-   {% endblock %}
-
-   {% block methods %}
-   {% if methods %}
-   .. rubric:: Methods
-
-   .. autosummary::
-   {% for item in methods %}
-      {%- if item != '__init__' %}
-        ~{{ fullname }}.{{ item }}
-      {%- endif -%}
-   {%- endfor %}
-   {% endif %}
-   {% endblock %}
-
-   {% block attributes_documentation %}
-   {% if attributes %}
-
-   {% for item in attributes %}
-{{ item }}
+{% block attributes %}
+{% if attributes %}
+Attributes
 ~~~~~~~~~~
 
-   .. autoattribute:: {{ [objname, item] | join(".") }}
-   {%- endfor %}
+.. autosummary::
+{% for item in attributes %}
+    ~{{ fullname }}.{{ item }}
+{%- endfor %}
+{% endif %}
+{% endblock %}
 
-   {% endif %}
-   {% endblock %}
+{% block methods %}
+{% if methods %}
+Methods
+~~~~~~~~
 
-   {% block methods_documentation %}
-   {% if methods %}
+.. autosummary::
+{% for item in methods %}
+    {%- if item != '__init__' %}
+    ~{{ fullname }}.{{ item }}
+    {%- endif -%}
+{%- endfor %}
+{% endif %}
+{% endblock %}
 
-   {% for item in methods %}
-   {%- if item != '__init__' %}
+{% block attributes_documentation %}
+{% if attributes %}
+
+{% for item in attributes %}
 {{ item }}
-~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   .. automethod:: {{ [objname, item] | join(".") }}
-   {%- endif -%}
-   {%- endfor %}
+.. autoattribute:: {{ [objname, item] | join(".") }}
+{%- endfor %}
 
-   {% endif %}
-   {% endblock %}
+{% endif %}
+{% endblock %}
+
+{% block methods_documentation %}
+{% if methods %}
+
+{% for item in methods %}
+{%- if item != '__init__' %}
+{{ item }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. automethod:: {{ [objname, item] | join(".") }}
+{%- endif -%}
+{%- endfor %}
+
+{% endif %}
+{% endblock %}
