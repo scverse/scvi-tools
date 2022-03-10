@@ -37,7 +37,7 @@
 {{ item }}
 ~~~~~~~~~~
 
-   .. autoattribute:: {{ item }}
+   .. autoattribute:: ~{{ fullname }}.{{ item }}
    {%- endfor %}
 
    {% endif %}
@@ -51,7 +51,7 @@
 {{ item }}
 ~~~~~~~~~~
 
-   .. automethod:: {{ item }}
+   .. automethod:: ~{{ fullname }}.{{ item }}
    {%- endif -%}
    {%- endfor %}
 
