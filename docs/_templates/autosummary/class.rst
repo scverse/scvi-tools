@@ -34,6 +34,9 @@
    {% if attributes %}
 
    {% for item in attributes %}
+{{ item }}
+~~~~~~~~~~
+
    .. autoattribute:: {{ item }}
    {%- endfor %}
 
@@ -45,6 +48,9 @@
 
    {% for item in methods %}
    {%- if item != '__init__' %}
+{{ item }}
+~~~~~~~~~~
+
    .. automethod:: {{ item }}
    {%- endif -%}
    {%- endfor %}
