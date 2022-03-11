@@ -132,6 +132,7 @@ class JaxSCVI(BaseModelClass):
     def train(
         self,
         max_epochs: Optional[int] = None,
+        check_val_every_n_epoch: Optional[int] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
@@ -172,10 +173,16 @@ class JaxSCVI(BaseModelClass):
         )
         data_splitter.setup()
         train_loader = data_splitter.train_dataloader()
+        val_dataloader = data_splitter.val_dataloader()
+
+        if val_dataloader is None:
+            raise UserWarning(
+                "No observations in the validation loop. No validation metrics will be recorded."
+            )
 
         module_kwargs = self.module_kwargs.copy()
         module_kwargs.update(dict(is_training=True))
-        module = self._get_module(module_kwargs)
+        train_module = self._get_module(module_kwargs)
 
         # if key is generated on CPU, model params will be on CPU
         # we have to pay the price of a JIT compilation though
@@ -191,32 +198,33 @@ class JaxSCVI(BaseModelClass):
             "dropout": key(1),
             "z": key(2),
         }
-        module_init = module.init(self.rngs, next(iter(train_loader)))
+        module_init = train_module.init(self.rngs, next(iter(train_loader)))
         params = module_init["params"]
         batch_stats = module_init["batch_stats"]
 
         state = TrainState.create(
-            apply_fn=module.apply,
+            apply_fn=train_module.apply,
             params=params,
             tx=optax.adamw(lr, eps=0.01, weight_decay=1e-6),
             batch_stats=batch_stats,
         )
 
         @jax.jit
-        def train_step(state, array_dict, rngs, kl_weight=1) -> jnp.ndarray:
+        def train_step(state, array_dict, rngs, **kwargs):
             rngs = {k: random.split(v)[1] for k, v in rngs.items()}
 
             # batch stats can't be passed here
             def loss_fn(params):
                 vars_in = {"params": params, "batch_stats": state.batch_stats}
                 outputs, new_model_state = state.apply_fn(
-                    vars_in, array_dict, rngs=rngs, mutable=["batch_stats"]
+                    vars_in, array_dict, rngs=rngs, mutable=["batch_stats"], **kwargs
                 )
-                rec_loss = outputs.rec_loss
-                kl_div = outputs.kl
-                loss = rec_loss + kl_div
-                elbo = rec_loss + kl_div
-                return jnp.mean(loss), (jnp.mean(elbo), new_model_state)
+                loss_recorder = outputs[2]
+                loss = loss_recorder.loss
+                elbo = jnp.mean(
+                    loss_recorder.reconstruction_loss + loss_recorder.kl_local
+                )
+                return loss, (elbo, new_model_state)
 
             (loss, (elbo, new_model_state)), grads = jax.value_and_grad(
                 loss_fn, has_aux=True
@@ -226,7 +234,22 @@ class JaxSCVI(BaseModelClass):
             )
             return new_state, loss, elbo, rngs
 
-        history = dict(elbo_train=[], loss_train=[])
+        @jax.jit
+        def validation_step(state, array_dict, rngs, **kwargs):
+            # note that self.module has is_training = False
+            module = self.module
+            rngs = {k: random.split(v)[1] for k, v in rngs.items()}
+            vars_in = {"params": state.params, "batch_stats": state.batch_stats}
+            outputs = module.apply(vars_in, array_dict, rngs=rngs, **kwargs)
+            loss_recorder = outputs[2]
+            loss = loss_recorder.loss
+            elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
+
+            return loss, elbo
+
+        history = dict(
+            elbo_train=[], loss_train=[], elbo_validation=[], loss_validation=[]
+        )
         epoch = 0
         with tqdm.trange(1, max_epochs + 1) as t:
             try:
@@ -239,7 +262,10 @@ class JaxSCVI(BaseModelClass):
                         kl_weight = min(1.0, epoch / 400.0)
                         # gets new key for each epoch
                         state, loss, elbo, self.rngs = train_step(
-                            state, data, self.rngs, kl_weight=kl_weight
+                            state,
+                            data,
+                            self.rngs,
+                            loss_kwargs=dict(kl_weight=kl_weight),
                         )
                         epoch_loss += loss
                         epoch_elbo += elbo
@@ -249,6 +275,32 @@ class JaxSCVI(BaseModelClass):
                     t.set_postfix_str(
                         f"Epoch {i}, Elbo: {epoch_elbo / counter}, KL weight: {kl_weight}"
                     )
+
+                    # validation loop
+                    if (
+                        check_val_every_n_epoch is not None
+                        and epoch % check_val_every_n_epoch == 0
+                    ):
+                        val_counter = 0
+                        val_epoch_loss = 0
+                        val_epoch_elbo = 0
+                        for data in val_dataloader:
+                            val_loss, val_elbo = validation_step(
+                                state,
+                                data,
+                                self.rngs,
+                                loss_kwargs=dict(kl_weight=kl_weight),
+                            )
+                            val_epoch_loss += val_loss
+                            val_epoch_elbo += val_elbo
+                            val_counter += 1
+                        history["loss_validation"] += [
+                            jax.device_get(val_epoch_loss) / val_counter
+                        ]
+                        history["elbo_validation"] += [
+                            jax.device_get(val_epoch_elbo) / val_counter
+                        ]
+
             except KeyboardInterrupt:
                 logger.info(
                     "Keyboard interrupt detected. Attempting graceful shutdown."
@@ -303,16 +355,17 @@ class JaxSCVI(BaseModelClass):
 
         @jax.jit
         def _get_val(array_dict):
-            out = self.bound_module(array_dict, n_samples=mc_samples)
+            inference_input = self.bound_module._get_inference_input(array_dict)
+            out = self.bound_module.inference(**inference_input, n_samples=mc_samples)
             return out
 
         latent = []
         for array_dict in scdl:
             out = _get_val(array_dict)
             if give_mean:
-                z = out.qz.mean
+                z = out["qz"].mean
             else:
-                z = out.z
+                z = out["z"]
             latent.append(z)
         concat_axis = 0 if ((mc_samples == 1) or give_mean) else 1
         latent = jnp.concatenate(latent, axis=concat_axis)
