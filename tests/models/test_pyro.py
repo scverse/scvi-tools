@@ -585,7 +585,7 @@ def test_lda_model_save_load(save_path):
     hist_elbo = mod.history_["elbo_train"]
 
     feature_by_topic_1 = mod.get_feature_by_topic(n_samples=5000)
-    latent_1 = mod.get_latent_representation(n_samples=5000)
+    latent_1 = mod.get_latent_representation(n_samples=6000)
 
     save_path = os.path.join(save_path, "tmp")
     mod.save(save_path, overwrite=True, save_anndata=True)
@@ -594,7 +594,7 @@ def test_lda_model_save_load(save_path):
     np.testing.assert_array_equal(mod.history_["elbo_train"], hist_elbo)
 
     feature_by_topic_2 = mod.get_feature_by_topic(n_samples=5000)
-    latent_2 = mod.get_latent_representation(n_samples=5000)
+    latent_2 = mod.get_latent_representation(n_samples=6000)
     np.testing.assert_almost_equal(
         feature_by_topic_1.to_numpy(), feature_by_topic_2.to_numpy(), decimal=2
     )
