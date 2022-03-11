@@ -159,7 +159,7 @@ class BaseModuleClass(nn.Module):
             Whether to compute loss on forward pass. This adds
             another return value.
         """
-        _generic_forward(
+        return _generic_forward(
             self,
             tensors,
             inference_kwargs,
@@ -410,7 +410,7 @@ class JaxBaseModuleClass(linen.Module):
             Whether to compute loss on forward pass. This adds
             another return value.
         """
-        _generic_forward(
+        return _generic_forward(
             self,
             tensors,
             inference_kwargs,
