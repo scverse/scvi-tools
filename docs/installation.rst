@@ -17,7 +17,7 @@ conda prerequisites
 
 3. Activate your environment::
 
-    source activate scvi-env
+    conda activate scvi-env
 
 pip prerequisites
 #################
