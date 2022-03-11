@@ -10,6 +10,7 @@ Changes
 - Use multiple particles optionally in :class:`~scvi.model.JaxSCVI` (`#1385`_).
 - :class:`~scvi.external.SOLO` no longer warns about count data (`#1411`_).
 - Class docs are now one page on docs site (`#1415`_).
+- Copied AnnData objects are assigned a new uuid and transfer is attempted (`#1416`_).
 
 Bug fixes
 ~~~~~~~~~~
@@ -20,11 +21,9 @@ Contributors
 ~~~~~~~~~~~~
 - `@jjhong922`_
 - `@adamgayoso`_
-- `@watiss`_
 
 .. _`@jjhong922`: https://github.com/jjhong922
 .. _`@adamgayoso`: https://github.com/adamgayoso
-.. _`@watiss`: https://github.com/watiss
 
 .. _`#1393`: https://github.com/YosefLab/scvi-tools/pull/1393
 .. _`#1385`: https://github.com/YosefLab/scvi-tools/pull/1385
@@ -33,4 +32,5 @@ Contributors
 .. _`#1411`: https://github.com/YosefLab/scvi-tools/pull/1411
 .. _`#1413`: https://github.com/YosefLab/scvi-tools/pull/1413
 .. _`#1417`: https://github.com/YosefLab/scvi-tools/pull/1417
-.. _`#1415`: https://github.com/YosefLab/scvi-tools/pull/1417
+.. _`#1415`: https://github.com/YosefLab/scvi-tools/pull/1415
+.. _`#1416`: https://github.com/YosefLab/scvi-tools/pull/1416
