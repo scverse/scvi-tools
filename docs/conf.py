@@ -66,7 +66,7 @@ exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 nbsphinx_execute = "never"
 
 templates_path = ["_templates"]
-source_suffix = ".rst"
+# source_suffix = ".rst"
 
 # Generate the API documentation when building
 autosummary_generate = True
