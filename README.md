@@ -1,11 +1,11 @@
-<img src="https://github.com/YosefLab/scvi-tools/blob/master/docs/_static/scvi-tools-horizontal.svg?raw=true" width="400" alt="scvi-tools">
+<img src="https://github.com/scverse/scvi-tools/blob/master/docs/_static/scvi-tools-horizontal.svg?raw=true" width="400" alt="scvi-tools">
 
-[![Stars](https://img.shields.io/github/stars/YosefLab/scvi-tools?logo=GitHub&color=yellow)](https://github.com/YosefLab/scvi-tools/stargazers)
+[![Stars](https://img.shields.io/github/stars/scverse/scvi-tools?logo=GitHub&color=yellow)](https://github.com/YosefLab/scvi-tools/stargazers)
 [![PyPI](https://img.shields.io/pypi/v/scvi-tools.svg)](https://pypi.org/project/scvi-tools)
 [![Documentation Status](https://readthedocs.org/projects/scvi/badge/?version=latest)](https://scvi.readthedocs.io/en/stable/?badge=stable)
 ![Build
-Status](https://github.com/YosefLab/scvi-tools/workflows/scvi-tools/badge.svg)
-[![Coverage](https://codecov.io/gh/YosefLab/scvi-tools/branch/master/graph/badge.svg)](https://codecov.io/gh/YosefLab/scvi-tools)
+Status](https://github.com/scverse/scvi-tools/workflows/scvi-tools/badge.svg)
+[![Coverage](https://codecov.io/gh/scverse/scvi-tools/branch/master/graph/badge.svg)](https://codecov.io/gh/YosefLab/scvi-tools)
 [![Code
 Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
 [![Downloads](https://pepy.tech/badge/scvi-tools)](https://pepy.tech/project/scvi-tools)
@@ -82,7 +82,7 @@ Please be sure to install a version of [PyTorch](https://pytorch.org/) that is c
     the [documentation](https://docs.scvi-tools.org/).
 -   For discussion of usage, check out our
     [forum](https://discourse.scvi-tools.org).
--   Please use the [issues](https://github.com/YosefLab/scvi-tools/issues) to submit bug reports.
+-   Please use the [issues](https://github.com/scverse/scvi-tools/issues) to submit bug reports.
 -   If you\'d like to contribute, check out our [contributing
     guide](https://docs.scvi-tools.org/en/stable/contributing/index.html).
 -   If you find a model useful for your research, please consider citing

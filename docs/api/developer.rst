@@ -23,12 +23,15 @@ for operating over a collection of AnnDataFields and an AnnData object.
    :toctree: reference/
    :nosignatures:
 
-   data.anndata.AnnDataManager
-   data.anndata.fields.BaseAnnDataField
-   data.anndata.fields.LayerField
-   data.anndata.fields.CategoricalObsField
-   data.anndata.fields.NumericalJointObsField
-   data.anndata.fields.CategoricalJointObsField
+   data.AnnDataManager
+   data.fields.BaseAnnDataField
+   data.fields.LayerField
+   data.fields.CategoricalObsField
+   data.fields.NumericalJointObsField
+   data.fields.CategoricalJointObsField
+   data.fields.ObsmField
+   data.fields.ProteinObsmField
+   data.fields.LabelsWithUnlabeledObsField
 
 
 Data Loaders
@@ -66,6 +69,7 @@ Parameterizable probability distributions.
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
+   distributions.JaxNegativeBinomialMeanDisp
 
 
 Model (Base)
@@ -187,6 +191,8 @@ TrainingPlans define train/test/val optimization steps for modules.
    train.Trainer
    train.TrainingPlan
    train.TrainRunner
+   train.SaveBestState
+   train.LoudEarlyStopping
 
 
 Utilities
