@@ -2,11 +2,12 @@
 
 scvi-tools is composed of models that can perform one or many analysis tasks. In the user guide, we provide an overview of each model with emphasis on the math behind the model, how it connects to the code, and how the code connects to analysis.
 
-:::{figure} /_static/tasks.png
+```{eval-rst}
+.. figure:: /_static/tasks.png
 :align: center
 :alt: Overview of tasks
 :class: img-fluid
-:::
+```
 
 ## scRNA-seq analysis
 
