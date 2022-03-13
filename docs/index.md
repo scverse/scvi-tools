@@ -5,7 +5,7 @@
 - Interface for easy use of a range of probabilistic models for single-cell omics (e.g., scVI, scANVI, totalVI).
 - Tools to build new probabilistic models, which are powered by PyTorch, PyTorch Lightning, and Pyro.
 
-If you find a model useful for your research, please consider citing the [scvi-tools manuscript](http://dx.doi.org/10.1038/s41587-021-01206-w) as well as the corresponding publication, which can be found in the corresponding model documentation.
+If you find a model useful for your research, please consider citing the [scvi-tools manuscript](http://dx.doi.org/10.1038/s41587-021-01206-w) as well as the publication describing the model, which can be found in the corresponding documentation.
 
 ```{eval-rst}
 .. card:: Installation :octicon:`plug;1em;`
