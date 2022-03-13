@@ -290,7 +290,9 @@ scANVI can do the following:
 
 For prediction, scANVI returns $q_\eta(c_n \mid z_n)$ in the following function:
 
-> >>> adata.obs\["scanvi_prediction"\] = model.predict()
+```
+>>> adata.obs["scanvi_prediction"] = model.predict()
+```
 
 [^ref1]: Xu Chenling, Romain Lopez, Edouard Mehlman, Jeffrey Regier, Michael I. Jordan, Nir Yosef (2021),
     *Probabilistic harmonization and annotation of single‐cell transcriptomics data with deep generative models*,
