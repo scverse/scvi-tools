@@ -191,7 +191,7 @@ nbsphinx_prolog = r"""
         This page was generated from
         <a class="reference external" href="https://github.com/scverse/scvi-tutorials/tree/{version}/">{docname}</a>.
         Interactive online version:
-        <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/scverse/scvi_tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+        <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/scverse/scvi-tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
         Some tutorial content may look better in light mode.
         </p>
     </div>
