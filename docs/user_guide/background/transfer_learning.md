@@ -70,8 +70,6 @@ Thus, all the previous parameters from the reference building stage are frozen.
 This results in a model in which the latent representation $z$ (encoder output) does not change for reference data after the
 query step.
 
-:::{topic} References:
 [^ref1]: Mohammad Lotfollahi, Mohsen Naghipourfar, Malte D. Luecken, Matin Khajavi, Maren Büttner, Marco Wagenstetter, Ziga Avsec, Adam Gayoso, Nir Yosef, Marta Interlandi, Sergei Rybakov, Alexander V. Misharin, and Fabian J. Theis (2021),
     *Mapping single-cell data to reference atlases by transfer learning.*,
     [Nature Biotechnology](https://www.nature.com/articles/s41587-021-01001-7).
-:::
