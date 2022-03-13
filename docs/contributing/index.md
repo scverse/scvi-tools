@@ -113,6 +113,8 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
 
 This section is under construction, but we use the same docstring style as Scanpy. See their [tutorial](https://scanpy.readthedocs.io/en/stable/dev/documentation.html#building-the-docs) for more info.
 
+For the actual documentation pages (e.g., the user guide), we use markdown files via the [myst-parser](https://myst-parser.readthedocs.io/en/latest/index.html).
+
 ## Tips
 
 1. [GitKraken](https://www.gitkraken.com/) can be a useful GUI for using git locally.
