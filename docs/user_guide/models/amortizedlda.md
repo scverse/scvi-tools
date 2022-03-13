@@ -97,8 +97,10 @@ Like {class}`scvi.model.SCVI`, the underlying class used as the encoder for Amor
 
 Users can retrieve the estimated topic proportions in each cell with the following code:
 
-> >>> topic_prop = model.get_latent_representation()
-> >>> adata.obsm\["X_LDA"\] = topic_prop
+```
+>>> topic_prop = model.get_latent_representation()
+>>> adata.obsm\["X_LDA"\] = topic_prop
+```
 
 Due to the logistic-Normal distribution not having an analytic solution to the mean, we compute
 a Monte Carlo estimate of the expectation. The number of samples used for the estimate can be configured
@@ -107,7 +109,9 @@ with the argument `n_samples`.
 Additionally, once can estimate topic proportions on held-out data by passing in an AnnData object
 with the same format as the dataset used to train the model:
 
-> >>> test_topic_prop = model.get_latent_representation(test_adata)
+```
+>>> test_topic_prop = model.get_latent_representation(test_adata)
+```
 
 If the learned topics generalize well to other datasets, this can serve as a dimensionality reduction method
 to the learned topic latent space.
@@ -116,7 +120,9 @@ to the learned topic latent space.
 
 Once the model has been fitted, one can retrieve the estimated feature-by-topic distribution:
 
-> >>> feature_by_topic = model.get_feature_by_topic()
+```
+>>> feature_by_topic = model.get_feature_by_topic()
+```
 
 Like the `get_latent_representation()` method, this returns a Monte Carlo estimate of the logistic-Normal expectation.
 Similarly, we can configure the number of samples with `n_samples`.
