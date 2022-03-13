@@ -10,6 +10,7 @@ from sklearn.covariance import EllipticEnvelope
 from torch.distributions import Categorical, Normal
 
 from scvi._compat import Literal
+from scvi import REGISTRY_KEYS
 from scvi._utils import _doc_params
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.model.base._utils import _de_core
@@ -72,12 +73,12 @@ class DEMixin:
         Differential expression DataFrame.
         """
         adata = self._validate_anndata(adata)
-        adata.uns["_scvi"]["_requires_validation"] = False
+        # adata.uns["_scvi"]["_requires_validation"] = False
         fn_kwargs = dict() if fn_kwargs is None else fn_kwargs
         col_names = adata.var_names
         if importance_sampling:
             model_fn = partial(
-                self.get_population_expression,
+                self.get_subpopulation_expression,
                 return_numpy=True,
                 batch_size=batch_size,
                 **fn_kwargs,
@@ -116,7 +117,7 @@ class DEMixin:
         return result
 
     @torch.no_grad()
-    def get_population_expression(
+    def get_subpopulation_expression(
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
@@ -126,8 +127,8 @@ class DEMixin:
         filter_cells: bool = True,
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         return_numpy: Optional[bool] = False,
-        marginal_n_samples_per_pass: int = 500,
-        n_mc_samples_px: int = 5000,
+        marginal_n_samples_per_pass: int = 250,
+        n_mc_samples_px: int = 500,
         n_cells_per_chunk: Optional[int] = 500,
         max_chunks: Optional[int] = None,
         normalized_expression_key: str = "px_scale",
@@ -181,13 +182,21 @@ class DEMixin:
         # Step 1: Determine effective indices to use
         # adata = self._validate_anndata(adata)
         if transform_batch is not None:
-            adata_key = self.scvi_setup_dict_["data_registry"]["batch_indices"][
-                "attr_key"
-            ]
-            observed_batches = adata[indices].obs[adata_key].values
-            transform_batch_val = _get_batch_code_from_category(adata, transform_batch)[
-                0
-            ]
+            adata_manager = self.get_anndata_manager(adata, required=True)
+            transform_batch_val = _get_batch_code_from_category(
+                adata_manager, transform_batch
+            )[0]
+            observed_batches = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY)[
+                indices
+            ].squeeze()
+            # adata_key = self.scvi_setup_dict_["data_registry"]["batch_indices"][
+            #     "attr_key"
+            # ]
+            # observed_batches = adata[indices].obs[adata_key].values
+
+            # transform_batch_val = _get_batch_code_from_category(adata, transform_batch)[
+            #     0
+            # ]
             if indices.shape != observed_batches.shape:
                 raise ValueError("Discrepancy between # of indices and # of batches")
             indices_ = indices[observed_batches == transform_batch_val]

@@ -48,12 +48,17 @@ def test_features():
 
 def test_scvi_new_de():
     adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = SCVI(adata=adata, use_observed_lib_size=False)
     model.train(
         max_epochs=5,
     )
-    model_fn = partial(model.get_population_expression, return_numpy=True)
-    dc = DifferentialComputation(model_fn=model_fn, adata=adata)
+    model_fn = partial(model.get_subpopulation_expression, return_numpy=True)
+    dc = DifferentialComputation(model_fn=model_fn, adata_manager=model.adata_manager)
     cell_idx1 = np.asarray(adata.obs.labels == "label_1")
     cell_idx2 = ~cell_idx1
 
@@ -81,6 +86,11 @@ def test_scvi_new_de():
 
 def test_wscvi():
     adata = synthetic_iid()
+    WSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = WSCVI(adata=adata, n_latent=5, loss_type="IWELBO", n_particles=25)
     model.train(
         max_epochs=5,
@@ -95,12 +105,16 @@ def test_wscvi():
     assert outs["log_px_zs"].shape == (25 * n_cells, n_cells)
 
     # Overall scale sampling
-    outs = model.get_population_expression(adata=adata, indices=idx, filter_cells=False)
-    outs = model.get_population_expression(adata=adata, indices=idx, filter_cells=True)
+    outs = model.get_subpopulation_expression(
+        adata=adata, indices=idx, filter_cells=False
+    )
+    outs = model.get_subpopulation_expression(
+        adata=adata, indices=idx, filter_cells=True
+    )
 
     # Differential expression
-    model_fn = partial(model.get_population_expression, return_numpy=True)
-    dc = DifferentialComputation(model_fn=model_fn, adata=adata)
+    model_fn = partial(model.get_subpopulation_expression, return_numpy=True)
+    dc = DifferentialComputation(model_fn=model_fn, adata_manager=model.adata_manager)
     cell_idx1 = np.asarray(adata.obs.labels == "label_1")
     cell_idx2 = ~cell_idx1
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=True)
@@ -111,8 +125,8 @@ def test_wscvi():
         importance_sampling=True,
         delta=None,
     )
-    if adata.uns["_scvi"].get("_requires_validation", True):
-        raise ValueError("anndata should not require validation at this point")
+    # if adata.uns["_scvi"].get("_requires_validation", True):
+    #     raise ValueError("anndata should not require validation at this point")
     model.differential_expression(
         idx1="labels == 'label_1'",
         batch_correction=False,
@@ -124,6 +138,12 @@ def test_wscvi():
         idx1="(labels == 'label_1') & (_scvi_batch == 1)",
         batch_correction=True,
         importance_sampling=True,
+        delta=None,
+    )
+    model.differential_expression(
+        idx1="(labels == 'label_1') & (_scvi_batch == 1)",
+        batch_correction=True,
+        importance_sampling=False,
         delta=None,
     )
 

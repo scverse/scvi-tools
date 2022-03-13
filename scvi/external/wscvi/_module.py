@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.module import VAE
 from scvi.module.base import LossRecorder, auto_move_data
@@ -73,7 +73,7 @@ class WVAE(VAE):
 
     def _get_generative_input(self, tensors, inference_outputs):
         res = super()._get_generative_input(tensors, inference_outputs)
-        x = tensors[_CONSTANTS.X_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
         res["x"] = x
         return res
 
@@ -150,8 +150,10 @@ class WVAE(VAE):
         x,
         cont_covs=None,
         cat_covs=None,
+        size_factor=None,
         y=None,
         return_densities=True,
+        transform_batch=None,
     ):
         """Runs the generative model."""
         assert z.ndim == 3
@@ -166,6 +168,10 @@ class WVAE(VAE):
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             self.dispersion, decoder_input, library, batch_index, *categorical_input, y
         )
