@@ -105,7 +105,8 @@ def poisson_gene_selection(
         data = ad.layers[layer] if layer is not None else ad.X
 
         # Calculate empirical statistics.
-        scaled_means = torch.from_numpy(np.asarray(data.sum(0) / data.sum()).ravel())
+        sum_0 = np.asarray(data.sum(0)).ravel()
+        scaled_means = torch.from_numpy(sum_0 / sum_0.sum())
         if use_gpu is True:
             scaled_means = scaled_means.cuda()
         dev = scaled_means.device
@@ -120,7 +121,7 @@ def poisson_gene_selection(
         minibatch_size = min(total_counts.shape[0], minibatch_size)
         n_batches = total_counts.shape[0] // minibatch_size
 
-        expected_fraction_zeros = torch.zeros(scaled_means.shape).to(dev)
+        expected_fraction_zeros = torch.zeros(scaled_means.shape, device=dev)
 
         for i in range(n_batches):
             total_counts_batch = total_counts[
@@ -141,7 +142,7 @@ def poisson_gene_selection(
         observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
         expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
-        extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
+        extra_zeros = torch.zeros(expected_fraction_zeros.shape, device=dev)
         for i in track(
             range(n_samples),
             description="Sampling from binomial...",

@@ -6,8 +6,8 @@ import pandas as pd
 import rich
 from anndata import AnnData
 
-from scvi.data.anndata import _constants
-from scvi.data.anndata._utils import get_anndata_attribute
+from scvi.data import _constants
+from scvi.data._utils import get_anndata_attribute
 
 
 class BaseAnnDataField(ABC):
@@ -60,6 +60,7 @@ class BaseAnnDataField(ABC):
             stored directly on the AnnData object.
         """
         self.validate_field(adata)
+        return dict()
 
     @abstractmethod
     def transfer_field(
@@ -74,7 +75,7 @@ class BaseAnnDataField(ABC):
         Parameters
         ----------
         state_registry
-            state_registry dictionary created after registering an AnnData using an :class:`~scvi.data.anndata.AnnDataManager` object.
+            state_registry dictionary created after registering an AnnData using an :class:`~scvi.data.AnnDataManager` object.
         adata_target
             AnnData object that is being registered.
         **kwargs
@@ -86,6 +87,7 @@ class BaseAnnDataField(ABC):
             A dictionary containing any additional state required for scvi-tools models not
             stored directly on the AnnData object.
         """
+        return dict()
 
     @abstractmethod
     def get_summary_stats(self, state_registry: dict) -> dict:
@@ -95,7 +97,7 @@ class BaseAnnDataField(ABC):
         Parameters
         ----------
         state_registry
-            Dictionary returned by :meth:`~scvi.data.anndata.fields.BaseAnnDataField.register_field`.
+            Dictionary returned by :meth:`~scvi.data.fields.BaseAnnDataField.register_field`.
             Summary stats should always be a function of information stored in this dictionary.
 
         Returns
@@ -114,7 +116,7 @@ class BaseAnnDataField(ABC):
         Parameters
         ----------
         state_registry
-            Dictionary returned by :meth:`~scvi.data.anndata.fields.BaseAnnDataField.register_field`.
+            Dictionary returned by :meth:`~scvi.data.fields.BaseAnnDataField.register_field`.
             Printed summary should always be a function of information stored in this dictionary.
 
         Returns

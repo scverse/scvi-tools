@@ -140,7 +140,7 @@ class MRDeconv(BaseModuleClass):
 
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[REGISTRY_KEYS.X_KEY]
-        ind_x = tensors[REGISTRY_KEYS.X_KEY].long()
+        ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
 
         input_dict = dict(x=x, ind_x=ind_x)
         return input_dict
@@ -165,14 +165,12 @@ class MRDeconv(BaseModuleClass):
                 (self.n_latent, self.n_labels, -1)
             )
         else:
-            gamma_ind = self.gamma[
-                :, :, ind_x[:, 0]
-            ]  # n_latent, n_labels, minibatch_size
+            gamma_ind = self.gamma[:, :, ind_x]  # n_latent, n_labels, minibatch_size
 
         if self.amortization in ["both", "proportion"]:
             v_ind = self.V_encoder(x_)
         else:
-            v_ind = self.V[:, ind_x[:, 0]].T  # minibatch_size, labels + 1
+            v_ind = self.V[:, ind_x].T  # minibatch_size, labels + 1
         v_ind = torch.nn.functional.softplus(v_ind)
 
         # reshape and get gene expression value for all minibatch
@@ -332,7 +330,7 @@ class MRDeconv(BaseModuleClass):
         """
         # cell-type specific gene expression, shape (minibatch, celltype, gene).
         beta = torch.nn.functional.softplus(self.beta)  # n_genes
-        y_torch = y * torch.ones_like(ind_x)
+        y_torch = (y * torch.ones_like(ind_x)).ravel()
         # obtain the relevant gammas
         if self.amortization in ["both", "latent"]:
             x_ = torch.log(1 + x)
@@ -340,15 +338,13 @@ class MRDeconv(BaseModuleClass):
                 (self.n_latent, self.n_labels, -1)
             )
         else:
-            gamma_ind = self.gamma[
-                :, :, ind_x[:, 0]
-            ]  # n_latent, n_labels, minibatch_size
+            gamma_ind = self.gamma[:, :, ind_x]  # n_latent, n_labels, minibatch_size
 
         # calculate cell type specific expression
         gamma_select = gamma_ind[
-            :, y_torch[:, 0], torch.arange(ind_x.shape[0])
+            :, y_torch, torch.arange(ind_x.shape[0])
         ].T  # minibatch_size, n_latent
-        h = self.decoder(gamma_select, y_torch)
+        h = self.decoder(gamma_select, y_torch.unsqueeze(1))
         px_scale = self.px_decoder(h)  # (minibatch, n_genes)
         px_ct = torch.exp(self.px_o).unsqueeze(0) * beta.unsqueeze(0) * px_scale
         return px_ct  # shape (minibatch, genes)

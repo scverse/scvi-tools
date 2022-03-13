@@ -98,13 +98,16 @@ intersphinx_mapping = dict(
     scanpy=("https://scanpy.readthedocs.io/en/stable/", None),
     pytorch_lightning=("https://pytorch-lightning.readthedocs.io/en/stable/", None),
     pyro=("http://docs.pyro.ai/en/stable/", None),
+    pymde=("https://pymde.org/", None),
+    flax=("https://flax.readthedocs.io/en/latest/", None),
+    jax=("https://jax.readthedocs.io/en/latest/", None),
 )
 
 
 # General information about the project.
 project = "scvi-tools"
 copyright = "2021, Yosef Lab, UC Berkeley"
-author = "Romain Lopez, Adam Gayoso, Pierre Boyeau, Galen Xing"
+author = "The scvi-tools development team"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -181,9 +184,9 @@ nbsphinx_prolog = r"""
         <p class="admonition-title">Note</p>
         <p>
         This page was generated from
-        <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/tree/{version}/">{docname}</a>.
+        <a class="reference external" href="https://github.com/scverse/scvi-tutorials/tree/{version}/">{docname}</a>.
         Interactive online version:
-        <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+        <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/scverse/scvi_tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
         Some tutorial content may look better in light mode.
         </p>
     </div>

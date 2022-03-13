@@ -6,8 +6,8 @@ import rich
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
-from scvi.data.anndata import _constants
-from scvi.data.anndata._utils import _make_obs_column_categorical, get_anndata_attribute
+from scvi.data import _constants
+from scvi.data._utils import _make_column_categorical, get_anndata_attribute
 
 from ._base_field import BaseAnnDataField
 
@@ -77,7 +77,7 @@ class NumericalObsField(BaseObsField):
             raise KeyError(f"{self.attr_key} not found in adata.obs.")
 
     def register_field(self, adata: AnnData) -> dict:
-        super().register_field(adata)
+        return super().register_field(adata)
 
     def transfer_field(
         self,
@@ -113,7 +113,7 @@ class CategoricalObsField(BaseObsField):
     def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
         self.is_default = obs_key is None
         self._original_attr_key = obs_key or registry_key
-        super().__init__(registry_key, f"_scvi_{self._original_attr_key}")
+        super().__init__(registry_key, f"_scvi_{registry_key}")
 
         self.count_stat_key = f"n_{self.registry_key}"
 
@@ -134,8 +134,8 @@ class CategoricalObsField(BaseObsField):
             self._setup_default_attr(adata)
 
         super().register_field(adata)
-        categorical_mapping = _make_obs_column_categorical(
-            adata,
+        categorical_mapping = _make_column_categorical(
+            adata.obs,
             self._original_attr_key,
             self.attr_key,
         )
@@ -171,8 +171,8 @@ class CategoricalObsField(BaseObsField):
                         f"Cannot transfer setup without `extend_categories = True`."
                     )
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
-        new_mapping = _make_obs_column_categorical(
-            adata_target,
+        new_mapping = _make_column_categorical(
+            adata_target.obs,
             self._original_attr_key,
             self.attr_key,
             categorical_dtype=cat_dtype,

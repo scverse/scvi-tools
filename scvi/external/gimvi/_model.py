@@ -10,10 +10,10 @@ from anndata import AnnData
 from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
-from scvi.data.anndata.fields import CategoricalObsField, LayerField
+from scvi.data import AnnDataManager
+from scvi.data._compat import manager_from_setup_dict
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, VAEMixin
@@ -442,10 +442,10 @@ class GIMVI(VAEMixin, BaseModelClass):
     def load(
         cls,
         dir_path: str,
-        prefix: Optional[str] = None,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        prefix: Optional[str] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -454,8 +454,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         ----------
         dir_path
             Path to saved outputs.
-        prefix
-            Prefix of saved file names.
         adata_seq
             AnnData organized in the same way as data used to train model.
             It is not necessary to run :meth:`~scvi.external.GIMVI.setup_anndata`,
@@ -467,6 +465,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        prefix
+            Prefix of saved file names.
 
         Returns
         -------
