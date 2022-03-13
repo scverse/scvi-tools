@@ -65,8 +65,10 @@ we call:
 Then Bayesian decision theory suggests the posterior probability of of zero-inflation
 is $q(\delta_g < 0.5)$.
 
-> >>> from scipy.stats import beta
-> >>> threshold = 0.5
-> >>> zi_probs = beta.cdf(0.5, alpha_posterior, beta_posterior)
+```
+>>> from scipy.stats import beta
+>>> threshold = 0.5
+>>> zi_probs = beta.cdf(0.5, alpha_posterior, beta_posterior)
+```
 
 [^ref1]: Oscar Clivio, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef (2019), *Detecting zero-inflated genes in single-cell transcriptomics data*, [Machine Learning in Computational Biology (MLCB)](https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf).

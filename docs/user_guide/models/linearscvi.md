@@ -17,7 +17,7 @@ The limitations of LDVAE include:
 - {doc}`/tutorials/notebooks/linear_decoder`
 :::
 
-## Contrasting with {doc}`/user_guide/models/scvi`
+## Contrasting with scVI
 
 Here we discuss the differences between LDVAE and scVI.
 
