@@ -4,7 +4,7 @@ import numpy as np
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
-from scvi.data._utils import _make_obs_column_categorical
+from scvi.data._utils import _make_column_categorical
 
 from ._obs_field import CategoricalObsField
 
@@ -55,8 +55,8 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
 
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
         # rerun setup for the batch column
-        mapping = _make_obs_column_categorical(
-            adata,
+        mapping = _make_column_categorical(
+            adata.obs,
             self._original_attr_key,
             self.attr_key,
             categorical_dtype=cat_dtype,
