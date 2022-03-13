@@ -83,6 +83,8 @@ numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
 myst_enable_extensions = [
     "colon_fence",
+    "dollarmath",
+    "amsmath",
 ]
 
 # The master toctree document.
