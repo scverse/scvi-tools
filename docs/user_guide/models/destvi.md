@@ -233,7 +233,6 @@ To perform differential expression across samples, one can apply a frequentist t
 from the parameters of the generative distribution predicted for each spot in question. More details
 can be found in the DestVI paper.
 
-:::{topic} References:
 [^ref1]: Romain Lopez, Baoguo Li, Hadas Keren-Shaul, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Eyal David, Allon Wagner, Yoseph Addad, Michael I. Jordan, Ido Amit, Nir Yosef (2021),
     *Multi-resolution deconvolution of spatial transcriptomics data reveals continuous patterns of inflammation*,
     [bioRxiv](https://doi.org/10.1101/2021.05.10.443517).
@@ -241,4 +240,3 @@ can be found in the DestVI paper.
 [^ref2]: Jakub Tomczak, Max Welling (2018),
     *VAE with a VampPrior*,
     .
-:::

@@ -121,7 +121,6 @@ Once the model has been fitted, one can retrieve the estimated feature-by-topic 
 Like the `get_latent_representation()` method, this returns a Monte Carlo estimate of the logistic-Normal expectation.
 Similarly, we can configure the number of samples with `n_samples`.
 
-:::{topic} References:
 [^ref1]: David M. Blei, Andrew Y. Ng, Michael I. Jordan (2003),
     *Latent Dirichlet Allocation*,
     [Journal of Machine Learning Research](https://www.jmlr.org/papers/volume3/blei03a/blei03a.pdf).
@@ -129,4 +128,3 @@ Similarly, we can configure the number of samples with `n_samples`.
 [^ref2]: Akash Srivastava, Charles Sutton (2017),
     *Autoencoding Variational Inference for Topic Models*,
     [International Conference on Learning Representations](https://arxiv.org/pdf/1703.01488.pdf).
-:::

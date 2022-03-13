@@ -212,8 +212,6 @@ Data can be generated from the model using the posterior predictive distribution
 This is equivalent to feeding a cell through the model, sampling from the posterior
 distributions of the latent variables, retrieving the likelihood parameters, and finally, sampling from this distribution.
 
-:::{topic} References:
 [^ref1]: Adam Gayoso\*, Zoë Steier\*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
     *Joint probabilistic modeling of single-cell multi-omic data with totalVI*,
     [Nature Methods](https://www.nature.com/articles/s41592-020-01050-x).
-:::

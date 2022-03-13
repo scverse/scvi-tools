@@ -292,7 +292,6 @@ For prediction, scANVI returns $q_\eta(c_n \mid z_n)$ in the following function:
 
 > >>> adata.obs\["scanvi_prediction"\] = model.predict()
 
-:::{topic} References:
 [^ref1]: Xu Chenling, Romain Lopez, Edouard Mehlman, Jeffrey Regier, Michael I. Jordan, Nir Yosef (2021),
     *Probabilistic harmonization and annotation of single‐cell transcriptomics data with deep generative models*,
     [Molecular systems biology 17.1](https://www.embopress.org/doi/epdf/10.15252/msb.20209620).
@@ -308,4 +307,3 @@ For prediction, scANVI returns $q_\eta(c_n \mid z_n)$ in the following function:
 [^ref3]: Diederik P. Kingma, Max Welling (2013) (2014),
     *Auto-Encoding Variational Bayes*,
     [Arxiv](https://arxiv.org/abs/1312.6114).
-:::

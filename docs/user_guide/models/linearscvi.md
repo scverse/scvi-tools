@@ -25,8 +25,6 @@ Here we discuss the differences between LDVAE and scVI.
 - This matrix $W$ can be accessed using {func}`~scvi.model.LinearSCVI.get_loadings`
 - LDVAE does not offer transfer learning capabilities currently.
 
-:::{topic} References:
 [^ref1]: Valentine Svensson, Adam Gayoso, Nir Yosef, Lior Pachter (2020),
     *Interpretable factor models of single-cell RNA-seq via variational autoencoders*,
     [Bioinformatics](https://academic.oup.com/bioinformatics/article/36/11/3418/5807606).
-:::

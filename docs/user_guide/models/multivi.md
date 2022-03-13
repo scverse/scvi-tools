@@ -216,8 +216,6 @@ Differential expression analysis is achieved with {func}`~scvi.model.MULTIVI.dif
 
 Differential accessibility analysis is achieved with {func}`~scvi.model.MULTIVI.differential_accessibility`. MultiVI tests differences in accessibility of $g_z\left( z_n, s_n \right)$.
 
-:::{topic} References:
 [^ref1]: Tal Ashuach\*, Mariano I. Gabitto\*, Michael I. Jordan, Nir Yosef (2021),
     *MultiVI: deep generative model for the integration of multi-modal data*,
     `Biorxiv`.
-:::

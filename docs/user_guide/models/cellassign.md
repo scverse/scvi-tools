@@ -148,7 +148,6 @@ The implementation uses the same variable names as the math.
 >   the penalities corresponding to the priors on $\pi$ and $\delta$.
 > - CellAssign uses the standard {class}`~scvi.train.TrainingPlan`.
 
-:::{topic} References:
 [^ref1]: Allen W. Zhang, Ciara O’Flanagan, Elizabeth A. Chavez, Jamie LP Lim, Nicholas Ceglia, Andrew McPherson, Matt Wiens et al. (2019),
     *Probabilistic cell-type assignment of single-cell RNA-seq for tumor microenvironment profiling*,
     [Nature Methods](https://www.nature.com/articles/s41592-019-0529-1?elqTrackId=12c8cef68e0741ef8422778b61).
@@ -156,4 +155,3 @@ The implementation uses the same variable names as the math.
 [^ref2]: CellAssign original implementation. GitHub. <https://github.com/Irrationone/cellassign>
 
 [^ref3]: Kingma, Diederik P., and Jimmy Ba. "Adam: A method for stochastic optimization." arXiv preprint arXiv:1412.6980 (2014).
-:::

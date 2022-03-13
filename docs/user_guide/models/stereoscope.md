@@ -179,8 +179,6 @@ Subsequently for a given cell type, users can plot a heatmap of the cell type pr
 >>> sc.p1.embedding(st_adata, basis="location", color="B cells")
 ```
 
-:::{topic} References:
 [^ref1]: Alma Andersson, Joseph Bergenstråhle, Michaela Asp, Ludvig Bergenstråhle, Aleksandra Jurek, José Fernández Navarro & Joakim Lundeberg (2020),
     *Single-cell and spatial transcriptomics enables probabilistic inference of cell type topography*,
     [Communications Biology](https://www.nature.com/articles/s42003-020-01247-y).
-:::

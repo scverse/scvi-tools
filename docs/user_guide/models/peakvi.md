@@ -149,8 +149,6 @@ Notably, this function also has the `transform_batch` parameter that allows coun
 
 Differential accessibility analysis is achieved with {func}`~scvi.model.PEAKVI.differential_accessibility`. PeakVI tests differences in accessibility of $g_z\left( z_i, s_i \right)$.
 
-:::{topic} References:
 [^ref1]: Tal Ashuach, Daniel A. Reidenbach, Nir Yosef (2021),
     *PeakVI: A Deep Generative Model For Single Cell Chromatin Accessibility Analysis*,
     [BioRxiv](https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1).
-:::
