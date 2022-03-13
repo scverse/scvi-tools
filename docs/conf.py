@@ -81,7 +81,9 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
-
+myst_enable_extensions = [
+    "colon_fence",
+]
 
 # The master toctree document.
 master_doc = "index"
