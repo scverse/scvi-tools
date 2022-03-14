@@ -311,7 +311,7 @@ class SOLO(BaseModelClass):
         if early_stopping:
             early_stopping_callback = [
                 LoudEarlyStopping(
-                    monitor="validation_loss",
+                    monitor="validation_loss" if train_size != 1.0 else "train_loss",
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
                     mode="min",
