@@ -35,6 +35,7 @@ needs_sphinx = "4.3"  # Nicer param docs
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
+    "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
@@ -66,7 +67,7 @@ exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 nbsphinx_execute = "never"
 
 templates_path = ["_templates"]
-source_suffix = ".rst"
+# source_suffix = ".rst"
 
 # Generate the API documentation when building
 autosummary_generate = True
@@ -80,7 +81,11 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
-
+myst_enable_extensions = [
+    "colon_fence",
+    "dollarmath",
+    "amsmath",
+]
 
 # The master toctree document.
 master_doc = "index"
@@ -186,7 +191,7 @@ nbsphinx_prolog = r"""
         This page was generated from
         <a class="reference external" href="https://github.com/scverse/scvi-tutorials/tree/{version}/">{docname}</a>.
         Interactive online version:
-        <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/scverse/scvi_tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+        <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/scverse/scvi-tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
         Some tutorial content may look better in light mode.
         </p>
     </div>
