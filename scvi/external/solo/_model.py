@@ -260,7 +260,7 @@ class SOLO(BaseModelClass):
         max_epochs: int = 400,
         lr: float = 1e-3,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        train_size: float = 1,
+        train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
