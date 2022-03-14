@@ -86,9 +86,16 @@ class ArchesMixin:
 
         if "scvi_setup_dict_" in attr_dict:
             scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+            # scanvi case
+            unlabeled_category_key = "unlabeled_category_"
+            unlabeled_category = attr_dict.get(unlabeled_category_key, None)
             cls.register_manager(
                 manager_from_setup_dict(
-                    cls, adata, scvi_setup_dict, extend_categories=True
+                    cls,
+                    adata,
+                    scvi_setup_dict,
+                    extend_categories=True,
+                    unlabeled_category=unlabeled_category,
                 )
             )
         else:
