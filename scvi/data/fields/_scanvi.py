@@ -27,7 +27,6 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
     """
 
     UNLABELED_CATEGORY = "unlabeled_category"
-    WAS_REMAPPED = "was_remapped"
 
     def __init__(
         self,

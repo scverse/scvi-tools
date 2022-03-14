@@ -21,6 +21,8 @@ from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
 logger = logging.getLogger(__name__)
 
+MIN_VAR_NAME_RATIO = 0.8
+
 
 class ArchesMixin:
     """Universal scArches implementation."""
@@ -48,7 +50,7 @@ class ArchesMixin:
         adata
             AnnData organized in the same way as data used to train model.
             It is not necessary to run setup_anndata,
-            as AnnData is validated against the saved `scvi` setup dictionary.
+            as AnnData is validated against the ``registry``.
         reference_model
             Either an already instantiated model of the same class, or a path to
             saved outputs for reference model.
@@ -118,7 +120,7 @@ class ArchesMixin:
                 adata,
                 source_registry=registry,
                 extend_categories=True,
-                **registry[_SETUP_ARGS_KEY]
+                **registry[_SETUP_ARGS_KEY],
             )
 
         model = _initialize_model(cls, adata, attr_dict)
@@ -179,7 +181,7 @@ class ArchesMixin:
         adata
             AnnData organized in the same way as data used to train model.
             It is not necessary to run setup_anndata,
-            as AnnData is validated against the saved `scvi` setup dictionary.
+            as AnnData is validated against the ``registry``.
         reference_model
             Either an already instantiated model of the same class, or a path to
             saved outputs for reference model.
@@ -202,16 +204,17 @@ class ArchesMixin:
         intersection = adata.var_names.intersection(var_names)
         inter_len = len(intersection)
         if inter_len == 0:
-            msg = "No reference var names found in query data. "
-            msg += "Please rerun with return_reference_var_names=True "
-            msg += "to see reference var names."
-            raise ValueError(msg)
+            raise ValueError(
+                "No reference var names found in query data. "
+                "Please rerun with return_reference_var_names=True "
+                "to see reference var names."
+            )
 
         ratio = inter_len / len(var_names)
         logger.info("Found {}% reference vars in query data.".format(ratio * 100))
-        if ratio < 0.8:
+        if ratio < MIN_VAR_NAME_RATIO:
             warnings.warn(
-                "Query data contains less than 80% of reference var names. "
+                f"Query data contains less than {MIN_VAR_NAME_RATIO:.0f}% of reference var names. "
                 "This may result in poor performance."
             )
         genes_to_add = var_names.difference(adata.var_names)
