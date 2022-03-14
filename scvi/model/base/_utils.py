@@ -117,6 +117,8 @@ def _initialize_model(cls, adata, attr_dict):
     # backwards compat for scANVI
     if "unlabeled_category" in non_kwargs.keys():
         non_kwargs.pop("unlabeled_category")
+    if "pretrained_model" in non_kwargs.keys():
+        non_kwargs.pop("pretrained_model")
 
     model = cls(adata, **non_kwargs, **kwargs)
     for attr, val in attr_dict.items():
