@@ -1,6 +1,7 @@
 import os
 import pickle
 import tarfile
+import zipfile
 
 import anndata
 import numpy as np
@@ -590,6 +591,23 @@ def test_backwards_compatible_loading(save_path):
     m.train(1)
     pretrained_totalvi_path = os.path.join(save_path, "testing_models/080_totalvi")
     m = scvi.model.TOTALVI.load(pretrained_totalvi_path, adata=a)
+    m.train(1)
+
+
+@pytest.mark.internet
+def test_backwards_compatible_loading_scanvi(save_path):
+    def download_hcla_model(save_path):
+        file_path = "https://zenodo.org/record/6337966/files/HLCA_reference_model.zip"
+        save_fn = "testing_hcla_model.zip"
+        _download(file_path, save_path, save_fn)
+        saved_file_path = os.path.join(save_path, save_fn)
+        with zipfile.ZipFile(saved_file_path, "r") as myzip:
+            myzip.extractall(path=save_path)
+            myzip.printdir()
+
+    download_hcla_model(save_path)
+    pretrained_scanvi_path = os.path.join(save_path, "HLCA_reference_model")
+    m = scvi.model.SCANVI.load(pretrained_scanvi_path)
     m.train(1)
 
 
