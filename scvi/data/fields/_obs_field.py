@@ -9,8 +9,8 @@ from pandas.api.types import CategoricalDtype
 from scvi.data import _constants
 from scvi.data._utils import (
     _make_column_categorical,
-    get_anndata_attribute,
     _set_anndata_attribute,
+    get_anndata_attribute,
 )
 
 from ._base_field import BaseAnnDataField

@@ -7,7 +7,7 @@ import rich
 from anndata import AnnData
 
 from scvi.data import _constants
-from scvi.data._utils import get_anndata_attribute, _set_anndata_attribute
+from scvi.data._utils import _set_anndata_attribute, get_anndata_attribute
 
 
 class BaseAnnDataField(ABC):
