@@ -115,7 +115,8 @@ def _initialize_model(cls, adata, attr_dict):
         non_kwargs.pop("use_cuda")
 
     # backwards compat for scANVI
-    non_kwargs.pop("unlabeled_category")
+    if "unlabeled_category" in non_kwargs.keys():
+        non_kwargs.pop("unlabeled_category")
 
     model = cls(adata, **non_kwargs, **kwargs)
     for attr, val in attr_dict.items():
