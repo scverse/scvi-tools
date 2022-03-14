@@ -7,7 +7,7 @@ import rich
 from anndata import AnnData
 
 from scvi.data import _constants
-from scvi.data._utils import get_anndata_attribute
+from scvi.data._utils import get_anndata_attribute, _set_anndata_attribute
 
 
 class BaseAnnDataField(ABC):
@@ -129,6 +129,9 @@ class BaseAnnDataField(ABC):
         state_registry_summary
             Optional :class:`rich.table.Table` summarizing the ``state_registry``.
         """
+
+    def set_field_data(self, adata: AnnData) -> None:
+        _set_anndata_attribute(adata)
 
     def get_field_data(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
         """Returns the requested data as determined by the field for a given AnnData object."""

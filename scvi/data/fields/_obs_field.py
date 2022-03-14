@@ -7,7 +7,11 @@ from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
 from scvi.data import _constants
-from scvi.data._utils import _make_column_categorical, get_anndata_attribute
+from scvi.data._utils import (
+    _make_column_categorical,
+    get_anndata_attribute,
+    _set_anndata_attribute,
+)
 
 from ._base_field import BaseAnnDataField
 
@@ -31,7 +35,11 @@ class BaseObsField(BaseAnnDataField):
     _attr_name = _constants._ADATA_ATTRS.OBS
 
     def __init__(
-        self, registry_key: str, obs_key: Optional[str], required: bool = True
+        self,
+        registry_key: str,
+        obs_key: Optional[str],
+        mod_key: Optional[str] = None,
+        required: bool = True,
     ) -> None:
         super().__init__()
         if required and obs_key is None:
@@ -40,6 +48,7 @@ class BaseObsField(BaseAnnDataField):
             )
         self._registry_key = registry_key
         self._attr_key = obs_key
+        self._mod_key = mod_key
         self._is_empty = obs_key is None
 
     @property
@@ -51,8 +60,12 @@ class BaseObsField(BaseAnnDataField):
         return self._attr_name
 
     @property
-    def attr_key(self) -> str:
+    def attr_key(self) -> Optional[str]:
         return self._attr_key
+
+    @property
+    def mod_key(self) -> Optional[str]:
+        return self._mod_key
 
     @property
     def is_empty(self) -> bool:
@@ -110,10 +123,12 @@ class CategoricalObsField(BaseObsField):
     CATEGORICAL_MAPPING_KEY = "categorical_mapping"
     ORIGINAL_ATTR_KEY = "original_key"
 
-    def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
+    def __init__(
+        self, registry_key: str, obs_key: Optional[str], mod_key: Optional[str] = None
+    ) -> None:
         self.is_default = obs_key is None
         self._original_attr_key = obs_key or registry_key
-        super().__init__(registry_key, f"_scvi_{registry_key}")
+        super().__init__(registry_key, f"_scvi_{registry_key}", mod_key=mod_key)
 
         self.count_stat_key = f"n_{self.registry_key}"
 

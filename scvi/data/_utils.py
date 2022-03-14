@@ -47,7 +47,7 @@ def get_anndata_attribute(
     return field
 
 
-def _set_data_in_registry(
+def _set_anndata_attribute(
     adata: Union[anndata.AnnData, mudata.MuData],
     data: Union[np.ndarray, pd.DataFrame],
     attr_name: str,
@@ -120,7 +120,7 @@ def _verify_and_correct_data_format(
             f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS."
         )
         data = np.asarray(data, order="C")
-        _set_data_in_registry(adata, data, attr_name, attr_key)
+        _set_anndata_attribute(adata, data, attr_name, attr_key)
     elif isinstance(data, pd.DataFrame) and (
         data.to_numpy().flags["C_CONTIGUOUS"] is False
     ):
@@ -131,7 +131,7 @@ def _verify_and_correct_data_format(
         vals = data.to_numpy()
         columns = data.columns
         data = pd.DataFrame(np.ascontiguousarray(vals), index=index, columns=columns)
-        _set_data_in_registry(adata, data, attr_name, attr_key)
+        _set_anndata_attribute(adata, data, attr_name, attr_key)
 
 
 def _make_column_categorical(
