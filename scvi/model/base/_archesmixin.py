@@ -3,8 +3,12 @@ import warnings
 from copy import deepcopy
 from typing import Optional, Union
 
+import anndata
+import numpy as np
+import pandas as pd
 import torch
 from anndata import AnnData
+from scipy.sparse import csr_matrix
 
 from scvi.data import _constants
 from scvi.data._compat import manager_from_setup_dict
@@ -70,15 +74,10 @@ class ArchesMixin:
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
         use_gpu, device = parse_use_gpu_arg(use_gpu)
-        if isinstance(reference_model, str):
-            attr_dict, var_names, load_state_dict, _ = _load_saved_files(
-                reference_model, load_adata=False, map_location=device
-            )
-        else:
-            attr_dict = reference_model._get_user_attributes()
-            attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
-            var_names = reference_model.adata.var_names
-            load_state_dict = deepcopy(reference_model.module.state_dict())
+
+        attr_dict, var_names, load_state_dict = _get_loaded_data(
+            reference_model, device=device
+        )
 
         if inplace_subset_query_vars:
             logger.debug("Subsetting query vars to reference vars.")
@@ -155,6 +154,78 @@ class ArchesMixin:
 
         return model
 
+    @staticmethod
+    def prepare_query_anndata(
+        adata: AnnData,
+        reference_model: Union[str, BaseModelClass],
+        return_reference_var_names: bool = False,
+        inplace: bool = True,
+    ) -> Optional[Union[AnnData, pd.Index]]:
+        """
+        Prepare data for query integration.
+
+        This function will return a new AnnData object with padded zeros
+        for missing features, as well as correctly sorted features.
+
+        Parameters
+        ----------
+        adata
+            AnnData organized in the same way as data used to train model.
+            It is not necessary to run setup_anndata,
+            as AnnData is validated against the saved `scvi` setup dictionary.
+        reference_model
+            Either an already instantiated model of the same class, or a path to
+            saved outputs for reference model.
+        return_reference_var_names
+            Only load and return reference var names if True.
+        inplace
+            Whether to subset and rearrange query vars inplace or return new AnnData.
+
+        Returns
+        -------
+        Query adata ready to use in `load_query_data` unless `return_reference_var_names`
+        in which case a pd.Index of reference var names is returned.
+        """
+        _, var_names, _ = _get_loaded_data(reference_model)
+        var_names = pd.Index(var_names)
+
+        if return_reference_var_names:
+            return var_names
+
+        intersection = adata.var_names.intersection(var_names)
+        inter_len = len(intersection)
+        if inter_len == 0:
+            msg = "No reference var names found in query data. "
+            msg += "Please rerun with return_reference_var_names=True "
+            msg += "to see reference var names."
+            raise ValueError(msg)
+
+        ratio = inter_len / len(var_names)
+        logger.info("Found {}% reference vars in query data.".format(ratio * 100))
+        if ratio < 0.8:
+            warnings.warn(
+                "Query data contains less than 80% of reference var names. "
+                "This may result in poor performance."
+            )
+        genes_to_add = var_names.difference(adata.var_names)
+        adata_padding = AnnData(csr_matrix(np.zeros((adata.n_obs, len(genes_to_add)))))
+        adata_padding.var_names = genes_to_add
+        adata_padding.obs_names = adata.obs_names
+        # Concatenate object
+        adata_out = anndata.concat(
+            [adata, adata_padding],
+            axis=1,
+            join="outer",
+            index_unique=None,
+            merge="unique",
+        )
+        adata_out._inplace_subset_var(var_names)
+
+        if inplace:
+            adata._init_as_actual(adata_out, dtype=adata._X.dtype)
+        else:
+            return adata_out
+
 
 def _set_params_online_update(
     module,
@@ -229,3 +300,17 @@ def _set_params_online_update(
             par.requires_grad = True
         else:
             par.requires_grad = False
+
+
+def _get_loaded_data(reference_model, device=None):
+    if isinstance(reference_model, str):
+        attr_dict, var_names, load_state_dict, _ = _load_saved_files(
+            reference_model, load_adata=False, map_location=device
+        )
+    else:
+        attr_dict = reference_model._get_user_attributes()
+        attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
+        var_names = reference_model.adata.var_names
+        load_state_dict = deepcopy(reference_model.module.state_dict())
+
+    return attr_dict, var_names, load_state_dict
