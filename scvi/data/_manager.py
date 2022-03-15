@@ -131,6 +131,11 @@ class AnnDataManager:
                 "Existing AnnData object registered with this Manager instance."
             )
 
+        if source_registry is None and transfer_kwargs:
+            raise TypeError(
+                f"register_fields() got unexpected keyword arguments {transfer_kwargs} passed without a source_registry."
+            )
+
         self._validate_anndata_object(adata)
         field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
 
