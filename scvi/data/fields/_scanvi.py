@@ -54,6 +54,7 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
 
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
         # rerun setup for the batch column
+        adata = self._maybe_get_modality(adata)
         mapping = _make_column_categorical(
             adata.obs,
             self._original_attr_key,

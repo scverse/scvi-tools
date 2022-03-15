@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 
+from ._obs_field import CategoricalObsField
 from ._obsm_field import ObsmField
 
 logger = logging.getLogger(__name__)
@@ -46,15 +47,15 @@ class ProteinObsmField(ObsmField):
         registry_key: str,
         obsm_key: str,
         use_batch_mask: bool = True,
-        batch_key: Optional[str] = None,
+        batch_field: Optional[CategoricalObsField] = None,
         colnames_uns_key: Optional[str] = None,
         is_count_data: bool = False,
         correct_data_format: bool = True,
     ) -> None:
-        if use_batch_mask and batch_key is None:
+        if use_batch_mask and batch_field is None:
             raise ValueError(
-                "`use_batch_mask = True` requires that `batch_key is not None`. "
-                "Please provide a `batch_key`."
+                "`use_batch_mask = True` requires that `batch_field is not None`. "
+                "Please provide a `batch_field`."
             )
         super().__init__(
             registry_key,
@@ -64,7 +65,7 @@ class ProteinObsmField(ObsmField):
             correct_data_format=correct_data_format,
         )
         self.use_batch_mask = use_batch_mask
-        self.batch_key = batch_key
+        self.batch_field = batch_field
 
     def _get_batch_mask_protein_data(self, adata: AnnData) -> Optional[dict]:
         """
@@ -78,7 +79,7 @@ class ProteinObsmField(ObsmField):
             pro_exp = (
                 pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
             )
-            batches = adata.obs[self.batch_key].values
+            batches = self.batch_field.get_field_data(adata)
             batch_mask = {}
             for b in np.unique(batches):
                 b_inds = np.where(batches.ravel() == b)[0]

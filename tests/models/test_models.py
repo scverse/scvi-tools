@@ -430,7 +430,7 @@ def test_saving_and_loading(save_path):
         model = cls.load(save_path, adata=adata, prefix=prefix)
         assert "batch" in model.adata_manager.data_registry
         assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
+            attr_name="obs", attr_key="_scvi_batch", mod_key=None
         )
 
         z2 = model.get_latent_representation()
@@ -474,7 +474,7 @@ def test_saving_and_loading(save_path):
         model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
         assert "batch" in model.adata_manager.data_registry
         assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
+            attr_name="obs", attr_key="_scvi_batch", mod_key=None
         )
 
         ab2 = model.get_alphas_betas()
@@ -510,7 +510,7 @@ def test_saving_and_loading(save_path):
         model = SCANVI.load(save_path, adata=adata, prefix=prefix)
         assert "batch" in model.adata_manager.data_registry
         assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
+            attr_name="obs", attr_key="_scvi_batch", mod_key=None
         )
 
         p2 = model.predict()

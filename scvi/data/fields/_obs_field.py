@@ -7,11 +7,7 @@ from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
 from scvi.data import _constants
-from scvi.data._utils import (
-    _make_column_categorical,
-    _set_anndata_attribute,
-    get_anndata_attribute,
-)
+from scvi.data._utils import _make_column_categorical, get_anndata_attribute
 
 from ._base_field import BaseAnnDataField
 
@@ -86,8 +82,7 @@ class NumericalObsField(BaseObsField):
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
-        if self.attr_key not in adata.obs:
-            raise KeyError(f"{self.attr_key} not found in adata.obs.")
+        self.get_field_data(adata)
 
     def register_field(self, adata: AnnData) -> dict:
         return super().register_field(adata)
@@ -134,21 +129,24 @@ class CategoricalObsField(BaseObsField):
 
     def _setup_default_attr(self, adata: AnnData) -> None:
         self._original_attr_key = self.attr_key
-        adata.obs[self.attr_key] = np.zeros(adata.shape[0], dtype=np.int64)
+        mod_adata = self._maybe_get_modality(adata)
+        self.set_field_data(adata, np.zeros(mod_adata.n_obs, dtype=np.int64))
 
     def _get_original_column(self, adata: AnnData) -> np.ndarray:
-        return get_anndata_attribute(adata, self.attr_name, self._original_attr_key)
+        return get_anndata_attribute(
+            adata, self.attr_name, self._original_attr_key, mod_key=self.mod_key
+        )
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
-        if self._original_attr_key not in adata.obs:
-            raise KeyError(f"{self._original_attr_key} not found in adata.obs.")
+        self._get_original_column(adata)
 
     def register_field(self, adata: AnnData) -> dict:
         if self.is_default:
             self._setup_default_attr(adata)
 
         super().register_field(adata)
+        adata = self._maybe_get_modality(adata)
         categorical_mapping = _make_column_categorical(
             adata.obs,
             self._original_attr_key,

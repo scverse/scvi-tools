@@ -1233,7 +1233,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 REGISTRY_KEYS.PROTEIN_EXP_KEY,
                 protein_expression_obsm_key,
                 use_batch_mask=True,
-                batch_key=batch_field.attr_key,
+                batch_field=batch_field,
                 colnames_uns_key=protein_names_uns_key,
                 is_count_data=True,
             ),

@@ -39,7 +39,7 @@ class LayerField(BaseAnnDataField):
         layer: Optional[str],
         is_count_data: bool = True,
         correct_data_format: bool = True,
-        mod_key: Optional[str] = True,
+        mod_key: Optional[str] = None,
     ) -> None:
         super().__init__()
         self._registry_key = registry_key
@@ -89,8 +89,11 @@ class LayerField(BaseAnnDataField):
     def register_field(self, adata: AnnData) -> dict:
         super().register_field(adata)
         if self.correct_data_format:
-            _verify_and_correct_data_format(adata, self.attr_name, self.attr_key)
-        return {self.N_CELLS_KEY: adata.n_obs, self.N_VARS_KEY: adata.n_vars}
+            mod_adata = self._maybe_get_modality(adata)
+            _verify_and_correct_data_format(mod_adata, self.attr_name, self.attr_key)
+
+        x = self.get_field_data(adata)
+        return {self.N_CELLS_KEY: x.shape[0], self.N_VARS_KEY: x.shape[1]}
 
     def transfer_field(
         self, state_registry: dict, adata_target: AnnData, **kwargs

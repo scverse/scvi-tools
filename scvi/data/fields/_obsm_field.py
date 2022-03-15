@@ -93,9 +93,6 @@ class ObsmField(BaseObsmField):
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
-        if self.attr_key not in adata.obsm:
-            raise KeyError(f"{self.attr_key} not found in adata.obsm.")
-
         obsm_data = self.get_field_data(adata)
 
         if self.is_count_data and not _check_nonnegative_integers(obsm_data):
@@ -121,6 +118,7 @@ class ObsmField(BaseObsmField):
             column_names = list(obsm_data.columns)
         elif self.colnames_uns_key is not None:
             logger.info(f"Using column names from adata.uns['{self.colnames_uns_key}']")
+            adata = self._maybe_get_modality(adata)
             column_names = adata.uns[self.colnames_uns_key]
         else:
             logger.info("Generating sequential column names")
@@ -189,6 +187,7 @@ class JointObsField(BaseObsmField):
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)
+        adata = self._maybe_get_modality(adata)
         for obs_key in self._obs_keys:
             if obs_key not in adata.obs:
                 raise KeyError(f"{obs_key} not found in adata.obs.")
@@ -233,6 +232,7 @@ class NumericalJointObsField(JointObsField):
 
     def register_field(self, adata: AnnData) -> dict:
         super().register_field(adata)
+        adata = self._maybe_get_modality(adata)
         self._combine_obs_fields(adata)
         return {self.COLUMNS_KEY: adata.obsm[self.attr_key].columns.to_numpy()}
 
@@ -328,6 +328,7 @@ class CategoricalJointObsField(JointObsField):
 
     def register_field(self, adata: AnnData) -> dict:
         super().register_field(adata)
+        adata = self._maybe_get_modality(adata)
         self._combine_obs_fields(adata)
         return self._make_obsm_categorical(adata)
 
@@ -352,6 +353,7 @@ class CategoricalJointObsField(JointObsField):
                 source_cat_dict[key] = mapping
 
         self.validate_field(adata_target)
+        adata_target = self._maybe_get_modality(adata_target)
         self._combine_obs_fields(adata_target)
         return self._make_obsm_categorical(adata_target, category_dict=source_cat_dict)
 

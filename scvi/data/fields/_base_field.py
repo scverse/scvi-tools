@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import rich
 from anndata import AnnData
+from mudata import MuData
 
 from scvi.data import _constants
 from scvi.data._utils import _set_anndata_attribute, get_anndata_attribute
@@ -130,16 +131,29 @@ class BaseAnnDataField(ABC):
             Optional :class:`rich.table.Table` summarizing the ``state_registry``.
         """
 
-    def set_field_data(self, adata: AnnData) -> None:
-        _set_anndata_attribute(adata)
+    def _maybe_get_modality(self, adata: Union[AnnData, MuData]) -> AnnData:
+        if self.mod_key is not None:
+            if isinstance(adata, AnnData):
+                raise ValueError(
+                    "self.mod_key is not None, but an AnnData object was passed in."
+                )
+            if self.mod_key not in adata:
+                raise KeyError(f"mod_key {self.mod_key} not found in mudata.mod.")
+            adata = adata.mod[self.mod_key]
+        return adata
+
+    def set_field_data(
+        self, adata: AnnData, data: Union[np.ndarray, pd.DataFrame]
+    ) -> None:
+        adata = self._maybe_get_modality(adata)
+        _set_anndata_attribute(adata, data, self.attr_name, self.attr_key)
 
     def get_field_data(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
         """Returns the requested data as determined by the field for a given AnnData object."""
         if self.is_empty:
             raise AssertionError(f"The {self.registry_key} field is empty.")
-        return get_anndata_attribute(
-            adata, self.attr_name, self.attr_key, mod_key=self.mod_key
-        )
+        adata = self._maybe_get_modality(adata)
+        return get_anndata_attribute(adata, self.attr_name, self.attr_key)
 
     def get_data_registry(self) -> dict:
         """
