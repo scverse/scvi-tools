@@ -137,8 +137,8 @@ class BaseAnnDataField(ABC):
                 raise ValueError(
                     "self.mod_key is not None, but an AnnData object was passed in."
                 )
-            if self.mod_key not in adata:
-                raise KeyError(f"mod_key {self.mod_key} not found in mudata.mod.")
+            if self.mod_key not in adata.mod:
+                raise KeyError(f"mod_key {self.mod_key} not found in mdata.mod.")
             adata = adata.mod[self.mod_key]
         return adata
 

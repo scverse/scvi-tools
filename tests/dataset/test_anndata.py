@@ -2,6 +2,7 @@ import os
 import random
 
 import anndata
+import mudata
 import numpy as np
 import pandas as pd
 import pytest
@@ -13,7 +14,7 @@ from scvi import REGISTRY_KEYS
 from scvi.data import synthetic_iid
 from scvi.dataloaders import AnnTorchDataset
 
-from .utils import generic_setup_adata_manager
+from .utils import generic_setup_adata_manager, generic_setup_mudata_manager
 
 
 def test_transfer_fields():
@@ -316,6 +317,16 @@ def test_setup_anndata():
     adata.obs["cat1"][:10] = np.nan
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata, categorical_covariate_keys=["cat1"])
+
+
+def test_setup_mudata():
+    # test regular setup
+    adata = synthetic_iid()
+    mdata = mudata.MuData({"rna": adata})
+    adata_manager = generic_setup_mudata_manager(mdata, layer=None, layer_mod="rna")
+    np.testing.assert_array_equal(
+        adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), adata.X
+    )
 
 
 def test_save_setup_anndata(save_path):

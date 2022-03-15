@@ -266,12 +266,15 @@ class AnnDataManager:
         The requested data.
         """
         data_loc = self.data_registry[registry_key]
-        attr_name, attr_key = (
+        mod_key, attr_name, attr_key = (
+            data_loc[_constants._DR_MOD_KEY],
             data_loc[_constants._DR_ATTR_NAME],
             data_loc[_constants._DR_ATTR_KEY],
         )
 
-        return get_anndata_attribute(self.adata, attr_name, attr_key)
+        if mod_key is not None:
+            adata = self.adata.mod[mod_key]
+        return get_anndata_attribute(adata, attr_name, attr_key)
 
     def get_state_registry(self, registry_key: str) -> attrdict:
         """Returns the state registry for the AnnDataField registered with this instance."""
