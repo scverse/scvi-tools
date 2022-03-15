@@ -114,6 +114,12 @@ def _initialize_model(cls, adata, attr_dict):
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         non_kwargs.pop("use_cuda")
 
+    # backwards compat for scANVI
+    if "unlabeled_category" in non_kwargs.keys():
+        non_kwargs.pop("unlabeled_category")
+    if "pretrained_model" in non_kwargs.keys():
+        non_kwargs.pop("pretrained_model")
+
     model = cls(adata, **non_kwargs, **kwargs)
     for attr, val in attr_dict.items():
         setattr(model, attr, val)
