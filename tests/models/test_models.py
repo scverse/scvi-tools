@@ -393,7 +393,6 @@ def test_saving_and_loading(save_path):
             cls.setup_anndata(
                 adata,
                 batch_key="batch",
-                labels_key="labels",
                 protein_expression_obsm_key="protein_expression",
                 protein_names_uns_key="protein_names",
             )

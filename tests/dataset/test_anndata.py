@@ -98,6 +98,11 @@ def test_transfer_fields():
     m.get_latent_representation(a2)
     assert a2.obs["_scvi_batch"].all() == 1
 
+    # test that error is thrown if an arbitrary kwarg is passed into setup_anndata
+    a = scvi.data.synthetic_iid()
+    with pytest.raises(TypeError):
+        scvi.model.SCVI.setup_anndata(a, batch="batch")
+
 
 def test_clobber_same_model():
     adata = scvi.data.synthetic_iid()
