@@ -591,7 +591,16 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # Legacy support for old setup dict format.
         if "scvi_setup_dict_" in attr_dict:
             scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-            cls.register_manager(manager_from_setup_dict(cls, adata, scvi_setup_dict))
+            unlabeled_category_key = "unlabeled_category_"
+            unlabeled_category = attr_dict.get(unlabeled_category_key, None)
+            cls.register_manager(
+                manager_from_setup_dict(
+                    cls,
+                    adata,
+                    scvi_setup_dict,
+                    unlabeled_category=unlabeled_category,
+                )
+            )
         else:
             registry = attr_dict.pop("registry_")
             if (

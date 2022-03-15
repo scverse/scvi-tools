@@ -15,6 +15,42 @@ def single_pass_for_online_update(model):
     scvi_loss.loss.backward()
 
 
+def test_data_prep(save_path):
+    n_latent = 5
+    adata1 = synthetic_iid()
+    SCVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
+    model = SCVI(adata1, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # adata2 has more genes and a perfect subset of adata1
+    adata2 = synthetic_iid(n_genes=110)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    SCVI.prepare_query_anndata(adata2, dir_path)
+    SCVI.load_query_data(adata2, dir_path)
+
+    adata3 = SCVI.prepare_query_anndata(adata2, dir_path, inplace=False)
+    SCVI.load_query_data(adata3, dir_path)
+
+    # adata4 has more genes and missing 10 genes from adata1
+    adata4 = synthetic_iid(n_genes=110)
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
+    adata4.var_names = new_var_names
+
+    SCVI.prepare_query_anndata(adata4, dir_path)
+    # should be padded 0s
+    assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
+    np.testing.assert_equal(
+        adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy()
+    )
+    SCVI.load_query_data(adata4, dir_path)
+
+    adata5 = SCVI.prepare_query_anndata(adata4, dir_path, inplace=False)
+    SCVI.load_query_data(adata5, dir_path)
+
+
 def test_scvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
