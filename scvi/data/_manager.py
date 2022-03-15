@@ -132,8 +132,8 @@ class AnnDataManager:
             )
 
         if source_registry is None and transfer_kwargs:
-            raise AssertionError(
-                f"Transfer kwargs {transfer_kwargs} passed without a source_registry. Perhaps a kwarg has been mispelled?"
+            raise TypeError(
+                f"register_fields() got unexpected keyword arguments {transfer_kwargs} passed without a source_registry."
             )
 
         self._validate_anndata_object(adata)
