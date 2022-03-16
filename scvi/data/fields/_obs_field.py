@@ -133,9 +133,8 @@ class CategoricalObsField(BaseObsField):
         self.set_field_data(adata, np.zeros(mod_adata.n_obs, dtype=np.int64))
 
     def _get_original_column(self, adata: AnnData) -> np.ndarray:
-        return get_anndata_attribute(
-            adata, self.attr_name, self._original_attr_key, mod_key=self.mod_key
-        )
+        adata = self._maybe_get_modality(adata)
+        return get_anndata_attribute(adata, self.attr_name, self._original_attr_key)
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)

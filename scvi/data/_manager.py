@@ -272,6 +272,7 @@ class AnnDataManager:
             data_loc[_constants._DR_ATTR_KEY],
         )
 
+        adata = self.adata
         if mod_key is not None:
             adata = self.adata.mod[mod_key]
         return get_anndata_attribute(adata, attr_name, attr_key)
