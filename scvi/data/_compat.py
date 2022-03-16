@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Optional
 
 import numpy as np
 from anndata import AnnData
@@ -10,6 +11,7 @@ from ._manager import AnnDataManager
 from .fields import (
     CategoricalJointObsField,
     CategoricalObsField,
+    LabelsWithUnlabeledObsField,
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
@@ -27,7 +29,9 @@ LEGACY_REGISTRY_KEY_MAP = {
 }
 
 
-def registry_from_setup_dict(setup_dict: dict) -> dict:
+def registry_from_setup_dict(
+    setup_dict: dict, unlabeled_category: Optional[str] = None
+) -> dict:
     """
     Converts old setup dict format to new registry dict format.
 
@@ -80,6 +84,10 @@ def registry_from_setup_dict(setup_dict: dict) -> dict:
                 field_summary_stats[f"n_{new_registry_key}"] = summary_stats["n_batch"]
             elif new_registry_key == REGISTRY_KEYS.LABELS_KEY:
                 field_summary_stats[f"n_{new_registry_key}"] = summary_stats["n_labels"]
+                if unlabeled_category is not None:
+                    field_state_registry[
+                        LabelsWithUnlabeledObsField.UNLABELED_CATEGORY
+                    ] = unlabeled_category
         elif attr_name == _constants._ADATA_ATTRS.OBSM:
             if new_registry_key == REGISTRY_KEYS.CONT_COVS_KEY:
                 columns = setup_dict["extra_continuous_keys"].copy()
@@ -106,7 +114,11 @@ def registry_from_setup_dict(setup_dict: dict) -> dict:
 
 
 def manager_from_setup_dict(
-    cls, adata: AnnData, setup_dict: dict, **transfer_kwargs
+    cls,
+    adata: AnnData,
+    setup_dict: dict,
+    unlabeled_category: Optional[str] = None,
+    **transfer_kwargs,
 ) -> AnnDataManager:
     """
     Creates an :class:`~scvi.data.AnnDataManager` given only a scvi-tools setup dictionary.
@@ -145,7 +157,15 @@ def manager_from_setup_dict(
         elif attr_name == _constants._ADATA_ATTRS.OBS:
             if new_registry_key in {REGISTRY_KEYS.BATCH_KEY, REGISTRY_KEYS.LABELS_KEY}:
                 original_key = categorical_mappings[attr_key]["original_key"]
-                field = CategoricalObsField(new_registry_key, original_key)
+                if (
+                    unlabeled_category is not None
+                    and new_registry_key == REGISTRY_KEYS.LABELS_KEY
+                ):
+                    field = LabelsWithUnlabeledObsField(
+                        new_registry_key, original_key, unlabeled_category
+                    )
+                else:
+                    field = CategoricalObsField(new_registry_key, original_key)
                 setup_args[f"{new_registry_key}_key"] = original_key
             elif new_registry_key == REGISTRY_KEYS.INDICES_KEY:
                 adata.obs[attr_key] = np.arange(adata.n_obs).astype("int64")
@@ -187,7 +207,9 @@ def manager_from_setup_dict(
     }
     adata_manager = AnnDataManager(fields=fields, setup_method_args=setup_method_args)
 
-    source_registry = registry_from_setup_dict(setup_dict)
+    source_registry = registry_from_setup_dict(
+        setup_dict, unlabeled_category=unlabeled_category
+    )
     adata_manager.register_fields(
         adata, source_registry=source_registry, **transfer_kwargs
     )
