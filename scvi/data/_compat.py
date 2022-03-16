@@ -140,7 +140,15 @@ def manager_from_setup_dict(
     setup_args = dict()
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
     categorical_mappings = setup_dict["categorical_mappings"]
-    for registry_key, adata_mapping in data_registry.items():
+    # For protein field, ensure it moves to the back when batch field is defined.
+    batch_field = None
+    ordered_dr = list(data_registry.items())
+    for i, dr_entry in enumerate(ordered_dr):
+        if dr_entry[0] == "protein_expression":
+            ordered_dr.pop(i)
+            ordered_dr.append(dr_entry)
+            break
+    for registry_key, adata_mapping in ordered_dr:
         if registry_key not in LEGACY_REGISTRY_KEY_MAP:
             continue
         new_registry_key = LEGACY_REGISTRY_KEY_MAP[registry_key]
@@ -167,6 +175,7 @@ def manager_from_setup_dict(
                 else:
                     field = CategoricalObsField(new_registry_key, original_key)
                 setup_args[f"{new_registry_key}_key"] = original_key
+                batch_field = field
             elif new_registry_key == REGISTRY_KEYS.INDICES_KEY:
                 adata.obs[attr_key] = np.arange(adata.n_obs).astype("int64")
                 field = NumericalObsField(new_registry_key, attr_key)
@@ -186,7 +195,7 @@ def manager_from_setup_dict(
                     REGISTRY_KEYS.PROTEIN_EXP_KEY,
                     attr_key,
                     use_batch_mask=True,
-                    batch_key="_scvi_batch",
+                    batch_field=batch_field,
                     colnames_uns_key="_protein_names",
                 )
                 setup_args["protein_expression_obsm_key"] = attr_key
