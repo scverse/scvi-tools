@@ -698,8 +698,7 @@ class PyroTrainingPlan(pl.LightningModule):
                 return pyro_obj
             else:
                 return pyro.poutine.scale(pyro_obj, scale_elbo)
-                
-                
+
         self.svi = pyro.infer.SVI(
             model=scale(self.module.model),
             guide=scale(self.module.guide),
