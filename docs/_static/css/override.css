@@ -86,6 +86,7 @@ div.rendered_html table {
   border-spacing: 0;
   font-size: 12px;
   table-layout: fixed;
+  color: none !important;
 }
 
 *[data-theme="dark"] .jp-RenderedHTMLCommon tbody tr:nth-child(odd),
