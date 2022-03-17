@@ -652,7 +652,7 @@ class PyroTrainingPlan(pl.LightningModule):
         Number of epochs to scale weight on KL divergences from 0 to 1.
         Overrides `n_steps_kl_warmup` when both are not `None`.
     scale_elbo
-        Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding 
+        Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding
         numerical inaccuracy when working with very large ELBO.
     """
 
@@ -689,7 +689,7 @@ class PyroTrainingPlan(pl.LightningModule):
             self.use_kl_weight = (
                 "kl_weight" in signature(self.pyro_model.forward).parameters
             )
-            
+
         elif callable(self.pyro_model):
             self.use_kl_weight = "kl_weight" in signature(self.pyro_model).parameters
 
