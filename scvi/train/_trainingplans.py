@@ -695,8 +695,8 @@ class PyroTrainingPlan(pl.LightningModule):
 
         if scale_elbo != 1.0:
             self.svi = pyro.infer.SVI(
-                model=poutine.scale(self.module.model, scale_elbo),
-                guide=poutine.scale(self.module.guide, scale_elbo),
+                model=pyro.poutine.scale(self.module.model, scale_elbo),
+                guide=pyro.poutine.scale(self.module.guide, scale_elbo),
                 optim=self.optim,
                 loss=self.loss_fn,
             )
