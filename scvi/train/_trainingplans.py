@@ -693,20 +693,19 @@ class PyroTrainingPlan(pl.LightningModule):
         elif callable(self.module.model):
             self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
 
-        if scale_elbo != 1.0:
-            self.svi = pyro.infer.SVI(
-                model=pyro.poutine.scale(self.module.model, scale_elbo),
-                guide=pyro.poutine.scale(self.module.guide, scale_elbo),
-                optim=self.optim,
-                loss=self.loss_fn,
-            )
-        else:
-            self.svi = pyro.infer.SVI(
-                model=self.module.model,
-                guide=self.module.guide,
-                optim=self.optim,
-                loss=self.loss_fn,
-            )
+        def scale(pyro_obj):
+            if scale_elbo == 1:
+                return pyro_obj
+            else:
+                return pyro.poutine.scale(pyro_obj, scale_elbo)
+                
+                
+        self.svi = pyro.infer.SVI(
+            model=scale(self.module.model),
+            guide=scale(self.module.guide),
+            optim=self.optim,
+            loss=self.loss_fn,
+        )
 
     @property
     def n_obs_training(self):
