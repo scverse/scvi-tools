@@ -685,13 +685,13 @@ class PyroTrainingPlan(pl.LightningModule):
         self.automatic_optimization = False
 
         self.use_kl_weight = False
-        if isinstance(self.pyro_model, PyroModule):
+        if isinstance(self.module.model, PyroModule):
             self.use_kl_weight = (
-                "kl_weight" in signature(self.pyro_model.forward).parameters
+                "kl_weight" in signature(self.module.model.forward).parameters
             )
 
-        elif callable(self.pyro_model):
-            self.use_kl_weight = "kl_weight" in signature(self.pyro_model).parameters
+        elif callable(self.module.model):
+            self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
 
         if scale_elbo != 1.0:
             self.svi = pyro.infer.SVI(
