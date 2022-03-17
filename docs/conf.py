@@ -181,6 +181,22 @@ nbsphinx_prolog = r"""
         p {{
             margin-bottom: 0.5rem;
         }}
+        /* Main index page overview cards */
+        /* https://github.com/spatialaudio/nbsphinx/pull/635/files */
+        .jp-RenderedHTMLCommon table,
+        div.rendered_html table {{
+        border: none;
+        border-collapse: collapse;
+        border-spacing: 0;
+        font-size: 12px;
+        table-layout: fixed;
+        color: none !important;
+        }}
+
+        body[data-theme="dark"] .jp-RenderedHTMLCommon tbody tr:nth-child(odd),
+        body[data-theme="dark"] div.rendered_html tbody tr:nth-child(odd) {{
+        background: rgba(255, 255, 255, .1);
+        }}
     </style>
 
 .. raw:: html
