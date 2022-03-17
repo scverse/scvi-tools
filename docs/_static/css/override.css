@@ -78,43 +78,17 @@ li.toctree-l4 {
 
 
 /* Main index page overview cards */
-/* https://github.com/pandas-dev/pandas/blob/059c8bac51e47d6eaaa3e36d6a293a22312925e6/doc/source/_static/css/pandas.css */
-/* with custom changes */
-.intro-card {
-    background: inherit;
-    border-radius: 0;
-    padding: 30px 10px 20px 10px;
-    margin: 10px 0px;
-  }
+/* https://github.com/spatialaudio/nbsphinx/pull/635/files */
+.jp-RenderedHTMLCommon table,
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 12px;
+  table-layout: fixed;
+}
 
-  .intro-card p.card-text {
-    margin: 0px;
-  }
-
-  .intro-card .card-img-top {
-    height: 52px;
-  }
-
-  .intro-card .card-header {
-    border: none;
-    background-color:inherit;
-    font-size: var(--pst-font-size-h5);
-    font-weight: bold;
-    padding: 2.5rem 0rem 0.5rem 0rem;
-  }
-
-  .intro-card .card-footer {
-    border: none;
-    background-color:inherit;
-  }
-
-  .intro-card .card-footer p.card-text{
-    max-width: 220px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .intro-card .btn-secondary {
-      background-color: #484848;
-      /* border-color: #dcdcdc; */
-  }
+*[data-theme="dark"] .jp-RenderedHTMLCommon tbody tr:nth-child(odd),
+*[data-theme="dark"] div.rendered_html tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, .1);
+}
