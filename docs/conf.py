@@ -190,6 +190,7 @@ nbsphinx_prolog = r"""
         border-spacing: 0;
         font-size: 12px;
         table-layout: fixed;
+        color: inherit;
         }}
 
         body:not([data-theme=light]) .jp-RenderedHTMLCommon tbody tr:nth-child(odd),
