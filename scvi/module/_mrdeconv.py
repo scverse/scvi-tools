@@ -60,7 +60,8 @@ class MRDeconv(BaseModuleClass):
         px_r: np.ndarray,
         mean_vprior: np.ndarray = None,
         var_vprior: np.ndarray = None,
-        amortization: Literal["none", "latent", "proportion", "both"] = "latent",
+        amortization: Literal["none", "latent", "proportion", "both"] = "both",
+        l1_sparsity: float = 60.0
     ):
         super().__init__()
         self.n_spots = n_spots
@@ -69,6 +70,7 @@ class MRDeconv(BaseModuleClass):
         self.n_latent = n_latent
         self.n_genes = n_genes
         self.amortization = amortization
+        self.l1_sparsity = l1_sparsity
         # unpack and copy parameters
         self.decoder = FCLayers(
             n_in=n_latent,
@@ -76,7 +78,7 @@ class MRDeconv(BaseModuleClass):
             n_cat_list=[n_labels],
             n_layers=n_layers,
             n_hidden=n_hidden,
-            dropout_rate=0,
+            dropout_rate=0.05,
             use_layer_norm=True,
             use_batch_norm=False,
         )
@@ -121,17 +123,24 @@ class MRDeconv(BaseModuleClass):
                 n_cat_list=None,
                 n_layers=2,
                 n_hidden=n_hidden,
-                dropout_rate=0.1,
+                dropout_rate=0.05,
+                use_layer_norm=True,
+                use_batch_norm=False
             ),
             torch.nn.Linear(n_hidden, n_latent * n_labels),
         )
         # cell type loadings
-        self.V_encoder = FCLayers(
-            n_in=self.n_genes,
-            n_out=self.n_labels + 1,
-            n_layers=2,
-            n_hidden=n_hidden,
-            dropout_rate=0.1,
+        self.V_encoder = torch.nn.Sequential(
+            FCLayers(
+                n_in=self.n_genes,
+                n_out=n_hidden,
+                n_layers=2,
+                n_hidden=n_hidden,
+                dropout_rate=0.05,
+                use_layer_norm=True,
+                use_batch_norm=False,
+            ),
+            torch.nn.Linear(n_hidden, n_labels + 1),
         )
 
     def _get_inference_input(self, tensors):
@@ -155,7 +164,7 @@ class MRDeconv(BaseModuleClass):
         m = x.shape[0]
         library = torch.sum(x, dim=1, keepdim=True)
         # setup all non-linearities
-        beta = torch.nn.functional.softplus(self.beta)  # n_genes
+        beta = torch.exp(self.beta)  # n_genes
         eps = torch.nn.functional.softplus(self.eta)  # n_genes
         x_ = torch.log(1 + x)
         # subsample parameters
@@ -217,14 +226,17 @@ class MRDeconv(BaseModuleClass):
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
         gamma = generative_outputs["gamma"]
+        v = generative_outputs["v"]
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
 
         # eta prior likelihood
         mean = torch.zeros_like(self.eta)
         scale = torch.ones_like(self.eta)
-        glo_neg_log_likelihood_prior = -Normal(mean, scale).log_prob(self.eta).sum()
-        glo_neg_log_likelihood_prior += torch.var(self.beta)
+        glo_neg_log_likelihood_prior = -1e-10 * Normal(mean, scale).log_prob(self.eta).sum()
+        glo_neg_log_likelihood_prior += 5.0 * torch.var(self.beta)
+
+        v_sparsity_loss = self.l1_sparsity * torch.mean(torch.exp(self.beta)) * torch.abs(v).mean(-1)
 
         # gamma prior likelihood
         if self.mean_vprior is None:
@@ -245,7 +257,7 @@ class MRDeconv(BaseModuleClass):
                 0
             )  # 1, p, n_labels, n_latent
             pre_lse = (
-                Normal(mean_vprior, torch.sqrt(var_vprior)).log_prob(gamma).sum(-1)
+                Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4).log_prob(gamma).sum(-1)
             )  # minibatch, p, n_labels
             log_likelihood_prior = torch.logsumexp(pre_lse, 1) - np.log(
                 self.p
@@ -254,8 +266,8 @@ class MRDeconv(BaseModuleClass):
             # mean_vprior is of shape n_labels, p, n_latent
 
         loss = (
-            n_obs * torch.mean(reconst_loss + kl_weight * neg_log_likelihood_prior)
-            + glo_neg_log_likelihood_prior
+            n_obs * (torch.mean(reconst_loss + kl_weight * (neg_log_likelihood_prior +  v_sparsity_loss))
+            + glo_neg_log_likelihood_prior)
         )
 
         return LossRecorder(
@@ -329,7 +341,7 @@ class MRDeconv(BaseModuleClass):
             integer for cell types
         """
         # cell-type specific gene expression, shape (minibatch, celltype, gene).
-        beta = torch.nn.functional.softplus(self.beta)  # n_genes
+        beta = torch.exp(self.beta)  # n_genes
         y_torch = (y * torch.ones_like(ind_x)).ravel()
         # obtain the relevant gammas
         if self.amortization in ["both", "latent"]:

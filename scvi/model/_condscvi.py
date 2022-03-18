@@ -5,7 +5,7 @@ from typing import Optional, Union
 import numpy as np
 import torch
 from anndata import AnnData
-
+import scanpy
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
@@ -95,6 +95,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         self,
         adata: Optional[AnnData] = None,
         p: int = 50,
+        resolution: float = 10.0
     ) -> np.ndarray:
         r"""
         Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
@@ -106,6 +107,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             AnnData object used to initialize the model.
         p
             number of components in the mixture model underlying the empirical prior
+        resolution
+            resolution of overclustering in leiden used for metapoints in empirical prior
 
         Returns
         -------
@@ -123,34 +126,53 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
         var_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
-        labels_state_registry = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
+        key = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
+            "original_key"
+        ]
+        mapping = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
+            "mapping"
+        ]
+
+        scdl = self._make_data_loader(
+            adata=adata, batch_size=p
         )
-        key = labels_state_registry.original_key
-        mapping = labels_state_registry.categorical_mapping
-        for ct in range(self.summary_stats.n_labels):
-            # pick p cells
-            local_indices = np.random.choice(
-                np.where(adata.obs[key] == mapping[ct])[0], p
-            )
-            # get mean and variance from posterior
-            scdl = self._make_data_loader(
-                adata=adata, indices=local_indices, batch_size=p
-            )
-            mean = []
-            var = []
-            for tensors in scdl:
-                x = tensors[REGISTRY_KEYS.X_KEY]
-                y = tensors[REGISTRY_KEYS.LABELS_KEY]
-                out = self.module.inference(x, y)
-                mean_, var_ = out["qz_m"], out["qz_v"]
-                mean += [mean_.cpu()]
-                var += [var_.cpu()]
 
-            mean_vprior[ct], var_vprior[ct] = np.array(torch.cat(mean)), np.array(
-                torch.cat(var)
-            )
+        mean = []
+        var = []
+        for tensors in scdl:
+            x = tensors[_CONSTANTS.X_KEY]
+            y = tensors[_CONSTANTS.LABELS_KEY]
+            out = self.module.inference(x, y)
+            mean_, var_ = out["qz_m"], out["qz_v"]
+            mean += [mean_.cpu()]
+            var += [var_.cpu()]
 
+        mean_cat, var_cat = np.array(torch.cat(mean)), np.array(torch.cat(var))
+        adata.obsm['X_CondSCVI'] = mean_cat
+
+        for ct in range(self.summary_stats["n_labels"]):
+            local_indices = np.where(adata.obs[key] == mapping[ct])[0]
+            sub_adata = adata[local_indices, :].copy()
+            scanpy.pp.neighbors(sub_adata, use_rep="X_CondSCVI")
+            if "overclustering_vamp" not in sub_adata.obs.columns:
+                scanpy.tl.leiden(sub_adata, resolution=resolution, key_added="overclustering_vamp")
+
+            var_cluster = np.zeros([len(np.unique(sub_adata.obs.overclustering_vamp)), self.module.n_latent])
+            mean_cluster = np.zeros([len(np.unique(sub_adata.obs.overclustering_vamp)), self.module.n_latent])
+            
+
+            for j in np.unique(sub_adata.obs.overclustering_vamp):
+                indices_curr = local_indices[np.where(sub_adata.obs['overclustering_vamp'] == j)[0]]
+                var_cluster[int(j),:] = np.mean(var_cat[indices_curr], axis=0) + \
+                                        np.mean(mean_cat[indices_curr]**2, axis=0) - \
+                                        (np.mean(mean_cat[indices_curr], axis=0))**2
+                mean_cluster[int(j),:] = np.mean(mean_cat[indices_curr], axis=0)
+
+            unique, counts = np.unique(sub_adata.obs.overclustering_vamp, return_counts=True)
+            selection = np.random.choice(np.arange(len(unique)), size=p, p=counts/sum(counts))
+            mean_vprior[ct, :, :] = mean_cluster[selection, :]
+            var_vprior[ct, :, :] = var_cluster[selection, :]
+        
         return mean_vprior, var_vprior
 
     def train(

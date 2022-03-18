@@ -44,7 +44,7 @@ class VAEC(BaseModuleClass):
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,
-        dropout_rate: float = 0.1,
+        dropout_rate: float = 0.05,
         log_variational: bool = True,
         ct_weight: np.ndarray = None,
         **module_kwargs,
@@ -84,7 +84,7 @@ class VAEC(BaseModuleClass):
             n_cat_list=[n_labels],
             n_layers=n_layers,
             n_hidden=n_hidden,
-            dropout_rate=0,
+            dropout_rate=dropout_rate,
             inject_covariates=True,
             use_batch_norm=False,
             use_layer_norm=True,
@@ -129,7 +129,7 @@ class VAEC(BaseModuleClass):
         Runs the inference (encoder) model.
         """
         x_ = x
-        library = torch.log(x.sum(1)).unsqueeze(1)
+        library = x.sum(1).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
