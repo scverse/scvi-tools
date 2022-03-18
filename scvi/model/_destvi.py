@@ -98,9 +98,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         st_adata: AnnData,
         sc_model: CondSCVI,
-        vamp_prior_p: int = 50,
+        vamp_prior_p: int = 500,
         vamp_prior_resolution: float = 10.0,
-        l1_sparsity: float = 150,
+        l1_sparsity: float = 60.0,
         **module_kwargs,
     ):
         """
@@ -307,13 +307,13 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
 
     def train(
         self,
-        max_epochs: int = 400,
+        max_epochs: int = 2000,
         lr: float = 0.005,
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 1.0,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        n_epochs_kl_warmup: int = 50,
+        n_epochs_kl_warmup: int = 200,
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):

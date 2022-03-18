@@ -57,7 +57,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,
-        dropout_rate: float = 0.1,
+        dropout_rate: float = 0.05,
         weight_obs: bool = False,
         **module_kwargs,
     ):
@@ -176,7 +176,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
     def train(
         self,
-        max_epochs: int = 400,
+        max_epochs: int = 300,
         lr: float = 0.001,
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 1,
