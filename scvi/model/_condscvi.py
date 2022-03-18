@@ -126,12 +126,11 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
         var_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
-        key = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-            "original_key"
-        ]
-        mapping = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-            "mapping"
-        ]
+        labels_state_registry = self.adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        )
+        key = labels_state_registry.original_key
+        mapping = labels_state_registry.categorical_mapping
 
         scdl = self._make_data_loader(
             adata=adata, batch_size=p
