@@ -92,10 +92,8 @@ class WVAE(VAE):
 
         Runs the inference (encoder) model.
         """
-        if n_samples is None:
-            n_samples = (self.n_particles,)
-        else:
-            n_samples = (n_samples,)
+        n_samples_ = (self.n_particles,) if n_samples is None else (n_samples,)
+        n_samples_ = () if n_samples_[0] == 1 else n_samples_
         x_ = x
         if self.use_observed_lib_size:
             library = torch.log(x.sum(1)).unsqueeze(1)
@@ -114,7 +112,7 @@ class WVAE(VAE):
         ql_m, ql_v, _ = self.l_encoder(encoder_input, batch_index, *categorical_input)
 
         zdist = Normal(qz_m, qz_v.sqrt())
-        untran_z = zdist.rsample(n_samples)
+        untran_z = zdist.rsample(n_samples_)
         log_qz = zdist.log_prob(untran_z).sum(-1)
         z = self.z_encoder.z_transformation(untran_z)
 
@@ -123,7 +121,7 @@ class WVAE(VAE):
             point_library = library
         else:
             ldist = Normal(ql_m, ql_v.sqrt())
-            library = ldist.rsample(n_samples)
+            library = ldist.rsample(n_samples_)
             log_ql = ldist.log_prob(library).sum(-1)
             point_library = ql_m
         log_qjoint = log_ql + log_qz
@@ -156,7 +154,6 @@ class WVAE(VAE):
         transform_batch=None,
     ):
         """Runs the generative model."""
-        assert z.ndim == 3
         decoder_input = z
         if cont_covs is not None:
             n_samples = z.shape[0]

@@ -15,8 +15,8 @@ from scvi.model.base import (
     VAEMixin,
 )
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import (
+from scvi.data import AnnDataManager
+from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
@@ -57,7 +57,9 @@ class WSCVI(
             else None
         )
         n_batch = self.summary_stats["n_batch"]
-        library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
+        library_log_means, library_log_vars = _init_library_size(
+            self.adata_manager, n_batch
+        )
 
         self.module = WVAE(
             n_input=self.summary_stats.n_vars,
