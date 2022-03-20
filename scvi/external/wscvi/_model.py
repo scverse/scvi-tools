@@ -3,7 +3,16 @@ from typing import List, Optional
 
 from anndata import AnnData
 
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi.data import AnnDataManager
+from scvi.data.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+    NumericalObsField,
+)
 from scvi.external.wscvi._module import WVAE
 from scvi.model._utils import _init_library_size
 from scvi.model.base import (
@@ -13,15 +22,6 @@ from scvi.model.base import (
     RNASeqMixin,
     UnsupervisedTrainingMixin,
     VAEMixin,
-)
-from scvi import REGISTRY_KEYS
-from scvi.data import AnnDataManager
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
 )
 from scvi.utils import setup_anndata_dsp
 
