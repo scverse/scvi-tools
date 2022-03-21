@@ -195,7 +195,7 @@ class ArchesMixin:
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-        _, var_names, _ = _get_loaded_data(reference_model)
+        _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
         var_names = pd.Index(var_names)
 
         if return_reference_var_names:
