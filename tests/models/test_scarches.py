@@ -222,6 +222,16 @@ def test_scanvi_online_update(save_path):
     model.get_latent_representation()
     model.predict()
 
+    # query has all missing labels and no labels key
+    adata2 = synthetic_iid()
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    del adata2.obs["labels"]
+
+    model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    model.train(max_epochs=1)
+    model.get_latent_representation()
+    model.predict()
+
     # query has no missing labels
     adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])

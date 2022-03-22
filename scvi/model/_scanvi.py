@@ -236,6 +236,16 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         return scanvi_model
 
+    @staticmethod
+    def _set_default_labels(
+        adata: AnnData, unlabeled_category: str, labels_key: Optional[str]
+    ) -> None:
+        """
+        Sets default fully unlabeled .obs attribute in-place if AnnData does not contain the labels_key.
+        """
+        if labels_key is not None and labels_key not in adata.obs:
+            adata.obs[labels_key] = unlabeled_category
+
     def _set_indices_and_labels(self):
         """
         Set indices for labeled and unlabeled cells.

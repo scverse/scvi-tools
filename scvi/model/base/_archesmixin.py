@@ -97,6 +97,7 @@ class ArchesMixin:
                     adata,
                     scvi_setup_dict,
                     extend_categories=True,
+                    allow_missing_labels=True,
                     unlabeled_category=unlabeled_category,
                 )
             )
@@ -120,6 +121,7 @@ class ArchesMixin:
                 adata,
                 source_registry=registry,
                 extend_categories=True,
+                allow_missing_labels=True,
                 **registry[_SETUP_ARGS_KEY],
             )
 
