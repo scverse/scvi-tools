@@ -3,7 +3,6 @@ import warnings
 from typing import Optional, Union
 
 import numpy as np
-import scanpy
 import torch
 from anndata import AnnData
 
@@ -148,9 +147,11 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         for ct in range(self.summary_stats["n_labels"]):
             local_indices = np.where(adata.obs[key] == mapping[ct])[0]
             sub_adata = adata[local_indices, :].copy()
-            scanpy.pp.neighbors(sub_adata, use_rep="X_CondSCVI")
             if "overclustering_vamp" not in sub_adata.obs.columns:
-                scanpy.tl.leiden(
+                from scanpy.pp import neighbors
+                from scanpy.tl import leiden
+                neighbors(sub_adata, use_rep="X_CondSCVI")
+                leiden(
                     sub_adata, resolution=resolution, key_added="overclustering_vamp"
                 )
 
