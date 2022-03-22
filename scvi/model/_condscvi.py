@@ -150,6 +150,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             if "overclustering_vamp" not in sub_adata.obs.columns:
                 from scanpy.pp import neighbors
                 from scanpy.tl import leiden
+
                 neighbors(sub_adata, use_rep="X_CondSCVI")
                 leiden(
                     sub_adata, resolution=resolution, key_added="overclustering_vamp"
