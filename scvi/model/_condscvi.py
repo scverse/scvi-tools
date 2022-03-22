@@ -148,9 +148,16 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             local_indices = np.where(adata.obs[key] == mapping[ct])[0]
             sub_adata = adata[local_indices, :].copy()
             if "overclustering_vamp" not in sub_adata.obs.columns:
-                from scanpy.pp import neighbors
-                from scanpy.tl import leiden
-
+                try:
+                    from scanpy.pp import neighbors
+                    from scanpy.tl import leiden
+                except ImportError:
+                    raise ImportError(
+                        """
+                            Please install leidenalg and scanpy package via `pip install scanpy leidenalg`
+                            or provide results of overclustering in adata.obs["overclustering_camp"]
+                        """
+                    )
                 neighbors(sub_adata, use_rep="X_CondSCVI")
                 leiden(
                     sub_adata, resolution=resolution, key_added="overclustering_vamp"
