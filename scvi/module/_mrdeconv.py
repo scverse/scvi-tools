@@ -61,7 +61,7 @@ class MRDeconv(BaseModuleClass):
         mean_vprior: np.ndarray = None,
         var_vprior: np.ndarray = None,
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
-        l1_sparsity: float = 60.0
+        l1_sparsity: float = 60.0,
     ):
         super().__init__()
         self.n_spots = n_spots
@@ -125,7 +125,7 @@ class MRDeconv(BaseModuleClass):
                 n_hidden=n_hidden,
                 dropout_rate=0.05,
                 use_layer_norm=True,
-                use_batch_norm=False
+                use_batch_norm=False,
             ),
             torch.nn.Linear(n_hidden, n_latent * n_labels),
         )
@@ -233,10 +233,14 @@ class MRDeconv(BaseModuleClass):
         # eta prior likelihood
         mean = torch.zeros_like(self.eta)
         scale = torch.ones_like(self.eta)
-        glo_neg_log_likelihood_prior = -1e-10 * Normal(mean, scale).log_prob(self.eta).sum()
+        glo_neg_log_likelihood_prior = (
+            -1e-10 * Normal(mean, scale).log_prob(self.eta).sum()
+        )
         glo_neg_log_likelihood_prior += 5.0 * torch.var(self.beta)
 
-        v_sparsity_loss = self.l1_sparsity * torch.mean(torch.exp(self.beta)) * torch.abs(v).mean(-1)
+        v_sparsity_loss = (
+            self.l1_sparsity * torch.mean(torch.exp(self.beta)) * torch.abs(v).mean(-1)
+        )
 
         # gamma prior likelihood
         if self.mean_vprior is None:
@@ -257,7 +261,9 @@ class MRDeconv(BaseModuleClass):
                 0
             )  # 1, p, n_labels, n_latent
             pre_lse = (
-                Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4).log_prob(gamma).sum(-1)
+                Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4)
+                .log_prob(gamma)
+                .sum(-1)
             )  # minibatch, p, n_labels
             log_likelihood_prior = torch.logsumexp(pre_lse, 1) - np.log(
                 self.p
@@ -265,9 +271,11 @@ class MRDeconv(BaseModuleClass):
             neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
             # mean_vprior is of shape n_labels, p, n_latent
 
-        loss = (
-            n_obs * (torch.mean(reconst_loss + kl_weight * (neg_log_likelihood_prior +  v_sparsity_loss))
-            + glo_neg_log_likelihood_prior)
+        loss = n_obs * (
+            torch.mean(
+                reconst_loss + kl_weight * (neg_log_likelihood_prior + v_sparsity_loss)
+            )
+            + glo_neg_log_likelihood_prior
         )
 
         return LossRecorder(
