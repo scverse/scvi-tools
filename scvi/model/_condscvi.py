@@ -120,7 +120,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             )
 
         adata = self._validate_anndata(adata)
-
+        
+        # Extracting latent representation of adata including variances.
         mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
         var_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
         labels_state_registry = self.adata_manager.get_state_registry(
@@ -163,15 +164,16 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
                     sub_adata, resolution=resolution, key_added="overclustering_vamp"
                 )
 
+            n_labels_overclustering = sub_adata.obs['overclustering_vamp'].nunique()
             var_cluster = np.zeros(
                 [
-                    len(np.unique(sub_adata.obs.overclustering_vamp)),
+                    n_labels_overclustering,
                     self.module.n_latent,
                 ]
             )
             mean_cluster = np.zeros(
                 [
-                    len(np.unique(sub_adata.obs.overclustering_vamp)),
+                    n_labels_overclustering,
                     self.module.n_latent,
                 ]
             )
