@@ -100,7 +100,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         sc_model: CondSCVI,
         vamp_prior_p: int = 500,
         vamp_prior_resolution: float = 10.0,
-        l1_sparsity: float = 60.0,
+        l1_sparsity: float = 0.0,
         **module_kwargs,
     ):
         """
