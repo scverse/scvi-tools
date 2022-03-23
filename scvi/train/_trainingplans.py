@@ -664,7 +664,7 @@ class PyroTrainingPlan(pl.LightningModule):
         optim_kwargs: Optional[dict] = None,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
-        scale_elbo: Union[float, None] = 1.0,
+        scale_elbo: float = 1.0,
     ):
         super().__init__()
         self.module = pyro_module
