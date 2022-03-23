@@ -126,7 +126,7 @@ class PyroSviTrainMixin:
                 batch_size=batch_size,
                 use_gpu=use_gpu,
             )
-        training_plan = training_plan(pyro_module=self.module, **plan_kwargs)
+        training_plan = training_plan(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
