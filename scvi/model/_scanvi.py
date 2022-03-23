@@ -236,16 +236,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         return scanvi_model
 
-    @staticmethod
-    def _set_default_labels(
-        adata: AnnData, unlabeled_category: str, labels_key: Optional[str]
-    ) -> None:
-        """
-        Sets default fully unlabeled .obs attribute in-place if AnnData does not contain the labels_key.
-        """
-        if labels_key is not None and labels_key not in adata.obs:
-            adata.obs[labels_key] = unlabeled_category
-
     def _set_indices_and_labels(self):
         """
         Set indices for labeled and unlabeled cells.
@@ -301,7 +291,16 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for _, tensors in enumerate(scdl):
             x = tensors[REGISTRY_KEYS.X_KEY]
             batch = tensors[REGISTRY_KEYS.BATCH_KEY]
-            pred = self.module.classify(x, batch)
+
+            cont_key = REGISTRY_KEYS.CONT_COVS_KEY
+            cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
+
+            cat_key = REGISTRY_KEYS.CAT_COVS_KEY
+            cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+
+            pred = self.module.classify(
+                x, batch_index=batch, cat_covs=cat_covs, cont_covs=cont_covs
+            )
             if not soft:
                 pred = pred.argmax(dim=1)
             y_pred.append(pred.detach().cpu())

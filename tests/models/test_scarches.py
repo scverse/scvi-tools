@@ -202,7 +202,20 @@ def test_scanvi_online_update(save_path):
     new_labels = adata1.obs.labels.to_numpy()
     new_labels[0] = "Unknown"
     adata1.obs["labels"] = pd.Categorical(new_labels)
-    SCANVI.setup_anndata(adata1, "labels", "Unknown", batch_key="batch")
+
+    adata1.obs["cat1"] = np.random.randint(0, 5, size=(adata1.shape[0],))
+    adata1.obs["cat2"] = np.random.randint(0, 5, size=(adata1.shape[0],))
+    adata1.obs["cont1"] = np.random.normal(size=(adata1.shape[0],))
+    adata1.obs["cont2"] = np.random.normal(size=(adata1.shape[0],))
+
+    SCANVI.setup_anndata(
+        adata1,
+        "labels",
+        "Unknown",
+        batch_key="batch",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
     model = SCANVI(
         adata1,
         n_latent=n_latent,
