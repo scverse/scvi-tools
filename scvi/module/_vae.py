@@ -262,7 +262,9 @@ class VAE(BaseModuleClass):
         local_library_log_means = F.linear(
             one_hot(batch_index, n_batch), self.library_log_means
         )
-        local_library_log_vars = F.linear()
+        local_library_log_vars = F.linear(
+            one_hot(batch_index, n_batch), self.library_log_vars
+        )
         return local_library_log_means, local_library_log_vars
 
     @auto_move_data
