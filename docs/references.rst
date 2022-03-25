@@ -1,7 +1,7 @@
 References
 ----------
 
-.. [Ashuach21] Tal Ashauch, Daniel A Reidenbach, Adam Gayoso, Nir Yosef (2022),
+.. [Ashuach22] Tal Ashauch, Daniel A Reidenbach, Adam Gayoso, Nir Yosef (2022),
    *PeakVI: A deep generative model for single-cell chromatin accessibility analysis*,
    `Cell Reports Methods <https://doi.org/10.1016/j.crmeth.2022.100182>`__.
 
