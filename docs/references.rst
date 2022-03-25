@@ -1,6 +1,10 @@
 References
 ----------
 
+.. [Ashuach21] Tal Ashauch, Daniel A Reidenbach, Adam Gayoso, Nir Yosef (2022),
+   *PeakVI: A deep generative model for single-cell chromatin accessibility analysis*,
+   `Cell Reports Methods <https://doi.org/10.1016/j.crmeth.2022.100182>`__.
+
 .. [Gayoso22] Adam Gayoso*, Romain Lopez*, Galen Xing*, Pierre Boyeau, Valeh Valiollah Pour Amiri, Justin Hong, Katherine Wu, Michael Jayasuriya, Edouard Mehlman, Maxime Langevin, Yining Liu, Jules Samaran, Gabriel Misrachi, Achille Nazaret, Oscar Clivio, Chenling Xu, Tal Ashuach, Mohammad Lotfollahi, Valentine Svensson, Eduardo da Veiga Beltrame, Vitalii Kleshchevnikov, Carlos Talavera-Lopez, Lior Pachter, Fabian J Theis, Aaron Streets, Michael I Jordan, Jeffrey Regier, and Nir Yosef (2022),
    *A Python library for probabilistic analysis of single-cell omics data*,
    `Nature Biotechnology <http://dx.doi.org/10.1038/s41587-021-01206-w>`__.
@@ -12,10 +16,6 @@ References
 .. [Lopez21] Romain Lopez*, Baoguo Li*, Hadas Keren-Shaul*, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Eyal David, Allon Wagner, Yoseph Addadi, Michael I Jordan, Ido Amit, Nir Yosef. (2021),
    *Multi-resolution deconvolution of spatial transcriptomics data reveals continuous patterns of inflammation*,
    `biorxiv <https://www.biorxiv.org/content/10.1101/2021.04.28.441833v1>`__.
-
-.. [Ashuach21] Tal Ashauch, Daniel A Reidenbach, Adam Gayoso, Nir Yosef (2021),
-   *PeakVI: A Deep Generative Model for Single Cell Chromatin Accessibility Analysis*,
-   `biorxiv <https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1>`__.
 
 .. [AshuachGabitto21] Tal Ashauch*, Mariano I Gabitto*, Michael I Jordan, Nir Yosef (2021),
    *MultiVI: deep generative model for the integration of multi-modal data*,
