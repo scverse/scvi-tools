@@ -10,6 +10,7 @@ import torch
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 
+from scvi import REGISTRY_KEYS
 from scvi.data import _constants
 from scvi.data._compat import manager_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
@@ -97,6 +98,7 @@ class ArchesMixin:
                     adata,
                     scvi_setup_dict,
                     extend_categories=True,
+                    allow_missing_labels=True,
                     unlabeled_category=unlabeled_category,
                 )
             )
@@ -120,11 +122,17 @@ class ArchesMixin:
                 adata,
                 source_registry=registry,
                 extend_categories=True,
+                allow_missing_labels=True,
                 **registry[_SETUP_ARGS_KEY],
             )
 
         model = _initialize_model(cls, adata, attr_dict)
         adata_manager = model.get_anndata_manager(adata, required=True)
+
+        if REGISTRY_KEYS.CAT_COVS_KEY in adata_manager.data_registry:
+            raise NotImplementedError(
+                "scArches currently does not support models with extra categorical covariates."
+            )
 
         version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
@@ -195,7 +203,7 @@ class ArchesMixin:
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-        _, var_names, _ = _get_loaded_data(reference_model)
+        _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
         var_names = pd.Index(var_names)
 
         if return_reference_var_names:
