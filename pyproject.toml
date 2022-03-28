@@ -31,7 +31,7 @@ version = "0.15.4"
 
 [tool.poetry.dependencies]
 anndata = ">=0.7.5"
-black = {version = ">=22.1", optional = true}
+black = {version = ">=22.3", optional = true}
 codecov = {version = ">=2.0.8", optional = true}
 docrep = ">=0.3.2"
 flake8 = {version = ">=3.7.7", optional = true}
