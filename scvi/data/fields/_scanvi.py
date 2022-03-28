@@ -1,10 +1,11 @@
+import warnings
 from typing import Optional, Union
 
 import numpy as np
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
-from scvi.data._utils import _make_column_categorical
+from scvi.data._utils import _make_column_categorical, _set_data_in_registry
 
 from ._obs_field import CategoricalObsField
 
@@ -68,9 +69,6 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         }
 
     def register_field(self, adata: AnnData) -> dict:
-        if self.is_default:
-            self._setup_default_attr(adata)
-
         state_registry = super().register_field(adata)
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
         return self._remap_unlabeled_to_final_category(adata, mapping)
@@ -80,8 +78,25 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         state_registry: dict,
         adata_target: AnnData,
         extend_categories: bool = False,
+        allow_missing_labels: bool = False,
         **kwargs,
     ) -> dict:
+        if (
+            allow_missing_labels
+            and self.attr_key is not None
+            and self.attr_key not in adata_target.obs
+        ):
+            # Fill in original .obs attribute with unlabeled_category values.
+            warnings.warn(
+                f"Missing labels key {self.attr_key}. Filling in with unlabeled category {self._unlabeled_category}."
+            )
+            _set_data_in_registry(
+                adata_target,
+                self._unlabeled_category,
+                self.attr_name,
+                self._original_attr_key,
+            )
+
         transfer_state_registry = super().transfer_field(
             state_registry, adata_target, extend_categories=extend_categories, **kwargs
         )
