@@ -114,7 +114,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         vamp_prior_p
             number of mixture parameter for VampPrior calculations
         l1_sparsity
-            sparsity constraint for cell type proportions (tested with 50)
+            sparsity constraint for cell type proportions (~ 50 for sparser)
         **model_kwargs
             Keyword args for :class:`~scvi.model.DestVI`
         """
