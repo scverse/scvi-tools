@@ -99,7 +99,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: CondSCVI,
         vamp_prior_p: int = 500,
-        vamp_prior_resolution: float = 10.0,
         l1_sparsity: float = 0.0,
         **module_kwargs,
     ):
@@ -114,10 +113,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             trained CondSCVI model
         vamp_prior_p
             number of mixture parameter for VampPrior calculations
-        vamp_prior_resolution
-            cluster resolution for VampPrior calculations
         l1_sparsity
-            sparsity constraint for cell type proportions
+            sparsity constraint for cell type proportions (tested with 50)
         **model_kwargs
             Keyword args for :class:`~scvi.model.DestVI`
         """
@@ -131,8 +128,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             mean_vprior = None
             var_vprior = None
         else:
-            mean_vprior, var_vprior = sc_model.get_vamp_prior(
-                sc_model.adata, p=vamp_prior_p, resolution=vamp_prior_resolution
+            mean_vprior, var_vprior, weight_vprior = sc_model.get_vamp_prior(
+                sc_model.adata, p=vamp_prior_p
             )
 
         return cls(
@@ -146,6 +143,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             sc_model.module.n_layers,
             mean_vprior=mean_vprior,
             var_vprior=var_vprior,
+            weight_vprior=weight_vprior,
             l1_sparsity=l1_sparsity,
             **module_kwargs,
         )

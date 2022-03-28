@@ -92,7 +92,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
     @torch.no_grad()
     def get_vamp_prior(
-        self, adata: Optional[AnnData] = None, p: int = 50, resolution: float = 10.0
+        self, adata: Optional[AnnData] = None, p: int = 10
     ) -> np.ndarray:
         r"""
         Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
@@ -103,9 +103,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         p
-            number of components in the mixture model underlying the empirical prior
-        resolution
-            resolution of overclustering in leiden used for metapoints in empirical prior
+            number of clusters in kmeans clustering for overclustering
 
         Returns
         -------
@@ -123,7 +121,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         # Extracting latent representation of adata including variances.
         mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
-        var_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
+        var_vprior = np.ones((self.summary_stats.n_labels, p, self.module.n_latent))
+        weight_vprior = np.zeros((self.summary_stats.n_labels, p))
+
         labels_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         )
@@ -147,24 +147,23 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         for ct in range(self.summary_stats["n_labels"]):
             local_indices = np.where(adata.obs[key] == mapping[ct])[0]
-            sub_adata = adata[local_indices, :].copy()
-            if "overclustering_vamp" not in sub_adata.obs.columns:
-                try:
-                    from scanpy.pp import neighbors
-                    from scanpy.tl import leiden
-                except ImportError:
-                    raise ImportError(
-                        """
-                            Please install leidenalg and scanpy package via `pip install scanpy leidenalg`
-                            or provide results of overclustering in adata.obs["overclustering_camp"]
-                        """
-                    )
-                neighbors(sub_adata, use_rep="X_CondSCVI")
-                leiden(
-                    sub_adata, resolution=resolution, key_added="overclustering_vamp"
-                )
+            if "overclustering_vamp" not in adata.obs.columns:
+                if p<len(local_indices) and p>0:
+                    from sklearn.cluster import KMeans
+                    kmeans = KMeans(n_clusters=p, n_init=30).fit(
+                        mean_cat[local_indices])
+                    overclustering_vamp = kmeans.labels_
+                else:
+                    # Every cell is its own cluster
+                    overclustering_vamp = list(range(len(local_indices)))
+            else:
+                overclustering_vamp = adata[local_indices, :].obs['overclustering_vamp']
 
-            n_labels_overclustering = sub_adata.obs["overclustering_vamp"].nunique()
+            keys, counts = np.unique(
+                overclustering_vamp, return_counts=True
+            )
+
+            n_labels_overclustering = len(keys)
             var_cluster = np.zeros(
                 [
                     n_labels_overclustering,
@@ -178,27 +177,22 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
                 ]
             )
 
-            for j in np.unique(sub_adata.obs.overclustering_vamp):
+            for index, cluster in enumerate(np.unique(overclustering_vamp)):
                 indices_curr = local_indices[
-                    np.where(sub_adata.obs["overclustering_vamp"] == j)[0]
+                    np.where(overclustering_vamp == cluster)[0]
                 ]
-                var_cluster[int(j), :] = (
+                var_cluster[index, :] = (
                     np.mean(var_cat[indices_curr], axis=0)
                     + np.mean(mean_cat[indices_curr] ** 2, axis=0)
                     - (np.mean(mean_cat[indices_curr], axis=0)) ** 2
                 )
-                mean_cluster[int(j), :] = np.mean(mean_cat[indices_curr], axis=0)
+                mean_cluster[index, :] = np.mean(mean_cat[indices_curr], axis=0)
+            
+            mean_vprior[ct, 0:n_labels_overclustering, :] = mean_cluster
+            var_vprior[ct, 0:n_labels_overclustering, :] = var_cluster
+            weight_vprior[ct, 0:n_labels_overclustering] = (counts / sum(counts))
 
-            unique, counts = np.unique(
-                sub_adata.obs.overclustering_vamp, return_counts=True
-            )
-            selection = np.random.choice(
-                np.arange(len(unique)), size=p, p=counts / sum(counts)
-            )
-            mean_vprior[ct, :, :] = mean_cluster[selection, :]
-            var_vprior[ct, :, :] = var_cluster[selection, :]
-
-        return mean_vprior, var_vprior
+        return mean_vprior, var_vprior, weight_vprior
 
     def train(
         self,

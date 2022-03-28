@@ -43,6 +43,8 @@ class MRDeconv(BaseModuleClass):
         Mean parameter for each component in the empirical prior over the latent space
     var_vprior
         Diagonal variance parameter for each component in the empirical prior over the latent space
+    weight_vprior
+        Weight parameter for each component in the empirical prior over the latent space
     amortization
         which of the latent variables to amortize inference over (gamma, proportions, both or none)
     """
@@ -60,6 +62,7 @@ class MRDeconv(BaseModuleClass):
         px_r: np.ndarray,
         mean_vprior: np.ndarray = None,
         var_vprior: np.ndarray = None,
+        weight_vprior: np.ndarray = None,
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
         l1_sparsity: float = 60.0,
     ):
@@ -101,11 +104,11 @@ class MRDeconv(BaseModuleClass):
         self.gamma = torch.nn.Parameter(
             torch.randn(n_latent, self.n_labels, self.n_spots)
         )
-
         if mean_vprior is not None:
             self.p = mean_vprior.shape[1]
             self.register_buffer("mean_vprior", torch.tensor(mean_vprior))
             self.register_buffer("var_vprior", torch.tensor(var_vprior))
+            self.register_buffer("weight_vprior", torch.tensor(weight_vprior))
         else:
             self.mean_vprior = None
             self.var_vprior = None
@@ -239,7 +242,7 @@ class MRDeconv(BaseModuleClass):
         glo_neg_log_likelihood_prior += 5.0 * torch.var(self.beta)
 
         v_sparsity_loss = (
-            self.l1_sparsity * torch.mean(torch.exp(self.beta)) * torch.abs(v).mean(-1)
+            self.l1_sparsity * torch.abs(v).mean(1)
         )
 
         # gamma prior likelihood
@@ -260,17 +263,18 @@ class MRDeconv(BaseModuleClass):
             var_vprior = torch.transpose(self.var_vprior, 0, 1).unsqueeze(
                 0
             )  # 1, p, n_labels, n_latent
-            pre_lse = (
+            weight_vprior = torch.transpose(self.weight_vprior, 0, 1)  # p, n_labels
+            pre_lse = weight_vprior * torch.exp(
                 Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4)
                 .log_prob(gamma)
                 .sum(-1)
             )  # minibatch, p, n_labels
-            log_likelihood_prior = torch.logsumexp(pre_lse, 1) - np.log(
-                self.p
-            )  # minibatch, n_labels
+            # Pseudocount for numerical stability
+            log_likelihood_prior = torch.log(pre_lse.sum(1) + 1e-12)  # minibatch, n_labels
             neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
             # mean_vprior is of shape n_labels, p, n_latent
 
+        # High v_sparsity_loss is detrimental early in training, scaling by kl_weight to increase over training epochs.
         loss = n_obs * (
             torch.mean(
                 reconst_loss + kl_weight * (neg_log_likelihood_prior + v_sparsity_loss)

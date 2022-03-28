@@ -1238,14 +1238,22 @@ def test_destvi(save_path):
     sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
     sc_model.train(1, train_size=1)
 
-    # step 2 learn destVI with multiple amortization scheme
+    # step 2 Check model setup
+    DestVI.setup_anndata(dataset, layer=None)
+    DestVI.setup_anndata(dataset, layer=None, vamp_prior_p=10000)
+    dataset.obs['overclustering_vamp'] = list(range(len(dataset.n_obs)))
+    DestVI.setup_anndata(dataset, layer=None)
+
+    # step 3 learn destVI with multiple amortization scheme
 
     for amor_scheme in ["both", "none", "proportion", "latent"]:
         DestVI.setup_anndata(dataset, layer=None)
+        # add l1_sparsity_loss to loss
         spatial_model = DestVI.from_rna_model(
             dataset,
             sc_model,
             amortization=amor_scheme,
+            l1_sparsity=50
         )
         spatial_model.view_anndata_setup()
         spatial_model.train(max_epochs=1)
