@@ -1178,6 +1178,46 @@ def test_multiple_covariates_scvi(save_path):
     m.train(1)
 
 
+def test_multiple_encoded_covariates_scvi(save_path):
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = SCVI(adata, encode_covariates=True)
+    m.train(1)
+
+    SCANVI.setup_anndata(
+        adata,
+        "labels",
+        "Unknown",
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = SCANVI(adata, encode_covariates=True)
+    m.train(1)
+
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = TOTALVI(adata, encode_covariates=True)
+    m.train(1)
+
+
 def test_peakvi():
     data = synthetic_iid()
     PEAKVI.setup_anndata(
@@ -1250,10 +1290,7 @@ def test_destvi(save_path):
         DestVI.setup_anndata(dataset, layer=None)
         # add l1_sparsity_loss to loss
         spatial_model = DestVI.from_rna_model(
-            dataset,
-            sc_model,
-            amortization=amor_scheme,
-            l1_sparsity=50
+            dataset, sc_model, amortization=amor_scheme, l1_sparsity=50
         )
         spatial_model.view_anndata_setup()
         spatial_model.train(max_epochs=1)

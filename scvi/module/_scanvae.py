@@ -185,10 +185,20 @@ class SCANVAE(VAE):
             )
 
     @auto_move_data
-    def classify(self, x, batch_index=None):
+    def classify(self, x, batch_index=None, cont_covs=None, cat_covs=None):
         if self.log_variational:
             x = torch.log(1 + x)
-        qz_m, _, z = self.z_encoder(x, batch_index)
+
+        if cont_covs is not None and self.encode_covariates:
+            encoder_input = torch.cat((x, cont_covs), dim=-1)
+        else:
+            encoder_input = x
+        if cat_covs is not None and self.encode_covariates:
+            categorical_input = torch.split(cat_covs, 1, dim=1)
+        else:
+            categorical_input = tuple()
+
+        qz_m, _, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
         # We classify using the inferred mean parameter of z_1 in the latent space
         z = qz_m
         if self.use_labels_groups:
@@ -210,8 +220,20 @@ class SCANVAE(VAE):
         x = labelled_dataset[REGISTRY_KEYS.X_KEY]
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
+        cont_covs = (
+            labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
+        )
+
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
+        cat_covs = (
+            labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
+        )
         classification_loss = F.cross_entropy(
-            self.classify(x, batch_idx), y.view(-1).long()
+            self.classify(
+                x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
+            ),
+            y.view(-1).long(),
         )
         return classification_loss
 

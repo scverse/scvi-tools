@@ -148,20 +148,20 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         for ct in range(self.summary_stats["n_labels"]):
             local_indices = np.where(adata.obs[key] == mapping[ct])[0]
             if "overclustering_vamp" not in adata.obs.columns:
-                if p<len(local_indices) and p>0:
+                if p < len(local_indices) and p > 0:
                     from sklearn.cluster import KMeans
+
                     kmeans = KMeans(n_clusters=p, n_init=30).fit(
-                        mean_cat[local_indices])
+                        mean_cat[local_indices]
+                    )
                     overclustering_vamp = kmeans.labels_
                 else:
                     # Every cell is its own cluster
                     overclustering_vamp = list(range(len(local_indices)))
             else:
-                overclustering_vamp = adata[local_indices, :].obs['overclustering_vamp']
+                overclustering_vamp = adata[local_indices, :].obs["overclustering_vamp"]
 
-            keys, counts = np.unique(
-                overclustering_vamp, return_counts=True
-            )
+            keys, counts = np.unique(overclustering_vamp, return_counts=True)
 
             n_labels_overclustering = len(keys)
             if n_labels_overclustering > p:
@@ -190,10 +190,10 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
                     - (np.mean(mean_cat[indices_curr], axis=0)) ** 2
                 )
                 mean_cluster[index, :] = np.mean(mean_cat[indices_curr], axis=0)
-            
+
             mean_vprior[ct, 0:n_labels_overclustering, :] = mean_cluster
             var_vprior[ct, 0:n_labels_overclustering, :] = var_cluster
-            weight_vprior[ct, 0:n_labels_overclustering] = (counts / sum(counts))
+            weight_vprior[ct, 0:n_labels_overclustering] = counts / sum(counts)
 
         return mean_vprior, var_vprior, weight_vprior
 
