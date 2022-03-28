@@ -50,7 +50,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
      - Tasks
    * - :doc:`/user_guide/models/peakvi`
-     - [Ashuach21]_
+     - [Ashuach22]_
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
 ```
 
