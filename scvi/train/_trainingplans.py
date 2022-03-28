@@ -651,6 +651,9 @@ class PyroTrainingPlan(pl.LightningModule):
     n_epochs_kl_warmup
         Number of epochs to scale weight on KL divergences from 0 to 1.
         Overrides `n_steps_kl_warmup` when both are not `None`.
+    scale_elbo
+        Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding
+        numerical inaccuracy when working with very large ELBO.
     """
 
     def __init__(
@@ -661,6 +664,7 @@ class PyroTrainingPlan(pl.LightningModule):
         optim_kwargs: Optional[dict] = None,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
+        scale_elbo: float = 1.0,
     ):
         super().__init__()
         self.module = pyro_module
@@ -679,20 +683,25 @@ class PyroTrainingPlan(pl.LightningModule):
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
 
         self.automatic_optimization = False
-        self.pyro_guide = self.module.guide
-        self.pyro_model = self.module.model
 
         self.use_kl_weight = False
-        if isinstance(self.pyro_model, PyroModule):
+        if isinstance(self.module.model, PyroModule):
             self.use_kl_weight = (
-                "kl_weight" in signature(self.pyro_model.forward).parameters
+                "kl_weight" in signature(self.module.model.forward).parameters
             )
-        elif callable(self.pyro_model):
-            self.use_kl_weight = "kl_weight" in signature(self.pyro_model).parameters
+
+        elif callable(self.module.model):
+            self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
+
+        def scale(pyro_obj):
+            if scale_elbo == 1:
+                return pyro_obj
+            else:
+                return pyro.poutine.scale(pyro_obj, scale_elbo)
 
         self.svi = pyro.infer.SVI(
-            model=self.pyro_model,
-            guide=self.pyro_guide,
+            model=scale(self.module.model),
+            guide=scale(self.module.guide),
             optim=self.optim,
             loss=self.loss_fn,
         )
