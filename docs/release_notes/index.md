@@ -8,6 +8,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 ```{toctree}
 :maxdepth: 2
 
+v0.15.4
 v0.15.3
 v0.15.2
 v0.15.1
