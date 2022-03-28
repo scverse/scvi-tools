@@ -241,9 +241,7 @@ class MRDeconv(BaseModuleClass):
         )
         glo_neg_log_likelihood_prior += 5.0 * torch.var(self.beta)
 
-        v_sparsity_loss = (
-            self.l1_sparsity * torch.abs(v).mean(1)
-        )
+        v_sparsity_loss = self.l1_sparsity * torch.abs(v).mean(1)
 
         # gamma prior likelihood
         if self.mean_vprior is None:
@@ -270,7 +268,9 @@ class MRDeconv(BaseModuleClass):
                 .sum(-1)
             )  # minibatch, p, n_labels
             # Pseudocount for numerical stability
-            log_likelihood_prior = torch.log(pre_lse.sum(1) + 1e-12)  # minibatch, n_labels
+            log_likelihood_prior = torch.log(
+                pre_lse.sum(1) + 1e-12
+            )  # minibatch, n_labels
             neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
             # mean_vprior is of shape n_labels, p, n_latent
 
