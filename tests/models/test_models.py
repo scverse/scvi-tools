@@ -1274,7 +1274,7 @@ def test_destvi(save_path):
     n_labels = 5
     n_layers = 2
     dataset = synthetic_iid(n_labels=n_labels)
-    dataset.obs["overclustering_vamp"] = list(range(dataset.n_obs))
+    dataset.obs['overclustering_vamp'] = list(range(dataset.n_obs))
     CondSCVI.setup_anndata(dataset, labels_key="labels")
     sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
     sc_model.train(1, train_size=1)
@@ -1282,7 +1282,10 @@ def test_destvi(save_path):
     # step 2 Check model setup
     DestVI.setup_anndata(dataset, layer=None)
     _ = DestVI.from_rna_model(dataset, sc_model, vamp_prior_p=10000)
-    _ = DestVI.from_rna_model(dataset, sc_model, vamp_prior_p=1)
+    with pytest.raises(ValueError):
+        _ = DestVI.from_rna_model(dataset, sc_model, vamp_prior_p=1)
+
+    del dataset.obs['overclustering_vamp']
 
     # step 3 learn destVI with multiple amortization scheme
 
@@ -1295,7 +1298,7 @@ def test_destvi(save_path):
         spatial_model.view_anndata_setup()
         spatial_model.train(max_epochs=1)
         assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
-
+        
         assert spatial_model.get_proportions().shape == (dataset.n_obs, n_labels)
         assert spatial_model.get_gamma(return_numpy=True).shape == (
             dataset.n_obs,
