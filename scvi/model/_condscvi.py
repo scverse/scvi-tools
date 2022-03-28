@@ -166,7 +166,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             n_labels_overclustering = len(keys)
             if n_labels_overclustering > p:
                 raise ValueError(
-                    "Given overclustering contains more clusters than vamp_prior_p. Increase value.")
+                    "Given overclustering contains more clusters than vamp_prior_p. Increase value."
+                )
             var_cluster = np.zeros(
                 [
                     n_labels_overclustering,
