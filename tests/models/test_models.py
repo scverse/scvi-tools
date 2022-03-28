@@ -1274,6 +1274,7 @@ def test_destvi(save_path):
     n_labels = 5
     n_layers = 2
     dataset = synthetic_iid(n_labels=n_labels)
+    dataset.obs["overclustering_vamp"] = list(range(dataset.n_obs))
     CondSCVI.setup_anndata(dataset, labels_key="labels")
     sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
     sc_model.train(1, train_size=1)
@@ -1281,7 +1282,7 @@ def test_destvi(save_path):
     # step 2 Check model setup
     DestVI.setup_anndata(dataset, layer=None)
     DestVI.setup_anndata(dataset, layer=None, vamp_prior_p=10000)
-    dataset.obs["overclustering_vamp"] = list(range(dataset.n_obs))
+    
     DestVI.setup_anndata(dataset, layer=None)
 
     # step 3 learn destVI with multiple amortization scheme
