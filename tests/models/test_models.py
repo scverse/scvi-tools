@@ -1281,9 +1281,10 @@ def test_destvi(save_path):
 
     # step 2 Check model setup
     DestVI.setup_anndata(dataset, layer=None)
-    DestVI.setup_anndata(dataset, layer=None, vamp_prior_p=10000)
-
-    DestVI.setup_anndata(dataset, layer=None)
+    _ = DestVI.from_rna_model(
+            dataset, sc_model, vamp_prior_p=10000)
+    _ = DestVI.from_rna_model(
+            dataset, sc_model, vamp_prior_p=1)
 
     # step 3 learn destVI with multiple amortization scheme
 
