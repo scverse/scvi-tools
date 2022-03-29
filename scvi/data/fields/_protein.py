@@ -4,67 +4,52 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from mudata import MuData
 
 from ._obsm_field import ObsmField
+from ._layer_field import LayerField
+from ._mudata import MuDataWrapper
 
 logger = logging.getLogger(__name__)
 
 
-class ProteinObsmField(ObsmField):
+class ProteinFieldMixin:
     """
-    An AnnDataField for an protein data stored in an .obsm field of an AnnData object.
+    A mixin class for an protein data stored in a field of an AnnData object.
 
     For usage with the TotalVI model. Computes an additional mask which indicates
     where batches are missing protein data.
 
     Parameters
     ----------
-    registry_key
-        Key to register field under in data registry.
-    obsm_key
-        Key to access the field in the AnnData .obsm mapping.
     use_batch_mask
         If True, computes a batch mask over the data for missing protein data.
         Requires ``batch_key`` to be not None.
     batch_key
         Key corresponding to the .obs field where batch indices are stored.
         Used for computing a batch mask over the data for missing protein data.
-    colnames_uns_key
-        Key to access column names corresponding to each column of the .obsm field in
-        the AnnData .uns mapping. Only used when .obsm data is a np.ndarray, not a pd.DataFrame.
-    is_count_data
-        If True, checks if the data are counts during validation.
-    correct_data_format
-        If True, checks and corrects that the AnnData field is C_CONTIGUOUS and csr
-        if it is dense numpy or sparse respectively.
     """
 
     PROTEIN_BATCH_MASK = "protein_batch_mask"
 
     def __init__(
         self,
-        registry_key: str,
-        obsm_key: str,
+        *base_field_args,
         use_batch_mask: bool = True,
-        batch_key: Optional[str] = None,
-        colnames_uns_key: Optional[str] = None,
-        is_count_data: bool = False,
-        correct_data_format: bool = True,
+        batch_field: Optional[str] = None,
+        **base_field_kwargs,
     ) -> None:
-        if use_batch_mask and batch_key is None:
+        if use_batch_mask and batch_field is None:
             raise ValueError(
-                "`use_batch_mask = True` requires that `batch_key is not None`. "
-                "Please provide a `batch_key`."
+                "`use_batch_mask = True` requires that `batch_field is not None`. "
+                "Please provide a `batch_field`."
             )
-        super().__init__(
-            registry_key,
-            obsm_key,
-            colnames_uns_key=colnames_uns_key,
-            is_count_data=is_count_data,
-            correct_data_format=correct_data_format,
-        )
         self.use_batch_mask = use_batch_mask
-        self.batch_key = batch_key
+        self.batch_field = batch_field
+        super().__init__(
+            *base_field_args,
+            **base_field_kwargs,
+        )
 
     def _get_batch_mask_protein_data(self, adata: AnnData) -> Optional[dict]:
         """
@@ -75,7 +60,7 @@ class ProteinObsmField(ObsmField):
         """
         pro_exp = self.get_field_data(adata)
         pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
-        batches = adata.obs[self.batch_key].values
+        batches = self.batch_field.get_field_data(adata)
         batch_mask = {}
         for b in np.unique(batches):
             b_inds = np.where(batches.ravel() == b)[0]
@@ -110,3 +95,73 @@ class ProteinObsmField(ObsmField):
             transfer_state_registry[self.PROTEIN_BATCH_MASK] = batch_mask
 
         return transfer_state_registry
+
+
+class ProteinObsmField(ProteinFieldMixin, ObsmField):
+    """
+    An AnnDataField for an protein data stored in an .obsm field of an AnnData object.
+
+    For usage with the TotalVI model. Computes an additional mask which indicates
+    where batches are missing protein data.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    obsm_key
+        Key to access the field in the AnnData .obsm mapping.
+    use_batch_mask
+        If True, computes a batch mask over the data for missing protein data.
+        Requires ``batch_key`` to be not None.
+    batch_key
+        Key corresponding to the .obs field where batch indices are stored.
+        Used for computing a batch mask over the data for missing protein data.
+    colnames_uns_key
+        Key to access column names corresponding to each column of the .obsm field in
+        the AnnData .uns mapping. Only used when .obsm data is a np.ndarray, not a pd.DataFrame.
+    is_count_data
+        If True, checks if the data are counts during validation.
+    correct_data_format
+        If True, checks and corrects that the AnnData field is C_CONTIGUOUS and csr
+        if it is dense numpy or sparse respectively.
+    """
+
+
+class ProteinLayerField(ProteinFieldMixin, LayerField):
+    """
+    An AnnDataField for an protein data stored in a layer field of an AnnData object.
+
+    For usage with the TotalVI model. Computes an additional mask which indicates
+    where batches are missing protein data.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    layer
+        Key to access the field in the AnnData layers mapping. If None, uses the data in .X.
+    use_batch_mask
+        If True, computes a batch mask over the data for missing protein data.
+        Requires ``batch_key`` to be not None.
+    batch_key
+        Key corresponding to the .obs field where batch indices are stored.
+        Used for computing a batch mask over the data for missing protein data.
+    is_count_data
+        If True, checks if the data are counts during validation.
+    correct_data_format
+        If True, checks and corrects that the AnnData field is C_CONTIGUOUS and csr
+        if it is dense numpy or sparse respectively.
+    """
+
+
+def copy_over_batch_attr(self, mdata: MuData):
+    batch_field = self.adata_field.batch_field
+    batch_data = batch_field.get_field_data(mdata)
+    bdata = self.get_modality(mdata)
+    bdata_attr = getattr(bdata, batch_field.attr_name)
+    bdata_attr[batch_field.attr_key] = batch_data
+
+
+MuDataProteinLayerField = MuDataWrapper(
+    ProteinLayerField, preregister_fn=copy_over_batch_attr
+)

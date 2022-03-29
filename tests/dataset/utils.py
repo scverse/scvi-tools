@@ -12,9 +12,11 @@ from scvi.data.fields import (
     CategoricalObsField,
     LabelsWithUnlabeledObsField,
     LayerField,
-    MuDataLayerField,
     NumericalJointObsField,
     ProteinObsmField,
+    MuDataLayerField,
+    MuDataCategoricalObsField,
+    MuDataProteinLayerField,
 )
 from scvi.model import SCVI
 
@@ -63,7 +65,7 @@ def generic_setup_adata_manager(
                 REGISTRY_KEYS.PROTEIN_EXP_KEY,
                 protein_expression_obsm_key,
                 use_batch_mask=True,
-                batch_key=batch_field.attr_key,
+                batch_field=batch_field,
                 colnames_uns_key=protein_names_uns_key,
                 is_count_data=True,
             )
@@ -99,16 +101,31 @@ def scanvi_setup_adata_manager(
 
 def generic_setup_mudata_manager(
     mdata: MuData,
-    layer: Optional[str] = None,
     layer_mod: Optional[str] = None,
+    layer: Optional[str] = None,
+    batch_mod: Optional[str] = None,
+    batch_key: Optional[str] = None,
+    protein_expression_mod: Optional[str] = None,
+    protein_expression_layer: Optional[str] = None,
 ) -> AnnDataManager:
     setup_args = locals()
     setup_args.pop("mdata")
     setup_method_args = {_MODEL_NAME_KEY: "TestModel", _SETUP_ARGS_KEY: setup_args}
 
+    batch_field = MuDataCategoricalObsField(
+        REGISTRY_KEYS.BATCH_KEY, batch_key, mod_key=batch_mod
+    )
     anndata_fields = [
         MuDataLayerField(
             REGISTRY_KEYS.X_KEY, layer, mod_key=layer_mod, is_count_data=True
+        ),
+        batch_field,
+        MuDataProteinLayerField(
+            REGISTRY_KEYS.PROTEIN_EXP_KEY,
+            protein_expression_layer,
+            mod_key=protein_expression_mod,
+            use_batch_mask=True,
+            batch_field=batch_field,
         ),
     ]
     mdata_manager = AnnDataManager(

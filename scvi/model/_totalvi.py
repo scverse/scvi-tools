@@ -1154,7 +1154,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
                 # average distribution over cells
                 batch_avg_mu = np.mean(mus)
-                batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells**2))
+                batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells ** 2))
 
                 batch_avg_mus.append(batch_avg_mu)
                 batch_avg_scales.append(batch_avg_scale)
@@ -1239,7 +1239,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 REGISTRY_KEYS.PROTEIN_EXP_KEY,
                 protein_expression_obsm_key,
                 use_batch_mask=True,
-                batch_key=batch_field.attr_key,
+                batch_field=batch_field,
                 colnames_uns_key=protein_names_uns_key,
                 is_count_data=True,
             ),
