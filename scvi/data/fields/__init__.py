@@ -6,7 +6,7 @@ from ._obs_field import (
     NumericalObsField,
 )
 from ._obsm_field import CategoricalJointObsField, NumericalJointObsField, ObsmField
-from ._protein import ProteinObsmField, MuDataProteinLayerField
+from ._protein import MuDataProteinLayerField, ProteinObsmField
 from ._scanvi import LabelsWithUnlabeledObsField
 
 __all__ = [
