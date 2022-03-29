@@ -13,15 +13,26 @@ import scipy.sparse as sp_sparse
 from anndata._core.sparse_dataset import SparseDataset
 from pandas.api.types import CategoricalDtype
 
+from scvi._types import AnnOrMuData
+
 from . import _constants
 
 logger = logging.getLogger(__name__)
 
 
 def get_anndata_attribute(
-    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+    adata: AnnOrMuData,
+    attr_name: str,
+    attr_key: Optional[str],
+    mod_key: Optional[str] = None,
 ) -> Union[np.ndarray, pd.DataFrame]:
-    """Returns the requested data from a given AnnData object."""
+    """Returns the requested data from a given AnnData/MuData object."""
+    if mod_key is not None:
+        if isinstance(adata, anndata.AnnData):
+            raise ValueError(f"Cannot access modality {mod_key} on an AnnData object.")
+        if mod_key not in adata.mod:
+            raise ValueError(f"{mod_key} is not a valid modality in adata.mod.")
+        adata = adata.mod[mod_key]
     adata_attr = getattr(adata, attr_name)
     if attr_key is None:
         field = adata_attr

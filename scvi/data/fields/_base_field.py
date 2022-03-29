@@ -4,18 +4,18 @@ from typing import Optional, Union
 import numpy as np
 import pandas as pd
 import rich
-from anndata import AnnData
 
+from scvi._types import AnnOrMuData
 from scvi.data import _constants
 from scvi.data._utils import get_anndata_attribute
 
 
 class BaseAnnDataField(ABC):
     """
-    Abstract class for a single AnnData field.
+    Abstract class for a single AnnData/MuData field.
 
-    An AnnDataField class defines how scvi-tools will map a data field used by a model
-    to an attribute in an AnnData object.
+    A Field class defines how scvi-tools will map a data field used by a model
+    to an attribute in an AnnData/MuData object.
     """
 
     @property
@@ -34,6 +34,11 @@ class BaseAnnDataField(ABC):
         """The key of the data field within the relevant AnnData attribute."""
 
     @property
+    def mod_key(self) -> Optional[str]:
+        """The modality key of the data field within the MuData (if applicable)."""
+        return None
+
+    @property
     @abstractmethod
     def is_empty(self) -> bool:
         """
@@ -45,26 +50,26 @@ class BaseAnnDataField(ABC):
         """
 
     @abstractmethod
-    def validate_field(self, adata: AnnData) -> None:
-        """Validates whether an AnnData object is compatible with this field definition."""
+    def validate_field(self, adata: AnnOrMuData) -> None:
+        """Validates whether an AnnData/MuData object is compatible with this field definition."""
 
     @abstractmethod
-    def register_field(self, adata: AnnData) -> dict:
+    def register_field(self, adata: AnnOrMuData) -> dict:
         """
-        Sets up the AnnData object and creates a mapping for scvi-tools models to use.
+        Sets up the AnnData/MuData object and creates a mapping for scvi-tools models to use.
 
         Returns
         -------
         dict
             A dictionary containing any additional state required for scvi-tools models not
-            stored directly on the AnnData object.
+            stored directly on the AnnData/MuData object.
         """
         self.validate_field(adata)
         return dict()
 
     @abstractmethod
     def transfer_field(
-        self, state_registry: dict, adata_target: AnnData, **kwargs
+        self, state_registry: dict, adata_target: AnnOrMuData, **kwargs
     ) -> dict:
         """
         Takes an existing scvi-tools setup dictionary and transfers the same setup to the target AnnData.
@@ -77,7 +82,7 @@ class BaseAnnDataField(ABC):
         state_registry
             state_registry dictionary created after registering an AnnData using an :class:`~scvi.data.AnnDataManager` object.
         adata_target
-            AnnData object that is being registered.
+            AnnData/MuData object that is being registered.
         **kwargs
             Keyword arguments to modify transfer behavior.
 
@@ -125,23 +130,26 @@ class BaseAnnDataField(ABC):
             Optional :class:`rich.table.Table` summarizing the ``state_registry``.
         """
 
-    def get_field_data(self, adata: AnnData) -> Union[np.ndarray, pd.DataFrame]:
-        """Returns the requested data as determined by the field for a given AnnData object."""
+    def get_field_data(self, adata: AnnOrMuData) -> Union[np.ndarray, pd.DataFrame]:
+        """Returns the requested data as determined by the field for a given AnnData/MuData object."""
         if self.is_empty:
             raise AssertionError(f"The {self.registry_key} field is empty.")
-        return get_anndata_attribute(adata, self.attr_name, self.attr_key)
+        return get_anndata_attribute(
+            adata, self.attr_name, self.attr_key, mod_key=self.mod_key
+        )
 
     def get_data_registry(self) -> dict:
         """
-        Returns a nested dictionary which describes the mapping to the AnnData data field.
+        Returns a nested dictionary which describes the mapping to the data field.
 
-        The dictionary is of the form {"attr_name": attr_name, "attr_key": attr_key}.
+        The dictionary is of the form {"mod_key": mod_key, "attr_name": attr_name, "attr_key": attr_key}.
         This mapping is then combined with the mappings of other fields to make up the data registry.
         """
         if self.is_empty:
             return dict()
 
         return {
+            _constants._DR_MOD_KEY: self.mod_key,
             _constants._DR_ATTR_NAME: self.attr_name,
             _constants._DR_ATTR_KEY: self.attr_key,
         }
