@@ -20,6 +20,8 @@ __version__ = importlib_metadata.version(package_name)
 
 settings.verbosity = logging.INFO
 test_var = "test"
+
+# Jax sets the root logger, this prevents double output.
 scvi_logger = logging.getLogger("scvi")
 scvi_logger.propagate = False
 
