@@ -271,7 +271,7 @@ class AnnDataManager:
         """
         data_loc = self.data_registry[registry_key]
         mod_key, attr_name, attr_key = (
-            data_loc[_constants._DR_MOD_KEY],
+            getattr(data_loc, _constants._DR_MOD_KEY, None),
             data_loc[_constants._DR_ATTR_NAME],
             data_loc[_constants._DR_ATTR_KEY],
         )

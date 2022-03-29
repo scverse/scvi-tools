@@ -148,11 +148,13 @@ class BaseAnnDataField(ABC):
         if self.is_empty:
             return dict()
 
-        return {
-            _constants._DR_MOD_KEY: self.mod_key,
+        data_registry = {
             _constants._DR_ATTR_NAME: self.attr_name,
             _constants._DR_ATTR_KEY: self.attr_key,
         }
+        if self.mod_key is not None:
+            data_registry[_constants._DR_MOD_KEY] = self.mod_key
+        return data_registry
 
 
 # Convenience type

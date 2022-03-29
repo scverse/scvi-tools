@@ -19,18 +19,22 @@ class BaseMuDataWrapper(BaseAnnDataField):
 
     @property
     def registry_key(self) -> str:
+        """The key that is referenced by models via a data loader."""
         return self.adata_field.registry_key
 
     @property
     def mod_key(self) -> Optional[str]:
+        """The modality key of the data field within the MuData (if applicable)."""
         return self._mod_key
 
     @property
     def attr_name(self) -> str:
+        """The name of the AnnData/MuData attribute where the data is stored."""
         return self.adata_field.attr_name
 
     @property
     def attr_key(self) -> Optional[str]:
+        """The key of the data field within the relevant AnnData/MuData attribute."""
         return self.adata_field.attr_key
 
     @property
