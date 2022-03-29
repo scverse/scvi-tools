@@ -6,9 +6,9 @@ import pandas as pd
 from anndata import AnnData
 from mudata import MuData
 
-from ._obsm_field import ObsmField
 from ._layer_field import LayerField
-from ._mudata import MuDataWrapper
+from ._mudata import BaseMuDataWrapper, MuDataWrapper
+from ._obsm_field import ObsmField
 
 logger = logging.getLogger(__name__)
 
@@ -155,11 +155,17 @@ class ProteinLayerField(ProteinFieldMixin, LayerField):
 
 
 def copy_over_batch_attr(self, mdata: MuData):
-    batch_field = self.adata_field.batch_field
-    batch_data = batch_field.get_field_data(mdata)
+    # Assign self.batch_field if not yet assigned to MuDataWrapped field.
+    # Then, reassign self.adata_field.batch_field to the batch AnnDataField.
+    if isinstance(self.adata_field.batch_field, BaseMuDataWrapper):
+        self.batch_field = self.adata_field.batch_field
+        self.adata_field.batch_field = self.batch_field.adata_field
+
+    # Copy over batch data to the protein modality.
+    batch_data = self.batch_field.get_field_data(mdata)
     bdata = self.get_modality(mdata)
-    bdata_attr = getattr(bdata, batch_field.attr_name)
-    bdata_attr[batch_field.attr_key] = batch_data
+    bdata_attr = getattr(bdata, self.batch_field.attr_name)
+    bdata_attr[self.batch_field.attr_key] = batch_data
 
 
 MuDataProteinLayerField = MuDataWrapper(

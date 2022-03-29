@@ -13,8 +13,8 @@ def test_setup_mudata():
     mdata = mudata.MuData({"rna": adata, "protein": protein_adata})
     adata_manager = generic_setup_mudata_manager(
         mdata,
-        layer=None,
         layer_mod="rna",
+        layer=None,
         batch_mod="rna",
         batch_key="batch",
         protein_expression_mod="protein",
