@@ -11,6 +11,7 @@ from scvi.data._utils import (
 )
 
 from ._base_field import BaseAnnDataField
+from ._mudata import MuDataWrapper
 
 
 class LayerField(BaseAnnDataField):
@@ -105,3 +106,6 @@ class LayerField(BaseAnnDataField):
 
     def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
         return None
+
+
+MuDataLayerField = MuDataWrapper(LayerField)

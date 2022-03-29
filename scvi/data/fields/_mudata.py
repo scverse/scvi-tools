@@ -3,23 +3,19 @@ from typing import Callable, Optional
 import rich
 from mudata import MuData
 
-from scvi._types import AnnDataField, AnnOrMuData
-from scvi.data.fields import BaseAnnDataField
+from scvi._types import AnnOrMuData
+from scvi.data.fields import AnnDataField, BaseAnnDataField
 
 
 class BaseMuDataWrapper(BaseAnnDataField):
     def __init__(self, mod_key: Optional[str] = None) -> None:
         super().__init__()
         self._mod_key = mod_key
-        self._preregister = lambda _: None
+        self._preregister = lambda _self, _mdata: None
 
     @property
     def adata_field(self) -> AnnDataField:
         return self._adata_field
-
-    @property
-    def preregister(self, mdata: MuData) -> None:
-        return self._preregister
 
     @property
     def registry_key(self) -> str:
@@ -53,6 +49,9 @@ class BaseMuDataWrapper(BaseAnnDataField):
         bdata = self.get_modality(mdata)
         return self.adata_field.validate_field(bdata)
 
+    def preregister(self, mdata: MuData) -> None:
+        return self._preregister(self, mdata)
+
     def register_field(self, mdata: MuData) -> dict:
         self.preregister(mdata)
         bdata = self.get_modality(mdata)
@@ -79,12 +78,12 @@ def MuDataWrapper(
 
     def mudata_field_init(self, *args, mod_key: Optional[str] = None, **kwargs):
         BaseMuDataWrapper.__init__(self, mod_key=mod_key)
-        self._adata_field = adata_field_cls.__init__(*args, **kwargs)
+        self._adata_field = adata_field_cls(*args, **kwargs)
         if preregister_fn is not None:
             self._preregister = preregister_fn
 
     return type(
-        f"MuDataWrapped{adata_field_cls.__name__}",
+        f"MuData{adata_field_cls.__name__}",
         (BaseMuDataWrapper,),
         {
             "__init__": mudata_field_init,

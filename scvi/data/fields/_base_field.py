@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import Optional, Type, Union
 
 import numpy as np
 import pandas as pd
@@ -153,3 +153,7 @@ class BaseAnnDataField(ABC):
             _constants._DR_ATTR_NAME: self.attr_name,
             _constants._DR_ATTR_KEY: self.attr_key,
         }
+
+
+# Convenience type
+AnnDataField = Type[BaseAnnDataField]

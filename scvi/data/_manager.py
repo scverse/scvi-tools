@@ -12,11 +12,12 @@ import rich
 from anndata import AnnData
 
 import scvi
-from scvi._types import AnnDataField
+from scvi._types import AnnOrMuData
 from scvi.utils import attrdict
 
 from . import _constants
 from ._utils import _assign_adata_uuid, get_anndata_attribute
+from .fields import AnnDataField
 
 
 class AnnDataManager:
@@ -109,7 +110,10 @@ class AnnDataManager:
         self.adata.uns[_constants._MANAGER_UUID_KEY] = self.id
 
     def register_fields(
-        self, adata: AnnData, source_registry: Optional[dict] = None, **transfer_kwargs
+        self,
+        adata: AnnOrMuData,
+        source_registry: Optional[dict] = None,
+        **transfer_kwargs,
     ):
         """
         Registers each field associated with this instance with the AnnData object.
@@ -179,7 +183,7 @@ class AnnDataManager:
         self._assign_uuid()
         self._assign_most_recent_manager_uuid()
 
-    def transfer_fields(self, adata_target: AnnData, **kwargs) -> AnnDataManager:
+    def transfer_fields(self, adata_target: AnnOrMuData, **kwargs) -> AnnDataManager:
         """
         Transfers an existing setup to each field associated with this instance with the target AnnData object.
 
@@ -266,12 +270,13 @@ class AnnDataManager:
         The requested data.
         """
         data_loc = self.data_registry[registry_key]
-        attr_name, attr_key = (
+        mod_key, attr_name, attr_key = (
+            data_loc[_constants._DR_MOD_KEY],
             data_loc[_constants._DR_ATTR_NAME],
             data_loc[_constants._DR_ATTR_KEY],
         )
 
-        return get_anndata_attribute(self.adata, attr_name, attr_key)
+        return get_anndata_attribute(self.adata, attr_name, attr_key, mod_key=mod_key)
 
     def get_state_registry(self, registry_key: str) -> attrdict:
         """Returns the state registry for the AnnDataField registered with this instance."""
@@ -323,12 +328,16 @@ class AnnDataManager:
         )
 
         for registry_key, data_loc in self.data_registry.items():
+            mod_key = data_loc.mod_key
             attr_name = data_loc.attr_name
             attr_key = data_loc.attr_key
+            scvi_data_str = "adata"
+            if mod_key is not None:
+                scvi_data_str += f".mod['{mod_key}']"
             if attr_key is None:
-                scvi_data_str = f"adata.{attr_name}"
+                scvi_data_str += f".{attr_name}"
             else:
-                scvi_data_str = f"adata.{attr_name}['{attr_key}']"
+                scvi_data_str += f".{attr_name}['{attr_key}']"
             t.add_row(registry_key, scvi_data_str)
 
         return t

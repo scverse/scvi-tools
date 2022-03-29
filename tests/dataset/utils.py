@@ -2,6 +2,7 @@ from typing import List, Optional
 
 import torch
 from anndata import AnnData
+from mudata import MuData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -11,6 +12,7 @@ from scvi.data.fields import (
     CategoricalObsField,
     LabelsWithUnlabeledObsField,
     LayerField,
+    MuDataLayerField,
     NumericalJointObsField,
     ProteinObsmField,
 )
@@ -93,3 +95,24 @@ def scanvi_setup_adata_manager(
     )
     adata_manager.register_fields(adata)
     return adata_manager
+
+
+def generic_setup_mudata_manager(
+    mdata: MuData,
+    layer: Optional[str] = None,
+    layer_mod: Optional[str] = None,
+) -> AnnDataManager:
+    setup_args = locals()
+    setup_args.pop("mdata")
+    setup_method_args = {_MODEL_NAME_KEY: "TestModel", _SETUP_ARGS_KEY: setup_args}
+
+    anndata_fields = [
+        MuDataLayerField(
+            REGISTRY_KEYS.X_KEY, layer, mod_key=layer_mod, is_count_data=True
+        ),
+    ]
+    mdata_manager = AnnDataManager(
+        fields=anndata_fields, setup_method_args=setup_method_args
+    )
+    mdata_manager.register_fields(mdata)
+    return mdata_manager
