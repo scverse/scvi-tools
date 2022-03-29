@@ -36,6 +36,10 @@ class ScviConfig:
     >>> import logging
     >>> scvi.settings.verbosity = logging.INFO
 
+    To set pin memory for GPU training
+
+    >>> scvi.settings.dl_pin_memory_gpu_training = True
+
     To set the number of threads PyTorch will use
 
     >>> scvi.settings.num_threads = 2
@@ -53,7 +57,7 @@ class ScviConfig:
         seed: int = 0,
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
-        dl_pin_memory_gpu_training: bool = True,
+        dl_pin_memory_gpu_training: bool = False,
         jax_preallocate_gpu_memory: bool = False,
     ):
 
