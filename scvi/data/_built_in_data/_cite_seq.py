@@ -137,23 +137,25 @@ def _load_pbmc_seurat_v4_cite_seq(
     adata = anndata.read_h5ad(os.path.join(save_path, save_fn))
 
     if aggregate_proteins:
-        protein_df = pd.DataFrame(index=adata.obsm["protein_counts"].index)
+        protein_dict = {}
         ref_proteins = adata.obsm["protein_counts"].columns
         for p in ref_proteins:
             if p.split("-")[-1] == "1" or p.split("-")[-1] == "2":
                 root = p.split("-")[0]
                 if root not in ["Notch", "TCR"]:
                     try:
-                        protein_df[root] = (
+                        protein_dict[root] = np.asarray(
                             adata.obsm["protein_counts"][root + "-1"]
                             + adata.obsm["protein_counts"][root + "-2"]
-                        ).values
+                        )
                     except KeyError:
-                        protein_df[p] = adata.obsm["protein_counts"][p]
+                        protein_dict[p] = np.asarray(adata.obsm["protein_counts"][p])
                 else:
-                    protein_df[p] = adata.obsm["protein_counts"][p]
+                    protein_dict[p] = np.asarray(adata.obsm["protein_counts"][p])
             else:
-                protein_df[p] = adata.obsm["protein_counts"][p]
+                protein_dict[p] = np.asarray(adata.obsm["protein_counts"][p])
+        protein_df = pd.DataFrame.from_dict(protein_dict)
+        protein_df.index = adata.obsm["protein_counts"].index
         adata.obsm["protein_counts"] = protein_df
 
     if apply_filters:
