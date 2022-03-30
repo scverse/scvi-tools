@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Union
+from typing import Optional
 
 import anndata
 import numpy as np
@@ -26,7 +26,7 @@ def poisson_gene_selection(
     silent: bool = False,
     minibatch_size: int = 5000,
     **kwargs,
-) -> Union[None, pd.DataFrame]:
+) -> Optional[pd.DataFrame]:
     """
     Rank and select genes based on the enrichment of zero counts.
 
@@ -233,7 +233,7 @@ def poisson_gene_selection(
 
 def organize_cite_seq_10x(
     adata: anndata.AnnData, copy: bool = False
-) -> Union[None, anndata.AnnData]:
+) -> Optional[anndata.AnnData]:
     """
     Organize anndata object loaded from 10x for scvi models.
 
