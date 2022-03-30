@@ -3,11 +3,10 @@
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
 
+# this import needs to come after prior imports to prevent circular import
+from . import data, external, model, utils
 from ._constants import REGISTRY_KEYS
 from ._settings import settings
-
-# this import needs to come after prior imports to prevent circular import
-from . import data, model, external, utils
 
 # https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094
 # https://github.com/python-poetry/poetry/issues/144#issuecomment-623927302

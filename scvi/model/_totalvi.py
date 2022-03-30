@@ -2,7 +2,8 @@ import logging
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
+from typing import (Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar,
+                    Union)
 
 import numpy as np
 import pandas as pd
@@ -14,24 +15,18 @@ from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-    ProteinObsmField,
-)
+from scvi.data.fields import (CategoricalJointObsField, CategoricalObsField,
+                              LayerField, NumericalJointObsField,
+                              NumericalObsField, ProteinObsmField)
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import (
-    _get_batch_code_from_category,
-    _init_library_size,
-    cite_seq_raw_counts_properties,
-)
+from scvi.model._utils import (_get_batch_code_from_category,
+                               _init_library_size,
+                               cite_seq_raw_counts_properties)
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
-from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
+from scvi.utils._docstrings import (doc_differential_expression,
+                                    setup_anndata_dsp)
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 

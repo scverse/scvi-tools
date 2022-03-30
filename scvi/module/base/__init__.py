@@ -1,9 +1,5 @@
-from ._base_module import (
-    BaseModuleClass,
-    JaxBaseModuleClass,
-    LossRecorder,
-    PyroBaseModuleClass,
-)
+from ._base_module import (BaseModuleClass, JaxBaseModuleClass, LossRecorder,
+                           PyroBaseModuleClass)
 from ._decorators import auto_move_data
 
 __all__ = [

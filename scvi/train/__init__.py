@@ -1,12 +1,8 @@
 from ._callbacks import LoudEarlyStopping, SaveBestState
 from ._trainer import Trainer
-from ._trainingplans import (
-    AdversarialTrainingPlan,
-    ClassifierTrainingPlan,
-    PyroTrainingPlan,
-    SemiSupervisedTrainingPlan,
-    TrainingPlan,
-)
+from ._trainingplans import (AdversarialTrainingPlan, ClassifierTrainingPlan,
+                             PyroTrainingPlan, SemiSupervisedTrainingPlan,
+                             TrainingPlan)
 from ._trainrunner import TrainRunner
 
 __all__ = [

@@ -9,12 +9,8 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
-from scvi.model.base import (
-    BaseModelClass,
-    RNASeqMixin,
-    UnsupervisedTrainingMixin,
-    VAEMixin,
-)
+from scvi.model.base import (BaseModelClass, RNASeqMixin,
+                             UnsupervisedTrainingMixin, VAEMixin)
 from scvi.module import VAEC
 from scvi.utils import setup_anndata_dsp
 

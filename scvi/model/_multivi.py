@@ -13,24 +13,19 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-)
+from scvi.data.fields import (CategoricalJointObsField, CategoricalObsField,
+                              LayerField, NumericalJointObsField,
+                              NumericalObsField)
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import (
-    _get_batch_code_from_category,
-    scatac_raw_counts_properties,
-    scrna_raw_counts_properties,
-)
+from scvi.model._utils import (_get_batch_code_from_category,
+                               scatac_raw_counts_properties,
+                               scrna_raw_counts_properties)
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.train._callbacks import SaveBestState
-from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
+from scvi.utils._docstrings import (doc_differential_expression,
+                                    setup_anndata_dsp)
 
 from .base import BaseModelClass, VAEMixin
 from .base._utils import _de_core

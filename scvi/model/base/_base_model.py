@@ -15,7 +15,8 @@ from anndata import AnnData
 from scvi import settings
 from scvi.data import AnnDataManager
 from scvi.data._compat import manager_from_setup_dict
-from scvi.data._constants import _MODEL_NAME_KEY, _SCVI_UUID_KEY, _SETUP_ARGS_KEY
+from scvi.data._constants import (_MODEL_NAME_KEY, _SCVI_UUID_KEY,
+                                  _SETUP_ARGS_KEY)
 from scvi.data._utils import _assign_adata_uuid
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg

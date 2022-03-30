@@ -12,19 +12,11 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data._constants import _SETUP_ARGS_KEY
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LabelsWithUnlabeledObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-)
-from scvi.dataloaders import (
-    AnnDataLoader,
-    SemiSupervisedDataLoader,
-    SemiSupervisedDataSplitter,
-)
+from scvi.data.fields import (CategoricalJointObsField, CategoricalObsField,
+                              LabelsWithUnlabeledObsField, LayerField,
+                              NumericalJointObsField, NumericalObsField)
+from scvi.dataloaders import (AnnDataLoader, SemiSupervisedDataLoader,
+                              SemiSupervisedDataSplitter)
 from scvi.model._utils import _init_library_size
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
