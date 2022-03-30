@@ -98,7 +98,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         st_adata: AnnData,
         sc_model: CondSCVI,
-        vamp_prior_p: int = 500,
+        vamp_prior_p: int = 15,
         l1_sparsity: float = 0.0,
         **module_kwargs,
     ):
