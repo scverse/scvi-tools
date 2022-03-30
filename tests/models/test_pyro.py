@@ -16,8 +16,12 @@ from scvi.data import AnnDataManager, synthetic_iid
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.dataloaders import AnnDataLoader
 from scvi.model import AmortizedLDA
-from scvi.model.base import (BaseModelClass, PyroJitGuideWarmup,
-                             PyroSampleMixin, PyroSviTrainMixin)
+from scvi.model.base import (
+    BaseModelClass,
+    PyroJitGuideWarmup,
+    PyroSampleMixin,
+    PyroSviTrainMixin,
+)
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
 from scvi.train import PyroTrainingPlan, Trainer

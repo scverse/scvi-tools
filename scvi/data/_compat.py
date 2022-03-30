@@ -8,10 +8,15 @@ from scvi import REGISTRY_KEYS
 
 from . import _constants
 from ._manager import AnnDataManager
-from .fields import (CategoricalJointObsField, CategoricalObsField,
-                     LabelsWithUnlabeledObsField, LayerField,
-                     NumericalJointObsField, NumericalObsField,
-                     ProteinObsmField)
+from .fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LabelsWithUnlabeledObsField,
+    LayerField,
+    NumericalJointObsField,
+    NumericalObsField,
+    ProteinObsmField,
+)
 
 LEGACY_REGISTRY_KEY_MAP = {
     "X": REGISTRY_KEYS.X_KEY,

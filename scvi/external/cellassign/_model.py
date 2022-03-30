@@ -9,9 +9,13 @@ from pytorch_lightning.callbacks import Callback
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data.fields import (CategoricalJointObsField, CategoricalObsField,
-                              LayerField, NumericalJointObsField,
-                              NumericalObsField)
+from scvi.data.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+    NumericalObsField,
+)
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin

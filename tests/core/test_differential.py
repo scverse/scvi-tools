@@ -5,9 +5,11 @@ import pytest
 
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
-from scvi.model.base._differential import (DifferentialComputation,
-                                           estimate_delta,
-                                           estimate_pseudocounts_offset)
+from scvi.model.base._differential import (
+    DifferentialComputation,
+    estimate_delta,
+    estimate_pseudocounts_offset,
+)
 from scvi.model.base._utils import _prepare_obs
 
 

@@ -9,8 +9,12 @@ import torch.nn.functional as F
 from numpyro.distributions import constraints as numpyro_constraints
 from numpyro.distributions.util import promote_shapes, validate_sample
 from torch.distributions import Distribution, Gamma, Poisson, constraints
-from torch.distributions.utils import (broadcast_all, lazy_property,
-                                       logits_to_probs, probs_to_logits)
+from torch.distributions.utils import (
+    broadcast_all,
+    lazy_property,
+    logits_to_probs,
+    probs_to_logits,
+)
 
 
 def log_zinb_positive(
