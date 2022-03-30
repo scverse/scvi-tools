@@ -47,6 +47,10 @@ class MRDeconv(BaseModuleClass):
         Weight parameter for each component in the empirical prior over the latent space
     amortization
         which of the latent variables to amortize inference over (gamma, proportions, both or none)
+    l1_sparsity
+        Weighting in loss of L1 regularization of cell type proportions
+    beta_prior_weighting
+        Weighting in loss of variance of beta values
     """
 
     def __init__(
@@ -64,7 +68,8 @@ class MRDeconv(BaseModuleClass):
         var_vprior: np.ndarray = None,
         weight_vprior: np.ndarray = None,
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
-        l1_sparsity: float = 60.0,
+        l1_sparsity: float = 0.0,
+        beta_prior_weighting: float = 5.0,
     ):
         super().__init__()
         self.n_spots = n_spots
@@ -74,6 +79,7 @@ class MRDeconv(BaseModuleClass):
         self.n_genes = n_genes
         self.amortization = amortization
         self.l1_sparsity = l1_sparsity
+        self.beta_prior_weighting = beta_prior_weighting
         # unpack and copy parameters
         self.decoder = FCLayers(
             n_in=n_latent,
@@ -237,9 +243,9 @@ class MRDeconv(BaseModuleClass):
         mean = torch.zeros_like(self.eta)
         scale = torch.ones_like(self.eta)
         glo_neg_log_likelihood_prior = (
-            -1e-10 * Normal(mean, scale).log_prob(self.eta).sum()
+            -1e-4 * Normal(mean, scale).log_prob(self.eta).sum()
         )
-        glo_neg_log_likelihood_prior += 5.0 * torch.var(self.beta)
+        glo_neg_log_likelihood_prior += self.beta_prior_weighting * torch.var(self.beta)
 
         v_sparsity_loss = self.l1_sparsity * torch.abs(v).mean(1)
 

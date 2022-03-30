@@ -5,6 +5,7 @@ from typing import Optional, Union
 import numpy as np
 import torch
 from anndata import AnnData
+from sklearn.cluster import KMeans
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -103,7 +104,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         p
-            number of clusters in kmeans clustering for overclustering
+            number of clusters in kmeans clustering for cell-type sub-clustering for empirical prior
 
         Returns
         -------
@@ -149,12 +150,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             local_indices = np.where(adata.obs[key] == mapping[ct])[0]
             if "overclustering_vamp" not in adata.obs.columns:
                 if p < len(local_indices) and p > 0:
-                    from sklearn.cluster import KMeans
-
-                    kmeans = KMeans(n_clusters=p, n_init=30).fit(
+                    overclustering_vamp = KMeans(n_clusters=p, n_init=30).fit_predict(
                         mean_cat[local_indices]
                     )
-                    overclustering_vamp = kmeans.labels_
                 else:
                     # Every cell is its own cluster
                     overclustering_vamp = list(range(len(local_indices)))
@@ -192,9 +190,10 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
                 )
                 mean_cluster[index, :] = np.mean(mean_cat[indices_curr], axis=0)
 
-            mean_vprior[ct, 0:n_labels_overclustering, :] = mean_cluster
-            var_vprior[ct, 0:n_labels_overclustering, :] = var_cluster
-            weight_vprior[ct, 0:n_labels_overclustering] = counts / sum(counts)
+            slicing = slice(n_labels_overclustering)
+            mean_vprior[ct, slicing, :] = mean_cluster
+            var_vprior[ct, slicing, :] = var_cluster
+            weight_vprior[ct, slicing] = counts / sum(counts)
 
         return mean_vprior, var_vprior, weight_vprior
 
