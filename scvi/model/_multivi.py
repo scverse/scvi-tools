@@ -11,6 +11,7 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
@@ -35,7 +36,6 @@ from scvi.utils._docstrings import doc_differential_expression, setup_anndata_ds
 from .base import BaseModelClass, VAEMixin
 from .base._utils import _de_core
 
-Number = Union[int, float]
 logger = logging.getLogger(__name__)
 
 

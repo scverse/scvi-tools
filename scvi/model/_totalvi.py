@@ -2,7 +2,7 @@ import logging
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -11,6 +11,7 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data._utils import _check_nonnegative_integers
@@ -36,7 +37,6 @@ from scvi.utils._docstrings import doc_differential_expression, setup_anndata_ds
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
-Number = TypeVar("Number", int, float)
 
 
 class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
