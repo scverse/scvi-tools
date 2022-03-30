@@ -1154,7 +1154,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
                 # average distribution over cells
                 batch_avg_mu = np.mean(mus)
-                batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells ** 2))
+                batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells**2))
 
                 batch_avg_mus.append(batch_avg_mu)
                 batch_avg_scales.append(batch_avg_scale)
