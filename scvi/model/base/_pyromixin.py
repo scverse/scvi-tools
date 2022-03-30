@@ -65,6 +65,7 @@ class PyroSviTrainMixin:
         batch_size: int = 128,
         early_stopping: bool = False,
         lr: Optional[float] = None,
+        training_plan: PyroTrainingPlan = PyroTrainingPlan,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -93,8 +94,10 @@ class PyroSviTrainMixin:
         lr
             Optimiser learning rate (default optimiser is :class:`~pyro.optim.ClippedAdam`).
             Specifying optimiser via plan_kwargs overrides this choice of lr.
+        training_plan
+            Training plan :class:`~scvi.train.PyroTrainingPlan`.
         plan_kwargs
-            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.PyroTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
@@ -124,7 +127,7 @@ class PyroSviTrainMixin:
                 batch_size=batch_size,
                 use_gpu=use_gpu,
             )
-        training_plan = PyroTrainingPlan(pyro_module=self.module, **plan_kwargs)
+        training_plan = training_plan(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
