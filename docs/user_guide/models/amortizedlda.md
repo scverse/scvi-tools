@@ -24,7 +24,7 @@ The limitations of amortized LDA include:
 
 ## Preliminaries
 
-Amortized LDA takes as input a cell-by-feature matrix $X$ with $N$ cells and $F$ features.
+Amortized LDA takes as input a cell-by-feature matrix $X$ with $C$ cells and $F$ features.
 Because the LDA model assumes the input is ordered, we refer to this format as the bag-of-words (BoW) representation
 of the feature counts.
 Additionally, the number of topics to model must be manually set by the user prior to fitting the model.
@@ -32,7 +32,7 @@ Additionally, the number of topics to model must be manually set by the user pri
 ## Generative process
 
 Amortized LDA posits that the $N$ observed feature counts for cell $c$ are treated as ordered. For all $n \in [N]$ feature counts
-for cell $c$, the observed feature counts $x_{cn}$ are produced according to the following generative process:
+for cell $c \in [C]$, the observed feature counts $x_{cn}$ are produced according to the following generative process:
 
 ```{math}
 :nowrap: true
@@ -99,7 +99,7 @@ Users can retrieve the estimated topic proportions in each cell with the followi
 
 ```
 >>> topic_prop = model.get_latent_representation()
->>> adata.obsm\["X_LDA"\] = topic_prop
+>>> adata.obsm["X_LDA"] = topic_prop
 ```
 
 Due to the logistic-Normal distribution not having an analytic solution to the mean, we compute
