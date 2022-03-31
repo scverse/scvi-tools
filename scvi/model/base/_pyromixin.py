@@ -14,8 +14,6 @@ from scvi.utils import track
 
 logger = logging.getLogger(__name__)
 
-Number = Union[int, float]
-
 
 class PyroJitGuideWarmup(Callback):
     """
