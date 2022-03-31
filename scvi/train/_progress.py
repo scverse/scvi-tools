@@ -70,8 +70,8 @@ class ProgressBar(ProgressBarBase):
         super().on_train_start(trainer, pl_module)
         self.main_progress_bar = self.init_train_tqdm(trainer)
 
-    def on_epoch_start(self, trainer, pl_module):
-        super().on_epoch_start(trainer, pl_module)
+    def on_train_epoch_start(self, trainer, pl_module):
+        super().on_train_epoch_start(trainer, pl_module)
         if self._should_update(self.trainer.current_epoch, self.trainer.max_epochs):
             epoch = trainer.current_epoch + 1
             self.main_progress_bar.set_description(
