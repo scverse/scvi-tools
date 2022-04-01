@@ -1,5 +1,6 @@
 from ._base_field import AnnDataField, BaseAnnDataField
 from ._layer_field import LayerField, MuDataLayerField
+from ._mudata import BaseMuDataWrapperClass, MuDataWrapper
 from ._obs_field import (
     CategoricalObsField,
     MuDataCategoricalObsField,
@@ -11,6 +12,8 @@ from ._scanvi import LabelsWithUnlabeledObsField
 
 __all__ = [
     "BaseAnnDataField",
+    "BaseMuDataWrapperClass",
+    "MuDataWrapper",
     "AnnDataField",
     "LayerField",
     "NumericalObsField",

@@ -7,7 +7,7 @@ from anndata import AnnData
 from mudata import MuData
 
 from ._layer_field import LayerField
-from ._mudata import BaseMuDataWrapper, MuDataWrapper
+from ._mudata import BaseMuDataWrapperClass, MuDataWrapper
 from ._obsm_field import ObsmField
 
 logger = logging.getLogger(__name__)
@@ -157,7 +157,7 @@ class ProteinLayerField(ProteinFieldMixin, LayerField):
 def copy_over_batch_attr(self, mdata: MuData):
     # Assign self.batch_field if not yet assigned to MuDataWrapped field.
     # Then, reassign self.adata_field.batch_field to the batch AnnDataField.
-    if isinstance(self.adata_field.batch_field, BaseMuDataWrapper):
+    if isinstance(self.adata_field.batch_field, BaseMuDataWrapperClass):
         self.batch_field = self.adata_field.batch_field
         self.adata_field.batch_field = self.batch_field.adata_field
 
