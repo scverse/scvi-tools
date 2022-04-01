@@ -71,6 +71,7 @@ class BaseMuDataWrapper(BaseAnnDataField):
     def transfer_field(
         self, state_registry: dict, mdata_target: MuData, **kwargs
     ) -> dict:
+        self.preregister(mdata_target)
         bdata_target = self.get_modality(mdata_target)
         return self.adata_field.transfer_field(state_registry, bdata_target, **kwargs)
 
