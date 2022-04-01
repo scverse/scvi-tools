@@ -12,8 +12,10 @@ from scvi.data.fields import (
     CategoricalObsField,
     LabelsWithUnlabeledObsField,
     LayerField,
+    MuDataCategoricalJointObsField,
     MuDataCategoricalObsField,
     MuDataLayerField,
+    MuDataNumericalJointObsField,
     MuDataProteinLayerField,
     NumericalJointObsField,
     ProteinObsmField,
@@ -105,6 +107,10 @@ def generic_setup_mudata_manager(
     layer: Optional[str] = None,
     batch_mod: Optional[str] = None,
     batch_key: Optional[str] = None,
+    categorical_covariate_mod: Optional[str] = None,
+    categorical_covariate_keys: Optional[List[str]] = None,
+    continuous_covariate_mod: Optional[str] = None,
+    continuous_covariate_keys: Optional[List[str]] = None,
     protein_expression_mod: Optional[str] = None,
     protein_expression_layer: Optional[str] = None,
 ) -> AnnDataManager:
@@ -124,6 +130,16 @@ def generic_setup_mudata_manager(
             mod_required=True,
         ),
         batch_field,
+        MuDataCategoricalJointObsField(
+            REGISTRY_KEYS.CAT_COVS_KEY,
+            categorical_covariate_keys,
+            mod_key=categorical_covariate_mod,
+        ),
+        MuDataNumericalJointObsField(
+            REGISTRY_KEYS.CONT_COVS_KEY,
+            continuous_covariate_keys,
+            mod_key=continuous_covariate_mod,
+        ),
     ]
     if protein_expression_mod is not None:
         anndata_fields.append(

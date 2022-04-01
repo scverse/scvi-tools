@@ -14,6 +14,7 @@ from scvi.data._utils import (
     _make_column_categorical,
     _verify_and_correct_data_format,
 )
+from scvi.data.fields import MuDataWrapper
 
 from ._base_field import BaseAnnDataField
 
@@ -167,6 +168,9 @@ class ObsmField(BaseObsmField):
         return None
 
 
+MuDataObsmField = MuDataWrapper(ObsmField)
+
+
 class JointObsField(BaseObsmField):
     """
     An abstract AnnDataField for a collection of .obs fields in the AnnData data structure.
@@ -264,6 +268,9 @@ class NumericalJointObsField(JointObsField):
         for key in state_registry[self.COLUMNS_KEY]:
             t.add_row("adata.obs['{}']".format(key))
         return t
+
+
+MuDataNumericalJointObsField = MuDataWrapper(NumericalJointObsField)
 
 
 class CategoricalJointObsField(JointObsField):
@@ -392,3 +399,6 @@ class CategoricalJointObsField(JointObsField):
                     t.add_row("", str(mapping), str(i))
             t.add_row("", "")
         return t
+
+
+MuDataCategoricalJointObsField = MuDataWrapper(CategoricalJointObsField)

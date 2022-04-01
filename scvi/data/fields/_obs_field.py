@@ -96,6 +96,9 @@ class NumericalObsField(BaseObsField):
         return None
 
 
+MuDataNumericalObsField = MuDataWrapper(NumericalObsField)
+
+
 class CategoricalObsField(BaseObsField):
     """
     An AnnDataField for categorical .obs attributes in the AnnData data structure.

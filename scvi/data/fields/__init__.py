@@ -4,9 +4,17 @@ from ._mudata import BaseMuDataWrapperClass, MuDataWrapper
 from ._obs_field import (
     CategoricalObsField,
     MuDataCategoricalObsField,
+    MuDataNumericalObsField,
     NumericalObsField,
 )
-from ._obsm_field import CategoricalJointObsField, NumericalJointObsField, ObsmField
+from ._obsm_field import (
+    CategoricalJointObsField,
+    MuDataCategoricalJointObsField,
+    MuDataNumericalJointObsField,
+    MuDataObsmField,
+    NumericalJointObsField,
+    ObsmField,
+)
 from ._protein import MuDataProteinLayerField, ProteinObsmField
 from ._scanvi import LabelsWithUnlabeledObsField
 
@@ -16,14 +24,18 @@ __all__ = [
     "MuDataWrapper",
     "AnnDataField",
     "LayerField",
+    "MuDataLayerField",
+    "MuDataProteinLayerField",
     "NumericalObsField",
+    "MuDataNumericalObsField",
     "CategoricalObsField",
-    "NumericalJointObsField",
-    "CategoricalJointObsField",
+    "MuDataCategoricalObsField",
     "ObsmField",
+    "MuDataObsmField",
+    "NumericalJointObsField",
+    "MuDataNumericalJointObsField",
+    "CategoricalJointObsField",
+    "MuDataCategoricalJointObsField",
     "ProteinObsmField",
     "LabelsWithUnlabeledObsField",
-    "MuDataLayerField",
-    "MuDataCategoricalObsField",
-    "MuDataProteinLayerField",
 ]

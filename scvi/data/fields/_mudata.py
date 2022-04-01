@@ -112,7 +112,6 @@ def MuDataWrapper(
     """
     Wraps an AnnDataField with :class:`~scvi.data.fields.BaseMuDataWrapperClass`.
 
-
     Parameters
     ----------
     adata_field_cls
