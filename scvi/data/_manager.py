@@ -9,14 +9,13 @@ from uuid import uuid4
 import numpy as np
 import pandas as pd
 import rich
-from anndata import AnnData
 
 import scvi
 from scvi._types import AnnOrMuData
 from scvi.utils import attrdict
 
 from . import _constants
-from ._utils import _assign_adata_uuid, get_anndata_attribute
+from ._utils import _assign_adata_uuid, _check_if_view, get_anndata_attribute
 from .fields import AnnDataField
 
 
@@ -73,10 +72,9 @@ class AnnDataManager:
             )
 
     @staticmethod
-    def _validate_anndata_object(adata: AnnData):
+    def _validate_anndata_object(adata: AnnOrMuData):
         """For a given AnnData object, runs general scvi-tools compatibility checks."""
-        if adata.is_view:
-            raise ValueError("Please run `adata = adata.copy()`")
+        _check_if_view(adata, copy_if_view=False)
 
     def _get_setup_method_args(self) -> dict:
         """

@@ -101,7 +101,7 @@ def scanvi_setup_adata_manager(
 
 def generic_setup_mudata_manager(
     mdata: MuData,
-    layer_mod: Optional[str] = None,
+    layer_mod,
     layer: Optional[str] = None,
     batch_mod: Optional[str] = None,
     batch_key: Optional[str] = None,
@@ -117,17 +117,25 @@ def generic_setup_mudata_manager(
     )
     anndata_fields = [
         MuDataLayerField(
-            REGISTRY_KEYS.X_KEY, layer, mod_key=layer_mod, is_count_data=True
+            REGISTRY_KEYS.X_KEY,
+            layer,
+            mod_key=layer_mod,
+            is_count_data=True,
+            mod_required=True,
         ),
         batch_field,
-        MuDataProteinLayerField(
-            REGISTRY_KEYS.PROTEIN_EXP_KEY,
-            protein_expression_layer,
-            mod_key=protein_expression_mod,
-            use_batch_mask=True,
-            batch_field=batch_field,
-        ),
     ]
+    if protein_expression_mod is not None:
+        anndata_fields.append(
+            MuDataProteinLayerField(
+                REGISTRY_KEYS.PROTEIN_EXP_KEY,
+                protein_expression_layer,
+                mod_key=protein_expression_mod,
+                mod_required=True,
+                use_batch_mask=True,
+                batch_field=batch_field,
+            )
+        )
     mdata_manager = AnnDataManager(
         fields=anndata_fields, setup_method_args=setup_method_args
     )

@@ -1,6 +1,7 @@
 from typing import Callable, Optional
 
 import rich
+from anndata import AnnData
 from mudata import MuData
 
 from scvi._types import AnnOrMuData
@@ -8,8 +9,12 @@ from scvi.data.fields import AnnDataField, BaseAnnDataField
 
 
 class BaseMuDataWrapper(BaseAnnDataField):
-    def __init__(self, mod_key: Optional[str] = None) -> None:
+    def __init__(
+        self, mod_key: Optional[str] = None, mod_required: bool = False
+    ) -> None:
         super().__init__()
+        if mod_required and mod_key is None:
+            raise ValueError("Modality required for MuDataField but not provided.")
         self._mod_key = mod_key
         self._preregister = lambda _self, _mdata: None
 
@@ -42,6 +47,8 @@ class BaseMuDataWrapper(BaseAnnDataField):
         return self.adata_field.is_empty
 
     def get_modality(self, mdata: MuData) -> AnnOrMuData:
+        if isinstance(mdata, AnnData):
+            raise AssertionError("`get_modality` can only be called on MuData objects.")
         bdata = mdata
         if self.mod_key is not None:
             if self.mod_key not in mdata.mod:
@@ -80,8 +87,10 @@ def MuDataWrapper(
     if not isinstance(adata_field_cls, type):
         raise ValueError("`adata_field_cls` must be a class, not an instance.")
 
-    def mudata_field_init(self, *args, mod_key: Optional[str] = None, **kwargs):
-        BaseMuDataWrapper.__init__(self, mod_key=mod_key)
+    def mudata_field_init(
+        self, *args, mod_key: Optional[str] = None, mod_required: bool = False, **kwargs
+    ):
+        BaseMuDataWrapper.__init__(self, mod_key=mod_key, mod_required=mod_required)
         self._adata_field = adata_field_cls(*args, **kwargs)
         if preregister_fn is not None:
             self._preregister = preregister_fn
