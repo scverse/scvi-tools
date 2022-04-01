@@ -1,7 +1,9 @@
 import os
 
+import anndata
 import mudata
 import numpy as np
+import pandas as pd
 import pytest
 
 from scvi import REGISTRY_KEYS
@@ -63,6 +65,31 @@ def test_setup_mudata_view():
     mdata = mudata.MuData({"rna": adata})
     with pytest.raises(ValueError):
         generic_setup_mudata_manager(mdata[1], layer_mod="rna")
+
+
+def test_setup_mudata_unpaired():
+    # test that error is thrown if unpaired modalities:
+    adata = synthetic_iid()
+    protein_adata = synthetic_iid(batch_size=100)
+    mdata = mudata.MuData({"rna": adata, "protein": protein_adata})
+    with pytest.raises(ValueError):
+        generic_setup_mudata_manager(
+            mdata, layer_mod="rna", protein_expression_mod="protein"
+        )
+
+    # Pad unpaired with zeros
+    unpaired_adata = adata[mdata.obsm["rna"] & ~(mdata.obsm["protein"])]
+    pad_adata = anndata.AnnData(
+        pd.DataFrame(
+            np.zeros((mdata.n_obs - protein_adata.n_obs, protein_adata.n_vars)),
+            index=unpaired_adata.obs_names,
+        )
+    )
+    mdata.mod["protein"] = anndata.concat([protein_adata, pad_adata])
+    mdata.update()
+    generic_setup_mudata_manager(
+        mdata, layer_mod="rna", protein_expression_mod="protein"
+    )
 
 
 def test_setup_mudata_anndata():

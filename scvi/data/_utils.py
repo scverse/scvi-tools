@@ -252,3 +252,17 @@ def _check_if_view(adata: AnnOrMuData, copy_if_view: bool = False):
         for mod_key in adata.mod.keys():
             mod_adata = adata.mod[mod_key]
             _check_if_view(mod_adata, copy_if_view)
+
+
+def _check_mudata_fully_paired(mdata: MuData):
+    if isinstance(mdata, AnnData):
+        raise AssertionError(
+            "Cannot call ``_check_mudata_fully_paired`` with AnnData object."
+        )
+    for mod_key in mdata.mod:
+        if not mdata.obsm[mod_key].all():
+            raise ValueError(
+                f"Detected unpaired observations in modality {mod_key}. "
+                "Please make sure that data is fully paired in all MuData inputs. "
+                "Either pad the unpaired modalities or take the intersection with muon.pp.intersect_obs()."
+            )
