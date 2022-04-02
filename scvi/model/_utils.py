@@ -273,3 +273,9 @@ def _init_library_size(
         library_log_vars[i_batch] = np.var(log_counts).astype(np.float32)
 
     return library_log_means.reshape(1, -1), library_log_vars.reshape(1, -1)
+
+
+def _get_var_names_from_manager(
+    adata_manager: AnnDataManager, registry_key: str = REGISTRY_KEYS.X_KEY
+) -> np.ndarray:
+    return np.array(adata_manager.get_state_registry(registry_key).column_names)

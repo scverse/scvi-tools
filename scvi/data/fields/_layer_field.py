@@ -1,9 +1,11 @@
 import warnings
 from typing import Optional
 
+import numpy as np
 import rich
 from anndata import AnnData
 
+from scvi import REGISTRY_KEYS
 from scvi.data import _constants
 from scvi.data._utils import (
     _check_nonnegative_integers,
@@ -32,7 +34,7 @@ class LayerField(BaseAnnDataField):
     """
 
     N_VARS_KEY = "n_vars"
-    N_CELLS_KEY = "n_cells"
+    COLUMN_NAMES_KEY = "column_names"
 
     def __init__(
         self,
@@ -51,6 +53,11 @@ class LayerField(BaseAnnDataField):
         self._attr_key = layer
         self.is_count_data = is_count_data
         self.correct_data_format = correct_data_format
+        self.count_stat_key = (
+            self.N_VARS_KEY
+            if self.registry_key == REGISTRY_KEYS.X_KEY
+            else f"n_{self.registry_key}"
+        )
 
     @property
     def registry_key(self) -> str:
@@ -85,7 +92,10 @@ class LayerField(BaseAnnDataField):
         super().register_field(adata)
         if self.correct_data_format:
             _verify_and_correct_data_format(adata, self.attr_name, self.attr_key)
-        return {self.N_CELLS_KEY: adata.n_obs, self.N_VARS_KEY: adata.n_vars}
+        return {
+            self.N_VARS_KEY: adata.n_vars,
+            self.COLUMN_NAMES_KEY: np.array(adata.var_names),
+        }
 
     def transfer_field(
         self, state_registry: dict, adata_target: AnnData, **kwargs
@@ -102,7 +112,7 @@ class LayerField(BaseAnnDataField):
         return self.register_field(adata_target)
 
     def get_summary_stats(self, state_registry: dict) -> dict:
-        return state_registry.copy()
+        return {self.count_stat_key: state_registry[self.N_VARS_KEY]}
 
     def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
         return None

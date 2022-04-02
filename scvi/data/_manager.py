@@ -335,7 +335,7 @@ class AnnDataManager:
         )
 
         for registry_key, data_loc in self.data_registry.items():
-            mod_key = data_loc.mod_key
+            mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
             attr_name = data_loc.attr_name
             attr_key = data_loc.attr_key
             scvi_data_str = "adata"

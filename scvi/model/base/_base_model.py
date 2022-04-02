@@ -11,12 +11,23 @@ import pyro
 import rich
 import torch
 from anndata import AnnData
+from mudata import MuData
 
 from scvi import settings
 from scvi._types import AnnOrMuData
 from scvi.data import AnnDataManager
+<<<<<<< HEAD
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SCVI_UUID_KEY, _SETUP_ARGS_KEY
+=======
+from scvi.data._compat import manager_from_setup_dict
+from scvi.data._constants import (
+    _MODEL_NAME_KEY,
+    _SCVI_UUID_KEY,
+    _SETUP_ARGS_KEY,
+    _SETUP_METHOD_NAME,
+)
+>>>>>>> c19643cf (implement setup_mudata on totalvi)
 from scvi.data._utils import _assign_adata_uuid, _check_if_view
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -134,12 +145,22 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         to avoid the inclusion of any extraneous variables.
         """
         cls = setup_locals.pop("cls")
+        method_name = None
+        if "adata" in setup_locals:
+            method_name = "setup_anndata"
+        elif "mdata" in setup_locals:
+            method_name = "setup_mudata"
+
         model_name = cls.__name__
         setup_args = dict()
         for k, v in setup_locals.items():
             if k not in _SETUP_INPUTS_EXCLUDED_PARAMS:
                 setup_args[k] = v
-        return {_MODEL_NAME_KEY: model_name, _SETUP_ARGS_KEY: setup_args}
+        return {
+            _MODEL_NAME_KEY: model_name,
+            _SETUP_METHOD_NAME: method_name,
+            _SETUP_ARGS_KEY: setup_args,
+        }
 
     @classmethod
     def register_manager(cls, adata_manager: AnnDataManager):
@@ -510,8 +531,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         file_name_prefix = prefix or ""
 
         if save_anndata:
+            file_suffix = ""
+            if isinstance(self.adata, AnnData):
+                file_suffix = "adata.h5ad"
+            elif isinstance(self.adata, MuData):
+                file_suffix = "mdata.h5mu"
             self.adata.write(
-                os.path.join(dir_path, f"{file_name_prefix}adata.h5ad"),
+                os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
                 **anndata_write_kwargs,
             )
 
@@ -541,7 +567,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def load(
         cls,
         dir_path: str,
-        adata: Optional[AnnData] = None,
+        adata: Optional[AnnOrMuData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
@@ -594,10 +620,25 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "It appears you are loading a model from a different class."
             )
 
+<<<<<<< HEAD
         if _SETUP_ARGS_KEY not in registry:
             raise ValueError(
                 "Saved model does not contain original setup inputs. "
                 "Cannot load the original setup."
+=======
+            if _SETUP_ARGS_KEY not in registry:
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
+                )
+
+            # Calling ``setup_anndata`` method with the original arguments passed into
+            # the saved model. This enables simple backwards compatibility in the case of
+            # newly introduced fields or parameters.
+            method_name = getattr(registry, _SETUP_METHOD_NAME, "setup_anndata")
+            getattr(cls, method_name)(
+                adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+>>>>>>> c19643cf (implement setup_mudata on totalvi)
             )
 
         # Calling ``setup_anndata`` method with the original arguments passed into

@@ -13,6 +13,7 @@ _MANAGER_UUID_KEY = "_scvi_manager_uuid"
 
 _SCVI_VERSION_KEY = "scvi_version"
 _MODEL_NAME_KEY = "model_name"
+_SETUP_METHOD_NAME = "setup_method_name"
 _SETUP_ARGS_KEY = "setup_args"
 _FIELD_REGISTRIES_KEY = "field_registries"
 _DATA_REGISTRY_KEY = "data_registry"
