@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 from anndata import AnnData
@@ -240,3 +242,70 @@ def test_totalvi_size_factor():
     )
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
+
+
+def test_totalvi_saving_and_loading(save_path):
+    adata = synthetic_iid()
+    protein_adata = synthetic_iid(n_genes=50)
+    mdata = MuData({"rna": adata, "protein": protein_adata})
+    TOTALVI.setup_mudata(
+        mdata,
+        layer_mod="rna",
+        batch_mod="rna",
+        batch_key="batch",
+        protein_expression_mod="protein",
+    )
+    model = TOTALVI(mdata)
+    model.train(1, train_size=0.2)
+    z1 = model.get_latent_representation(mdata)
+    test_idx1 = model.validation_indices
+
+    model.save(save_path, overwrite=True, save_anndata=True)
+    model.view_setup_args(save_path)
+
+    model = TOTALVI.load(save_path)
+    model.get_latent_representation()
+
+    # Load with mismatched genes.
+    tmp_adata = synthetic_iid(
+        n_genes=200,
+    )
+    tmp_protein_adata = synthetic_iid(n_genes=50)
+    tmp_mdata = MuData({"rna": tmp_adata, "protein": tmp_protein_adata})
+    with pytest.raises(ValueError):
+        TOTALVI.load(save_path, adata=tmp_mdata)
+
+    # Load with different batches.
+    tmp_adata = synthetic_iid()
+    tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(
+        ["batch_2", "batch_3"]
+    )
+    tmp_protein_adata = synthetic_iid(n_genes=50)
+    tmp_mdata = MuData({"rna": tmp_adata, "protein": tmp_protein_adata})
+    with pytest.raises(ValueError):
+        TOTALVI.load(save_path, adata=tmp_mdata)
+
+    model = TOTALVI.load(save_path, adata=mdata)
+    assert scvi.REGISTRY_KEYS.BATCH_KEY in model.adata_manager.data_registry
+    assert model.adata_manager.data_registry["batch"] == dict(
+        mod_key="rna", attr_name="obs", attr_key="_scvi_batch"
+    )
+
+    z2 = model.get_latent_representation()
+    test_idx2 = model.validation_indices
+    np.testing.assert_array_equal(z1, z2)
+    np.testing.assert_array_equal(test_idx1, test_idx2)
+    assert model.is_trained is True
+
+    save_path = os.path.join(save_path, "tmp")
+
+    adata2 = synthetic_iid()
+    protein_adata2 = synthetic_iid(n_genes=50)
+    mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
+    TOTALVI.setup_mudata(
+        mdata2,
+        layer_mod="rna",
+        batch_mod="rna",
+        batch_key="batch",
+        protein_expression_mod="protein",
+    )

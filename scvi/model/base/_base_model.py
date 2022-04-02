@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 _UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained model. Please train the model first."
 
-_SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "kwargs"}
+_SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "mdata", "kwargs"}
 
 
 class BaseModelMetaClass(ABCMeta):
@@ -473,7 +473,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         init_params = [p.name for p in parameters]
         all_params = {p: locals[p] for p in locals if p in init_params}
         all_params = {
-            k: v for (k, v) in all_params.items() if not isinstance(v, AnnData)
+            k: v
+            for (k, v) in all_params.items()
+            if not isinstance(v, AnnData) and not isinstance(v, MuData)
         }
         # not very efficient but is explicit
         # seperates variable params (**kwargs) from non variable params into two dicts
@@ -635,7 +637,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             # Calling ``setup_anndata`` method with the original arguments passed into
             # the saved model. This enables simple backwards compatibility in the case of
             # newly introduced fields or parameters.
-            method_name = getattr(registry, _SETUP_METHOD_NAME, "setup_anndata")
+            method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+            print(method_name)
             getattr(cls, method_name)(
                 adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
 >>>>>>> c19643cf (implement setup_mudata on totalvi)
