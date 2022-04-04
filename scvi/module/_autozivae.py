@@ -302,8 +302,14 @@ class AutoZIVAE(VAE):
             size_factor=size_factor,
         )
         # Rescale dropout
-        outputs["px_dropout"] = self.rescale_dropout(
-            outputs["px_dropout"], eps_log=eps_log
+        rescaled_dropout = self.rescale_dropout(
+            outputs["px"].zi_logits, eps_log=eps_log
+        )
+        outputs["px"] = ZeroInflatedNegativeBinomial(
+            mu=outputs["px"].mu,
+            theta=outputs["px"].theta,
+            zi_logits=rescaled_dropout,
+            scale=outputs["px"].scale,
         )
 
         # Bernoulli parameters
@@ -366,9 +372,9 @@ class AutoZIVAE(VAE):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # Parameters for z latent distribution
         qz = inference_outputs["qz"]
-        px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px_r"]
-        px_dropout = generative_outputs["px_dropout"]
+        px_rate = generative_outputs["px"].mu
+        px_r = generative_outputs["px"].theta
+        px_dropout = generative_outputs["px"].zi_logits
         bernoulli_params = generative_outputs["bernoulli_params"]
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]

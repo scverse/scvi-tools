@@ -8,7 +8,9 @@ import torch
 import torch.nn.functional as F
 from numpyro.distributions import constraints as numpyro_constraints
 from numpyro.distributions.util import promote_shapes, validate_sample
-from torch.distributions import Distribution, Gamma, Poisson, constraints
+from torch.distributions import Distribution, Gamma
+from torch.distributions import Poisson as PoissonTorch
+from torch.distributions import constraints
 from torch.distributions.utils import (
     broadcast_all,
     lazy_property,
@@ -236,6 +238,21 @@ def _gamma(theta, mu):
     return gamma_d
 
 
+class Poisson(PoissonTorch):
+    r"""
+    Poisson distribution.
+
+    Parameters
+    ----------
+    rate
+        rate of the Poisson distribution.
+    """
+
+    def __init__(self, rate, validate_args=None, scale: Optional[torch.Tensor] = None):
+        super().__init__(rate=rate, validate_args=validate_args)
+        self.scale = scale
+
+
 class NegativeBinomial(Distribution):
     r"""
     Negative binomial distribution.
@@ -279,6 +296,7 @@ class NegativeBinomial(Distribution):
         logits: Optional[torch.Tensor] = None,
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
+        scale: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
         self._eps = 1e-8
@@ -299,6 +317,7 @@ class NegativeBinomial(Distribution):
             mu, theta = broadcast_all(mu, theta)
         self.mu = mu
         self.theta = theta
+        self.scale = scale
         super().__init__(validate_args=validate_args)
 
     @property
@@ -319,7 +338,7 @@ class NegativeBinomial(Distribution):
             # Clamping as distributions objects can have buggy behaviors when
             # their parameters are too high
             l_train = torch.clamp(p_means, max=1e8)
-            counts = Poisson(
+            counts = PoissonTorch(
                 l_train
             ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
             return counts
@@ -388,6 +407,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
         zi_logits: Optional[torch.Tensor] = None,
+        scale: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
 
@@ -397,6 +417,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
             logits=logits,
             mu=mu,
             theta=theta,
+            scale=scale,
             validate_args=validate_args,
         )
         self.zi_logits, self.mu, self.theta = broadcast_all(
@@ -522,7 +543,7 @@ class NegativeBinomialMixture(Distribution):
             # Clamping as distributions objects can have buggy behaviors when
             # their parameters are too high
             l_train = torch.clamp(p_means, max=1e8)
-            counts = Poisson(
+            counts = PoissonTorch(
                 l_train
             ).sample()  # Shape : (n_samples, n_cells_batch, n_features)
             return counts

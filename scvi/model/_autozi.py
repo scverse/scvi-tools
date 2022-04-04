@@ -212,9 +212,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 # Distribution parameters and sampled variables
                 inf_outputs, gen_outputs, _ = self.module.forward(tensors)
 
-                px_r = gen_outputs["px_r"]
-                px_rate = gen_outputs["px_rate"]
-                px_dropout = gen_outputs["px_dropout"]
+                px_r = gen_outputs["px"].theta
+                px_rate = gen_outputs["px"].mu
+                px_dropout = gen_outputs["px"].zi_logits
                 qz = inf_outputs["qz"]
                 z = inf_outputs["z"]
 

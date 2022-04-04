@@ -114,10 +114,10 @@ class RNASeqMixin:
                 )
             return_numpy = True
         if library_size == "latent":
-            generative_output_key = "px_rate"
+            generative_output_key = "rate"
             scaling = 1
         else:
-            generative_output_key = "px_scale"
+            generative_output_key = "scale"
             scaling = library_size
 
         exprs = []
@@ -132,7 +132,7 @@ class RNASeqMixin:
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
-                output = generative_outputs[generative_output_key]
+                output = getattr(generative_outputs["px"], generative_output_key)
                 output = output[..., gene_mask]
                 output *= scaling
                 output = output.cpu().numpy()
@@ -338,8 +338,8 @@ class RNASeqMixin:
                 generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
-            px_scale = generative_outputs["px_scale"]
-            px_r = generative_outputs["px_r"]
+            px_scale = generative_outputs["px"].scale
+            px_r = generative_outputs["px"].theta
             device = px_r.device
 
             rate = rna_size_factor * px_scale
@@ -483,9 +483,9 @@ class RNASeqMixin:
                 inference_kwargs=inference_kwargs,
                 compute_loss=False,
             )
-            px_r = generative_outputs["px_r"]
-            px_rate = generative_outputs["px_rate"]
-            px_dropout = generative_outputs["px_dropout"]
+            px_r = generative_outputs["px"].theta
+            px_rate = generative_outputs["px"].mu
+            px_dropout = generative_outputs["px"].zi_probs
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
 

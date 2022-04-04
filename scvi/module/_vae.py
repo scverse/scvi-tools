@@ -6,12 +6,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import logsumexp
-from torch.distributions import Normal, Poisson
+from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
@@ -324,6 +324,7 @@ class VAE(BaseModuleClass):
     ):
         """Runs the generative model."""
         # TODO: refactor forward function to not rely on y
+        # Likelihood distribution
         decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
@@ -357,18 +358,30 @@ class VAE(BaseModuleClass):
 
         if self.gene_likelihood == "zinb":
             px = ZeroInflatedNegativeBinomial(
-                mu=px_rate, theta=px_r, zi_logits=px_dropout
+                mu=px_rate,
+                theta=px_r,
+                zi_logits=px_dropout,
+                scale=px_scale,
             )
         elif self.gene_likelihood == "nb":
-            px = NegativeBinomial(mu=px_rate, theta=px_r)
+            px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
         elif self.gene_likelihood == "poisson":
-            px = Poisson(px_rate)
+            px = Poisson(px_rate, scale=px_scale)
+
+        # Priors
+        if self.use_observed_lib_size:
+            pl = None
+        else:
+            (
+                local_library_log_means,
+                local_library_log_vars,
+            ) = self._compute_local_library_params(batch_index)
+            pl = Normal(local_library_log_means, local_library_log_vars.sqrt())
+        pz = Normal(torch.zeros_like(z), torch.ones_like(z))
         return dict(
             px=px,
-            px_scale=px_scale,
-            px_r=px_r,
-            px_rate=px_rate,
-            px_dropout=px_dropout,
+            pl=pl,
+            pz=pz,
         )
 
     def loss(
@@ -379,25 +392,13 @@ class VAE(BaseModuleClass):
         kl_weight: float = 1.0,
     ):
         x = tensors[REGISTRY_KEYS.X_KEY]
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
-        qz = inference_outputs["qz"]
-
-        mean = torch.zeros_like(qz.loc)
-        scale = torch.ones_like(qz.scale)
-
-        kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
-
+        kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
+            dim=1
+        )
         if not self.use_observed_lib_size:
-            ql = inference_outputs["ql"]
-            (
-                local_library_log_means,
-                local_library_log_vars,
-            ) = self._compute_local_library_params(batch_index)
-
             kl_divergence_l = kl(
-                ql,
-                Normal(local_library_log_means, local_library_log_vars.sqrt()),
+                inference_outputs["ql"],
+                generative_outputs["pl"],
             ).sum(dim=1)
         else:
             kl_divergence_l = 0.0
@@ -450,11 +451,9 @@ class VAE(BaseModuleClass):
             compute_loss=False,
         )
 
-        px_rate = generative_outputs["px_rate"]
-
         dist = generative_outputs["px"]
         if self.gene_likelihood == "poisson":
-            l_train = px_rate
+            l_train = generative_outputs["px"].mu
             l_train = torch.clamp(l_train, max=1e8)
             dist = torch.distributions.Poisson(
                 l_train
