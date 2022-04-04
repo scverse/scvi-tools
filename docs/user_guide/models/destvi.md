@@ -146,10 +146,10 @@ The latent variables for the stLVM, along with their description are summarized 
    * - :math:`\beta_{sc} \in (0, \infty)`
      - Spot-specific cell type abundance.
      - ``v_ind``
-   * - :math:`\gamma_s^c \in (0, \infty)`
+   * - :math:`\gamma_s^c \in (-\infty, \infty)`
      - Low-dimensional representation of sub-cell-type covariates for a given spot and cell type.
      - ``gamma``
-   * - :math:`\eta_g \in (-\infty, \infty)`
+   * - :math:`\eta_g \in (0, \infty)`
      - Gene-specific noise.
      - ``eta``
    * - :math:`\alpha_g \in (0, \infty)`
@@ -183,7 +183,7 @@ The loss is defined as:
 
 \begin{align}
      L(l, \alpha, \beta, f^g, \gamma, p, \eta) := &-\log p(X \mid l, \alpha, \beta, f^g, \gamma, p, \eta) - eta_{reg} \log p(\eta) \\
-     &+ beta_{reg} \mathrm{Var}(\alpha) - \log p(\gamma \mid \mathrm{VampPrior}) + l1_{reg} sum_{c=1}^{C}\beta_{sc} \\
+     &+ beta_{reg} \mathrm{Var}(\alpha) - \log p(\gamma \mid \mathrm{VampPrior}) + l1_{reg} \lVert \beta_{sc} \rVert_1  \tag{6} \\
 \end{align}
 ```
 

@@ -32,7 +32,7 @@ class VAEC(BaseModuleClass):
     n_layers
         Number of hidden layers used for encoder and decoder NNs
     dropout_rate
-        Dropout rate for the encoder neural network
+        Dropout rate for the encoder and decoder neural network
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
     """
@@ -46,13 +46,15 @@ class VAEC(BaseModuleClass):
         n_layers: int = 2,
         log_variational: bool = True,
         ct_weight: np.ndarray = None,
-        **module_kwargs,
+        dropout_rate: float = 0.05,
+        **module_kwargs
     ):
         super().__init__()
         self.dispersion = "gene"
         self.n_latent = n_latent
         self.n_layers = n_layers
         self.n_hidden = n_hidden
+        self.dropout_rate = dropout_rate
         self.log_variational = log_variational
         self.gene_likelihood = "nb"
         self.latent_distribution = "normal"
@@ -70,7 +72,7 @@ class VAEC(BaseModuleClass):
             n_cat_list=[n_labels],
             n_layers=n_layers,
             n_hidden=n_hidden,
-            dropout_rate=0.05,
+            dropout_rate=dropout_rate,
             inject_covariates=True,
             use_batch_norm=False,
             use_layer_norm=True,
@@ -83,7 +85,7 @@ class VAEC(BaseModuleClass):
             n_cat_list=[n_labels],
             n_layers=n_layers,
             n_hidden=n_hidden,
-            dropout_rate=0.05,
+            dropout_rate=dropout_rate,
             inject_covariates=True,
             use_batch_norm=False,
             use_layer_norm=True,

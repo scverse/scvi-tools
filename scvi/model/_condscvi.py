@@ -38,6 +38,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         Number of hidden layers used for encoder and decoder NNs.
     weight_obs
         Whether to reweight observations by their inverse proportion (useful for lowly abundant cell types)
+    dropout_rate
+        Dropout rate for neural networks.
     **module_kwargs
         Keyword args for :class:`~scvi.modules.VAEC`
 
@@ -57,6 +59,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         n_latent: int = 5,
         n_layers: int = 2,
         weight_obs: bool = False,
+        dropout_rate: float = 0.05,
         **module_kwargs,
     ):
         super(CondSCVI, self).__init__(adata)
@@ -80,11 +83,12 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
+            dropout_rate=dropout_rate,
             **module_kwargs,
         )
         self._model_summary_string = (
             "Conditional SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: {}, weight_obs: {}"
-        ).format(n_hidden, n_latent, n_layers, 0.05, weight_obs)
+        ).format(n_hidden, n_latent, n_layers, dropout_rate, weight_obs)
         self.init_params_ = self._get_init_params(locals())
 
     @torch.no_grad()
