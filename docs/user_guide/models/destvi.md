@@ -109,7 +109,7 @@ assay differences, we assign an empirical prior informed by the scLVM and a corr
 cells of the same cell type in the scRNA-seq dataset. To compute this function, we subcluster the latent space of the
 scLVM for each cell type to k cell type specific clusters. For each cluster we compute an empirical mean and variance.
 The loss is weighted by the probability of a random cell from this cell type to be in the respective cluster in the
-scRNA-seq dataset (mixture probability, m_{kc}).
+scRNA-seq dataset (mixture probability, $m_{kc}$).
 Above, $\{u_{kc}\}_{k=1}^K$ designates a set of cells from cell type $c$ in the scRNA-seq dataset, and
 $q_\Phi$ designates the variational distrbution from the scLVM.
 In literature, the prior is referred to as a VampPrior ("variational aggregated mixture of posteriors" prior) [^ref2].

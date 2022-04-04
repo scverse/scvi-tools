@@ -139,7 +139,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             mean += [mean_.cpu()]
             var += [var_.cpu()]
 
-        mean_cat, var_cat = np.array(torch.cat(mean)), np.array(torch.cat(var))
+        mean_cat, var_cat = torch.cat(mean).numpy(), torch.cat(var).numpy()
 
         for ct in range(self.summary_stats["n_labels"]):
             local_indices = np.where(adata.obs[key] == mapping[ct])[0]
