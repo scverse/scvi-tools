@@ -84,7 +84,7 @@ class MRDeconv(BaseModuleClass):
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
         l1_reg: float = 0.0,
         beta_reg: float = 5.0,
-        eta_reg: float = 1e-4
+        eta_reg: float = 1e-4,
     ):
         super().__init__()
         self.n_spots = n_spots
@@ -289,9 +289,12 @@ class MRDeconv(BaseModuleClass):
             pre_lse = (
                 Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4)
                 .log_prob(gamma)
-                .sum(3)) + torch.log(mp_vprior)  # minibatch, p, n_labels
+                .sum(3)
+            ) + torch.log(
+                mp_vprior
+            )  # minibatch, p, n_labels
             # Pseudocount for numerical stability
-            log_likelihood_prior = torch.logsumexp(pre_lse, 1) # minibatch, n_labels
+            log_likelihood_prior = torch.logsumexp(pre_lse, 1)  # minibatch, n_labels
             neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
             # mean_vprior is of shape n_labels, p, n_latent
 

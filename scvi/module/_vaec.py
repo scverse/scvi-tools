@@ -46,8 +46,7 @@ class VAEC(BaseModuleClass):
         n_layers: int = 2,
         log_variational: bool = True,
         ct_weight: np.ndarray = None,
-        dropout_rate: float = 0.05
-        **module_kwargs,
+        dropout_rate: float = 0.05**module_kwargs,
     ):
         super().__init__()
         self.dispersion = "gene"

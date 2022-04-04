@@ -59,8 +59,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         n_latent: int = 5,
         n_layers: int = 2,
         weight_obs: bool = False,
-        dropout_rate: float = 0.05
-        **module_kwargs,
+        dropout_rate: float = 0.05**module_kwargs,
     ):
         super(CondSCVI, self).__init__(adata)
 
