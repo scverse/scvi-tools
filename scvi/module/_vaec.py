@@ -152,8 +152,8 @@ class VAEC(BaseModuleClass):
         h = self.decoder(z, y)
         px_scale = self.px_decoder(h)
         px_rate = library * px_scale
-
-        return dict(px_scale=px_scale, px_r=self.px_r, px_rate=px_rate)
+        px = NegativeBinomial(px_rate, logits=self.px_r)
+        return dict(px=px)
 
     def loss(
         self,
@@ -165,15 +165,14 @@ class VAEC(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
         qz = inference_outputs["qz"]
-        px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px_r"]
+        px = generative_outputs["px"]
 
         mean = torch.zeros_like(qz.loc)
         scale = torch.ones_like(qz.scale)
 
         kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
 
-        reconst_loss = -NegativeBinomial(px_rate, logits=px_r).log_prob(x).sum(-1)
+        reconst_loss = -px.log_prob(x).sum(-1)
         scaling_factor = self.ct_weight[y.long()[:, 0]]
         loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
 

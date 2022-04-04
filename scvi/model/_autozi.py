@@ -233,11 +233,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
 
                 # Log-probabilities
-                p_z = (
-                    Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale))
-                    .log_prob(z)
-                    .sum(dim=-1)
-                )
+                p_z = gen_outputs["pz"].log_prob(z).sum(dim=-1)
                 p_x_zld = -reconst_loss
                 q_z_x = qz.log_prob(z).sum(dim=-1)
                 log_prob_sum = p_z + p_x_zld - q_z_x
@@ -250,14 +246,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                         local_library_log_vars,
                     ) = self.module._compute_local_library_params(batch_index)
 
-                    p_l = (
-                        Normal(
-                            local_library_log_means.to(self.device),
-                            local_library_log_vars.to(self.device).sqrt(),
-                        )
-                        .log_prob(library)
-                        .sum(dim=-1)
-                    )
+                    p_l = gen_outputs["pl"].log_prob(library).sum(dim=-1)
 
                     q_l_x = ql.log_prob(library).sum(dim=-1)
 

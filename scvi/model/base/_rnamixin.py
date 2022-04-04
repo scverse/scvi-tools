@@ -114,7 +114,7 @@ class RNASeqMixin:
                 )
             return_numpy = True
         if library_size == "latent":
-            generative_output_key = "rate"
+            generative_output_key = "mu"
             scaling = 1
         else:
             generative_output_key = "scale"

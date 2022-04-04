@@ -451,9 +451,9 @@ class JVAE(BaseModuleClass):
 
         qz = inference_outputs["qz"]
         ql = inference_outputs["ql"]
-        px_rate = generative_outputs["px"].mu
-        px_r = generative_outputs["px"].theta
-        px_dropout = generative_outputs["px"].zi_logits
+        px_rate = generative_outputs["px_rate"]
+        px_r = generative_outputs["px_r"]
+        px_dropout = generative_outputs["px_dropout"]
 
         # mask loss to observed genes
         mapping_indices = self.indices_mappings[mode]
