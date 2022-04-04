@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from scvi.data.anndata import AnnDataManager
+from scvi.data import AnnDataManager
 
 from ._anntorchdataset import AnnTorchDataset
 
@@ -93,7 +93,7 @@ class AnnDataLoader(DataLoader):
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
+        :class:`~scvi.data.AnnDataManager` object with a registered AnnData object.
     shuffle
         Whether the data should be shuffled
     indices
@@ -106,6 +106,8 @@ class AnnDataLoader(DataLoader):
         If ``None``, defaults to all registered data.
     data_loader_kwargs
         Keyword arguments for :class:`~torch.utils.data.DataLoader`
+    iter_ndarray
+        Whether to iterate over numpy arrays instead of torch tensors
     """
 
     def __init__(
@@ -116,20 +118,21 @@ class AnnDataLoader(DataLoader):
         batch_size=128,
         data_and_attributes: Optional[dict] = None,
         drop_last: Union[bool, int] = False,
+        iter_ndarray: bool = False,
         **data_loader_kwargs,
     ):
 
         if adata_manager.adata is None:
-            raise ValueError("Please run setup_anndata() on your anndata object first.")
+            raise ValueError(
+                "Please run register_fields() on your AnnDataManager object first."
+            )
 
         if data_and_attributes is not None:
             data_registry = adata_manager.data_registry
             for key in data_and_attributes.keys():
                 if key not in data_registry.keys():
                     raise ValueError(
-                        "{} required for model but not included when setup_anndata was run".format(
-                            key
-                        )
+                        f"{key} required for model but not registered with AnnDataManager."
                     )
 
         self.dataset = AnnTorchDataset(
@@ -158,4 +161,12 @@ class AnnDataLoader(DataLoader):
         # do not touch batch size here, sampler gives batched indices
         self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
 
+        if iter_ndarray:
+            self.data_loader_kwargs.update({"collate_fn": _dummy_collate})
+
         super().__init__(self.dataset, **self.data_loader_kwargs)
+
+
+def _dummy_collate(b):
+    """Dummy collate to have dataloader return numpy ndarrays."""
+    return b

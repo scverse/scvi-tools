@@ -8,8 +8,8 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import CategoricalObsField, LayerField, NumericalObsField
+from scvi.data import AnnDataManager
+from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.utils import setup_anndata_dsp
@@ -350,7 +350,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         # add index for each cell (provided to pyro plate for correct minibatching)
-        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+        adata.obs["_indices"] = np.arange(adata.n_obs)
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),

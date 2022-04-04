@@ -16,13 +16,13 @@ from scvi.dataloaders import AnnTorchDataset
 from .utils import generic_setup_adata_manager
 
 
-def test_transfer_anndata_setup():
-    # test transfer_anndata function
+def test_transfer_fields():
+    # test transfer_fields function
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     adata2.X = adata1.X
     adata1_manager = generic_setup_adata_manager(adata1)
-    adata1_manager.transfer_setup(adata2)
+    adata1_manager.transfer_fields(adata2)
     np.testing.assert_array_equal(
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
@@ -38,7 +38,7 @@ def test_transfer_anndata_setup():
     adata1.X = zeros
     adata2.X = ones
     adata1_manager = generic_setup_adata_manager(adata1, layer="raw")
-    adata1_manager.transfer_setup(adata2)
+    adata1_manager.transfer_fields(adata2)
     np.testing.assert_array_equal(
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
@@ -49,7 +49,7 @@ def test_transfer_anndata_setup():
     adata2.obs["batch"] = [2] * adata2.n_obs
     adata1_manager = generic_setup_adata_manager(adata1, batch_key="batch")
     with pytest.raises(ValueError):
-        adata1_manager.transfer_setup(adata2)
+        adata1_manager.transfer_fields(adata2)
 
     # test that an unknown label throws an error
     adata1 = synthetic_iid()
@@ -57,33 +57,33 @@ def test_transfer_anndata_setup():
     adata2.obs["labels"] = ["label_123"] * adata2.n_obs
     adata1_manager = generic_setup_adata_manager(adata1, labels_key="labels")
     with pytest.raises(ValueError):
-        adata1_manager.transfer_setup(adata2)
+        adata1_manager.transfer_fields(adata2)
 
     # test that correct mapping was applied
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     adata2.obs["labels"] = ["label_1"] * adata2.n_obs
     adata1_manager = generic_setup_adata_manager(adata1, labels_key="labels")
-    adata1_manager.transfer_setup(adata2)
+    adata1_manager.transfer_fields(adata2)
     labels_mapping = adata1_manager.get_state_registry("labels").categorical_mapping
     correct_label = np.where(labels_mapping == "label_1")[0][0]
     adata2.obs["_scvi_labels"][0] == correct_label
 
-    # test that transfer_anndata_setup correctly looks for adata.obs['batch']
+    # test that transfer_fields correctly looks for adata.obs['batch']
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
     del adata2.obs["batch"]
     adata1_manager = generic_setup_adata_manager(adata1, batch_key="batch")
     with pytest.raises(KeyError):
-        adata1_manager.transfer_setup(adata2)
+        adata1_manager.transfer_fields(adata2)
 
-    # test that transfer_anndata_setup assigns same batch and label to cells
+    # test that transfer_fields assigns same batch and label to cells
     # if the original anndata was also same batch and label
     adata1 = synthetic_iid()
     adata1_manager = generic_setup_adata_manager(adata1)
     adata2 = synthetic_iid()
     del adata2.obs["batch"]
-    adata1_manager.transfer_setup(adata2)
+    adata1_manager.transfer_fields(adata2)
     assert adata2.obs["_scvi_batch"][0] == 0
     assert adata2.obs["_scvi_labels"][0] == 0
 
@@ -97,6 +97,11 @@ def test_transfer_anndata_setup():
     m.train(1)
     m.get_latent_representation(a2)
     assert a2.obs["_scvi_batch"].all() == 1
+
+    # test that error is thrown if an arbitrary kwarg is passed into setup_anndata
+    a = scvi.data.synthetic_iid()
+    with pytest.raises(TypeError):
+        scvi.model.SCVI.setup_anndata(a, batch="batch")
 
 
 def test_clobber_same_model():
@@ -299,6 +304,19 @@ def test_setup_anndata():
         np.zeros((adata.shape[0], 1)),
     )
 
+    # test error is thrown when categorical obs field contains nans
+    adata = synthetic_iid()
+    adata.obs["batch"][:10] = np.nan
+    with pytest.raises(ValueError):
+        generic_setup_adata_manager(adata, batch_key="batch")
+
+    # test error is thrown when categorical joint obsm field contains nans
+    adata = synthetic_iid()
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat1"][:10] = np.nan
+    with pytest.raises(ValueError):
+        generic_setup_adata_manager(adata, categorical_covariate_keys=["cat1"])
+
 
 def test_save_setup_anndata(save_path):
     adata = synthetic_iid()
@@ -353,11 +371,11 @@ def test_extra_covariates_transfer():
     bdata.obs["cat1"] = 0
     bdata.obs["cat2"] = 1
 
-    adata_manager.transfer_setup(bdata)
+    adata_manager.transfer_fields(bdata)
 
     # give it a new category
     bdata.obs["cat1"] = 6
-    bdata_manager = adata_manager.transfer_setup(bdata, extend_categories=True)
+    bdata_manager = adata_manager.transfer_fields(bdata, extend_categories=True)
     assert (
         bdata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings["cat1"][
             -1

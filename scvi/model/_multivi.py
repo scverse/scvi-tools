@@ -11,9 +11,10 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import (
+from scvi.data import AnnDataManager
+from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
@@ -35,7 +36,6 @@ from scvi.utils._docstrings import doc_differential_expression, setup_anndata_ds
 from .base import BaseModelClass, VAEMixin
 from .base._utils import _de_core
 
-Number = Union[int, float]
 logger = logging.getLogger(__name__)
 
 
@@ -844,7 +844,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: AnnData,
         layer: Optional[str] = None,
         batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
         size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
@@ -857,7 +856,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         %(param_layer)s
         %(param_batch_key)s
-        %(param_labels_key)s
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
@@ -866,7 +864,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
             ),

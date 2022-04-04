@@ -12,10 +12,9 @@ from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
-from scvi.data import synthetic_iid
+from scvi.data import _constants, synthetic_iid
 from scvi.data._built_in_data._download import _download
-from scvi.data.anndata import _constants
-from scvi.data.anndata._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
+from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -32,8 +31,10 @@ from scvi.model import (
     TOTALVI,
     CondSCVI,
     DestVI,
+    JaxSCVI,
     LinearSCVI,
 )
+from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager
 
@@ -42,11 +43,11 @@ LEGACY_SETUP_DICT = {
     "scvi_version": "0.0.0",
     "categorical_mappings": {
         "_scvi_batch": {
-            "original_key": "batch",
+            "original_key": "testbatch",
             "mapping": np.array(["batch_0", "batch_1"], dtype=object),
         },
         "_scvi_labels": {
-            "original_key": "labels",
+            "original_key": "testlabels",
             "mapping": np.array(["label_0", "label_1", "label_2"], dtype=object),
         },
     },
@@ -83,6 +84,27 @@ LEGACY_SETUP_DICT = {
 }
 
 
+def test_jax_scvi():
+    n_latent = 5
+
+    # Test with size factor.
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+    model = JaxSCVI(adata, n_latent=n_latent)
+    model.train(2, train_size=0.5, check_val_every_n_epoch=1)
+    model.get_latent_representation()
+
+    model = JaxSCVI(adata, n_latent=n_latent, gene_likelihood="poisson")
+    model.train(1, train_size=0.5)
+    z1 = model.get_latent_representation(give_mean=True, mc_samples=1)
+    assert z1.ndim == 2
+    z2 = model.get_latent_representation(give_mean=False, mc_samples=15)
+    assert (z2.ndim == 3) and (z2.shape[0] == 15)
+
+
 def test_scvi(save_path):
     n_latent = 5
 
@@ -97,6 +119,9 @@ def test_scvi(save_path):
     )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    # test mde
+    mde(model.get_latent_representation())
 
     # Test with observed lib size.
     adata = synthetic_iid()
@@ -117,7 +142,7 @@ def test_scvi(save_path):
 
     # tests __repr__
     print(model)
-    # test view_registry
+    # test view_anndata_setup
     model.view_anndata_setup()
     model.view_anndata_setup(hide_state_registries=True)
 
@@ -131,7 +156,7 @@ def test_scvi(save_path):
     model.get_normalized_expression(transform_batch="batch_1")
 
     adata2 = synthetic_iid()
-    # test view_registry with different anndata before transfer setup
+    # test view_anndata_setup with different anndata before transfer setup
     with pytest.raises(ValueError):
         model.view_anndata_setup(adata=adata2)
         model.view_anndata_setup(adata=adata2, hide_state_registries=True)
@@ -143,7 +168,7 @@ def test_scvi(save_path):
     assert latent.shape == (3, n_latent)
     denoised = model.get_normalized_expression(adata2)
     assert denoised.shape == adata.shape
-    # test view_registry with different anndata after transfer setup
+    # test view_anndata_setup with different anndata after transfer setup
     model.view_anndata_setup(adata=adata2)
     model.view_anndata_setup(adata=adata2, hide_state_registries=True)
 
@@ -200,7 +225,7 @@ def test_scvi(save_path):
     model._validate_anndata(adata2)
     model.get_elbo(adata2)
 
-    # test automatic transfer_anndata_setup + on a view
+    # test automatic transfer_anndata_setup on a view
     adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
@@ -210,6 +235,18 @@ def test_scvi(save_path):
     model = SCVI(adata)
     adata2 = synthetic_iid()
     model.get_elbo(adata2[:10])
+
+    # test automatic transfer_anndata_setup on a copy
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    adata2 = adata.copy()
+    model.get_elbo(adata2)
+    assert adata.uns[_constants._SCVI_UUID_KEY] != adata2.uns[_constants._SCVI_UUID_KEY]
 
     # test mismatched categories raises ValueError
     adata2 = synthetic_iid()
@@ -356,7 +393,6 @@ def test_saving_and_loading(save_path):
             cls.setup_anndata(
                 adata,
                 batch_key="batch",
-                labels_key="labels",
                 protein_expression_obsm_key="protein_expression",
                 protein_names_uns_key="protein_names",
             )
@@ -495,13 +531,17 @@ def test_new_setup_compat():
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    # Handle edge case where registry_key != obs_key.
+    adata.obs.rename(
+        columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True
+    )
     adata2 = adata.copy()
     adata3 = adata.copy()
 
     SCVI.setup_anndata(
         adata,
-        batch_key="batch",
-        labels_key="labels",
+        batch_key="testbatch",
+        labels_key="testlabels",
         categorical_covariate_keys=["cat1", "cat2"],
         continuous_covariate_keys=["cont1", "cont2"],
     )
@@ -522,7 +562,7 @@ def test_new_setup_compat():
     )
 
     # Test transfer.
-    adata3_manager = adata_manager.transfer_setup(adata3)
+    adata3_manager = adata_manager.transfer_fields(adata3)
     np.testing.assert_equal(
         field_registries,
         adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
@@ -805,11 +845,17 @@ def test_scanvi(save_path):
     SCVI.setup_anndata(
         a,
         batch_key="batch",
-        labels_key="labels",
     )
     m = SCVI(a, use_observed_lib_size=False)
     a2 = scvi.data.synthetic_iid()
-    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(
+        m, "label_0", labels_key="labels", adata=a2
+    )
+    with pytest.raises(ValueError):
+        scanvi_model = scvi.model.SCANVI.from_scvi_model(
+            m, "label_0", labels_key=None, adata=a2
+        )
+
     # make sure the state_dicts are different objects for the two models
     assert scanvi_model.module.state_dict() is not m.module.state_dict()
     scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
@@ -820,7 +866,7 @@ def test_scanvi(save_path):
 
     # Test without label groups
     scanvi_model = scvi.model.SCANVI.from_scvi_model(
-        m, "label_0", use_labels_groups=False
+        m, "label_0", labels_key="labels", use_labels_groups=False
     )
     scanvi_model.train(1)
 
@@ -957,6 +1003,12 @@ def test_totalvi(save_path):
     norm_exp = model.get_normalized_expression(adata2, indices=[1, 2, 3])
     assert norm_exp[0].shape == (3, adata2.n_vars)
     assert norm_exp[1].shape == (3, adata2.obsm["protein_expression"].shape[1])
+    norm_exp = model.get_normalized_expression(
+        adata2,
+        gene_list=adata2.var_names[:5].to_list(),
+        protein_list=adata2.uns["protein_names"][:3],
+        transform_batch=["batch_0", "batch_1"],
+    )
 
     latent_lib_size = model.get_latent_library_size(adata2, indices=[1, 2, 3])
     assert latent_lib_size.shape == (3, 1)
@@ -1126,6 +1178,46 @@ def test_multiple_covariates_scvi(save_path):
     m.train(1)
 
 
+def test_multiple_encoded_covariates_scvi(save_path):
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = SCVI(adata, encode_covariates=True)
+    m.train(1)
+
+    SCANVI.setup_anndata(
+        adata,
+        "labels",
+        "Unknown",
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = SCANVI(adata, encode_covariates=True)
+    m.train(1)
+
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = TOTALVI(adata, encode_covariates=True)
+    m.train(1)
+
+
 def test_peakvi():
     data = synthetic_iid()
     PEAKVI.setup_anndata(
@@ -1189,11 +1281,13 @@ def test_destvi(save_path):
     # step 2 learn destVI with multiple amortization scheme
 
     for amor_scheme in ["both", "none", "proportion", "latent"]:
+        DestVI.setup_anndata(dataset, layer=None)
         spatial_model = DestVI.from_rna_model(
             dataset,
             sc_model,
             amortization=amor_scheme,
         )
+        spatial_model.view_anndata_setup()
         spatial_model.train(max_epochs=1)
         assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
 

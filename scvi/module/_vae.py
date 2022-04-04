@@ -282,11 +282,11 @@ class VAE(BaseModuleClass):
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
-        if cont_covs is not None and self.encode_covariates is True:
+        if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
         else:
             encoder_input = x_
-        if cat_covs is not None and self.encode_covariates is True:
+        if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()

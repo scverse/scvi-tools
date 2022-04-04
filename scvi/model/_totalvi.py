@@ -2,7 +2,7 @@ import logging
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -11,10 +11,11 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import Number
 from scvi._utils import _doc_params
+from scvi.data import AnnDataManager
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import (
+from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
@@ -36,7 +37,6 @@ from scvi.utils._docstrings import doc_differential_expression, setup_anndata_ds
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
-Number = TypeVar("Number", int, float)
 
 
 class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
@@ -465,8 +465,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for tensors in post:
             x = tensors[REGISTRY_KEYS.X_KEY]
             y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
-            px_scale = torch.zeros_like(x)
-            py_scale = torch.zeros_like(y)
+            px_scale = torch.zeros_like(x)[..., gene_mask]
+            py_scale = torch.zeros_like(y)[..., protein_mask]
             if n_samples > 1:
                 px_scale = torch.stack(n_samples * [px_scale])
                 py_scale = torch.stack(n_samples * [py_scale])
@@ -480,10 +480,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     compute_loss=False,
                 )
                 if library_size == "latent":
-                    px_scale += generative_outputs["px_"]["rate"].cpu()
+                    px_scale += generative_outputs["px_"]["rate"].cpu()[..., gene_mask]
                 else:
-                    px_scale += generative_outputs["px_"]["scale"].cpu()
-                px_scale = px_scale[..., gene_mask]
+                    px_scale += generative_outputs["px_"]["scale"].cpu()[..., gene_mask]
 
                 py_ = generative_outputs["py_"]
                 # probability of background
@@ -1074,92 +1073,98 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     def _get_totalvi_protein_priors(self, adata, n_cells=100):
         """Compute an empirical prior for protein background."""
-        import warnings
 
         from sklearn.exceptions import ConvergenceWarning
         from sklearn.mixture import GaussianMixture
 
-        warnings.filterwarnings("error")
-        logger.info("Computing empirical prior initialization for protein background.")
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error")
+            logger.info(
+                "Computing empirical prior initialization for protein background."
+            )
 
-        adata = self._validate_anndata(adata)
-        adata_manager = self.get_anndata_manager(adata)
-        pro_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
-        pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
-        batch_mask = adata_manager.get_state_registry(
-            REGISTRY_KEYS.PROTEIN_EXP_KEY
-        ).get(ProteinObsmField.PROTEIN_BATCH_MASK)
-        batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
-        cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
-            CategoricalObsField.CATEGORICAL_MAPPING_KEY
-        ]
-        codes = np.arange(len(cats))
+            adata = self._validate_anndata(adata)
+            adata_manager = self.get_anndata_manager(adata)
+            pro_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
+            pro_exp = (
+                pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
+            )
+            batch_mask = adata_manager.get_state_registry(
+                REGISTRY_KEYS.PROTEIN_EXP_KEY
+            ).get(ProteinObsmField.PROTEIN_BATCH_MASK)
+            batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
+            cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
+                CategoricalObsField.CATEGORICAL_MAPPING_KEY
+            ]
+            codes = np.arange(len(cats))
 
-        batch_avg_mus, batch_avg_scales = [], []
-        for b in np.unique(codes):
-            # can happen during online updates
-            # the values of these batches will not be used
-            num_in_batch = np.sum(batch == b)
-            if num_in_batch == 0:
-                batch_avg_mus.append(0)
-                batch_avg_scales.append(1)
-                continue
-            batch_pro_exp = pro_exp[batch == b]
+            batch_avg_mus, batch_avg_scales = [], []
+            for b in np.unique(codes):
+                # can happen during online updates
+                # the values of these batches will not be used
+                num_in_batch = np.sum(batch == b)
+                if num_in_batch == 0:
+                    batch_avg_mus.append(0)
+                    batch_avg_scales.append(1)
+                    continue
+                batch_pro_exp = pro_exp[batch == b]
 
-            # non missing
-            if batch_mask is not None:
-                batch_pro_exp = batch_pro_exp[:, batch_mask[b]]
-                if batch_pro_exp.shape[1] < 5:
-                    logger.debug(
-                        f"Batch {b} has too few proteins to set prior, setting randomly."
-                    )
+                # non missing
+                if batch_mask is not None:
+                    batch_pro_exp = batch_pro_exp[:, batch_mask[b]]
+                    if batch_pro_exp.shape[1] < 5:
+                        logger.debug(
+                            f"Batch {b} has too few proteins to set prior, setting randomly."
+                        )
+                        batch_avg_mus.append(0.0)
+                        batch_avg_scales.append(0.05)
+                        continue
+
+                # a batch is missing because it's in the reference but not query data
+                # for scarches case, these values will be replaced by original state dict
+                if batch_pro_exp.shape[0] == 0:
                     batch_avg_mus.append(0.0)
                     batch_avg_scales.append(0.05)
                     continue
 
-            # a batch is missing because it's in the reference but not query data
-            # for scarches case, these values will be replaced by original state dict
-            if batch_pro_exp.shape[0] == 0:
-                batch_avg_mus.append(0.0)
-                batch_avg_scales.append(0.05)
-                continue
+                cells = np.random.choice(
+                    np.arange(batch_pro_exp.shape[0]), size=n_cells
+                )
+                batch_pro_exp = batch_pro_exp[cells]
+                gmm = GaussianMixture(n_components=2)
+                mus, scales = [], []
+                # fit per cell GMM
+                for c in batch_pro_exp:
+                    try:
+                        gmm.fit(np.log1p(c.reshape(-1, 1)))
+                    # when cell is all 0
+                    except ConvergenceWarning:
+                        mus.append(0)
+                        scales.append(0.05)
+                        continue
 
-            cells = np.random.choice(np.arange(batch_pro_exp.shape[0]), size=n_cells)
-            batch_pro_exp = batch_pro_exp[cells]
-            gmm = GaussianMixture(n_components=2)
-            mus, scales = [], []
-            # fit per cell GMM
-            for c in batch_pro_exp:
-                try:
-                    gmm.fit(np.log1p(c.reshape(-1, 1)))
-                # when cell is all 0
-                except ConvergenceWarning:
-                    mus.append(0)
-                    scales.append(0.05)
-                    continue
+                    means = gmm.means_.ravel()
+                    sorted_fg_bg = np.argsort(means)
+                    mu = means[sorted_fg_bg].ravel()[0]
+                    covariances = gmm.covariances_[sorted_fg_bg].ravel()[0]
+                    scale = np.sqrt(covariances)
+                    mus.append(mu)
+                    scales.append(scale)
 
-                means = gmm.means_.ravel()
-                sorted_fg_bg = np.argsort(means)
-                mu = means[sorted_fg_bg].ravel()[0]
-                covariances = gmm.covariances_[sorted_fg_bg].ravel()[0]
-                scale = np.sqrt(covariances)
-                mus.append(mu)
-                scales.append(scale)
+                # average distribution over cells
+                batch_avg_mu = np.mean(mus)
+                batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells**2))
 
-            # average distribution over cells
-            batch_avg_mu = np.mean(mus)
-            batch_avg_scale = np.sqrt(np.sum(np.square(scales)) / (n_cells**2))
+                batch_avg_mus.append(batch_avg_mu)
+                batch_avg_scales.append(batch_avg_scale)
 
-            batch_avg_mus.append(batch_avg_mu)
-            batch_avg_scales.append(batch_avg_scale)
-
-        # repeat prior for each protein
-        batch_avg_mus = np.array(batch_avg_mus, dtype=np.float32).reshape(1, -1)
-        batch_avg_scales = np.array(batch_avg_scales, dtype=np.float32).reshape(1, -1)
-        batch_avg_mus = np.tile(batch_avg_mus, (pro_exp.shape[1], 1))
-        batch_avg_scales = np.tile(batch_avg_scales, (pro_exp.shape[1], 1))
-
-        warnings.resetwarnings()
+            # repeat prior for each protein
+            batch_avg_mus = np.array(batch_avg_mus, dtype=np.float32).reshape(1, -1)
+            batch_avg_scales = np.array(batch_avg_scales, dtype=np.float32).reshape(
+                1, -1
+            )
+            batch_avg_mus = np.tile(batch_avg_mus, (pro_exp.shape[1], 1))
+            batch_avg_scales = np.tile(batch_avg_scales, (pro_exp.shape[1], 1))
 
         return batch_avg_mus, batch_avg_scales
 

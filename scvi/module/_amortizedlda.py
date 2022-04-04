@@ -206,7 +206,7 @@ class AmortizedLDAPyroGuide(PyroModule):
             pyro.sample(
                 "log_cell_topic_dist",
                 dist.Normal(
-                    cell_topic_posterior_mu, F.softplus(cell_topic_posterior_sigma)
+                    cell_topic_posterior_mu, cell_topic_posterior_sigma
                 ).to_event(1),
             )
 

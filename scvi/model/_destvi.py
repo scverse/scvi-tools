@@ -8,8 +8,8 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import LayerField, NumericalObsField
+from scvi.data import AnnDataManager
+from scvi.data.fields import LayerField, NumericalObsField
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
@@ -97,7 +97,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: CondSCVI,
         vamp_prior_p: int = 50,
-        layer: Optional[str] = None,
         **module_kwargs,
     ):
         """
@@ -106,7 +105,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         st_adata
-            registed anndata object
+            registered anndata object
         sc_model
             trained CondSCVI model
         vamp_prior_p
@@ -128,7 +127,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 sc_model.adata, p=vamp_prior_p
             )
 
-        cls.setup_anndata(st_adata, layer=layer)
         return cls(
             st_adata,
             mapping,
@@ -372,7 +370,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         # add index for each cell (provided to pyro plate for correct minibatching)
-        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+        adata.obs["_indices"] = np.arange(adata.n_obs)
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
