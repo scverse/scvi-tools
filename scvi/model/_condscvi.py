@@ -36,8 +36,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         Dimensionality of the latent space.
     n_layers
         Number of hidden layers used for encoder and decoder NNs.
-    dropout_rate
-        Dropout rate for the encoder neural networks.
     weight_obs
         Whether to reweight observations by their inverse proportion (useful for lowly abundant cell types)
     **module_kwargs
@@ -58,7 +56,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,
-        dropout_rate: float = 0.05,
         weight_obs: bool = False,
         **module_kwargs,
     ):
@@ -83,12 +80,11 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
-            dropout_rate=dropout_rate,
             **module_kwargs,
         )
         self._model_summary_string = (
             "Conditional SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: {}, weight_obs: {}"
-        ).format(n_hidden, n_latent, n_layers, dropout_rate, weight_obs)
+        ).format(n_hidden, n_latent, n_layers, 0.05, weight_obs)
         self.init_params_ = self._get_init_params(locals())
 
     @torch.no_grad()
@@ -123,7 +119,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         # Extracting latent representation of adata including variances.
         mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
         var_vprior = np.ones((self.summary_stats.n_labels, p, self.module.n_latent))
-        weight_vprior = np.zeros((self.summary_stats.n_labels, p))
+        mp_vprior = np.zeros((self.summary_stats.n_labels, p))
 
         labels_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
@@ -193,9 +189,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             slicing = slice(n_labels_overclustering)
             mean_vprior[ct, slicing, :] = mean_cluster
             var_vprior[ct, slicing, :] = var_cluster
-            weight_vprior[ct, slicing] = counts / sum(counts)
+            mp_vprior[ct, slicing] = counts / sum(counts)
 
-        return mean_vprior, var_vprior, weight_vprior
+        return mean_vprior, var_vprior, mp_vprior
 
     def train(
         self,

@@ -1281,7 +1281,12 @@ def test_destvi(save_path):
 
     # step 2 Check model setup
     DestVI.setup_anndata(dataset, layer=None)
-    _ = DestVI.from_rna_model(dataset, sc_model, vamp_prior_p=10000)
+
+    # Test clustering outside of get_vamp_prior
+
+    # vamp_prior_p>n_largest_cluster to be successful.
+    _ = DestVI.from_rna_model(dataset, sc_model, vamp_prior_p=dataset.n_obs)
+    # vamp_prior_p<n_largest_cluster leads to value error.
     with pytest.raises(ValueError):
         _ = DestVI.from_rna_model(dataset, sc_model, vamp_prior_p=1)
 

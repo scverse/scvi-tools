@@ -43,14 +43,18 @@ class MRDeconv(BaseModuleClass):
         Mean parameter for each component in the empirical prior over the latent space
     var_vprior
         Diagonal variance parameter for each component in the empirical prior over the latent space
-    weight_vprior
-        Weight parameter for each component in the empirical prior over the latent space
+    mp_vprior
+        Mixture proportion in cell type sub-clustering of each component in the empirical prior
     amortization
         which of the latent variables to amortize inference over (gamma, proportions, both or none)
-    l1_sparsity
-        Weighting in loss of L1 regularization of cell type proportions
-    beta_prior_weighting
-        Weighting in loss of variance of beta values
+    l1_reg
+        Scalar parameter indicating the strength of L1 regularization on cell type proportions.
+        A value of 50 leads to sparser results.
+    beta_reg
+        Scalar parameter indicating the strength of the empirical variance penalty for
+        the multiplicative offset in gene expression values (beta parameter). Default is 5
+        (setting to 0.5 might help if single cell reference and spatial assay are different
+        e.g. UMI vs non-UMI.)
     """
 
     def __init__(
@@ -66,10 +70,10 @@ class MRDeconv(BaseModuleClass):
         px_r: np.ndarray,
         mean_vprior: np.ndarray = None,
         var_vprior: np.ndarray = None,
-        weight_vprior: np.ndarray = None,
+        mp_vprior: np.ndarray = None,
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
-        l1_sparsity: float = 0.0,
-        beta_prior_weighting: float = 5.0,
+        l1_reg: float = 0.0,
+        beta_reg: float = 5.0,
     ):
         super().__init__()
         self.n_spots = n_spots
@@ -78,8 +82,8 @@ class MRDeconv(BaseModuleClass):
         self.n_latent = n_latent
         self.n_genes = n_genes
         self.amortization = amortization
-        self.l1_sparsity = l1_sparsity
-        self.beta_prior_weighting = beta_prior_weighting
+        self.l1_reg = l1_reg
+        self.beta_reg = beta_reg
         # unpack and copy parameters
         self.decoder = FCLayers(
             n_in=n_latent,
@@ -114,7 +118,7 @@ class MRDeconv(BaseModuleClass):
             self.p = mean_vprior.shape[1]
             self.register_buffer("mean_vprior", torch.tensor(mean_vprior))
             self.register_buffer("var_vprior", torch.tensor(var_vprior))
-            self.register_buffer("weight_vprior", torch.tensor(weight_vprior))
+            self.register_buffer("mp_vprior", torch.tensor(mp_vprior))
         else:
             self.mean_vprior = None
             self.var_vprior = None
@@ -245,9 +249,9 @@ class MRDeconv(BaseModuleClass):
         glo_neg_log_likelihood_prior = (
             -1e-4 * Normal(mean, scale).log_prob(self.eta).sum()
         )
-        glo_neg_log_likelihood_prior += self.beta_prior_weighting * torch.var(self.beta)
+        glo_neg_log_likelihood_prior += self.beta_reg * torch.var(self.beta)
 
-        v_sparsity_loss = self.l1_sparsity * torch.abs(v).mean(1)
+        v_sparsity_loss = self.l1_reg * torch.abs(v).mean(1)
 
         # gamma prior likelihood
         if self.mean_vprior is None:
@@ -267,8 +271,8 @@ class MRDeconv(BaseModuleClass):
             var_vprior = torch.transpose(self.var_vprior, 0, 1).unsqueeze(
                 0
             )  # 1, p, n_labels, n_latent
-            weight_vprior = torch.transpose(self.weight_vprior, 0, 1)  # p, n_labels
-            pre_lse = weight_vprior * torch.exp(
+            mp_vprior = torch.transpose(self.mp_vprior, 0, 1)  # p, n_labels
+            pre_lse = mp_vprior * torch.exp(
                 Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4)
                 .log_prob(gamma)
                 .sum(-1)
