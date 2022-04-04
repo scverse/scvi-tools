@@ -142,6 +142,7 @@ class SCANVAE(VAE):
             use_layer_norm=use_layer_norm_encoder,
             return_dist=True,
         )
+
         self.decoder_z1_z2 = Decoder(
             n_latent,
             n_latent,

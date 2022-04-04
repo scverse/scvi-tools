@@ -414,6 +414,7 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
             dropout_rate=0.1,
             return_dist=True,
         )
+
         # decoder goes from n_latent-dimensional space to n_input-d data
         self.decoder = DecoderSCVI(
             n_latent,

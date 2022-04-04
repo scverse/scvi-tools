@@ -335,6 +335,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         post = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
+
         libraries = []
         for tensors in post:
             inference_inputs = self.module._get_inference_input(tensors)

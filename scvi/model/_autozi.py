@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from anndata import AnnData
 from torch import logsumexp
-from torch.distributions import Beta, Normal
+from torch.distributions import Beta
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal

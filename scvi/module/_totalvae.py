@@ -483,6 +483,7 @@ class TOTALVAE(BaseModuleClass):
         qz, ql, latent, untran_latent = self.encoder(
             encoder_input, batch_index, *categorical_input
         )
+
         z = latent["z"]
         untran_z = untran_latent["z"]
         untran_l = untran_latent["l"]
