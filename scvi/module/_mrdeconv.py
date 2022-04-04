@@ -275,7 +275,7 @@ class MRDeconv(BaseModuleClass):
             pre_lse = mp_vprior * torch.exp(
                 Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4)
                 .log_prob(gamma)
-                .sum(-1)
+                .sum(3)
             )  # minibatch, p, n_labels
             # Pseudocount for numerical stability
             log_likelihood_prior = torch.log(

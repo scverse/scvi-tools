@@ -140,18 +140,18 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             var += [var_.cpu()]
 
         mean_cat, var_cat = np.array(torch.cat(mean)), np.array(torch.cat(var))
-        adata.obsm["X_CondSCVI"] = mean_cat
 
         for ct in range(self.summary_stats["n_labels"]):
             local_indices = np.where(adata.obs[key] == mapping[ct])[0]
+            n_local_indices = len(local_indices)
             if "overclustering_vamp" not in adata.obs.columns:
-                if p < len(local_indices) and p > 0:
+                if p < n_local_indices and p > 0:
                     overclustering_vamp = KMeans(n_clusters=p, n_init=30).fit_predict(
                         mean_cat[local_indices]
                     )
                 else:
                     # Every cell is its own cluster
-                    overclustering_vamp = list(range(len(local_indices)))
+                    overclustering_vamp = np.arange(n_local_indices)
             else:
                 overclustering_vamp = adata[local_indices, :].obs["overclustering_vamp"]
 
@@ -159,30 +159,26 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
             n_labels_overclustering = len(keys)
             if n_labels_overclustering > p:
-                raise ValueError(
-                    "Given overclustering contains more clusters than vamp_prior_p. Increase value."
-                )
-            var_cluster = np.zeros(
-                [
-                    n_labels_overclustering,
-                    self.module.n_latent,
-                ]
-            )
-            mean_cluster = np.zeros(
-                [
-                    n_labels_overclustering,
-                    self.module.n_latent,
-                ]
-            )
+                error_mess = """
+                    Given cell type specific clustering contains more clusters than vamp_prior_p.
+                    Increase value of vamp_prior_p to largest number of cell type specific clusters."""
 
-            for index, cluster in enumerate(np.unique(overclustering_vamp)):
+                raise ValueError(error_mess)
+
+            var_cluster = np.ones(
+                [
+                    n_labels_overclustering,
+                    self.module.n_latent,
+                ]
+            )
+            mean_cluster = np.zeros_like(var_cluster)
+
+            for index, cluster in enumerate(keys):
                 indices_curr = local_indices[
                     np.where(overclustering_vamp == cluster)[0]
                 ]
-                var_cluster[index, :] = (
-                    np.mean(var_cat[indices_curr], axis=0)
-                    + np.mean(mean_cat[indices_curr] ** 2, axis=0)
-                    - (np.mean(mean_cat[indices_curr], axis=0)) ** 2
+                var_cluster[index, :] = np.mean(var_cat[indices_curr], axis=0) + np.var(
+                    mean_cat[indices_curr], axis=0
                 )
                 mean_cluster[index, :] = np.mean(mean_cat[indices_curr], axis=0)
 

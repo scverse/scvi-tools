@@ -72,7 +72,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         n_hidden: int,
         n_latent: int,
         n_layers: int,
-        l1_sparsity: float,
+        l1_reg: float,
         **module_kwargs,
     ):
         super(DestVI, self).__init__(st_adata)
@@ -86,7 +86,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             n_latent=n_latent,
             n_layers=n_layers,
             n_hidden=n_hidden,
-            l1_sparsity=l1_sparsity,
+            l1_reg=l1_reg,
             **module_kwargs,
         )
         self.cell_type_mapping = cell_type_mapping
@@ -99,7 +99,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: CondSCVI,
         vamp_prior_p: int = 15,
-        l1_sparsity: float = 0.0,
+        l1_reg: float = 0.0,
         **module_kwargs,
     ):
         """
@@ -113,8 +113,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             trained CondSCVI model
         vamp_prior_p
             number of mixture parameter for VampPrior calculations
-        l1_sparsity
-            sparsity constraint for cell type proportions (~ 50 for sparser)
+        l1_reg
+            Scalar parameter indicating the strength of L1 regularization on cell type proportions.
+            A value of 50 leads to sparser results.
         **model_kwargs
             Keyword args for :class:`~scvi.model.DestVI`
         """
@@ -128,7 +129,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             mean_vprior = None
             var_vprior = None
         else:
-            mean_vprior, var_vprior, weight_vprior = sc_model.get_vamp_prior(
+            mean_vprior, var_vprior, mp_vprior = sc_model.get_vamp_prior(
                 sc_model.adata, p=vamp_prior_p
             )
 
@@ -143,8 +144,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             sc_model.module.n_layers,
             mean_vprior=mean_vprior,
             var_vprior=var_vprior,
-            weight_vprior=weight_vprior,
-            l1_sparsity=l1_sparsity,
+            mp_vprior=mp_vprior,
+            l1_reg=l1_reg,
             **module_kwargs,
         )
 
