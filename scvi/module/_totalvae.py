@@ -379,7 +379,6 @@ class TOTALVAE(BaseModuleClass):
         transform_batch: Optional[int] = None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
 
-
         decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)

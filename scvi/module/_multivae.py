@@ -3,16 +3,16 @@ from typing import Dict, Iterable, Optional, Union
 import numpy as np
 import torch
 from torch import nn
-from torch.nn import functional as F
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kld
+from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import (
     NegativeBinomial,
-    ZeroInflatedNegativeBinomial,
     NegativeBinomialMixture,
+    ZeroInflatedNegativeBinomial,
 )
 from scvi.module._peakvae import Decoder as DecoderPeakVI
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
@@ -597,19 +597,19 @@ class MULTIVAE(BaseModuleClass):
 
         ## Sample from the average distribution
         qzp_m123 = (qzm_acc + qzm_expr + qzm_pro) / 3
-        qzp_v123 = (qzv_acc + qzv_expr + qzv_pro) / (3 ** 0.5)
+        qzp_v123 = (qzv_acc + qzv_expr + qzv_pro) / (3**0.5)
         zp123 = Normal(qzp_m123, qzp_v123.sqrt()).rsample()
 
         qzp_m12 = (qzm_acc + qzm_expr) / 2
-        qzp_v12 = (qzv_acc + qzv_expr) / (2 ** 0.5)
+        qzp_v12 = (qzv_acc + qzv_expr) / (2**0.5)
         zp12 = Normal(qzp_m12, qzp_v12.sqrt()).rsample()
 
         qzp_m13 = (qzm_acc + qzm_pro) / 2
-        qzp_v13 = (qzv_acc + qzv_pro) / (2 ** 0.5)
+        qzp_v13 = (qzv_acc + qzv_pro) / (2**0.5)
         zp13 = Normal(qzp_m13, qzp_v13.sqrt()).rsample()
 
         qzp_m23 = (qzm_expr + qzm_pro) / 2
-        qzp_v23 = (qzv_expr + qzv_pro) / (2 ** 0.5)
+        qzp_v23 = (qzv_expr + qzv_pro) / (2**0.5)
         zp23 = Normal(qzp_m23, qzp_v23.sqrt()).rsample()
 
         ## choose the correct latent representation based on the modality
