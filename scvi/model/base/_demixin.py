@@ -130,6 +130,8 @@ class DEMixin:
         marginal_n_samples_per_pass: int = 250,
         n_mc_samples_px: int = 500,
         n_cells_per_chunk: Optional[int] = 500,
+        truncation=False,
+        n_mc=1,
         max_chunks: Optional[int] = None,
         normalized_expression_key: str = "px_scale",
     ) -> np.ndarray:
@@ -177,7 +179,7 @@ class DEMixin:
         Returns
         -------
         res
-            Importance weighted expression levels of shaoe (Number of samples, number of genes)
+            Importance weighted expression levels of shape (Number of samples, number of genes)
         """
         # Step 1: Determine effective indices to use
         # adata = self._validate_anndata(adata)
@@ -189,14 +191,6 @@ class DEMixin:
             observed_batches = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY)[
                 indices
             ].squeeze()
-            # adata_key = self.scvi_setup_dict_["data_registry"]["batch_indices"][
-            #     "attr_key"
-            # ]
-            # observed_batches = adata[indices].obs[adata_key].values
-
-            # transform_batch_val = _get_batch_code_from_category(adata, transform_batch)[
-            #     0
-            # ]
             if indices.shape != observed_batches.shape:
                 raise ValueError("Discrepancy between # of indices and # of batches")
             indices_ = indices[observed_batches == transform_batch_val]
@@ -206,7 +200,7 @@ class DEMixin:
             n_genes = adata.n_vars
             return np.array([]).reshape((0, n_genes))
         if filter_cells:
-            indices_ = self.filter_cells(
+            indices_ = self._filter_cells(
                 adata=adata,
                 indices=indices_,
                 batch_size=batch_size,
@@ -219,7 +213,6 @@ class DEMixin:
         # This ensures that the method remains scalable when looking at very large cell populations
         n_cells = indices_.shape[0]
         logger.debug("n cells {}".format(n_cells))
-        logger.debug(indices_)
         n_cell_chunks = int(np.ceil(n_cells / n_cells_per_chunk))
         np.random.seed(0)
         np.random.shuffle(indices_)
@@ -231,24 +224,28 @@ class DEMixin:
         else:
             n_samples_per_cell = n_samples
             n_samples_overall = n_samples_per_cell * n_cells_used
-        n_samples_per_cell = np.minimum(n_samples_per_cell, 100)
+        n_samples_per_cell = np.minimum(n_samples_per_cell, 30)
+        logger.debug("n samples per cell {}".format(n_samples_per_cell))
 
         # Step 3
         res = []
         for chunk in cell_chunks:
-            logger.debug("n cells chunk {}".format(chunk.shape[0]))
-            res.append(
-                self._inference_loop(
-                    adata=adata,
-                    indices=chunk,
-                    n_samples=n_samples_per_cell,
-                    batch_size=batch_size,
-                    marginal_n_samples_per_pass=marginal_n_samples_per_pass,
-                    n_mc_samples_px=n_mc_samples_px,
-                    normalized_expression_key=normalized_expression_key,
-                )["hs_weighted"].numpy()
-            )
-            logger.debug(res[-1].shape)
+            # for chunk in cell_indices:
+            logger.debug("n cells in chunk {}".format(chunk.shape[0]))
+            for _ in range(n_mc):
+                res.append(
+                    self._importance_weighted_sampling(
+                        adata=adata,
+                        indices=chunk,
+                        n_samples=n_samples_per_cell,
+                        batch_size=batch_size,
+                        marginal_n_samples_per_pass=marginal_n_samples_per_pass,
+                        n_mc_samples_px=n_mc_samples_px,
+                        normalized_expression_key=normalized_expression_key,
+                        truncation=truncation,
+                    )["hs_weighted"].numpy()
+                )
+            # logger.debug(res[-1].shape)
         res = np.concatenate(res, 0)
         idx = np.arange(len(res))
         idx = np.random.choice(idx, size=n_samples_overall, replace=True)
@@ -256,7 +253,7 @@ class DEMixin:
         return res
 
     @torch.no_grad()
-    def _inference_loop(
+    def _importance_weighted_sampling(
         self,
         adata: AnnData,
         indices: Sequence,
@@ -265,6 +262,7 @@ class DEMixin:
         n_mc_samples_px: int = 5000,
         batch_size: int = 64,
         normalized_expression_key: str = "px_scale",
+        truncation=False,
     ) -> dict:
         """
         Obtain gene expression and densities.
@@ -361,9 +359,21 @@ class DEMixin:
             dim=1,
         )
 
+        if truncation:
+            tau = torch.logsumexp(importance_weight, 0) - np.log(
+                importance_weight.shape[0]
+            )
+            frac = (importance_weight <= tau).float().mean().item()
+            logger.debug(
+                "tau: {}".format(torch.logsumexp(importance_weight, 0).exp().item())
+            )
+            logger.debug("{} of samples below target {}".format(frac, tau.item()))
+            importance_weight[importance_weight <= tau] = tau
+
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
         ws = log_probs.exp()
         n_samples_overall = ws.shape[0]
+        logger.debug("Max ratio {}".format(ws.max().item()))
         windices = (
             Categorical(logits=log_probs.unsqueeze(0))
             .sample((n_samples_overall,))
@@ -435,7 +445,7 @@ class DEMixin:
         _log_px_zs = torch.cat(_log_px_zs, 1)
         return _log_px_zs
 
-    def filter_cells(
+    def _filter_cells(
         self, adata: AnnData, indices: Sequence, batch_size: int
     ) -> Sequence:
         """
@@ -472,6 +482,11 @@ class DEMixin:
         if (idx_filt == 1).sum() <= 1:
             idx_filt = np.ones(qz_m.shape[0], dtype=bool)
         try:
+            logger.debug(
+                "n cells total {}, n cells filtered {}".format(
+                    idx_filt.shape[0], idx_filt.sum()
+                )
+            )
             indices = indices[idx_filt]
         except IndexError:
             raise IndexError((idx_filt))
