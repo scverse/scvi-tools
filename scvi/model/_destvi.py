@@ -72,6 +72,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         n_hidden: int,
         n_latent: int,
         n_layers: int,
+        dropout_decoder: float,
         l1_reg: float,
         **module_kwargs,
     ):
@@ -86,6 +87,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             n_latent=n_latent,
             n_layers=n_layers,
             n_hidden=n_hidden,
+            dropout_decoder=dropout_decoder,
             l1_reg=l1_reg,
             **module_kwargs,
         )
@@ -125,6 +127,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         mapping = sc_model.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         ).categorical_mapping
+        dropout_decoder = sc_model.module.dropout_rate
         if vamp_prior_p is None:
             mean_vprior = None
             var_vprior = None
@@ -145,6 +148,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             mean_vprior=mean_vprior,
             var_vprior=var_vprior,
             mp_vprior=mp_vprior,
+            dropout_decoder=dropout_decoder,
             l1_reg=l1_reg,
             **module_kwargs,
         )

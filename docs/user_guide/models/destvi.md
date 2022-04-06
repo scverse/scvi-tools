@@ -245,10 +245,6 @@ for automatic thresholding of cell type proportions, a spatial PCA analysis to f
 in spatial gene expression and the described frequentist test for differential expression. Further information
 can be found on [destvi_utils](https://destvi-utils.readthedocs.io/en/latest/installation.html)
 
-[^ref1]: Romain Lopez, Baoguo Li, Hadas Keren-Shaul, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Eyal David, Allon Wagner, Yoseph Addad, Michael I. Jordan, Ido Amit, Nir Yosef (2021),
-    *Multi-resolution deconvolution of spatial transcriptomics data reveals continuous patterns of inflammation*,
-    [bioRxiv](https://doi.org/10.1101/2021.05.10.443517).
+[^ref1]: Romain Lopez, Baoguo Li, Hadas Keren-Shaul, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Ido Yofe, Eyal David, Allon Wagner, Can Ergen, Yoseph Addadi, Ofra Golani, Franca Ronchese, Michael I Jordan, Ido Amit, Nir Yosef (2022). *DestVI identifies continuums of cell types in spatial transcriptomics data.* [Nature Biotechnology (in press)](https://www.biorxiv.org/content/10.1101/2021.05.10.443517v1)
 
-[^ref2]: Jakub Tomczak, Max Welling (2018),
-    *VAE with a VampPrior*,
-    .
+[^ref2]: Jakub Tomczak, Max Welling (2018),*VAE with a VampPrior*, [Proceedings of Machine Learning Research](https://proceedings.mlr.press/v84/tomczak18a.html)

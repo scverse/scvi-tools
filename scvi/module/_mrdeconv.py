@@ -34,7 +34,7 @@ class MRDeconv(BaseModuleClass):
     n_genes
         Number of genes used in the decoder
     dropout_decoder
-        Dropout rate for the decoder neural network
+        Dropout rate for the decoder neural network (same dropout as in CondSCVI decoder)
     dropout_amortization
         Dropout rate for the amortization neural network
     decoder_state_dict
@@ -76,7 +76,7 @@ class MRDeconv(BaseModuleClass):
         decoder_state_dict: OrderedDict,
         px_decoder_state_dict: OrderedDict,
         px_r: np.ndarray,
-        dropout_decoder: float = 0.05,
+        dropout_decoder: float,
         dropout_amortization: float = 0.05,
         mean_vprior: np.ndarray = None,
         var_vprior: np.ndarray = None,
