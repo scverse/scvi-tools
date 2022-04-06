@@ -25,7 +25,7 @@ expression matrix of UMI counts $X$ with $N$ cells and $G$ genes, along with
 a vector of cell type labels $\vec{c}$. Subsequently, the stLVM takes in the trained scLVM,
 along a spatial gene expression matrix $Y$ with $S$ spots and $G$ genes.
 Optionally, the user can specify the number of components used for the mixture model underlying the
-emprical prior.
+empirical prior.
 
 ## Generative process
 
@@ -95,7 +95,7 @@ and gene $g$, the observation is generated as a function of the latent variables
 :nowrap: true
 
 \begin{align}
-    \gamma_x^c &\sim \frac{1}{K} \sum_{k=1}^K q_\Phi(\gamma^c \mid u_{kc}, c) \tag{4} \\
+    \gamma_x^c &\sim \sum_{k=1}^K m_{kc} q_\Phi(\gamma^c \mid u_{kc}, c) \tag{4} \\
     x_{sg} &\sim \mathrm{NegativeBinomial}(l_s\alpha_g\sum_{c=1}^{C}\beta_{sc}f^g(c, \gamma_s^c), p_g) \tag{5} \\
 \end{align}
 ```
@@ -106,7 +106,10 @@ $p_g$ is the rate parameter for the negative binomial distribution.
 
 To avoid the latent variable $\gamma_s^c$ from incorporating variation attributed to experimental
 assay differences, we assign an empirical prior informed by the scLVM and a corresponding set of
-cells of the same cell type in the scRNA-seq dataset.
+cells of the same cell type in the scRNA-seq dataset. To compute this function, we subcluster the latent space of the
+scLVM for each cell type to k cell type specific clusters. For each cluster we compute an empirical mean and variance.
+The loss is weighted by the probability of a random cell from this cell type to be in the respective cluster in the
+scRNA-seq dataset (mixture probability, $m_{kc}$).
 Above, $\{u_{kc}\}_{k=1}^K$ designates a set of cells from cell type $c$ in the scRNA-seq dataset, and
 $q_\Phi$ designates the variational distrbution from the scLVM.
 In literature, the prior is referred to as a VampPrior ("variational aggregated mixture of posteriors" prior) [^ref2].
@@ -116,6 +119,9 @@ Lastly, an additional latent variable, $\eta_g$, is incorporated into the aggreg
 as a dummy cell type to represent gene specific noise. The dummy cell type's expression profile is distributed
 as $\epsilon_g := \mathrm{Softplus}(\eta_g)$ where $\eta_g \sim \mathrm{Normal}(0, 1)$.
 Like the other cell types, there is an associated cell type abundance parameter $\beta_{sc}$ associated with $\eta$.
+We suspect each spot to only contain a fraction of the different cell types. To increase sparsity of the cell type
+proportions, the stLVM supports L1 regularization on the cell types proportions $\beta_{sc}$. By default this loss is
+not used.
 
 This generative process is also summarized in the following graphical model:
 
@@ -140,10 +146,10 @@ The latent variables for the stLVM, along with their description are summarized 
    * - :math:`\beta_{sc} \in (0, \infty)`
      - Spot-specific cell type abundance.
      - ``v_ind``
-   * - :math:`\gamma_s^c \in (0, \infty)`
+   * - :math:`\gamma_s^c \in (-\infty, \infty)`
      - Low-dimensional representation of sub-cell-type covariates for a given spot and cell type.
      - ``gamma``
-   * - :math:`\eta_g \in (-\infty, \infty)`
+   * - :math:`\eta_g \in (0, \infty)`
      - Gene-specific noise.
      - ``eta``
    * - :math:`\alpha_g \in (0, \infty)`
@@ -176,8 +182,8 @@ The loss is defined as:
 :nowrap: true
 
 \begin{align}
-     L(l, \alpha, \beta, f^g, \gamma, p, \eta) := &-\log p(X \mid l, \alpha, \beta, f^g, \gamma, p, \eta) - \log p(\eta) \\
-     &+ \mathrm{Var}(\alpha) - \log p(\gamma \mid \mathrm{VampPrior}) \tag{6} \\
+     L(l, \alpha, \beta, f^g, \gamma, p, \eta) := &-\log p(X \mid l, \alpha, \beta, f^g, \gamma, p, \eta) - eta_{reg} \log p(\eta) \\
+     &+ beta_{reg} \mathrm{Var}(\alpha) - \log p(\gamma \mid \mathrm{VampPrior}) + l1_{reg} \lVert \beta_{sc} \rVert_1  \tag{6} \\
 \end{align}
 ```
 
@@ -203,7 +209,8 @@ Subsequently for a given cell type, users can plot a heatmap of the cell type pr
 
 ```
 >>> import scanpy as sc
->>> sc.p1.embedding(st_adata, basis="location", color="B cells")
+>>> st_adata.obs['B cells'] = st_adata.obsm['proportions']['B cells']
+>>> sc.pl.spatial(st_adata, color="B cells", spot_size=130)
 ```
 
 ### Intra cell type variation
@@ -230,13 +237,14 @@ impute the spatial pattern of the cell-type-specific gene expression with:
 ### Comparative analysis between samples
 
 To perform differential expression across samples, one can apply a frequentist test by taking samples
-from the parameters of the generative distribution predicted for each spot in question. More details
-can be found in the DestVI paper.
+from the parameters of the generative distribution predicted for each spot in question. 
+### Utilities function
 
-[^ref1]: Romain Lopez, Baoguo Li, Hadas Keren-Shaul, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Eyal David, Allon Wagner, Yoseph Addad, Michael I. Jordan, Ido Amit, Nir Yosef (2021),
-    *Multi-resolution deconvolution of spatial transcriptomics data reveals continuous patterns of inflammation*,
-    [bioRxiv](https://doi.org/10.1101/2021.05.10.443517).
+To explore the results of the output of the stLVM, we published a utilities function covering functions
+for automatic thresholding of cell type proportions, a spatial PCA analysis to find main axis of variation
+in spatial gene expression and the described frequentist test for differential expression. Further information
+can be found on [destvi_utils](https://destvi-utils.readthedocs.io/en/latest/installation.html)
 
-[^ref2]: Jakub Tomczak, Max Welling (2018),
-    *VAE with a VampPrior*,
-    .
+[^ref1]: Romain Lopez, Baoguo Li, Hadas Keren-Shaul, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Ido Yofe, Eyal David, Allon Wagner, Can Ergen, Yoseph Addadi, Ofra Golani, Franca Ronchese, Michael I Jordan, Ido Amit, Nir Yosef (2022). *DestVI identifies continuums of cell types in spatial transcriptomics data.* [Nature Biotechnology (in press)](https://www.biorxiv.org/content/10.1101/2021.05.10.443517v1)
+
+[^ref2]: Jakub Tomczak, Max Welling (2018),*VAE with a VampPrior*, [Proceedings of Machine Learning Research](https://proceedings.mlr.press/v84/tomczak18a.html)
