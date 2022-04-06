@@ -8,11 +8,10 @@ import scipy.sparse as sp_sparse
 import torch
 
 from scvi import REGISTRY_KEYS
+from scvi._types import Number
 from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
-
-Number = Union[int, float]
 
 
 def parse_use_gpu_arg(

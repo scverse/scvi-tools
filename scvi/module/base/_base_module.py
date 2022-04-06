@@ -8,6 +8,8 @@ from flax import linen
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 
+from scvi._types import LossRecord
+
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
@@ -39,22 +41,10 @@ class LossRecorder:
 
     def __init__(
         self,
-        loss: Union[
-            Dict[str, Union[torch.Tensor, jnp.ndarray]],
-            Union[torch.Tensor, jnp.ndarray],
-        ],
-        reconstruction_loss: Union[
-            Dict[str, Union[torch.Tensor, jnp.ndarray]],
-            Union[torch.Tensor, jnp.ndarray],
-        ] = None,
-        kl_local: Union[
-            Dict[str, Union[torch.Tensor, jnp.ndarray]],
-            Union[torch.Tensor, jnp.ndarray],
-        ] = None,
-        kl_global: Union[
-            Dict[str, Union[torch.Tensor, jnp.ndarray]],
-            Union[torch.Tensor, jnp.ndarray],
-        ] = None,
+        loss: LossRecord,
+        reconstruction_loss: Optional[LossRecord] = None,
+        kl_local: Optional[LossRecord] = None,
+        kl_global: Optional[LossRecord] = None,
         **kwargs,
     ):
 
