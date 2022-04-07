@@ -395,6 +395,9 @@ class SpatialStereoscope(BaseModelClass):
                     "Keyboard interrupt detected. Attempting graceful shutdown."
                 )
 
+        self.svi = svi
+        self.svi_state = svi_state
+
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
