@@ -5,12 +5,13 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import (
+from scvi.data import AnnDataManager
+from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
     NumericalJointObsField,
+    NumericalObsField,
 )
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
@@ -98,13 +99,18 @@ class SCVI(
             self.adata_manager.get_state_registry(
                 REGISTRY_KEYS.CAT_COVS_KEY
             ).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.registry
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
         n_batch = self.summary_stats.n_batch
-        library_log_means, library_log_vars = _init_library_size(
-            self.adata_manager, n_batch
+        use_size_factor_key = (
+            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
+        library_log_means, library_log_vars = None, None
+        if not use_size_factor_key:
+            library_log_means, library_log_vars = _init_library_size(
+                self.adata_manager, n_batch
+            )
 
         self.module = VAE(
             n_input=self.summary_stats.n_vars,
@@ -119,6 +125,7 @@ class SCVI(
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
+            use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
             **model_kwargs,
@@ -142,11 +149,12 @@ class SCVI(
     def setup_anndata(
         cls,
         adata: AnnData,
+        layer: Optional[str] = None,
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
+        size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
-        layer: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -154,9 +162,10 @@ class SCVI(
 
         Parameters
         ----------
+        %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
-        %(param_layer)s
+        %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
@@ -165,6 +174,9 @@ class SCVI(
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            NumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
+            ),
             CategoricalJointObsField(
                 REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),

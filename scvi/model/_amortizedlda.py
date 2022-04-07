@@ -9,8 +9,8 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import LayerField
+from scvi.data import AnnDataManager
+from scvi.data.fields import LayerField
 from scvi.module import AmortizedLDAPyroModule
 from scvi.utils import setup_anndata_dsp
 

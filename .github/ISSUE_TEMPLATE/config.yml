@@ -1,0 +1,4 @@
+contact_links:
+  - name: Usage question
+    url: https://discourse.scvi-tools.org/
+    about: Please ask and answer non-development questions at https://discourse.scvi-tools.org/.

@@ -4,8 +4,9 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import (
+from scvi.data import AnnDataManager
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
+from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
@@ -39,6 +40,10 @@ def generic_setup_adata_manager(
     protein_expression_obsm_key: Optional[str] = None,
     protein_names_uns_key: Optional[str] = None,
 ) -> AnnDataManager:
+    setup_args = locals()
+    setup_args.pop("adata")
+    setup_method_args = {_MODEL_NAME_KEY: "TestModel", _SETUP_ARGS_KEY: setup_args}
+
     batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
     anndata_fields = [
         batch_field,
@@ -60,6 +65,8 @@ def generic_setup_adata_manager(
                 is_count_data=True,
             )
         )
-    adata_manager = AnnDataManager(fields=anndata_fields)
+    adata_manager = AnnDataManager(
+        fields=anndata_fields, setup_method_args=setup_method_args
+    )
     adata_manager.register_fields(adata)
     return adata_manager

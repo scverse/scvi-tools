@@ -10,10 +10,10 @@ from anndata import AnnData
 from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_KWARGS_KEY
-from scvi.data.anndata.fields import CategoricalObsField, LayerField
+from scvi.data import AnnDataManager
+from scvi.data._compat import manager_from_setup_dict
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, VAEMixin
@@ -83,12 +83,22 @@ class GIMVI(VAEMixin, BaseModelClass):
         **model_kwargs,
     ):
         super(GIMVI, self).__init__()
+        if adata_seq is adata_spatial:
+            raise ValueError(
+                "`adata_seq` and `adata_spatial` cannot point to the same object. "
+                "If you would really like to do this, make a copy of the object and pass it in as `adata_spatial`."
+            )
         self.adatas = [adata_seq, adata_spatial]
         self.adata_managers = {
-            "seq": self.get_anndata_manager(adata_seq, required=True),
-            "spatial": self.get_anndata_manager(adata_spatial, required=True),
+            "seq": self._get_most_recent_anndata_manager(adata_seq, required=True),
+            "spatial": self._get_most_recent_anndata_manager(
+                adata_spatial, required=True
+            ),
         }
-        self.registries_ = [adm.registry for adm in self.adata_managers.values()]
+        self.registries_ = []
+        for adm in self.adata_managers.values():
+            self._register_manager_for_instance(adm)
+            self.registries_.append(adm.registry)
 
         seq_var_names = adata_seq.var_names
         spatial_var_names = adata_spatial.var_names
@@ -432,10 +442,10 @@ class GIMVI(VAEMixin, BaseModelClass):
     def load(
         cls,
         dir_path: str,
-        prefix: Optional[str] = None,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        prefix: Optional[str] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -444,8 +454,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         ----------
         dir_path
             Path to saved outputs.
-        prefix
-            Prefix of saved file names.
         adata_seq
             AnnData organized in the same way as data used to train model.
             It is not necessary to run :meth:`~scvi.external.GIMVI.setup_anndata`,
@@ -457,6 +465,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        prefix
+            Prefix of saved file names.
 
         Returns
         -------
@@ -515,14 +525,14 @@ class GIMVI(VAEMixin, BaseModelClass):
                         "It appears you are loading a model from a different class."
                     )
 
-                if _SETUP_KWARGS_KEY not in registry:
+                if _SETUP_ARGS_KEY not in registry:
                     raise ValueError(
                         "Saved model does not contain original setup inputs. "
                         "Cannot load the original setup."
                     )
 
                 cls.setup_anndata(
-                    adata, source_registry=registry, **registry[_SETUP_KWARGS_KEY]
+                    adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
                 )
 
         # get the parameters for the class init signiture

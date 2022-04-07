@@ -177,7 +177,7 @@ class VAEMixin:
 
             latent += [z.cpu()]
         return torch.cat(latent).numpy()
-    
+
     @torch.no_grad()
     def get_batch_embedding(self):
         return self.module.batch_embedding

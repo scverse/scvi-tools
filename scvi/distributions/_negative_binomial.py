@@ -1,8 +1,13 @@
 import warnings
 from typing import Optional, Tuple, Union
 
+import jax
+import jax.numpy as jnp
+import numpyro.distributions as dist
 import torch
 import torch.nn.functional as F
+from numpyro.distributions import constraints as numpyro_constraints
+from numpyro.distributions.util import promote_shapes, validate_sample
 from torch.distributions import Distribution, Gamma, Poisson, constraints
 from torch.distributions.utils import (
     broadcast_all,
@@ -64,7 +69,14 @@ def log_zinb_positive(
     return res
 
 
-def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=1e-8):
+def log_nb_positive(
+    x: Union[torch.Tensor, jnp.ndarray],
+    mu: Union[torch.Tensor, jnp.ndarray],
+    theta: Union[torch.Tensor, jnp.ndarray],
+    eps: float = 1e-8,
+    log_fn: callable = torch.log,
+    lgamma_fn: callable = torch.lgamma,
+):
     """
     Log likelihood (scalar) of a minibatch according to a nb model.
 
@@ -78,25 +90,16 @@ def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=
         inverse dispersion parameter (has to be positive support) (shape: minibatch x vars)
     eps
         numerical stability constant
-
-    Notes
-    -----
-    We parametrize the bernoulli using the logits, hence the softplus functions appearing.
-
     """
-    if theta.ndimension() == 1:
-        theta = theta.view(
-            1, theta.size(0)
-        )  # In this case, we reshape theta for broadcasting
-
-    log_theta_mu_eps = torch.log(theta + mu + eps)
-
+    log = log_fn
+    lgamma = lgamma_fn
+    log_theta_mu_eps = log(theta + mu + eps)
     res = (
-        theta * (torch.log(theta + eps) - log_theta_mu_eps)
-        + x * (torch.log(mu + eps) - log_theta_mu_eps)
-        + torch.lgamma(x + theta)
-        - torch.lgamma(theta)
-        - torch.lgamma(x + 1)
+        theta * (log(theta + eps) - log_theta_mu_eps)
+        + x * (log(mu + eps) - log_theta_mu_eps)
+        + lgamma(x + theta)
+        - lgamma(theta)
+        - lgamma(x + 1)
     )
 
     return res
@@ -540,4 +543,48 @@ class NegativeBinomialMixture(Distribution):
             self.theta2,
             self.mixture_logits,
             eps=1e-08,
+        )
+
+
+class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
+    """Negative binomial parameterized by mean and inverse dispersion."""
+
+    arg_constraints = {
+        "mean": numpyro_constraints.positive,
+        "inverse_dispersion": numpyro_constraints.positive,
+    }
+    support = numpyro_constraints.nonnegative_integer
+
+    def __init__(
+        self,
+        mean: jnp.ndarray,
+        inverse_dispersion: jnp.ndarray,
+        validate_args: Optional[bool] = None,
+        eps: float = 1e-8,
+    ):
+        self._inverse_dispersion, self._mean = promote_shapes(inverse_dispersion, mean)
+        self._eps = eps
+        super().__init__(mean, inverse_dispersion, validate_args=validate_args)
+
+    @property
+    def mean(self):
+        return self._mean
+
+    @property
+    def inverse_dispersion(self):
+        return self._inverse_dispersion
+
+    @validate_sample
+    def log_prob(self, value):
+        # theta is inverse_dispersion
+        theta = self._inverse_dispersion
+        mu = self._mean
+        eps = self._eps
+        return log_nb_positive(
+            value,
+            mu,
+            theta,
+            eps=eps,
+            log_fn=jnp.log,
+            lgamma_fn=jax.scipy.special.gammaln,
         )

@@ -5,9 +5,10 @@ import h5py
 import numpy as np
 import pandas as pd
 from anndata._core.sparse_dataset import SparseDataset
+from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
-from scvi.data.anndata import AnnDataManager
+from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class AnnTorchDataset(Dataset):
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
     ):
         self.adata_manager = adata_manager
+        self.is_backed = adata_manager.adata.isbacked
         self.attributes_and_types = None
         self.getitem_tensors = getitem_tensors
         self.setup_getitem()
@@ -93,28 +95,29 @@ class AnnTorchDataset(Dataset):
     def __getitem__(self, idx: List[int]) -> Dict[str, np.ndarray]:
         """Get tensors in dictionary from anndata at idx."""
         data_numpy = {}
-        for key, dtype in self.attributes_and_types.items():
-            data = self.data[key]
-            # for backed anndata
-            if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
-                # need to sort idxs for h5py datasets
-                if hasattr(idx, "shape"):
-                    argsort = np.argsort(idx)
-                else:
-                    argsort = idx
-                data = data[idx[argsort]]
-                # now unsort
-                i = np.empty_like(argsort)
-                i[argsort] = np.arange(argsort.size)
-                # this unsorts it
-                idx = i
 
-            if isinstance(data, np.ndarray):
-                data_numpy[key] = data[idx].astype(dtype)
-            elif isinstance(data, pd.DataFrame):
-                data_numpy[key] = data.iloc[idx, :].to_numpy().astype(dtype)
+        if self.is_backed and hasattr(idx, "shape"):
+            # need to sort idxs for h5py datasets
+            idx = idx[np.argsort(idx)]
+        for key, dtype in self.attributes_and_types.items():
+            cur_data = self.data[key]
+            # for backed anndata
+            if isinstance(cur_data, h5py.Dataset) or isinstance(
+                cur_data, SparseDataset
+            ):
+                sliced_data = cur_data[idx]
+                if issparse(cur_data):
+                    sliced_data = sliced_data.toarray()
+                sliced_data = sliced_data.astype(dtype)
+            elif isinstance(cur_data, np.ndarray):
+                sliced_data = cur_data[idx].astype(dtype)
+            elif isinstance(cur_data, pd.DataFrame):
+                sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
+            elif issparse(cur_data):
+                sliced_data = cur_data[idx].toarray().astype(dtype)
             else:
-                data_numpy[key] = data[idx].toarray().astype(dtype)
+                raise TypeError(f"{key} is not a supported type")
+            data_numpy[key] = sliced_data
 
         return data_numpy
 

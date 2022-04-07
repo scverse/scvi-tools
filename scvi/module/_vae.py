@@ -72,6 +72,9 @@ class VAE(BaseModuleClass):
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     use_layer_norm
         Whether to use layer norm in layers
+    use_size_factor_key
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
+        Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     use_batch_embedding
@@ -107,6 +110,7 @@ class VAE(BaseModuleClass):
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_batch_embedding: bool = False,
+        use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
@@ -123,7 +127,8 @@ class VAE(BaseModuleClass):
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
 
-        self.use_observed_lib_size = use_observed_lib_size
+        self.use_size_factor_key = use_size_factor_key
+        self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_means is None:
                 raise ValueError(
@@ -232,14 +237,23 @@ class VAE(BaseModuleClass):
 
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-        input_dict = {
-            "z": z,
-            "library": library,
-            "batch_index": batch_index,
-            "y": y,
-            "cont_covs": cont_covs,
-            "cat_covs": cat_covs,
-        }
+
+        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
+        size_factor = (
+            torch.log(tensors[size_factor_key])
+            if size_factor_key in tensors.keys()
+            else None
+        )
+
+        input_dict = dict(
+            z=z,
+            library=library,
+            batch_index=batch_index,
+            y=y,
+            cont_covs=cont_covs,
+            cat_covs=cat_covs,
+            size_factor=size_factor,
+        )
         return input_dict
 
     def _compute_local_library_params(self, batch_index):
@@ -272,11 +286,11 @@ class VAE(BaseModuleClass):
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
-        if cont_covs is not None and self.encode_covariates is True:
+        if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
         else:
             encoder_input = x_
-        if cat_covs is not None and self.encode_covariates is True:
+        if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
@@ -315,6 +329,7 @@ class VAE(BaseModuleClass):
         batch_index,
         cont_covs=None,
         cat_covs=None,
+        size_factor=None,
         y=None,
         transform_batch=None,
     ):
@@ -329,8 +344,16 @@ class VAE(BaseModuleClass):
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
+        if not self.use_size_factor_key:
+            size_factor = library
+
         px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, decoder_input, library, batch_index, *categorical_input, y
+            self.dispersion,
+            decoder_input,
+            size_factor,
+            batch_index,
+            *categorical_input,
+            y,
         )
         if self.dispersion == "gene-label":
             px_r = F.linear(
