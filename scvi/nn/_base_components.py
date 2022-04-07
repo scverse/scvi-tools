@@ -2,7 +2,6 @@ import collections
 from typing import Callable, Iterable, List, Optional
 
 import torch
-import pdb
 from torch import nn as nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
@@ -50,6 +49,8 @@ class FCLayers(nn.Module):
         Whether to inject covariates in each layer, or just the first (default).
     activation_fn
         Which activation function to use
+    batch_embedding
+        Embedding used to encode batch covariates
     """
 
     def __init__(
@@ -81,7 +82,7 @@ class FCLayers(nn.Module):
             self.n_cat_list = []
 
         cat_dim = sum(self.n_cat_list)
-        if self.batch_embedding:
+        if self.batch_embedding: 
             cat_dim = 5
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
@@ -167,21 +168,17 @@ class FCLayers(nn.Module):
             raise ValueError(
                 "nb. categorical args provided doesn't match init. params."
             )
-        
         for n_cat, cat in zip(self.n_cat_list, cat_list):
             if n_cat and cat is None:
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
                 if self.batch_embedding:
-                    if type(cat) is tuple:
-                        pdb.set_trace()
                     one_hot_cat = self.batch_embedding(cat.squeeze().int())
                 elif cat.size(1) != n_cat:
                     one_hot_cat = one_hot(cat, n_cat)
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
-
         for i, layers in enumerate(self.fc_layers):
             for layer in layers:
                 if layer is not None:
@@ -336,6 +333,8 @@ class DecoderSCVI(nn.Module):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
+    batch_embedding
+        Embedding used to encode batch covariates
     """
 
     def __init__(

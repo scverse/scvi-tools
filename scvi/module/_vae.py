@@ -74,6 +74,8 @@ class VAE(BaseModuleClass):
         Whether to use layer norm in layers
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
+    use_batch_embedding
+        Use batch embedding when encoding batch covariates
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
@@ -104,6 +106,7 @@ class VAE(BaseModuleClass):
         deeply_inject_covariates: bool = True,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_batch_embedding: bool = False,
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
@@ -187,7 +190,9 @@ class VAE(BaseModuleClass):
             var_activation=var_activation,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
-        self.batch_embedding = torch.nn.Embedding(n_batch,embedding_dim=5)
+        batch_embedding = None
+        if use_batch_embedding:
+            batch_embedding = torch.nn.Embedding(n_batch,embedding_dim=5)
         n_input_decoder = n_latent + n_continuous_cov
         self.decoder = DecoderSCVI(
             n_input_decoder,
@@ -198,7 +203,7 @@ class VAE(BaseModuleClass):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            batch_embedding=self.batch_embedding,
+            batch_embedding=batch_embedding,
         )
 
     def _get_inference_input(self, tensors):
