@@ -286,6 +286,7 @@ class AutoZIVAE(VAE):
         library,
         batch_index: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
+        size_factor=None,
         cont_covs=None,
         cat_covs=None,
         n_samples: int = 1,
@@ -298,6 +299,7 @@ class AutoZIVAE(VAE):
             cont_covs=cont_covs,
             cat_covs=cat_covs,
             y=y,
+            size_factor=size_factor,
         )
         # Rescale dropout
         outputs["px_dropout"] = self.rescale_dropout(

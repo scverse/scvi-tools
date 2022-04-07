@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.data.anndata import AnnDataManager
+from scvi.data import AnnDataManager
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -61,7 +61,7 @@ class DataSplitter(pl.LightningDataModule):
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
+        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
         float, or None (default is 0.9)
     validation_size
@@ -133,7 +133,7 @@ class DataSplitter(pl.LightningDataModule):
             return AnnDataLoader(
                 self.adata_manager,
                 indices=self.val_idx,
-                shuffle=True,
+                shuffle=False,
                 drop_last=3,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
@@ -146,7 +146,7 @@ class DataSplitter(pl.LightningDataModule):
             return AnnDataLoader(
                 self.adata_manager,
                 indices=self.test_idx,
-                shuffle=True,
+                shuffle=False,
                 drop_last=3,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
@@ -166,7 +166,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
+        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     unlabeled_category
         Category to treat as unlabeled
     train_size
@@ -305,7 +305,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             return self.data_loader_class(
                 self.adata_manager,
                 indices=self.val_idx,
-                shuffle=True,
+                shuffle=False,
                 drop_last=3,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
@@ -318,7 +318,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             return self.data_loader_class(
                 self.adata_manager,
                 indices=self.test_idx,
-                shuffle=True,
+                shuffle=False,
                 drop_last=3,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
@@ -336,7 +336,7 @@ class DeviceBackedDataSplitter(DataSplitter):
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object that has been created via ``setup_anndata``.
+        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
         float, or None (default is 0.9)
     validation_size
@@ -345,7 +345,9 @@ class DeviceBackedDataSplitter(DataSplitter):
         Use default GPU if available (if None or True), or index of GPU to use (if int),
         or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
     shuffle
-        if ``True``, shuffles indices before sampling
+        if ``True``, shuffles indices before sampling for training set
+    shuffle_test_val
+        Shuffle test and validation indices.
     batch_size
         batch size of each iteration. If `None`, do not minibatch
 
@@ -366,6 +368,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         validation_size: Optional[float] = None,
         use_gpu: bool = False,
         shuffle: bool = False,
+        shuffle_test_val: bool = False,
         batch_size: Optional[int] = None,
         **kwargs,
     ):
@@ -378,6 +381,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         )
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self.shuffle_test_val = shuffle_test_val
 
     def setup(self, stage: Optional[str] = None):
         super().setup()
@@ -418,23 +422,23 @@ class DeviceBackedDataSplitter(DataSplitter):
         else:
             return None
 
-    def _make_dataloader(self, tensor_dict: Dict[str, torch.Tensor]):
+    def _make_dataloader(self, tensor_dict: Dict[str, torch.Tensor], shuffle):
         if tensor_dict is None:
             return None
         dataset = _DeviceBackedDataset(tensor_dict)
         indices = np.arange(len(dataset))
         bs = self.batch_size if self.batch_size is not None else len(indices)
-        sampler = BatchSampler(shuffle=self.shuffle, indices=indices, batch_size=bs)
+        sampler = BatchSampler(shuffle=shuffle, indices=indices, batch_size=bs)
         return DataLoader(dataset, sampler=sampler, batch_size=None)
 
     def train_dataloader(self):
-        return self._make_dataloader(self.train_tensor_dict)
+        return self._make_dataloader(self.train_tensor_dict, self.shuffle)
 
     def test_dataloader(self):
-        return self._make_dataloader(self.test_tensor_dict)
+        return self._make_dataloader(self.test_tensor_dict, self.shuffle_test_val)
 
     def val_dataloader(self):
-        return self._make_dataloader(self.val_tensor_dict)
+        return self._make_dataloader(self.val_tensor_dict, self.shuffle_test_val)
 
 
 class _DeviceBackedDataset(Dataset):

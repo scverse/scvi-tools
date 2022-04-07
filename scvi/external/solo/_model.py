@@ -10,8 +10,8 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import CategoricalObsField, LayerField
+from scvi.data import AnnDataManager
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
@@ -131,10 +131,13 @@ class SOLO(BaseModelClass):
         orig_batch_key = orig_adata_manager.get_state_registry(
             REGISTRY_KEYS.BATCH_KEY
         ).original_key
+        orig_labels_key = orig_adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        ).original_key
 
         if adata is not None:
-            cls.register_manager(orig_adata_manager.transfer_setup(adata))
-            adata_manager = cls.get_anndata_manager(adata)
+            adata_manager = orig_adata_manager.transfer_fields(adata)
+            cls.register_manager(adata_manager)
         else:
             adata_manager = orig_adata_manager
         adata = adata_manager.adata
@@ -164,6 +167,12 @@ class SOLO(BaseModelClass):
             restrict_to_batch if restrict_to_batch is not None else 0
         )
 
+        # Create dummy labels column set to first label in adata (does not affect inference).
+        dummy_label = orig_adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        ).categorical_mapping[0]
+        doublet_adata.obs[orig_labels_key] = dummy_label
+
         # if model is using observed lib size, needs to get lib sample
         # which is just observed lib size on log scale
         give_mean_lib = not scvi_model.module.use_observed_lib_size
@@ -185,7 +194,6 @@ class SOLO(BaseModelClass):
         logger.info("Creating doublets, preparing SOLO model.")
         f = io.StringIO()
         with redirect_stdout(f):
-            scvi_model.setup_anndata(doublet_adata, batch_key=orig_batch_key)
             doublet_latent_rep = scvi_model.get_latent_representation(doublet_adata)
             doublet_lib_size = scvi_model.get_latent_library_size(
                 doublet_adata, give_mean=give_mean_lib
@@ -252,7 +260,7 @@ class SOLO(BaseModelClass):
         max_epochs: int = 400,
         lr: float = 1e-3,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        train_size: float = 1,
+        train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
@@ -303,7 +311,7 @@ class SOLO(BaseModelClass):
         if early_stopping:
             early_stopping_callback = [
                 LoudEarlyStopping(
-                    monitor="validation_loss",
+                    monitor="validation_loss" if train_size != 1.0 else "train_loss",
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
                     mode="min",
@@ -409,7 +417,7 @@ class SOLO(BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=False),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(

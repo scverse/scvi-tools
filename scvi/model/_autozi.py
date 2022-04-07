@@ -9,8 +9,8 @@ from torch.distributions import Beta, Normal
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import CategoricalObsField, LayerField
+from scvi.data import AnnDataManager
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import AutoZIVAE
@@ -88,7 +88,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/AutoZI_tutorial`
+    1. :doc:`/tutorials/notebooks/AutoZI_tutorial`
     """
 
     def __init__(
