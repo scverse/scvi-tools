@@ -10,7 +10,8 @@ python:
     path: .
     extra_requirements:
     - docs
+    - pymde
 submodules:
   include:
-     - "docs/user_guide/notebooks"
+     - "docs/tutorials/notebooks"
   recursive: true

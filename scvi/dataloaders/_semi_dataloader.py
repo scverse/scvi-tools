@@ -1,9 +1,9 @@
 from typing import List, Optional, Union
 
 import numpy as np
-from anndata import AnnData
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
+from scvi.data import AnnDataManager
 
 from ._concat_dataloader import ConcatDataLoader
 
@@ -14,8 +14,8 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
     Parameters
     ----------
-    adata
-        AnnData object that have been registered via :func:`~scvi.data.setup_anndata`.
+    adata_manager
+        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     unlabeled_category
         Category to treat as unlabeled
     n_samples_per_label
@@ -28,7 +28,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
     batch_size
         minibatch size to load each iteration
     data_and_attributes
-        Dictionary with keys representing keys in data registry (`adata.uns["_scvi"]`)
+        Dictionary with keys representing keys in data registry (`adata_manager.data_registry`)
         and value equal to desired numpy loading type (later made into torch tensor).
         If `None`, defaults to all registered data.
     data_loader_kwargs
@@ -37,7 +37,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata_manager: AnnDataManager,
         unlabeled_category: str,
         n_samples_per_label: Optional[int] = None,
         indices: Optional[List[int]] = None,
@@ -47,6 +47,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         drop_last: Union[bool, int] = False,
         **data_loader_kwargs,
     ):
+        adata = adata_manager.adata
         if indices is None:
             indices = np.arange(adata.n_obs)
 
@@ -57,21 +58,22 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
         self.n_samples_per_label = n_samples_per_label
 
-        key = adata.uns["_scvi"]["data_registry"][_CONSTANTS.LABELS_KEY]["attr_key"]
-        labels_obs_key = adata.uns["_scvi"]["categorical_mappings"][key]["original_key"]
+        labels_obs_key = adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        ).original_key
+        labels = np.asarray(adata_manager.adata.obs[labels_obs_key]).ravel()
 
         # save a nested list of the indices per labeled category
         self.labeled_locs = []
-        labels = np.unique(adata.obs[labels_obs_key][indices])
-        for label in labels:
+        for label in np.unique(labels):
             if label != unlabeled_category:
-                label_loc_idx = np.where(adata.obs[labels_obs_key][indices] == label)[0]
+                label_loc_idx = np.where(labels[indices] == label)[0]
                 label_loc = indices[label_loc_idx]
                 self.labeled_locs.append(label_loc)
         labelled_idx = self.subsample_labels()
 
         super().__init__(
-            adata=adata,
+            adata_manager=adata_manager,
             indices_list=[indices, labelled_idx],
             shuffle=shuffle,
             batch_size=batch_size,

@@ -1,12 +1,5 @@
 from anndata import read_csv, read_h5ad, read_loom, read_text
 
-from ._anndata import (
-    get_from_registry,
-    register_tensor_from_anndata,
-    setup_anndata,
-    transfer_anndata_setup,
-    view_anndata_setup,
-)
 from ._datasets import (
     annotation_simulation,
     brainlarge_dataset,
@@ -17,6 +10,7 @@ from ._datasets import (
     heart_cell_atlas_subsampled,
     mouse_ob_dataset,
     pbmc_dataset,
+    pbmc_seurat_v4_cite_seq,
     pbmcs_10x_cite_seq,
     prefrontalcortex_starmap,
     purified_pbmc_dataset,
@@ -27,6 +21,7 @@ from ._datasets import (
     spleen_lymph_cite_seq,
     synthetic_iid,
 )
+from ._manager import AnnDataManager
 from ._preprocessing import (
     organize_cite_seq_10x,
     organize_multiome_anndatas,
@@ -35,9 +30,7 @@ from ._preprocessing import (
 from ._read import read_10x_atac, read_10x_multiome
 
 __all__ = [
-    "setup_anndata",
-    "get_from_registry",
-    "view_anndata_setup",
+    "AnnDataManager",
     "poisson_gene_selection",
     "organize_cite_seq_10x",
     "pbmcs_10x_cite_seq",
@@ -57,8 +50,6 @@ __all__ = [
     "prefrontalcortex_starmap",
     "frontalcortex_dropseq",
     "annotation_simulation",
-    "transfer_anndata_setup",
-    "register_tensor_from_anndata",
     "read_h5ad",
     "read_csv",
     "read_loom",
@@ -67,4 +58,5 @@ __all__ = [
     "read_10x_multiome",
     "heart_cell_atlas_subsampled",
     "organize_multiome_anndatas",
+    "pbmc_seurat_v4_cite_seq",
 ]

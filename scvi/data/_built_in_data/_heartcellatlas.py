@@ -2,13 +2,11 @@ import os
 
 import anndata
 
-from scvi.data import setup_anndata
 from scvi.data._built_in_data._download import _download
 
 
 def _load_heart_cell_atlas_subsampled(
     save_path: str = "data/",
-    run_setup_anndata: bool = True,
     remove_nuisance_clusters: bool = True,
 ):
     """
@@ -21,8 +19,6 @@ def _load_heart_cell_atlas_subsampled(
     ----------
     save_path
         Location to use when saving/loading the data.
-    run_setup_anndata
-        If true, runs setup_anndata() on dataset before returning
     remove_nuisance_clusters
         Remove doublets and unsassigned cells
 
@@ -48,10 +44,5 @@ def _load_heart_cell_atlas_subsampled(
         remove = ["doublets", "NotAssigned"]
         keep = [c not in remove for c in dataset.obs.cell_type.values]
         dataset = dataset[keep, :].copy()
-
-    if run_setup_anndata:
-        setup_anndata(
-            dataset,
-        )
 
     return dataset

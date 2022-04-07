@@ -3,29 +3,66 @@ import os
 import pickle
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData, read
+from sklearn.utils import deprecated
 
 from scvi._compat import Literal
-from scvi.utils import DifferentialComputation, track
+from scvi.utils import track
+
+from ._differential import DifferentialComputation
 
 logger = logging.getLogger(__name__)
+
+
+def _should_use_legacy_saved_files(dir_path: str, file_name_prefix: str) -> bool:
+    new_model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
+    attr_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+    return (
+        not os.path.exists(new_model_path)
+        and os.path.exists(model_path)
+        and os.path.exists(var_names_path)
+        and os.path.exists(attr_dict_path)
+    )
+
+
+@deprecated(
+    extra="Please update your saved models to use the latest version. The legacy save and load scheme will be removed in version 0.16.0."
+)
+def _load_legacy_saved_files(
+    dir_path: str,
+    file_name_prefix: str,
+    map_location: Optional[Literal["cpu", "cuda"]],
+) -> Tuple[dict, np.ndarray, dict]:
+    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
+    setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+
+    model_state_dict = torch.load(model_path, map_location=map_location)
+
+    var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
+
+    with open(setup_dict_path, "rb") as handle:
+        attr_dict = pickle.load(handle)
+
+    return model_state_dict, var_names, attr_dict
 
 
 def _load_saved_files(
     dir_path: str,
     load_adata: bool,
+    prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
-):
+) -> Tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
-    setup_dict_path = os.path.join(dir_path, "attr.pkl")
-    adata_path = os.path.join(dir_path, "adata.h5ad")
-    varnames_path = os.path.join(dir_path, "var_names.csv")
-    model_path = os.path.join(dir_path, "model_params.pt")
+    file_name_prefix = prefix or ""
+    adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
 
     if os.path.exists(adata_path) and load_adata:
         adata = read(adata_path)
@@ -34,16 +71,22 @@ def _load_saved_files(
     else:
         adata = None
 
-    var_names = np.genfromtxt(varnames_path, delimiter=",", dtype=str)
+    use_legacy = _should_use_legacy_saved_files(dir_path, file_name_prefix)
 
-    with open(setup_dict_path, "rb") as handle:
-        attr_dict = pickle.load(handle)
+    # TODO(jhong): Remove once legacy load is deprecated.
+    if use_legacy:
+        model_state_dict, var_names, attr_dict = _load_legacy_saved_files(
+            dir_path, file_name_prefix, map_location
+        )
+    else:
+        model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
 
-    scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+        model = torch.load(model_path, map_location=map_location)
+        model_state_dict = model["model_state_dict"]
+        var_names = model["var_names"]
+        attr_dict = model["attr_dict"]
 
-    model_state_dict = torch.load(model_path, map_location=map_location)
-
-    return scvi_setup_dict, attr_dict, var_names, model_state_dict, adata
+    return attr_dict, var_names, model_state_dict, adata
 
 
 def _initialize_model(cls, adata, attr_dict):
@@ -71,7 +114,16 @@ def _initialize_model(cls, adata, attr_dict):
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         non_kwargs.pop("use_cuda")
 
+    # backwards compat for scANVI
+    if "unlabeled_category" in non_kwargs.keys():
+        non_kwargs.pop("unlabeled_category")
+    if "pretrained_model" in non_kwargs.keys():
+        non_kwargs.pop("pretrained_model")
+
     model = cls(adata, **non_kwargs, **kwargs)
+    for attr, val in attr_dict.items():
+        setattr(model, attr, val)
+
     return model
 
 
@@ -135,7 +187,7 @@ def _prepare_obs(
 
 
 def _de_core(
-    adata,
+    adata_manager,
     model_fn,
     groupby,
     group1,
@@ -152,9 +204,10 @@ def _de_core(
     batch_correction,
     fdr,
     silent,
-    **kwargs
+    **kwargs,
 ):
     """Internal function for DE interface."""
+    adata = adata_manager.adata
     if group1 is None and idx1 is None:
         group1 = adata.obs[groupby].astype("category").cat.categories.tolist()
         if len(group1) == 1:
@@ -174,7 +227,7 @@ def _de_core(
         groupby = temp_key
 
     df_results = []
-    dc = DifferentialComputation(model_fn, adata)
+    dc = DifferentialComputation(model_fn, adata_manager)
     for g1 in track(
         group1,
         description="DE...",
@@ -198,7 +251,7 @@ def _de_core(
         )
 
         if all_stats is True:
-            genes_properties_dict = all_stats_fn(adata, cell_idx1, cell_idx2)
+            genes_properties_dict = all_stats_fn(adata_manager, cell_idx1, cell_idx2)
             all_info = {**all_info, **genes_properties_dict}
 
         res = pd.DataFrame(all_info, index=col_names)

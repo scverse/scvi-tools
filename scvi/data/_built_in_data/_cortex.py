@@ -6,23 +6,19 @@ import anndata
 import numpy as np
 import pandas as pd
 
-from scvi.data._anndata import setup_anndata
 from scvi.data._built_in_data._download import _download
 
 logger = logging.getLogger(__name__)
 
 
-def _load_cortex(
-    save_path: str = "data/", run_setup_anndata: bool = True
-) -> anndata.AnnData:
+def _load_cortex(save_path: str = "data/") -> anndata.AnnData:
     """Loads cortex dataset."""
     save_path = os.path.abspath(save_path)
     url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
     save_fn = "expression.bin"
     _download(url, save_path, save_fn)
     adata = _load_cortex_txt(os.path.join(save_path, save_fn))
-    if run_setup_anndata:
-        setup_anndata(adata, labels_key="labels")
+
     return adata
 
 

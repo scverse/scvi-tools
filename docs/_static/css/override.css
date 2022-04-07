@@ -5,27 +5,13 @@
 https://github.com/streamlink/streamlink/blob/17a4088c38709123c0bcab4a150549bd16d19e07/docs/_static/styles/custom.css
 */
 
+/* for the sphinx design cards */
+body {
+    --sd-color-shadow: dimgrey;
+}
+
 dt:target, span.highlighted {
     background-color: #f0f0f0;
-}
-
-code.docutils.literal.notranslate.xref, a code {
-    background: transparent;
-    font-weight: bold;
-    color: inherit;
-}
-
-a > code {
-    color: inherit;
-}
-
-code.docutils.literal.notranslate {
-    background: #f8f9fb;
-    font-size: 87.5%;
-    border-radius: .2em;
-    color: #000000;
-    word-wrap: break-word;
-    padding: .1em .2em;
 }
 
 dl.citation > dt {
@@ -35,9 +21,9 @@ dl.citation > dt {
 }
 
 /* Parameters normalize size and captialized, */
-dl.c .field-list dt, dl.cpp .field-list dt, dl.js .field-list dt, dl.py .field-list dt {
-    font-size: var(--font-size--normal);
-    text-transform: none;
+dl .field-list dt {
+    font-size: var(--font-size--normal) !important;
+    text-transform: none !important;
 }
 
 /* examples and headings in classes */
@@ -48,73 +34,43 @@ p.rubric {
 }
 
 
-/* Getting started index page */
+  /* adapted from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
 
-.intro-card {
-    background: #fff;
-    border-radius: 0;
-    padding: 30px 10px 10px 10px;
-    margin: 10px 0px;
-  }
-
-  .intro-card .card-text {
-    margin: 20px 0px;
-    /*min-height: 150px; */
-  }
-
-  .custom-button {
-    background-color: #dcdcdc;
-    border: none;
-    color: #484848;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 0.9rem;
-    border-radius: 0.5rem;
-    max-width: 220px;
-    padding: 0.5rem 0rem;
-  }
-
-  .custom-button a {
-    color: #484848;
-    display: block;
-  }
-
-  .custom-button p {
-    margin-top: 0;
-    margin-bottom: 0rem;
-    color: #484848;
-  }
-
-
-
-  /* from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
-
-  .nbinput .prompt,
-  .nboutput .prompt {
+.nbinput .prompt,
+.nboutput .prompt {
       display: none;
-  }
-  .nboutput .stderr{
+}
+.nboutput .stderr{
       display: none;
-  }
-
-  div.nblast.container {
-    padding-bottom: 5px;
-    padding-right: 0px;
-    padding-left: 0px;
-    margin-bottom: 0.5rem !important;
 }
 
-div.nbinput.container, div.nboutput.container {
-    display: -webkit-flex;
-    display: flex;
-    align-items: flex-start;
-    margin-top: 0px;
-    margin-right: 0px;
-    margin-bottom: 5px;
-    margin-left: 0px;
+div.nblast.container {
+    padding-bottom: 10px !important;
     padding-right: 0px;
     padding-left: 0px;
-    padding-top: 0px
-    width: 100%;
+}
+
+div.nbinput.container {
+    padding-top: 10px !important;
+    padding-right: 0px;
+    padding-left: 0px;
+}
+
+
+div.nbinput.container div.input_area div[class*="highlight"] > pre {
+    padding: 10px !important;
+    margin: 0;
+}
+
+p.topic-title {
+  margin-top: 0;
+}
+
+
+/* so that api methods are small in sidebar */
+li.toctree-l3 {
+    font-size: 81.25% !important;
+}
+li.toctree-l4 {
+    font-size: 75% !important;
 }

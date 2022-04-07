@@ -5,8 +5,11 @@ from typing import Optional, Union
 import numpy as np
 import torch
 from anndata import AnnData
+from sklearn.cluster import KMeans
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
+from scvi.data import AnnDataManager
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model.base import (
     BaseModelClass,
     RNASeqMixin,
@@ -14,6 +17,7 @@ from scvi.model.base import (
     VAEMixin,
 )
 from scvi.module import VAEC
+from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -25,25 +29,25 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.CondSCVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
         Dimensionality of the latent space.
     n_layers
         Number of hidden layers used for encoder and decoder NNs.
-    dropout_rate
-        Dropout rate for the encoder neural networks.
     weight_obs
         Whether to reweight observations by their inverse proportion (useful for lowly abundant cell types)
+    dropout_rate
+        Dropout rate for neural networks.
     **module_kwargs
         Keyword args for :class:`~scvi.modules.VAEC`
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.external.CondSCVI(adata)
+    >>> scvi.model.CondSCVI.setup_anndata(adata, "labels")
+    >>> vae = scvi.model.CondSCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_CondSCVI"] = vae.get_latent_representation()
     """
@@ -54,16 +58,19 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,
-        dropout_rate: float = 0.1,
         weight_obs: bool = False,
+        dropout_rate: float = 0.05,
         **module_kwargs,
     ):
         super(CondSCVI, self).__init__(adata)
 
-        n_labels = self.summary_stats["n_labels"]
-        n_vars = self.summary_stats["n_vars"]
+        n_labels = self.summary_stats.n_labels
+        n_vars = self.summary_stats.n_vars
         if weight_obs:
-            ct_counts = adata.obs["_scvi_labels"].value_counts()[range(n_labels)].values
+            ct_counts = np.unique(
+                self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
+                return_counts=True,
+            )[1]
             ct_prop = ct_counts / np.sum(ct_counts)
             ct_prop[ct_prop < 0.05] = 0.05
             ct_prop = ct_prop / np.sum(ct_prop)
@@ -86,9 +93,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
     @torch.no_grad()
     def get_vamp_prior(
-        self,
-        adata: Optional[AnnData] = None,
-        p: int = 50,
+        self, adata: Optional[AnnData] = None, p: int = 10
     ) -> np.ndarray:
         r"""
         Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
@@ -99,14 +104,14 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         p
-            number of components in the mixture model underlying the empirical prior
+            number of clusters in kmeans clustering for cell-type sub-clustering for empirical prior
 
         Returns
         -------
         mean_vprior: np.ndarray
             (n_labels, p, D) array
         var_vprior
-            (n_labels, p, 3) array
+            (n_labels, p, D) array
         """
         if self.is_trained_ is False:
             warnings.warn(
@@ -115,44 +120,82 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         adata = self._validate_anndata(adata)
 
-        mean_vprior = np.zeros(
-            (self.summary_stats["n_labels"], p, self.module.n_latent)
+        # Extracting latent representation of adata including variances.
+        mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
+        var_vprior = np.ones((self.summary_stats.n_labels, p, self.module.n_latent))
+        mp_vprior = np.zeros((self.summary_stats.n_labels, p))
+
+        labels_state_registry = self.adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
         )
-        var_vprior = np.zeros((self.summary_stats["n_labels"], p, self.module.n_latent))
-        key = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-            "original_key"
-        ]
-        mapping = self.scvi_setup_dict_["categorical_mappings"]["_scvi_labels"][
-            "mapping"
-        ]
+        key = labels_state_registry.original_key
+        mapping = labels_state_registry.categorical_mapping
+
+        scdl = self._make_data_loader(adata=adata, batch_size=p)
+
+        mean = []
+        var = []
+        for tensors in scdl:
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            y = tensors[REGISTRY_KEYS.LABELS_KEY]
+            out = self.module.inference(x, y)
+            mean_, var_ = out["qz_m"], out["qz_v"]
+            mean += [mean_.cpu()]
+            var += [var_.cpu()]
+
+        mean_cat, var_cat = torch.cat(mean).numpy(), torch.cat(var).numpy()
+
         for ct in range(self.summary_stats["n_labels"]):
-            # pick p cells
-            local_indices = np.random.choice(
-                np.where(adata.obs[key] == mapping[ct])[0], p
-            )
-            # get mean and variance from posterior
-            scdl = self._make_data_loader(
-                adata=adata, indices=local_indices, batch_size=p
-            )
-            mean = []
-            var = []
-            for tensors in scdl:
-                x = tensors[_CONSTANTS.X_KEY]
-                y = tensors[_CONSTANTS.LABELS_KEY]
-                out = self.module.inference(x, y)
-                mean_, var_ = out["qz_m"], out["qz_v"]
-                mean += [mean_.cpu()]
-                var += [var_.cpu()]
+            local_indices = np.where(adata.obs[key] == mapping[ct])[0]
+            n_local_indices = len(local_indices)
+            if "overclustering_vamp" not in adata.obs.columns:
+                if p < n_local_indices and p > 0:
+                    overclustering_vamp = KMeans(n_clusters=p, n_init=30).fit_predict(
+                        mean_cat[local_indices]
+                    )
+                else:
+                    # Every cell is its own cluster
+                    overclustering_vamp = np.arange(n_local_indices)
+            else:
+                overclustering_vamp = adata[local_indices, :].obs["overclustering_vamp"]
 
-            mean_vprior[ct], var_vprior[ct] = np.array(torch.cat(mean)), np.array(
-                torch.cat(var)
-            )
+            keys, counts = np.unique(overclustering_vamp, return_counts=True)
 
-        return mean_vprior, var_vprior
+            n_labels_overclustering = len(keys)
+            if n_labels_overclustering > p:
+                error_mess = """
+                    Given cell type specific clustering contains more clusters than vamp_prior_p.
+                    Increase value of vamp_prior_p to largest number of cell type specific clusters."""
+
+                raise ValueError(error_mess)
+
+            var_cluster = np.ones(
+                [
+                    n_labels_overclustering,
+                    self.module.n_latent,
+                ]
+            )
+            mean_cluster = np.zeros_like(var_cluster)
+
+            for index, cluster in enumerate(keys):
+                indices_curr = local_indices[
+                    np.where(overclustering_vamp == cluster)[0]
+                ]
+                var_cluster[index, :] = np.mean(var_cat[indices_curr], axis=0) + np.var(
+                    mean_cat[indices_curr], axis=0
+                )
+                mean_cluster[index, :] = np.mean(mean_cat[indices_curr], axis=0)
+
+            slicing = slice(n_labels_overclustering)
+            mean_vprior[ct, slicing, :] = mean_cluster
+            var_vprior[ct, slicing, :] = var_cluster
+            mp_vprior[ct, slicing] = counts / sum(counts)
+
+        return mean_vprior, var_vprior, mp_vprior
 
     def train(
         self,
-        max_epochs: int = 400,
+        max_epochs: int = 300,
         lr: float = 0.001,
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 1,
@@ -202,3 +245,31 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        cls,
+        adata: AnnData,
+        labels_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_labels_key)s
+        %(param_layer)s
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)

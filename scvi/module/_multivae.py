@@ -5,7 +5,7 @@ import torch
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kld
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module._peakvae import Decoder as DecoderPeakVI
@@ -57,8 +57,6 @@ class MULTIVAE(BaseModuleClass):
         Number of input genes.
     n_batch
         Number of batches, if 0, no batch correction is performed.
-    n_labels
-        Number of labels, if 0, all cells are assumed to have the same label
     gene_likelihood
         The distribution to use for gene expression data. One of the following
         * ``'zinb'`` - Zero-Inflated Negative Binomial
@@ -99,6 +97,8 @@ class MULTIVAE(BaseModuleClass):
         covariates will only be included in the input layer.
     encode_covariates
         If True, include covariates in the input to the encoder.
+    use_size_factor_key
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional RNA distribution.
     """
 
     ## TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes forst or that they're even contiguous)
@@ -107,7 +107,6 @@ class MULTIVAE(BaseModuleClass):
         n_input_regions: int = 0,
         n_input_genes: int = 0,
         n_batch: int = 0,
-        n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         n_hidden: Optional[int] = None,
         n_latent: Optional[int] = None,
@@ -122,6 +121,7 @@ class MULTIVAE(BaseModuleClass):
         latent_distribution: str = "normal",
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
+        use_size_factor_key: bool = False,
     ):
         super().__init__()
 
@@ -134,7 +134,6 @@ class MULTIVAE(BaseModuleClass):
             else n_hidden
         )
         self.n_batch = n_batch
-        self.n_labels = n_labels
 
         self.gene_likelihood = gene_likelihood
         self.latent_distribution = latent_distribution
@@ -152,6 +151,7 @@ class MULTIVAE(BaseModuleClass):
         self.use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
         self.encode_covariates = encode_covariates
         self.deeply_inject_covariates = deeply_inject_covariates
+        self.use_size_factor_key = use_size_factor_key
 
         cat_list = (
             [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
@@ -203,6 +203,7 @@ class MULTIVAE(BaseModuleClass):
             inject_covariates=self.deeply_inject_covariates,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
+            scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
         # accessibility decoder
@@ -249,10 +250,10 @@ class MULTIVAE(BaseModuleClass):
         )
 
     def _get_inference_input(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        cont_covs = tensors.get(_CONSTANTS.CONT_COVS_KEY)
-        cat_covs = tensors.get(_CONSTANTS.CAT_COVS_KEY)
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY)
+        cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY)
         input_dict = dict(
             x=x,
             batch_index=batch_index,
@@ -335,7 +336,7 @@ class MULTIVAE(BaseModuleClass):
 
         ## Sample from the average distribution
         qzp_m = (qzm_acc + qzm_expr) / 2
-        qzp_v = (qzv_acc + qzv_expr) / (2 ** 0.5)
+        qzp_v = (qzv_acc + qzv_expr) / (2**0.5)
         zp = Normal(qzp_m, qzp_v.sqrt()).rsample()
 
         ## choose the correct latent representation based on the modality
@@ -362,13 +363,19 @@ class MULTIVAE(BaseModuleClass):
         z = inference_outputs["z"]
         qz_m = inference_outputs["qz_m"]
         libsize_expr = inference_outputs["libsize_expr"]
-        labels = tensors[_CONSTANTS.LABELS_KEY]
 
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
+        size_factor = (
+            torch.log(tensors[size_factor_key])
+            if size_factor_key in tensors.keys()
+            else None
+        )
+
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         if transform_batch is not None:
@@ -381,7 +388,7 @@ class MULTIVAE(BaseModuleClass):
             cont_covs=cont_covs,
             cat_covs=cat_covs,
             libsize_expr=libsize_expr,
-            labels=labels,
+            size_factor=size_factor,
         )
         return input_dict
 
@@ -394,7 +401,7 @@ class MULTIVAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
         libsize_expr=None,
-        labels=None,
+        size_factor=None,
         use_z_mean=False,
     ):
         """Runs the generative model."""
@@ -412,8 +419,10 @@ class MULTIVAE(BaseModuleClass):
         p = self.z_decoder_accessibility(decoder_input, batch_index, *categorical_input)
 
         # Expression Decoder
+        if not self.use_size_factor_key:
+            size_factor = libsize_expr
         px_scale, _, px_rate, px_dropout = self.z_decoder_expression(
-            "gene", decoder_input, libsize_expr, batch_index, *categorical_input, labels
+            "gene", decoder_input, size_factor, batch_index, *categorical_input
         )
 
         return dict(
@@ -428,7 +437,7 @@ class MULTIVAE(BaseModuleClass):
         self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
     ):
         # Get the data
-        x = tensors[_CONSTANTS.X_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
 
         x_rna = x[:, : self.n_input_genes]
         x_chr = x[:, self.n_input_genes :]

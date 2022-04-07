@@ -5,9 +5,12 @@ import pytest
 
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
+from scvi.model.base._differential import (
+    DifferentialComputation,
+    estimate_delta,
+    estimate_pseudocounts_offset,
+)
 from scvi.model.base._utils import _prepare_obs
-from scvi.utils import DifferentialComputation
-from scvi.utils._differential import estimate_delta, estimate_pseudocounts_offset
 
 
 def test_features():
@@ -50,11 +53,16 @@ def test_differential_computation(save_path):
 
     n_latent = 5
     adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1)
 
     model_fn = partial(model.get_normalized_expression, return_numpy=True)
-    dc = DifferentialComputation(model_fn, adata)
+    dc = DifferentialComputation(model_fn, model.adata_manager)
 
     cell_idx1 = np.asarray(adata.obs.labels == "label_1")
     cell_idx2 = ~cell_idx1
@@ -118,12 +126,22 @@ def test_differential_computation(save_path):
 
     # test that ints as group work
     a = synthetic_iid()
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+        labels_key="labels",
+    )
     a.obs["test"] = [0] * 200 + [1] * 200
     model = SCVI(a)
     model.differential_expression(groupby="test", group1=0)
 
     # test that string but not as categorical work
     a = synthetic_iid()
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+        labels_key="labels",
+    )
     a.obs["test"] = ["0"] * 200 + ["1"] * 200
     model = SCVI(a)
     model.differential_expression(groupby="test", group1="0")

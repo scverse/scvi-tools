@@ -7,7 +7,7 @@ import torch
 from torch.distributions import NegativeBinomial
 from torch.nn.functional import softplus
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.module.base import (
     BaseModuleClass,
@@ -73,8 +73,8 @@ class RNADeconv(BaseModuleClass):
         return {}
 
     def _get_generative_input(self, tensors, inference_outputs):
-        x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        y = tensors[REGISTRY_KEYS.LABELS_KEY]
 
         input_dict = dict(x=x, y=y)
         return input_dict
@@ -86,10 +86,10 @@ class RNADeconv(BaseModuleClass):
     @auto_move_data
     def generative(self, x, y):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
-        px_scale = softplus(self.W)[:, y.long()[:, 0]].T  # cells per gene
+        px_scale = softplus(self.W)[:, y.long().ravel()].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
         px_rate = library * px_scale
-        scaling_factor = self.ct_weight[y.long()[:, 0]]
+        scaling_factor = self.ct_weight[y.long().ravel()]
 
         return dict(
             px_scale=px_scale,
@@ -106,13 +106,13 @@ class RNADeconv(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
         scaling_factor = generative_outputs["scaling_factor"]
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-        loss = torch.mean(scaling_factor * reconst_loss)
+        loss = torch.sum(scaling_factor * reconst_loss)
 
         return LossRecorder(loss, reconst_loss, torch.zeros((1,)), torch.tensor(0.0))
 
@@ -228,21 +228,3 @@ class SpatialDeconv(PyroBaseModuleClass):
         with obs_plate:
             x_dist = dist.NegativeBinomial(px_rate, logits=self.px_o)
             pyro.sample("x", x_dist.to_event(1), obs=x)
-
-    @torch.no_grad()
-    @auto_move_data
-    def get_ct_specific_expression(self, y):
-        """
-        Returns cell type specific gene expression at the queried spots.
-
-        Parameters
-        ----------
-        y
-            cell types
-        """
-        # cell-type specific gene expression. Conceptually of shape (minibatch, celltype, gene).
-        # But in this case, it's the same for all spots with the same cell type
-        beta = softplus(self.beta)  # n_genes
-        w = softplus(self.W)  # n_genes, n_cell_types
-        px_ct = torch.exp(self.px_o).unsqueeze(1) * beta.unsqueeze(1) * w
-        return px_ct[:, y.long()[:, 0]].T  # shape (minibatch, genes)

@@ -9,7 +9,7 @@ from torch import logsumexp
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
@@ -23,7 +23,7 @@ class VAE(BaseModuleClass):
     """
     Variational auto-encoder model.
 
-    This is an implementation of the scVI model descibed in [Lopez18]_
+    This is an implementation of the scVI model described in [Lopez18]_
 
     Parameters
     ----------
@@ -72,8 +72,17 @@ class VAE(BaseModuleClass):
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     use_layer_norm
         Whether to use layer norm in layers
+    use_size_factor_key
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
+        Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
+    library_log_means
+        1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
+        not using observed library size.
+    library_log_vars
+        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
+        not using observed library size.
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
@@ -98,7 +107,10 @@ class VAE(BaseModuleClass):
         deeply_inject_covariates: bool = True,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
+        library_log_means: Optional[np.ndarray] = None,
+        library_log_vars: Optional[np.ndarray] = None,
         var_activation: Optional[Callable] = None,
     ):
         super().__init__()
@@ -111,7 +123,22 @@ class VAE(BaseModuleClass):
         self.n_labels = n_labels
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
-        self.use_observed_lib_size = use_observed_lib_size
+
+        self.use_size_factor_key = use_size_factor_key
+        self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
+        if not self.use_observed_lib_size:
+            if library_log_means is None or library_log_means is None:
+                raise ValueError(
+                    "If not using observed_lib_size, "
+                    "must provide library_log_means and library_log_vars."
+                )
+
+            self.register_buffer(
+                "library_log_means", torch.from_numpy(library_log_means).float()
+            )
+            self.register_buffer(
+                "library_log_vars", torch.from_numpy(library_log_vars).float()
+            )
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input))
@@ -175,16 +202,17 @@ class VAE(BaseModuleClass):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
+            scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
     def _get_inference_input(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         input_dict = dict(
@@ -195,23 +223,49 @@ class VAE(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
         library = inference_outputs["library"]
-        batch_index = tensors[_CONSTANTS.BATCH_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        y = tensors[REGISTRY_KEYS.LABELS_KEY]
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-        input_dict = {
-            "z": z,
-            "library": library,
-            "batch_index": batch_index,
-            "y": y,
-            "cont_covs": cont_covs,
-            "cat_covs": cat_covs,
-        }
+
+        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
+        size_factor = (
+            torch.log(tensors[size_factor_key])
+            if size_factor_key in tensors.keys()
+            else None
+        )
+
+        input_dict = dict(
+            z=z,
+            library=library,
+            batch_index=batch_index,
+            y=y,
+            cont_covs=cont_covs,
+            cat_covs=cat_covs,
+            size_factor=size_factor,
+        )
         return input_dict
+
+    def _compute_local_library_params(self, batch_index):
+        """
+        Computes local library parameters.
+
+        Compute two tensors of shape (batch_index.shape[0], 1) where each
+        element corresponds to the mean and variances, respectively, of the
+        log library sizes in the batch the cell corresponds to.
+        """
+        n_batch = self.library_log_means.shape[1]
+        local_library_log_means = F.linear(
+            one_hot(batch_index, n_batch), self.library_log_means
+        )
+        local_library_log_vars = F.linear(
+            one_hot(batch_index, n_batch), self.library_log_vars
+        )
+        return local_library_log_means, local_library_log_vars
 
     @auto_move_data
     def inference(self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1):
@@ -226,20 +280,21 @@ class VAE(BaseModuleClass):
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
-        if cont_covs is not None and self.encode_covariates is True:
+        if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
         else:
             encoder_input = x_
-        if cat_covs is not None and self.encode_covariates is True:
+        if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
         qz_m, qz_v, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-        ql_m, ql_v, library_encoded = self.l_encoder(
-            encoder_input, batch_index, *categorical_input
-        )
 
+        ql_m, ql_v = None, None
         if not self.use_observed_lib_size:
+            ql_m, ql_v, library_encoded = self.l_encoder(
+                encoder_input, batch_index, *categorical_input
+            )
             library = library_encoded
 
         if n_samples > 1:
@@ -248,13 +303,13 @@ class VAE(BaseModuleClass):
             # when z is normal, untran_z == z
             untran_z = Normal(qz_m, qz_v.sqrt()).sample()
             z = self.z_encoder.z_transformation(untran_z)
-            ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
-            ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
             if self.use_observed_lib_size:
                 library = library.unsqueeze(0).expand(
                     (n_samples, library.size(0), library.size(1))
                 )
             else:
+                ql_m = ql_m.unsqueeze(0).expand((n_samples, ql_m.size(0), ql_m.size(1)))
+                ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
                 library = Normal(ql_m, ql_v.sqrt()).sample()
 
         outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, ql_m=ql_m, ql_v=ql_v, library=library)
@@ -268,6 +323,7 @@ class VAE(BaseModuleClass):
         batch_index,
         cont_covs=None,
         cat_covs=None,
+        size_factor=None,
         y=None,
         transform_batch=None,
     ):
@@ -282,8 +338,16 @@ class VAE(BaseModuleClass):
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
+        if not self.use_size_factor_key:
+            size_factor = library
+
         px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion, decoder_input, library, batch_index, *categorical_input, y
+            self.dispersion,
+            decoder_input,
+            size_factor,
+            batch_index,
+            *categorical_input,
+            y,
         )
         if self.dispersion == "gene-label":
             px_r = F.linear(
@@ -307,14 +371,11 @@ class VAE(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]
-        ql_m = inference_outputs["ql_m"]
-        ql_v = inference_outputs["ql_v"]
         px_rate = generative_outputs["px_rate"]
         px_r = generative_outputs["px_r"]
         px_dropout = generative_outputs["px_dropout"]
@@ -322,14 +383,19 @@ class VAE(BaseModuleClass):
         mean = torch.zeros_like(qz_m)
         scale = torch.ones_like(qz_v)
 
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
-            dim=1
-        )
+        kl_divergence_z = kl(Normal(qz_m, qz_v.sqrt()), Normal(mean, scale)).sum(dim=1)
 
         if not self.use_observed_lib_size:
+            ql_m = inference_outputs["ql_m"]
+            ql_v = inference_outputs["ql_v"]
+            (
+                local_library_log_means,
+                local_library_log_vars,
+            ) = self._compute_local_library_params(batch_index)
+
             kl_divergence_l = kl(
-                Normal(ql_m, torch.sqrt(ql_v)),
-                Normal(local_l_mean, torch.sqrt(local_l_var)),
+                Normal(ql_m, ql_v.sqrt()),
+                Normal(local_library_log_means, local_library_log_vars.sqrt()),
             ).sum(dim=1)
         else:
             kl_divergence_l = 0.0
@@ -433,37 +499,55 @@ class VAE(BaseModuleClass):
     @torch.no_grad()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
-        sample_batch = tensors[_CONSTANTS.X_KEY]
-        local_l_mean = tensors[_CONSTANTS.LOCAL_L_MEAN_KEY]
-        local_l_var = tensors[_CONSTANTS.LOCAL_L_VAR_KEY]
+        sample_batch = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         to_sum = torch.zeros(sample_batch.size()[0], n_mc_samples)
 
         for i in range(n_mc_samples):
             # Distribution parameters and sampled variables
-            inference_outputs, generative_outputs, losses = self.forward(tensors)
+            inference_outputs, _, losses = self.forward(tensors)
             qz_m = inference_outputs["qz_m"]
             qz_v = inference_outputs["qz_v"]
             z = inference_outputs["z"]
-            ql_m = inference_outputs["ql_m"]
-            ql_v = inference_outputs["ql_v"]
             library = inference_outputs["library"]
 
             # Reconstruction Loss
             reconst_loss = losses.reconstruction_loss
 
             # Log-probabilities
-            p_l = Normal(local_l_mean, local_l_var.sqrt()).log_prob(library).sum(dim=-1)
+            log_prob_sum = torch.zeros(qz_m.shape[0]).to(self.device)
+
             p_z = (
                 Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
                 .log_prob(z)
                 .sum(dim=-1)
             )
             p_x_zl = -reconst_loss
-            q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-            q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+            log_prob_sum += p_z + p_x_zl
 
-            to_sum[:, i] = p_z + p_l + p_x_zl - q_z_x - q_l_x
+            q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
+            log_prob_sum -= q_z_x
+
+            if not self.use_observed_lib_size:
+                (
+                    local_library_log_means,
+                    local_library_log_vars,
+                ) = self._compute_local_library_params(batch_index)
+
+                p_l = (
+                    Normal(local_library_log_means, local_library_log_vars.sqrt())
+                    .log_prob(library)
+                    .sum(dim=-1)
+                )
+
+                ql_m = inference_outputs["ql_m"]
+                ql_v = inference_outputs["ql_v"]
+                q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+
+                log_prob_sum += p_l - q_l_x
+
+            to_sum[:, i] = log_prob_sum
 
         batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
         log_lkl = torch.sum(batch_log_lkl).item()
@@ -519,8 +603,6 @@ class LDVAE(VAE):
         Bool whether to use batch norm in decoder
     bias
         Bool whether to have bias term in linear decoder
-    use_observed_lib_size
-        Use observed library size for RNA as scaling factor in mean of conditional distribution
     """
 
     def __init__(
@@ -538,6 +620,7 @@ class LDVAE(VAE):
         use_batch_norm: bool = True,
         bias: bool = False,
         latent_distribution: str = "normal",
+        **vae_kwargs,
     ):
         super().__init__(
             n_input=n_input,
@@ -552,6 +635,7 @@ class LDVAE(VAE):
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
             use_observed_lib_size=False,
+            **vae_kwargs,
         )
         self.use_batch_norm = use_batch_norm
         self.z_encoder = Encoder(

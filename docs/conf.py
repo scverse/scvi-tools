@@ -30,11 +30,12 @@ import scvi  # noqa
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-needs_sphinx = "3.4"  # Nicer param docs
+needs_sphinx = "4.3"  # Nicer param docs
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
+    "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
@@ -50,15 +51,23 @@ extensions = [
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
     "sphinx_copybutton",
     "sphinx_gallery.load_style",
-    "sphinx_tabs.tabs",
+    "sphinx_remove_toctrees",
+    "sphinx_design",
+    "sphinxext.opengraph",
 ]
+
+# remove_from_toctrees = ["tutorials/notebooks/*", "api/reference/*"]
+
+# for sharing urls with nice info
+ogp_site_url = "https://docs.scvi-tools.org/"
+ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
 
 # nbsphinx specific settings
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 nbsphinx_execute = "never"
 
 templates_path = ["_templates"]
-source_suffix = ".rst"
+# source_suffix = ".rst"
 
 # Generate the API documentation when building
 autosummary_generate = True
@@ -72,6 +81,11 @@ napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
+myst_enable_extensions = [
+    "colon_fence",
+    "dollarmath",
+    "amsmath",
+]
 
 # The master toctree document.
 master_doc = "index"
@@ -89,13 +103,16 @@ intersphinx_mapping = dict(
     scanpy=("https://scanpy.readthedocs.io/en/stable/", None),
     pytorch_lightning=("https://pytorch-lightning.readthedocs.io/en/stable/", None),
     pyro=("http://docs.pyro.ai/en/stable/", None),
+    pymde=("https://pymde.org/", None),
+    flax=("https://flax.readthedocs.io/en/latest/", None),
+    jax=("https://jax.readthedocs.io/en/latest/", None),
 )
 
 
 # General information about the project.
-project = u"scvi-tools"
-copyright = u"2021, Yosef Lab, UC Berkeley"
-author = u"Romain Lopez, Adam Gayoso, Pierre Boyeau, Galen Xing"
+project = "scvi-tools"
+copyright = "2021, Yosef Lab, UC Berkeley"
+author = "The scvi-tools development team"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -120,7 +137,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "default"
-pygments_dark_style = "default"
+pygments_dark_style = "native"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
@@ -128,23 +145,22 @@ todo_include_todos = False
 
 # -- Options for HTML output -------------------------------------------
 
-html_show_sourcelink = True
-html_theme = "pydata_sphinx_theme"
+# html_show_sourcelink = True
+html_theme = "furo"
 
-html_context = dict(
-    # display_github=True,  # Integrate GitHub
-    github_user="YosefLab",  # Username
-    github_repo="scvi-tools",  # Repo name
-    github_version="master",  # Version
-    doc_path="docs/",  # Path in the checkout to the docs root
-)
 # Set link name generated in the top bar.
 html_title = "scvi-tools"
 html_logo = "_static/logo.png"
 
 html_theme_options = {
-    "github_url": "https://github.com/YosefLab/scvi-tools",
-    "twitter_url": "https://twitter.com/YosefLab",
+    "sidebar_hide_name": True,
+    "light_css_variables": {
+        "color-brand-primary": "#003262",
+        "color-brand-content": "#003262",
+        "admonition-font-size": "var(--font-size-normal)",
+        "admonition-title-font-size": "var(--font-size-normal)",
+        "code-font-size": "var(--font-size--small)",
+    },
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -165,6 +181,22 @@ nbsphinx_prolog = r"""
         p {{
             margin-bottom: 0.5rem;
         }}
+        /* Main index page overview cards */
+        /* https://github.com/spatialaudio/nbsphinx/pull/635/files */
+        .jp-RenderedHTMLCommon table,
+        div.rendered_html table {{
+        border: none;
+        border-collapse: collapse;
+        border-spacing: 0;
+        font-size: 12px;
+        table-layout: fixed;
+        color: inherit;
+        }}
+
+        body:not([data-theme=light]) .jp-RenderedHTMLCommon tbody tr:nth-child(odd),
+        body:not([data-theme=light]) div.rendered_html tbody tr:nth-child(odd) {{
+        background: rgba(255, 255, 255, .1);
+        }}
     </style>
 
 .. raw:: html
@@ -173,35 +205,39 @@ nbsphinx_prolog = r"""
         <p class="admonition-title">Note</p>
         <p>
         This page was generated from
-        <a class="reference external" href="https://github.com/yoseflab/scvi-tutorials/tree/{version}/">{docname}</a>.
+        <a class="reference external" href="https://github.com/scverse/scvi-tutorials/tree/{version}/">{docname}</a>.
         Interactive online version:
-        <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/yoseflab/scvi_tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+        <span style="white-space: nowrap;"><a href="https://colab.research.google.com/github/scverse/scvi-tutorials/blob/{version}/{docname}"><img alt="Colab badge" src="https://colab.research.google.com/assets/colab-badge.svg" style="vertical-align:text-bottom"></a>.</span>
+        Some tutorial content may look better in light mode.
         </p>
     </div>
 """.format(
     version=version, docname="{{ docname|e }}"
 )
 nbsphinx_thumbnails = {
-    "user_guide/notebooks/data_loading": "_static/tutorials/anndata.svg",
-    "user_guide/notebooks/api_overview": "_static/tutorials/overview.svg",
-    "user_guide/notebooks/linear_decoder": "_static/tutorials/ldvae.svg",
-    "user_guide/notebooks/scvi_in_R": "_static/tutorials/Rlogo.png",
-    "user_guide/notebooks/harmonization": "_static/tutorials/scvi_batch.png",
-    "user_guide/notebooks/totalVI": "_static/tutorials/totalvi_cell.svg",
-    "user_guide/notebooks/AutoZI_tutorial": "_static/tutorials/history.png",
-    "user_guide/notebooks/gimvi_tutorial": "_static/tutorials/gimvi.png",
-    "user_guide/notebooks/scarches_scvi_tools": "_static/tutorials/scarches.png",
-    "user_guide/notebooks/cite_scrna_integration_w_totalVI": "_static/tutorials/cite_scrna.png",
-    "user_guide/notebooks/scVI_DE_worm": "_static/tutorials/worm.png",
-    "user_guide/notebooks/stereoscope_heart_LV_tutorial": "_static/tutorials/stereoscope.png",
-    "user_guide/notebooks/seed_labeling": "_static/tutorials/seed.png",
-    "user_guide/notebooks/cellassign_tutorial": "_static/tutorials/cellassign.png",
-    "user_guide/notebooks/DestVI_tutorial": "_static/tutorials/destvi.png",
-    "user_guide/notebooks/PeakVI": "_static/tutorials/peakvi.png",
-    "user_guide/notebooks/MultiVI_tutorial": "_static/tutorials/multivi_umap.png",
+    "tutorials/notebooks/data_loading": "_static/tutorials/anndata.svg",
+    "tutorials/notebooks/api_overview": "_static/tutorials/overview.svg",
+    "tutorials/notebooks/linear_decoder": "_static/tutorials/ldvae.svg",
+    "tutorials/notebooks/scvi_in_R": "_static/tutorials/Rlogo.png",
+    "tutorials/notebooks/python_in_R": "_static/tutorials/Rlogo.png",
+    "tutorials/notebooks/harmonization": "_static/tutorials/lung_atlas.png",
+    "tutorials/notebooks/totalVI": "_static/tutorials/totalvi_cell.svg",
+    "tutorials/notebooks/AutoZI_tutorial": "_static/tutorials/history.png",
+    "tutorials/notebooks/gimvi_tutorial": "_static/tutorials/gimvi.png",
+    "tutorials/notebooks/scarches_scvi_tools": "_static/tutorials/scarches.png",
+    "tutorials/notebooks/cite_scrna_integration_w_totalVI": "_static/tutorials/cite_scrna.png",
+    "tutorials/notebooks/scVI_DE_worm": "_static/tutorials/worm.png",
+    "tutorials/notebooks/stereoscope_heart_LV_tutorial": "_static/tutorials/stereoscope.png",
+    "tutorials/notebooks/seed_labeling": "_static/tutorials/seed.png",
+    "tutorials/notebooks/cellassign_tutorial": "_static/tutorials/cellassign.png",
+    "tutorials/notebooks/DestVI_tutorial": "_static/tutorials/destvi.png",
+    "tutorials/notebooks/DestVI_in_R": "_static/tutorials/Rlogo.png",
+    "tutorials/notebooks/PeakVI": "_static/tutorials/peakvi.png",
+    "tutorials/notebooks/peakvi_in_R": "_static/tutorials/Rlogo.png",
+    "tutorials/notebooks/totalvi_in_R": "_static/tutorials/Rlogo.png",
+    "tutorials/notebooks/MultiVI_tutorial": "_static/tutorials/multivi_umap.png",
+    "tutorials/notebooks/totalVI_reference_mapping": "_static/tutorials/totalvi_cell.svg",
+    "tutorials/notebooks/amortized_lda": "_static/tutorials/lda.png",
+    "tutorials/notebooks/cell2location_lymph_node_spatial_tutorial": "_static/tutorials/cell2location.png",
+    "tutorials/notebooks/tabula_muris": "_static/tutorials/muris-mouse.png",
 }
-
-
-def setup(app):
-    # https://github.com/pradyunsg/furo/issues/49
-    app.config.pygments_dark_style = "default"
