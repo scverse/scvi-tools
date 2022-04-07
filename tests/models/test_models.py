@@ -1368,6 +1368,7 @@ def test_early_stopping():
     model.train(n_epochs, early_stopping=True, plan_kwargs=dict(lr=0))
     assert len(model.history["elbo_train"]) < n_epochs
 
+
 def test_batch_embedding():
     adata = synthetic_iid()
     SCVI.setup_anndata(
@@ -1375,10 +1376,10 @@ def test_batch_embedding():
         batch_key="batch",
         labels_key="labels",
     )
-    model = SCVI(adata,use_batch_embedding=True)
+    model = SCVI(adata, use_batch_embedding=True)
     model.train()
     batch_embedding = model.get_batch_embedding()
     assert batch_embedding is not None
-    n_batches = len(adata.obs['batch'].unique())
+    n_batches = len(adata.obs["batch"].unique())
     embedded = batch_embedding(torch.tensor(range(n_batches)))
     assert embedded.shape == (n_batches, 5)

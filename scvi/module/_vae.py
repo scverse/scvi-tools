@@ -197,7 +197,7 @@ class VAE(BaseModuleClass):
         # decoder goes from n_latent-dimensional space to n_input-d data
         batch_embedding = None
         if use_batch_embedding:
-            batch_embedding = torch.nn.Embedding(n_batch,embedding_dim=5)
+            batch_embedding = torch.nn.Embedding(n_batch, embedding_dim=5)
         n_input_decoder = n_latent + n_continuous_cov
         self.decoder = DecoderSCVI(
             n_input_decoder,
