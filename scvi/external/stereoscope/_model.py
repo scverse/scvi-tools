@@ -364,7 +364,7 @@ class SpatialStereoscope(BaseModelClass):
 
         @jit
         def train_step(svi_state, batch):
-            args, kwargs = get_args_kwargs(next(iter(train_loader)))
+            args, kwargs = get_args_kwargs(batch)
             svi_state, elbo = svi.update(svi_state, *args, **kwargs)
             return elbo, svi_state
 
