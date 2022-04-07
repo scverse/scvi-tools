@@ -160,18 +160,6 @@ class SpatialDeconv:
         # noise from data
         self.eta_map_init = np.random.normal(size=(self.n_genes,))
 
-    def get_proportions(self, keep_noise=False) -> np.ndarray:
-        """Returns the loadings."""
-        raise NotImplementedError
-        # # get estimated unadjusted proportions
-        # res = softplus(self.V).cpu().numpy().T  # n_spots, n_labels + 1
-        # # remove dummy cell type proportion values
-        # if not keep_noise:
-        #     res = res[:, :-1]
-        # # normalize to obtain adjusted proportions
-        # res = res / res.sum(axis=1).reshape(-1, 1)
-        # return res
-
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
         x = tensor_dict[REGISTRY_KEYS.X_KEY]

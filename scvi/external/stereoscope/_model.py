@@ -254,13 +254,27 @@ class SpatialStereoscope(BaseModelClass):
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
         """
+        import jax
+
         self._check_if_trained()
 
         column_names = self.cell_type_mapping
         if keep_noise:
             column_names = column_names.append("noise_term")
+
+        params = self.svi.get_params(self.svi_state)
+        v = params["v"]
+        # get estimated unadjusted proportions
+        res = jax.nn.softplus(v).transpose()  # n_spots, n_labels + 1
+        # remove dummy cell type proportion values
+        if not keep_noise:
+            res = res[:, :-1]
+        # normalize to obtain adjusted proportions
+        res = res / res.sum(axis=1).reshape(-1, 1)
+        res = np.array(jax.device_get(res))
+
         return pd.DataFrame(
-            data=self.module.get_proportions(keep_noise),
+            data=res,
             columns=column_names,
             index=self.adata.obs.index,
         )
