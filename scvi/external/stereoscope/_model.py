@@ -12,7 +12,7 @@ from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
-from scvi.model.base import BaseModelClass, PyroSviTrainMixin, UnsupervisedTrainingMixin
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
@@ -143,7 +143,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         cls.register_manager(adata_manager)
 
 
-class SpatialStereoscope(PyroSviTrainMixin, BaseModelClass):
+class SpatialStereoscope(BaseModelClass):
     """
     Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
@@ -322,17 +322,78 @@ class SpatialStereoscope(PyroSviTrainMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        super().train(
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
-            lr=lr,
-            train_size=1,
-            validation_size=None,
+        import jax
+        import tqdm
+        from jax import jit, random
+        from numpyro import optim
+        from numpyro.infer import SVI, Trace_ELBO
+
+        from scvi.dataloaders import DataSplitter
+
+        data_splitter = DataSplitter(
+            self.adata_manager,
+            train_size=1.0,
+            validation_size=0.0,
             batch_size=batch_size,
-            early_stopping=early_stopping,
-            plan_kwargs=plan_kwargs,
+            # for pinning memory only
+            use_gpu=False,
+            iter_ndarray=True,
+        )
+        data_splitter.setup()
+        train_loader = data_splitter.train_dataloader()
+
+        def get_args_kwargs(batch):
+            args, kwargs = self.module._get_fn_args_from_batch(batch)
+            return args, kwargs
+
+        adam = optim.Adam(lr)
+        svi = SVI(
+            self.module.model,
+            self.module.guide,
+            adam,
+            Trace_ELBO(),
+        )
+        rng_key = random.PRNGKey(0)
+        rng_key, rng_key_init = random.split(rng_key, 2)
+        args, kwargs = get_args_kwargs(next(iter(train_loader)))
+        svi_state = svi.init(
+            rng_key_init,
+            *args,
             **kwargs,
         )
+
+        @jit
+        def train_step(svi_state, batch):
+            args, kwargs = get_args_kwargs(next(iter(train_loader)))
+            svi_state, elbo = svi.update(svi_state, *args, **kwargs)
+            return elbo, svi_state
+
+        history = dict(
+            elbo_train=[],
+            elbo_validation=[],
+        )
+        epoch = 0
+        with tqdm.trange(1, max_epochs + 1) as t:
+            try:
+                for i in t:
+                    epoch += 1
+                    epoch_elbo = 0
+                    counter = 0
+                    for data in train_loader:
+                        # gets new key for each epoch
+                        elbo, svi_state = train_step(
+                            svi_state,
+                            data,
+                        )
+                        epoch_elbo += elbo
+                        counter += 1
+                    history["elbo_train"] += [jax.device_get(epoch_elbo) / counter]
+                    t.set_postfix_str(f"Epoch {i}, Elbo: {epoch_elbo / counter}")
+
+            except KeyboardInterrupt:
+                logger.info(
+                    "Keyboard interrupt detected. Attempting graceful shutdown."
+                )
 
     @classmethod
     @setup_anndata_dsp.dedent

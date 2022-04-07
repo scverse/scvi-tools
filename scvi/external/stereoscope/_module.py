@@ -1,20 +1,17 @@
 from typing import Tuple
 
+import jax.numpy as jnp
 import numpy as np
-import pyro
-import pyro.distributions as dist
+import numpyro
+import numpyro.distributions as dist
 import torch
+from jax.nn import softplus as jaxsoftplus
 from torch.distributions import NegativeBinomial
 from torch.nn.functional import softplus
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.module.base import (
-    BaseModuleClass,
-    LossRecorder,
-    PyroBaseModuleClass,
-    auto_move_data,
-)
+from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 
 
 class RNADeconv(BaseModuleClass):
@@ -126,7 +123,7 @@ class RNADeconv(BaseModuleClass):
         raise NotImplementedError("No sampling method for Stereoscope")
 
 
-class SpatialDeconv(PyroBaseModuleClass):
+class SpatialDeconv:
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
@@ -150,81 +147,74 @@ class SpatialDeconv(PyroBaseModuleClass):
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
     ):
         super().__init__()
-        self.n_obs = None
         # unpack and copy parameters
-        w, px_o = sc_params
-        self.register_buffer("W", torch.tensor(w))
-        self.register_buffer("px_o", torch.tensor(px_o))
+        self.w, self.px_o = sc_params
 
         # setup constants
         self.n_spots = n_spots
-        self.n_genes, self.n_labels = self.W.shape
+        self.n_genes, self.n_labels = self.w.shape
         self.prior_weight = prior_weight
+        self.v_init = np.random.normal(size=(self.n_labels + 1, self.n_spots))
+        self.beta_init = 0.01 * np.random.normal(size=(self.n_genes, 1))
 
         # noise from data
-        self.eta_map = torch.nn.Parameter(torch.randn(self.n_genes))
-        self.register_buffer("eta_mean", torch.zeros(1))
-        self.register_buffer("eta_scale", torch.ones(1))
-        # factor loadings
-        self.V = torch.nn.Parameter(torch.randn(self.n_labels + 1, self.n_spots))
-        # additive gene bias
-        self.beta = torch.nn.Parameter(0.01 * torch.randn(self.n_genes, 1))
+        self.eta_map_init = np.random.normal(size=(self.n_genes,))
 
-    @torch.no_grad()
     def get_proportions(self, keep_noise=False) -> np.ndarray:
         """Returns the loadings."""
-        # get estimated unadjusted proportions
-        res = softplus(self.V).cpu().numpy().T  # n_spots, n_labels + 1
-        # remove dummy cell type proportion values
-        if not keep_noise:
-            res = res[:, :-1]
-        # normalize to obtain adjusted proportions
-        res = res / res.sum(axis=1).reshape(-1, 1)
-        return res
+        raise NotImplementedError
+        # # get estimated unadjusted proportions
+        # res = softplus(self.V).cpu().numpy().T  # n_spots, n_labels + 1
+        # # remove dummy cell type proportion values
+        # if not keep_noise:
+        #     res = res[:, :-1]
+        # # normalize to obtain adjusted proportions
+        # res = res / res.sum(axis=1).reshape(-1, 1)
+        # return res
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
-        ind_x = tensor_dict[REGISTRY_KEYS.INDICES_KEY].long().squeeze()
+        ind_x = tensor_dict[REGISTRY_KEYS.INDICES_KEY].astype(np.int64).squeeze()
         return (x, ind_x), {}
 
-    @auto_move_data
     def guide(self, x, ind_x):
-        pyro.module("spatial_stereoscope", self)
         _, gene_plate = self.create_plates(x, ind_x)
 
         with gene_plate:
-            pyro.sample("eta", dist.Delta(self.eta_map))
+            numpyro.sample("eta", dist.Delta(self.eta_map_init))
 
     def create_plates(self, x, ind_x):
-        obs_plate = pyro.plate("obs_plate", size=self.n_obs, dim=-2, subsample=ind_x)
-        gene_plate = pyro.plate("gene_plate", size=self.n_genes)
+        obs_plate = numpyro.plate(
+            "obs_plate", size=self.n_spots, dim=-2, subsample_size=len(ind_x)
+        )
+        gene_plate = numpyro.plate("gene_plate", size=self.n_genes)
 
         return obs_plate, gene_plate
 
-    @auto_move_data
     def model(self, x, ind_x):
         """Build the deconvolution model for every cell in the minibatch."""
-        pyro.module("spatial_stereoscope", self)
-
         obs_plate, gene_plate = self.create_plates(x, ind_x)
 
         with gene_plate:
-            eta = pyro.sample("eta", dist.Normal(self.eta_mean, self.eta_scale))
+            eta = numpyro.sample("eta", dist.Normal(0, 1))
 
-        beta = softplus(self.beta)  # n_genes, 1
-        v = softplus(self.V)  # n_labels + 1, n_spots
-        w = softplus(self.W)  # n_genes, n_labels
-        eps = softplus(eta.unsqueeze(1))  # n_genes, 1
+        # factor loadings
+        v = numpyro.param("v", self.v_init)
+        # additive gene bias
+        beta = numpyro.param("beta", self.beta_init)
+
+        beta = jaxsoftplus(beta)  # n_genes, 1
+        v = jaxsoftplus(v)  # n_labels + 1, n_spots
+        w = jaxsoftplus(self.w)  # n_genes, n_labels
+        eps = jaxsoftplus(eta.reshape(-1, 1))  # n_genes, 1
 
         # account for gene specific bias and add noise
-        r_hat = torch.cat([beta * w, eps], dim=1)  # n_genes, n_labels + 1
+        r_hat = jnp.concatenate([beta * w, eps], axis=1)  # n_genes, n_labels + 1
         # subsample observations
         v_ind = v[:, ind_x]  # labels + 1, batch_size
-        px_rate = torch.transpose(
-            torch.matmul(r_hat, v_ind), 0, 1
-        )  # batch_size, n_genes
+        px_rate = jnp.matmul(r_hat, v_ind).transpose()  # batch_size, n_genes
 
         with obs_plate:
-            x_dist = dist.NegativeBinomial(px_rate, logits=self.px_o)
-            pyro.sample("x", x_dist.to_event(1), obs=x)
+            x_dist = dist.NegativeBinomialLogits(px_rate, logits=self.px_o)
+            numpyro.sample("x", x_dist.to_event(1), obs=x)
