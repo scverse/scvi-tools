@@ -184,8 +184,8 @@ class SpatialDeconv(PyroBaseModuleClass):
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
-        x = tensor_dict[_CONSTANTS.X_KEY]
-        ind_x = tensor_dict["ind_x"].long().squeeze()
+        x = tensor_dict[REGISTRY_KEYS.X_KEY]
+        ind_x = tensor_dict[REGISTRY_KEYS.INDICES_KEY].long().squeeze()
         return (x, ind_x), {}
 
     @auto_move_data
