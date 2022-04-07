@@ -1,19 +1,15 @@
 import os
-import pickle
-import tarfile
 
 import anndata
 import numpy as np
 import pandas as pd
 import pytest
-import torch
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
 from scvi.data import _constants, synthetic_iid
-from scvi.data._built_in_data._download import _download
 from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
 from scvi.dataloaders import (
     AnnDataLoader,
@@ -345,50 +341,7 @@ def test_setting_adata_attr():
 
 
 def test_saving_and_loading(save_path):
-    def legacy_save(
-        model,
-        dir_path,
-        prefix=None,
-        overwrite=False,
-        save_anndata=False,
-        **anndata_write_kwargs,
-    ):
-        if not os.path.exists(dir_path) or overwrite:
-            os.makedirs(dir_path, exist_ok=overwrite)
-        else:
-            raise ValueError(
-                "{} already exists. Please provide an unexisting directory for saving.".format(
-                    dir_path
-                )
-            )
-
-        file_name_prefix = prefix or ""
-
-        if save_anndata:
-            model.adata.write(
-                os.path.join(dir_path, f"{file_name_prefix}adata.h5ad"),
-                **anndata_write_kwargs,
-            )
-
-        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-        attr_save_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
-        varnames_save_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
-
-        torch.save(model.module.state_dict(), model_save_path)
-
-        var_names = model.adata.var_names.astype(str)
-        var_names = var_names.to_numpy()
-        np.savetxt(varnames_save_path, var_names, fmt="%s")
-
-        # get all the user attributes
-        user_attributes = model._get_user_attributes()
-        # only save the public attributes with _ at the very end
-        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
-
-        with open(attr_save_path, "wb") as f:
-            pickle.dump(user_attributes, f)
-
-    def test_save_load_model(cls, adata, save_path, prefix=None, legacy=False):
+    def test_save_load_model(cls, adata, save_path, prefix=None):
         if cls is TOTALVI:
             cls.setup_anndata(
                 adata,
@@ -402,13 +355,8 @@ def test_saving_and_loading(save_path):
         model.train(1, train_size=0.2)
         z1 = model.get_latent_representation(adata)
         test_idx1 = model.validation_indices
-        if legacy:
-            legacy_save(
-                model, save_path, overwrite=True, save_anndata=True, prefix=prefix
-            )
-        else:
-            model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-            model.view_setup_args(save_path, prefix=prefix)
+        model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+        model.view_setup_args(save_path, prefix=prefix)
         model = cls.load(save_path, prefix=prefix)
         model.get_latent_representation()
 
@@ -443,29 +391,16 @@ def test_saving_and_loading(save_path):
     adata = synthetic_iid()
 
     for cls in [SCVI, LinearSCVI, TOTALVI, PEAKVI]:
-        test_save_load_model(
-            cls, adata, save_path, prefix=f"{cls.__name__}_", legacy=True
-        )
         test_save_load_model(cls, adata, save_path, prefix=f"{cls.__name__}_")
-        # Test load prioritizes newer save paradigm and thus mismatches legacy save.
-        with pytest.raises(AssertionError):
-            test_save_load_model(
-                cls, adata, save_path, prefix=f"{cls.__name__}_", legacy=True
-            )
 
     # AUTOZI
-    def test_save_load_autozi(legacy=False):
+    def test_save_load_autozi():
         prefix = "AUTOZI_"
         model = AUTOZI(adata, latent_distribution="normal")
         model.train(1, train_size=0.5)
         ab1 = model.get_alphas_betas()
-        if legacy:
-            legacy_save(
-                model, save_path, overwrite=True, save_anndata=True, prefix=prefix
-            )
-        else:
-            model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-            model.view_setup_args(save_path, prefix=prefix)
+        model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+        model.view_setup_args(save_path, prefix=prefix)
         model = AUTOZI.load(save_path, prefix=prefix)
         model.get_latent_representation()
         tmp_adata = scvi.data.synthetic_iid(n_genes=200)
@@ -483,25 +418,16 @@ def test_saving_and_loading(save_path):
         assert model.is_trained is True
 
     AUTOZI.setup_anndata(adata, batch_key="batch", labels_key="labels")
-    test_save_load_autozi(legacy=True)
     test_save_load_autozi()
-    # Test load prioritizes newer save paradigm and thus mismatches legacy save.
-    with pytest.raises(AssertionError):
-        test_save_load_autozi(legacy=True)
 
     # SCANVI
-    def test_save_load_scanvi(legacy=False):
+    def test_save_load_scanvi():
         prefix = "SCANVI_"
         model = SCANVI(adata)
         model.train(max_epochs=1, train_size=0.5)
         p1 = model.predict()
-        if legacy:
-            legacy_save(
-                model, save_path, overwrite=True, save_anndata=True, prefix=prefix
-            )
-        else:
-            model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-            model.view_setup_args(save_path, prefix=prefix)
+        model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+        model.view_setup_args(save_path, prefix=prefix)
         model = SCANVI.load(save_path, prefix=prefix)
         model.get_latent_representation()
         tmp_adata = scvi.data.synthetic_iid(n_genes=200)
@@ -518,11 +444,7 @@ def test_saving_and_loading(save_path):
         assert model.is_trained is True
 
     SCANVI.setup_anndata(adata, "labels", "label_0", batch_key="batch")
-    test_save_load_scanvi(legacy=True)
     test_save_load_scanvi()
-    # Test load prioritizes newer save paradigm and thus mismatches legacy save.
-    with pytest.raises(AssertionError):
-        test_save_load_scanvi(legacy=True)
 
 
 def test_new_setup_compat():
@@ -567,29 +489,6 @@ def test_new_setup_compat():
         field_registries,
         adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
-
-
-@pytest.mark.internet
-def test_backwards_compatible_loading(save_path):
-    def download_080_models(save_path):
-        file_path = (
-            "https://github.com/yoseflab/scVI-data/raw/master/testing_models.tar.gz"
-        )
-        save_fn = "testing_models.tar.gz"
-        _download(file_path, save_path, save_fn)
-        saved_file_path = os.path.join(save_path, save_fn)
-        tar = tarfile.open(saved_file_path, "r:gz")
-        tar.extractall(path=save_path)
-        tar.close()
-
-    download_080_models(save_path)
-    pretrained_scvi_path = os.path.join(save_path, "testing_models/080_scvi")
-    a = scvi.data.synthetic_iid()
-    m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a)
-    m.train(1)
-    pretrained_totalvi_path = os.path.join(save_path, "testing_models/080_totalvi")
-    m = scvi.model.TOTALVI.load(pretrained_totalvi_path, adata=a)
-    m.train(1)
 
 
 def test_backed_anndata_scvi(save_path):

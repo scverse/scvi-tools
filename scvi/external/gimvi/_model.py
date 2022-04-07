@@ -446,6 +446,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata_spatial: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
         prefix: Optional[str] = None,
+        backup_url: Optional[str] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -467,6 +468,8 @@ class GIMVI(VAEMixin, BaseModelClass):
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
         prefix
             Prefix of saved file names.
+        backup_url
+            URL to retrieve saved outputs from if not present on disk.
 
         Returns
         -------
@@ -492,6 +495,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             adata_spatial is None,
             prefix=prefix,
             map_location=device,
+            backup_url=backup_url,
         )
         adata_seq = loaded_adata_seq or adata_seq
         adata_spatial = loaded_adata_spatial or adata_spatial

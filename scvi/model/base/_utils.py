@@ -1,6 +1,5 @@
 import logging
 import os
-import pickle
 import warnings
 from collections.abc import Iterable as IterableClass
 from typing import List, Optional, Tuple, Union
@@ -9,9 +8,9 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData, read
-from sklearn.utils import deprecated
 
 from scvi._compat import Literal
+from scvi.model._utils import _download_if_missing
 from scvi.utils import track
 
 from ._differential import DifferentialComputation
@@ -19,72 +18,35 @@ from ._differential import DifferentialComputation
 logger = logging.getLogger(__name__)
 
 
-def _should_use_legacy_saved_files(dir_path: str, file_name_prefix: str) -> bool:
-    new_model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
-    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
-    attr_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
-    return (
-        not os.path.exists(new_model_path)
-        and os.path.exists(model_path)
-        and os.path.exists(var_names_path)
-        and os.path.exists(attr_dict_path)
-    )
-
-
-@deprecated(
-    extra="Please update your saved models to use the latest version. The legacy save and load scheme will be removed in version 0.16.0."
-)
-def _load_legacy_saved_files(
-    dir_path: str,
-    file_name_prefix: str,
-    map_location: Optional[Literal["cpu", "cuda"]],
-) -> Tuple[dict, np.ndarray, dict]:
-    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
-    setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
-
-    model_state_dict = torch.load(model_path, map_location=map_location)
-
-    var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
-
-    with open(setup_dict_path, "rb") as handle:
-        attr_dict = pickle.load(handle)
-
-    return model_state_dict, var_names, attr_dict
-
-
 def _load_saved_files(
     dir_path: str,
     load_adata: bool,
     prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
+    backup_url: Optional[str] = None,
 ) -> Tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
-    adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
 
-    if os.path.exists(adata_path) and load_adata:
-        adata = read(adata_path)
-    elif not os.path.exists(adata_path) and load_adata:
-        raise ValueError("Save path contains no saved anndata and no adata was passed.")
+    if load_adata:
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
+        _download_if_missing(adata_path, backup_url)
+        if os.path.exists(adata_path):
+            adata = read(adata_path)
+        elif not os.path.exists(adata_path):
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
     else:
         adata = None
 
-    use_legacy = _should_use_legacy_saved_files(dir_path, file_name_prefix)
+    model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+    _download_if_missing(model_path, backup_url)
 
-    # TODO(jhong): Remove once legacy load is deprecated.
-    if use_legacy:
-        model_state_dict, var_names, attr_dict = _load_legacy_saved_files(
-            dir_path, file_name_prefix, map_location
-        )
-    else:
-        model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
-
-        model = torch.load(model_path, map_location=map_location)
-        model_state_dict = model["model_state_dict"]
-        var_names = model["var_names"]
-        attr_dict = model["attr_dict"]
+    model = torch.load(model_path, map_location=map_location)
+    model_state_dict = model["model_state_dict"]
+    var_names = model["var_names"]
+    attr_dict = model["attr_dict"]
 
     return attr_dict, var_names, model_state_dict, adata
 

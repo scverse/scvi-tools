@@ -548,6 +548,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
         prefix: Optional[str] = None,
+        backup_url: Optional[str] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -566,6 +567,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
         prefix
             Prefix of saved file names.
+        backup_url
+            URL to retrieve saved outputs from if not present on disk.
 
         Returns
         -------
@@ -579,12 +582,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         load_adata = adata is None
         use_gpu, device = parse_use_gpu_arg(use_gpu)
 
-        (
-            attr_dict,
-            var_names,
-            model_state_dict,
-            new_adata,
-        ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
+        (attr_dict, var_names, model_state_dict, new_adata,) = _load_saved_files(
+            dir_path,
+            load_adata,
+            map_location=device,
+            prefix=prefix,
+            backup_url=backup_url,
+        )
         adata = new_adata if new_adata is not None else adata
         _validate_var_names(adata, var_names)
 
