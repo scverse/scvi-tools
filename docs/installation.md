@@ -26,7 +26,7 @@ scvi-tools can be installed via conda or pip. If you don't know which to choose,
 2. Install [PyTorch]. If you have an Nvidia GPU, be sure to install a version of PyTorch that supports it -- scvi-tools runs much faster with a discrete GPU.
 
 :::{note}
-Installing scvi-tools on a Mac with Apple Silicon is only possible using a native version of Python and Python >=3.9. A native version of Python can be installed via a Apple Silicon version of miniconda (which can be installed from a native version of homebrew). This is due to an scvi-tools dependency on jax, which cannot be run via Rosetta. 
+Installing scvi-tools on a Mac with Apple Silicon is only possible using a native version of Python and Python >=3.9. A native version of Python can be installed with an Apple Silicon version of miniconda (which can be installed from a native version of homebrew). This is due to an scvi-tools dependency on jax, which cannot be run via Rosetta. 
 :::
 
 ## Conda
