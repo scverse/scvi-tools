@@ -165,6 +165,12 @@ def manager_from_setup_dict(
                         new_registry_key, original_key, unlabeled_category
                     )
                 else:
+                    # Use labels field for TOTALVI
+                    if (
+                        cls.__name__ == "TOTALVI"
+                        and new_registry_key == REGISTRY_KEYS.LABELS_KEY
+                    ):
+                        original_key = None
                     field = CategoricalObsField(new_registry_key, original_key)
                 setup_args[f"{new_registry_key}_key"] = original_key
             elif new_registry_key == REGISTRY_KEYS.INDICES_KEY:
@@ -210,6 +216,11 @@ def manager_from_setup_dict(
     source_registry = registry_from_setup_dict(
         setup_dict, unlabeled_category=unlabeled_category
     )
+    # Use labels field for TOTALVI
+    if cls.__name__ == "TOTALVI":
+        source_registry[_constants._FIELD_REGISTRIES_KEY][REGISTRY_KEYS.LABELS_KEY][
+            _constants._STATE_REGISTRY_KEY
+        ][CategoricalObsField.CATEGORICAL_MAPPING_KEY] = np.zeros(1, dtype=np.int64)
     adata_manager.register_fields(
         adata, source_registry=source_registry, **transfer_kwargs
     )
