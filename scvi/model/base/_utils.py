@@ -12,24 +12,12 @@ from anndata import AnnData, read
 from sklearn.utils import deprecated
 
 from scvi._compat import Literal
+from scvi.model._utils import _download_if_missing
 from scvi.utils import track
 
 from ._differential import DifferentialComputation
 
 logger = logging.getLogger(__name__)
-
-
-def _should_use_legacy_saved_files(dir_path: str, file_name_prefix: str) -> bool:
-    new_model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
-    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
-    attr_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
-    return (
-        not os.path.exists(new_model_path)
-        and os.path.exists(model_path)
-        and os.path.exists(var_names_path)
-        and os.path.exists(attr_dict_path)
-    )
 
 
 @deprecated(
@@ -59,32 +47,37 @@ def _load_saved_files(
     load_adata: bool,
     prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
+    backup_url: Optional[str] = None,
 ) -> Tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
-    adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
 
-    if os.path.exists(adata_path) and load_adata:
-        adata = read(adata_path)
-    elif not os.path.exists(adata_path) and load_adata:
-        raise ValueError("Save path contains no saved anndata and no adata was passed.")
+    model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+    try:
+        _download_if_missing(model_path, backup_url)
+        model = torch.load(model_path, map_location=map_location)
+    except Exception as exc:
+        raise ValueError(
+            f"Failed to load model file at {model_path}. "
+            "If attempting to load a saved model from <v0.15.0, please use the util function "
+            "`scvi.model.convert_legacy_save` to convert to an updated format."
+        ) from exc
+
+    model_state_dict = model["model_state_dict"]
+    var_names = model["var_names"]
+    attr_dict = model["attr_dict"]
+
+    if load_adata:
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
+        _download_if_missing(adata_path, backup_url)
+        if os.path.exists(adata_path):
+            adata = read(adata_path)
+        elif not os.path.exists(adata_path):
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
     else:
         adata = None
-
-    use_legacy = _should_use_legacy_saved_files(dir_path, file_name_prefix)
-
-    # TODO(jhong): Remove once legacy load is deprecated.
-    if use_legacy:
-        model_state_dict, var_names, attr_dict = _load_legacy_saved_files(
-            dir_path, file_name_prefix, map_location
-        )
-    else:
-        model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
-
-        model = torch.load(model_path, map_location=map_location)
-        model_state_dict = model["model_state_dict"]
-        var_names = model["var_names"]
-        attr_dict = model["attr_dict"]
 
     return attr_dict, var_names, model_state_dict, adata
 

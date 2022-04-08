@@ -391,7 +391,7 @@ def test_saving_and_loading(save_path):
         with open(attr_save_path, "wb") as f:
             pickle.dump(user_attributes, f)
 
-    def test_save_load_model(cls, adata, save_path, prefix=None, legacy=False):
+    def test_save_load_model(cls, adata, save_path, prefix=None):
         if cls is TOTALVI:
             cls.setup_anndata(
                 adata,
@@ -405,13 +405,8 @@ def test_saving_and_loading(save_path):
         model.train(1, train_size=0.2)
         z1 = model.get_latent_representation(adata)
         test_idx1 = model.validation_indices
-        if legacy:
-            legacy_save(
-                model, save_path, overwrite=True, save_anndata=True, prefix=prefix
-            )
-        else:
-            model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-            model.view_setup_args(save_path, prefix=prefix)
+        model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+        model.view_setup_args(save_path, prefix=prefix)
         model = cls.load(save_path, prefix=prefix)
         model.get_latent_representation()
 
@@ -442,90 +437,73 @@ def test_saving_and_loading(save_path):
         np.testing.assert_array_equal(test_idx1, test_idx2)
         assert model.is_trained is True
 
+        # Test legacy loading
+        legacy_save(model, save_path, overwrite=True, save_anndata=True, prefix=prefix)
+        with pytest.raises(ValueError):
+            cls.load(save_path, adata=adata, prefix=prefix)
+
     save_path = os.path.join(save_path, "tmp")
     adata = synthetic_iid()
 
     for cls in [SCVI, LinearSCVI, TOTALVI, PEAKVI]:
-        test_save_load_model(
-            cls, adata, save_path, prefix=f"{cls.__name__}_", legacy=True
-        )
         test_save_load_model(cls, adata, save_path, prefix=f"{cls.__name__}_")
-        # Test load prioritizes newer save paradigm and thus mismatches legacy save.
-        with pytest.raises(AssertionError):
-            test_save_load_model(
-                cls, adata, save_path, prefix=f"{cls.__name__}_", legacy=True
-            )
 
     # AUTOZI
-    def test_save_load_autozi(legacy=False):
-        prefix = "AUTOZI_"
-        model = AUTOZI(adata, latent_distribution="normal")
-        model.train(1, train_size=0.5)
-        ab1 = model.get_alphas_betas()
-        if legacy:
-            legacy_save(
-                model, save_path, overwrite=True, save_anndata=True, prefix=prefix
-            )
-        else:
-            model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-            model.view_setup_args(save_path, prefix=prefix)
-        model = AUTOZI.load(save_path, prefix=prefix)
-        model.get_latent_representation()
-        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
-        with pytest.raises(ValueError):
-            AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
-        model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
-        assert "batch" in model.adata_manager.data_registry
-        assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
-        )
-
-        ab2 = model.get_alphas_betas()
-        np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
-        np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
-        assert model.is_trained is True
-
+    prefix = "AUTOZI_"
     AUTOZI.setup_anndata(adata, batch_key="batch", labels_key="labels")
-    test_save_load_autozi(legacy=True)
-    test_save_load_autozi()
-    # Test load prioritizes newer save paradigm and thus mismatches legacy save.
-    with pytest.raises(AssertionError):
-        test_save_load_autozi(legacy=True)
+    model = AUTOZI(adata, latent_distribution="normal")
+    model.train(1, train_size=0.5)
+    ab1 = model.get_alphas_betas()
+    model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    model.view_setup_args(save_path, prefix=prefix)
+    model = AUTOZI.load(save_path, prefix=prefix)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
+    model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
+    assert "batch" in model.adata_manager.data_registry
+    assert model.adata_manager.data_registry["batch"] == dict(
+        attr_name="obs", attr_key="_scvi_batch"
+    )
+
+    ab2 = model.get_alphas_betas()
+    np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
+    np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
+    assert model.is_trained is True
+
+    # Test legacy loading
+    legacy_save(model, save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    with pytest.raises(ValueError):
+        AUTOZI.load(save_path, adata=adata, prefix=prefix)
 
     # SCANVI
-    def test_save_load_scanvi(legacy=False):
-        prefix = "SCANVI_"
-        model = SCANVI(adata)
-        model.train(max_epochs=1, train_size=0.5)
-        p1 = model.predict()
-        if legacy:
-            legacy_save(
-                model, save_path, overwrite=True, save_anndata=True, prefix=prefix
-            )
-        else:
-            model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-            model.view_setup_args(save_path, prefix=prefix)
-        model = SCANVI.load(save_path, prefix=prefix)
-        model.get_latent_representation()
-        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
-        with pytest.raises(ValueError):
-            SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
-        model = SCANVI.load(save_path, adata=adata, prefix=prefix)
-        assert "batch" in model.adata_manager.data_registry
-        assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
-        )
-
-        p2 = model.predict()
-        np.testing.assert_array_equal(p1, p2)
-        assert model.is_trained is True
-
+    prefix = "SCANVI_"
     SCANVI.setup_anndata(adata, "labels", "label_0", batch_key="batch")
-    test_save_load_scanvi(legacy=True)
-    test_save_load_scanvi()
-    # Test load prioritizes newer save paradigm and thus mismatches legacy save.
-    with pytest.raises(AssertionError):
-        test_save_load_scanvi(legacy=True)
+    model = SCANVI(adata)
+    model.train(max_epochs=1, train_size=0.5)
+    p1 = model.predict()
+    model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    model.view_setup_args(save_path, prefix=prefix)
+    model = SCANVI.load(save_path, prefix=prefix)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
+    model = SCANVI.load(save_path, adata=adata, prefix=prefix)
+    assert "batch" in model.adata_manager.data_registry
+    assert model.adata_manager.data_registry["batch"] == dict(
+        attr_name="obs", attr_key="_scvi_batch"
+    )
+
+    p2 = model.predict()
+    np.testing.assert_array_equal(p1, p2)
+    assert model.is_trained is True
+
+    # Test legacy loading
+    legacy_save(model, save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    with pytest.raises(ValueError):
+        SCANVI.load(save_path, adata=adata, prefix=prefix)
 
 
 def test_new_setup_compat():
@@ -592,6 +570,30 @@ def test_backwards_compatible_loading(save_path):
     m.train(1)
     pretrained_totalvi_path = os.path.join(save_path, "testing_models/080_totalvi")
     m = scvi.model.TOTALVI.load(pretrained_totalvi_path, adata=a)
+    m.train(1)
+
+
+@pytest.mark.internet
+def test_backup_url(save_path):
+    backup_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models_0150"
+    a = scvi.data.synthetic_iid()
+    a.obs["cat1"] = np.random.randint(0, 5, size=(a.shape[0],))
+    a.obs["cat2"] = np.random.randint(0, 5, size=(a.shape[0],))
+    a.obs["cont1"] = np.random.normal(size=(a.shape[0],))
+    a.obs["cont2"] = np.random.normal(size=(a.shape[0],))
+
+    # SCVI
+    pretrained_scvi_path = os.path.join(save_path, "testing_models/0150_scvi")
+    scvi_backup_url = os.path.join(backup_path, "0150_scvi")
+    m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a, backup_url=scvi_backup_url)
+    m.train(1)
+
+    # TOTALVI
+    pretrained_totalvi_path = os.path.join(save_path, "testing_models/0150_totalvi")
+    totalvi_backup_url = os.path.join(backup_path, "0150_totalvi")
+    m = scvi.model.TOTALVI.load(
+        pretrained_totalvi_path, adata=a, backup_url=totalvi_backup_url
+    )
     m.train(1)
 
 

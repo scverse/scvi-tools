@@ -14,7 +14,6 @@ from anndata import AnnData
 
 from scvi import settings
 from scvi.data import AnnDataManager
-from scvi.data._compat import manager_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SCVI_UUID_KEY, _SETUP_ARGS_KEY
 from scvi.data._utils import _assign_adata_uuid
 from scvi.dataloaders import AnnDataLoader
@@ -548,6 +547,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
         prefix: Optional[str] = None,
+        backup_url: Optional[str] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -566,6 +566,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
         prefix
             Prefix of saved file names.
+        backup_url
+            URL to retrieve saved outputs from if not present on disk.
 
         Returns
         -------
@@ -579,50 +581,32 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         load_adata = adata is None
         use_gpu, device = parse_use_gpu_arg(use_gpu)
 
-        (
-            attr_dict,
-            var_names,
-            model_state_dict,
-            new_adata,
-        ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
+        (attr_dict, var_names, model_state_dict, new_adata,) = _load_saved_files(
+            dir_path,
+            load_adata,
+            map_location=device,
+            prefix=prefix,
+            backup_url=backup_url,
+        )
         adata = new_adata if new_adata is not None else adata
         _validate_var_names(adata, var_names)
 
-        # Legacy support for old setup dict format.
-        if "scvi_setup_dict_" in attr_dict:
-            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-            unlabeled_category_key = "unlabeled_category_"
-            unlabeled_category = attr_dict.get(unlabeled_category_key, None)
-            cls.register_manager(
-                manager_from_setup_dict(
-                    cls,
-                    adata,
-                    scvi_setup_dict,
-                    unlabeled_category=unlabeled_category,
-                )
+        registry = attr_dict.pop("registry_")
+        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+            raise ValueError(
+                "It appears you are loading a model from a different class."
             )
-        else:
-            registry = attr_dict.pop("registry_")
-            if (
-                _MODEL_NAME_KEY in registry
-                and registry[_MODEL_NAME_KEY] != cls.__name__
-            ):
-                raise ValueError(
-                    "It appears you are loading a model from a different class."
-                )
 
-            if _SETUP_ARGS_KEY not in registry:
-                raise ValueError(
-                    "Saved model does not contain original setup inputs. "
-                    "Cannot load the original setup."
-                )
-
-            # Calling ``setup_anndata`` method with the original arguments passed into
-            # the saved model. This enables simple backwards compatibility in the case of
-            # newly introduced fields or parameters.
-            cls.setup_anndata(
-                adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+        if _SETUP_ARGS_KEY not in registry:
+            raise ValueError(
+                "Saved model does not contain original setup inputs. "
+                "Cannot load the original setup."
             )
+
+        # Calling ``setup_anndata`` method with the original arguments passed into
+        # the saved model. This enables simple backwards compatibility in the case of
+        # newly introduced fields or parameters.
+        cls.setup_anndata(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
 
         model = _initialize_model(cls, adata, attr_dict)
 
