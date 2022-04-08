@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
+from scvi.data._compat import manager_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
@@ -21,7 +22,7 @@ from scvi.utils import setup_anndata_dsp
 
 from ._module import JVAE
 from ._task import GIMVITrainingPlan
-from ._utils import _load_saved_gimvi_files
+from ._utils import _load_legacy_saved_gimvi_files, _load_saved_gimvi_files
 
 logger = logging.getLogger(__name__)
 
@@ -558,6 +559,92 @@ class GIMVI(VAEMixin, BaseModelClass):
         model.module.eval()
         model.to_device(device)
         return model
+
+    @classmethod
+    def convert_legacy_save(
+        cls,
+        dir_path: str,
+        output_dir_path: str,
+        adata_seq: Optional[AnnData] = None,
+        adata_spatial: Optional[AnnData] = None,
+        overwrite: bool = False,
+        prefix: Optional[str] = None,
+        backup_url: Optional[str] = None,
+    ) -> None:
+        """
+        Converts a legacy saved GIMVI model (<v0.15.0) to the updated save format.
+
+        Parameters
+        ----------
+        dir_path
+            Path to directory where legacy model is saved.
+        output_dir_path
+            Path to save converted save files.
+        adata_seq
+            AnnData that will be used to load model containing RNA seq data. Required if ``dir_path``
+            does not contain ``adata_seq``.
+        adata_spatial
+            AnnData that will be used to load model containing spatial RNA seq data. Required if ``dir_path``
+            does not contain ``adata_spatial``.
+        overwrite
+            Overwrite existing data or not. If ``False`` and directory
+            already exists at ``output_dir_path``, error will be raised.
+        prefix
+            Prefix of saved file names.
+        backup_url
+            URL to retrieve saved outputs from if not present on disk.
+        """
+        if not os.path.exists(output_dir_path) or overwrite:
+            os.makedirs(output_dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                "{} already exists. Please provide an unexisting directory for saving.".format(
+                    dir_path
+                )
+            )
+
+        file_name_prefix = prefix or ""
+        load_seq_adata = adata_seq is None
+        load_spatial_adata = adata_spatial is None
+        (
+            model_state_dict,
+            seq_var_names,
+            spatial_var_names,
+            attr_dict,
+            new_adata_seq,
+            new_adata_spatial,
+        ) = _load_legacy_saved_gimvi_files(
+            dir_path,
+            file_name_prefix,
+            load_seq_adata,
+            load_spatial_adata,
+            backup_url=backup_url,
+        )
+        adata_seq = new_adata_seq if new_adata_seq is not None else adata_seq
+        adata_spatial = (
+            new_adata_spatial if new_adata_spatial is not None else adata_spatial
+        )
+
+        if "scvi_setup_dicts_" in attr_dict:
+            scvi_setup_dicts = attr_dict.pop("scvi_setup_dicts_")
+            registries = []
+            for adata, scvi_setup_dict in zip(
+                [adata_seq, adata_spatial], scvi_setup_dicts
+            ):
+                adata_manager = manager_from_setup_dict(cls, adata, scvi_setup_dict)
+                registries.append(adata_manager.registry)
+            attr_dict["registries_"] = registries
+
+        model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
+        torch.save(
+            dict(
+                model_state_dict=model_state_dict,
+                seq_var_names=seq_var_names,
+                spatial_var_names=spatial_var_names,
+                attr_dict=attr_dict,
+            ),
+            model_save_path,
+        )
 
     @classmethod
     @setup_anndata_dsp.dedent

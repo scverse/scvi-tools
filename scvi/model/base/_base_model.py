@@ -14,10 +14,12 @@ from anndata import AnnData
 
 from scvi import settings
 from scvi.data import AnnDataManager
+from scvi.data._compat import manager_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SCVI_UUID_KEY, _SETUP_ARGS_KEY
 from scvi.data._utils import _assign_adata_uuid
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
+from scvi.model.base._utils import _load_legacy_saved_files
 from scvi.module.base import PyroBaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
@@ -628,6 +630,74 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         model.module.eval()
         model._validate_anndata(adata)
         return model
+
+    @classmethod
+    def convert_legacy_save(
+        cls,
+        dir_path: str,
+        output_dir_path: str,
+        adata: Optional[AnnData] = None,
+        overwrite: bool = False,
+        prefix: Optional[str] = None,
+        backup_url: Optional[str] = None,
+    ) -> None:
+        """
+        Converts a legacy saved model (<v0.15.0) to the updated save format.
+
+        Parameters
+        ----------
+        dir_path
+            Path to directory where legacy model is saved.
+        output_dir_path
+            Path to save converted save files.
+        adata
+            AnnData that will be used to load model. Required if ``dir_path``
+            does not contain ``adata``.
+        overwrite
+            Overwrite existing data or not. If ``False`` and directory
+            already exists at ``output_dir_path``, error will be raised.
+        prefix
+            Prefix of saved file names.
+        backup_url
+            URL to retrieve saved outputs from if not present on disk.
+        """
+        if not os.path.exists(output_dir_path) or overwrite:
+            os.makedirs(output_dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                "{} already exists. Please provide an unexisting directory for saving.".format(
+                    dir_path
+                )
+            )
+
+        file_name_prefix = prefix or ""
+        load_adata = adata is None
+        model_state_dict, var_names, attr_dict, new_adata = _load_legacy_saved_files(
+            dir_path, file_name_prefix, load_adata, backup_url=backup_url
+        )
+        adata = new_adata if new_adata is not None else adata
+
+        if "scvi_setup_dict_" in attr_dict:
+            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+            unlabeled_category_key = "unlabeled_category_"
+            unlabeled_category = attr_dict.get(unlabeled_category_key, None)
+            adata_manager = manager_from_setup_dict(
+                cls,
+                adata,
+                scvi_setup_dict,
+                unlabeled_category=unlabeled_category,
+            )
+            attr_dict["registry_"] = adata_manager.registry
+
+        model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
+        torch.save(
+            dict(
+                model_state_dict=model_state_dict,
+                var_names=var_names,
+                attr_dict=attr_dict,
+            ),
+            model_save_path,
+        )
 
     def __repr__(
         self,

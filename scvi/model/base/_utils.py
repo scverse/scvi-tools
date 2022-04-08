@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData, read
-from sklearn.utils import deprecated
 
 from scvi._compat import Literal
 from scvi.model._utils import _download_if_missing
@@ -20,26 +19,39 @@ from ._differential import DifferentialComputation
 logger = logging.getLogger(__name__)
 
 
-@deprecated(
-    extra="Please update your saved models to use the latest version. The legacy save and load scheme will be removed in version 0.16.0."
-)
 def _load_legacy_saved_files(
     dir_path: str,
     file_name_prefix: str,
-    map_location: Optional[Literal["cpu", "cuda"]],
-) -> Tuple[dict, np.ndarray, dict]:
+    load_adata: bool,
+    backup_url: Optional[str] = None,
+) -> Tuple[dict, np.ndarray, dict, Optional[AnnData]]:
     model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
     var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
     setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
 
-    model_state_dict = torch.load(model_path, map_location=map_location)
+    _download_if_missing(model_path, backup_url)
+    model_state_dict = torch.load(model_path)
 
+    _download_if_missing(var_names_path, backup_url)
     var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
 
+    _download_if_missing(setup_dict_path, backup_url)
     with open(setup_dict_path, "rb") as handle:
         attr_dict = pickle.load(handle)
 
-    return model_state_dict, var_names, attr_dict
+    if load_adata:
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
+        _download_if_missing(adata_path, backup_url)
+        if os.path.exists(adata_path):
+            adata = read(adata_path)
+        elif not os.path.exists(adata_path):
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
+    else:
+        adata = None
+
+    return model_state_dict, var_names, attr_dict, adata
 
 
 def _load_saved_files(
@@ -60,7 +72,7 @@ def _load_saved_files(
         raise ValueError(
             f"Failed to load model file at {model_path}. "
             "If attempting to load a saved model from <v0.15.0, please use the util function "
-            "`scvi.model.convert_legacy_save` to convert to an updated format."
+            "`convert_legacy_save` to convert to an updated format."
         ) from exc
 
     model_state_dict = model["model_state_dict"]

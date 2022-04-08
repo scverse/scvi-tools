@@ -100,9 +100,26 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
     # Test legacy loading
-    legacy_save(model, save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    legacy_save_path = os.path.join(save_path, "legacy/")
+    legacy_save(
+        model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
+    )
     with pytest.raises(ValueError):
-        GIMVI.load(save_path, adata_seq=adata, adata_spatial=adata2, prefix=prefix)
+        GIMVI.load(
+            legacy_save_path, adata_seq=adata, adata_spatial=adata2, prefix=prefix
+        )
+    GIMVI.convert_legacy_save(
+        legacy_save_path,
+        legacy_save_path,
+        overwrite=True,
+        adata_seq=adata,
+        adata_spatial=adata2,
+        prefix=prefix,
+    )
+    m = GIMVI.load(
+        legacy_save_path, adata_seq=adata, adata_spatial=adata2, prefix=prefix
+    )
+    m.train(1)
 
 
 def test_gimvi():

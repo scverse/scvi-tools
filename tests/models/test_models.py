@@ -438,9 +438,21 @@ def test_saving_and_loading(save_path):
         assert model.is_trained is True
 
         # Test legacy loading
-        legacy_save(model, save_path, overwrite=True, save_anndata=True, prefix=prefix)
+        legacy_save_path = os.path.join(save_path, "legacy/")
+        legacy_save(
+            model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
+        )
         with pytest.raises(ValueError):
-            cls.load(save_path, adata=adata, prefix=prefix)
+            cls.load(legacy_save_path, adata=adata, prefix=prefix)
+        cls.convert_legacy_save(
+            legacy_save_path,
+            legacy_save_path,
+            overwrite=True,
+            adata=adata,
+            prefix=prefix,
+        )
+        m = cls.load(legacy_save_path, adata=adata, prefix=prefix)
+        m.train(1)
 
     save_path = os.path.join(save_path, "tmp")
     adata = synthetic_iid()
@@ -473,9 +485,17 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
     # Test legacy loading
-    legacy_save(model, save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    legacy_save_path = os.path.join(save_path, "legacy/")
+    legacy_save(
+        model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
+    )
     with pytest.raises(ValueError):
-        AUTOZI.load(save_path, adata=adata, prefix=prefix)
+        AUTOZI.load(legacy_save_path, adata=adata, prefix=prefix)
+    AUTOZI.convert_legacy_save(
+        legacy_save_path, legacy_save_path, overwrite=True, adata=adata, prefix=prefix
+    )
+    m = AUTOZI.load(legacy_save_path, adata=adata, prefix=prefix)
+    m.train(1)
 
     # SCANVI
     prefix = "SCANVI_"
@@ -501,9 +521,17 @@ def test_saving_and_loading(save_path):
     assert model.is_trained is True
 
     # Test legacy loading
-    legacy_save(model, save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    legacy_save_path = os.path.join(save_path, "legacy/")
+    legacy_save(
+        model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
+    )
     with pytest.raises(ValueError):
-        SCANVI.load(save_path, adata=adata, prefix=prefix)
+        SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
+    AUTOZI.convert_legacy_save(
+        legacy_save_path, legacy_save_path, overwrite=True, adata=adata, prefix=prefix
+    )
+    m = SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
+    m.train(1)
 
 
 def test_new_setup_compat():
@@ -565,11 +593,29 @@ def test_backwards_compatible_loading(save_path):
 
     download_080_models(save_path)
     pretrained_scvi_path = os.path.join(save_path, "testing_models/080_scvi")
+    pretrained_scvi_updated_path = os.path.join(
+        save_path, "testing_models/080_scvi_updated"
+    )
     a = scvi.data.synthetic_iid()
-    m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a)
+    # Fail legacy load.
+    with pytest.raises(ValueError):
+        m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a)
+    scvi.model.SCVI.convert_legacy_save(
+        pretrained_scvi_path, pretrained_scvi_updated_path, adata=a
+    )
+    m = scvi.model.SCVI.load(pretrained_scvi_updated_path, adata=a)
     m.train(1)
     pretrained_totalvi_path = os.path.join(save_path, "testing_models/080_totalvi")
-    m = scvi.model.TOTALVI.load(pretrained_totalvi_path, adata=a)
+    pretrained_totalvi_updated_path = os.path.join(
+        save_path, "testing_models/080_totalvi_updated"
+    )
+    # Fail legacy load.
+    with pytest.raises(ValueError):
+        m = scvi.model.TOTALVI.load(pretrained_totalvi_path, adata=a)
+    scvi.model.TOTALVI.convert_legacy_save(
+        pretrained_totalvi_path, pretrained_totalvi_updated_path, adata=a
+    )
+    m = scvi.model.TOTALVI.load(pretrained_totalvi_updated_path, adata=a)
     m.train(1)
 
 
