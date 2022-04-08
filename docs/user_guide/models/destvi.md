@@ -187,7 +187,7 @@ The loss is defined as:
 \end{align}
 ```
 
-$\lambda_{\beta}$ (`l1_reg` in code), $\lambda_{\eta}$ (`eta_reg` in code) and $\lambda_{\alpha}$ (`beta_reg` in code) are hyperparameters used to scale the loss term. Increasing $\lambda_{\beta}$ leads to increased sparsity of cell type proportions. Increasing $\lambda_{\alpha}$ leads to less model flexibility for technical variation between single cell and spatial sequencing dataset. Increasing $\lambda_{\eta}$ leads to more genes being explained by the noise factor (we recommend to keep this constant). 
+$\lambda_{\beta}$ (`l1_reg` in code), $\lambda_{\eta}$ (`eta_reg` in code) and $\lambda_{\alpha}$ (`beta_reg` in code) are hyperparameters used to scale the loss term. Increasing $\lambda_{\beta}$ leads to increased sparsity of cell type proportions. Increasing $\lambda_{\alpha}$ leads to less model flexibility for technical variation between single cell and spatial sequencing dataset. Increasing $\lambda_{\eta}$ leads to more genes being explained by the dummy cell type (we recommend to not change the default value). 
 To avoid overfitting, DestVI amortizes inference using a neural network to parametrize the latent variables.
 Via the `amortization` parameter of {class}`scvi.module.MRDeconv`, the user can specify which of
 $\beta$ and $\gamma^c$ will be parametrized by the neural network.
