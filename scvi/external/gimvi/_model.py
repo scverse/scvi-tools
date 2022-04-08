@@ -11,7 +11,6 @@ from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data._compat import manager_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
@@ -512,32 +511,25 @@ class GIMVI(VAEMixin, BaseModelClass):
                     "need to be the same and in the same order as the adata used to train the model."
                 )
 
-        if "scvi_setup_dicts_" in attr_dict:
-            scvi_setup_dicts = attr_dict.pop("scvi_setup_dicts_")
-            for adata, scvi_setup_dict in zip(adatas, scvi_setup_dicts):
-                cls.register_manager(
-                    manager_from_setup_dict(cls, adata, scvi_setup_dict)
+        registries = attr_dict.pop("registries_")
+        for adata, registry in zip(adatas, registries):
+            if (
+                _MODEL_NAME_KEY in registry
+                and registry[_MODEL_NAME_KEY] != cls.__name__
+            ):
+                raise ValueError(
+                    "It appears you are loading a model from a different class."
                 )
-        else:
-            registries = attr_dict.pop("registries_")
-            for adata, registry in zip(adatas, registries):
-                if (
-                    _MODEL_NAME_KEY in registry
-                    and registry[_MODEL_NAME_KEY] != cls.__name__
-                ):
-                    raise ValueError(
-                        "It appears you are loading a model from a different class."
-                    )
 
-                if _SETUP_ARGS_KEY not in registry:
-                    raise ValueError(
-                        "Saved model does not contain original setup inputs. "
-                        "Cannot load the original setup."
-                    )
-
-                cls.setup_anndata(
-                    adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+            if _SETUP_ARGS_KEY not in registry:
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
                 )
+
+            cls.setup_anndata(
+                adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+            )
 
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")

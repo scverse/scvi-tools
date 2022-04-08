@@ -11,7 +11,7 @@ import torch
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi.data import AnnDataManager
-from scvi.data._built_in_data import _download
+from scvi.data._built_in_data._download import _download
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 def _download_if_missing(filepath: str, backup_url: Optional[str]):
     save_path, filename = os.path.split(filepath)
     if backup_url is not None:
-        _download(backup_url, save_path, filename)
+        backup_url_filepath = os.path.join(backup_url, filename)
+        _download(backup_url_filepath, save_path, filename)
 
 
 def parse_use_gpu_arg(

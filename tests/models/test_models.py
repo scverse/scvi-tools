@@ -10,7 +10,6 @@ from torch.nn import Softplus
 
 import scvi
 from scvi.data import _constants, synthetic_iid
-from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -33,51 +32,6 @@ from scvi.model import (
 from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager
-
-LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
-LEGACY_SETUP_DICT = {
-    "scvi_version": "0.0.0",
-    "categorical_mappings": {
-        "_scvi_batch": {
-            "original_key": "testbatch",
-            "mapping": np.array(["batch_0", "batch_1"], dtype=object),
-        },
-        "_scvi_labels": {
-            "original_key": "testlabels",
-            "mapping": np.array(["label_0", "label_1", "label_2"], dtype=object),
-        },
-    },
-    "extra_categoricals": {
-        "mappings": {
-            "cat1": np.array([0, 1, 2, 3, 4]),
-            "cat2": np.array([0, 1, 2, 3, 4]),
-        },
-        "keys": ["cat1", "cat2"],
-        "n_cats_per_key": [5, 5],
-    },
-    "extra_continuous_keys": np.array(["cont1", "cont2"], dtype=object),
-    "data_registry": {
-        "X": {"attr_name": "X", "attr_key": None},
-        "batch_indices": {"attr_name": "obs", "attr_key": "_scvi_batch"},
-        "labels": {"attr_name": "obs", "attr_key": "_scvi_labels"},
-        "cat_covs": {
-            "attr_name": "obsm",
-            "attr_key": "_scvi_extra_categoricals",
-        },
-        "cont_covs": {
-            "attr_name": "obsm",
-            "attr_key": "_scvi_extra_continuous",
-        },
-    },
-    "summary_stats": {
-        "n_batch": 2,
-        "n_cells": 400,
-        "n_vars": 100,
-        "n_labels": 3,
-        "n_proteins": 0,
-        "n_continuous_covs": 2,
-    },
-}
 
 
 def test_jax_scvi():
@@ -394,57 +348,51 @@ def test_saving_and_loading(save_path):
         test_save_load_model(cls, adata, save_path, prefix=f"{cls.__name__}_")
 
     # AUTOZI
-    def test_save_load_autozi():
-        prefix = "AUTOZI_"
-        model = AUTOZI(adata, latent_distribution="normal")
-        model.train(1, train_size=0.5)
-        ab1 = model.get_alphas_betas()
-        model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-        model.view_setup_args(save_path, prefix=prefix)
-        model = AUTOZI.load(save_path, prefix=prefix)
-        model.get_latent_representation()
-        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
-        with pytest.raises(ValueError):
-            AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
-        model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
-        assert "batch" in model.adata_manager.data_registry
-        assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
-        )
-
-        ab2 = model.get_alphas_betas()
-        np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
-        np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
-        assert model.is_trained is True
-
     AUTOZI.setup_anndata(adata, batch_key="batch", labels_key="labels")
-    test_save_load_autozi()
+    prefix = "AUTOZI_"
+    model = AUTOZI(adata, latent_distribution="normal")
+    model.train(1, train_size=0.5)
+    ab1 = model.get_alphas_betas()
+    model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    model.view_setup_args(save_path, prefix=prefix)
+    model = AUTOZI.load(save_path, prefix=prefix)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
+    model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
+    assert "batch" in model.adata_manager.data_registry
+    assert model.adata_manager.data_registry["batch"] == dict(
+        attr_name="obs", attr_key="_scvi_batch"
+    )
+
+    ab2 = model.get_alphas_betas()
+    np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
+    np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
+    assert model.is_trained is True
 
     # SCANVI
-    def test_save_load_scanvi():
-        prefix = "SCANVI_"
-        model = SCANVI(adata)
-        model.train(max_epochs=1, train_size=0.5)
-        p1 = model.predict()
-        model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-        model.view_setup_args(save_path, prefix=prefix)
-        model = SCANVI.load(save_path, prefix=prefix)
-        model.get_latent_representation()
-        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
-        with pytest.raises(ValueError):
-            SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
-        model = SCANVI.load(save_path, adata=adata, prefix=prefix)
-        assert "batch" in model.adata_manager.data_registry
-        assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
-        )
-
-        p2 = model.predict()
-        np.testing.assert_array_equal(p1, p2)
-        assert model.is_trained is True
-
     SCANVI.setup_anndata(adata, "labels", "label_0", batch_key="batch")
-    test_save_load_scanvi()
+    prefix = "SCANVI_"
+    model = SCANVI(adata)
+    model.train(max_epochs=1, train_size=0.5)
+    p1 = model.predict()
+    model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    model.view_setup_args(save_path, prefix=prefix)
+    model = SCANVI.load(save_path, prefix=prefix)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
+    model = SCANVI.load(save_path, adata=adata, prefix=prefix)
+    assert "batch" in model.adata_manager.data_registry
+    assert model.adata_manager.data_registry["batch"] == dict(
+        attr_name="obs", attr_key="_scvi_batch"
+    )
+
+    p2 = model.predict()
+    np.testing.assert_array_equal(p1, p2)
+    assert model.is_trained is True
 
 
 def test_new_setup_compat():
@@ -458,7 +406,6 @@ def test_new_setup_compat():
         columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True
     )
     adata2 = adata.copy()
-    adata3 = adata.copy()
 
     SCVI.setup_anndata(
         adata,
@@ -472,23 +419,37 @@ def test_new_setup_compat():
     model.view_anndata_setup(hide_state_registries=True)
 
     field_registries = adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
-    field_registries_legacy_subset = {
-        k: v for k, v in field_registries.items() if k in LEGACY_REGISTRY_KEYS
-    }
 
-    # Backwards compatibility test.
-    adata2_manager = manager_from_setup_dict(SCVI, adata2, LEGACY_SETUP_DICT)
+    # Test transfer.
+    adata2_manager = adata_manager.transfer_fields(adata2)
     np.testing.assert_equal(
-        field_registries_legacy_subset,
+        field_registries,
         adata2_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
 
-    # Test transfer.
-    adata3_manager = adata_manager.transfer_fields(adata3)
-    np.testing.assert_equal(
-        field_registries,
-        adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+
+@pytest.mark.internet
+def test_backup_url(save_path):
+    backup_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models_0150"
+    a = scvi.data.synthetic_iid()
+    a.obs["cat1"] = np.random.randint(0, 5, size=(a.shape[0],))
+    a.obs["cat2"] = np.random.randint(0, 5, size=(a.shape[0],))
+    a.obs["cont1"] = np.random.normal(size=(a.shape[0],))
+    a.obs["cont2"] = np.random.normal(size=(a.shape[0],))
+
+    # SCVI
+    pretrained_scvi_path = os.path.join(save_path, "testing_models/0150_scvi")
+    scvi_backup_url = os.path.join(backup_path, "0150_scvi")
+    m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a, backup_url=scvi_backup_url)
+    m.train(1)
+
+    # TOTALVI
+    pretrained_totalvi_path = os.path.join(save_path, "testing_models/0150_totalvi")
+    totalvi_backup_url = os.path.join(backup_path, "0150_totalvi")
+    m = scvi.model.TOTALVI.load(
+        pretrained_totalvi_path, adata=a, backup_url=totalvi_backup_url
     )
+    m.train(1)
 
 
 def test_backed_anndata_scvi(save_path):
