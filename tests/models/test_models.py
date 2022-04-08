@@ -280,6 +280,9 @@ def test_scvi(save_path):
     # test get_likelihood_parameters() when dispersion=='gene-cell'
     model = SCVI(adata, dispersion="gene-cell")
     model.get_likelihood_parameters()
+    model.get_likelihood_parameters(indices=np.arange(10))
+    model.get_likelihood_parameters(n_samples=10)
+    model.get_likelihood_parameters(n_samples=10, indices=np.arange(10))
 
     # test train callbacks work
     a = synthetic_iid()
