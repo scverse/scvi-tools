@@ -37,6 +37,10 @@ conda install scvi-tools -c conda-forge
 pip install scvi-tools
 ```
 
+:::{note}
+Installing scvi-tools on a Mac with Apple Silicon is only possible using a native version of Python and Python >=3.9. A native version of Python can be installed via a Apple Silicon version of miniconda (which can be installed from a native version of homebrew). This is due to an scvi-tools dependency on jax, which cannot be run via Rosetta. 
+:::
+
 Through pip with packages to run notebooks. This installs scanpy, etc.:
 
 ```
