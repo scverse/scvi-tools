@@ -936,6 +936,7 @@ class JaxTrainingPlan(pl.LightningModule):
         )
         self.state = state
 
+    @property
     def key_fn(self):
         # if key is generated on CPU, model params will be on CPU
         # we have to pay the price of a JIT compilation though
@@ -957,7 +958,7 @@ class JaxTrainingPlan(pl.LightningModule):
         self._rngs = rngs
 
     def set_rngs(self, keys: List[str]):
-        self._rngs = {k: self.key_fn()(i) for i, k in enumerate(keys)}
+        self._rngs = {k: self.key_fn(i) for i, k in enumerate(keys)}
 
     @staticmethod
     @jax.jit
