@@ -9,6 +9,8 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.utilities import rank_zero_info
 
+from scvi.dataloaders import AnnDataLoader
+
 
 class SubSampleLabels(Callback):
     def __init__(self):
@@ -142,3 +144,22 @@ class LoudEarlyStopping(EarlyStopping):
     ) -> None:
         if self.early_stopping_reason is not None:
             print(self.early_stopping_reason)
+
+
+class JaxModuleInit(Callback):
+    """A callback to initialize the Jax-based module."""
+
+    def __init__(self, dataloader: AnnDataLoader = None) -> None:
+        super().__init__()
+        self.dataloader = dataloader
+
+    def on_train_start(self, trainer, pl_module):
+        module = pl_module.module
+        if self.dataloader is None:
+            dl = trainer.datamodule.train_dataloader()
+        else:
+            dl = self.dataloader
+        module_init = module.init(pl_module.rngs, next(iter(dl)))
+        params = module_init["params"]
+        batch_stats = module_init["batch_stats"]
+        pl_module.set_train_state(params, batch_stats)

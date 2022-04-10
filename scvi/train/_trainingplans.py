@@ -1,16 +1,27 @@
 from inspect import getfullargspec, signature
-from typing import Callable, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
+import jax
+import jax.numpy as jnp
+import optax
 import pyro
 import pytorch_lightning as pl
 import torch
+from flax.core import FrozenDict
+from flax.training import train_state
+from jax import random
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.module import Classifier
-from scvi.module.base import BaseModuleClass, LossRecorder, PyroBaseModuleClass
+from scvi.module.base import (
+    BaseModuleClass,
+    JaxBaseModuleClass,
+    LossRecorder,
+    PyroBaseModuleClass,
+)
 from scvi.nn import one_hot
 
 from ._metrics import ElboMetric
@@ -855,3 +866,157 @@ class ClassifierTrainingPlan(pl.LightningModule):
         )
 
         return optimizer
+
+
+class TrainState(train_state.TrainState):
+    batch_stats: FrozenDict[str, Any]
+
+
+class JaxTrainingPlan(pl.LightningModule):
+    """
+    Lightning module task to train Pyro scvi-tools modules.
+
+    Parameters
+    ----------
+    flax_module
+        An instance of :class:`~scvi.module.base.JaxBaseModuleClass`. This object
+        should have callable `model` and `guide` attributes or methods.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+        Only activated when `n_epochs_kl_warmup` is set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from 0 to 1.
+        Overrides `n_steps_kl_warmup` when both are not `None`.
+    """
+
+    def __init__(
+        self,
+        flax_module: JaxBaseModuleClass,
+        n_steps_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = 400,
+        use_gpu: bool = False,
+        optim_kwargs: Optional[dict] = None,
+        **loss_kwargs,
+    ):
+        super().__init__()
+        self.module = flax_module
+        self._n_obs_training = None
+        self.loss_kwargs = loss_kwargs
+        self.n_steps_kl_warmup = n_steps_kl_warmup
+        self.n_epochs_kl_warmup = n_epochs_kl_warmup
+
+        self.automatic_optimization = False
+
+        # automatic handling of kl weight
+        self._loss_args = getfullargspec(self.module.loss)[0]
+        if "kl_weight" in self._loss_args:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        self._rngs = None
+        self.use_gpu = use_gpu
+        # gets set by the initialization callback
+        self.state = None
+
+        if optim_kwargs is None:
+            self.optim_kwargs = dict(learning_rate=1e-3, eps=0.01, weight_decay=1e-6)
+        else:
+            self.optim_kwargs = optim_kwargs
+
+    def set_train_state(self, params, batch_stats=None):
+        state = TrainState.create(
+            apply_fn=self.module.apply,
+            params=params,
+            tx=optax.adamw(**self.optim_kwargs),
+            batch_stats=batch_stats,
+        )
+        self.state = state
+
+    def key_fn(self):
+        # if key is generated on CPU, model params will be on CPU
+        # we have to pay the price of a JIT compilation though
+        if self.use_gpu is False:
+            key = jax.jit(lambda i: random.PRNGKey(i), backend="cpu")
+        else:
+            # dummy function
+            def key(i: int):
+                return random.PRNGKey(i)
+
+        return key
+
+    @property
+    def rngs(self) -> Dict[str, jnp.ndarray]:
+        return self._rngs
+
+    @rngs.setter
+    def rngs(self, rngs: Dict[str, jnp.ndarray]):
+        self._rngs = rngs
+
+    def set_rngs(self, keys: List[str]):
+        self._rngs = {k: self.key_fn()(i) for i, k in enumerate(keys)}
+
+    @staticmethod
+    @jax.jit
+    def jit_training_step(
+        state: TrainState,
+        batch: Dict[str, jnp.ndarray],
+        rngs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        rngs = {k: random.split(v)[1] for k, v in rngs.items()}
+
+        # batch stats can't be passed here
+        def loss_fn(params):
+            vars_in = {"params": params, "batch_stats": state.batch_stats}
+            outputs, new_model_state = state.apply_fn(
+                vars_in, batch, rngs=rngs, mutable=["batch_stats"], **kwargs
+            )
+            loss_recorder = outputs[2]
+            loss = loss_recorder.loss
+            elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
+            return loss, (elbo, new_model_state)
+
+        (loss, (elbo, new_model_state)), grads = jax.value_and_grad(
+            loss_fn, has_aux=True
+        )(state.params)
+        new_state = state.apply_gradients(
+            grads=grads, batch_stats=new_model_state["batch_stats"]
+        )
+        return new_state, loss, elbo, rngs
+
+    def training_step(self, batch, batch_idx):
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        self.state, loss, elbo, self.rngs = self.jit_training_step(
+            self.state,
+            batch,
+            self.rngs,
+            loss_kwargs=self.loss_kwargs,
+        )
+        loss = torch.tensor(jax.device_get(loss))
+        self.log("train_loss", loss, on_epoch=True)
+
+    @property
+    def kl_weight(self):
+        """Scaling factor on KL divergence during training."""
+        return _compute_kl_weight(
+            self.current_epoch,
+            self.global_step,
+            self.n_epochs_kl_warmup,
+            self.n_steps_kl_warmup,
+            min_weight=1e-3,
+        )
+
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        """Bypass Pytorch Lightning device management."""
+        return batch
+
+    def configure_optimizers(self):
+        return None
+
+    def optimizer_step(self, *args, **kwargs):
+        pass
+
+    def backward(self, *args, **kwargs):
+        pass
+
+    def forward(self, *args, **kwargs):
+        pass

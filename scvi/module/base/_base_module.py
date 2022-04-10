@@ -497,6 +497,10 @@ class JaxBaseModuleClass(linen.Module):
         """
         pass
 
+    def eval(self):
+        """No-op for PyTorch compatibility."""
+        pass
+
 
 def _generic_forward(
     module,
