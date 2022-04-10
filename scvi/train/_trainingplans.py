@@ -999,7 +999,13 @@ class JaxTrainingPlan(pl.LightningModule):
             loss_kwargs=self.loss_kwargs,
         )
         loss = torch.tensor(jax.device_get(loss))
-        self.log("train_loss", loss, on_epoch=True)
+        # TODO: Better way to get batch size
+        self.log(
+            "train_loss",
+            loss,
+            on_epoch=True,
+            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+        )
 
     @property
     def kl_weight(self):
