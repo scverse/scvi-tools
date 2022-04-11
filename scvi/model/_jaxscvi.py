@@ -158,9 +158,8 @@ class JaxSCVI(BaseModelClass):
         module_kwargs.update(dict(is_training=True))
         train_module = self._get_module(module_kwargs)
 
-        module_kwargs = self.module_kwargs.copy()
-        module_kwargs.update(dict(is_training=False))
-        validation_module = self._get_module(module_kwargs)
+        # has is_training set to False
+        validation_module = self.module
 
         self.training_plan = JaxTrainingPlan(
             train_module, validation_module, use_gpu=use_gpu
