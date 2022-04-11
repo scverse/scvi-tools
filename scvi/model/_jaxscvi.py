@@ -133,7 +133,6 @@ class JaxSCVI(BaseModelClass):
     def train(
         self,
         max_epochs: Optional[int] = None,
-        check_val_every_n_epoch: Optional[int] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
