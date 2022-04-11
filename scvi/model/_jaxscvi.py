@@ -266,8 +266,8 @@ class JaxSCVI(BaseModelClass):
         batch_stats = module_init["batch_stats"]
 
         optimizer = optax.chain(
-            optax.adam(lr, eps=0.01),
             optax.additive_weight_decay(weight_decay=1e-6),
+            optax.adam(lr, eps=0.01),
         )
 
         state = TrainState.create(

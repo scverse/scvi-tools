@@ -928,8 +928,8 @@ class JaxTrainingPlan(pl.LightningModule):
         weight_decay = self.optim_kwargs.pop("weight_decay")
         # replicates PyTorch Adam
         optimizer = optax.chain(
-            optax.adam(**self.optim_kwargs),
             optax.additive_weight_decay(weight_decay=weight_decay),
+            optax.adam(**self.optim_kwargs),
         )
         state = TrainState.create(
             apply_fn=self.module.apply,
