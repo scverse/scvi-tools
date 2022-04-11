@@ -569,7 +569,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata_spatial: Optional[AnnData] = None,
         overwrite: bool = False,
         prefix: Optional[str] = None,
-        backup_url: Optional[str] = None,
     ) -> None:
         """
         Converts a legacy saved GIMVI model (<v0.15.0) to the updated save format.
@@ -591,8 +590,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             already exists at ``output_dir_path``, error will be raised.
         prefix
             Prefix of saved file names.
-        backup_url
-            URL to retrieve saved outputs from if not present on disk.
         """
         if not os.path.exists(output_dir_path) or overwrite:
             os.makedirs(output_dir_path, exist_ok=overwrite)
@@ -618,7 +615,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             file_name_prefix,
             load_seq_adata,
             load_spatial_adata,
-            backup_url=backup_url,
         )
         adata_seq = new_adata_seq if new_adata_seq is not None else adata_seq
         adata_spatial = (

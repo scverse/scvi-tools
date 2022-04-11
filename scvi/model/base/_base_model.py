@@ -639,7 +639,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata: Optional[AnnData] = None,
         overwrite: bool = False,
         prefix: Optional[str] = None,
-        backup_url: Optional[str] = None,
     ) -> None:
         """
         Converts a legacy saved model (<v0.15.0) to the updated save format.
@@ -658,8 +657,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             already exists at ``output_dir_path``, error will be raised.
         prefix
             Prefix of saved file names.
-        backup_url
-            URL to retrieve saved outputs from if not present on disk.
         """
         if not os.path.exists(output_dir_path) or overwrite:
             os.makedirs(output_dir_path, exist_ok=overwrite)
@@ -673,7 +670,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         file_name_prefix = prefix or ""
         load_adata = adata is None
         model_state_dict, var_names, attr_dict, new_adata = _load_legacy_saved_files(
-            dir_path, file_name_prefix, load_adata, backup_url=backup_url
+            dir_path, file_name_prefix, load_adata
         )
         adata = new_adata if new_adata is not None else adata
 

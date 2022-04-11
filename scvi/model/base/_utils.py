@@ -11,7 +11,7 @@ import torch
 from anndata import AnnData, read
 
 from scvi._compat import Literal
-from scvi.model._utils import _download_if_missing
+from scvi.data._download import _download
 from scvi.utils import track
 
 from ._differential import DifferentialComputation
@@ -23,25 +23,20 @@ def _load_legacy_saved_files(
     dir_path: str,
     file_name_prefix: str,
     load_adata: bool,
-    backup_url: Optional[str] = None,
 ) -> Tuple[dict, np.ndarray, dict, Optional[AnnData]]:
     model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
     var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
     setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
 
-    _download_if_missing(model_path, backup_url)
     model_state_dict = torch.load(model_path)
 
-    _download_if_missing(var_names_path, backup_url)
     var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
 
-    _download_if_missing(setup_dict_path, backup_url)
     with open(setup_dict_path, "rb") as handle:
         attr_dict = pickle.load(handle)
 
     if load_adata:
         adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
-        _download_if_missing(adata_path, backup_url)
         if os.path.exists(adata_path):
             adata = read(adata_path)
         elif not os.path.exists(adata_path):
@@ -64,9 +59,10 @@ def _load_saved_files(
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
 
-    model_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+    model_file_name = f"{file_name_prefix}model.pt"
+    model_path = os.path.join(dir_path, model_file_name)
     try:
-        _download_if_missing(model_path, backup_url)
+        _download(backup_url, dir_path, model_file_name)
         model = torch.load(model_path, map_location=map_location)
     except FileNotFoundError as exc:
         raise ValueError(
@@ -81,7 +77,6 @@ def _load_saved_files(
 
     if load_adata:
         adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
-        _download_if_missing(adata_path, backup_url)
         if os.path.exists(adata_path):
             adata = read(adata_path)
         elif not os.path.exists(adata_path):

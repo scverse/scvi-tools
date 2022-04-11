@@ -1,5 +1,4 @@
 import logging
-import os
 import warnings
 from collections.abc import Iterable as IterableClass
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -11,16 +10,8 @@ import torch
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi.data import AnnDataManager
-from scvi.data._built_in_data._download import _download
 
 logger = logging.getLogger(__name__)
-
-
-def _download_if_missing(filepath: str, backup_url: Optional[str]):
-    save_path, filename = os.path.split(filepath)
-    if backup_url is not None:
-        backup_url_filepath = os.path.join(backup_url, filename)
-        _download(backup_url_filepath, save_path, filename)
 
 
 def parse_use_gpu_arg(

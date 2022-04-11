@@ -13,8 +13,8 @@ from torch.nn import Softplus
 
 import scvi
 from scvi.data import _constants, synthetic_iid
-from scvi.data._built_in_data._download import _download
 from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
+from scvi.data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -630,13 +630,13 @@ def test_backup_url(save_path):
 
     # SCVI
     pretrained_scvi_path = os.path.join(save_path, "testing_models/0150_scvi")
-    scvi_backup_url = os.path.join(backup_path, "0150_scvi")
+    scvi_backup_url = os.path.join(backup_path, "0150_scvi/model.pt")
     m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a, backup_url=scvi_backup_url)
     m.train(1)
 
     # TOTALVI
     pretrained_totalvi_path = os.path.join(save_path, "testing_models/0150_totalvi")
-    totalvi_backup_url = os.path.join(backup_path, "0150_totalvi")
+    totalvi_backup_url = os.path.join(backup_path, "0150_totalvi/model.pt")
     m = scvi.model.TOTALVI.load(
         pretrained_totalvi_path, adata=a, backup_url=totalvi_backup_url
     )
