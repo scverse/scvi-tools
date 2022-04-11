@@ -1,6 +1,5 @@
 import os
 import pickle
-import urllib
 from typing import Optional, Tuple
 
 import numpy as np
@@ -85,7 +84,7 @@ def _load_saved_gimvi_files(
     try:
         _download_if_missing(model_path, backup_url)
         model = torch.load(model_path, map_location=map_location)
-    except urllib.error.HTTPError as exc:
+    except FileNotFoundError as exc:
         raise ValueError(
             f"Failed to load model file at {model_path}. "
             "If attempting to load a saved model from <v0.15.0, please use the util function "
