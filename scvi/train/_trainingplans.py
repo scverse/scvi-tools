@@ -911,7 +911,7 @@ class JaxTrainingPlan(pl.LightningModule):
         self.automatic_optimization = False
 
         # automatic handling of kl weight
-        self._loss_args = getfullargspec(self.module.loss)[0]
+        self._loss_args = signature(self.module.loss).parameters
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self._rngs = None
