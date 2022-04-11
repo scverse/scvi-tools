@@ -187,6 +187,8 @@ The loss is defined as:
 \end{align}
 ```
 
+where $\mathrm{Var}(\alpha)$ refers to the empirical variance of the parameters alpha across all genes. We used this as a practical form of regularization (a similar regularizer is used in the ZINB-WaVE model [^ref3]).
+
 $\lambda_{\beta}$ (`l1_reg` in code), $\lambda_{\eta}$ (`eta_reg` in code) and $\lambda_{\alpha}$ (`beta_reg` in code) are hyperparameters used to scale the loss term. Increasing $\lambda_{\beta}$ leads to increased sparsity of cell type proportions. Increasing $\lambda_{\alpha}$ leads to less model flexibility for technical variation between single cell and spatial sequencing dataset. Increasing $\lambda_{\eta}$ leads to more genes being explained by the dummy cell type (we recommend to not change the default value). 
 To avoid overfitting, DestVI amortizes inference using a neural network to parametrize the latent variables.
 Via the `amortization` parameter of {class}`scvi.module.MRDeconv`, the user can specify which of
@@ -249,3 +251,5 @@ can be found on [destvi_utils](https://destvi-utils.readthedocs.io/en/latest/ins
 [^ref1]: Romain Lopez, Baoguo Li, Hadas Keren-Shaul, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Ido Yofe, Eyal David, Allon Wagner, Can Ergen, Yoseph Addadi, Ofra Golani, Franca Ronchese, Michael I Jordan, Ido Amit, Nir Yosef (2022). *DestVI identifies continuums of cell types in spatial transcriptomics data.* [Nature Biotechnology (in press)](https://www.biorxiv.org/content/10.1101/2021.05.10.443517v1)
 
 [^ref2]: Jakub Tomczak, Max Welling (2018),*VAE with a VampPrior*, [Proceedings of Machine Learning Research](https://proceedings.mlr.press/v84/tomczak18a.html)
+
+[^ref3]: Davide Risso, Fanny Perraudeau, Svetlana Gribkova, Sandrine Dudoit, Jean-Philippe Vert (2018). *A general and flexible method for signal extraction from single-cell RNA-seq data*, [Nature Communications] (https://www.nature.com/articles/s41467-017-02554-5)
