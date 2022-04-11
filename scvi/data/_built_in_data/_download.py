@@ -15,7 +15,10 @@ def _download(url: str, save_path: str, filename: str):
         logger.info("File %s already downloaded" % (os.path.join(save_path, filename)))
         return
     req = urllib.request.Request(url, headers={"User-Agent": "Magic Browser"})
-    r = urllib.request.urlopen(req)
+    try:
+        r = urllib.request.urlopen(req)
+    except urllib.error.HTTPError as exc:
+        raise FileNotFoundError(f"Error encountered during request to {url}") from exc
     logger.info("Downloading file at %s" % os.path.join(save_path, filename))
 
     def read_iter(file, block_size=1000):

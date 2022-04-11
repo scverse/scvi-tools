@@ -1,7 +1,6 @@
 import logging
 import os
 import pickle
-import urllib
 import warnings
 from collections.abc import Iterable as IterableClass
 from typing import List, Optional, Tuple, Union
@@ -69,7 +68,7 @@ def _load_saved_files(
     try:
         _download_if_missing(model_path, backup_url)
         model = torch.load(model_path, map_location=map_location)
-    except urllib.error.HTTPError as exc:
+    except FileNotFoundError as exc:
         raise ValueError(
             f"Failed to load model file at {model_path}. "
             "If attempting to load a saved model from <v0.15.0, please use the util function "
