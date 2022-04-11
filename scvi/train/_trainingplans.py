@@ -1037,7 +1037,7 @@ class JaxTrainingPlan(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         loss, elbo = self.jit_validation_step(
-            self.state, batch, self.rngs, **self.loss_kwargs
+            self.state, batch, self.rngs, loss_kwargs=self.loss_kwargs
         )
         loss = torch.tensor(jax.device_get(loss))
         elbo = torch.tensor(jax.device_get(elbo))
