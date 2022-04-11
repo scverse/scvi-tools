@@ -1017,7 +1017,6 @@ class JaxTrainingPlan(pl.LightningModule):
         )
 
     @staticmethod
-    @jax.jit
     def jit_validation_step(
         module,
         state: TrainState,
@@ -1025,12 +1024,18 @@ class JaxTrainingPlan(pl.LightningModule):
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
-        rngs = {k: random.split(v)[1] for k, v in rngs.items()}
-        vars_in = {"params": state.params, "batch_stats": state.batch_stats}
-        outputs = module.apply(vars_in, batch, rngs=rngs, **kwargs)
-        loss_recorder = outputs[2]
-        loss = loss_recorder.loss
-        elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
+        @jax.jit
+        def step(state, batch, rngs):
+            rngs = {k: random.split(v)[1] for k, v in rngs.items()}
+            vars_in = {"params": state.params, "batch_stats": state.batch_stats}
+            outputs = module.apply(vars_in, batch, rngs=rngs, **kwargs)
+            loss_recorder = outputs[2]
+            loss = loss_recorder.loss
+            elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
+
+            return loss, elbo
+
+        loss, elbo = step(state, batch, rngs)
 
         return loss, elbo
 
