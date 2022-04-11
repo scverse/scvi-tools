@@ -1062,7 +1062,6 @@ class JaxTrainingPlan(pl.LightningModule):
             self.global_step,
             self.n_epochs_kl_warmup,
             self.n_steps_kl_warmup,
-            min_weight=1e-3,
         )
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):
