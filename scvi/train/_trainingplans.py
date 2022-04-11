@@ -891,7 +891,8 @@ class JaxTrainingPlan(pl.LightningModule):
 
     def __init__(
         self,
-        flax_module: JaxBaseModuleClass,
+        train_module: JaxBaseModuleClass,
+        val_module: JaxBaseModuleClass,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         use_gpu: bool = False,
@@ -899,7 +900,8 @@ class JaxTrainingPlan(pl.LightningModule):
         **loss_kwargs,
     ):
         super().__init__()
-        self.module = flax_module
+        self.module = train_module
+        self.validation_module = val_module
         self._n_obs_training = None
         self.loss_kwargs = loss_kwargs
         self.n_steps_kl_warmup = n_steps_kl_warmup
@@ -999,10 +1001,54 @@ class JaxTrainingPlan(pl.LightningModule):
             loss_kwargs=self.loss_kwargs,
         )
         loss = torch.tensor(jax.device_get(loss))
+        elbo = torch.tensor(jax.device_get(elbo))
         # TODO: Better way to get batch size
         self.log(
             "train_loss",
             loss,
+            on_epoch=True,
+            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+        )
+        self.log(
+            "elbo_train",
+            elbo,
+            on_epoch=True,
+            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+        )
+
+    @staticmethod
+    @jax.jit
+    def jit_validation_step(
+        module,
+        state: TrainState,
+        batch: Dict[str, jnp.ndarray],
+        rngs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        rngs = {k: random.split(v)[1] for k, v in rngs.items()}
+        vars_in = {"params": state.params, "batch_stats": state.batch_stats}
+        outputs = module.apply(vars_in, batch, rngs=rngs, **kwargs)
+        loss_recorder = outputs[2]
+        loss = loss_recorder.loss
+        elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
+
+        return loss, elbo
+
+    def validation_step(self, batch, batch_idx):
+        loss, elbo = self.jit_validation_step(
+            self.validation_module, self.state, batch, self.rngs, **self.loss_kwargs
+        )
+        loss = torch.tensor(jax.device_get(loss))
+        elbo = torch.tensor(jax.device_get(elbo))
+        self.log(
+            "validation_loss",
+            loss,
+            on_epoch=True,
+            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+        )
+        self.log(
+            "elbo_validation",
+            elbo,
             on_epoch=True,
             batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
         )
