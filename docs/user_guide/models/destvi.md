@@ -108,7 +108,7 @@ To avoid the latent variable $\gamma_s^c$ from incorporating variation attribute
 assay differences, we assign an empirical prior informed by the scLVM and the corresponding
 cells of the same cell type in the scRNA-seq dataset. To compute this function, we subcluster the latent space of the
 scLVM for each cell type to K cell type specific clusters. For each cluster we compute an empirical mean and variance.
-Above, $\{u_{kc}\}$ designates the set of cell type specific subclusters from cell type $c$ in the scRNA-seq dataset, and
+Above, $\{u_{kc}\}_{k=1}^K$ designates the set of cell type specific subclusters from cell type $c$ in the scRNA-seq dataset, and
 $q_\Phi$ designates the empirical normal distribution from the computed cluster mean and variance.
 The loss is weighted by the probability of a random cell from this cell type to be in the respective cluster in the
 scRNA-seq dataset (mixture probability, $m_{kc}$).
