@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from scvi import settings
-from scvi.data._built_in_data._download import _download
+from scvi.data._download import _download
 
 
 def _load_pbmcs_10x_cite_seq(
