@@ -6,7 +6,7 @@ import anndata
 import numpy as np
 import pandas as pd
 
-from scvi.data._built_in_data._download import _download
+from scvi.data._download import _download
 
 logger = logging.getLogger(__name__)
 

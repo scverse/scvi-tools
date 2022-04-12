@@ -105,13 +105,13 @@ difference in experimental assays. Like the scLVM, $f$ is a decoder neural netwo
 $p_g$ is the rate parameter for the negative binomial distribution.
 
 To avoid the latent variable $\gamma_s^c$ from incorporating variation attributed to experimental
-assay differences, we assign an empirical prior informed by the scLVM and a corresponding set of
+assay differences, we assign an empirical prior informed by the scLVM and the corresponding
 cells of the same cell type in the scRNA-seq dataset. To compute this function, we subcluster the latent space of the
-scLVM for each cell type to k cell type specific clusters. For each cluster we compute an empirical mean and variance.
+scLVM for each cell type to K cell type specific clusters. For each cluster we compute an empirical mean and variance.
+Above, $\{u_{kc}\}_{k=1}^K$ designates the set of cell type specific subclusters from cell type $c$ in the scRNA-seq dataset, and
+$q_\Phi$ designates the empirical normal distribution from the computed cluster mean and variance.
 The loss is weighted by the probability of a random cell from this cell type to be in the respective cluster in the
 scRNA-seq dataset (mixture probability, $m_{kc}$).
-Above, $\{u_{kc}\}_{k=1}^K$ designates a set of cells from cell type $c$ in the scRNA-seq dataset, and
-$q_\Phi$ designates the variational distrbution from the scLVM.
 In literature, the prior is referred to as a VampPrior ("variational aggregated mixture of posteriors" prior) [^ref2].
 More can be read on this prior in the DestVI paper.
 

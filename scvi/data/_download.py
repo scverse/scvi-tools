@@ -15,7 +15,17 @@ def _download(url: str, save_path: str, filename: str):
         logger.info("File %s already downloaded" % (os.path.join(save_path, filename)))
         return
     req = urllib.request.Request(url, headers={"User-Agent": "Magic Browser"})
-    r = urllib.request.urlopen(req)
+    try:
+        r = urllib.request.urlopen(req)
+        if r.getheader("Content-Length") is None:
+            raise FileNotFoundError(
+                f"Found file with no content at {url}. "
+                "This is possibly a directory rather than a file path."
+            )
+    except urllib.error.HTTPError as exc:
+        if exc.code == "404":
+            raise FileNotFoundError(f"Could not find file at {url}") from exc
+        raise exc
     logger.info("Downloading file at %s" % os.path.join(save_path, filename))
 
     def read_iter(file, block_size=1000):
