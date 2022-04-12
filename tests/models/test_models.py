@@ -526,7 +526,7 @@ def test_saving_and_loading(save_path):
     )
     with pytest.raises(ValueError):
         SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
-    AUTOZI.convert_legacy_save(
+    SCANVI.convert_legacy_save(
         legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix
     )
     m = SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)

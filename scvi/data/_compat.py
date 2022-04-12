@@ -27,8 +27,7 @@ LEGACY_REGISTRY_KEY_MAP = {
 
 
 def _infer_setup_args(
-    model_cls,
-    setup_dict: dict,
+    model_cls, setup_dict: dict, unlabeled_category: Optional[str]
 ) -> dict:
     setup_args = dict()
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
@@ -65,6 +64,9 @@ def _infer_setup_args(
             elif new_registry_key == REGISTRY_KEYS.PROTEIN_EXP_KEY:
                 setup_args["protein_expression_obsm_key"] = attr_key
                 setup_args["protein_names_uns_key"] = "_protein_names"
+
+    if unlabeled_category is not None:
+        setup_args["unlabeled_category"] = unlabeled_category
 
     return {
         _constants._MODEL_NAME_KEY: model_cls.__name__,
@@ -175,6 +177,6 @@ def registry_from_setup_dict(
                     setup_dict["protein_names"]
                 )
 
-    registry.update(_infer_setup_args(model_cls, setup_dict))
+    registry.update(_infer_setup_args(model_cls, setup_dict, unlabeled_category))
 
     return registry
