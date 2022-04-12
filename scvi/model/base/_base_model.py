@@ -733,7 +733,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if "scvi_setup_dict_" in attr_dict:
             raise NotImplementedError(
                 "Viewing setup args for pre v0.15.0 models is unsupported. "
-                "Load and resave the model to use this function."
+                "Update your save files with ``convert_legacy_save`` first."
             )
 
         registry = attr_dict.pop("registry_")
