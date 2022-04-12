@@ -112,8 +112,6 @@ def test_saving_and_loading(save_path):
         legacy_save_path,
         legacy_save_path,
         overwrite=True,
-        adata_seq=adata,
-        adata_spatial=adata2,
         prefix=prefix,
     )
     m = GIMVI.load(

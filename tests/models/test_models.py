@@ -448,7 +448,6 @@ def test_saving_and_loading(save_path):
             legacy_save_path,
             legacy_save_path,
             overwrite=True,
-            adata=adata,
             prefix=prefix,
         )
         m = cls.load(legacy_save_path, adata=adata, prefix=prefix)
@@ -492,7 +491,7 @@ def test_saving_and_loading(save_path):
     with pytest.raises(ValueError):
         AUTOZI.load(legacy_save_path, adata=adata, prefix=prefix)
     AUTOZI.convert_legacy_save(
-        legacy_save_path, legacy_save_path, overwrite=True, adata=adata, prefix=prefix
+        legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix
     )
     m = AUTOZI.load(legacy_save_path, adata=adata, prefix=prefix)
     m.train(1)
@@ -528,7 +527,7 @@ def test_saving_and_loading(save_path):
     with pytest.raises(ValueError):
         SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
     AUTOZI.convert_legacy_save(
-        legacy_save_path, legacy_save_path, overwrite=True, adata=adata, prefix=prefix
+        legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix
     )
     m = SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
     m.train(1)
@@ -604,7 +603,7 @@ def test_backwards_compatible_loading(save_path):
     with pytest.raises(ValueError):
         m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a)
     scvi.model.SCVI.convert_legacy_save(
-        pretrained_scvi_path, pretrained_scvi_updated_path, adata=a
+        pretrained_scvi_path, pretrained_scvi_updated_path
     )
     m = scvi.model.SCVI.load(pretrained_scvi_updated_path, adata=a)
     m.train(1)
@@ -616,7 +615,7 @@ def test_backwards_compatible_loading(save_path):
     with pytest.raises(ValueError):
         m = scvi.model.TOTALVI.load(pretrained_totalvi_path, adata=a)
     scvi.model.TOTALVI.convert_legacy_save(
-        pretrained_totalvi_path, pretrained_totalvi_updated_path, adata=a
+        pretrained_totalvi_path, pretrained_totalvi_updated_path
     )
     m = scvi.model.TOTALVI.load(pretrained_totalvi_updated_path, adata=a)
     m.train(1)

@@ -565,8 +565,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         cls,
         dir_path: str,
         output_dir_path: str,
-        adata_seq: Optional[AnnData] = None,
-        adata_spatial: Optional[AnnData] = None,
         overwrite: bool = False,
         prefix: Optional[str] = None,
     ) -> None:
@@ -579,12 +577,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             Path to directory where legacy model is saved.
         output_dir_path
             Path to save converted save files.
-        adata_seq
-            AnnData that will be used to load model containing RNA seq data. Required if ``dir_path``
-            does not contain ``adata_seq``.
-        adata_spatial
-            AnnData that will be used to load model containing spatial RNA seq data. Required if ``dir_path``
-            does not contain ``adata_spatial``.
         overwrite
             Overwrite existing data or not. If ``False`` and directory
             already exists at ``output_dir_path``, error will be raised.
@@ -601,26 +593,19 @@ class GIMVI(VAEMixin, BaseModelClass):
             )
 
         file_name_prefix = prefix or ""
-        load_seq_adata = adata_seq is None
-        load_spatial_adata = adata_spatial is None
         (
             model_state_dict,
             seq_var_names,
             spatial_var_names,
             attr_dict,
-            new_adata_seq,
-            new_adata_spatial,
+            _,
+            _2,
         ) = _load_legacy_saved_gimvi_files(
             dir_path,
             file_name_prefix,
-            load_seq_adata,
-            load_spatial_adata,
+            load_seq_adata=False,
+            load_spatial_adata=False,
         )
-        adata_seq = new_adata_seq if new_adata_seq is not None else adata_seq
-        adata_spatial = (
-            new_adata_spatial if new_adata_spatial is not None else adata_spatial
-        )
-
         if "scvi_setup_dicts_" in attr_dict:
             scvi_setup_dicts = attr_dict.pop("scvi_setup_dicts_")
             registries = []

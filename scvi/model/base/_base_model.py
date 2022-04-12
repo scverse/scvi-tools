@@ -636,7 +636,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         cls,
         dir_path: str,
         output_dir_path: str,
-        adata: Optional[AnnData] = None,
         overwrite: bool = False,
         prefix: Optional[str] = None,
     ) -> None:
@@ -649,9 +648,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             Path to directory where legacy model is saved.
         output_dir_path
             Path to save converted save files.
-        adata
-            AnnData that will be used to load model. Required if ``dir_path``
-            does not contain ``adata``.
         overwrite
             Overwrite existing data or not. If ``False`` and directory
             already exists at ``output_dir_path``, error will be raised.
@@ -666,11 +662,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             )
 
         file_name_prefix = prefix or ""
-        load_adata = adata is None
-        model_state_dict, var_names, attr_dict, new_adata = _load_legacy_saved_files(
-            dir_path, file_name_prefix, load_adata
+        model_state_dict, var_names, attr_dict, _ = _load_legacy_saved_files(
+            dir_path, file_name_prefix, load_adata=False
         )
-        adata = new_adata if new_adata is not None else adata
 
         if "scvi_setup_dict_" in attr_dict:
             scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
