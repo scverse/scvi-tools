@@ -14,7 +14,7 @@ from anndata import AnnData
 
 from scvi import settings
 from scvi.data import AnnDataManager
-from scvi.data._compat import manager_from_setup_dict
+from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SCVI_UUID_KEY, _SETUP_ARGS_KEY
 from scvi.data._utils import _assign_adata_uuid
 from scvi.dataloaders import AnnDataLoader
@@ -676,13 +676,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
             unlabeled_category_key = "unlabeled_category_"
             unlabeled_category = attr_dict.get(unlabeled_category_key, None)
-            adata_manager = manager_from_setup_dict(
+            attr_dict["registry_"] = registry_from_setup_dict(
                 cls,
-                adata,
                 scvi_setup_dict,
                 unlabeled_category=unlabeled_category,
             )
-            attr_dict["registry_"] = adata_manager.registry
 
         model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
         torch.save(

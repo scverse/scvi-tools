@@ -13,7 +13,7 @@ from torch.nn import Softplus
 
 import scvi
 from scvi.data import _constants, synthetic_iid
-from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
+from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
 from scvi.data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,
@@ -545,7 +545,6 @@ def test_new_setup_compat():
         columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True
     )
     adata2 = adata.copy()
-    adata3 = adata.copy()
 
     SCVI.setup_anndata(
         adata,
@@ -564,17 +563,21 @@ def test_new_setup_compat():
     }
 
     # Backwards compatibility test.
-    adata2_manager = manager_from_setup_dict(SCVI, adata2, LEGACY_SETUP_DICT)
+    registry = registry_from_setup_dict(SCVI, LEGACY_SETUP_DICT)
+    print(field_registries_legacy_subset)
+    print(
+        registry[_constants._FIELD_REGISTRIES_KEY],
+    )
     np.testing.assert_equal(
         field_registries_legacy_subset,
-        adata2_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        registry[_constants._FIELD_REGISTRIES_KEY],
     )
 
     # Test transfer.
-    adata3_manager = adata_manager.transfer_fields(adata3)
+    adata2_manager = adata_manager.transfer_fields(adata2)
     np.testing.assert_equal(
         field_registries,
-        adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        adata2_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
 
 

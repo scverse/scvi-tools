@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data._compat import manager_from_setup_dict
+from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
@@ -624,11 +624,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         if "scvi_setup_dicts_" in attr_dict:
             scvi_setup_dicts = attr_dict.pop("scvi_setup_dicts_")
             registries = []
-            for adata, scvi_setup_dict in zip(
-                [adata_seq, adata_spatial], scvi_setup_dicts
-            ):
-                adata_manager = manager_from_setup_dict(cls, adata, scvi_setup_dict)
-                registries.append(adata_manager.registry)
+            for scvi_setup_dict in scvi_setup_dicts:
+                registries.append(registry_from_setup_dict(cls, scvi_setup_dict))
             attr_dict["registries_"] = registries
 
         model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
