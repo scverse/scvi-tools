@@ -28,7 +28,7 @@ def _load_legacy_saved_files(
     var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
     setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
 
-    model_state_dict = torch.load(model_path)
+    model_state_dict = torch.load(model_path, map_location="cpu")
 
     var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
 

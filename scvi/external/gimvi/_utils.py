@@ -23,7 +23,7 @@ def _load_legacy_saved_gimvi_files(
         dir_path, f"{file_name_prefix}var_names_spatial.csv"
     )
 
-    model_state_dict = torch.load(model_path)
+    model_state_dict = torch.load(model_path, map_location="cpu")
 
     seq_var_names = np.genfromtxt(seq_var_names_path, delimiter=",", dtype=str)
     spatial_var_names = np.genfromtxt(spatial_var_names_path, delimiter=",", dtype=str)
