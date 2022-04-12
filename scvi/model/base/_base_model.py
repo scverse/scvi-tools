@@ -662,9 +662,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             os.makedirs(output_dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
-                "{} already exists. Please provide an unexisting directory for saving.".format(
-                    dir_path
-                )
+                f"{output_dir_path} already exists. Please provide an unexisting directory for saving."
             )
 
         file_name_prefix = prefix or ""
