@@ -180,7 +180,7 @@ class VAEMixin:
 
     @torch.no_grad()
     def get_batch_embedding(
-        self, 
+        self,
         adata: AnnData,
         batch_key: str,
         batch_indices: Optional[Sequence[int]] = None,
@@ -191,7 +191,7 @@ class VAEMixin:
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. 
+            AnnData object with equivalent structure to initial AnnData.
         batch_key
             Batch key used to train the model.
         batch_indices
@@ -204,10 +204,10 @@ class VAEMixin:
         """
         self._check_if_trained(warn=False)
         batch_embedding = self.module.batch_embedding
-        
+
         if not batch_embedding:
-            raise RuntimeError('A batch embedding was not used to train this model.')
-        
+            raise RuntimeError("A batch embedding was not used to train this model.")
+
         if batch_indices:
             return batch_embedding(torch.tensor(batch_indices)).detach().numpy()
         else:
