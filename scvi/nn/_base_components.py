@@ -69,7 +69,7 @@ class FCLayers(nn.Module):
         bias: bool = True,
         inject_covariates: bool = True,
         activation_fn: nn.Module = nn.ReLU,
-        batch_embedding: nn.Embedding = None,
+        batch_embedding: torch.Tensor = None,
     ):
         super().__init__()
         self.inject_covariates = inject_covariates
@@ -84,8 +84,6 @@ class FCLayers(nn.Module):
             self.n_cat_list = []
 
         cat_dim = sum(self.n_cat_list)
-        if self.batch_embedding:
-            cat_dim = 5
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
@@ -164,23 +162,26 @@ class FCLayers(nn.Module):
             tensor of shape ``(n_out,)``
 
         """
-        one_hot_cat_list = []  # for generality in this list many indices useless.
+        encoded_cat_list = []  # for generality in this list many indices useless.
 
         if len(self.n_cat_list) > len(cat_list):
             raise ValueError(
                 "nb. categorical args provided doesn't match init. params."
             )
+
         for n_cat, cat in zip(self.n_cat_list, cat_list):
             if n_cat and cat is None:
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
-                if self.batch_embedding:
-                    one_hot_cat = self.batch_embedding(cat.squeeze().int())
-                elif cat.size(1) != n_cat:
-                    one_hot_cat = one_hot(cat, n_cat)
+                if self.batch_embedding is not None:
+                    batch_embed_cat = [self.batch_embedding[c.int().item()].detach().numpy() for c in cat]
+                    encoded_cat_list += [torch.tensor(batch_embed_cat)]
                 else:
-                    one_hot_cat = cat  # cat has already been one_hot encoded
-                one_hot_cat_list += [one_hot_cat]
+                    if cat.size(1) != n_cat:
+                        one_hot_cat = one_hot(cat, n_cat)
+                    else:
+                        one_hot_cat = cat  # cat has already been one_hot encoded
+                    encoded_cat_list += [one_hot_cat]
         for i, layers in enumerate(self.fc_layers):
             for layer in layers:
                 if layer is not None:
@@ -198,10 +199,10 @@ class FCLayers(nn.Module):
                                     o.unsqueeze(0).expand(
                                         (x.size(0), o.size(0), o.size(1))
                                     )
-                                    for o in one_hot_cat_list
+                                    for o in encoded_cat_list
                                 ]
                             else:
-                                one_hot_cat_list_layer = one_hot_cat_list
+                                one_hot_cat_list_layer = encoded_cat_list
                             x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
                         x = layer(x)
         return x
@@ -351,7 +352,7 @@ class DecoderSCVI(nn.Module):
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
-        batch_embedding: nn.Embedding = None,
+        batch_embedding: torch.Tensor = None,
         scale_activation: Literal["softmax", "softplus"] = "softmax",
     ):
         super().__init__()

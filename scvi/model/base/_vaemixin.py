@@ -179,5 +179,38 @@ class VAEMixin:
         return torch.cat(latent).numpy()
 
     @torch.no_grad()
-    def get_batch_embedding(self):
-        return self.module.batch_embedding
+    def get_batch_embedding(
+        self, 
+        adata: AnnData,
+        batch_key: str,
+        batch_indices: Optional[Sequence[int]] = None,
+    ) -> np.ndarray:
+        r"""
+        Return the embeddings for the specified batch indices.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. 
+        batch_key
+            Batch key used to train the model.
+        batch_indices
+            Indices of batches in adata to use. If `None`, all batches are used.
+
+        Returns
+        -------
+        batch_embedding : np.ndarray
+            Embedding for each batch index.
+        """
+        self._check_if_trained(warn=False)
+        batch_embedding = self.module.batch_embedding
+        
+        if not batch_embedding:
+            raise RuntimeError('A batch embedding was not used to train this model.')
+        
+        if batch_indices:
+            return batch_embedding(torch.tensor(batch_indices)).detach().numpy()
+        else:
+            adata = self._validate_anndata(adata)
+            n_batches = len(adata.obs[batch_key].unique())
+            return batch_embedding(torch.tensor(range(n_batches))).detach().numpy()

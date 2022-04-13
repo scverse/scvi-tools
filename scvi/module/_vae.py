@@ -43,6 +43,8 @@ class VAE(BaseModuleClass):
         Number of continuous covarites
     n_cats_per_cov
         Number of categories for each extra categorical covariate
+    batch_embedding_dim
+        Size of embedding vector for batch embedding.
     dropout_rate
         Dropout rate for neural networks
     dispersion
@@ -70,6 +72,8 @@ class VAE(BaseModuleClass):
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
+    use_batch_embedding
+        Use batch embedding when encoding batch covariates.
     use_layer_norm
         Whether to use layer norm in layers
     use_size_factor_key
@@ -77,8 +81,6 @@ class VAE(BaseModuleClass):
         Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
-    use_batch_embedding
-        Use batch embedding when encoding batch covariates
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
@@ -100,6 +102,7 @@ class VAE(BaseModuleClass):
         n_layers: int = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
+        batch_embedding_dim: int = 5,
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
@@ -196,8 +199,11 @@ class VAE(BaseModuleClass):
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         self.batch_embedding = None
+        embeds = None
         if use_batch_embedding:
-            self.batch_embedding = torch.nn.Embedding(n_batch, embedding_dim=5)
+            self.batch_embedding = torch.nn.Embedding(n_batch, embedding_dim=batch_embedding_dim)
+            embeds = self.batch_embedding(torch.tensor(range(n_batch)))
+
         n_input_decoder = n_latent + n_continuous_cov
         self.decoder = DecoderSCVI(
             n_input_decoder,
@@ -209,7 +215,7 @@ class VAE(BaseModuleClass):
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softplus" if use_size_factor_key else "softmax",
-            batch_embedding=self.batch_embedding,
+            batch_embedding=embeds,
         )
 
     def _get_inference_input(self, tensors):

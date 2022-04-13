@@ -1370,7 +1370,8 @@ def test_early_stopping():
 
 
 def test_batch_embedding():
-    adata = synthetic_iid()
+    n_batches = 5
+    adata = synthetic_iid(n_batches=n_batches)
     SCVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -1378,8 +1379,28 @@ def test_batch_embedding():
     )
     model = SCVI(adata, use_batch_embedding=True)
     model.train()
-    batch_embedding = model.get_batch_embedding()
-    assert batch_embedding is not None
-    n_batches = len(adata.obs["batch"].unique())
-    embedded = batch_embedding(torch.tensor(range(n_batches)))
-    assert embedded.shape == (n_batches, 5)
+    batch_embedding = model.get_batch_embedding(adata, "batch")
+    assert batch_embedding.shape == (n_batches, 5)
+    batch_embedding = model.get_batch_embedding(adata, "batch", range(3))
+    assert batch_embedding.shape == (3, 5)
+
+    # Test with categorical covariates
+    adata = synthetic_iid(n_batches=n_batches)
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        categorical_covariate_keys=["cat1", "cat2"]
+    )
+    model = SCVI(adata, use_batch_embedding=True)
+    model.train()
+    batch_embedding = model.get_batch_embedding(adata, "batch")
+    assert batch_embedding.shape == (n_batches, 5)
+
+    # Test without batch embedding
+    model_without_embedding = SCVI(adata)
+    model_without_embedding.train()
+    with pytest.raises(RuntimeError):
+        model_without_embedding.get_batch_embedding(adata, "batch")
