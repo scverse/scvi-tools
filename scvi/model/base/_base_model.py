@@ -16,18 +16,13 @@ from mudata import MuData
 from scvi import settings
 from scvi._types import AnnOrMuData
 from scvi.data import AnnDataManager
-<<<<<<< HEAD
 from scvi.data._compat import registry_from_setup_dict
-from scvi.data._constants import _MODEL_NAME_KEY, _SCVI_UUID_KEY, _SETUP_ARGS_KEY
-=======
-from scvi.data._compat import manager_from_setup_dict
 from scvi.data._constants import (
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
 )
->>>>>>> c19643cf (implement setup_mudata on totalvi)
 from scvi.data._utils import _assign_adata_uuid, _check_if_view
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -622,32 +617,20 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "It appears you are loading a model from a different class."
             )
 
-<<<<<<< HEAD
         if _SETUP_ARGS_KEY not in registry:
             raise ValueError(
                 "Saved model does not contain original setup inputs. "
                 "Cannot load the original setup."
-=======
-            if _SETUP_ARGS_KEY not in registry:
-                raise ValueError(
-                    "Saved model does not contain original setup inputs. "
-                    "Cannot load the original setup."
-                )
-
-            # Calling ``setup_anndata`` method with the original arguments passed into
-            # the saved model. This enables simple backwards compatibility in the case of
-            # newly introduced fields or parameters.
-            method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
-            print(method_name)
-            getattr(cls, method_name)(
-                adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
->>>>>>> c19643cf (implement setup_mudata on totalvi)
             )
 
         # Calling ``setup_anndata`` method with the original arguments passed into
         # the saved model. This enables simple backwards compatibility in the case of
         # newly introduced fields or parameters.
-        cls.setup_anndata(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
+        method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        print(method_name)
+        getattr(cls, method_name)(
+            adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+        )
 
         model = _initialize_model(cls, adata, attr_dict)
 

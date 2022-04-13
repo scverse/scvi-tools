@@ -31,6 +31,8 @@ class LayerField(BaseAnnDataField):
     correct_data_format
         If True, checks and corrects that the AnnData field is C_CONTIGUOUS and csr
         if it is dense numpy or sparse respectively.
+    save_column_names
+        If True, saves var names to the associated state registry as ``column_names``.
     """
 
     N_VARS_KEY = "n_vars"
@@ -42,6 +44,7 @@ class LayerField(BaseAnnDataField):
         layer: Optional[str],
         is_count_data: bool = True,
         correct_data_format: bool = True,
+        save_column_names: bool = False,
     ) -> None:
         super().__init__()
         self._registry_key = registry_key
@@ -53,6 +56,7 @@ class LayerField(BaseAnnDataField):
         self._attr_key = layer
         self.is_count_data = is_count_data
         self.correct_data_format = correct_data_format
+        self.save_column_names = save_column_names
         self.count_stat_key = (
             self.N_VARS_KEY
             if self.registry_key == REGISTRY_KEYS.X_KEY
@@ -92,10 +96,12 @@ class LayerField(BaseAnnDataField):
         super().register_field(adata)
         if self.correct_data_format:
             _verify_and_correct_data_format(adata, self.attr_name, self.attr_key)
-        return {
+        state_registry = {
             self.N_VARS_KEY: adata.n_vars,
-            self.COLUMN_NAMES_KEY: np.array(adata.var_names),
         }
+        if self.save_column_names:
+            state_registry[self.COLUMN_NAMES_KEY] = np.array(adata.var_names)
+        return state_registry
 
     def transfer_field(
         self, state_registry: dict, adata_target: AnnData, **kwargs

@@ -84,13 +84,16 @@ def _load_saved_files(
     file_suffix = "adata.h5ad" if not is_mudata else "mdata.h5mu"
     adata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
 
-    if os.path.exists(adata_path) and load_adata:
-        if is_mudata:
-            adata = mudata.read(adata_path)
+    if load_adata:
+        if os.path.exists(adata_path):
+            if is_mudata:
+                adata = mudata.read(adata_path)
+            else:
+                adata = anndata.read(adata_path)
         else:
-            adata = anndata.read(adata_path)
-    elif not os.path.exists(adata_path):
-        raise ValueError("Save path contains no saved anndata and no adata was passed.")
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
     else:
         adata = None
 
