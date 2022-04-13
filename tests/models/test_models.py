@@ -533,6 +533,24 @@ def test_saving_and_loading(save_path):
     m.train(1)
 
 
+def assert_dict_is_subset(d1, d2):
+    if type(d1) != dict:
+        raise AssertionError(f"{d1} is not a dictionary.")
+    elif type(d2) != dict:
+        raise AssertionError(f"{d2} is not a dictionary.")
+
+    for k, v in d1.items():
+        if k not in d2:
+            raise AssertionError(f"{k} missing from {d2}.")
+        v2 = d2[k]
+        if type(v) == dict:
+            assert_dict_is_subset(v, v2)
+        elif type(v) == np.ndarray:
+            np.testing.assert_array_equal(v, v2)
+        elif v != v2:
+            raise AssertionError(f"Mismatch between {v} and {v2}.")
+
+
 def test_new_setup_compat():
     adata = synthetic_iid()
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
@@ -563,9 +581,9 @@ def test_new_setup_compat():
 
     # Backwards compatibility test.
     registry = registry_from_setup_dict(SCVI, LEGACY_SETUP_DICT)
-    np.testing.assert_equal(
-        field_registries_legacy_subset,
+    assert_dict_is_subset(
         registry[_constants._FIELD_REGISTRIES_KEY],
+        field_registries_legacy_subset,
     )
 
     # Test transfer.

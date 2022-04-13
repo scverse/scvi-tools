@@ -1316,7 +1316,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 use_batch_mask=True,
                 batch_field=batch_field,
                 is_count_data=True,
-                save_column_names=True,
             ),
         ]
         adata_manager = AnnDataManager(
