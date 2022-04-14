@@ -201,7 +201,9 @@ class VAE(BaseModuleClass):
         self.batch_embedding = None
         embeds = None
         if use_batch_embedding:
-            self.batch_embedding = torch.nn.Embedding(n_batch, embedding_dim=batch_embedding_dim)
+            self.batch_embedding = torch.nn.Embedding(
+                n_batch, embedding_dim=batch_embedding_dim
+            )
             embeds = self.batch_embedding(torch.tensor(range(n_batch)))
 
         n_input_decoder = n_latent + n_continuous_cov

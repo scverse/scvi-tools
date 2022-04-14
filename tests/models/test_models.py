@@ -1392,7 +1392,7 @@ def test_batch_embedding():
         adata,
         batch_key="batch",
         labels_key="labels",
-        categorical_covariate_keys=["cat1", "cat2"]
+        categorical_covariate_keys=["cat1", "cat2"],
     )
     model = SCVI(adata, use_batch_embedding=True)
     model.train()
