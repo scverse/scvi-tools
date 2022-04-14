@@ -177,7 +177,11 @@ class FCLayers(nn.Module):
                     batch_embed_cat = [
                         self.batch_embedding[c.int().item()] for c in cat
                     ]
-                    encoded_cat_list += [torch.stack(batch_embed_cat).detach().to(device=self.batch_embedding.device)]
+                    encoded_cat_list += [
+                        torch.stack(batch_embed_cat)
+                        .detach()
+                        .to(device=self.batch_embedding.device)
+                    ]
                 else:
                     if cat.size(1) != n_cat:
                         one_hot_cat = one_hot(cat, n_cat)
