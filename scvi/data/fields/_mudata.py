@@ -80,9 +80,10 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
 
     def preregister(self, mdata: MuData) -> None:
         """
+        Function that is called prior to registering fields.
+
         Function that is be called at the beginning of :func:`~scvi.data.fields.BaseMuDataWrapperClass.register_field`
         and :func:`~scvi.data.fields.BaseMuDataWrapperClass.transfer_field`.
-
         Used when data manipulation is necessary across modalities.
         """
         return self._preregister(self, mdata)

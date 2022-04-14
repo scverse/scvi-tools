@@ -534,18 +534,18 @@ def test_saving_and_loading(save_path):
 
 
 def assert_dict_is_subset(d1, d2):
-    if type(d1) != dict:
+    if not isinstance(d1, dict):
         raise AssertionError(f"{d1} is not a dictionary.")
-    elif type(d2) != dict:
+    elif not isinstance(d2, dict):
         raise AssertionError(f"{d2} is not a dictionary.")
 
     for k, v in d1.items():
         if k not in d2:
             raise AssertionError(f"{k} missing from {d2}.")
         v2 = d2[k]
-        if type(v) == dict:
+        if isinstance(v, dict):
             assert_dict_is_subset(v, v2)
-        elif type(v) == np.ndarray:
+        elif isinstance(v, np.ndarray):
             np.testing.assert_array_equal(v, v2)
         elif v != v2:
             raise AssertionError(f"Mismatch between {v} and {v2}.")

@@ -265,7 +265,7 @@ def test_transfer_fields_diff_batch_mapping():
         REGISTRY_KEYS.BATCH_KEY
     ).categorical_mapping
     correct_batch = np.where(batch_mapping == "batch_1")[0][0]
-    adata2.obs["_scvi_batch"][0] == correct_batch
+    assert adata2.obs["_scvi_batch"][0] == correct_batch
 
 
 def test_transfer_fields_missing_batch():
