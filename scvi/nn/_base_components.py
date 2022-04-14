@@ -5,7 +5,6 @@ import torch
 from torch import nn as nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
-import pdb
 
 from scvi._compat import Literal
 
