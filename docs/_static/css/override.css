@@ -56,6 +56,10 @@ div.nbinput.container {
     padding-left: 0px;
 }
 
+div.nbinput.container div.input_area {
+    /* Code cell border that works in both dark and light mode */
+    border-color: rgba(127,127,127,.25) !important;
+}
 
 div.nbinput.container div.input_area div[class*="highlight"] > pre {
     padding: 10px !important;
