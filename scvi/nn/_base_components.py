@@ -5,6 +5,7 @@ import torch
 from torch import nn as nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
+import pdb
 
 from scvi._compat import Literal
 
@@ -174,8 +175,8 @@ class FCLayers(nn.Module):
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
                 if self.batch_embedding is not None:
-                    batch_embed_cat = [self.batch_embedding[c.int().item()].detach().numpy() for c in cat]
-                    encoded_cat_list += [torch.tensor(batch_embed_cat)]
+                    batch_embed_cat = [self.batch_embedding[c.int().item()] for c in cat]
+                    encoded_cat_list += [torch.stack(batch_embed_cat).detach()]
                 else:
                     if cat.size(1) != n_cat:
                         one_hot_cat = one_hot(cat, n_cat)
