@@ -69,7 +69,7 @@ class FCLayers(nn.Module):
         bias: bool = True,
         inject_covariates: bool = True,
         activation_fn: nn.Module = nn.ReLU,
-        batch_embedding: torch.Tensor = None,
+        batch_embedding: nn.Embedding = None,
     ):
         super().__init__()
         self.inject_covariates = inject_covariates
@@ -174,10 +174,7 @@ class FCLayers(nn.Module):
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
                 if self.batch_embedding is not None:
-                    batch_embed_cat = [
-                        self.batch_embedding[c.int().item()] for c in cat
-                    ]
-                    encoded_cat_list += [torch.stack(batch_embed_cat).detach().to(device=cat.device)]
+                    encoded_cat_list += [self.batch_embedding(cat.int()).squeeze().to(device=cat.device)]
                 else:
                     if cat.size(1) != n_cat:
                         one_hot_cat = one_hot(cat, n_cat)

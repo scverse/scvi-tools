@@ -204,7 +204,6 @@ class VAE(BaseModuleClass):
             self.batch_embedding = torch.nn.Embedding(
                 n_batch, embedding_dim=batch_embedding_dim
             )
-            embeds = self.batch_embedding(torch.tensor(range(n_batch)))
 
         n_input_decoder = n_latent + n_continuous_cov
         self.decoder = DecoderSCVI(
@@ -217,7 +216,7 @@ class VAE(BaseModuleClass):
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softplus" if use_size_factor_key else "softmax",
-            batch_embedding=embeds,
+            batch_embedding=self.batch_embedding,
         )
 
     def _get_inference_input(self, tensors):

@@ -208,9 +208,13 @@ class VAEMixin:
         if not batch_embedding:
             raise RuntimeError("A batch embedding was not used to train this model.")
 
+        indices = None
         if batch_indices:
-            return batch_embedding(torch.tensor(batch_indices)).detach().numpy()
+            indices = batch_indices
         else:
             adata = self._validate_anndata(adata)
             n_batches = len(adata.obs[batch_key].unique())
-            return batch_embedding(torch.tensor(range(n_batches))).detach().numpy()
+            indices = range(n_batches)
+        
+        embeds = batch_embedding(torch.tensor(indices,device=self.device))
+        return embeds.detach().cpu().numpy()
