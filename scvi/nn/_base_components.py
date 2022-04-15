@@ -174,7 +174,9 @@ class FCLayers(nn.Module):
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
                 if self.batch_embedding is not None:
-                    encoded_cat_list += [self.batch_embedding(cat.int()).squeeze().to(device=cat.device)]
+                    encoded_cat_list += [
+                        self.batch_embedding(cat.int()).squeeze().to(device=cat.device)
+                    ]
                 else:
                     if cat.size(1) != n_cat:
                         one_hot_cat = one_hot(cat, n_cat)

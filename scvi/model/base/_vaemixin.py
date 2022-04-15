@@ -215,6 +215,6 @@ class VAEMixin:
             adata = self._validate_anndata(adata)
             n_batches = len(adata.obs[batch_key].unique())
             indices = range(n_batches)
-        
-        embeds = batch_embedding(torch.tensor(indices,device=self.device))
+
+        embeds = batch_embedding(torch.tensor(indices, device=self.device))
         return embeds.detach().cpu().numpy()
