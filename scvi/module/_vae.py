@@ -199,7 +199,6 @@ class VAE(BaseModuleClass):
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         self.batch_embedding = None
-        embeds = None
         if use_batch_embedding:
             self.batch_embedding = torch.nn.Embedding(
                 n_batch, embedding_dim=batch_embedding_dim
