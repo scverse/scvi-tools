@@ -85,7 +85,7 @@ class FCLayers(nn.Module):
 
         cat_dim = sum(self.n_cat_list)
         if self.batch_embedding:
-            cat_dim = batch_embedding.embedding_dim
+            cat_dim = batch_embedding.embedding_dim * len(self.n_cat_list)
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
