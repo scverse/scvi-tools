@@ -28,7 +28,9 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
     ) -> None:
         super().__init__()
         if mod_required and mod_key is None:
-            raise ValueError("Modality required for MuDataField but not provided.")
+            raise ValueError(
+                f"Modality required for {self.__class__.__name__} but not provided."
+            )
         self._mod_key = mod_key
         self._preregister = lambda _self, _mdata: None
 

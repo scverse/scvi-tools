@@ -1265,27 +1265,41 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def setup_mudata(
         cls,
         mdata: MuData,
-        layer_mod: Optional[str],
-        protein_expression_mod: str,
-        layer: Optional[str] = None,
-        protein_expression_layer: Optional[str] = None,
-        batch_mod: Optional[str] = None,
+        rna_layer: Optional[str] = None,
+        protein_layer: Optional[str] = None,
         batch_key: Optional[str] = None,
-        size_factor_mod: Optional[str] = None,
         size_factor_key: Optional[str] = None,
-        categorical_covariate_mod: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_mod: Optional[str] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
+        modalities: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> Optional[AnnData]:
         setup_method_args = cls._get_setup_method_args(**locals())
+
+        if modalities is None:
+            raise ValueError("Modalities cannot be None.")
+        modalities = modalities.copy()
+        batch_mod = modalities.pop("batch_key", None)
+        rna_mod = modalities.pop("rna_layer", None)
+        protein_mod = modalities.pop("protein_layer", None)
+        size_factor_mod = modalities.pop("size_factor_key", None)
+        categorical_covariate_mod = modalities.pop("categorical_covariate_keys", None)
+        continuous_covariate_mod = modalities.pop("continuous_covariate_keys", None)
+        if len(modalities) > 0:
+            raise ValueError(f"Extraneous modality mapping(s) detected: {modalities}")
+
         batch_field = MuDataCategoricalObsField(
-            REGISTRY_KEYS.BATCH_KEY, batch_key, mod_key=batch_mod
+            REGISTRY_KEYS.BATCH_KEY,
+            batch_key,
+            mod_key=batch_mod,
         )
         mudata_fields = [
             MuDataLayerField(
-                REGISTRY_KEYS.X_KEY, layer, mod_key=layer_mod, is_count_data=True
+                REGISTRY_KEYS.X_KEY,
+                rna_layer,
+                mod_key=rna_mod,
+                is_count_data=True,
+                mod_required=True,
             ),
             MuDataCategoricalObsField(
                 REGISTRY_KEYS.LABELS_KEY,
@@ -1311,11 +1325,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             ),
             MuDataProteinLayerField(
                 REGISTRY_KEYS.PROTEIN_EXP_KEY,
-                protein_expression_layer,
-                mod_key=protein_expression_mod,
+                protein_layer,
+                mod_key=protein_mod,
                 use_batch_mask=True,
                 batch_field=batch_field,
                 is_count_data=True,
+                mod_required=True,
             ),
         ]
         adata_manager = AnnDataManager(

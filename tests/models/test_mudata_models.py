@@ -16,10 +16,8 @@ def test_totalvi(save_path):
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
-        layer_mod="rna",
-        batch_mod="rna",
         batch_key="batch",
-        protein_expression_mod="protein",
+        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
     )
 
     n_obs = mdata.n_obs
@@ -71,10 +69,8 @@ def test_totalvi(save_path):
     mdata2 = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata2,
-        layer_mod="rna",
-        batch_mod="rna",
         batch_key="batch",
-        protein_expression_mod="protein",
+        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
     )
     norm_exp = model.get_normalized_expression(mdata2, indices=[1, 2, 3])
     assert norm_exp[0].shape == (3, adata2.n_vars)
@@ -110,10 +106,8 @@ def test_totalvi_auto_transfer(save_path):
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
-        layer_mod="rna",
-        batch_mod="rna",
         batch_key="batch",
-        protein_expression_mod="protein",
+        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
     )
     model = TOTALVI(mdata)
     adata2 = synthetic_iid()
@@ -129,10 +123,8 @@ def test_totalvi_incorrect_mapping(save_path):
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
-        layer_mod="rna",
-        batch_mod="rna",
         batch_key="batch",
-        protein_expression_mod="protein",
+        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
     )
     model = TOTALVI(mdata)
     adata2 = synthetic_iid()
@@ -150,10 +142,8 @@ def test_totalvi_reordered_mapping(save_path):
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
-        layer_mod="rna",
-        batch_mod="rna",
         batch_key="batch",
-        protein_expression_mod="protein",
+        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
     )
     model = TOTALVI(mdata)
     adata2 = synthetic_iid()
@@ -173,10 +163,8 @@ def test_totalvi_missing_proteins(save_path):
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
-        layer_mod="rna",
-        batch_mod="rna",
         batch_key="batch",
-        protein_expression_mod="protein",
+        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
     )
     model = TOTALVI(mdata)
     assert model.module.protein_batch_mask is not None
@@ -193,10 +181,8 @@ def test_totalvi_model_library_size(save_path):
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
-        layer_mod="rna",
-        batch_mod="rna",
         batch_key="batch",
-        protein_expression_mod="protein",
+        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
     )
 
     n_latent = 10
@@ -218,12 +204,14 @@ def test_totalvi_size_factor():
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
-        layer_mod="rna",
-        batch_mod="rna",
         batch_key="batch",
-        protein_expression_mod="protein",
-        size_factor_mod="rna",
         size_factor_key="size_factor",
+        modalities=dict(
+            rna_layer="rna",
+            batch_key="rna",
+            protein_layer="protein",
+            size_factor_key="rna",
+        ),
     )
 
     n_latent = 10
@@ -250,10 +238,8 @@ def test_totalvi_saving_and_loading(save_path):
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
-        layer_mod="rna",
-        batch_mod="rna",
         batch_key="batch",
-        protein_expression_mod="protein",
+        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
     )
     model = TOTALVI(mdata)
     model.train(1, train_size=0.2)
@@ -304,8 +290,6 @@ def test_totalvi_saving_and_loading(save_path):
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
     TOTALVI.setup_mudata(
         mdata2,
-        layer_mod="rna",
-        batch_mod="rna",
         batch_key="batch",
-        protein_expression_mod="protein",
+        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
     )

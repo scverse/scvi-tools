@@ -627,7 +627,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # the saved model. This enables simple backwards compatibility in the case of
         # newly introduced fields or parameters.
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
-        print(method_name)
         getattr(cls, method_name)(
             adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
         )

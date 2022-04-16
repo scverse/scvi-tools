@@ -256,7 +256,7 @@ def test_transfer_fields_diff_batch_mapping():
     adata2.X = adata1.X
     protein_adata2 = synthetic_iid()
     mdata2 = mudata.MuData({"rna": adata2, "protein": protein_adata2})
-    adata2.obs["labels"] = ["batch_1"] * adata2.n_obs
+    adata2.obs["batch"] = ["batch_1"] * adata2.n_obs
     adata1_manager = generic_setup_mudata_manager(
         mdata1, layer_mod="rna", batch_mod="rna", batch_key="batch"
     )
@@ -264,6 +264,7 @@ def test_transfer_fields_diff_batch_mapping():
     batch_mapping = adata1_manager.get_state_registry(
         REGISTRY_KEYS.BATCH_KEY
     ).categorical_mapping
+    print(batch_mapping)
     correct_batch = np.where(batch_mapping == "batch_1")[0][0]
     assert adata2.obs["_scvi_batch"][0] == correct_batch
 
