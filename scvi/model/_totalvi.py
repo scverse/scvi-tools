@@ -1265,26 +1265,18 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         if modalities is None:
             raise ValueError("Modalities cannot be None.")
-        modalities = modalities.copy()
-        batch_mod = modalities.pop("batch_key", None)
-        rna_mod = modalities.pop("rna_layer", None)
-        protein_mod = modalities.pop("protein_layer", None)
-        size_factor_mod = modalities.pop("size_factor_key", None)
-        categorical_covariate_mod = modalities.pop("categorical_covariate_keys", None)
-        continuous_covariate_mod = modalities.pop("continuous_covariate_keys", None)
-        if len(modalities) > 0:
-            raise ValueError(f"Extraneous modality mapping(s) detected: {modalities}")
+        modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
 
         batch_field = fields.MuDataCategoricalObsField(
             REGISTRY_KEYS.BATCH_KEY,
             batch_key,
-            mod_key=batch_mod,
+            mod_key=modalities.batch_key,
         )
         mudata_fields = [
             fields.MuDataLayerField(
                 REGISTRY_KEYS.X_KEY,
                 rna_layer,
-                mod_key=rna_mod,
+                mod_key=modalities.rna_layer,
                 is_count_data=True,
                 mod_required=True,
             ),
@@ -1297,23 +1289,23 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             fields.MuDataNumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY,
                 size_factor_key,
-                mod_key=size_factor_mod,
+                mod_key=modalities.size_factor_key,
                 required=False,
             ),
             fields.MuDataCategoricalJointObsField(
                 REGISTRY_KEYS.CAT_COVS_KEY,
                 categorical_covariate_keys,
-                mod_key=categorical_covariate_mod,
+                mod_key=modalities.categorical_covariate_keys,
             ),
             fields.MuDataNumericalJointObsField(
                 REGISTRY_KEYS.CONT_COVS_KEY,
                 continuous_covariate_keys,
-                mod_key=continuous_covariate_mod,
+                mod_key=modalities.continuous_covariate_keys,
             ),
             fields.MuDataProteinLayerField(
                 REGISTRY_KEYS.PROTEIN_EXP_KEY,
                 protein_layer,
-                mod_key=protein_mod,
+                mod_key=modalities.protein_layer,
                 use_batch_mask=True,
                 batch_field=batch_field,
                 is_count_data=True,

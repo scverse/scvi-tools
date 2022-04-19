@@ -28,7 +28,7 @@ from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
 from scvi.module.base import PyroBaseModuleClass
-from scvi.utils import setup_anndata_dsp
+from scvi.utils import attrdict, setup_anndata_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -156,6 +156,34 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             _SETUP_METHOD_NAME: method_name,
             _SETUP_ARGS_KEY: setup_args,
         }
+
+    @staticmethod
+    def _create_modalities_attr_dict(
+        modalities: Dict[str, str], setup_method_args: dict
+    ) -> attrdict:
+        """
+        Preprocesses a ``modalities`` dictionary used in ``setup_mudata()`` to map modality names.
+
+        Ensures each field key has a respective modality key, defaulting to ``None``.
+        Raises a ``UserWarning`` if extraneous modality mappings are detected.
+
+        Parameters
+        ----------
+        modalities
+            Dictionary mapping ``setup_mudata()`` argument name to modality name.
+        setup_method_args
+            Output of  ``_get_setup_method_args()``.
+        """
+        setup_args = setup_method_args[_SETUP_ARGS_KEY]
+        filtered_modalities = {
+            arg_name: modalities.get(arg_name, None) for arg_name in setup_args.keys()
+        }
+        extra_modalities = set(modalities) - set(filtered_modalities)
+        if len(extra_modalities) > 0:
+            raise ValueError(
+                f"Extraneous modality mapping(s) detected: {extra_modalities}"
+            )
+        return attrdict(filtered_modalities)
 
     @classmethod
     def register_manager(cls, adata_manager: AnnDataManager):
