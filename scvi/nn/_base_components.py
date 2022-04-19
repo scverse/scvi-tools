@@ -341,6 +341,7 @@ class DecoderSCVI(nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         scale_activation: Literal["softmax", "softplus"] = "softmax",
+        **kwargs,
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -353,6 +354,7 @@ class DecoderSCVI(nn.Module):
             inject_covariates=inject_covariates,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
+            **kwargs,
         )
 
         # mean gamma
