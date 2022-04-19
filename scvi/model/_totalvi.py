@@ -10,26 +10,13 @@ import torch
 from anndata import AnnData
 from mudata import MuData
 
+import scvi.data.fields as fields
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    MuDataCategoricalJointObsField,
-    MuDataCategoricalObsField,
-    MuDataLayerField,
-    MuDataNumericalJointObsField,
-    MuDataNumericalObsField,
-    MuDataProteinLayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-    ProteinObsmField,
-)
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -127,7 +114,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             REGISTRY_KEYS.PROTEIN_EXP_KEY
         )
         if (
-            ProteinObsmField.PROTEIN_BATCH_MASK in self.protein_state_registry
+            fields.ProteinObsmField.PROTEIN_BATCH_MASK in self.protein_state_registry
             and not override_missing_proteins
         ):
             batch_mask = self.protein_state_registry.protein_batch_mask
@@ -156,7 +143,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
-                CategoricalJointObsField.N_CATS_PER_KEY
+                fields.CategoricalJointObsField.N_CATS_PER_KEY
             ]
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
@@ -1103,10 +1090,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             )
             batch_mask = adata_manager.get_state_registry(
                 REGISTRY_KEYS.PROTEIN_EXP_KEY
-            ).get(ProteinObsmField.PROTEIN_BATCH_MASK)
+            ).get(fields.ProteinObsmField.PROTEIN_BATCH_MASK)
             batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
             cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
-                CategoricalObsField.CATEGORICAL_MAPPING_KEY
+                fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
             ]
             codes = np.arange(len(cats))
 
@@ -1230,23 +1217,23 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         %(returns)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
-        batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
+        batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(
+            fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            fields.CategoricalObsField(
                 REGISTRY_KEYS.LABELS_KEY, None
             ),  # Default labels field for compatibility with TOTALVAE
             batch_field,
-            NumericalObsField(
+            fields.NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
             ),
-            CategoricalJointObsField(
+            fields.CategoricalJointObsField(
                 REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),
-            NumericalJointObsField(
+            fields.NumericalJointObsField(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
-            ProteinObsmField(
+            fields.ProteinObsmField(
                 REGISTRY_KEYS.PROTEIN_EXP_KEY,
                 protein_expression_obsm_key,
                 use_batch_mask=True,
@@ -1288,42 +1275,42 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if len(modalities) > 0:
             raise ValueError(f"Extraneous modality mapping(s) detected: {modalities}")
 
-        batch_field = MuDataCategoricalObsField(
+        batch_field = fields.MuDataCategoricalObsField(
             REGISTRY_KEYS.BATCH_KEY,
             batch_key,
             mod_key=batch_mod,
         )
         mudata_fields = [
-            MuDataLayerField(
+            fields.MuDataLayerField(
                 REGISTRY_KEYS.X_KEY,
                 rna_layer,
                 mod_key=rna_mod,
                 is_count_data=True,
                 mod_required=True,
             ),
-            MuDataCategoricalObsField(
+            fields.MuDataCategoricalObsField(
                 REGISTRY_KEYS.LABELS_KEY,
                 None,
                 mod_key=None,
             ),  # Default labels field for compatibility with TOTALVAE
             batch_field,
-            MuDataNumericalObsField(
+            fields.MuDataNumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY,
                 size_factor_key,
                 mod_key=size_factor_mod,
                 required=False,
             ),
-            MuDataCategoricalJointObsField(
+            fields.MuDataCategoricalJointObsField(
                 REGISTRY_KEYS.CAT_COVS_KEY,
                 categorical_covariate_keys,
                 mod_key=categorical_covariate_mod,
             ),
-            MuDataNumericalJointObsField(
+            fields.MuDataNumericalJointObsField(
                 REGISTRY_KEYS.CONT_COVS_KEY,
                 continuous_covariate_keys,
                 mod_key=continuous_covariate_mod,
             ),
-            MuDataProteinLayerField(
+            fields.MuDataProteinLayerField(
                 REGISTRY_KEYS.PROTEIN_EXP_KEY,
                 protein_layer,
                 mod_key=protein_mod,

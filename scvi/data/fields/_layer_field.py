@@ -96,7 +96,7 @@ class LayerField(BaseAnnDataField):
             _verify_and_correct_data_format(adata, self.attr_name, self.attr_key)
         return {
             self.N_VARS_KEY: adata.n_vars,
-            self.COLUMN_NAMES_KEY: np.array(adata.var_names),
+            self.COLUMN_NAMES_KEY: np.asarray(adata.var_names),
         }
 
     def transfer_field(
