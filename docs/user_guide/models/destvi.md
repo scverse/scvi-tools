@@ -105,13 +105,13 @@ difference in experimental assays. Like the scLVM, $f$ is a decoder neural netwo
 $p_g$ is the rate parameter for the negative binomial distribution.
 
 To avoid the latent variable $\gamma_s^c$ from incorporating variation attributed to experimental
-assay differences, we assign an empirical prior informed by the scLVM and a corresponding set of
+assay differences, we assign an empirical prior informed by the scLVM and the corresponding
 cells of the same cell type in the scRNA-seq dataset. To compute this function, we subcluster the latent space of the
-scLVM for each cell type to k cell type specific clusters. For each cluster we compute an empirical mean and variance.
+scLVM for each cell type to K cell type specific clusters. For each cluster we compute an empirical mean and variance.
+Above, $\{u_{kc}\}_{k=1}^K$ designates the set of cell type specific subclusters from cell type $c$ in the scRNA-seq dataset, and
+$q_\Phi$ designates the empirical normal distribution from the computed cluster mean and variance.
 The loss is weighted by the probability of a random cell from this cell type to be in the respective cluster in the
 scRNA-seq dataset (mixture probability, $m_{kc}$).
-Above, $\{u_{kc}\}_{k=1}^K$ designates a set of cells from cell type $c$ in the scRNA-seq dataset, and
-$q_\Phi$ designates the variational distrbution from the scLVM.
 In literature, the prior is referred to as a VampPrior ("variational aggregated mixture of posteriors" prior) [^ref2].
 More can be read on this prior in the DestVI paper.
 
@@ -182,11 +182,14 @@ The loss is defined as:
 :nowrap: true
 
 \begin{align}
-     L(l, \alpha, \beta, f^g, \gamma, p, \eta) := &-\log p(X \mid l, \alpha, \beta, f^g, \gamma, p, \eta) - eta_{reg} \log p(\eta) \\
-     &+ beta_{reg} \mathrm{Var}(\alpha) - \log p(\gamma \mid \mathrm{VampPrior}) + l1_{reg} \lVert \beta_{sc} \rVert_1  \tag{6} \\
+     L(l, \alpha, \beta, f^g, \gamma, p, \eta) := &-\log p(X \mid l, \alpha, \beta, f^g, \gamma, p, \eta) - \lambda_{\eta} \log p(\eta) \\
+     &+ \lambda_{\alpha} \mathrm{Var}(\alpha) - \log p(\gamma \mid \mathrm{VampPrior}) + \lambda_{\beta} \lVert \beta_{sc} \rVert_1  \tag{6} \\
 \end{align}
 ```
 
+where $\mathrm{Var}(\alpha)$ refers to the empirical variance of the parameters alpha across all genes. We used this as a practical form of regularization (a similar regularizer is used in the ZINB-WaVE model [^ref3]).
+
+$\lambda_{\beta}$ (`l1_reg` in code), $\lambda_{\eta}$ (`eta_reg` in code) and $\lambda_{\alpha}$ (`beta_reg` in code) are hyperparameters used to scale the loss term. Increasing $\lambda_{\beta}$ leads to increased sparsity of cell type proportions. Increasing $\lambda_{\alpha}$ leads to less model flexibility for technical variation between single cell and spatial sequencing dataset. Increasing $\lambda_{\eta}$ leads to more genes being explained by the dummy cell type (we recommend to not change the default value). 
 To avoid overfitting, DestVI amortizes inference using a neural network to parametrize the latent variables.
 Via the `amortization` parameter of {class}`scvi.module.MRDeconv`, the user can specify which of
 $\beta$ and $\gamma^c$ will be parametrized by the neural network.
@@ -248,3 +251,5 @@ can be found on [destvi_utils](https://destvi-utils.readthedocs.io/en/latest/ins
 [^ref1]: Romain Lopez, Baoguo Li, Hadas Keren-Shaul, Pierre Boyeau, Merav Kedmi, David Pilzer, Adam Jelinski, Ido Yofe, Eyal David, Allon Wagner, Can Ergen, Yoseph Addadi, Ofra Golani, Franca Ronchese, Michael I Jordan, Ido Amit, Nir Yosef (2022). *DestVI identifies continuums of cell types in spatial transcriptomics data.* [Nature Biotechnology (in press)](https://www.biorxiv.org/content/10.1101/2021.05.10.443517v1)
 
 [^ref2]: Jakub Tomczak, Max Welling (2018),*VAE with a VampPrior*, [Proceedings of Machine Learning Research](https://proceedings.mlr.press/v84/tomczak18a.html)
+
+[^ref3]: Davide Risso, Fanny Perraudeau, Svetlana Gribkova, Sandrine Dudoit, Jean-Philippe Vert (2018). *A general and flexible method for signal extraction from single-cell RNA-seq data*, [Nature Communications] (https://www.nature.com/articles/s41467-017-02554-5)
