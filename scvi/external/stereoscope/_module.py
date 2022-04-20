@@ -5,6 +5,7 @@ import numpy as np
 import numpyro
 import numpyro.distributions as dist
 import torch
+from jax import random
 from jax.nn import softplus as jaxsoftplus
 from torch.distributions import NegativeBinomial
 from torch.nn.functional import softplus
@@ -154,11 +155,6 @@ class SpatialDeconv:
         self.n_spots = n_spots
         self.n_genes, self.n_labels = self.w.shape
         self.prior_weight = prior_weight
-        self.v_init = np.random.normal(size=(self.n_labels + 1, self.n_spots))
-        self.beta_init = 0.01 * np.random.normal(size=(self.n_genes, 1))
-
-        # noise from data
-        self.eta_map_init = np.random.normal(size=(self.n_genes,))
 
     @staticmethod
     def _get_fn_args_from_batch(tensor_dict):
@@ -170,11 +166,15 @@ class SpatialDeconv:
         _, gene_plate = self.create_plates(x, ind_x)
 
         with gene_plate:
-            numpyro.sample("eta", dist.Delta(self.eta_map_init))
+            eta_loc = numpyro.param(
+                "eta_loc",
+                lambda rng: random.normal(rng, shape=(self.n_genes,), dtype=np.float32),
+            )
+            numpyro.sample("eta", dist.Delta(eta_loc))
 
     def create_plates(self, x, ind_x):
         obs_plate = numpyro.plate(
-            "obs_plate", size=self.n_spots, dim=-2, subsample_size=len(ind_x)
+            "obs_plate", size=self.n_spots, subsample_size=len(ind_x)
         )
         gene_plate = numpyro.plate("gene_plate", size=self.n_genes)
 
@@ -188,9 +188,18 @@ class SpatialDeconv:
             eta = numpyro.sample("eta", dist.Normal(0, 1))
 
         # factor loadings
-        v = numpyro.param("v", self.v_init)
+        v = numpyro.param(
+            "v",
+            lambda rng: random.normal(
+                rng, shape=(self.n_labels + 1, self.n_spots), dtype=np.float32
+            ),
+        )
         # additive gene bias
-        beta = numpyro.param("beta", self.beta_init)
+        beta = numpyro.param(
+            "beta",
+            lambda rng: 0.01
+            * random.normal(rng, shape=(self.n_genes, 1), dtype=np.float32),
+        )
 
         beta = jaxsoftplus(beta)  # n_genes, 1
         v = jaxsoftplus(v)  # n_labels + 1, n_spots
