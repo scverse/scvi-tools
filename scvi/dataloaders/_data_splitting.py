@@ -168,8 +168,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     ----------
     adata_manager
         :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
-    unlabeled_category
-        Category to treat as unlabeled
     train_size
         float, or None (default is 0.9)
     validation_size
@@ -198,7 +196,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        unlabeled_category,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         n_samples_per_label: Optional[int] = None,
@@ -207,23 +204,22 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     ):
         super().__init__()
         self.adata_manager = adata_manager
-        self.unlabeled_category = unlabeled_category
         self.train_size = float(train_size)
         self.validation_size = validation_size
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
-        original_key = adata_manager.get_state_registry(
+        labels_state_registry = adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
-        ).original_key
-        labels = np.asarray(adata_manager.adata.obs[original_key]).ravel()
+        )
         labels = get_anndata_attribute(
             adata_manager.adata,
             adata_manager.data_registry.labels.attr_name,
-            original_key,
+            labels_state_registry.original_key,
         ).ravel()
-        self._unlabeled_indices = np.argwhere(labels == unlabeled_category).ravel()
-        self._labeled_indices = np.argwhere(labels != unlabeled_category).ravel()
+        self.unlabeled_category = labels_state_registry.unlabeled_category
+        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
+        self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
 
         self.data_loader_kwargs = kwargs
         self.use_gpu = use_gpu
@@ -287,7 +283,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         if len(self._labeled_indices) != 0:
             self.data_loader_class = SemiSupervisedDataLoader
             dl_kwargs = {
-                "unlabeled_category": self.unlabeled_category,
                 "n_samples_per_label": self.n_samples_per_label,
             }
         else:

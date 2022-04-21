@@ -21,11 +21,7 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.dataloaders import (
-    AnnDataLoader,
-    SemiSupervisedDataLoader,
-    SemiSupervisedDataSplitter,
-)
+from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model._utils import _init_library_size
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
@@ -105,11 +101,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scanvae_model_kwargs = dict(model_kwargs)
 
         self._set_indices_and_labels()
-
-        if len(self._labeled_indices) != 0:
-            self._dl_cls = SemiSupervisedDataLoader
-        else:
-            self._dl_cls = AnnDataLoader
 
         # ignores unlabeled catgegory
         n_labels = self.summary_stats.n_labels - 1
@@ -387,7 +378,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         data_splitter = SemiSupervisedDataSplitter(
             adata_manager=self.adata_manager,
-            unlabeled_category=self.unlabeled_category_,
             train_size=train_size,
             validation_size=validation_size,
             n_samples_per_label=n_samples_per_label,
