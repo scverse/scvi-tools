@@ -849,6 +849,8 @@ def test_scanvi(save_path):
         batch_key="batch",
     )
     model = SCANVI(adata, n_latent=10)
+    assert len(model._labeled_indices) == sum(adata.obs["labels"] != "label_0")
+    assert len(model._unlabeled_indices) == sum(adata.obs["labels"] == "label_0")
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     logged_keys = model.history.keys()
     assert "elbo_validation" in logged_keys

@@ -12,6 +12,7 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data._constants import _SETUP_ARGS_KEY
+from scvi.data._utils import get_anndata_attribute
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -243,9 +244,14 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         labels_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         )
+        self.original_label_key = labels_state_registry.original_key
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
-        labels = self.get_from_registry(self.adata, REGISTRY_KEYS.LABELS_KEY)
+        labels = get_anndata_attribute(
+            self.adata,
+            self.adata_manager.data_registry.labels.attr_name,
+            self.original_label_key,
+        ).ravel()
         self._label_mapping = labels_state_registry.categorical_mapping
 
         # set unlabeled and labeled indices
@@ -254,7 +260,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         ).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
-        self.original_label_key = labels_state_registry.original_key
 
     def predict(
         self,

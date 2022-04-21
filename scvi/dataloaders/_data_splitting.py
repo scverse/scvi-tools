@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
+from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_use_gpu_arg
@@ -216,6 +217,11 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             REGISTRY_KEYS.LABELS_KEY
         ).original_key
         labels = np.asarray(adata_manager.adata.obs[original_key]).ravel()
+        labels = get_anndata_attribute(
+            adata_manager.adata,
+            adata_manager.data_registry.labels.attr_name,
+            original_key,
+        ).ravel()
         self._unlabeled_indices = np.argwhere(labels == unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != unlabeled_category).ravel()
 
