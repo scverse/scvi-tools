@@ -77,18 +77,17 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         self,
         state_registry: dict,
         adata_target: AnnData,
-        extend_categories: bool = False,
         allow_missing_labels: bool = False,
         **kwargs,
     ) -> dict:
         if (
             allow_missing_labels
-            and self.attr_key is not None
-            and self.attr_key not in adata_target.obs
+            and self._original_attr_key is not None
+            and self._original_attr_key not in adata_target.obs
         ):
             # Fill in original .obs attribute with unlabeled_category values.
             warnings.warn(
-                f"Missing labels key {self.attr_key}. Filling in with unlabeled category {self._unlabeled_category}."
+                f"Missing labels key {self._original_attr_key}. Filling in with unlabeled category {self._unlabeled_category}."
             )
             _set_data_in_registry(
                 adata_target,
@@ -97,8 +96,12 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
                 self._original_attr_key,
             )
 
+        # don't extend labels for query data
+        ec = "extend_categories"
+        if ec in kwargs:
+            kwargs.pop(ec)
         transfer_state_registry = super().transfer_field(
-            state_registry, adata_target, extend_categories=extend_categories, **kwargs
+            state_registry, adata_target, extend_categories=False, **kwargs
         )
         mapping = transfer_state_registry[self.CATEGORICAL_MAPPING_KEY]
         return self._remap_unlabeled_to_final_category(adata_target, mapping)
