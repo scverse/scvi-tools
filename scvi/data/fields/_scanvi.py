@@ -97,7 +97,7 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
             )
 
         transfer_state_registry = super().transfer_field(
-            state_registry, adata_target, **kwargs
+            state_registry, adata_target, extend_categories=False, **kwargs
         )
         mapping = transfer_state_registry[self.CATEGORICAL_MAPPING_KEY]
         return self._remap_unlabeled_to_final_category(adata_target, mapping)
