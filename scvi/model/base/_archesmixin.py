@@ -206,21 +206,31 @@ class ArchesMixin:
                 "This may result in poor performance."
             )
         genes_to_add = var_names.difference(adata.var_names)
-        adata_padding = AnnData(csr_matrix(np.zeros((adata.n_obs, len(genes_to_add)))))
-        adata_padding.var_names = genes_to_add
-        adata_padding.obs_names = adata.obs_names
-        # Concatenate object
-        adata_out = anndata.concat(
-            [adata, adata_padding],
-            axis=1,
-            join="outer",
-            index_unique=None,
-            merge="unique",
-        )
-        adata_out._inplace_subset_var(var_names)
+        needs_padding = len(genes_to_add) > 0
+        if needs_padding:
+            adata_padding = AnnData(
+                csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
+            )
+            adata_padding.var_names = genes_to_add
+            adata_padding.obs_names = adata.obs_names
+            # Concatenate object
+            adata_out = anndata.concat(
+                [adata, adata_padding],
+                axis=1,
+                join="outer",
+                index_unique=None,
+                merge="unique",
+            )
+        else:
+            adata_out = adata
+
+        # also covers the case when new adata has more var names than old
+        if not var_names.equals(adata_out.var_names):
+            adata_out._inplace_subset_var(var_names)
 
         if inplace:
-            adata._init_as_actual(adata_out, dtype=adata._X.dtype)
+            if adata_out is not adata:
+                adata._init_as_actual(adata_out, dtype=adata._X.dtype)
         else:
             return adata_out
 
