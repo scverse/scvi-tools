@@ -96,6 +96,10 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
                 self._original_attr_key,
             )
 
+        # don't extend labels for query data
+        ec = "extend_categories"
+        if ec in kwargs:
+            kwargs.pop(ec)
         transfer_state_registry = super().transfer_field(
             state_registry, adata_target, extend_categories=False, **kwargs
         )
