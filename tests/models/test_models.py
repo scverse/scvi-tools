@@ -36,7 +36,7 @@ from scvi.model import (
 )
 from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
-from tests.dataset.utils import generic_setup_adata_manager
+from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
@@ -563,10 +563,6 @@ def test_new_setup_compat():
 
     # Backwards compatibility test.
     registry = registry_from_setup_dict(SCVI, LEGACY_SETUP_DICT)
-    print(field_registries_legacy_subset)
-    print(
-        registry[_constants._FIELD_REGISTRIES_KEY],
-    )
     np.testing.assert_equal(
         field_registries_legacy_subset,
         registry[_constants._FIELD_REGISTRIES_KEY],
@@ -686,13 +682,12 @@ def test_semisupervised_dataloader():
     # test label resampling
     n_samples_per_label = 10
     a = synthetic_iid()
-    adata_manager = generic_setup_adata_manager(
-        a, batch_key="batch", labels_key="labels"
+    adata_manager = scanvi_setup_adata_manager(
+        a, labels_key="labels", unlabeled_category="label_0", batch_key="batch"
     )
     dl = SemiSupervisedDataLoader(
         adata_manager,
         indices=np.arange(a.n_obs),
-        unlabeled_category="label_0",
         n_samples_per_label=n_samples_per_label,
     )
     labeled_dl_idx = dl.dataloaders[1].indices
@@ -793,10 +788,10 @@ def test_device_backed_data_splitter():
 
 def test_semisupervised_data_splitter():
     a = synthetic_iid()
-    adata_manager = generic_setup_adata_manager(
-        a, batch_key="batch", labels_key="labels"
+    adata_manager = scanvi_setup_adata_manager(
+        a, labels_key="labels", unlabeled_category="asdf", batch_key="batch"
     )
-    ds = SemiSupervisedDataSplitter(adata_manager, "asdf")
+    ds = SemiSupervisedDataSplitter(adata_manager)
     ds.setup()
     # check the number of indices
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
@@ -811,7 +806,7 @@ def test_semisupervised_data_splitter():
 
     # test mix of labeled and unlabeled data
     unknown_label = "label_0"
-    ds = SemiSupervisedDataSplitter(adata_manager, unknown_label)
+    ds = SemiSupervisedDataSplitter(adata_manager)
     ds.setup()
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
 
@@ -849,6 +844,8 @@ def test_scanvi(save_path):
         batch_key="batch",
     )
     model = SCANVI(adata, n_latent=10)
+    assert len(model._labeled_indices) == sum(adata.obs["labels"] != "label_0")
+    assert len(model._unlabeled_indices) == sum(adata.obs["labels"] == "label_0")
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     logged_keys = model.history.keys()
     assert "elbo_validation" in logged_keys
