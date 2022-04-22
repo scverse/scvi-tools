@@ -221,12 +221,15 @@ class ArchesMixin:
                 index_unique=None,
                 merge="unique",
             )
-            adata_out._inplace_subset_var(var_names)
         else:
             adata_out = adata
 
+        # also covers the case when new adata has more var names than old
+        if not var_names.equals(adata_out.var_names):
+            adata_out._inplace_subset_var(var_names)
+
         if inplace:
-            if needs_padding:
+            if adata_out is not adata:
                 adata._init_as_actual(adata_out, dtype=adata._X.dtype)
         else:
             return adata_out
