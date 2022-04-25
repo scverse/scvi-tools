@@ -89,7 +89,7 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 Here we feature tutorials to guide you through the construction of a model with scvi-tools. For an example of how scvi-tools can be used in an independent package, see our GitHub [template].
 
 :::{note}
-For questions about developing with scvi-tools, please use our [forum] or [gitter].
+For questions about developing with scvi-tools, please use our [forum] or [zulip].
 :::
 
 ```{toctree}
@@ -146,5 +146,5 @@ notebooks/model_user_guide
 
 [ecosystem]: https://scvi-tools.org/ecosystem
 [forum]: https://discourse.scvi-tools.org/
-[gitter]: https://gitter.im/scvi-tools/development
+[zulip]: https://scverse.zulipchat.com/
 [template]: https://github.com/YosefLab/scvi-tools-skeleton

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from scvi.data._built_in_data._dataset_10x import _load_dataset_10x
-from scvi.data._built_in_data._download import _download
+from scvi.data._download import _download
 
 
 def _load_purified_pbmc_dataset(

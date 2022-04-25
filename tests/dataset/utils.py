@@ -9,6 +9,7 @@ from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
+    LabelsWithUnlabeledObsField,
     LayerField,
     NumericalJointObsField,
     ProteinObsmField,
@@ -65,6 +66,28 @@ def generic_setup_adata_manager(
                 is_count_data=True,
             )
         )
+    adata_manager = AnnDataManager(
+        fields=anndata_fields, setup_method_args=setup_method_args
+    )
+    adata_manager.register_fields(adata)
+    return adata_manager
+
+
+def scanvi_setup_adata_manager(
+    adata: AnnData,
+    unlabeled_category: str,
+    batch_key: Optional[str] = None,
+    labels_key: Optional[str] = None,
+) -> AnnDataManager:
+    setup_args = locals()
+    setup_args.pop("adata")
+    setup_method_args = {_MODEL_NAME_KEY: "TestModel", _SETUP_ARGS_KEY: setup_args}
+    anndata_fields = [
+        CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+        LabelsWithUnlabeledObsField(
+            REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
+        ),
+    ]
     adata_manager = AnnDataManager(
         fields=anndata_fields, setup_method_args=setup_method_args
     )

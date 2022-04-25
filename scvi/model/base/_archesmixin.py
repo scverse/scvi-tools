@@ -12,7 +12,6 @@ from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS
 from scvi.data import _constants
-from scvi.data._compat import manager_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.nn import FCLayers
@@ -87,44 +86,25 @@ class ArchesMixin:
             adata._inplace_subset_var(var_names)
         _validate_var_names(adata, var_names)
 
-        if "scvi_setup_dict_" in attr_dict:
-            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-            # scanvi case
-            unlabeled_category_key = "unlabeled_category_"
-            unlabeled_category = attr_dict.get(unlabeled_category_key, None)
-            cls.register_manager(
-                manager_from_setup_dict(
-                    cls,
-                    adata,
-                    scvi_setup_dict,
-                    extend_categories=True,
-                    allow_missing_labels=True,
-                    unlabeled_category=unlabeled_category,
-                )
+        registry = attr_dict.pop("registry_")
+        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+            raise ValueError(
+                "It appears you are loading a model from a different class."
             )
-        else:
-            registry = attr_dict.pop("registry_")
-            if (
-                _MODEL_NAME_KEY in registry
-                and registry[_MODEL_NAME_KEY] != cls.__name__
-            ):
-                raise ValueError(
-                    "It appears you are loading a model from a different class."
-                )
 
-            if _SETUP_ARGS_KEY not in registry:
-                raise ValueError(
-                    "Saved model does not contain original setup inputs. "
-                    "Cannot load the original setup."
-                )
-
-            cls.setup_anndata(
-                adata,
-                source_registry=registry,
-                extend_categories=True,
-                allow_missing_labels=True,
-                **registry[_SETUP_ARGS_KEY],
+        if _SETUP_ARGS_KEY not in registry:
+            raise ValueError(
+                "Saved model does not contain original setup inputs. "
+                "Cannot load the original setup."
             )
+
+        cls.setup_anndata(
+            adata,
+            source_registry=registry,
+            extend_categories=True,
+            allow_missing_labels=True,
+            **registry[_SETUP_ARGS_KEY],
+        )
 
         model = _initialize_model(cls, adata, attr_dict)
         adata_manager = model.get_anndata_manager(adata, required=True)
@@ -226,21 +206,31 @@ class ArchesMixin:
                 "This may result in poor performance."
             )
         genes_to_add = var_names.difference(adata.var_names)
-        adata_padding = AnnData(csr_matrix(np.zeros((adata.n_obs, len(genes_to_add)))))
-        adata_padding.var_names = genes_to_add
-        adata_padding.obs_names = adata.obs_names
-        # Concatenate object
-        adata_out = anndata.concat(
-            [adata, adata_padding],
-            axis=1,
-            join="outer",
-            index_unique=None,
-            merge="unique",
-        )
-        adata_out._inplace_subset_var(var_names)
+        needs_padding = len(genes_to_add) > 0
+        if needs_padding:
+            adata_padding = AnnData(
+                csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
+            )
+            adata_padding.var_names = genes_to_add
+            adata_padding.obs_names = adata.obs_names
+            # Concatenate object
+            adata_out = anndata.concat(
+                [adata, adata_padding],
+                axis=1,
+                join="outer",
+                index_unique=None,
+                merge="unique",
+            )
+        else:
+            adata_out = adata
+
+        # also covers the case when new adata has more var names than old
+        if not var_names.equals(adata_out.var_names):
+            adata_out._inplace_subset_var(var_names)
 
         if inplace:
-            adata._init_as_actual(adata_out, dtype=adata._X.dtype)
+            if adata_out is not adata:
+                adata._init_as_actual(adata_out, dtype=adata._X.dtype)
         else:
             return adata_out
 

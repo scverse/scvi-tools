@@ -234,11 +234,7 @@ def test_scanvi_online_update(save_path):
     model.predict()
 
     # query has all missing labels and no labels key
-    adata2 = synthetic_iid()
-    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     del adata2.obs["labels"]
-    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
-    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
 
     model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
     model.train(max_epochs=1)
