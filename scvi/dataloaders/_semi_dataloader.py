@@ -4,6 +4,7 @@ import numpy as np
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
+from scvi.data._utils import get_anndata_attribute
 
 from ._concat_dataloader import ConcatDataLoader
 
@@ -16,8 +17,6 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
     ----------
     adata_manager
         :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
-    unlabeled_category
-        Category to treat as unlabeled
     n_samples_per_label
         Number of subsamples for each label class to sample per epoch. By default, there
         is no label subsampling.
@@ -38,7 +37,6 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        unlabeled_category: str,
         n_samples_per_label: Optional[int] = None,
         indices: Optional[List[int]] = None,
         shuffle: bool = False,
@@ -51,30 +49,34 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         if indices is None:
             indices = np.arange(adata.n_obs)
 
-        self.indices = indices
+        self.indices = np.asarray(indices)
 
-        if len(indices) == 0:
+        if len(self.indices) == 0:
             return None
 
         self.n_samples_per_label = n_samples_per_label
 
-        labels_obs_key = adata_manager.get_state_registry(
+        labels_state_registry = adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
-        ).original_key
-        labels = np.asarray(adata_manager.adata.obs[labels_obs_key]).ravel()
+        )
+        labels = get_anndata_attribute(
+            adata_manager.adata,
+            adata_manager.data_registry.labels.attr_name,
+            labels_state_registry.original_key,
+        ).ravel()
 
         # save a nested list of the indices per labeled category
         self.labeled_locs = []
         for label in np.unique(labels):
-            if label != unlabeled_category:
+            if label != labels_state_registry.unlabeled_category:
                 label_loc_idx = np.where(labels[indices] == label)[0]
-                label_loc = indices[label_loc_idx]
+                label_loc = self.indices[label_loc_idx]
                 self.labeled_locs.append(label_loc)
         labelled_idx = self.subsample_labels()
 
         super().__init__(
             adata_manager=adata_manager,
-            indices_list=[indices, labelled_idx],
+            indices_list=[self.indices, labelled_idx],
             shuffle=shuffle,
             batch_size=batch_size,
             data_and_attributes=data_and_attributes,

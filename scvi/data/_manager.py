@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from typing import Optional, Sequence, Type, Union
+from typing import Optional, Sequence, Union
 from uuid import uuid4
 
 import numpy as np
@@ -12,11 +12,11 @@ import rich
 from anndata import AnnData
 
 import scvi
+from scvi._types import AnnDataField
 from scvi.utils import attrdict
 
 from . import _constants
 from ._utils import _assign_adata_uuid, get_anndata_attribute
-from .fields import BaseAnnDataField
 
 
 class AnnDataManager:
@@ -49,7 +49,7 @@ class AnnDataManager:
 
     def __init__(
         self,
-        fields: Optional[Sequence[Type[BaseAnnDataField]]] = None,
+        fields: Optional[Sequence[AnnDataField]] = None,
         setup_method_args: Optional[dict] = None,
     ) -> None:
         self.id = str(uuid4())
@@ -129,6 +129,11 @@ class AnnDataManager:
         if self.adata is not None:
             raise AssertionError(
                 "Existing AnnData object registered with this Manager instance."
+            )
+
+        if source_registry is None and transfer_kwargs:
+            raise TypeError(
+                f"register_fields() got unexpected keyword arguments {transfer_kwargs} passed without a source_registry."
             )
 
         self._validate_anndata_object(adata)

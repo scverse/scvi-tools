@@ -14,11 +14,12 @@ from anndata import AnnData
 
 from scvi import settings
 from scvi.data import AnnDataManager
-from scvi.data._compat import manager_from_setup_dict
+from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SCVI_UUID_KEY, _SETUP_ARGS_KEY
 from scvi.data._utils import _assign_adata_uuid
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
+from scvi.model.base._utils import _load_legacy_saved_files
 from scvi.module.base import PyroBaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
@@ -548,6 +549,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
         prefix: Optional[str] = None,
+        backup_url: Optional[str] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -566,6 +568,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
         prefix
             Prefix of saved file names.
+        backup_url
+            URL to retrieve saved outputs from if not present on disk.
 
         Returns
         -------
@@ -579,41 +583,32 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         load_adata = adata is None
         use_gpu, device = parse_use_gpu_arg(use_gpu)
 
-        (
-            attr_dict,
-            var_names,
-            model_state_dict,
-            new_adata,
-        ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
+        (attr_dict, var_names, model_state_dict, new_adata,) = _load_saved_files(
+            dir_path,
+            load_adata,
+            map_location=device,
+            prefix=prefix,
+            backup_url=backup_url,
+        )
         adata = new_adata if new_adata is not None else adata
         _validate_var_names(adata, var_names)
 
-        # Legacy support for old setup dict format.
-        if "scvi_setup_dict_" in attr_dict:
-            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-            cls.register_manager(manager_from_setup_dict(cls, adata, scvi_setup_dict))
-        else:
-            registry = attr_dict.pop("registry_")
-            if (
-                _MODEL_NAME_KEY in registry
-                and registry[_MODEL_NAME_KEY] != cls.__name__
-            ):
-                raise ValueError(
-                    "It appears you are loading a model from a different class."
-                )
-
-            if _SETUP_ARGS_KEY not in registry:
-                raise ValueError(
-                    "Saved model does not contain original setup inputs. "
-                    "Cannot load the original setup."
-                )
-
-            # Calling ``setup_anndata`` method with the original arguments passed into
-            # the saved model. This enables simple backwards compatibility in the case of
-            # newly introduced fields or parameters.
-            cls.setup_anndata(
-                adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+        registry = attr_dict.pop("registry_")
+        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+            raise ValueError(
+                "It appears you are loading a model from a different class."
             )
+
+        if _SETUP_ARGS_KEY not in registry:
+            raise ValueError(
+                "Saved model does not contain original setup inputs. "
+                "Cannot load the original setup."
+            )
+
+        # Calling ``setup_anndata`` method with the original arguments passed into
+        # the saved model. This enables simple backwards compatibility in the case of
+        # newly introduced fields or parameters.
+        cls.setup_anndata(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
 
         model = _initialize_model(cls, adata, attr_dict)
 
@@ -635,6 +630,61 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         model.module.eval()
         model._validate_anndata(adata)
         return model
+
+    @classmethod
+    def convert_legacy_save(
+        cls,
+        dir_path: str,
+        output_dir_path: str,
+        overwrite: bool = False,
+        prefix: Optional[str] = None,
+    ) -> None:
+        """
+        Converts a legacy saved model (<v0.15.0) to the updated save format.
+
+        Parameters
+        ----------
+        dir_path
+            Path to directory where legacy model is saved.
+        output_dir_path
+            Path to save converted save files.
+        overwrite
+            Overwrite existing data or not. If ``False`` and directory
+            already exists at ``output_dir_path``, error will be raised.
+        prefix
+            Prefix of saved file names.
+        """
+        if not os.path.exists(output_dir_path) or overwrite:
+            os.makedirs(output_dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                f"{output_dir_path} already exists. Please provide an unexisting directory for saving."
+            )
+
+        file_name_prefix = prefix or ""
+        model_state_dict, var_names, attr_dict, _ = _load_legacy_saved_files(
+            dir_path, file_name_prefix, load_adata=False
+        )
+
+        if "scvi_setup_dict_" in attr_dict:
+            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+            unlabeled_category_key = "unlabeled_category_"
+            unlabeled_category = attr_dict.get(unlabeled_category_key, None)
+            attr_dict["registry_"] = registry_from_setup_dict(
+                cls,
+                scvi_setup_dict,
+                unlabeled_category=unlabeled_category,
+            )
+
+        model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
+        torch.save(
+            dict(
+                model_state_dict=model_state_dict,
+                var_names=var_names,
+                attr_dict=attr_dict,
+            ),
+            model_save_path,
+        )
 
     def __repr__(
         self,
@@ -683,7 +733,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if "scvi_setup_dict_" in attr_dict:
             raise NotImplementedError(
                 "Viewing setup args for pre v0.15.0 models is unsupported. "
-                "Load and resave the model to use this function."
+                "Update your save files with ``convert_legacy_save`` first."
             )
 
         registry = attr_dict.pop("registry_")

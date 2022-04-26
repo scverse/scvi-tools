@@ -9,7 +9,7 @@ Status](https://github.com/scverse/scvi-tools/workflows/scvi-tools/badge.svg)
 [![Code
 Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
 [![Downloads](https://pepy.tech/badge/scvi-tools)](https://pepy.tech/project/scvi-tools)
-[![Join the chat at https://gitter.im/scvi-tools/development](https://badges.gitter.im/scvi-tools/development.svg)](https://gitter.im/scvi-tools/development?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Project chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://scverse.zulipchat.com/)
 
 [scvi-tools](https://scvi-tools.org/) (single-cell variational inference
 tools) is a package for probabilistic modeling and analysis of single-cell omics

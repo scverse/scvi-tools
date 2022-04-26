@@ -11,10 +11,9 @@ from sklearn.mixture import GaussianMixture
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import Number
 
 logger = logging.getLogger(__name__)
-
-Number = Union[int, float]
 
 
 class DifferentialComputation:

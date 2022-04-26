@@ -12,6 +12,7 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data._constants import _SETUP_ARGS_KEY
+from scvi.data._utils import get_anndata_attribute
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -20,11 +21,7 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.dataloaders import (
-    AnnDataLoader,
-    SemiSupervisedDataLoader,
-    SemiSupervisedDataSplitter,
-)
+from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model._utils import _init_library_size
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
@@ -104,11 +101,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, DEMixin, BaseModelClass):
         scanvae_model_kwargs = dict(model_kwargs)
 
         self._set_indices_and_labels()
-
-        if len(self._labeled_indices) != 0:
-            self._dl_cls = SemiSupervisedDataLoader
-        else:
-            self._dl_cls = AnnDataLoader
 
         # ignores unlabeled catgegory
         n_labels = self.summary_stats.n_labels - 1
@@ -243,9 +235,14 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, DEMixin, BaseModelClass):
         labels_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         )
+        self.original_label_key = labels_state_registry.original_key
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
-        labels = self.get_from_registry(self.adata, REGISTRY_KEYS.LABELS_KEY)
+        labels = get_anndata_attribute(
+            self.adata,
+            self.adata_manager.data_registry.labels.attr_name,
+            self.original_label_key,
+        ).ravel()
         self._label_mapping = labels_state_registry.categorical_mapping
 
         # set unlabeled and labeled indices
@@ -254,7 +251,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, DEMixin, BaseModelClass):
         ).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
-        self.original_label_key = labels_state_registry.original_key
 
     def predict(
         self,
@@ -291,7 +287,16 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, DEMixin, BaseModelClass):
         for _, tensors in enumerate(scdl):
             x = tensors[REGISTRY_KEYS.X_KEY]
             batch = tensors[REGISTRY_KEYS.BATCH_KEY]
-            pred = self.module.classify(x, batch)
+
+            cont_key = REGISTRY_KEYS.CONT_COVS_KEY
+            cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
+
+            cat_key = REGISTRY_KEYS.CAT_COVS_KEY
+            cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+
+            pred = self.module.classify(
+                x, batch_index=batch, cat_covs=cat_covs, cont_covs=cont_covs
+            )
             if not soft:
                 pred = pred.argmax(dim=1)
             y_pred.append(pred.detach().cpu())
@@ -372,7 +377,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, DEMixin, BaseModelClass):
 
         data_splitter = SemiSupervisedDataSplitter(
             adata_manager=self.adata_manager,
-            unlabeled_category=self.unlabeled_category_,
             train_size=train_size,
             validation_size=validation_size,
             n_samples_per_label=n_samples_per_label,
