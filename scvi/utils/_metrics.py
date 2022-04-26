@@ -1,19 +1,20 @@
 import numpy as np
 import pandas as pd
+import scipy
 from anndata import AnnData
 from sklearn.neighbors import NearestNeighbors
-import scipy
+
 
 class metrics:
     def __init__(self, adata):
         self.adata = adata
-    
+
     def silhouette_labels(
-    self,
-    labels_key: str = "labels_bench",
-    metric: str = "euclidean",
-    embedding: str = "X_scvi",
-    scale: bool = True,
+        self,
+        labels_key: str = "labels_bench",
+        metric: str = "euclidean",
+        embedding: str = "X_scvi",
+        scale: bool = True,
     ) -> float:
         """
         Wrapper of Silhoutte score from sklearn, with respect to observed cell type labels.
@@ -23,7 +24,9 @@ class metrics:
 
         if embedding not in self.adata.obsm.keys():
             raise KeyError(f"{embedding} not in obsm")
-        asw = silhouette_score(self.adata.obsm[embedding], self.adata.obs[labels_key], metric=metric)
+        asw = silhouette_score(
+            self.adata.obsm[embedding], self.adata.obs[labels_key], metric=metric
+        )
         if scale:
             asw += 1
             asw /= 2
