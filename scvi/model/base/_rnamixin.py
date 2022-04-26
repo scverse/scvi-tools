@@ -10,6 +10,7 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+
 from .._utils import _get_batch_code_from_category
 
 logger = logging.getLogger(__name__)
