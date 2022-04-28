@@ -234,7 +234,7 @@ class DEMixin:
             logger.debug("n cells in chunk {}".format(chunk.shape[0]))
             for _ in range(n_mc):
                 res.append(
-                    self._importance_weighted_sampling(
+                    self._importance_weighted_expression(
                         adata=adata,
                         indices=chunk,
                         n_samples=n_samples_per_cell,
@@ -243,7 +243,7 @@ class DEMixin:
                         n_mc_samples_px=n_mc_samples_px,
                         normalized_expression_key=normalized_expression_key,
                         truncation=truncation,
-                    )["hs_weighted"].numpy()
+                    ).numpy()
                 )
             # logger.debug(res[-1].shape)
         res = np.concatenate(res, 0)
@@ -253,7 +253,7 @@ class DEMixin:
         return res
 
     @torch.no_grad()
-    def _importance_weighted_sampling(
+    def _importance_weighted_expression(
         self,
         adata: AnnData,
         indices: Sequence,
@@ -363,11 +363,6 @@ class DEMixin:
             tau = torch.logsumexp(importance_weight, 0) - np.log(
                 importance_weight.shape[0]
             )
-            frac = (importance_weight <= tau).float().mean().item()
-            logger.debug(
-                "tau: {}".format(torch.logsumexp(importance_weight, 0).exp().item())
-            )
-            logger.debug("{} of samples below target {}".format(frac, tau.item()))
             importance_weight[importance_weight <= tau] = tau
 
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
@@ -379,18 +374,7 @@ class DEMixin:
             .sample((n_samples_overall,))
             .squeeze(-1)
         )
-        return dict(
-            log_px_zs=log_px_zs,
-            log_qz=log_qz,
-            log_pz=log_pz,
-            log_probs=log_probs,
-            probs=ws,
-            zs=zs,
-            hs=hs,
-            hs_weighted=hs[windices],
-            qzs_m=qzs_m,
-            qzs_v=qzs_v,
-        )
+        return hs[windices]
 
     @torch.no_grad()
     def _evaluate_likelihood(self, scdl, inference_outputs) -> torch.Tensor:
@@ -419,31 +403,30 @@ class DEMixin:
             lib_key = "library"
         else:
             lib_key = "ql_m"
-        _z = z_samples.unsqueeze(1).reshape(-1, 1, self.module.n_latent)
-        _n_samples_loop = _z.shape[0]
-        _log_px_zs = []
+        z_reshaped = z_samples.unsqueeze(1).reshape(-1, 1, self.module.n_latent)
+        n_samples_loop = z_reshaped.shape[0]
+        log_px_zs = []
         for _tensors in scdl:
             # This is simply used to get a good library value for the cells we are looking at
-            _inf_inputs = self.module._get_inference_input(_tensors)
-            _n_cells = _inf_inputs["batch_index"].shape[0]
-
-            _z_reshaped = _z.expand(_n_samples_loop, _n_cells, self.module.n_latent)
+            inference_inputs = self.module._get_inference_input(_tensors)
+            n_cells = inference_inputs["batch_index"].shape[0]
+            zs = z_reshaped.expand(n_samples_loop, n_cells, self.module.n_latent)
 
             point_library = (
-                self.module.inference(**_inf_inputs, return_densities=True)[lib_key]
+                self.module.inference(**inference_inputs, return_densities=True)[lib_key]
                 .squeeze(0)
-                .expand(_n_samples_loop, _n_cells, 1)
+                .expand(n_samples_loop, n_cells, 1)
             )
 
-            inference_outputs["z"] = _z_reshaped
+            inference_outputs["z"] = zs
             inference_outputs["library"] = point_library
-            _log_px_zs.append(
+            log_px_zs.append(
                 self.module.generative_evaluate(
                     tensors=_tensors, inference_outputs=inference_outputs
                 )["log_px_latents"].cpu()
             )
-        _log_px_zs = torch.cat(_log_px_zs, 1)
-        return _log_px_zs
+        log_px_zs = torch.cat(log_px_zs, 1)
+        return log_px_zs
 
     def _filter_cells(
         self, adata: AnnData, indices: Sequence, batch_size: int
