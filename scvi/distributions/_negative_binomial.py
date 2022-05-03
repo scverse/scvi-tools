@@ -249,7 +249,7 @@ class Poisson(PoissonTorch):
     validate_args
         whether to validate input.
     scale
-        Normalized mean expression of the Poisson distribution.
+        Normalized mean expression of the distribution.
     """
 
     def __init__(self, rate, validate_args=None, scale: Optional[torch.Tensor] = None):
@@ -283,6 +283,8 @@ class NegativeBinomial(Distribution):
         Mean of the distribution.
     theta
         Inverse dispersion.
+    scale
+        Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints
     """
@@ -391,6 +393,8 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         Inverse dispersion.
     zi_logits
         Logits scale of zero inflation probability.
+    scale
+        Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints
     """
