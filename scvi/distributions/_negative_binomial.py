@@ -239,13 +239,17 @@ def _gamma(theta, mu):
 
 
 class Poisson(PoissonTorch):
-    r"""
+    """
     Poisson distribution.
 
     Parameters
     ----------
     rate
         rate of the Poisson distribution.
+    validate_args
+        whether to validate input.
+    scale
+        Normalized mean expression of the Poisson distribution.
     """
 
     def __init__(self, rate, validate_args=None, scale: Optional[torch.Tensor] = None):

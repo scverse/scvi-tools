@@ -229,6 +229,8 @@ class Encoder(nn.Module):
     var_activation
         Callable used to ensure positivity of the variance.
         When `None`, defaults to `torch.exp`.
+    return_dist
+        If `True`, returns directly the distribution of z instead of its parameters.
     **kwargs
         Keyword args for :class:`~scvi.module._base.FCLayers`
     """
