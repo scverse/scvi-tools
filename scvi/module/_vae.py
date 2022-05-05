@@ -155,7 +155,7 @@ class VAE(BaseModuleClass):
                 "{}.format(self.dispersion)"
             )
 
-        self.px_dropout = torch.nn.Parameter(torch.randn(n_input, n_batch))
+        self.px_dropout = torch.nn.Parameter(-6 * torch.ones(n_input, n_batch))
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
