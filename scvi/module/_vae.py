@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import logsumexp
-from torch.distributions import Normal, Poisson
+from torch.distributions import Beta, Normal, Poisson
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
@@ -86,6 +86,8 @@ class VAE(BaseModuleClass):
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
+    model_batch_gene_modulation
+        Whether to use batch-gene modulation.
     """
 
     def __init__(
@@ -112,6 +114,7 @@ class VAE(BaseModuleClass):
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
         var_activation: Optional[Callable] = None,
+        model_batch_gene_modulation: bool = True,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -123,6 +126,7 @@ class VAE(BaseModuleClass):
         self.n_labels = n_labels
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
+        self.model_batch_gene_modulation = model_batch_gene_modulation
 
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
@@ -155,7 +159,7 @@ class VAE(BaseModuleClass):
                 "{}.format(self.dispersion)"
             )
 
-        self.px_dropout = torch.nn.Parameter(-6 * torch.ones(n_input, n_batch))
+        self.tech_factor = torch.nn.Parameter(0 * torch.ones(n_input, n_batch))
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
@@ -362,7 +366,11 @@ class VAE(BaseModuleClass):
 
         px_r = torch.exp(px_r)
 
-        px_dropout = F.linear(one_hot(batch_index, self.n_batch), self.px_dropout)
+        if self.model_batch_gene_modulation:
+            tech_factor = F.linear(one_hot(batch_index, self.n_batch), self.tech_factor)
+            tech_factor = torch.sigmoid(tech_factor)
+            px_scale = px_scale * tech_factor
+            px_rate = library.exp() * px_scale
 
         return dict(
             px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
@@ -374,6 +382,7 @@ class VAE(BaseModuleClass):
         inference_outputs,
         generative_outputs,
         kl_weight: float = 1.0,
+        n_obs: int = 1.0,
     ):
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -416,7 +425,14 @@ class VAE(BaseModuleClass):
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        kl_global = torch.tensor(0.0)
+        if self.model_batch_gene_modulation:
+            beta_param = 0.5 * torch.ones_like(self.tech_factor)
+            kl_global = (
+                Beta(beta_param, beta_param)
+                .log_prob(torch.sigmoid(self.tech_factor))
+                .sum()
+            )
+            loss += 1 / n_obs * kl_global
         return LossRecorder(loss, reconst_loss, kl_local, kl_global)
 
     @torch.no_grad()
