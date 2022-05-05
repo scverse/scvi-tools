@@ -2,7 +2,6 @@ import logging
 
 from pytorch_lightning.callbacks import ProgressBarBase
 
-from scvi import settings
 from scvi.utils import track
 
 logger = logging.getLogger(__name__)
@@ -58,8 +57,7 @@ class ProgressBar(ProgressBarBase):
             None,
             total=trainer.max_epochs,
             description="Training",
-            style=settings.progress_bar_style,
-            initial=self.train_batch_idx,
+            style="tqdm",
             disable=self.is_disabled,
         )
         return bar
@@ -72,8 +70,8 @@ class ProgressBar(ProgressBarBase):
         super().on_train_start(trainer, pl_module)
         self.main_progress_bar = self.init_train_tqdm(trainer)
 
-    def on_epoch_start(self, trainer, pl_module):
-        super().on_epoch_start(trainer, pl_module)
+    def on_train_epoch_start(self, trainer, pl_module):
+        super().on_train_epoch_start(trainer, pl_module)
         if self._should_update(self.trainer.current_epoch, self.trainer.max_epochs):
             epoch = trainer.current_epoch + 1
             self.main_progress_bar.set_description(
@@ -85,11 +83,11 @@ class ProgressBar(ProgressBarBase):
             current % self.refresh_rate == 0 or current == total
         )
 
-    def on_train_epoch_end(self, trainer, pl_module, outputs):
-        super().on_train_epoch_end(trainer, pl_module, outputs)
+    def on_train_epoch_end(self, trainer, pl_module):
+        super().on_train_epoch_end(trainer, pl_module)
         if self._should_update(self.trainer.current_epoch, self.trainer.max_epochs):
             self.main_progress_bar.update()
-            self.main_progress_bar.set_postfix(trainer.progress_bar_dict)
+            self.main_progress_bar.set_postfix(self.get_metrics(trainer, pl_module))
 
     def on_train_end(self, trainer, pl_module):
         super().on_train_end(trainer, pl_module)

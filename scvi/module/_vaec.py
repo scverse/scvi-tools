@@ -4,7 +4,7 @@ import torch
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import Encoder, FCLayers
@@ -32,7 +32,7 @@ class VAEC(BaseModuleClass):
     n_layers
         Number of hidden layers used for encoder and decoder NNs
     dropout_rate
-        Dropout rate for the encoder neural network
+        Dropout rate for the encoder and decoder neural network
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
     """
@@ -44,16 +44,17 @@ class VAEC(BaseModuleClass):
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,
-        dropout_rate: float = 0.1,
         log_variational: bool = True,
         ct_weight: np.ndarray = None,
-        **module_kwargs,
+        dropout_rate: float = 0.05,
+        **module_kwargs
     ):
         super().__init__()
         self.dispersion = "gene"
         self.n_latent = n_latent
         self.n_layers = n_layers
         self.n_hidden = n_hidden
+        self.dropout_rate = dropout_rate
         self.log_variational = log_variational
         self.gene_likelihood = "nb"
         self.latent_distribution = "normal"
@@ -84,7 +85,7 @@ class VAEC(BaseModuleClass):
             n_cat_list=[n_labels],
             n_layers=n_layers,
             n_hidden=n_hidden,
-            dropout_rate=0,
+            dropout_rate=dropout_rate,
             inject_covariates=True,
             use_batch_norm=False,
             use_layer_norm=True,
@@ -100,8 +101,8 @@ class VAEC(BaseModuleClass):
         self.register_buffer("ct_weight", ct_weight)
 
     def _get_inference_input(self, tensors):
-        x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        y = tensors[REGISTRY_KEYS.LABELS_KEY]
 
         input_dict = dict(
             x=x,
@@ -112,7 +113,7 @@ class VAEC(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
         library = inference_outputs["library"]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        y = tensors[REGISTRY_KEYS.LABELS_KEY]
 
         input_dict = {
             "z": z,
@@ -129,7 +130,7 @@ class VAEC(BaseModuleClass):
         Runs the inference (encoder) model.
         """
         x_ = x
-        library = torch.log(x.sum(1)).unsqueeze(1)
+        library = x.sum(1).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
@@ -164,8 +165,8 @@ class VAEC(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        y = tensors[REGISTRY_KEYS.LABELS_KEY]
         qz_m = inference_outputs["qz_m"]
         qz_v = inference_outputs["qz_v"]
         px_rate = generative_outputs["px_rate"]
@@ -182,7 +183,7 @@ class VAEC(BaseModuleClass):
         scaling_factor = self.ct_weight[y.long()[:, 0]]
         loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
 
-        return LossRecorder(loss, reconst_loss, kl_divergence_z, 0.0)
+        return LossRecorder(loss, reconst_loss, kl_divergence_z, torch.tensor(0.0))
 
     @torch.no_grad()
     def sample(

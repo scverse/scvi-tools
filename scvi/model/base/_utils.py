@@ -3,47 +3,90 @@ import os
 import pickle
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import Optional
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import read
+from anndata import AnnData, read
 
 from scvi._compat import Literal
-from scvi.utils import DifferentialComputation, track
+from scvi.data._download import _download
+from scvi.utils import track
+
+from ._differential import DifferentialComputation
 
 logger = logging.getLogger(__name__)
+
+
+def _load_legacy_saved_files(
+    dir_path: str,
+    file_name_prefix: str,
+    load_adata: bool,
+) -> Tuple[dict, np.ndarray, dict, Optional[AnnData]]:
+    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
+    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
+    setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+
+    model_state_dict = torch.load(model_path, map_location="cpu")
+
+    var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
+
+    with open(setup_dict_path, "rb") as handle:
+        attr_dict = pickle.load(handle)
+
+    if load_adata:
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
+        if os.path.exists(adata_path):
+            adata = read(adata_path)
+        elif not os.path.exists(adata_path):
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
+    else:
+        adata = None
+
+    return model_state_dict, var_names, attr_dict, adata
 
 
 def _load_saved_files(
     dir_path: str,
     load_adata: bool,
+    prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
-):
+    backup_url: Optional[str] = None,
+) -> Tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
-    setup_dict_path = os.path.join(dir_path, "attr.pkl")
-    adata_path = os.path.join(dir_path, "adata.h5ad")
-    varnames_path = os.path.join(dir_path, "var_names.csv")
-    model_path = os.path.join(dir_path, "model_params.pt")
+    file_name_prefix = prefix or ""
 
-    if os.path.exists(adata_path) and load_adata:
-        adata = read(adata_path)
-    elif not os.path.exists(adata_path) and load_adata:
-        raise ValueError("Save path contains no saved anndata and no adata was passed.")
+    model_file_name = f"{file_name_prefix}model.pt"
+    model_path = os.path.join(dir_path, model_file_name)
+    try:
+        _download(backup_url, dir_path, model_file_name)
+        model = torch.load(model_path, map_location=map_location)
+    except FileNotFoundError as exc:
+        raise ValueError(
+            f"Failed to load model file at {model_path}. "
+            "If attempting to load a saved model from <v0.15.0, please use the util function "
+            "`convert_legacy_save` to convert to an updated format."
+        ) from exc
+
+    model_state_dict = model["model_state_dict"]
+    var_names = model["var_names"]
+    attr_dict = model["attr_dict"]
+
+    if load_adata:
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
+        if os.path.exists(adata_path):
+            adata = read(adata_path)
+        elif not os.path.exists(adata_path):
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
     else:
         adata = None
 
-    var_names = np.genfromtxt(varnames_path, delimiter=",", dtype=str)
-
-    with open(setup_dict_path, "rb") as handle:
-        attr_dict = pickle.load(handle)
-
-    scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-
-    model_state_dict = torch.load(model_path, map_location=map_location)
-
-    return scvi_setup_dict, attr_dict, var_names, model_state_dict, adata
+    return attr_dict, var_names, model_state_dict, adata
 
 
 def _initialize_model(cls, adata, attr_dict):
@@ -71,7 +114,16 @@ def _initialize_model(cls, adata, attr_dict):
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         non_kwargs.pop("use_cuda")
 
+    # backwards compat for scANVI
+    if "unlabeled_category" in non_kwargs.keys():
+        non_kwargs.pop("unlabeled_category")
+    if "pretrained_model" in non_kwargs.keys():
+        non_kwargs.pop("pretrained_model")
+
     model = cls(adata, **non_kwargs, **kwargs)
+    for attr, val in attr_dict.items():
+        setattr(model, attr, val)
+
     return model
 
 
@@ -86,8 +138,56 @@ def _validate_var_names(adata, source_var_names):
         )
 
 
+def _prepare_obs(
+    idx1: Union[List[bool], np.ndarray, str],
+    idx2: Union[List[bool], np.ndarray, str],
+    adata: AnnData,
+):
+    """
+    Construct an array used for masking.
+
+    Given population identifiers `idx1` and potentially `idx2`,
+    this function creates an array `obs_col` that identifies both populations
+    for observations contained in `adata`.
+    In particular, `obs_col` will take values `group1` (resp. `group2`)
+    for `idx1` (resp `idx2`).
+
+    Parameters
+    ----------
+    idx1
+        Can be of three types. First, it can corresponds to a boolean mask that
+        has the same shape as adata. It can also corresponds to a list of indices.
+        Last, it can correspond to string query of adata.obs columns.
+    idx2
+        Same as above
+    adata
+        Anndata
+    """
+
+    def ravel_idx(my_idx, obs_df):
+        return (
+            obs_df.index.isin(obs_df.query(my_idx).index)
+            if isinstance(my_idx, str)
+            else np.asarray(my_idx).ravel()
+        )
+
+    obs_df = adata.obs
+    idx1 = ravel_idx(idx1, obs_df)
+    g1_key = "one"
+    obs_col = np.array(["None"] * adata.shape[0], dtype=str)
+    obs_col[idx1] = g1_key
+    group1 = [g1_key]
+    group2 = None if idx2 is None else "two"
+    if idx2 is not None:
+        idx2 = ravel_idx(idx2, obs_df)
+        obs_col[idx2] = group2
+    if (obs_col[idx1].shape[0] == 0) or (obs_col[idx2].shape[0] == 0):
+        raise ValueError("One of idx1 or idx2 has size zero.")
+    return obs_col, group1, group2
+
+
 def _de_core(
-    adata,
+    adata_manager,
     model_fn,
     groupby,
     group1,
@@ -104,9 +204,10 @@ def _de_core(
     batch_correction,
     fdr,
     silent,
-    **kwargs
+    **kwargs,
 ):
     """Internal function for DE interface."""
+    adata = adata_manager.adata
     if group1 is None and idx1 is None:
         group1 = adata.obs[groupby].astype("category").cat.categories.tolist()
         if len(group1) == 1:
@@ -120,21 +221,13 @@ def _de_core(
     # make a temp obs key using indices
     temp_key = None
     if idx1 is not None:
-        idx1 = np.asarray(idx1).ravel()
-        g1_key = "one"
-        obs_col = np.array(["None"] * adata.shape[0], dtype=str)
-        obs_col[idx1] = g1_key
-        group2 = None if idx2 is None else "two"
-        if idx2 is not None:
-            idx2 = np.asarray(idx2).ravel()
-            obs_col[idx2] = group2
+        obs_col, group1, group2 = _prepare_obs(idx1, idx2, adata)
         temp_key = "_scvi_temp_de"
         adata.obs[temp_key] = obs_col
         groupby = temp_key
-        group1 = [g1_key]
 
     df_results = []
-    dc = DifferentialComputation(model_fn, adata)
+    dc = DifferentialComputation(model_fn, adata_manager)
     for g1 in track(
         group1,
         description="DE...",
@@ -158,7 +251,7 @@ def _de_core(
         )
 
         if all_stats is True:
-            genes_properties_dict = all_stats_fn(adata, cell_idx1, cell_idx2)
+            genes_properties_dict = all_stats_fn(adata_manager, cell_idx1, cell_idx2)
             all_info = {**all_info, **genes_properties_dict}
 
         res = pd.DataFrame(all_info, index=col_names)
@@ -171,6 +264,8 @@ def _de_core(
         if idx1 is None:
             g2 = "Rest" if group2 is None else group2
             res["comparison"] = "{} vs {}".format(g1, g2)
+            res["group1"] = g1
+            res["group2"] = g2
         df_results.append(res)
 
     if temp_key is not None:

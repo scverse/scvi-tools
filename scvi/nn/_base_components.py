@@ -1,10 +1,12 @@
 import collections
-from typing import Iterable, List
+from typing import Callable, Iterable, List, Optional
 
 import torch
 from torch import nn as nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
+
+from scvi._compat import Literal
 
 from ._utils import one_hot
 
@@ -221,6 +223,12 @@ class Encoder(nn.Module):
         Dropout rate to apply to each of the hidden layers
     distribution
         Distribution of z
+    var_eps
+        Minimum value for the variance;
+        used for numerical stability
+    var_activation
+        Callable used to ensure positivity of the variance.
+        When `None`, defaults to `torch.exp`.
     **kwargs
         Keyword args for :class:`~scvi.module._base.FCLayers`
     """
@@ -235,6 +243,7 @@ class Encoder(nn.Module):
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
+        var_activation: Optional[Callable] = None,
         **kwargs,
     ):
         super().__init__()
@@ -257,6 +266,7 @@ class Encoder(nn.Module):
             self.z_transformation = nn.Softmax(dim=-1)
         else:
             self.z_transformation = identity
+        self.var_activation = torch.exp if var_activation is None else var_activation
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         r"""
@@ -282,7 +292,7 @@ class Encoder(nn.Module):
         # Parameters for latent distribution
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
-        q_v = torch.exp(self.var_encoder(q)) + self.var_eps
+        q_v = self.var_activation(self.var_encoder(q)) + self.var_eps
         latent = self.z_transformation(reparameterize_gaussian(q_m, q_v))
         return q_m, q_v, latent
 
@@ -290,7 +300,7 @@ class Encoder(nn.Module):
 # Decoder
 class DecoderSCVI(nn.Module):
     """
-    Decodes data from latent space of ``n_input`` dimensions ``n_output``dimensions.
+    Decodes data from latent space of ``n_input`` dimensions into ``n_output``dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -316,6 +326,8 @@ class DecoderSCVI(nn.Module):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
+    scale_activation
+        Activation layer to use for px_scale_decoder
     """
 
     def __init__(
@@ -328,6 +340,7 @@ class DecoderSCVI(nn.Module):
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
+        scale_activation: Literal["softmax", "softplus"] = "softmax",
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -343,9 +356,13 @@ class DecoderSCVI(nn.Module):
         )
 
         # mean gamma
+        if scale_activation == "softmax":
+            px_scale_activation = nn.Softmax(dim=-1)
+        elif scale_activation == "softplus":
+            px_scale_activation = nn.Softplus()
         self.px_scale_decoder = nn.Sequential(
             nn.Linear(n_hidden, n_output),
-            nn.Softmax(dim=-1),
+            px_scale_activation,
         )
 
         # dispersion: here we only deal with gene-cell dispersion case
@@ -355,7 +372,11 @@ class DecoderSCVI(nn.Module):
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
 
     def forward(
-        self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int
+        self,
+        dispersion: str,
+        z: torch.Tensor,
+        library: torch.Tensor,
+        *cat_list: int,
     ):
         """
         The forward computation for a single sample.
@@ -375,7 +396,7 @@ class DecoderSCVI(nn.Module):
             * ``'gene-cell'`` - dispersion can differ for every gene in every cell
         z :
             tensor with shape ``(n_input,)``
-        library
+        library_size
             library size
         cat_list
             list of category membership(s) for this sample
@@ -673,6 +694,8 @@ class DecoderTOTALVI(nn.Module):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
+    scale_activation
+        Activation layer to use for px_scale_decoder
     """
 
     def __init__(
@@ -686,6 +709,7 @@ class DecoderTOTALVI(nn.Module):
         dropout_rate: float = 0,
         use_batch_norm: float = True,
         use_layer_norm: float = False,
+        scale_activation: Literal["softmax", "softplus"] = "softmax",
     ):
         super().__init__()
         self.n_output_genes = n_output_genes
@@ -717,6 +741,10 @@ class DecoderTOTALVI(nn.Module):
             n_cat_list=n_cat_list,
             **linear_args,
         )
+        if scale_activation == "softmax":
+            self.px_scale_activation = nn.Softmax(dim=-1)
+        elif scale_activation == "softplus":
+            self.px_scale_activation = nn.Softplus()
 
         # background mean first decoder
         self.py_back_decoder = FCLayers(
@@ -832,7 +860,7 @@ class DecoderTOTALVI(nn.Module):
         px = self.px_decoder(z, *cat_list)
         px_cat_z = torch.cat([px, z], dim=-1)
         unnorm_px_scale = self.px_scale_decoder(px_cat_z, *cat_list)
-        px_["scale"] = nn.Softmax(dim=-1)(unnorm_px_scale)
+        px_["scale"] = self.px_scale_activation(unnorm_px_scale)
         px_["rate"] = library_gene * px_["scale"]
 
         py_back = self.py_back_decoder(z, *cat_list)

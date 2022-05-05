@@ -7,17 +7,63 @@
 .. autoclass:: {{ objname }}
    :show-inheritance:
 
-   {% block methods %}
-   {% if methods %}
-   .. rubric:: Methods
+{% block attributes %}
+{% if attributes %}
+Attributes table
+~~~~~~~~~~~~~~~~
 
-   .. autosummary::
-      :toctree: .
-   {% for item in methods %}
-      {%- if item != '__init__' and item not in inherited_members%}
+.. autosummary::
+{% for item in attributes %}
+    {%- if item not in inherited_members%}
         ~{{ fullname }}.{{ item }}
-      {%- endif -%}
+    {%- endif -%}
+{%- endfor %}
+{% endif %}
+{% endblock %}
 
-   {%- endfor %}
-   {% endif %}
-   {% endblock %}
+
+{% block methods %}
+{% if methods %}
+Methods table
+~~~~~~~~~~~~~~
+
+.. autosummary::
+{% for item in methods %}
+    {%- if item != '__init__' and item not in inherited_members%}
+    ~{{ fullname }}.{{ item }}
+    {%- endif -%}
+
+{%- endfor %}
+{% endif %}
+{% endblock %}
+
+{% block attributes_documentation %}
+{% if attributes %}
+Attributes
+~~~~~~~~~~
+
+{% for item in attributes %}
+{{ item }}
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoattribute:: {{ [objname, item] | join(".") }}
+{%- endfor %}
+
+{% endif %}
+{% endblock %}
+
+{% block methods_documentation %}
+{% if methods %}
+Methods
+~~~~~~~
+
+{% for item in methods %}
+{%- if item != '__init__' and item not in inherited_members%}
+{{ item }}
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. automethod:: {{ [objname, item] | join(".") }}
+{%- endif -%}
+{%- endfor %}
+
+{% endif %}
+{% endblock %}
