@@ -10,8 +10,9 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
+      # will use ref/SHA that triggered it
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v2
