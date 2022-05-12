@@ -10,6 +10,7 @@ from scvi.data import _constants
 from scvi.data._utils import _make_column_categorical, get_anndata_attribute
 
 from ._base_field import BaseAnnDataField
+from ._mudata import MuDataWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,9 @@ class NumericalObsField(BaseObsField):
 
     def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
         return None
+
+
+MuDataNumericalObsField = MuDataWrapper(NumericalObsField)
 
 
 class CategoricalObsField(BaseObsField):
@@ -214,3 +218,6 @@ class CategoricalObsField(BaseObsField):
             else:
                 t.add_row("", str(cat), str(i))
         return t
+
+
+MuDataCategoricalObsField = MuDataWrapper(CategoricalObsField)
