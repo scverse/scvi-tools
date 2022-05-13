@@ -372,9 +372,10 @@ class AutoZIVAE(VAE):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # Parameters for z latent distribution
         qz = inference_outputs["qz"]
-        px_rate = generative_outputs["px"].mu
-        px_r = generative_outputs["px"].theta
-        px_dropout = generative_outputs["px"].zi_logits
+        px = generative_outputs["px"]
+        px_rate = px.mu
+        px_r = px.theta
+        px_dropout = px.zi_logits
         bernoulli_params = generative_outputs["bernoulli_params"]
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]

@@ -246,13 +246,21 @@ class Poisson(PoissonTorch):
     ----------
     rate
         rate of the Poisson distribution.
-    validate_args
+    validate_args : optional
         whether to validate input.
-    scale
+    scale : optional
         Normalized mean expression of the distribution.
+        This optional parameter is not used in any computations, but allows to store
+        normalization expression levels.
+
     """
 
-    def __init__(self, rate, validate_args=None, scale: Optional[torch.Tensor] = None):
+    def __init__(
+        self,
+        rate: torch.Tensor,
+        validate_args: Optional[bool] = None,
+        scale: Optional[torch.Tensor] = None,
+    ):
         super().__init__(rate=rate, validate_args=validate_args)
         self.scale = scale
 
@@ -283,9 +291,9 @@ class NegativeBinomial(Distribution):
         Mean of the distribution.
     theta
         Inverse dispersion.
-    scale
+    scale : optional
         Normalized mean expression of the distribution.
-    validate_args
+    validate_args : optional
         Raise ValueError if arguments do not match constraints
     """
 
@@ -393,7 +401,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         Inverse dispersion.
     zi_logits
         Logits scale of zero inflation probability.
-    scale
+    scale : optional
         Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints

@@ -483,9 +483,10 @@ class RNASeqMixin:
                 inference_kwargs=inference_kwargs,
                 compute_loss=False,
             )
-            px_r = generative_outputs["px"].theta
-            px_rate = generative_outputs["px"].mu
-            px_dropout = generative_outputs["px"].zi_probs
+            px = generative_outputs["px"]
+            px_r = px.theta
+            px_rate = px.mu
+            px_dropout = px.zi_probs
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
 
