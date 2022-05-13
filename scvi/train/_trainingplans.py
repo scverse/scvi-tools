@@ -218,7 +218,13 @@ class TrainingPlan(pl.LightningModule):
         # e.g., train or val mode
         mode = elbo_metric.mode
         # pytorch lightning handles everything with the torchmetric object
-        self.log(f"elbo_{mode}", elbo_metric, on_step=False, on_epoch=True)
+        self.log(
+            f"elbo_{mode}",
+            elbo_metric,
+            on_step=False,
+            on_epoch=True,
+            batch_size=n_obs_minibatch,
+        )
 
         # log elbo components
         self.log(
@@ -227,6 +233,7 @@ class TrainingPlan(pl.LightningModule):
             reduce_fx=torch.sum,
             on_step=False,
             on_epoch=True,
+            batch_size=n_obs_minibatch,
         )
         self.log(
             f"kl_local_{mode}",
@@ -234,6 +241,7 @@ class TrainingPlan(pl.LightningModule):
             reduce_fx=torch.sum,
             on_step=False,
             on_epoch=True,
+            batch_size=n_obs_minibatch,
         )
         # default aggregation is mean
         self.log(
@@ -241,6 +249,7 @@ class TrainingPlan(pl.LightningModule):
             kl_global,
             on_step=False,
             on_epoch=True,
+            batch_size=n_obs_minibatch,
         )
 
         # accumlate extra metrics passed to loss recorder
@@ -255,6 +264,7 @@ class TrainingPlan(pl.LightningModule):
                 met,
                 on_step=False,
                 on_epoch=True,
+                batch_size=n_obs_minibatch,
             )
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
@@ -387,6 +397,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
             lr_min=lr_min,
+            **loss_kwargs,
         )
         if adversarial_classifier is True:
             self.n_output_classifier = self.module.n_batch
@@ -428,9 +439,10 @@ class AdversarialTrainingPlan(TrainingPlan):
         )
         batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
         if optimizer_idx == 0:
-            loss_kwargs = dict(kl_weight=self.kl_weight)
+            train_loss_kwargs = dict(kl_weight=self.kl_weight)
+            train_loss_kwargs.update(self.loss_kwargs)
             inference_outputs, _, scvi_loss = self.forward(
-                batch, loss_kwargs=loss_kwargs
+                batch, loss_kwargs=train_loss_kwargs
             )
             loss = scvi_loss.loss
             # fool classifier if doing adversarial training
@@ -584,7 +596,12 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         input_kwargs.update(self.loss_kwargs)
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
-        self.log("train_loss", loss, on_epoch=True)
+        self.log(
+            "train_loss",
+            loss,
+            on_epoch=True,
+            batch_size=len(scvi_losses.reconstruction_loss),
+        )
         self.compute_and_log_metrics(scvi_losses, self.elbo_train)
         return loss
 
@@ -604,7 +621,12 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         input_kwargs.update(self.loss_kwargs)
         _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = scvi_losses.loss
-        self.log("validation_loss", loss, on_epoch=True)
+        self.log(
+            "validation_loss",
+            loss,
+            on_epoch=True,
+            batch_size=len(scvi_losses.reconstruction_loss),
+        )
         self.compute_and_log_metrics(scvi_losses, self.elbo_val)
 
 
@@ -631,6 +653,9 @@ class PyroTrainingPlan(pl.LightningModule):
     n_epochs_kl_warmup
         Number of epochs to scale weight on KL divergences from 0 to 1.
         Overrides `n_steps_kl_warmup` when both are not `None`.
+    scale_elbo
+        Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding
+        numerical inaccuracy when working with very large ELBO.
     """
 
     def __init__(
@@ -641,6 +666,7 @@ class PyroTrainingPlan(pl.LightningModule):
         optim_kwargs: Optional[dict] = None,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
+        scale_elbo: float = 1.0,
     ):
         super().__init__()
         self.module = pyro_module
@@ -659,20 +685,25 @@ class PyroTrainingPlan(pl.LightningModule):
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
 
         self.automatic_optimization = False
-        self.pyro_guide = self.module.guide
-        self.pyro_model = self.module.model
 
         self.use_kl_weight = False
-        if isinstance(self.pyro_model, PyroModule):
+        if isinstance(self.module.model, PyroModule):
             self.use_kl_weight = (
-                "kl_weight" in signature(self.pyro_model.forward).parameters
+                "kl_weight" in signature(self.module.model.forward).parameters
             )
-        elif callable(self.pyro_model):
-            self.use_kl_weight = "kl_weight" in signature(self.pyro_model).parameters
+
+        elif callable(self.module.model):
+            self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
+
+        def scale(pyro_obj):
+            if scale_elbo == 1:
+                return pyro_obj
+            else:
+                return pyro.poutine.scale(pyro_obj, scale_elbo)
 
         self.svi = pyro.infer.SVI(
-            model=self.pyro_model,
-            guide=self.pyro_guide,
+            model=scale(self.module.model),
+            guide=scale(self.module.guide),
             optim=self.optim,
             loss=self.loss_fn,
         )

@@ -58,60 +58,66 @@ def test_saving_and_loading(save_path):
         with open(attr_save_path, "wb") as f:
             pickle.dump(user_attributes, f)
 
-    def test_save_and_load(save_path, legacy=False):
-        prefix = "GIMVI_"
-        adata = synthetic_iid()
-        GIMVI.setup_anndata(
-            adata,
-            batch_key="batch",
-        )
-        adata2 = synthetic_iid()
-        GIMVI.setup_anndata(
-            adata2,
-            batch_key="batch",
-        )
+    prefix = "GIMVI_"
+    adata = synthetic_iid()
+    GIMVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+    adata2 = synthetic_iid()
+    GIMVI.setup_anndata(
+        adata2,
+        batch_key="batch",
+    )
 
-        # GIMVI
-        model = GIMVI(adata, adata2)
-        model.train(3, train_size=0.5)
-        z1 = model.get_latent_representation([adata])
-        z2 = model.get_latent_representation([adata])
-        np.testing.assert_array_equal(z1, z2)
-        if legacy:
-            legacy_save(
-                model, save_path, overwrite=True, save_anndata=True, prefix=prefix
-            )
-        else:
-            model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-        model = GIMVI.load(save_path, prefix=prefix)
-        model.get_latent_representation()
-        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
-        tmp_adata2 = scvi.data.synthetic_iid(n_genes=200)
-        with pytest.raises(ValueError):
-            GIMVI.load(
-                save_path, adata_seq=tmp_adata, adata_spatial=tmp_adata2, prefix=prefix
-            )
-        model = GIMVI.load(
-            save_path, adata_seq=adata, adata_spatial=adata2, prefix=prefix
+    # GIMVI
+    model = GIMVI(adata, adata2)
+    model.train(3, train_size=0.5)
+    z1 = model.get_latent_representation([adata])
+    z2 = model.get_latent_representation([adata])
+    np.testing.assert_array_equal(z1, z2)
+    model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    model = GIMVI.load(save_path, prefix=prefix)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    tmp_adata2 = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        GIMVI.load(
+            save_path, adata_seq=tmp_adata, adata_spatial=tmp_adata2, prefix=prefix
         )
-        z2 = model.get_latent_representation([adata])
-        np.testing.assert_array_equal(z1, z2)
-        model = GIMVI.load(
-            save_path,
-            adata_seq=adata,
-            adata_spatial=adata2,
-            use_gpu=False,
-            prefix=prefix,
-        )
-        z2 = model.get_latent_representation([adata])
-        np.testing.assert_almost_equal(z1, z2, decimal=3)
-        assert model.is_trained is True
+    model = GIMVI.load(save_path, adata_seq=adata, adata_spatial=adata2, prefix=prefix)
+    z2 = model.get_latent_representation([adata])
+    np.testing.assert_array_equal(z1, z2)
+    model = GIMVI.load(
+        save_path,
+        adata_seq=adata,
+        adata_spatial=adata2,
+        use_gpu=False,
+        prefix=prefix,
+    )
+    z2 = model.get_latent_representation([adata])
+    np.testing.assert_almost_equal(z1, z2, decimal=3)
+    assert model.is_trained is True
 
-    test_save_and_load(save_path, legacy=True)
-    test_save_and_load(save_path)
-    # Test load prioritizes newer save paradigm and thus mismatches legacy save.
-    with pytest.raises(AssertionError):
-        test_save_and_load(save_path, legacy=True)
+    # Test legacy loading
+    legacy_save_path = os.path.join(save_path, "legacy/")
+    legacy_save(
+        model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
+    )
+    with pytest.raises(ValueError):
+        GIMVI.load(
+            legacy_save_path, adata_seq=adata, adata_spatial=adata2, prefix=prefix
+        )
+    GIMVI.convert_legacy_save(
+        legacy_save_path,
+        legacy_save_path,
+        overwrite=True,
+        prefix=prefix,
+    )
+    m = GIMVI.load(
+        legacy_save_path, adata_seq=adata, adata_spatial=adata2, prefix=prefix
+    )
+    m.train(1)
 
 
 def test_gimvi():

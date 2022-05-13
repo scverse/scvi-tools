@@ -8,8 +8,8 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import LayerField, NumericalObsField
+from scvi.data import AnnDataManager
+from scvi.data.fields import LayerField, NumericalObsField
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
@@ -72,6 +72,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         n_hidden: int,
         n_latent: int,
         n_layers: int,
+        dropout_decoder: float,
+        l1_reg: float,
         **module_kwargs,
     ):
         super(DestVI, self).__init__(st_adata)
@@ -85,6 +87,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             n_latent=n_latent,
             n_layers=n_layers,
             n_hidden=n_hidden,
+            dropout_decoder=dropout_decoder,
+            l1_reg=l1_reg,
             **module_kwargs,
         )
         self.cell_type_mapping = cell_type_mapping
@@ -96,8 +100,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         st_adata: AnnData,
         sc_model: CondSCVI,
-        vamp_prior_p: int = 50,
-        layer: Optional[str] = None,
+        vamp_prior_p: int = 15,
+        l1_reg: float = 0.0,
         **module_kwargs,
     ):
         """
@@ -106,11 +110,14 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         st_adata
-            registed anndata object
+            registered anndata object
         sc_model
             trained CondSCVI model
         vamp_prior_p
             number of mixture parameter for VampPrior calculations
+        l1_reg
+            Scalar parameter indicating the strength of L1 regularization on cell type proportions.
+            A value of 50 leads to sparser results.
         **model_kwargs
             Keyword args for :class:`~scvi.model.DestVI`
         """
@@ -120,15 +127,15 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         mapping = sc_model.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         ).categorical_mapping
+        dropout_decoder = sc_model.module.dropout_rate
         if vamp_prior_p is None:
             mean_vprior = None
             var_vprior = None
         else:
-            mean_vprior, var_vprior = sc_model.get_vamp_prior(
+            mean_vprior, var_vprior, mp_vprior = sc_model.get_vamp_prior(
                 sc_model.adata, p=vamp_prior_p
             )
 
-        cls.setup_anndata(st_adata, layer=layer)
         return cls(
             st_adata,
             mapping,
@@ -140,6 +147,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             sc_model.module.n_layers,
             mean_vprior=mean_vprior,
             var_vprior=var_vprior,
+            mp_vprior=mp_vprior,
+            dropout_decoder=dropout_decoder,
+            l1_reg=l1_reg,
             **module_kwargs,
         )
 
@@ -300,13 +310,13 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
 
     def train(
         self,
-        max_epochs: int = 400,
-        lr: float = 0.005,
+        max_epochs: int = 2000,
+        lr: float = 0.003,
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 1.0,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        n_epochs_kl_warmup: int = 50,
+        n_epochs_kl_warmup: int = 200,
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
@@ -372,7 +382,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         # add index for each cell (provided to pyro plate for correct minibatching)
-        adata.obs["_indices"] = np.arange(adata.n_obs).astype("int64")
+        adata.obs["_indices"] = np.arange(adata.n_obs)
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),

@@ -10,12 +10,11 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import Number
 
 from .._utils import _get_batch_code_from_category
 
 logger = logging.getLogger(__name__)
-
-Number = Union[int, float]
 
 
 class RNASeqMixin:
@@ -425,9 +424,9 @@ class RNASeqMixin:
             mean_list += [px_rate.cpu().numpy()]
             dropout_list += [px_dropout.cpu().numpy()]
 
-        dropout = np.concatenate(dropout_list)
-        means = np.concatenate(mean_list)
-        dispersions = np.concatenate(dispersion_list)
+        dropout = np.concatenate(dropout_list, axis=-2)
+        means = np.concatenate(mean_list, axis=-2)
+        dispersions = np.concatenate(dispersion_list, axis=-2)
         if give_mean and n_samples > 1:
             dropout = dropout.mean(0)
             means = means.mean(0)

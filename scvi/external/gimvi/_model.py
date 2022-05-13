@@ -10,10 +10,10 @@ from anndata import AnnData
 from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
-from scvi.data.anndata.fields import CategoricalObsField, LayerField
+from scvi.data import AnnDataManager
+from scvi.data._compat import registry_from_setup_dict
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_use_gpu_arg
 from scvi.model.base import BaseModelClass, VAEMixin
@@ -22,7 +22,7 @@ from scvi.utils import setup_anndata_dsp
 
 from ._module import JVAE
 from ._task import GIMVITrainingPlan
-from ._utils import _load_saved_gimvi_files
+from ._utils import _load_legacy_saved_gimvi_files, _load_saved_gimvi_files
 
 logger = logging.getLogger(__name__)
 
@@ -442,10 +442,11 @@ class GIMVI(VAEMixin, BaseModelClass):
     def load(
         cls,
         dir_path: str,
-        prefix: Optional[str] = None,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        prefix: Optional[str] = None,
+        backup_url: Optional[str] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -454,8 +455,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         ----------
         dir_path
             Path to saved outputs.
-        prefix
-            Prefix of saved file names.
         adata_seq
             AnnData organized in the same way as data used to train model.
             It is not necessary to run :meth:`~scvi.external.GIMVI.setup_anndata`,
@@ -467,6 +466,10 @@ class GIMVI(VAEMixin, BaseModelClass):
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        prefix
+            Prefix of saved file names.
+        backup_url
+            URL to retrieve saved outputs from if not present on disk.
 
         Returns
         -------
@@ -492,6 +495,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             adata_spatial is None,
             prefix=prefix,
             map_location=device,
+            backup_url=backup_url,
         )
         adata_seq = loaded_adata_seq or adata_seq
         adata_spatial = loaded_adata_spatial or adata_spatial
@@ -508,32 +512,25 @@ class GIMVI(VAEMixin, BaseModelClass):
                     "need to be the same and in the same order as the adata used to train the model."
                 )
 
-        if "scvi_setup_dicts_" in attr_dict:
-            scvi_setup_dicts = attr_dict.pop("scvi_setup_dicts_")
-            for adata, scvi_setup_dict in zip(adatas, scvi_setup_dicts):
-                cls.register_manager(
-                    manager_from_setup_dict(cls, adata, scvi_setup_dict)
+        registries = attr_dict.pop("registries_")
+        for adata, registry in zip(adatas, registries):
+            if (
+                _MODEL_NAME_KEY in registry
+                and registry[_MODEL_NAME_KEY] != cls.__name__
+            ):
+                raise ValueError(
+                    "It appears you are loading a model from a different class."
                 )
-        else:
-            registries = attr_dict.pop("registries_")
-            for adata, registry in zip(adatas, registries):
-                if (
-                    _MODEL_NAME_KEY in registry
-                    and registry[_MODEL_NAME_KEY] != cls.__name__
-                ):
-                    raise ValueError(
-                        "It appears you are loading a model from a different class."
-                    )
 
-                if _SETUP_ARGS_KEY not in registry:
-                    raise ValueError(
-                        "Saved model does not contain original setup inputs. "
-                        "Cannot load the original setup."
-                    )
-
-                cls.setup_anndata(
-                    adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+            if _SETUP_ARGS_KEY not in registry:
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
                 )
+
+            cls.setup_anndata(
+                adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+            )
 
         # get the parameters for the class init signiture
         init_params = attr_dict.pop("init_params_")
@@ -562,6 +559,70 @@ class GIMVI(VAEMixin, BaseModelClass):
         model.module.eval()
         model.to_device(device)
         return model
+
+    @classmethod
+    def convert_legacy_save(
+        cls,
+        dir_path: str,
+        output_dir_path: str,
+        overwrite: bool = False,
+        prefix: Optional[str] = None,
+    ) -> None:
+        """
+        Converts a legacy saved GIMVI model (<v0.15.0) to the updated save format.
+
+        Parameters
+        ----------
+        dir_path
+            Path to directory where legacy model is saved.
+        output_dir_path
+            Path to save converted save files.
+        overwrite
+            Overwrite existing data or not. If ``False`` and directory
+            already exists at ``output_dir_path``, error will be raised.
+        prefix
+            Prefix of saved file names.
+        """
+        if not os.path.exists(output_dir_path) or overwrite:
+            os.makedirs(output_dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                "{} already exists. Please provide an unexisting directory for saving.".format(
+                    dir_path
+                )
+            )
+
+        file_name_prefix = prefix or ""
+        (
+            model_state_dict,
+            seq_var_names,
+            spatial_var_names,
+            attr_dict,
+            _,
+            _2,
+        ) = _load_legacy_saved_gimvi_files(
+            dir_path,
+            file_name_prefix,
+            load_seq_adata=False,
+            load_spatial_adata=False,
+        )
+        if "scvi_setup_dicts_" in attr_dict:
+            scvi_setup_dicts = attr_dict.pop("scvi_setup_dicts_")
+            registries = []
+            for scvi_setup_dict in scvi_setup_dicts:
+                registries.append(registry_from_setup_dict(cls, scvi_setup_dict))
+            attr_dict["registries_"] = registries
+
+        model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
+        torch.save(
+            dict(
+                model_state_dict=model_state_dict,
+                seq_var_names=seq_var_names,
+                spatial_var_names=spatial_var_names,
+                attr_dict=attr_dict,
+            ),
+            model_save_path,
+        )
 
     @classmethod
     @setup_anndata_dsp.dedent

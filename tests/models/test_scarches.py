@@ -15,6 +15,42 @@ def single_pass_for_online_update(model):
     scvi_loss.loss.backward()
 
 
+def test_data_prep(save_path):
+    n_latent = 5
+    adata1 = synthetic_iid()
+    SCVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
+    model = SCVI(adata1, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # adata2 has more genes and a perfect subset of adata1
+    adata2 = synthetic_iid(n_genes=110)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    SCVI.prepare_query_anndata(adata2, dir_path)
+    SCVI.load_query_data(adata2, dir_path)
+
+    adata3 = SCVI.prepare_query_anndata(adata2, dir_path, inplace=False)
+    SCVI.load_query_data(adata3, dir_path)
+
+    # adata4 has more genes and missing 10 genes from adata1
+    adata4 = synthetic_iid(n_genes=110)
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
+    adata4.var_names = new_var_names
+
+    SCVI.prepare_query_anndata(adata4, dir_path)
+    # should be padded 0s
+    assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
+    np.testing.assert_equal(
+        adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy()
+    )
+    SCVI.load_query_data(adata4, dir_path)
+
+    adata5 = SCVI.prepare_query_anndata(adata4, dir_path, inplace=False)
+    SCVI.load_query_data(adata5, dir_path)
+
+
 def test_scvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
@@ -166,7 +202,16 @@ def test_scanvi_online_update(save_path):
     new_labels = adata1.obs.labels.to_numpy()
     new_labels[0] = "Unknown"
     adata1.obs["labels"] = pd.Categorical(new_labels)
-    SCANVI.setup_anndata(adata1, "labels", "Unknown", batch_key="batch")
+    adata1.obs["cont1"] = np.random.normal(size=(adata1.shape[0],))
+    adata1.obs["cont2"] = np.random.normal(size=(adata1.shape[0],))
+
+    SCANVI.setup_anndata(
+        adata1,
+        "labels",
+        "Unknown",
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
     model = SCANVI(
         adata1,
         n_latent=n_latent,
@@ -180,6 +225,16 @@ def test_scanvi_online_update(save_path):
     adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata2.obs["labels"] = "Unknown"
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
+
+    model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    model.train(max_epochs=1)
+    model.get_latent_representation()
+    model.predict()
+
+    # query has all missing labels and no labels key
+    del adata2.obs["labels"]
 
     model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
     model.train(max_epochs=1)
@@ -189,11 +244,49 @@ def test_scanvi_online_update(save_path):
     # query has no missing labels
     adata2 = synthetic_iid()
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
 
     model = SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
     model.train(max_epochs=1)
     model.get_latent_representation()
     model.predict()
+
+    # Test error on extra categoricals
+    adata1 = synthetic_iid()
+    new_labels = adata1.obs.labels.to_numpy()
+    new_labels[0] = "Unknown"
+    adata1.obs["labels"] = pd.Categorical(new_labels)
+    adata1.obs["cont1"] = np.random.normal(size=(adata1.shape[0],))
+    adata1.obs["cont2"] = np.random.normal(size=(adata1.shape[0],))
+    adata1.obs["cat1"] = np.random.randint(0, 5, size=(adata1.shape[0],))
+    adata1.obs["cat2"] = np.random.randint(0, 5, size=(adata1.shape[0],))
+    SCANVI.setup_anndata(
+        adata1,
+        "labels",
+        "Unknown",
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    model = SCANVI(
+        adata1,
+        n_latent=n_latent,
+        encode_covariates=True,
+    )
+    model.train(max_epochs=1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    adata2 = synthetic_iid()
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata2.obs["labels"] = "Unknown"
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    with pytest.raises(NotImplementedError):
+        SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
 
     # ref has fully-observed labels
     n_latent = 5
