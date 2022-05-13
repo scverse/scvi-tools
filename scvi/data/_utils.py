@@ -3,15 +3,18 @@ import warnings
 from typing import Optional, Union
 from uuid import uuid4
 
-import anndata
 import h5py
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+from anndata import AnnData
 from anndata._core.sparse_dataset import SparseDataset
+from mudata import MuData
 from pandas.api.types import CategoricalDtype
+
+from scvi._types import AnnOrMuData
 
 from . import _constants
 
@@ -19,9 +22,18 @@ logger = logging.getLogger(__name__)
 
 
 def get_anndata_attribute(
-    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+    adata: AnnOrMuData,
+    attr_name: str,
+    attr_key: Optional[str],
+    mod_key: Optional[str] = None,
 ) -> Union[np.ndarray, pd.DataFrame]:
-    """Returns the requested data from a given AnnData object."""
+    """Returns the requested data from a given AnnData/MuData object."""
+    if mod_key is not None:
+        if isinstance(adata, AnnData):
+            raise ValueError(f"Cannot access modality {mod_key} on an AnnData object.")
+        if mod_key not in adata.mod:
+            raise ValueError(f"{mod_key} is not a valid modality in adata.mod.")
+        adata = adata.mod[mod_key]
     adata_attr = getattr(adata, attr_name)
     if attr_key is None:
         field = adata_attr
@@ -42,7 +54,7 @@ def get_anndata_attribute(
 
 
 def _set_data_in_registry(
-    adata: anndata.AnnData,
+    adata: AnnData,
     data: Union[np.ndarray, pd.DataFrame],
     attr_name: str,
     attr_key: Optional[str],
@@ -78,7 +90,7 @@ def _set_data_in_registry(
 
 
 def _verify_and_correct_data_format(
-    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+    adata: AnnData, attr_name: str, attr_key: Optional[str]
 ):
     """
     Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
@@ -162,7 +174,7 @@ def _make_column_categorical(
     return mapping
 
 
-def _assign_adata_uuid(adata: anndata.AnnData, overwrite: bool = False) -> None:
+def _assign_adata_uuid(adata: AnnOrMuData, overwrite: bool = False) -> None:
     """
     Assigns a UUID unique to the AnnData object.
 
@@ -206,7 +218,7 @@ def _is_not_count_val(data: jnp.ndarray):
 
 
 def _get_batch_mask_protein_data(
-    adata: anndata.AnnData, protein_expression_obsm_key: str, batch_key: str
+    adata: AnnData, protein_expression_obsm_key: str, batch_key: str
 ):
     """
     Returns a list with length number of batches where each entry is a mask.
@@ -225,3 +237,32 @@ def _get_batch_mask_protein_data(
         batch_mask[b] = ~all_zero
 
     return batch_mask
+
+
+def _check_if_view(adata: AnnOrMuData, copy_if_view: bool = False):
+    if adata.is_view:
+        if copy_if_view:
+            logger.info("Received view of anndata, making copy.")
+            adata._init_as_actual(adata.copy())
+            # Reassign AnnData UUID to produce a separate AnnDataManager.
+            _assign_adata_uuid(adata, overwrite=True)
+        else:
+            raise ValueError("Please run `adata = adata.copy()`")
+    elif isinstance(adata, MuData):
+        for mod_key in adata.mod.keys():
+            mod_adata = adata.mod[mod_key]
+            _check_if_view(mod_adata, copy_if_view)
+
+
+def _check_mudata_fully_paired(mdata: MuData):
+    if isinstance(mdata, AnnData):
+        raise AssertionError(
+            "Cannot call ``_check_mudata_fully_paired`` with AnnData object."
+        )
+    for mod_key in mdata.mod:
+        if not mdata.obsm[mod_key].all():
+            raise ValueError(
+                f"Detected unpaired observations in modality {mod_key}. "
+                "Please make sure that data is fully paired in all MuData inputs. "
+                "Either pad the unpaired modalities or take the intersection with muon.pp.intersect_obs()."
+            )

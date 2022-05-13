@@ -288,7 +288,7 @@ def test_setup_anndata():
         adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), true_x
     )
 
-    # test that it creates layers and batch if no layers_key is passed
+    # test that it creates labels and batch if no layers_key is passed
     adata = synthetic_iid()
     adata_manager = generic_setup_adata_manager(
         adata,

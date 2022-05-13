@@ -397,6 +397,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
             lr_min=lr_min,
+            **loss_kwargs,
         )
         if adversarial_classifier is True:
             self.n_output_classifier = self.module.n_batch
@@ -438,9 +439,10 @@ class AdversarialTrainingPlan(TrainingPlan):
         )
         batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
         if optimizer_idx == 0:
-            loss_kwargs = dict(kl_weight=self.kl_weight)
+            train_loss_kwargs = dict(kl_weight=self.kl_weight)
+            train_loss_kwargs.update(self.loss_kwargs)
             inference_outputs, _, scvi_loss = self.forward(
-                batch, loss_kwargs=loss_kwargs
+                batch, loss_kwargs=train_loss_kwargs
             )
             loss = scvi_loss.loss
             # fool classifier if doing adversarial training
