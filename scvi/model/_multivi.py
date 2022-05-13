@@ -715,12 +715,12 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if two_sided:
 
             def m1_domain_fn(samples):
-                return np.abs(samples) >= delta
+                return (np.abs(samples) >= delta).mean(0)
 
         else:
 
             def m1_domain_fn(samples):
-                return samples >= delta
+                return (samples >= delta).mean(0)
 
         all_stats_fn = partial(
             scatac_raw_counts_properties,

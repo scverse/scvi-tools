@@ -296,7 +296,9 @@ class DifferentialComputation:
                         else estimate_delta(lfc_means=samples.mean(0))
                     )
                     logger.debug("Using delta ~ {:.2f}".format(delta_))
-                    return np.abs(samples) >= delta_
+                    is_upreg = samples >= delta_
+                    is_downreg = samples <= -delta_
+                    return np.maximum(np.mean(is_upreg, 0), np.mean(is_downreg, 0))
 
             change_fn_specs = inspect.getfullargspec(change_fn)
             domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
@@ -306,7 +308,7 @@ class DifferentialComputation:
                 )
             try:
                 change_distribution = change_fn(scales_1, scales_2)
-                is_de = m1_domain_fn(change_distribution)
+                proba_m1 = m1_domain_fn(change_distribution)
                 delta_ = (
                     estimate_delta(lfc_means=change_distribution.mean(0))
                     if delta is None
@@ -318,7 +320,6 @@ class DifferentialComputation:
                     "Please ensure that these functions have the right signatures and"
                     "outputs and that they can process numpy arrays"
                 )
-            proba_m1 = np.mean(is_de, 0)
             change_distribution_props = describe_continuous_distrib(
                 samples=change_distribution,
                 credible_intervals_levels=cred_interval_lvls,
