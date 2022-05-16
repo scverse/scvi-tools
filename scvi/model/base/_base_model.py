@@ -7,7 +7,6 @@ from typing import Dict, Optional, Sequence, Type, Union
 from uuid import uuid4
 
 import numpy as np
-import pyro
 import rich
 import torch
 from anndata import AnnData
@@ -27,7 +26,6 @@ from scvi.data._utils import _assign_adata_uuid, _check_if_view
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
-from scvi.module.base import PyroBaseModuleClass
 from scvi.utils import attrdict, setup_anndata_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
@@ -660,20 +658,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         )
 
         model = _initialize_model(cls, adata, attr_dict)
-
-        # some Pyro modules with AutoGuides may need one training step
-        try:
-            model.module.load_state_dict(model_state_dict)
-        except RuntimeError as err:
-            if isinstance(model.module, PyroBaseModuleClass):
-                old_history = model.history_.copy()
-                logger.info("Preparing underlying module for load")
-                model.train(max_steps=1)
-                model.history_ = old_history
-                pyro.clear_param_store()
-                model.module.load_state_dict(model_state_dict)
-            else:
-                raise err
+        model.module.on_load(model)
+        model.module.load_state_dict(model_state_dict)
 
         model.to_device(device)
         model.module.eval()
