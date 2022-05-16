@@ -14,7 +14,7 @@ from scvi.module import Classifier
 from scvi.module.base import BaseModuleClass, LossRecorder, PyroBaseModuleClass
 from scvi.nn import one_hot
 
-from ._metrics import KLGlobalMetric, KLLocalMetric, ReconstructionLossMetric
+from ._metrics import ElboMetric
 
 
 def _compute_kl_weight(
@@ -135,6 +135,21 @@ class TrainingPlan(pl.LightningModule):
         self.initialize_train_metrics()
         self.initialize_val_metrics()
 
+    def _create_elbo_metric_components(self, mode: str, n_total: Optional[int] = None):
+        """Initialize ELBO metric and the metric collection."""
+        rec_loss = ElboMetric("reconstruction_loss", mode, "obs")
+        kl_local = ElboMetric("kl_local", mode, "obs")
+        kl_global = ElboMetric("kl_global", mode, "obs")
+        # n_total can be 0 if there is no validation set, this won't ever be used
+        # in that case anyway
+        n = 1 if n_total is None or n_total < 1 else n_total
+        elbo = rec_loss + kl_local + (1 / n) * kl_global
+        elbo.name = f"elbo_{mode}"
+        collection = MetricCollection(
+            {metric.name: metric for metric in [elbo, rec_loss, kl_local, kl_global]}
+        )
+        return elbo, rec_loss, kl_local, kl_global, collection
+
     def initialize_train_metrics(self):
         """Initialize train related metrics."""
         (
@@ -160,25 +175,6 @@ class TrainingPlan(pl.LightningModule):
             mode="validation", n_total=self.n_obs_validation
         )
         self.elbo_val.reset()
-
-    def _create_elbo_metric_components(self, mode: str, n_total: Optional[int] = None):
-        """Initialize ELBO metric and the metric collection."""
-        rec_loss = ReconstructionLossMetric(mode)
-        kl_local = KLLocalMetric(mode)
-        kl_global = KLGlobalMetric(mode)
-        # n_total can be 0 if there is no validation set, this won't ever be used
-        # in that case anyway
-        n = 1 if n_total is None or n_total < 1 else n_total
-        elbo = rec_loss + kl_local + (1 / n) * kl_global
-        collection = MetricCollection(
-            {
-                f"elbo_{mode}": elbo,
-                f"reconstruction_loss_{mode}": rec_loss,
-                f"kl_local_{mode}": kl_local,
-                f"kl_global_{mode}": kl_global,
-            }
-        )
-        return elbo, rec_loss, kl_local, kl_global, collection
 
     @property
     def n_obs_training(self):
@@ -250,8 +246,8 @@ class TrainingPlan(pl.LightningModule):
 
         # use the torchmetric object for the ELBO
         metrics.update(
-            reconstruction_loss_sum=rec_loss,
-            kl_local_sum=kl_local,
+            reconstruction_loss=rec_loss,
+            kl_local=kl_local,
             kl_global=kl_global,
             n_obs_minibatch=n_obs_minibatch,
         )
