@@ -115,7 +115,7 @@ class BaseModuleClass(nn.Module):
             raise RuntimeError("Module tensors on multiple devices.")
         return device[0]
 
-    def on_load_module_start(self, model):
+    def on_load(self, model):
         """
         Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
         """
@@ -377,7 +377,7 @@ class PyroBaseModuleClass(nn.Module):
 class JaxBaseModuleClass(linen.Module):
     """Abstract class for Jax-based scvi-tools modules."""
 
-    def on_load_module_start(self, model):
+    def on_load(self, model):
         """
         Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
         """
