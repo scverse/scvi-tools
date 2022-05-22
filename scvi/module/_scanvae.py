@@ -25,6 +25,7 @@ class SCANVAE(VAE):
 
     Parameters
     ----------
+    n_version
     n_input
         Number of input genes
     n_batch
@@ -91,6 +92,7 @@ class SCANVAE(VAE):
         classifier_parameters: dict = dict(),
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        n_version = 0,  # 0 denotes the old one without the fix
         **vae_kwargs
     ):
         super().__init__(
@@ -115,6 +117,7 @@ class SCANVAE(VAE):
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
         use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
 
+        self.n_version = n_version
         self.n_labels = n_labels
         # Classifier takes n_latent as input
         cls_parameters = {
@@ -293,28 +296,39 @@ class SCANVAE(VAE):
         else:
             kl_divergence_l = 0.0
 
-        if is_labelled:
-            loss = reconst_loss + loss_z1_weight + loss_z1_unweight
+        print('The version is: ', self.n_version)
+
+        #if is_labelled:
+        if labelled_tensors is not None:
+            print("--------------------labelled_tensors is not None-------------------------")
+            if self.n_version == 1:
+                print("Adding KLs to the loss...")
+                loss = reconst_loss + loss_z1_weight + loss_z1_unweight + kl_divergence_z2 + kl_divergence_l  # add kl terms here
+            else:
+                print("The loss is unchanged...")
+                loss = reconst_loss + loss_z1_weight + loss_z1_unweight
+
             kl_locals = {
                 "kl_divergence_z2": kl_divergence_z2,
                 "kl_divergence_l": kl_divergence_l,
             }
-            if labelled_tensors is not None:
-                classifier_loss = self.classification_loss(labelled_tensors)
-                loss += classifier_loss * classification_ratio
-                return LossRecorder(
-                    loss,
-                    reconst_loss,
-                    kl_locals,
-                    classification_loss=classifier_loss,
-                    n_labelled_tensors=labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
-                )
+            #if labelled_tensors is not None:
+                #print("And labelled_tensors is not None")
+            classifier_loss = self.classification_loss(labelled_tensors)
+            loss += classifier_loss * classification_ratio
             return LossRecorder(
                 loss,
                 reconst_loss,
                 kl_locals,
-                kl_global=torch.tensor(0.0),
+                classification_loss=classifier_loss,
+                n_labelled_tensors=labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
             )
+            #return LossRecorder(
+            #    loss,
+            #    reconst_loss,
+            #    kl_locals,
+            #    kl_global=torch.tensor(0.0),
+            #)
 
         probs = self.classifier(z1)
         reconst_loss += loss_z1_weight + (
@@ -332,13 +346,14 @@ class SCANVAE(VAE):
 
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
 
-        if labelled_tensors is not None:
-            classifier_loss = self.classification_loss(labelled_tensors)
-            loss += classifier_loss * classification_ratio
-            return LossRecorder(
-                loss,
-                reconst_loss,
-                kl_divergence,
-                classification_loss=classifier_loss,
-            )
+       # if labelled_tensors is not None:
+       #     print("is_labelled=False and labelled_tensors is not None")
+       #     classifier_loss = self.classification_loss(labelled_tensors)
+       #     loss += classifier_loss * classification_ratio
+       #     return LossRecorder(
+       #         loss,
+       #         reconst_loss,
+       #         kl_divergence,
+       #         classification_loss=classifier_loss,
+       #     )
         return LossRecorder(loss, reconst_loss, kl_divergence)
