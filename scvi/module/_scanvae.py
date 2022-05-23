@@ -312,7 +312,7 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),   #ok
             ).sum(dim=1)
         else:
-            kl_divergence_l = 0.0  #indeed si tu observes l il ne sera plus dans la var dist
+            kl_divergence_l = torch.tensor(0.0)  #indeed si tu observes l il ne sera plus dans la var dist
 
         print('The version is: ', self.n_version)
 
@@ -321,32 +321,26 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
             print("--------------------labelled_tensors is not None-------------------------")
             if self.n_version == 1:
                 print("Adding KLs to the loss...")
-                loss = reconst_loss + loss_z1_weight + loss_z1_unweight + kl_divergence_z2 #+ kl_divergence_l  # add kl terms here
-            else:
-                print("The loss is unchanged...")
-                loss = reconst_loss + loss_z1_weight + loss_z1_unweight
+                loss = reconst_loss.mean()+loss_z1_weight.mean()+loss_z1_unweight.mean()+kl_divergence_z2.mean()+kl_divergence_l.mean()  # add kl terms here
+            # else:
+            #     print("The loss is unchanged...")
+            #     loss = reconst_loss.mean() + loss_z1_weight.mean() + loss_z1_unweight.mean()
 
-            kl_locals = {
-                "kl_divergence_z2": kl_divergence_z2,  #in scvi, this is added to the loss?
-                "kl_divergence_l": kl_divergence_l,
-            }
-            #if labelled_tensors is not None:
-                #print("And labelled_tensors is not None")
-            classifier_loss = self.classification_loss(labelled_tensors)
-            loss += classifier_loss * classification_ratio
-            return LossRecorder(
-                loss,
-                reconst_loss,
-                kl_locals,
-                classification_loss=classifier_loss,
-                n_labelled_tensors=labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
-            )
-            #return LossRecorder(
-            #    loss,
-            #    reconst_loss,
-            #    kl_locals,
-            #    kl_global=torch.tensor(0.0),
-            #)
+                kl_locals = {
+                    "kl_divergence_z2": kl_divergence_z2,  #in scvi, this is added to the loss?
+                    "kl_divergence_l": kl_divergence_l,
+                }
+                #if labelled_tensors is not None:
+                    #print("And labelled_tensors is not None")
+                classifier_loss = self.classification_loss(labelled_tensors)
+                loss += classifier_loss * classification_ratio
+                return LossRecorder(
+                    loss,
+                    reconst_loss,
+                    kl_locals,
+                    classification_loss=classifier_loss,
+                    n_labelled_tensors=labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
+                )
 
         # the ELBO in the case where C=Y is not observed
         probs = self.classifier(z1)  #outputs a vector of size n_labels suming to 1
@@ -365,14 +359,16 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
 
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)   #annealing to avoid posterior collapse!!!
 
-       # if labelled_tensors is not None:
-       #     print("is_labelled=False and labelled_tensors is not None")
-       #     classifier_loss = self.classification_loss(labelled_tensors)
-       #     loss += classifier_loss * classification_ratio
-       #     return LossRecorder(
-       #         loss,
-       #         reconst_loss,
-       #         kl_divergence,
-       #         classification_loss=classifier_loss,
-       #     )
+        if labelled_tensors is not None:
+            if self._version == 0:
+                classifier_loss = self.classification_loss(labelled_tensors)
+                loss += classifier_loss * classification_ratio
+                return LossRecorder(
+                    loss,
+                    reconst_loss,
+                    kl_divergence,
+                    classification_loss=classifier_loss,
+                )
+
         return LossRecorder(loss, reconst_loss, kl_divergence)
+        
