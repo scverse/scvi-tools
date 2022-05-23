@@ -321,7 +321,7 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
             print("--------------------labelled_tensors is not None-------------------------")
             if self.n_version == 1:
                 print("Adding KLs to the loss...")
-                loss = reconst_loss.mean()+loss_z1_weight.mean()+loss_z1_unweight.mean()+kl_divergence_z2.mean()+kl_divergence_l.mean()  # add kl terms here
+                loss = reconst_loss.mean()+loss_z1_weight.mean()+loss_z1_unweight.mean()+ kl_weight*(kl_divergence_z2.mean()+kl_divergence_l.mean())  # add kl terms here
             # else:
             #     print("The loss is unchanged...")
             #     loss = reconst_loss.mean() + loss_z1_weight.mean() + loss_z1_unweight.mean()
@@ -371,4 +371,3 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
                 )
 
         return LossRecorder(loss, reconst_loss, kl_divergence)
-        
