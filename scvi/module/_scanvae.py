@@ -314,13 +314,13 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
         else:
             kl_divergence_l = torch.tensor(0.0)  #indeed si tu observes l il ne sera plus dans la var dist
 
-        print('The version is: ', self.n_version)
+        #print('The version is: ', self.n_version)
 
         #if is_labelled:
         if labelled_tensors is not None:
-            print("--------------------labelled_tensors is not None-------------------------")
+            #print("--------------------labelled_tensors is not None-------------------------")
             if self.n_version == 1:
-                print("Adding KLs to the loss...")
+                #print("Adding KLs to the loss...")
                 loss = reconst_loss.mean()+loss_z1_weight.mean()+loss_z1_unweight.mean()+ kl_weight*(kl_divergence_z2.mean()+kl_divergence_l.mean())  # add kl terms here
             # else:
             #     print("The loss is unchanged...")
