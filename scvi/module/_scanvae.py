@@ -26,6 +26,7 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
     Parameters
     ----------
     n_version
+
     n_input
         Number of input genes
     n_batch
@@ -61,8 +62,8 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
     y_prior
         If None, initialized to uniform probability over cell types  OK
     labels_groups
-        Label group designations                                                    ?? --> hierarchie entre labels
-    use_labels_groups
+        Label group designations                                                    
+    use_labels_groups                                                                
         Whether to use the label groups
     use_batch_norm
         Whether to use batch norm in layers
@@ -73,7 +74,6 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
     """
 
 
-    #--------------------------------INIT-----------------------------------------------------------------------------------------------------------
 
     def __init__(
         self,
@@ -91,7 +91,7 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
         log_variational: bool = True,
         gene_likelihood: str = "zinb",
         y_prior=None,
-        labels_groups: Sequence[int] = None,                #??
+        labels_groups: Sequence[int] = None,                
         use_labels_groups: bool = False,
         classifier_parameters: dict = dict(),
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
@@ -140,7 +140,7 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
             **cls_parameters
         )
 
-        self.encoder_z2_z1 = Encoder(                #q(z2|z1,....)  ???
+        self.encoder_z2_z1 = Encoder(                #q(z2|z1,....) 
             n_latent,
             n_latent,
             n_cat_list=[self.n_labels],
@@ -150,7 +150,7 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
         )
-        self.decoder_z1_z2 = Decoder(               #  p(z1|z2,....)  ????
+        self.decoder_z1_z2 = Decoder(               #  p(z1|z2,....) 
             n_latent,
             n_latent,
             n_cat_list=[self.n_labels],
@@ -195,7 +195,6 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
             )
 
 
-    #---------------------------------------METHODS----------------------------------------------------------------------------------------------------------------------------
 
     @auto_move_data
     def classify(self, x, batch_index=None, cont_covs=None, cat_covs=None):
@@ -257,7 +256,7 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
         generative_ouputs,
         feed_labels=False,  #? ---> 2 dataloaders, for annotated and un annotated, don't feed labels for un annotated
         kl_weight=1,
-        labelled_tensors=None,  #??  -->scvanvi.py
+        labelled_tensors=None, 
         classification_ratio=None,
     ):
         px_r = generative_ouputs["px_r"]
@@ -275,7 +274,7 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
             y = None
 
 
-        is_labelled = False if y is None else True  #important for ELBO 
+        is_labelled = False if y is None else True  
 
         # Enumerate choices of label
         ys, z1s = broadcast_labels(y, z1, n_broadcast=self.n_labels) #one-hot encoding of the labels
@@ -294,12 +293,12 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
         ).sum(dim=1)
 
         loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
-        #Sum of the log of the  Normal probability density evaluated at value z1s. The sum is over the 10-dim latent space.
+        #Sum of the log of the  Normal probability density evaluated at value z1s. The sum is over the latent space.
 
 
-        loss_z1_weight = Normal(qz1_m, torch.sqrt(qz1_v)).log_prob(z1).sum(dim=-1)  #????ok
+        loss_z1_weight = Normal(qz1_m, torch.sqrt(qz1_v)).log_prob(z1).sum(dim=-1) 
         
-        if not self.use_observed_lib_size:   #comme dans le user guide, si l_n is latent!
+        if not self.use_observed_lib_size: 
             ql_m = inference_outputs["ql_m"]
             ql_v = inference_outputs["ql_v"]
             (
@@ -309,29 +308,20 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
 
             kl_divergence_l = kl(
                 Normal(ql_m, torch.sqrt(ql_v)),
-                Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),   #ok
+                Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),  
             ).sum(dim=1)
         else:
-            kl_divergence_l = torch.tensor(0.0)  #indeed si tu observes l il ne sera plus dans la var dist
+            kl_divergence_l = torch.tensor(0.0) 
 
-        #print('The version is: ', self.n_version)
 
-        #if is_labelled:
         if labelled_tensors is not None:
-            #print("--------------------labelled_tensors is not None-------------------------")
             if self.n_version == 1:
-                #print("Adding KLs to the loss...")
                 loss = reconst_loss.mean()+loss_z1_weight.mean()+loss_z1_unweight.mean()+ kl_weight*(kl_divergence_z2.mean()+kl_divergence_l.mean())  # add kl terms here
-            # else:
-            #     print("The loss is unchanged...")
-            #     loss = reconst_loss.mean() + loss_z1_weight.mean() + loss_z1_unweight.mean()
 
                 kl_locals = {
-                    "kl_divergence_z2": kl_divergence_z2,  #in scvi, this is added to the loss?
+                    "kl_divergence_z2": kl_divergence_z2,  
                     "kl_divergence_l": kl_divergence_l,
                 }
-                #if labelled_tensors is not None:
-                    #print("And labelled_tensors is not None")
                 classifier_loss = self.classification_loss(labelled_tensors)
                 loss += classifier_loss * classification_ratio
                 return LossRecorder(
@@ -346,7 +336,7 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
         probs = self.classifier(z1)  #outputs a vector of size n_labels suming to 1
         reconst_loss += loss_z1_weight + (
             (loss_z1_unweight).view(self.n_labels, -1).t() * probs
-        ).sum(dim=1)  #why loss_z1_weight is not in the sum? 
+        ).sum(dim=1) 
 
         kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(
             dim=1
@@ -357,7 +347,7 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
         )
         kl_divergence += kl_divergence_l
 
-        loss = torch.mean(reconst_loss + kl_divergence * kl_weight)   #annealing to avoid posterior collapse!!!
+        loss = torch.mean(reconst_loss + kl_divergence * kl_weight) 
 
         if labelled_tensors is not None:
             if self._version == 0:
