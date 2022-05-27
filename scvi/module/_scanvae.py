@@ -26,7 +26,6 @@ class SCANVAE(VAE): #inherits from VAE class (for instance inherits z_encoder)
     Parameters
     ----------
     n_version
-
     n_input
         Number of input genes
     n_batch
