@@ -1,6 +1,7 @@
 import logging
 import os
 import urllib
+from typing import Optional
 
 import numpy as np
 
@@ -9,10 +10,15 @@ from scvi.utils import track
 logger = logging.getLogger(__name__)
 
 
-def _download(url: str, save_path: str, filename: str):
+def _download(url: Optional[str], save_path: str, filename: str):
     """Writes data from url to file."""
     if os.path.exists(os.path.join(save_path, filename)):
-        logger.info("File %s already downloaded" % (os.path.join(save_path, filename)))
+        logger.info(f"File {os.path.join(save_path, filename)} already downloaded")
+        return
+    elif url is None:
+        logger.info(
+            f"No backup URL provided for missing file {os.path.join(save_path, filename)}"
+        )
         return
     req = urllib.request.Request(url, headers={"User-Agent": "Magic Browser"})
     try:

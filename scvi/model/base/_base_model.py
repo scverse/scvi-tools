@@ -11,17 +11,24 @@ import pyro
 import rich
 import torch
 from anndata import AnnData
+from mudata import MuData
 
 from scvi import settings
+from scvi._types import AnnOrMuData
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
-from scvi.data._constants import _MODEL_NAME_KEY, _SCVI_UUID_KEY, _SETUP_ARGS_KEY
-from scvi.data._utils import _assign_adata_uuid
+from scvi.data._constants import (
+    _MODEL_NAME_KEY,
+    _SCVI_UUID_KEY,
+    _SETUP_ARGS_KEY,
+    _SETUP_METHOD_NAME,
+)
+from scvi.data._utils import _assign_adata_uuid, _check_if_view
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
 from scvi.module.base import PyroBaseModuleClass
-from scvi.utils import setup_anndata_dsp
+from scvi.utils import attrdict, setup_anndata_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -30,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 _UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained model. Please train the model first."
 
-_SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "kwargs"}
+_SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "mdata", "kwargs"}
 
 
 class BaseModelMetaClass(ABCMeta):
@@ -58,7 +65,7 @@ class BaseModelMetaClass(ABCMeta):
 class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
-    def __init__(self, adata: Optional[AnnData] = None):
+    def __init__(self, adata: Optional[AnnOrMuData] = None):
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self._adata = adata
@@ -79,12 +86,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self._data_loader_cls = AnnDataLoader
 
     @property
-    def adata(self) -> AnnData:
+    def adata(self) -> AnnOrMuData:
         """Data attached to model instance."""
         return self._adata
 
     @adata.setter
-    def adata(self, adata: AnnData):
+    def adata(self, adata: AnnOrMuData):
         if adata is None:
             raise ValueError("adata cannot be None.")
         self._validate_anndata(adata)
@@ -133,12 +140,50 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         to avoid the inclusion of any extraneous variables.
         """
         cls = setup_locals.pop("cls")
+        method_name = None
+        if "adata" in setup_locals:
+            method_name = "setup_anndata"
+        elif "mdata" in setup_locals:
+            method_name = "setup_mudata"
+
         model_name = cls.__name__
         setup_args = dict()
         for k, v in setup_locals.items():
             if k not in _SETUP_INPUTS_EXCLUDED_PARAMS:
                 setup_args[k] = v
-        return {_MODEL_NAME_KEY: model_name, _SETUP_ARGS_KEY: setup_args}
+        return {
+            _MODEL_NAME_KEY: model_name,
+            _SETUP_METHOD_NAME: method_name,
+            _SETUP_ARGS_KEY: setup_args,
+        }
+
+    @staticmethod
+    def _create_modalities_attr_dict(
+        modalities: Dict[str, str], setup_method_args: dict
+    ) -> attrdict:
+        """
+        Preprocesses a ``modalities`` dictionary used in ``setup_mudata()`` to map modality names.
+
+        Ensures each field key has a respective modality key, defaulting to ``None``.
+        Raises a ``UserWarning`` if extraneous modality mappings are detected.
+
+        Parameters
+        ----------
+        modalities
+            Dictionary mapping ``setup_mudata()`` argument name to modality name.
+        setup_method_args
+            Output of  ``_get_setup_method_args()``.
+        """
+        setup_args = setup_method_args[_SETUP_ARGS_KEY]
+        filtered_modalities = {
+            arg_name: modalities.get(arg_name, None) for arg_name in setup_args.keys()
+        }
+        extra_modalities = set(modalities) - set(filtered_modalities)
+        if len(extra_modalities) > 0:
+            raise ValueError(
+                f"Extraneous modality mapping(s) detected: {extra_modalities}"
+            )
+        return attrdict(filtered_modalities)
 
     @classmethod
     def register_manager(cls, adata_manager: AnnDataManager):
@@ -174,7 +219,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     @classmethod
     def _get_most_recent_anndata_manager(
-        cls, adata: AnnData, required: bool = False
+        cls, adata: AnnOrMuData, required: bool = False
     ) -> Optional[AnnDataManager]:
         """
         Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model class.
@@ -217,7 +262,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return adata_manager
 
     def get_anndata_manager(
-        self, adata: AnnData, required: bool = False
+        self, adata: AnnOrMuData, required: bool = False
     ) -> Optional[AnnDataManager]:
         """
         Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model instance.
@@ -268,7 +313,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     def get_from_registry(
         self,
-        adata: AnnData,
+        adata: AnnOrMuData,
         registry_key: str,
     ) -> np.ndarray:
         """
@@ -298,7 +343,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     def _make_data_loader(
         self,
-        adata: AnnData,
+        adata: AnnOrMuData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
         shuffle: bool = False,
@@ -351,19 +396,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return dl
 
     def _validate_anndata(
-        self, adata: Optional[AnnData] = None, copy_if_view: bool = True
+        self, adata: Optional[AnnOrMuData] = None, copy_if_view: bool = True
     ) -> AnnData:
         """Validate anndata has been properly registered, transfer if necessary."""
         if adata is None:
             adata = self.adata
-        if adata.is_view:
-            if copy_if_view:
-                logger.info("Received view of anndata, making copy.")
-                adata._init_as_actual(adata.copy())
-                # Reassign AnnData UUID to produce a separate AnnDataManager.
-                _assign_adata_uuid(adata, overwrite=True)
-            else:
-                raise ValueError("Please run `adata = adata.copy()`")
+
+        _check_if_view(adata, copy_if_view=copy_if_view)
 
         adata_manager = self.get_anndata_manager(adata)
         if adata_manager is None:
@@ -457,7 +496,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         init_params = [p.name for p in parameters]
         all_params = {p: locals[p] for p in locals if p in init_params}
         all_params = {
-            k: v for (k, v) in all_params.items() if not isinstance(v, AnnData)
+            k: v
+            for (k, v) in all_params.items()
+            if not isinstance(v, AnnData) and not isinstance(v, MuData)
         }
         # not very efficient but is explicit
         # seperates variable params (**kwargs) from non variable params into two dicts
@@ -515,8 +556,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         file_name_prefix = prefix or ""
 
         if save_anndata:
+            file_suffix = ""
+            if isinstance(self.adata, AnnData):
+                file_suffix = "adata.h5ad"
+            elif isinstance(self.adata, MuData):
+                file_suffix = "mdata.h5mu"
             self.adata.write(
-                os.path.join(dir_path, f"{file_name_prefix}adata.h5ad"),
+                os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
                 **anndata_write_kwargs,
             )
 
@@ -546,7 +592,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def load(
         cls,
         dir_path: str,
-        adata: Optional[AnnData] = None,
+        adata: Optional[AnnOrMuData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
@@ -608,7 +654,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # Calling ``setup_anndata`` method with the original arguments passed into
         # the saved model. This enables simple backwards compatibility in the case of
         # newly introduced fields or parameters.
-        cls.setup_anndata(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
+        method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        getattr(cls, method_name)(
+            adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+        )
 
         model = _initialize_model(cls, adata, attr_dict)
 
@@ -740,7 +789,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         AnnDataManager.view_setup_method_args(registry)
 
     def view_anndata_setup(
-        self, adata: Optional[AnnData] = None, hide_state_registries: bool = False
+        self, adata: Optional[AnnOrMuData] = None, hide_state_registries: bool = False
     ) -> None:
         """
         Print summary of the setup for the initial AnnData or a given AnnData object.

@@ -8,24 +8,19 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from mudata import MuData
 
+import scvi.data.fields as fields
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data._utils import _check_nonnegative_integers
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-    ProteinObsmField,
-)
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
+    _get_var_names_from_manager,
     _init_library_size,
     cite_seq_raw_counts_properties,
 )
@@ -119,7 +114,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             REGISTRY_KEYS.PROTEIN_EXP_KEY
         )
         if (
-            ProteinObsmField.PROTEIN_BATCH_MASK in self.protein_state_registry
+            fields.ProteinObsmField.PROTEIN_BATCH_MASK in self.protein_state_registry
             and not override_missing_proteins
         ):
             batch_mask = self.protein_state_registry.protein_batch_mask
@@ -148,7 +143,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
-                CategoricalJointObsField.N_CATS_PER_KEY
+                fields.CategoricalJointObsField.N_CATS_PER_KEY
             ]
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
@@ -272,7 +267,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             "reduce_lr_on_plateau": reduce_lr_on_plateau,
             "n_epochs_kl_warmup": n_epochs_kl_warmup,
             "n_steps_kl_warmup": n_steps_kl_warmup,
-            "check_val_every_n_epoch": check_val_every_n_epoch,
         }
         if plan_kwargs is not None:
             plan_kwargs.update(update_dict)
@@ -300,6 +294,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             max_epochs=max_epochs,
             use_gpu=use_gpu,
             early_stopping=early_stopping,
+            check_val_every_n_epoch=check_val_every_n_epoch,
             **kwargs,
         )
         return runner()
@@ -438,7 +433,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names
+            all_genes = _get_var_names_from_manager(adata_manager)
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
         if protein_list is None:
             protein_mask = slice(None)
@@ -527,7 +522,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if return_numpy is None or return_numpy is False:
             gene_df = pd.DataFrame(
                 scale_list_gene,
-                columns=adata.var_names[gene_mask],
+                columns=_get_var_names_from_manager(adata_manager)[gene_mask],
                 index=adata.obs_names[indices],
             )
             protein_names = self.protein_state_registry.column_names
@@ -744,6 +739,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Differential expression DataFrame.
         """
         adata = self._validate_anndata(adata)
+        adata_manager = self.get_anndata_manager(adata, required=True)
         model_fn = partial(
             self._expression_for_de,
             scale_protein=scale_protein,
@@ -754,12 +750,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         col_names = np.concatenate(
             [
-                np.asarray(adata.var_names),
+                np.asarray(_get_var_names_from_manager(adata_manager)),
                 self.protein_state_registry.column_names,
             ]
         )
         result = _de_core(
-            self.get_anndata_manager(adata, required=True),
+            adata_manager,
             model_fn,
             groupby,
             group1,
@@ -821,10 +817,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             raise ValueError("Invalid gene_likelihood")
 
         adata = self._validate_anndata(adata)
+        adata_manager = self.get_anndata_manager(adata, required=True)
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names
+            all_genes = _get_var_names_from_manager(adata_manager)
             gene_mask = [True if gene in gene_list else False for gene in all_genes]
         if protein_list is None:
             protein_mask = slice(None)
@@ -925,8 +922,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             l_train = torch.distributions.Gamma(r, (1 - p) / p).sample()
             data = l_train.cpu().numpy()
             # make background 0
-            data[:, :, self.adata.shape[1] :] = (
-                data[:, :, self.adata.shape[1] :] * (1 - mixing_sample).cpu().numpy()
+            data[:, :, x.shape[1] :] = (
+                data[:, :, x.shape[1] :] * (1 - mixing_sample).cpu().numpy()
             )
             scdl_list += [data]
 
@@ -981,6 +978,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         from scipy.stats import spearmanr
 
         adata = self._validate_anndata(adata)
+        adata_manager = self.get_anndata_manager(adata, required=True)
 
         if not isinstance(transform_batch, IterableClass):
             transform_batch = [transform_batch]
@@ -1016,7 +1014,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             corr_mats.append(corr_matrix)
 
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
-        var_names = adata.var_names
+        var_names = _get_var_names_from_manager(adata_manager)
         names = np.concatenate(
             [
                 np.asarray(var_names),
@@ -1092,10 +1090,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             )
             batch_mask = adata_manager.get_state_registry(
                 REGISTRY_KEYS.PROTEIN_EXP_KEY
-            ).get(ProteinObsmField.PROTEIN_BATCH_MASK)
+            ).get(fields.ProteinObsmField.PROTEIN_BATCH_MASK)
             batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
             cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
-                CategoricalObsField.CATEGORICAL_MAPPING_KEY
+                fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
             ]
             codes = np.arange(len(cats))
 
@@ -1219,27 +1217,27 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         %(returns)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
-        batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
+        batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(
+            fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            fields.CategoricalObsField(
                 REGISTRY_KEYS.LABELS_KEY, None
             ),  # Default labels field for compatibility with TOTALVAE
             batch_field,
-            NumericalObsField(
+            fields.NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
             ),
-            CategoricalJointObsField(
+            fields.CategoricalJointObsField(
                 REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),
-            NumericalJointObsField(
+            fields.NumericalJointObsField(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
-            ProteinObsmField(
+            fields.ProteinObsmField(
                 REGISTRY_KEYS.PROTEIN_EXP_KEY,
                 protein_expression_obsm_key,
                 use_batch_mask=True,
-                batch_key=batch_field.attr_key,
+                batch_field=batch_field,
                 colnames_uns_key=protein_names_uns_key,
                 is_count_data=True,
             ),
@@ -1248,4 +1246,74 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             fields=anndata_fields, setup_method_args=setup_method_args
         )
         adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
+
+    @classmethod
+    def setup_mudata(
+        cls,
+        mdata: MuData,
+        rna_layer: Optional[str] = None,
+        protein_layer: Optional[str] = None,
+        batch_key: Optional[str] = None,
+        size_factor_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        modalities: Optional[Dict[str, str]] = None,
+        **kwargs,
+    ) -> Optional[AnnData]:
+        setup_method_args = cls._get_setup_method_args(**locals())
+
+        if modalities is None:
+            raise ValueError("Modalities cannot be None.")
+        modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
+
+        batch_field = fields.MuDataCategoricalObsField(
+            REGISTRY_KEYS.BATCH_KEY,
+            batch_key,
+            mod_key=modalities.batch_key,
+        )
+        mudata_fields = [
+            fields.MuDataLayerField(
+                REGISTRY_KEYS.X_KEY,
+                rna_layer,
+                mod_key=modalities.rna_layer,
+                is_count_data=True,
+                mod_required=True,
+            ),
+            fields.MuDataCategoricalObsField(
+                REGISTRY_KEYS.LABELS_KEY,
+                None,
+                mod_key=None,
+            ),  # Default labels field for compatibility with TOTALVAE
+            batch_field,
+            fields.MuDataNumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY,
+                size_factor_key,
+                mod_key=modalities.size_factor_key,
+                required=False,
+            ),
+            fields.MuDataCategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY,
+                categorical_covariate_keys,
+                mod_key=modalities.categorical_covariate_keys,
+            ),
+            fields.MuDataNumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY,
+                continuous_covariate_keys,
+                mod_key=modalities.continuous_covariate_keys,
+            ),
+            fields.MuDataProteinLayerField(
+                REGISTRY_KEYS.PROTEIN_EXP_KEY,
+                protein_layer,
+                mod_key=modalities.protein_layer,
+                use_batch_mask=True,
+                batch_field=batch_field,
+                is_count_data=True,
+                mod_required=True,
+            ),
+        ]
+        adata_manager = AnnDataManager(
+            fields=mudata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)

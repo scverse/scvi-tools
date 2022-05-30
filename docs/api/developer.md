@@ -33,6 +33,15 @@ for operating over a collection of AnnDataFields and an AnnData object.
    data.fields.ObsmField
    data.fields.ProteinObsmField
    data.fields.LabelsWithUnlabeledObsField
+   data.fields.BaseMuDataWrapperClass
+   data.fields.MuDataWrapper
+   data.fields.MuDataLayerField
+   data.fields.MuDataProteinLayerField
+   data.fields.MuDataNumericalObsField
+   data.fields.MuDataCategoricalObsField
+   data.fields.MuDataObsmField
+   data.fields.MuDataNumericalJointObsField
+   data.fields.MuDataCategoricalJointObsField
 
 ```
 
