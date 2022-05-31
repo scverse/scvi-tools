@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from anndata import AnnData
 from torch import logsumexp
-from torch.distributions import Beta, Normal
+from torch.distributions import Beta
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
@@ -212,13 +212,12 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 # Distribution parameters and sampled variables
                 inf_outputs, gen_outputs, _ = self.module.forward(tensors)
 
-                px_r = gen_outputs["px_r"]
-                px_rate = gen_outputs["px_rate"]
-                px_dropout = gen_outputs["px_dropout"]
-                qz_m = inf_outputs["qz_m"]
-                qz_v = inf_outputs["qz_v"]
+                px = gen_outputs["px"]
+                px_r = px.theta
+                px_rate = px.mu
+                px_dropout = px.zi_logits
+                qz = inf_outputs["qz"]
                 z = inf_outputs["z"]
-                library = inf_outputs["library"]
 
                 # Reconstruction Loss
                 bernoulli_params_batch = self.module.reshape_bernoulli(
@@ -235,36 +234,22 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
 
                 # Log-probabilities
-                log_prob_sum = torch.zeros(qz_m.shape[0]).to(self.device)
-                p_z = (
-                    Normal(torch.zeros_like(qz_m), torch.ones_like(qz_v))
-                    .log_prob(z)
-                    .sum(dim=-1)
-                )
+                p_z = gen_outputs["pz"].log_prob(z).sum(dim=-1)
                 p_x_zld = -reconst_loss
-                log_prob_sum += p_z + p_x_zld
-
-                q_z_x = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(dim=-1)
-                log_prob_sum -= q_z_x
+                q_z_x = qz.log_prob(z).sum(dim=-1)
+                log_prob_sum = p_z + p_x_zld - q_z_x
 
                 if not self.use_observed_lib_size:
+                    ql = inf_outputs["ql"]
+                    library = inf_outputs["library"]
                     (
                         local_library_log_means,
                         local_library_log_vars,
                     ) = self.module._compute_local_library_params(batch_index)
 
-                    p_l = (
-                        Normal(
-                            local_library_log_means.to(self.device),
-                            local_library_log_vars.to(self.device).sqrt(),
-                        )
-                        .log_prob(library)
-                        .sum(dim=-1)
-                    )
+                    p_l = gen_outputs["pl"].log_prob(library).sum(dim=-1)
 
-                    ql_m = inf_outputs["ql_m"]
-                    ql_v = inf_outputs["ql_v"]
-                    q_l_x = Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(dim=-1)
+                    q_l_x = ql.log_prob(library).sum(dim=-1)
 
                     log_prob_sum += p_l - q_l_x
 

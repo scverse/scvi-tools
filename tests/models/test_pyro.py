@@ -412,7 +412,9 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0.1,
+            return_dist=True,
         )
+
         # decoder goes from n_latent-dimensional space to n_input-d data
         self.decoder = DecoderSCVI(
             n_latent,
@@ -456,9 +458,9 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
         with pyro.plate("data", x.shape[0]):
             # use the encoder to get the parameters used to define q(z|x)
             x_ = torch.log(1 + x)
-            z_loc, z_scale, _ = self.encoder(x_)
+            qz, _ = self.encoder(x_)
             # sample the latent code z
-            pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
+            pyro.sample("latent", dist.Normal(qz.loc, qz.scale).to_event(1))
 
 
 class FunctionBasedPyroModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass):
