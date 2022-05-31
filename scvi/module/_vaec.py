@@ -76,6 +76,7 @@ class VAEC(BaseModuleClass):
             inject_covariates=True,
             use_batch_norm=False,
             use_layer_norm=True,
+            return_dist=True,
         )
 
         # decoder goes from n_latent-dimensional space to n_input-d data
@@ -134,19 +135,16 @@ class VAEC(BaseModuleClass):
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
-        qz_m, qz_v, z = self.z_encoder(x_, y)
+        qz, z = self.z_encoder(x_, y)
 
         if n_samples > 1:
-            qz_m = qz_m.unsqueeze(0).expand((n_samples, qz_m.size(0), qz_m.size(1)))
-            qz_v = qz_v.unsqueeze(0).expand((n_samples, qz_v.size(0), qz_v.size(1)))
-            # when z is normal, untran_z == z
-            untran_z = Normal(qz_m, qz_v.sqrt()).sample()
+            untran_z = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
             library = library.unsqueeze(0).expand(
                 (n_samples, library.size(0), library.size(1))
             )
 
-        outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, library=library)
+        outputs = dict(z=z, qz=qz, library=library)
         return outputs
 
     @auto_move_data
@@ -155,8 +153,8 @@ class VAEC(BaseModuleClass):
         h = self.decoder(z, y)
         px_scale = self.px_decoder(h)
         px_rate = library * px_scale
-
-        return dict(px_scale=px_scale, px_r=self.px_r, px_rate=px_rate)
+        px = NegativeBinomial(px_rate, logits=self.px_r)
+        return dict(px=px)
 
     def loss(
         self,
@@ -167,19 +165,15 @@ class VAEC(BaseModuleClass):
     ):
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
-        qz_m = inference_outputs["qz_m"]
-        qz_v = inference_outputs["qz_v"]
-        px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px_r"]
+        qz = inference_outputs["qz"]
+        px = generative_outputs["px"]
 
-        mean = torch.zeros_like(qz_m)
-        scale = torch.ones_like(qz_v)
+        mean = torch.zeros_like(qz.loc)
+        scale = torch.ones_like(qz.scale)
 
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
-            dim=1
-        )
+        kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
 
-        reconst_loss = -NegativeBinomial(px_rate, logits=px_r).log_prob(x).sum(-1)
+        reconst_loss = -px.log_prob(x).sum(-1)
         scaling_factor = self.ct_weight[y.long()[:, 0]]
         loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
 

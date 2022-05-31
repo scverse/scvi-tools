@@ -2,6 +2,7 @@ from ._negative_binomial import (
     JaxNegativeBinomialMeanDisp,
     NegativeBinomial,
     NegativeBinomialMixture,
+    Poisson,
     ZeroInflatedNegativeBinomial,
 )
 
@@ -10,4 +11,5 @@ __all__ = [
     "NegativeBinomialMixture",
     "ZeroInflatedNegativeBinomial",
     "JaxNegativeBinomialMeanDisp",
+    "Poisson",
 ]
