@@ -135,7 +135,8 @@ class TrainingPlan(pl.LightningModule):
         self.initialize_train_metrics()
         self.initialize_val_metrics()
 
-    def _create_elbo_metric_components(self, mode: str, n_total: Optional[int] = None):
+    @staticmethod
+    def _create_elbo_metric_components(mode: str, n_total: Optional[int] = None):
         """Initialize ELBO metric and the metric collection."""
         rec_loss = ElboMetric("reconstruction_loss", mode, "obs")
         kl_local = ElboMetric("kl_local", mode, "obs")
