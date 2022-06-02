@@ -23,10 +23,11 @@ class JaxModuleWrapper:
         **module_kwargs,
     ) -> None:
         self.module_cls = module_cls
-        self.use_gpu = use_gpu
-        self.seed = seed
-        self.key_fn = device_selecting_PRNGKey(use_gpu=self.use_gpu)
         self.module_kwargs = module_kwargs
+        self.use_gpu = use_gpu
+        self.key_fn = device_selecting_PRNGKey(use_gpu=self.use_gpu)
+        self.seed_rng = self.key_fn(seed)
+        self._set_rngs()
 
     def _get_module(self, kwargs=None):
         kwargs = (
@@ -42,21 +43,21 @@ class JaxModuleWrapper:
 
     @property
     def rngs(self) -> Dict[str, jnp.ndarray]:
-        self._regenerate_rngs()
-        return self.rngs
+        return self._split_rngs()
 
-    @rngs.setter
-    def rngs(self, rngs: Dict[str, jnp.ndarray]):
-        self._rngs = rngs
+    def _set_rngs(self):
+        required_rngs = self.module_cls.required_rngs
+        rng_keys = random.split(self.seed, num=len(required_rngs) + 1)
+        self.seed, module_rngs = rng_keys[0], rng_keys[1:]
+        self._rngs = {k: module_rngs[i] for i, k in enumerate(required_rngs)}
 
-    def _regenerate_rngs(self):
-        self.rngs = {k: random.split(v)[1] for k, v in self._rngs.items()}
-        return
-
-    def set_rngs(self):
-        self.rngs = {
-            k: self.key_fn(i) for i, k in enumerate(self.module_cls.required_rngs)
-        }
+    def _split_rngs(self):
+        new_rngs = {}
+        ret_rngs = {}
+        for k, v in self._rngs.items():
+            new_rngs[k], ret_rngs[k] = random.split(v)
+        self._rngs = new_rngs
+        return ret_rngs
 
 
 # should handle save and load
