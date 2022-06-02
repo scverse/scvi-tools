@@ -143,10 +143,12 @@ class JaxSCVI(BaseModelClass, JaxTrainingMixin):
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
+        bound_module = self.module.bound_module
+
         @jax.jit
         def _get_val(array_dict):
-            inference_input = self.bound_module._get_inference_input(array_dict)
-            out = self.bound_module.inference(**inference_input, n_samples=mc_samples)
+            inference_input = bound_module._get_inference_input(array_dict)
+            out = bound_module.inference(**inference_input, n_samples=mc_samples)
             return out
 
         latent = []
