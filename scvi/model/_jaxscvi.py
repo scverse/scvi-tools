@@ -19,7 +19,7 @@ from .base import BaseModelClass, JaxTrainingMixin
 logger = logging.getLogger(__name__)
 
 
-class JaxSCVI(BaseModelClass, JaxTrainingMixin):
+class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     """
     EXPERIMENTAL single-cell Variational Inference [Lopez18]_, but with a Jax backend.
 

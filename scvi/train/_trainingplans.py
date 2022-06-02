@@ -920,13 +920,13 @@ class JaxTrainingPlan(pl.LightningModule):
             optax.adam(**self.optim_kwargs),
         )
         self.module.train()
-        state = BatchTrainState.create(
+        train_state = BatchTrainState.create(
             apply_fn=self.module.apply,
             params=params,
             tx=optimizer,
             batch_stats=batch_stats,
         )
-        self.module.state = state
+        self.module.train_state = train_state
 
     @partial(jax.jit, static_argnums=(0,))
     def jit_training_step(

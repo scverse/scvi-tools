@@ -137,7 +137,7 @@ class JaxVAE(JaxBaseModuleClass):
 
     @property
     def required_rngs(self):
-        return ("dropout", "z")
+        return ("params", "dropout", "z")
 
     def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
         x = tensors[REGISTRY_KEYS.X_KEY]

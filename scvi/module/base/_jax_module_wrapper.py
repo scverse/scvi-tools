@@ -25,9 +25,10 @@ class JaxModuleWrapper:
     ) -> None:
         self.module_cls = module_cls
         self.module_kwargs = module_kwargs
-        self._module = None
+        self._module = self._get_module()
         self._train_module = None
         self._eval_module = None
+        self._train_state = None
 
         self.use_gpu = use_gpu
         self.key_fn = device_selecting_PRNGKey(use_gpu=self.use_gpu)
@@ -36,8 +37,6 @@ class JaxModuleWrapper:
 
     @property
     def module(self):
-        if self._module is None:
-            self._module = self._get_module()
         return self._module
 
     def _get_module(self, kwargs=None):
@@ -63,17 +62,26 @@ class JaxModuleWrapper:
             rngs=self.rngs,
         )
 
+    # TODO(jhong): consider making this a mixin, or part of JaxBaseModule
     @property
     def apply(self):
         return self.module.apply
+
+    @property
+    def loss(self):
+        return self.module.loss
+
+    @property
+    def init(self):
+        return self.module.init
 
     @property
     def rngs(self) -> Dict[str, jnp.ndarray]:
         return self._split_rngs()
 
     def _set_rngs(self):
-        required_rngs = self.module_cls.required_rngs
-        rng_keys = random.split(self.seed, num=len(required_rngs) + 1)
+        required_rngs = self.module.required_rngs
+        rng_keys = random.split(self.seed_rng, num=len(required_rngs) + 1)
         self.seed, module_rngs = rng_keys[0], rng_keys[1:]
         self._rngs = {k: module_rngs[i] for i, k in enumerate(required_rngs)}
 
