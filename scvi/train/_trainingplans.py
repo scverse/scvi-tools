@@ -2,8 +2,6 @@ from functools import partial
 from inspect import getfullargspec, signature
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from zmq import device
-
 import jax
 import jax.numpy as jnp
 import optax
@@ -14,14 +12,15 @@ from flax.core import FrozenDict
 from jax import random
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from zmq import device
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
-    JaxBaseModuleClass,
     BatchTrainState,
+    JaxBaseModuleClass,
     LossRecorder,
     PyroBaseModuleClass,
 )
@@ -913,7 +912,6 @@ class JaxTrainingPlan(pl.LightningModule):
         self._loss_args = signature(self.module.loss).parameters
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
-        self._rngs = None
         self.use_gpu = use_gpu
         # gets set by the initialization callback
         self.state = None
@@ -938,17 +936,6 @@ class JaxTrainingPlan(pl.LightningModule):
         )
         self.state = state
 
-    @property
-    def rngs(self) -> Dict[str, jnp.ndarray]:
-        return self._rngs
-
-    @rngs.setter
-    def rngs(self, rngs: Dict[str, jnp.ndarray]):
-        self._rngs = rngs
-
-    def set_rngs(self, keys: List[str]):
-        self._rngs = {k: self.key_fn(i) for i, k in enumerate(keys)}
-
     @partial(jax.jit, static_argnums=(0,))
     def jit_training_step(
         self,
@@ -957,8 +944,6 @@ class JaxTrainingPlan(pl.LightningModule):
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
-        rngs = {k: random.split(v)[1] for k, v in rngs.items()}
-
         # batch stats can't be passed here
         def loss_fn(params):
             vars_in = {"params": params, "batch_stats": state.batch_stats}
@@ -976,15 +961,15 @@ class JaxTrainingPlan(pl.LightningModule):
         new_state = state.apply_gradients(
             grads=grads, batch_stats=new_model_state["batch_stats"]
         )
-        return new_state, loss, elbo, rngs
+        return new_state, loss, elbo
 
     def training_step(self, batch, batch_idx):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
-        self.state, loss, elbo, self.rngs = self.jit_training_step(
+        self.state, loss, elbo = self.jit_training_step(
             self.state,
             batch,
-            self.rngs,
+            self.module.rngs,
             loss_kwargs=self.loss_kwargs,
         )
         loss = torch.tensor(jax.device_get(loss))
@@ -1012,7 +997,6 @@ class JaxTrainingPlan(pl.LightningModule):
         **kwargs,
     ):
         module = self.validation_module
-        rngs = {k: random.split(v)[1] for k, v in rngs.items()}
         vars_in = {"params": state.params, "batch_stats": state.batch_stats}
         outputs = module.apply(vars_in, batch, rngs=rngs, **kwargs)
         loss_recorder = outputs[2]
@@ -1023,7 +1007,7 @@ class JaxTrainingPlan(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         loss, elbo = self.jit_validation_step(
-            self.state, batch, self.rngs, loss_kwargs=self.loss_kwargs
+            self.state, batch, self.module.rngs, loss_kwargs=self.loss_kwargs
         )
         loss = torch.tensor(jax.device_get(loss))
         elbo = torch.tensor(jax.device_get(elbo))

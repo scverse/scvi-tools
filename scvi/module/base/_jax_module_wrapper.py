@@ -1,10 +1,13 @@
-from typing import Any
+from typing import Any, Dict
 
+import jax.numpy as jnp
 from flax.core import FrozenDict
 from flax.training import train_state
+from jax import random
+
+from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._base_module import JaxBaseModuleClass
-from scvi.utils._jax import device_selecting_PRNGKey
 
 
 class BatchTrainState(train_state.TrainState):
@@ -22,7 +25,7 @@ class JaxModuleWrapper:
         self.module_cls = module_cls
         self.use_gpu = use_gpu
         self.seed = seed
-        self.rng = device_selecting_PRNGKey(use_gpu=self.use_gpu)
+        self.key_fn = device_selecting_PRNGKey(use_gpu=self.use_gpu)
         self.module_kwargs = module_kwargs
 
     def _get_module(self, kwargs=None):
@@ -37,8 +40,25 @@ class JaxModuleWrapper:
             self._module = self._get_module()
         return self._module
 
+    @property
+    def rngs(self) -> Dict[str, jnp.ndarray]:
+        self._regenerate_rngs()
+        return self.rngs
 
-# should handle RNG params - get rid of set_rng
+    @rngs.setter
+    def rngs(self, rngs: Dict[str, jnp.ndarray]):
+        self._rngs = rngs
+
+    def _regenerate_rngs(self):
+        self.rngs = {k: random.split(v)[1] for k, v in self._rngs.items()}
+        return
+
+    def set_rngs(self):
+        self.rngs = {
+            k: self.key_fn(i) for i, k in enumerate(self.module_cls.required_rngs)
+        }
+
+
 # should handle save and load
 # should handle device management
 # should handle train state

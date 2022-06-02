@@ -4,8 +4,8 @@ from ._base_module import (
     LossRecorder,
     PyroBaseModuleClass,
 )
-from ._jax_module_wrapper import JaxModuleWrapper, BatchTrainState
 from ._decorators import auto_move_data
+from ._jax_module_wrapper import BatchTrainState, JaxModuleWrapper
 
 __all__ = [
     "BaseModuleClass",
