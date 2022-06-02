@@ -17,7 +17,7 @@ from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
     BatchTrainState,
-    JaxBaseModuleClass,
+    JaxModuleWrapper,
     LossRecorder,
     PyroBaseModuleClass,
 )
@@ -873,9 +873,8 @@ class JaxTrainingPlan(pl.LightningModule):
 
     Parameters
     ----------
-    flax_module
-        An instance of :class:`~scvi.module.base.JaxBaseModuleClass`. This object
-        should have callable `model` and `guide` attributes or methods.
+    module
+        An instance of :class:`~scvi.module.base.JaxModuleWraper`.
     n_steps_kl_warmup
         Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
         Only activated when `n_epochs_kl_warmup` is set to None.
@@ -886,8 +885,7 @@ class JaxTrainingPlan(pl.LightningModule):
 
     def __init__(
         self,
-        train_module: JaxBaseModuleClass,
-        val_module: JaxBaseModuleClass,
+        module: JaxModuleWrapper,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         use_gpu: bool = False,
@@ -895,8 +893,7 @@ class JaxTrainingPlan(pl.LightningModule):
         **loss_kwargs,
     ):
         super().__init__()
-        self.module = train_module
-        self.validation_module = val_module
+        self.module = module
         self._n_obs_training = None
         self.loss_kwargs = loss_kwargs
         self.n_steps_kl_warmup = n_steps_kl_warmup
@@ -910,10 +907,10 @@ class JaxTrainingPlan(pl.LightningModule):
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.use_gpu = use_gpu
 
-        if optim_kwargs is None:
-            self.optim_kwargs = dict(learning_rate=1e-3, eps=0.01, weight_decay=1e-6)
-        else:
-            self.optim_kwargs = optim_kwargs
+        # set optim kwargs
+        self.optim_kwargs = dict(learning_rate=1e-3, eps=0.01, weight_decay=1e-6)
+        if optim_kwargs is not None:
+            self.optim_kwargs.update(optim_kwargs)
 
     def set_train_state(self, params, batch_stats=None):
         weight_decay = self.optim_kwargs.pop("weight_decay")
@@ -922,6 +919,7 @@ class JaxTrainingPlan(pl.LightningModule):
             optax.additive_weight_decay(weight_decay=weight_decay),
             optax.adam(**self.optim_kwargs),
         )
+        self.module.train()
         state = BatchTrainState.create(
             apply_fn=self.module.apply,
             params=params,
@@ -960,6 +958,7 @@ class JaxTrainingPlan(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        self.module.train()
         self.module.train_state, loss, elbo = self.jit_training_step(
             self.module.train_state,
             batch,
@@ -990,9 +989,8 @@ class JaxTrainingPlan(pl.LightningModule):
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
-        module = self.validation_module
         vars_in = {"params": state.params, "batch_stats": state.batch_stats}
-        outputs = module.apply(vars_in, batch, rngs=rngs, **kwargs)
+        outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
         loss_recorder = outputs[2]
         loss = loss_recorder.loss
         elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
@@ -1000,6 +998,7 @@ class JaxTrainingPlan(pl.LightningModule):
         return loss, elbo
 
     def validation_step(self, batch, batch_idx):
+        self.module.eval()
         loss, elbo = self.jit_validation_step(
             self.module.train_state,
             batch,

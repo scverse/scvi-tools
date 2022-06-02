@@ -25,6 +25,10 @@ class JaxModuleWrapper:
     ) -> None:
         self.module_cls = module_cls
         self.module_kwargs = module_kwargs
+        self._module = None
+        self._train_module = None
+        self._eval_module = None
+
         self.use_gpu = use_gpu
         self.key_fn = device_selecting_PRNGKey(use_gpu=self.use_gpu)
         self.seed_rng = self.key_fn(seed)
@@ -41,6 +45,27 @@ class JaxModuleWrapper:
             self.module_kwargs if kwargs is None else {**self.module_kwargs, **kwargs}
         )
         return self.module_cls(**kwargs)
+
+    def eval(self):
+        if self._eval_module is None:
+            self._eval_module = self._get_module(dict(is_training=False))
+        self._module = self._eval_module
+
+    def train(self):
+        if self._train_module is None:
+            self._train_module = self._get_module(dict(is_training=True))
+        self._module = self._train_module
+
+    @property
+    def bound_module(self):
+        return self.module.bind(
+            {"params": self.params, "batch_stats": self.batch_stats},
+            rngs=self.rngs,
+        )
+
+    @property
+    def apply(self):
+        return self.module.apply
 
     @property
     def rngs(self) -> Dict[str, jnp.ndarray]:

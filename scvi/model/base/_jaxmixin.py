@@ -31,7 +31,9 @@ class JaxTrainingMixin:
             iter_ndarray=True,
         )
 
-        self.training_plan = JaxTrainingPlan(self.module, use_gpu=use_gpu)
+        self.training_plan = JaxTrainingPlan(
+            self.module, use_gpu=use_gpu, optim_kwargs=dict(learning_rate=lr)
+        )
         if "callbacks" not in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] = []
         trainer_kwargs["callbacks"].append(JaxModuleInit())
@@ -47,10 +49,4 @@ class JaxTrainingMixin:
         runner()
 
         self.is_trained_ = True
-
-        # self.module_kwargs.update(dict(is_training=False))
-        # self._module = None
-        # self.bound_module = self.module.bind(
-        #     {"params": self.params, "batch_stats": self.batch_stats},
-        #     rngs=self.training_plan.rngs,
-        # )
+        self.module.eval()
