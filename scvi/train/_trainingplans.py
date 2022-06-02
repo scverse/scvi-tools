@@ -1,6 +1,6 @@
 from functools import partial
 from inspect import getfullargspec, signature
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -8,11 +8,8 @@ import optax
 import pyro
 import pytorch_lightning as pl
 import torch
-from flax.core import FrozenDict
-from jax import random
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from zmq import device
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
@@ -25,7 +22,6 @@ from scvi.module.base import (
     PyroBaseModuleClass,
 )
 from scvi.nn import one_hot
-from scvi.utils import device_selecting_PRNGKey
 
 from ._metrics import ElboMetric
 
@@ -913,8 +909,6 @@ class JaxTrainingPlan(pl.LightningModule):
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.use_gpu = use_gpu
-        # gets set by the initialization callback
-        self.state = None
 
         if optim_kwargs is None:
             self.optim_kwargs = dict(learning_rate=1e-3, eps=0.01, weight_decay=1e-6)
@@ -934,7 +928,7 @@ class JaxTrainingPlan(pl.LightningModule):
             tx=optimizer,
             batch_stats=batch_stats,
         )
-        self.state = state
+        self.module.state = state
 
     @partial(jax.jit, static_argnums=(0,))
     def jit_training_step(
@@ -966,8 +960,8 @@ class JaxTrainingPlan(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
-        self.state, loss, elbo = self.jit_training_step(
-            self.state,
+        self.module.train_state, loss, elbo = self.jit_training_step(
+            self.module.train_state,
             batch,
             self.module.rngs,
             loss_kwargs=self.loss_kwargs,
@@ -1007,7 +1001,10 @@ class JaxTrainingPlan(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         loss, elbo = self.jit_validation_step(
-            self.state, batch, self.module.rngs, loss_kwargs=self.loss_kwargs
+            self.module.train_state,
+            batch,
+            self.module.rngs,
+            loss_kwargs=self.loss_kwargs,
         )
         loss = torch.tensor(jax.device_get(loss))
         elbo = torch.tensor(jax.device_get(elbo))

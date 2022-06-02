@@ -46,14 +46,11 @@ class JaxTrainingMixin:
         )
         runner()
 
-        self.train_state = self.training_plan.state
-        self.params = self.train_state.params
-        self.batch_stats = self.train_state.batch_stats
         self.is_trained_ = True
 
-        self.module_kwargs.update(dict(is_training=False))
-        self._module = None
-        self.bound_module = self.module.bind(
-            {"params": self.params, "batch_stats": self.batch_stats},
-            rngs=self.training_plan.rngs,
-        )
+        # self.module_kwargs.update(dict(is_training=False))
+        # self._module = None
+        # self.bound_module = self.module.bind(
+        #     {"params": self.params, "batch_stats": self.batch_stats},
+        #     rngs=self.training_plan.rngs,
+        # )

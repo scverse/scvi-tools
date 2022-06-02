@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+import flax
 import jax.numpy as jnp
 from flax.core import FrozenDict
 from flax.training import train_state
@@ -29,17 +30,17 @@ class JaxModuleWrapper:
         self.seed_rng = self.key_fn(seed)
         self._set_rngs()
 
-    def _get_module(self, kwargs=None):
-        kwargs = (
-            self.module_kwargs if kwargs is None else {**self.module_kwargs, **kwargs}
-        )
-        return self.module_cls(**kwargs)
-
     @property
     def module(self):
         if self._module is None:
             self._module = self._get_module()
         return self._module
+
+    def _get_module(self, kwargs=None):
+        kwargs = (
+            self.module_kwargs if kwargs is None else {**self.module_kwargs, **kwargs}
+        )
+        return self.module_cls(**kwargs)
 
     @property
     def rngs(self) -> Dict[str, jnp.ndarray]:
@@ -59,7 +60,21 @@ class JaxModuleWrapper:
         self._rngs = new_rngs
         return ret_rngs
 
+    @property
+    def train_state(self) -> BatchTrainState:
+        return self._train_state
+
+    @train_state.setter
+    def train_state(self, train_state: BatchTrainState):
+        self._train_state = train_state
+
+    @property
+    def params(self) -> flax.core.FrozenDict[str, Any]:
+        return self.train_state.params
+
+    @property
+    def batch_stats(self) -> FrozenDict[str, Any]:
+        return self.train_state.batch_stats
+
 
 # should handle save and load
-# should handle device management
-# should handle train state
