@@ -87,7 +87,6 @@ LEGACY_SETUP_DICT = {
 def test_jax_scvi():
     n_latent = 5
 
-    # Test with size factor.
     adata = synthetic_iid()
     JaxSCVI.setup_anndata(
         adata,
@@ -103,6 +102,48 @@ def test_jax_scvi():
     assert z1.ndim == 2
     z2 = model.get_latent_representation(give_mean=False, mc_samples=15)
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
+
+
+def test_jax_scvi_save_load(save_path):
+    n_latent = 5
+
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+    model = JaxSCVI(adata, n_latent=n_latent)
+    model.train(2, train_size=0.5, check_val_every_n_epoch=1)
+    z1 = model.get_latent_representation(adata)
+    model.save(save_path, overwrite=True, save_anndata=True)
+    model.view_setup_args(save_path)
+    model = JaxSCVI.load(save_path)
+    model.get_latent_representation()
+
+    # Load with mismatched genes.
+    tmp_adata = synthetic_iid(
+        n_genes=200,
+    )
+    with pytest.raises(ValueError):
+        JaxSCVI.load(save_path, adata=tmp_adata)
+
+    # Load with different batches.
+    tmp_adata = synthetic_iid()
+    tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(
+        ["batch_2", "batch_3"]
+    )
+    with pytest.raises(ValueError):
+        JaxSCVI.load(save_path, adata=tmp_adata)
+
+    model = JaxSCVI.load(save_path, adata=adata)
+    assert "batch" in model.adata_manager.data_registry
+    assert model.adata_manager.data_registry["batch"] == dict(
+        attr_name="obs", attr_key="_scvi_batch"
+    )
+    assert model.is_trained is True
+
+    z2 = model.get_latent_representation()
+    np.testing.assert_array_equal(z1, z2)
 
 
 def test_scvi(save_path):

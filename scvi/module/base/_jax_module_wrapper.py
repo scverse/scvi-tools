@@ -62,7 +62,6 @@ class JaxModuleWrapper:
             rngs=self.rngs,
         )
 
-    # TODO(jhong): consider making this a mixin, or part of JaxBaseModule
     @property
     def apply(self):
         return self.module.apply
@@ -109,5 +108,14 @@ class JaxModuleWrapper:
     def batch_stats(self) -> FrozenDict[str, Any]:
         return self.train_state.batch_stats
 
+    def state_dict(self) -> Dict[str, Any]:
+        return flax.serialization.to_state_dict(self.train_state)
 
-# should handle save and load
+    def load_state_dict(self, state_dict: Dict[str, Any]):
+        if self.train_state is None:
+            raise RuntimeError(
+                "Train state is not set. Train for one iteration prior to loading state dict."
+            )
+        self.train_state = flax.serialization.from_state_dict(
+            self.train_state, state_dict
+        )
