@@ -888,7 +888,6 @@ class JaxTrainingPlan(pl.LightningModule):
         module: JaxModuleWrapper,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
-        use_gpu: bool = False,
         optim_kwargs: Optional[dict] = None,
         **loss_kwargs,
     ):
@@ -905,7 +904,6 @@ class JaxTrainingPlan(pl.LightningModule):
         self._loss_args = signature(self.module.loss).parameters
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
-        self.use_gpu = use_gpu
 
         # set optim kwargs
         self.optim_kwargs = dict(learning_rate=1e-3, eps=0.01, weight_decay=1e-6)

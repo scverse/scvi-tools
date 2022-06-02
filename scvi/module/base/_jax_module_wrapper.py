@@ -36,6 +36,10 @@ class JaxModuleWrapper:
         self._set_rngs()
 
     @property
+    def device(self):
+        return self.seed_rng.device()
+
+    @property
     def module(self):
         return self._module
 

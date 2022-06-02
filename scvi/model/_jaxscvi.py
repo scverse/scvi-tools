@@ -165,8 +165,8 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         return np.array(jax.device_get(latent))
 
     def to_device(self, device):
-        pass
+        raise NotImplementedError
 
     @property
     def device(self):
-        return "test"
+        return self.module.device

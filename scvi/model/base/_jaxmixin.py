@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional
 
 import numpy as np
 
@@ -10,7 +10,6 @@ class JaxTrainingMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -32,7 +31,7 @@ class JaxTrainingMixin:
         )
 
         self.training_plan = JaxTrainingPlan(
-            self.module, use_gpu=use_gpu, optim_kwargs=dict(learning_rate=lr)
+            self.module, optim_kwargs=dict(learning_rate=lr)
         )
         if "callbacks" not in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] = []

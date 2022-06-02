@@ -173,7 +173,6 @@ class JaxVAE(JaxBaseModuleClass):
         return input_dict
 
     def generative(self, x, z, batch_index) -> dict:
-
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
         rho_unnorm, disp = self.decoder(z, batch)
