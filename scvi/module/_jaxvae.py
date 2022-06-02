@@ -34,15 +34,15 @@ class FlaxEncoder(nn.Module):
         self.dense3 = Dense(self.n_latent)
         self.dense4 = Dense(self.n_latent)
 
-        training = not self.is_training
+        is_eval = not self.is_training
         self.batchnorm1 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=training
+            momentum=0.99, epsilon=0.001, use_running_average=is_eval
         )
         self.batchnorm2 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=training
+            momentum=0.99, epsilon=0.001, use_running_average=is_eval
         )
-        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=training)
-        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=training)
+        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
+        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
 
     def __call__(self, x: jnp.ndarray):
 
@@ -76,15 +76,15 @@ class FlaxDecoder(nn.Module):
         self.dense4 = Dense(self.n_hidden)
         self.dense5 = Dense(self.n_input)
 
-        training = not self.is_training
+        is_eval = not self.is_training
         self.batchnorm1 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=training
+            momentum=0.99, epsilon=0.001, use_running_average=is_eval
         )
         self.batchnorm2 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=training
+            momentum=0.99, epsilon=0.001, use_running_average=is_eval
         )
-        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=training)
-        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=training)
+        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
+        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
 
         self.disp = self.param(
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)

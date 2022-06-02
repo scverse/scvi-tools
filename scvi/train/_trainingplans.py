@@ -2,6 +2,8 @@ from functools import partial
 from inspect import getfullargspec, signature
 from typing import Any, Callable, Dict, List, Optional, Union
 
+from zmq import device
+
 import jax
 import jax.numpy as jnp
 import optax
@@ -9,7 +11,6 @@ import pyro
 import pytorch_lightning as pl
 import torch
 from flax.core import FrozenDict
-from flax.training import train_state
 from jax import random
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -20,10 +21,12 @@ from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
     JaxBaseModuleClass,
+    BatchTrainState,
     LossRecorder,
     PyroBaseModuleClass,
 )
 from scvi.nn import one_hot
+from scvi.utils import device_selecting_PRNGKey
 
 from ._metrics import ElboMetric
 
@@ -869,10 +872,6 @@ class ClassifierTrainingPlan(pl.LightningModule):
         return optimizer
 
 
-class TrainState(train_state.TrainState):
-    batch_stats: FrozenDict[str, Any]
-
-
 class JaxTrainingPlan(pl.LightningModule):
     """
     Lightning module task to train Pyro scvi-tools modules.
@@ -931,26 +930,13 @@ class JaxTrainingPlan(pl.LightningModule):
             optax.additive_weight_decay(weight_decay=weight_decay),
             optax.adam(**self.optim_kwargs),
         )
-        state = TrainState.create(
+        state = BatchTrainState.create(
             apply_fn=self.module.apply,
             params=params,
             tx=optimizer,
             batch_stats=batch_stats,
         )
         self.state = state
-
-    @property
-    def key_fn(self):
-        # if key is generated on CPU, model params will be on CPU
-        # we have to pay the price of a JIT compilation though
-        if self.use_gpu is False:
-            key = jax.jit(lambda i: random.PRNGKey(i), backend="cpu")
-        else:
-            # dummy function
-            def key(i: int):
-                return random.PRNGKey(i)
-
-        return key
 
     @property
     def rngs(self) -> Dict[str, jnp.ndarray]:
@@ -966,7 +952,7 @@ class JaxTrainingPlan(pl.LightningModule):
     @partial(jax.jit, static_argnums=(0,))
     def jit_training_step(
         self,
-        state: TrainState,
+        state: BatchTrainState,
         batch: Dict[str, jnp.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
@@ -1020,7 +1006,7 @@ class JaxTrainingPlan(pl.LightningModule):
     @partial(jax.jit, static_argnums=(0,))
     def jit_validation_step(
         self,
-        state: TrainState,
+        state: BatchTrainState,
         batch: Dict[str, jnp.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
