@@ -18,7 +18,7 @@ class JaxModuleWrapper:
     def __init__(
         self,
         module_cls: JaxBaseModuleClass,
-        seed: int = 0,  # switch to using a global scvi.settings seed that gets forked everytime a modulewrapper is initialized
+        seed: int = 0,  # switch to using a global scvi.settings seed that gets forked everytime a modulewrapper is initialized by default
         use_gpu: bool = False,
         **module_kwargs,
     ) -> None:
