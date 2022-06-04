@@ -1,6 +1,7 @@
 from typing import Any, Dict
 
 import flax
+import jax
 import jax.numpy as jnp
 from flax.core import FrozenDict
 from flax.training import train_state
@@ -11,7 +12,7 @@ from scvi.utils._jax import device_selecting_PRNGKey
 from ._base_module import JaxBaseModuleClass
 
 
-class BatchTrainState(train_state.TrainState):
+class TrainStateWithBatchNorm(train_state.TrainState):
     batch_stats: FrozenDict[str, Any]
 
 
@@ -34,6 +35,16 @@ class JaxModuleWrapper:
         self.key_fn = device_selecting_PRNGKey(use_gpu=self.use_gpu)
         self.seed_rng = self.key_fn(seed)
         self._set_rngs()
+
+    def on_load(self, model):
+        """
+        Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
+
+        For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
+        """
+        old_history = model.history_.copy()
+        model.train(max_steps=1)
+        model.history_ = old_history
 
     @property
     def device(self):
@@ -60,11 +71,22 @@ class JaxModuleWrapper:
         self._module = self._train_module
 
     @property
-    def bound_module(self):
+    def _bound_module(self):
         return self.module.bind(
             {"params": self.params, "batch_stats": self.batch_stats},
             rngs=self.rngs,
         )
+
+    def get_inference_fn(self, mc_samples: int = 1):
+        bound_module = self._bound_module
+
+        @jax.jit
+        def _run_inference(array_dict):
+            inference_input = bound_module._get_inference_input(array_dict)
+            out = bound_module.inference(**inference_input, n_samples=mc_samples)
+            return out
+
+        return _run_inference
 
     @property
     def apply(self):
@@ -97,11 +119,11 @@ class JaxModuleWrapper:
         return ret_rngs
 
     @property
-    def train_state(self) -> BatchTrainState:
+    def train_state(self) -> TrainStateWithBatchNorm:
         return self._train_state
 
     @train_state.setter
-    def train_state(self, train_state: BatchTrainState):
+    def train_state(self, train_state: TrainStateWithBatchNorm):
         self._train_state = train_state
 
     @property

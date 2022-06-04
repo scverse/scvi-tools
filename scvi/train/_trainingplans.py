@@ -16,10 +16,10 @@ from scvi._compat import Literal
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
-    BatchTrainState,
     JaxModuleWrapper,
     LossRecorder,
     PyroBaseModuleClass,
+    TrainStateWithBatchNorm,
 )
 from scvi.nn import one_hot
 
@@ -922,7 +922,7 @@ class JaxTrainingPlan(pl.LightningModule):
             optax.additive_weight_decay(weight_decay=weight_decay),
             optax.adam(**self.optim_kwargs),
         )
-        train_state = BatchTrainState.create(
+        train_state = TrainStateWithBatchNorm.create(
             apply_fn=self.module.apply,
             params=params,
             tx=optimizer,
@@ -933,7 +933,7 @@ class JaxTrainingPlan(pl.LightningModule):
     @partial(jax.jit, static_argnums=(0,))
     def jit_training_step(
         self,
-        state: BatchTrainState,
+        state: TrainStateWithBatchNorm,
         batch: Dict[str, jnp.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
@@ -986,7 +986,7 @@ class JaxTrainingPlan(pl.LightningModule):
     @partial(jax.jit, static_argnums=(0,))
     def jit_validation_step(
         self,
-        state: BatchTrainState,
+        state: TrainStateWithBatchNorm,
         batch: Dict[str, jnp.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,

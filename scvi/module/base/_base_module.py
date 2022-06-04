@@ -377,12 +377,6 @@ class PyroBaseModuleClass(nn.Module):
 class JaxBaseModuleClass(linen.Module):
     """Abstract class for Jax-based scvi-tools modules."""
 
-    def on_load(self, model):
-        """
-        Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
-        """
-        pass
-
     @abstractmethod
     def setup(self):
         """

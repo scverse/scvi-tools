@@ -5,7 +5,7 @@ from ._base_module import (
     PyroBaseModuleClass,
 )
 from ._decorators import auto_move_data
-from ._jax_module_wrapper import BatchTrainState, JaxModuleWrapper
+from ._jax_module_wrapper import JaxModuleWrapper, TrainStateWithBatchNorm
 
 __all__ = [
     "BaseModuleClass",
@@ -14,5 +14,5 @@ __all__ = [
     "auto_move_data",
     "JaxBaseModuleClass",
     "JaxModuleWrapper",
-    "BatchTrainState",
+    "TrainStateWithBatchNorm",
 ]
