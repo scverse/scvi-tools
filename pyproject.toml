@@ -57,6 +57,7 @@ openpyxl = ">=3.0"
 optax = "*"
 pandas = ">=1.0"
 pre-commit = {version = ">=2.7.1", optional = true}
+protobuf = "<=3.20.1" # lightning not compatible with future version until after 1.6
 pymde = {version = "*", optional = true}
 pynndescent = {version = "*", optional = true}
 pyro-ppl = ">=1.6.0"
