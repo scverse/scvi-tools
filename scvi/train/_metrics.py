@@ -11,14 +11,15 @@ class ElboMetric(Metric):
     Parameters
     ----------
     name
-        Name of metric
+        Name of metric, used as the prefix of the logged name.
     mode
-        Train or validation, used for logging names
+        Train or validation, used as the suffix of the logged name.
     interval
         The interval over which the metric is computed. If "obs", the metric value
         per observation is computed. If "batch", the metric value per batch is computed.
     dist_sync_on_step
-        optional, by default False
+        Synchronize metric state across processes at each ``forward()``
+        before returning the value at the step.
     **kwargs
         Keyword args for :class:`torchmetrics.Metric`
     """
@@ -71,7 +72,12 @@ class ElboMetric(Metric):
         self,
         **kwargs,
     ):
-        """Updates all metrics."""
+        """
+        Updates this metric for one minibatch.
+
+        Takes kwargs associated with all metrics being updated for a given minibatch.
+        Filters for the relevant metric's value and updates this metric.
+        """
         if self._N_OBS_MINIBATCH_KEY not in kwargs:
             raise ValueError(
                 f"Missing {self._N_OBS_MINIBATCH_KEY} value in metrics update."
