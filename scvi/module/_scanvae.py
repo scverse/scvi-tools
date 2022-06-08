@@ -2,21 +2,19 @@ from typing import Iterable, Optional, Sequence
 
 import numpy as np
 import torch
-from torch.distributions import Categorical, Normal
+from torch.distributions import Categorical, Normal, Poisson
 from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import LossRecorder, auto_move_data
 from scvi.nn import Decoder, Encoder
 
 from ._classifier import Classifier
 from ._utils import broadcast_labels
 from ._vae import VAE
-
-from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
-from torch.distributions import Normal, Poisson
 
 
 class SCANVAE(VAE):
