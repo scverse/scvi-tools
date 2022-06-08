@@ -558,6 +558,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         lr_factor: float = 0.6,
         lr_patience: int = 30,
         lr_threshold: float = 0.0,
+        mode="old",
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
@@ -577,14 +578,19 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
+        self.mode = mode
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
-        if len(batch) == 2:
+        if self.mode == "old":
+            cdt = len(batch) == 2
+        else:
+            cdt = batch_idx % 2 == 0
+        if cdt:
             full_dataset = batch[0]
             labelled_dataset = batch[1]
         else:
-            full_dataset = batch
+            full_dataset = batch[0]
             labelled_dataset = None
 
         if "kl_weight" in self.loss_kwargs:
@@ -607,11 +613,15 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         # Potentially dangerous if batch is from a single dataloader with two keys
-        if len(batch) == 2:
+        if self.mode == "old":
+            cdt = len(batch) == 2
+        else:
+            cdt = batch_idx % 2 == 0
+        if cdt:
             full_dataset = batch[0]
             labelled_dataset = batch[1]
         else:
-            full_dataset = batch
+            full_dataset = batch[0]
             labelled_dataset = None
 
         input_kwargs = dict(

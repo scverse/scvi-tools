@@ -15,6 +15,9 @@ from ._classifier import Classifier
 from ._utils import broadcast_labels
 from ._vae import VAE
 
+from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from torch.distributions import Normal, Poisson
+
 
 class SCANVAE(VAE):
     """
@@ -91,6 +94,7 @@ class SCANVAE(VAE):
         classifier_parameters: dict = dict(),
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        n_version=0,
         **vae_kwargs
     ):
         super().__init__(
@@ -110,6 +114,7 @@ class SCANVAE(VAE):
             **vae_kwargs
         )
 
+        self.n_version = n_version
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
@@ -217,6 +222,23 @@ class SCANVAE(VAE):
             w_y = self.classifier(z)
         return w_y
 
+    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout) -> torch.Tensor:
+        if self.gene_likelihood == "zinb":
+            reconst_loss = (
+                -ZeroInflatedNegativeBinomial(
+                    mu=px_rate, theta=px_r, zi_logits=px_dropout
+                )
+                .log_prob(x)
+                .sum(dim=-1)
+            )
+        elif self.gene_likelihood == "nb":
+            reconst_loss = (
+                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
+            )
+        elif self.gene_likelihood == "poisson":
+            reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
+        return reconst_loss
+
     @auto_move_data
     def classification_loss(self, labelled_dataset):
         x = labelled_dataset[REGISTRY_KEYS.X_KEY]
@@ -250,7 +272,12 @@ class SCANVAE(VAE):
         classification_ratio=None,
     ):
         px = generative_ouputs["px"]
-        qz1 = inference_outputs["qz"]
+        px_rate = px.mu
+        px_r = px.theta
+        px_scale = px.scale
+        px_dropout = px.zi_logits
+        qz1_m = inference_outputs["qz"].loc
+        qz1_v = inference_outputs["qz"].scale ** 2
         z1 = inference_outputs["z"]
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -259,42 +286,63 @@ class SCANVAE(VAE):
             y = tensors[REGISTRY_KEYS.LABELS_KEY]
         else:
             y = None
-        is_labelled = False if y is None else True
 
         # Enumerate choices of label
-        ys, z1s = broadcast_labels(y, z1, n_broadcast=self.n_labels)
-        qz2, z2 = self.encoder_z2_z1(z1s, ys)
-        pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
-        reconst_loss = -px.log_prob(x).sum(-1)
+        ys, z1s = broadcast_labels(
+            y, z1, n_broadcast=self.n_labels
+        )  # one-hot encoding of the labels
+        # if z1 is of size (batch_size,latent), z1_s is of size (n_labels*batch_size,latent)
+        qz2, z2 = self.encoder_z2_z1(z1s, ys)  # q(z2|z1,..)
+        qz2_m = qz2.loc
+        qz2_v = qz2.scale**2
+        pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)  # p(z1|z2,..)
+
+        reconst_loss = self.get_reconstruction_loss(
+            x, px_rate, px_r, px_dropout
+        )  # expectation of log(p),as in scvi
 
         # KL Divergence
-        mean = torch.zeros_like(qz2.loc)
-        scale = torch.ones_like(qz2.scale)
+        mean = torch.zeros_like(qz2_m)
+        scale = torch.ones_like(qz2_v)
 
-        kl_divergence_z2 = kl(qz2, Normal(mean, scale)).sum(dim=1)
+        kl_divergence_z2 = kl(
+            Normal(qz2_m, torch.sqrt(qz2_v)), Normal(mean, scale)  # q(z2|z1,..)||p(z2)
+        ).sum(dim=1)
+
         loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
-        loss_z1_weight = qz1.log_prob(z1).sum(dim=-1)
+        # Sum of the log of the  Normal probability density evaluated at value z1s. The sum is over the latent space.
+
+        loss_z1_weight = Normal(qz1_m, torch.sqrt(qz1_v)).log_prob(z1).sum(dim=-1)
+
         if not self.use_observed_lib_size:
             ql = inference_outputs["ql"]
+            ql_m = ql.loc
+            ql_v = ql.scale**2
             (
                 local_library_log_means,
                 local_library_log_vars,
             ) = self._compute_local_library_params(batch_index)
 
             kl_divergence_l = kl(
-                ql,
+                Normal(ql_m, torch.sqrt(ql_v)),
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
-            kl_divergence_l = 0.0
+            kl_divergence_l = torch.tensor(0.0)
 
-        if is_labelled:
-            loss = reconst_loss + loss_z1_weight + loss_z1_unweight
-            kl_locals = {
-                "kl_divergence_z2": kl_divergence_z2,
-                "kl_divergence_l": kl_divergence_l,
-            }
-            if labelled_tensors is not None:
+        if labelled_tensors is not None:
+            if self.n_version == 1:
+                loss = (
+                    reconst_loss.mean()
+                    + loss_z1_weight.mean()
+                    + loss_z1_unweight.mean()
+                    + kl_weight * (kl_divergence_z2.mean() + kl_divergence_l.mean())
+                )
+
+                kl_locals = {
+                    "kl_divergence_z2": kl_divergence_z2,
+                    "kl_divergence_l": kl_divergence_l,
+                }
                 classifier_loss = self.classification_loss(labelled_tensors)
                 loss += classifier_loss * classification_ratio
                 return LossRecorder(
@@ -304,14 +352,9 @@ class SCANVAE(VAE):
                     classification_loss=classifier_loss,
                     n_labelled_tensors=labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
                 )
-            return LossRecorder(
-                loss,
-                reconst_loss,
-                kl_locals,
-                kl_global=torch.tensor(0.0),
-            )
 
-        probs = self.classifier(z1)
+        # the ELBO in the case where C=Y is not observed
+        probs = self.classifier(z1)  # outputs a vector of size n_labels suming to 1
         reconst_loss += loss_z1_weight + (
             (loss_z1_unweight).view(self.n_labels, -1).t() * probs
         ).sum(dim=1)
@@ -327,7 +370,8 @@ class SCANVAE(VAE):
 
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
 
-        if labelled_tensors is not None:
+        if self.n_version == 0:
+            assert labelled_tensors is not None
             classifier_loss = self.classification_loss(labelled_tensors)
             loss += classifier_loss * classification_ratio
             return LossRecorder(
