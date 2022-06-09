@@ -377,12 +377,6 @@ class PyroBaseModuleClass(nn.Module):
 class JaxBaseModuleClass(linen.Module):
     """Abstract class for Jax-based scvi-tools modules."""
 
-    def on_load(self, model):
-        """
-        Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
-        """
-        pass
-
     @abstractmethod
     def setup(self):
         """
@@ -395,6 +389,12 @@ class JaxBaseModuleClass(linen.Module):
         https://flax.readthedocs.io/en/latest/design_notes/setup_or_nncompact.html
         """
         pass
+
+    @property
+    @abstractmethod
+    def required_rngs(self):
+        """Returns a tuple of rng sequence names required for this Flax module."""
+        return tuple()
 
     def __call__(
         self,

@@ -1,6 +1,6 @@
 from functools import partial
 from inspect import getfullargspec, signature
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -8,9 +8,6 @@ import optax
 import pyro
 import pytorch_lightning as pl
 import torch
-from flax.core import FrozenDict
-from flax.training import train_state
-from jax import random
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
@@ -19,9 +16,10 @@ from scvi._compat import Literal
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
-    JaxBaseModuleClass,
+    JaxModuleWrapper,
     LossRecorder,
     PyroBaseModuleClass,
+    TrainStateWithBatchNorm,
 )
 from scvi.nn import one_hot
 
@@ -869,19 +867,14 @@ class ClassifierTrainingPlan(pl.LightningModule):
         return optimizer
 
 
-class TrainState(train_state.TrainState):
-    batch_stats: FrozenDict[str, Any]
-
-
 class JaxTrainingPlan(pl.LightningModule):
     """
     Lightning module task to train Pyro scvi-tools modules.
 
     Parameters
     ----------
-    flax_module
-        An instance of :class:`~scvi.module.base.JaxBaseModuleClass`. This object
-        should have callable `model` and `guide` attributes or methods.
+    module
+        An instance of :class:`~scvi.module.base.JaxModuleWraper`.
     n_steps_kl_warmup
         Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
         Only activated when `n_epochs_kl_warmup` is set to None.
@@ -892,17 +885,14 @@ class JaxTrainingPlan(pl.LightningModule):
 
     def __init__(
         self,
-        train_module: JaxBaseModuleClass,
-        val_module: JaxBaseModuleClass,
+        module: JaxModuleWrapper,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
-        use_gpu: bool = False,
         optim_kwargs: Optional[dict] = None,
         **loss_kwargs,
     ):
         super().__init__()
-        self.module = train_module
-        self.validation_module = val_module
+        self.module = module
         self._n_obs_training = None
         self.loss_kwargs = loss_kwargs
         self.n_steps_kl_warmup = n_steps_kl_warmup
@@ -914,65 +904,40 @@ class JaxTrainingPlan(pl.LightningModule):
         self._loss_args = signature(self.module.loss).parameters
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
-        self._rngs = None
-        self.use_gpu = use_gpu
-        # gets set by the initialization callback
-        self.state = None
 
-        if optim_kwargs is None:
-            self.optim_kwargs = dict(learning_rate=1e-3, eps=0.01, weight_decay=1e-6)
-        else:
-            self.optim_kwargs = optim_kwargs
+        # set optim kwargs
+        self.optim_kwargs = dict(learning_rate=1e-3, eps=0.01, weight_decay=1e-6)
+        if optim_kwargs is not None:
+            self.optim_kwargs.update(optim_kwargs)
 
     def set_train_state(self, params, batch_stats=None):
+        self.module.train()
+
+        if self.module.train_state is not None:
+            return
+
         weight_decay = self.optim_kwargs.pop("weight_decay")
         # replicates PyTorch Adam
         optimizer = optax.chain(
             optax.additive_weight_decay(weight_decay=weight_decay),
             optax.adam(**self.optim_kwargs),
         )
-        state = TrainState.create(
+        train_state = TrainStateWithBatchNorm.create(
             apply_fn=self.module.apply,
             params=params,
             tx=optimizer,
             batch_stats=batch_stats,
         )
-        self.state = state
-
-    @property
-    def key_fn(self):
-        # if key is generated on CPU, model params will be on CPU
-        # we have to pay the price of a JIT compilation though
-        if self.use_gpu is False:
-            key = jax.jit(lambda i: random.PRNGKey(i), backend="cpu")
-        else:
-            # dummy function
-            def key(i: int):
-                return random.PRNGKey(i)
-
-        return key
-
-    @property
-    def rngs(self) -> Dict[str, jnp.ndarray]:
-        return self._rngs
-
-    @rngs.setter
-    def rngs(self, rngs: Dict[str, jnp.ndarray]):
-        self._rngs = rngs
-
-    def set_rngs(self, keys: List[str]):
-        self._rngs = {k: self.key_fn(i) for i, k in enumerate(keys)}
+        self.module.train_state = train_state
 
     @partial(jax.jit, static_argnums=(0,))
     def jit_training_step(
         self,
-        state: TrainState,
+        state: TrainStateWithBatchNorm,
         batch: Dict[str, jnp.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
-        rngs = {k: random.split(v)[1] for k, v in rngs.items()}
-
         # batch stats can't be passed here
         def loss_fn(params):
             vars_in = {"params": params, "batch_stats": state.batch_stats}
@@ -990,15 +955,16 @@ class JaxTrainingPlan(pl.LightningModule):
         new_state = state.apply_gradients(
             grads=grads, batch_stats=new_model_state["batch_stats"]
         )
-        return new_state, loss, elbo, rngs
+        return new_state, loss, elbo
 
     def training_step(self, batch, batch_idx):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
-        self.state, loss, elbo, self.rngs = self.jit_training_step(
-            self.state,
+        self.module.train()
+        self.module.train_state, loss, elbo = self.jit_training_step(
+            self.module.train_state,
             batch,
-            self.rngs,
+            self.module.rngs,
             loss_kwargs=self.loss_kwargs,
         )
         loss = torch.tensor(jax.device_get(loss))
@@ -1020,15 +986,13 @@ class JaxTrainingPlan(pl.LightningModule):
     @partial(jax.jit, static_argnums=(0,))
     def jit_validation_step(
         self,
-        state: TrainState,
+        state: TrainStateWithBatchNorm,
         batch: Dict[str, jnp.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
-        module = self.validation_module
-        rngs = {k: random.split(v)[1] for k, v in rngs.items()}
         vars_in = {"params": state.params, "batch_stats": state.batch_stats}
-        outputs = module.apply(vars_in, batch, rngs=rngs, **kwargs)
+        outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
         loss_recorder = outputs[2]
         loss = loss_recorder.loss
         elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
@@ -1036,8 +1000,12 @@ class JaxTrainingPlan(pl.LightningModule):
         return loss, elbo
 
     def validation_step(self, batch, batch_idx):
+        self.module.eval()
         loss, elbo = self.jit_validation_step(
-            self.state, batch, self.rngs, loss_kwargs=self.loss_kwargs
+            self.module.train_state,
+            batch,
+            self.module.rngs,
+            loss_kwargs=self.loss_kwargs,
         )
         loss = torch.tensor(jax.device_get(loss))
         elbo = torch.tensor(jax.device_get(elbo))
