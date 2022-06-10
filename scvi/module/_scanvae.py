@@ -2,7 +2,7 @@ from typing import Iterable, Optional, Sequence
 
 import numpy as np
 import torch
-from torch.distributions import Categorical, Normal
+from torch.distributions import Categorical, Normal  # ok
 from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
@@ -11,7 +11,7 @@ from scvi._compat import Literal
 from scvi.module.base import LossRecorder, auto_move_data
 from scvi.nn import Decoder, Encoder
 
-from ._classifier import Classifier
+from ._classifier import Classifier  # Basic fully-connected NN classifier.
 from ._utils import broadcast_labels
 from ._vae import VAE
 
@@ -19,7 +19,7 @@ from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from torch.distributions import Normal, Poisson
 
 
-class SCANVAE(VAE):
+class SCANVAE(VAE):  # inherits from VAE class (for instance inherits z_encoder)
     """
     Single-cell annotation using variational inference.
 
@@ -28,6 +28,7 @@ class SCANVAE(VAE):
 
     Parameters
     ----------
+    n_version
     n_input
         Number of input genes
     n_batch
@@ -41,7 +42,7 @@ class SCANVAE(VAE):
     n_layers
         Number of hidden layers used for encoder and decoder NNs
     n_continuous_cov
-        Number of continuous covarites
+        Number of continuous covariates
     n_cats_per_cov
         Number of categories for each extra categorical covariate
     dropout_rate
@@ -61,9 +62,9 @@ class SCANVAE(VAE):
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
     y_prior
-        If None, initialized to uniform probability over cell types
+        If None, initialized to uniform probability over cell types  OK
     labels_groups
-        Label group designations
+        Label group designations                                                    ?? --> hierarchie entre labels
     use_labels_groups
         Whether to use the label groups
     use_batch_norm
@@ -74,6 +75,8 @@ class SCANVAE(VAE):
         Keyword args for :class:`~scvi.module.VAE`
     """
 
+    # --------------------------------INIT-----------------------------------------------------------------------------------------------------------
+
     def __init__(
         self,
         n_input: int,
@@ -82,14 +85,14 @@ class SCANVAE(VAE):
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
-        n_continuous_cov: int = 0,
+        n_continuous_cov: int = 0,  # in the following, we assume only one categorical covariate with categories, which represents the common case of having multiple batches of data.
         n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
         dispersion: str = "gene",
         log_variational: bool = True,
         gene_likelihood: str = "zinb",
         y_prior=None,
-        labels_groups: Sequence[int] = None,
+        labels_groups: Sequence[int] = None,  # ??
         use_labels_groups: bool = False,
         classifier_parameters: dict = dict(),
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
@@ -120,7 +123,9 @@ class SCANVAE(VAE):
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
         use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
 
+        self.n_version = n_version
         self.n_labels = n_labels
+
         # Classifier takes n_latent as input
         cls_parameters = {
             "n_layers": n_layers,
@@ -128,15 +133,15 @@ class SCANVAE(VAE):
             "dropout_rate": dropout_rate,
         }
         cls_parameters.update(classifier_parameters)
-        self.classifier = Classifier(
-            n_latent,
+        self.classifier = Classifier(  # PROBABILISTIC CELL-TYPE ANNOTATION? n_hidden kept as default, classifies between n_labels
+            n_latent,  # Number of input dimensions
             n_labels=n_labels,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
             **cls_parameters
         )
 
-        self.encoder_z2_z1 = Encoder(
+        self.encoder_z2_z1 = Encoder(  # q(z2|z1,....)  ???
             n_latent,
             n_latent,
             n_cat_list=[self.n_labels],
@@ -158,7 +163,7 @@ class SCANVAE(VAE):
             use_layer_norm=use_layer_norm_decoder,
         )
 
-        self.y_prior = torch.nn.Parameter(
+        self.y_prior = torch.nn.Parameter(  # uniform probabilities for categorical distribution on the cell type  HERE Y=C
             y_prior
             if y_prior is not None
             else (1 / n_labels) * torch.ones(1, n_labels),
@@ -175,6 +180,7 @@ class SCANVAE(VAE):
             self.n_groups = len(unique_groups)
             if not (unique_groups == np.arange(self.n_groups)).all():
                 raise ValueError()
+
             self.classifier_groups = Classifier(
                 n_latent, n_hidden, self.n_groups, n_layers, dropout_rate
             )
@@ -191,9 +197,11 @@ class SCANVAE(VAE):
                 ]
             )
 
+    # ---------------------------------------METHODS----------------------------------------------------------------------------------------------------------------------------
+
     @auto_move_data
     def classify(self, x, batch_index=None, cont_covs=None, cat_covs=None):
-        if self.log_variational:
+        if self.log_variational:  # for numerical stability
             x = torch.log(1 + x)
 
         if cont_covs is not None and self.encode_covariates:
@@ -240,7 +248,9 @@ class SCANVAE(VAE):
         return reconst_loss
 
     @auto_move_data
-    def classification_loss(self, labelled_dataset):
+    def classification_loss(
+        self, labelled_dataset
+    ):  # add a classifiaction loss ON THE LABELLED ATA, following Kingma et al
         x = labelled_dataset[REGISTRY_KEYS.X_KEY]
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
@@ -266,9 +276,9 @@ class SCANVAE(VAE):
         tensors,
         inference_outputs,
         generative_ouputs,
-        feed_labels=False,
+        feed_labels=False,  # ? ---> 2 dataloaders, for annotated and un annotated, don't feed labels for un annotated
         kl_weight=1,
-        labelled_tensors=None,
+        labelled_tensors=None,  # ??  -->scvanvi.py
         classification_ratio=None,
     ):
         px = generative_ouputs["px"]
@@ -325,7 +335,9 @@ class SCANVAE(VAE):
 
             kl_divergence_l = kl(
                 Normal(ql_m, torch.sqrt(ql_v)),
-                Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
+                Normal(
+                    local_library_log_means, torch.sqrt(local_library_log_vars)
+                ),  # ok
             ).sum(dim=1)
         else:
             kl_divergence_l = torch.tensor(0.0)
@@ -357,7 +369,9 @@ class SCANVAE(VAE):
         probs = self.classifier(z1)  # outputs a vector of size n_labels suming to 1
         reconst_loss += loss_z1_weight + (
             (loss_z1_unweight).view(self.n_labels, -1).t() * probs
-        ).sum(dim=1)
+        ).sum(
+            dim=1
+        )  # why loss_z1_weight is not in the sum?
 
         kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(
             dim=1
@@ -368,7 +382,9 @@ class SCANVAE(VAE):
         )
         kl_divergence += kl_divergence_l
 
-        loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
+        loss = torch.mean(
+            reconst_loss + kl_divergence * kl_weight
+        )  # annealing to avoid posterior collapse!!!
 
         if self.n_version == 0:
             assert labelled_tensors is not None
