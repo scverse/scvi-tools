@@ -13,7 +13,11 @@ class ModelSave(Callback):
             return
         step = f"epoch={trainer.current_epoch}-step={trainer.global_step}"
         with tune.checkpoint_dir(step=step) as checkpoint_dir:
+<<<<<<< HEAD
             self.model.save(checkpoint_dir + "/checkpoint")
+=======
+            self.model.save(dir_path=checkpoint_dir + "/checkpoint")
+>>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
 
 
 class _TuneReportMetricFunctionsCallback(TuneCallback):

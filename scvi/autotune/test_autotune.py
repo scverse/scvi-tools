@@ -1,12 +1,7 @@
 from functools import partial
-<<<<<<< HEAD
-from random import randint
-
-=======
 
 import numpy as np
 import pandas as pd
->>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
 from ray.tune import loguniform
 from ray.tune.schedulers import ASHAScheduler
 
@@ -20,14 +15,11 @@ def test_tune_scvi(save_path):
     tune_scvi(adata, 2, run_kwargs=dict(local_dir=save_path))
 
 
-<<<<<<< HEAD
-=======
 def test_tune_scvi_train(save_path):
     adata = synthetic_iid()
     tune_scvi(adata, 2, run_kwargs=dict(local_dir=save_path, train=True))
 
 
->>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
 def test_autotune(save_path):
     adata = synthetic_iid()
     metrics = [
@@ -48,10 +40,7 @@ def test_autotune(save_path):
     model, analysis = tuner.run(
         metric="elbo_validation", scheduler=asha_scheduler, local_dir=save_path
     )
-<<<<<<< HEAD
-=======
     print(model)
->>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
 
 
 def test_metric_function_dummy(save_path):
@@ -60,11 +49,7 @@ def test_metric_function_dummy(save_path):
         "elbo_validation",
         "reconstruction_loss_validation",
     ]
-<<<<<<< HEAD
-    metric_functions = {"dummy": lambda x: randint(1, 10)}
-=======
     metric_functions = {"dummy": lambda x: np.random.randint(1, 10)}
->>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
     model_config = {"dropout_rate": loguniform(1e-4, 1e-1)}
     plan_config = {"lr": loguniform(1e-4, 1e-1)}
     num_epochs = 2
@@ -113,8 +98,6 @@ def test_silhouette(save_path):
         scheduler=asha_scheduler,
         local_dir=save_path,
     )
-<<<<<<< HEAD
-=======
 
 
 def test_both_covariates(save_path):
@@ -339,4 +322,3 @@ def test_complex(save_path):
         scheduler=asha_scheduler,
         local_dir=save_path,
     )
->>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
