@@ -864,9 +864,13 @@ def test_scanvi(save_path):
     model = SCANVI(adata, n_latent=1, n_version=0)
     assert len(model._labeled_indices) == sum(adata.obs["labels"] != "label_0")
     assert len(model._unlabeled_indices) == sum(adata.obs["labels"] == "label_0")
-    model.train(5, train_size=0.5, check_val_every_n_epoch=1, plan_kwargs=dict(mode="old"))
+    model.train(
+        5, train_size=0.5, check_val_every_n_epoch=1, plan_kwargs=dict(mode="old")
+    )
     model = SCANVI(adata, n_latent=10, n_version=1)
-    model.train(5, train_size=0.5, check_val_every_n_epoch=1, plan_kwargs=dict(mode="new"))
+    model.train(
+        5, train_size=0.5, check_val_every_n_epoch=1, plan_kwargs=dict(mode="new")
+    )
     logged_keys = model.history.keys()
     assert "elbo_validation" in logged_keys
     assert "reconstruction_loss_validation" in logged_keys
