@@ -938,9 +938,9 @@ class JaxTrainingPlan(pl.LightningModule):
         )
         self.module.train_state = train_state
 
-    @partial(jax.jit, static_argnums=(0,))
+    @jax.jit
+    @staticmethod
     def jit_training_step(
-        self,
         state: TrainStateWithBatchNorm,
         batch: Dict[str, jnp.ndarray],
         rngs: Dict[str, jnp.ndarray],
