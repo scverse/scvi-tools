@@ -36,7 +36,8 @@ class JaxModuleWrapper:
         self.seed_rng = self.key_fn(seed)
         self._set_rngs()
 
-    def on_load(self, model):
+    @staticmethod
+    def on_load(model):
         """
         Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
 

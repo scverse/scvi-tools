@@ -938,8 +938,8 @@ class JaxTrainingPlan(pl.LightningModule):
         )
         self.module.train_state = train_state
 
-    @jax.jit
     @staticmethod
+    @jax.jit
     def jit_training_step(
         state: TrainStateWithBatchNorm,
         batch: Dict[str, jnp.ndarray],
@@ -1040,7 +1040,8 @@ class JaxTrainingPlan(pl.LightningModule):
             self.n_steps_kl_warmup,
         )
 
-    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+    @staticmethod
+    def transfer_batch_to_device(batch, device, dataloader_idx):
         """Bypass Pytorch Lightning device management."""
         return batch
 
