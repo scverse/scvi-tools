@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torchmetrics import MetricCollection
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
@@ -134,14 +135,46 @@ class TrainingPlan(pl.LightningModule):
         self.initialize_train_metrics()
         self.initialize_val_metrics()
 
+    @staticmethod
+    def _create_elbo_metric_components(mode: str, n_total: Optional[int] = None):
+        """Initialize ELBO metric and the metric collection."""
+        rec_loss = ElboMetric("reconstruction_loss", mode, "obs")
+        kl_local = ElboMetric("kl_local", mode, "obs")
+        kl_global = ElboMetric("kl_global", mode, "obs")
+        # n_total can be 0 if there is no validation set, this won't ever be used
+        # in that case anyway
+        n = 1 if n_total is None or n_total < 1 else n_total
+        elbo = rec_loss + kl_local + (1 / n) * kl_global
+        elbo.name = f"elbo_{mode}"
+        collection = MetricCollection(
+            {metric.name: metric for metric in [elbo, rec_loss, kl_local, kl_global]}
+        )
+        return elbo, rec_loss, kl_local, kl_global, collection
+
     def initialize_train_metrics(self):
         """Initialize train related metrics."""
-        self.elbo_train = ElboMetric(self.n_obs_training, mode="train")
+        (
+            self.elbo_train,
+            self.rec_loss_train,
+            self.kl_local_train,
+            self.kl_global_train,
+            self.train_metrics,
+        ) = self._create_elbo_metric_components(
+            mode="train", n_total=self.n_obs_training
+        )
         self.elbo_train.reset()
 
     def initialize_val_metrics(self):
-        """Initialize train related metrics."""
-        self.elbo_val = ElboMetric(self.n_obs_validation, mode="validation")
+        """Initialize val related metrics."""
+        (
+            self.elbo_val,
+            self.rec_loss_val,
+            self.kl_local_val,
+            self.kl_global_val,
+            self.val_metrics,
+        ) = self._create_elbo_metric_components(
+            mode="validation", n_total=self.n_obs_validation
+        )
         self.elbo_val.reset()
 
     @property
@@ -190,7 +223,8 @@ class TrainingPlan(pl.LightningModule):
     def compute_and_log_metrics(
         self,
         loss_recorder: LossRecorder,
-        elbo_metric: ElboMetric,
+        metrics: MetricCollection,
+        mode: str,
     ):
         """
         Computes and logs metrics.
@@ -201,6 +235,9 @@ class TrainingPlan(pl.LightningModule):
             LossRecorder object from scvi-tools module
         metric_attr_name
             The name of the torch metric object to use
+        mode
+            Postfix string to add to the metric name of
+            extra metrics
         """
         rec_loss = loss_recorder.reconstruction_loss
         n_obs_minibatch = rec_loss.shape[0]
@@ -209,44 +246,15 @@ class TrainingPlan(pl.LightningModule):
         kl_global = loss_recorder.kl_global
 
         # use the torchmetric object for the ELBO
-        elbo_metric(
-            rec_loss,
-            kl_local,
-            kl_global,
-            n_obs_minibatch,
+        metrics.update(
+            reconstruction_loss=rec_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
+            n_obs_minibatch=n_obs_minibatch,
         )
-        # e.g., train or val mode
-        mode = elbo_metric.mode
         # pytorch lightning handles everything with the torchmetric object
-        self.log(
-            f"elbo_{mode}",
-            elbo_metric,
-            on_step=False,
-            on_epoch=True,
-            batch_size=n_obs_minibatch,
-        )
-
-        # log elbo components
-        self.log(
-            f"reconstruction_loss_{mode}",
-            rec_loss / elbo_metric.n_obs_total,
-            reduce_fx=torch.sum,
-            on_step=False,
-            on_epoch=True,
-            batch_size=n_obs_minibatch,
-        )
-        self.log(
-            f"kl_local_{mode}",
-            kl_local / elbo_metric.n_obs_total,
-            reduce_fx=torch.sum,
-            on_step=False,
-            on_epoch=True,
-            batch_size=n_obs_minibatch,
-        )
-        # default aggregation is mean
-        self.log(
-            f"kl_global_{mode}",
-            kl_global,
+        self.log_dict(
+            metrics,
             on_step=False,
             on_epoch=True,
             batch_size=n_obs_minibatch,
@@ -272,7 +280,7 @@ class TrainingPlan(pl.LightningModule):
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
-        self.compute_and_log_metrics(scvi_loss, self.elbo_train)
+        self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
@@ -281,7 +289,7 @@ class TrainingPlan(pl.LightningModule):
         # of training examples
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
-        self.compute_and_log_metrics(scvi_loss, self.elbo_val)
+        self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
     def configure_optimizers(self):
         params = filter(lambda p: p.requires_grad, self.module.parameters())
@@ -452,7 +460,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 loss += fool_loss * kappa
 
             self.log("train_loss", loss, on_epoch=True)
-            self.compute_and_log_metrics(scvi_loss, self.elbo_train)
+            self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
             return loss
 
         # train adversarial classifier
@@ -602,7 +610,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             on_epoch=True,
             batch_size=len(scvi_losses.reconstruction_loss),
         )
-        self.compute_and_log_metrics(scvi_losses, self.elbo_train)
+        self.compute_and_log_metrics(scvi_losses, self.train_metrics, "train")
         return loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
@@ -627,7 +635,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             on_epoch=True,
             batch_size=len(scvi_losses.reconstruction_loss),
         )
-        self.compute_and_log_metrics(scvi_losses, self.elbo_val)
+        self.compute_and_log_metrics(scvi_losses, self.val_metrics, "validation")
 
 
 class PyroTrainingPlan(pl.LightningModule):
