@@ -440,6 +440,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         return loss
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
         kappa = (
             1 - self.kl_weight
             if self.scale_adversarial_loss == "auto"
@@ -447,10 +449,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         )
         batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
         if optimizer_idx == 0:
-            train_loss_kwargs = dict(kl_weight=self.kl_weight)
-            train_loss_kwargs.update(self.loss_kwargs)
             inference_outputs, _, scvi_loss = self.forward(
-                batch, loss_kwargs=train_loss_kwargs
+                batch, loss_kwargs=self.loss_kwargs
             )
             loss = scvi_loss.loss
             # fool classifier if doing adversarial training
