@@ -1,3 +1,5 @@
+from typing import Optional
+
 import anndata
 <<<<<<< HEAD
 from ray.tune import choice, loguniform
@@ -10,7 +12,7 @@ from scvi.autotune import Autotune
 from scvi.model import SCVI
 
 
-def tune_scvi(adata: anndata.AnnData, n_epochs, run_kwargs):
+def tune_scvi(adata: anndata.AnnData, n_epochs: int, run_kwargs: Optional[dict] = None):
     """
     Tune scvi with defaults for `tune.run` and return the best model.
 <<<<<<< HEAD

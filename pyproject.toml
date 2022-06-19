@@ -69,6 +69,7 @@ python-igraph = {version = "*", optional = true}
 pytorch-lightning = ">=1.6.4,<1.7.0"
 ray = {version = ">=1.8", extras = ["tune"]}
 rich = ">=9.1.0"
+ray = {extras = ["tune"], version = ">=1.12.1", optional = true}
 scanpy = {version = ">=1.6", optional = true}
 scanpydoc = {version = ">=0.5", optional = true}
 scikit-learn = ">=0.21.2"
@@ -104,6 +105,7 @@ docs = [
   "myst-parser",
 ]
 pymde = ["pymde"]
+tune = ["ray"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde"]
 
 [tool.poetry.dev-dependencies]

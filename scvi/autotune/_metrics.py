@@ -57,8 +57,11 @@ def silhouette_metric_labels_batch(
 >>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
     https://github.com/theislab/scib/blob/main/scib/metrics/silhouette.py
     """
+
+    # to obtain the latent representation at every epoch, we need to set 'is_trained_' to True
     model.is_trained_ = True
     latent = model.get_latent_representation()
+    # we revert back as the model hasn't been fully trained yet
     model.is_trained_ = False
     adata = model.adata
 
