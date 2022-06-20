@@ -2,7 +2,7 @@ import inspect
 import logging
 import os
 import warnings
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 import anndata
 import numpy as np
