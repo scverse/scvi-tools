@@ -2,7 +2,7 @@ import inspect
 import logging
 import os
 import warnings
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import anndata
 import numpy as np
@@ -69,17 +69,17 @@ class Autotune:
         adata: anndata.AnnData,
         model: BaseModelClass,
         num_epochs: int = 2,
-        training_metrics: Optional[list[str]] = None,
+        training_metrics: Optional[List[str]] = None,
         metric_functions: Optional[dict] = None,
         model_hyperparams: Optional[dict] = None,
         trainer_hyperparams: Optional[dict] = None,
         plan_hyperparams: Optional[dict] = None,
         setup_args: Optional[dict] = None,
-        continuous_covariates: Optional[list[str]] = None,
-        categorical_covariates: Optional[list[str]] = None,
+        continuous_covariates: Optional[List[str]] = None,
+        categorical_covariates: Optional[List[str]] = None,
         test_effect_covariates: bool = False,
         test_effect_hvg: bool = False,
-        top_hvg: Optional[list[int]] = None,
+        top_hvg: Optional[List[int]] = None,
         batch_key_hvg: Optional[str] = None,
     ):
         training_metrics = training_metrics or []
