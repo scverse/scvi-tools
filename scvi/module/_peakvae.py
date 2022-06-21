@@ -301,9 +301,14 @@ class PEAKVAE(BaseModuleClass):
             categorical_input = tuple()
 
         latent = z if not use_z_mean else qz_m
-        decoder_input = (
-            latent if cont_covs is None else torch.cat([latent, cont_covs], dim=-1)
-        )
+        if cont_covs is None:
+            decoder_input = latent
+        elif latent.dim() != cont_covs.dim():
+            decoder_input = torch.cat(
+                [latent, cont_covs.unsqueeze(0).expand(latent.size(0), -1, -1)], dim=-1
+            )
+        else:
+            decoder_input = torch.cat([latent, cont_covs], dim=-1)
 
         p = self.z_decoder(decoder_input, batch_index, *categorical_input)
 

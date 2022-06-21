@@ -195,6 +195,7 @@ def test_scvi(save_path):
     model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
 
     adata2 = synthetic_iid()
     # test view_anndata_setup with different anndata before transfer setup
@@ -1263,6 +1264,12 @@ def test_multiple_covariates_scvi(save_path):
     )
     m = SCVI(adata)
     m.train(1)
+    m.get_latent_representation()
+    m.get_elbo()
+    m.get_marginal_ll(n_mc_samples=3)
+    m.get_reconstruction_error()
+    m.get_normalized_expression(n_samples=1)
+    m.get_normalized_expression(n_samples=2)
 
     SCANVI.setup_anndata(
         adata,
@@ -1274,6 +1281,12 @@ def test_multiple_covariates_scvi(save_path):
     )
     m = SCANVI(adata)
     m.train(1)
+    m.get_latent_representation()
+    m.get_elbo()
+    m.get_marginal_ll(n_mc_samples=3)
+    m.get_reconstruction_error()
+    m.get_normalized_expression(n_samples=1)
+    m.get_normalized_expression(n_samples=2)
 
     TOTALVI.setup_anndata(
         adata,
@@ -1285,6 +1298,12 @@ def test_multiple_covariates_scvi(save_path):
     )
     m = TOTALVI(adata)
     m.train(1)
+    m.get_latent_representation()
+    m.get_elbo()
+    m.get_marginal_ll(n_mc_samples=3)
+    m.get_reconstruction_error()
+    m.get_normalized_expression(n_samples=1)
+    m.get_normalized_expression(n_samples=2)
 
 
 def test_multiple_encoded_covariates_scvi(save_path):
