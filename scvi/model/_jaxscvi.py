@@ -118,6 +118,12 @@ class JaxSCVI(BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
+    def train(self):
+        self.module.train()
+    
+    def eval(self):
+        self.module.eval()
+
     def _get_module(self, kwargs=None):
         if kwargs is None:
             kwargs = self.module_kwargs
