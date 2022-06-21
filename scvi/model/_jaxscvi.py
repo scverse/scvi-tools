@@ -81,7 +81,7 @@ class JaxSCVI(BaseModelClass):
             n_hidden=n_hidden,
             n_latent=n_latent,
             dropout_rate=dropout_rate,
-            is_training=False,
+            is_training=None,
             gene_likelihood=gene_likelihood,
         )
         self.module_kwargs.update(model_kwargs)
