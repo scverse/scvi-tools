@@ -120,7 +120,7 @@ class JaxSCVI(BaseModelClass):
 
     def train(self):
         self.module.train()
-    
+
     def eval(self):
         self.module.eval()
 
