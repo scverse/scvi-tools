@@ -153,10 +153,10 @@ class JaxVAE(JaxBaseModuleClass):
             n_hidden=self.n_hidden,
             is_training=self.is_training,
         )
-    
+
     def train(self):
         self.is_training = True
-    
+
     def eval(self):
         self.is_training = False
 
