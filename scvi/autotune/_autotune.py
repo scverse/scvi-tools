@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 class Autotune:
     """
     Hyperparameter tuning using Ray Tune.
+
     Parameters
     ----------
     adata

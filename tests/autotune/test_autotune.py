@@ -47,7 +47,7 @@ def test_autotune(save_path):
     model, analysis = tuner.run(
         metric="elbo_validation", scheduler=asha_scheduler, local_dir=save_path
     )
-    print(model)
+    return model, analysis
 
 
 def test_autotune_setupargs(save_path):
@@ -69,7 +69,7 @@ def test_autotune_setupargs(save_path):
     model, analysis = tuner.run(
         metric="elbo_validation", scheduler=asha_scheduler, local_dir=save_path
     )
-    print(model)
+    return model, analysis
 
 
 def test_metric_function_dummy(save_path):
@@ -92,7 +92,7 @@ def test_metric_function_dummy(save_path):
     model, analysis = tuner.run(
         metric="elbo_validation", scheduler=asha_scheduler, local_dir=save_path
     )
-    print(model)
+    return model, analysis
 
 
 def test_silhouette(save_path):
@@ -119,7 +119,7 @@ def test_silhouette(save_path):
         scheduler=asha_scheduler,
         local_dir=save_path,
     )
-    print(model)
+    return model, analysis
 
 
 def test_both_covariates(save_path):
@@ -154,7 +154,7 @@ def test_both_covariates(save_path):
         scheduler=asha_scheduler,
         local_dir=save_path,
     )
-    print(model)
+    return model, analysis
 
 
 def test_covariates_elbo(save_path):
@@ -189,7 +189,7 @@ def test_covariates_elbo(save_path):
         scheduler=asha_scheduler,
         local_dir=save_path,
     )
-    print(model)
+    return model, analysis
 
 
 def test_effect_covariate(save_path):
@@ -224,7 +224,7 @@ def test_effect_covariate(save_path):
         scheduler=asha_scheduler,
         local_dir=save_path,
     )
-    print(model)
+    return model, analysis
 
 
 def test_single_covariate(save_path):
@@ -255,7 +255,7 @@ def test_single_covariate(save_path):
         scheduler=asha_scheduler,
         local_dir=save_path,
     )
-    print(model)
+    return model, analysis
 
 
 def test_hvg_filter(save_path):
@@ -282,7 +282,7 @@ def test_hvg_filter(save_path):
         scheduler=asha_scheduler,
         local_dir=save_path,
     )
-    print(model)
+    return model, analysis
 
 
 def test_hvg_no_filter(save_path):
@@ -308,7 +308,7 @@ def test_hvg_no_filter(save_path):
         scheduler=asha_scheduler,
         local_dir=save_path,
     )
-    print(model)
+    return model, analysis
 
 
 def test_complex(save_path):
@@ -344,4 +344,4 @@ def test_complex(save_path):
         scheduler=asha_scheduler,
         local_dir=save_path,
     )
-    print(model)
+    return model, analysis

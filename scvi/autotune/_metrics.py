@@ -1,8 +1,5 @@
-<<<<<<< HEAD
-=======
 from typing import Optional
 
->>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
 import numpy as np
 import pandas as pd
 from sklearn.metrics import silhouette_samples, silhouette_score
@@ -15,17 +12,10 @@ def silhouette_metric_labels_batch(
     labels_key: str,
     batch_key: str,
     sample_size: int = 1000,
-<<<<<<< HEAD
-) -> float:
-    """
-    Batch- and label-wise silhouette.
-
-=======
     unknown_label: Optional[str] = None,
 ) -> float:
     """
     Batch- and label-wise silhouette.
->>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
     Parameters
     ----------
     model
@@ -36,25 +26,13 @@ def silhouette_metric_labels_batch(
         The key of the batch.
     sample_size
         Sample size for silhouette. Randomly subsets the data
-<<<<<<< HEAD
-
-=======
->>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
     Returns
     -------
     Sum of asw for batch and for labels. Scores are scaled such that
     2 is the best score and 0 is the worst.
-<<<<<<< HEAD
-
     Notes
     -----
     This function is influence by the following code:
-
-=======
-    Notes
-    -----
-    This function is influence by the following code:
->>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
     https://github.com/theislab/scib/blob/main/scib/metrics/silhouette.py
     """
 
@@ -65,12 +43,9 @@ def silhouette_metric_labels_batch(
     model.is_trained_ = False
     adata = model.adata
 
-<<<<<<< HEAD
-=======
     if unknown_label:
         adata = adata[adata.obs[labels_key] != unknown_label].copy()
 
->>>>>>> 535fc45f (Ray.tune for parameter optimization. Skeleton based on branch: michael/autotune. Included more funcitonality)
     # bio conservation
     asw_labels = silhouette_score(
         latent,

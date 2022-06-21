@@ -8,6 +8,7 @@ from ._callbacks import ModelSave, _TuneReportMetricFunctionsCallback
 def format_config(self, config: dict = None) -> Tuple[dict, ...]:
     """
     Format tune's config dictionaries to use as input in scvi-tools' workflow
+
     ----------
     config
         Dictionary specifying the search space used by `ray.tune.run`
@@ -47,6 +48,7 @@ def apply_model_config(
 ) -> BaseModelClass:
     """
     Initializes the specified model in Autotune.model with a given anndata setup and model and training hyperparameters.
+
     ----------
     model_config
         Dictionary specifying the model hyperparameters used to initialize the model
@@ -74,6 +76,7 @@ def train_model(
 ) -> Union[None, BaseModelClass]:
     """
     Trains the specified model in Autotune.model with a given training plan.
+
     ----------
     model_config
         Dictionary specifying the model hyperparameters used to initialize the model
