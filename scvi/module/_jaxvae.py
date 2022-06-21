@@ -1,13 +1,12 @@
 from tracemalloc import is_tracing
 from typing import Dict, Optional
 
-from pyro import deterministic
-
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 from flax import linen as nn
 from flax.linen.initializers import variance_scaling
+from pyro import deterministic
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
@@ -55,7 +54,7 @@ class FlaxEncoder(nn.Module):
 
     def __call__(self, x: jnp.ndarray, is_training=None):
 
-        training = not nn.merge_param('training', self.is_training, is_training)
+        training = not nn.merge_param("training", self.is_training, is_training)
 
         x_ = jnp.log1p(x)
 
@@ -107,10 +106,12 @@ class FlaxDecoder(nn.Module):
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
 
-    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, is_training: Optional[bool] = None):
+    def __call__(
+        self, z: jnp.ndarray, batch: jnp.ndarray, is_training: Optional[bool] = None
+    ):
 
         # this ensures that either one is set, but not both
-        training = not nn.merge_param('training', self.is_training, is_training)
+        training = not nn.merge_param("training", self.is_training, is_training)
         h = self.dense1(z)
         h += self.dense2(batch)
 
