@@ -1,7 +1,4 @@
-from tracemalloc import is_tracing
 from typing import Dict, Optional
-
-from pyro import deterministic
 
 import jax
 import jax.numpy as jnp
@@ -153,6 +150,12 @@ class JaxVAE(JaxBaseModuleClass):
             n_hidden=self.n_hidden,
             is_training=self.is_training,
         )
+    
+    def train(self):
+        self.is_training = True
+    
+    def eval(self):
+        self.is_training = False
 
     def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
         x = tensors[REGISTRY_KEYS.X_KEY]
@@ -161,7 +164,7 @@ class JaxVAE(JaxBaseModuleClass):
         return input_dict
 
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
-        mean, var = self.encoder(x)
+        mean, var = self.encoder(x, is_training=self.is_training)
         stddev = jnp.sqrt(var) + self.eps
 
         qz = dist.Normal(mean, stddev)
@@ -191,7 +194,7 @@ class JaxVAE(JaxBaseModuleClass):
 
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
-        rho_unnorm, disp = self.decoder(z, batch)
+        rho_unnorm, disp = self.decoder(z, batch, is_training=self.is_training)
         disp_ = jnp.exp(disp)
         rho = jax.nn.softmax(rho_unnorm, axis=-1)
         total_count = x.sum(-1)[:, jnp.newaxis]
