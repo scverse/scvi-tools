@@ -16,7 +16,7 @@ from scvi.dataloaders import AnnTorchDataset
 from .utils import generic_setup_adata_manager
 
 
-def test_transfer_fields():
+def test_transfer_fields_basic():
     # test transfer_fields function
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
@@ -27,6 +27,7 @@ def test_transfer_fields():
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
 
+def test_transfer_fields_layer_use():
     # test if layer was used initially, again used in transfer setup
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
@@ -43,6 +44,7 @@ def test_transfer_fields():
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
 
+def test_transfer_fields_unknown_batch():
     # test that an unknown batch throws an error
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
@@ -51,6 +53,7 @@ def test_transfer_fields():
     with pytest.raises(ValueError):
         adata1_manager.transfer_fields(adata2)
 
+def test_transfer_fields_unknown_label():
     # test that an unknown label throws an error
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
@@ -59,6 +62,7 @@ def test_transfer_fields():
     with pytest.raises(ValueError):
         adata1_manager.transfer_fields(adata2)
 
+def test_transfer_fields_correct_mapping():
     # test that correct mapping was applied
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
@@ -69,6 +73,7 @@ def test_transfer_fields():
     correct_label = np.where(labels_mapping == "label_1")[0][0]
     adata2.obs["_scvi_labels"][0] == correct_label
 
+def test_transfer_fields_correct_batch():
     # test that transfer_fields correctly looks for adata.obs['batch']
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
@@ -77,6 +82,7 @@ def test_transfer_fields():
     with pytest.raises(KeyError):
         adata1_manager.transfer_fields(adata2)
 
+def test_transfer_fields_same_batch_and_label():
     # test that transfer_fields assigns same batch and label to cells
     # if the original anndata was also same batch and label
     adata1 = synthetic_iid()
@@ -87,6 +93,7 @@ def test_transfer_fields():
     assert adata2.obs["_scvi_batch"][0] == 0
     assert adata2.obs["_scvi_labels"][0] == 0
 
+def test_transfer_fields_subset():
     # test that if a category mapping is a subset, transfer anndata is called
     a1 = scvi.data.synthetic_iid()
     scvi.model.SCVI.setup_anndata(a1, batch_key="batch")
@@ -98,6 +105,7 @@ def test_transfer_fields():
     m.get_latent_representation(a2)
     assert a2.obs["_scvi_batch"].all() == 1
 
+def test_transfer_fields_wrong_kwarg():
     # test that error is thrown if an arbitrary kwarg is passed into setup_anndata
     a = scvi.data.synthetic_iid()
     with pytest.raises(TypeError):
