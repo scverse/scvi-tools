@@ -109,9 +109,6 @@ class Autotune:
         self.model_hyperparams = model_hyperparams
         self.trainer_hyperparams = trainer_hyperparams
         self.plan_hyperparams = plan_hyperparams
-        self.continious_covariates = {
-            "continious_covariates": tune.choice(continious_covariates)
-            if continious_covariates
         self.setup_args = setup_args
 
         continuous_covariates = [[covariate] for covariate in continuous_covariates]
@@ -166,9 +163,8 @@ class Autotune:
         ]:
             if att is not None:
                 self.config.update(att)
-        self.batch_key = batch_key
+        self.batch_key_hvg = batch_key_hvg
         self.num_epochs = num_epochs
-
 
     def _trainable(self, config):
 
