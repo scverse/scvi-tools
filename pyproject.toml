@@ -67,7 +67,6 @@ pytest = {version = ">=4.4", optional = true}
 python = ">=3.7,<4.0"
 python-igraph = {version = "*", optional = true}
 pytorch-lightning = ">=1.6.4,<1.7.0"
-ray = {version = ">=1.8", extras = ["tune"]}
 rich = ">=9.1.0"
 ray = {extras = ["tune"], version = ">=1.12.1", optional = true}
 scanpy = {version = ">=1.6", optional = true}
