@@ -27,6 +27,7 @@ def test_transfer_fields_basic():
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
 
+
 def test_transfer_fields_layer_use():
     # test if layer was used initially, again used in transfer setup
     adata1 = synthetic_iid()
@@ -44,6 +45,7 @@ def test_transfer_fields_layer_use():
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
 
+
 def test_transfer_fields_unknown_batch():
     # test that an unknown batch throws an error
     adata1 = synthetic_iid()
@@ -53,6 +55,7 @@ def test_transfer_fields_unknown_batch():
     with pytest.raises(ValueError):
         adata1_manager.transfer_fields(adata2)
 
+
 def test_transfer_fields_unknown_label():
     # test that an unknown label throws an error
     adata1 = synthetic_iid()
@@ -61,6 +64,7 @@ def test_transfer_fields_unknown_label():
     adata1_manager = generic_setup_adata_manager(adata1, labels_key="labels")
     with pytest.raises(ValueError):
         adata1_manager.transfer_fields(adata2)
+
 
 def test_transfer_fields_correct_mapping():
     # test that correct mapping was applied
@@ -73,6 +77,7 @@ def test_transfer_fields_correct_mapping():
     correct_label = np.where(labels_mapping == "label_1")[0][0]
     adata2.obs["_scvi_labels"][0] == correct_label
 
+
 def test_transfer_fields_correct_batch():
     # test that transfer_fields correctly looks for adata.obs['batch']
     adata1 = synthetic_iid()
@@ -81,6 +86,7 @@ def test_transfer_fields_correct_batch():
     adata1_manager = generic_setup_adata_manager(adata1, batch_key="batch")
     with pytest.raises(KeyError):
         adata1_manager.transfer_fields(adata2)
+
 
 def test_transfer_fields_same_batch_and_label():
     # test that transfer_fields assigns same batch and label to cells
@@ -93,6 +99,7 @@ def test_transfer_fields_same_batch_and_label():
     assert adata2.obs["_scvi_batch"][0] == 0
     assert adata2.obs["_scvi_labels"][0] == 0
 
+
 def test_transfer_fields_subset():
     # test that if a category mapping is a subset, transfer anndata is called
     a1 = scvi.data.synthetic_iid()
@@ -104,6 +111,7 @@ def test_transfer_fields_subset():
     m.train(1)
     m.get_latent_representation(a2)
     assert a2.obs["_scvi_batch"].all() == 1
+
 
 def test_transfer_fields_wrong_kwarg():
     # test that error is thrown if an arbitrary kwarg is passed into setup_anndata
