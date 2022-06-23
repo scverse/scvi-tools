@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 from flax import linen as nn
 from flax.linen.initializers import variance_scaling
+from pyro import deterministic
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
@@ -71,12 +72,8 @@ class FlaxDecoder(nn.Module):
         self.dense4 = Dense(self.n_hidden)
         self.dense5 = Dense(self.n_input)
 
-        self.batchnorm1 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001
-        )
-        self.batchnorm2 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001
-        )
+        self.batchnorm1 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
+        self.batchnorm2 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
@@ -128,10 +125,10 @@ class JaxVAE(JaxBaseModuleClass):
             dropout_rate=0.0,
             n_hidden=self.n_hidden,
         )
-    
+
     def train(self):
         self.is_training = True
-    
+
     def eval(self):
         self.is_training = False
 
