@@ -34,15 +34,15 @@ class FlaxEncoder(nn.Module):
         self.dense3 = Dense(self.n_latent)
         self.dense4 = Dense(self.n_latent)
 
-        training = not self.is_training
+        is_eval = not self.is_training
         self.batchnorm1 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=training
+            momentum=0.99, epsilon=0.001, use_running_average=is_eval
         )
         self.batchnorm2 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=training
+            momentum=0.99, epsilon=0.001, use_running_average=is_eval
         )
-        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=training)
-        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=training)
+        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
+        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
 
     def __call__(self, x: jnp.ndarray):
 
@@ -76,15 +76,15 @@ class FlaxDecoder(nn.Module):
         self.dense4 = Dense(self.n_hidden)
         self.dense5 = Dense(self.n_input)
 
-        training = not self.is_training
+        is_eval = not self.is_training
         self.batchnorm1 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=training
+            momentum=0.99, epsilon=0.001, use_running_average=is_eval
         )
         self.batchnorm2 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=training
+            momentum=0.99, epsilon=0.001, use_running_average=is_eval
         )
-        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=training)
-        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=training)
+        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
+        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
 
         self.disp = self.param(
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
@@ -135,6 +135,10 @@ class JaxVAE(JaxBaseModuleClass):
             is_training=self.is_training,
         )
 
+    @property
+    def required_rngs(self):
+        return ("params", "dropout", "z")
+
     def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
         x = tensors[REGISTRY_KEYS.X_KEY]
 
@@ -169,7 +173,6 @@ class JaxVAE(JaxBaseModuleClass):
         return input_dict
 
     def generative(self, x, z, batch_index) -> dict:
-
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
         rho_unnorm, disp = self.decoder(z, batch)
