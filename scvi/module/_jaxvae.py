@@ -1,5 +1,7 @@
 from typing import Dict, Optional
 
+from pyro import deterministic
+
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
@@ -34,28 +36,37 @@ class FlaxEncoder(nn.Module):
         self.dense3 = Dense(self.n_latent)
         self.dense4 = Dense(self.n_latent)
 
-        is_eval = not self.is_training
-        self.batchnorm1 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=is_eval
-        )
-        self.batchnorm2 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=is_eval
-        )
-        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
-        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
+        if self.is_training is not None:
+            is_eval = not self.is_training
+            self.batchnorm1 = nn.BatchNorm(
+                momentum=0.99, epsilon=0.001, use_running_average=is_eval
+            )
+            self.batchnorm2 = nn.BatchNorm(
+                momentum=0.99, epsilon=0.001, use_running_average=is_eval
+            )
+            self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
+            self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
+        else:
+            self.batchnorm1 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
+            self.batchnorm2 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
+            self.dropout1 = nn.Dropout(self.dropout_rate)
+            self.dropout2 = nn.Dropout(self.dropout_rate)
 
-    def __call__(self, x: jnp.ndarray):
+    def __call__(self, x: jnp.ndarray, is_training: Optional[bool] = None):
+
+        is_training = nn.merge_param('is_training', self.is_training, is_training)
+        is_eval = not is_training
 
         x_ = jnp.log1p(x)
 
         h = self.dense1(x_)
-        h = self.batchnorm1(h)
+        h = self.batchnorm1(h, use_running_average=is_eval)
         h = nn.relu(h)
-        h = self.dropout1(h)
+        h = self.dropout1(h, deterministic=is_eval)
         h = self.dense2(h)
-        h = self.batchnorm2(h)
+        h = self.batchnorm2(h, use_running_average=is_eval)
         h = nn.relu(h)
-        h = self.dropout2(h)
+        h = self.dropout2(h, deterministic=is_eval)
 
         mean = self.dense3(h)
         log_var = self.dense4(h)
@@ -90,20 +101,23 @@ class FlaxDecoder(nn.Module):
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
 
-    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray):
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, is_training: Optional[bool] = None):
+
+        is_training = nn.merge_param('is_training', self.is_training, is_training)
+        is_eval = not is_training
 
         h = self.dense1(z)
         h += self.dense2(batch)
 
-        h = self.batchnorm1(h)
+        h = self.batchnorm1(h, use_running_average=is_eval)
         h = nn.relu(h)
-        h = self.dropout1(h)
+        h = self.dropout1(h, deterministic=is_eval)
         h = self.dense3(h)
         # skip connection
         h += self.dense4(batch)
-        h = self.batchnorm2(h)
+        h = self.batchnorm2(h, use_running_average=is_eval)
         h = nn.relu(h)
-        h = self.dropout2(h)
+        h = self.dropout2(h, deterministic=is_eval)
         h = self.dense5(h)
         return h, self.disp.ravel()
 
@@ -114,7 +128,7 @@ class JaxVAE(JaxBaseModuleClass):
     n_hidden: int = 128
     n_latent: int = 30
     dropout_rate: float = 0.0
-    is_training: bool = False
+    is_training: bool = None
     n_layers: int = 1
     gene_likelihood: str = "nb"
     eps: float = 1e-8
