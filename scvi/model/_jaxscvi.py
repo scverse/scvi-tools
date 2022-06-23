@@ -157,10 +157,10 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         latent = jnp.concatenate(latent, axis=concat_axis)
 
         return np.array(jax.device_get(latent))
-    
+
     def train(self):
         self.module.train()
-    
+
     def eval(self):
         self.module.eval()
 
