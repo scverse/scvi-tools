@@ -224,6 +224,8 @@ def test_data_format():
         adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
     )
 
+
+def test_data_format_c_contiguous():
     # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
     adata = synthetic_iid()
     pe = np.asfortranarray(adata.obsm["protein_expression"])
@@ -272,6 +274,8 @@ def test_setup_anndata():
         adata.uns["protein_names"],
     )
 
+
+def test_setup_anndata_view_error():
     # test that error is thrown if its a view:
     adata = synthetic_iid()
     with pytest.raises(ValueError):
@@ -294,6 +298,8 @@ def test_setup_anndata():
         new_protein_names,
     )
 
+
+def test_setup_anndata_layer():
     # test that layer is working properly
     adata = synthetic_iid()
     true_x = adata.X
@@ -304,6 +310,8 @@ def test_setup_anndata():
         adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), true_x
     )
 
+
+def test_setup_anndat_create_label_batch():
     # test that it creates labels and batch if no layers_key is passed
     adata = synthetic_iid()
     adata_manager = generic_setup_adata_manager(
@@ -320,12 +328,16 @@ def test_setup_anndata():
         np.zeros((adata.shape[0], 1)),
     )
 
+
+def test_setup_anndata_nan():
     # test error is thrown when categorical obs field contains nans
     adata = synthetic_iid()
     adata.obs["batch"][:10] = np.nan
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata, batch_key="batch")
 
+
+def test_setup_anndata_cat():
     # test error is thrown when categorical joint obsm field contains nans
     adata = synthetic_iid()
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
@@ -431,6 +443,8 @@ def test_anntorchdataset_getitem():
     np.testing.assert_array_equal(all_registered_tensors, list(bd[1].keys()))
     assert bd[1][REGISTRY_KEYS.X_KEY].shape[0] == bd.adata_manager.summary_stats.n_vars
 
+
+def test_anntorchdataset_numpy():
     # check that AnnTorchDataset returns numpy array
     adata1 = synthetic_iid()
     adata1_manager = generic_setup_adata_manager(adata1)
@@ -446,6 +460,8 @@ def test_anntorchdataset_getitem():
     for value in bd[1].values():
         assert type(value) == np.ndarray
 
+
+def test_anntorchdataset_getitem_numpy_sparse():
     # check AnnTorchDataset returns numpy array if pro exp was sparse
     adata = synthetic_iid()
     adata.obsm["protein_expression"] = sparse.csr_matrix(
@@ -458,12 +474,14 @@ def test_anntorchdataset_getitem():
     for value in bd[1].values():
         assert type(value) == np.ndarray
 
+
+def test_anntorchdataset_getitem_pro_exp():
     # check pro exp is being returned as numpy array even if its DF
     adata = synthetic_iid()
     adata.obsm["protein_expression"] = pd.DataFrame(
         adata.obsm["protein_expression"], index=adata.obs_names
     )
-    generic_setup_adata_manager(
+    adata_manager = generic_setup_adata_manager(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )
     bd = AnnTorchDataset(adata_manager)
