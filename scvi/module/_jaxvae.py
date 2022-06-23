@@ -1,6 +1,4 @@
-from typing import Dict, Optional
-
-from pyro import deterministic
+from typing import Dict
 
 import jax
 import jax.numpy as jnp
