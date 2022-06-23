@@ -28,7 +28,6 @@ class FlaxEncoder(nn.Module):
     n_latent: int
     n_hidden: int
     dropout_rate: int
-    is_training: Optional[bool] = None
 
     def setup(self):
         self.dense1 = Dense(self.n_hidden)
@@ -36,25 +35,13 @@ class FlaxEncoder(nn.Module):
         self.dense3 = Dense(self.n_latent)
         self.dense4 = Dense(self.n_latent)
 
-        if self.is_training is not None:
-            is_eval = not self.is_training
-            self.batchnorm1 = nn.BatchNorm(
-                momentum=0.99, epsilon=0.001, use_running_average=is_eval
-            )
-            self.batchnorm2 = nn.BatchNorm(
-                momentum=0.99, epsilon=0.001, use_running_average=is_eval
-            )
-            self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
-            self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
-        else:
-            self.batchnorm1 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
-            self.batchnorm2 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
-            self.dropout1 = nn.Dropout(self.dropout_rate)
-            self.dropout2 = nn.Dropout(self.dropout_rate)
+        self.batchnorm1 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
+        self.batchnorm2 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
+        self.dropout1 = nn.Dropout(self.dropout_rate)
+        self.dropout2 = nn.Dropout(self.dropout_rate)
 
-    def __call__(self, x: jnp.ndarray, is_training: Optional[bool] = None):
+    def __call__(self, x: jnp.ndarray, is_training: bool = False):
 
-        is_training = nn.merge_param('is_training', self.is_training, is_training)
         is_eval = not is_training
 
         x_ = jnp.log1p(x)
@@ -78,7 +65,6 @@ class FlaxDecoder(nn.Module):
     n_input: int
     dropout_rate: float
     n_hidden: int
-    is_training: Optional[bool] = None
 
     def setup(self):
         self.dense1 = Dense(self.n_hidden)
@@ -87,23 +73,21 @@ class FlaxDecoder(nn.Module):
         self.dense4 = Dense(self.n_hidden)
         self.dense5 = Dense(self.n_input)
 
-        is_eval = not self.is_training
         self.batchnorm1 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=is_eval
+            momentum=0.99, epsilon=0.001
         )
         self.batchnorm2 = nn.BatchNorm(
-            momentum=0.99, epsilon=0.001, use_running_average=is_eval
+            momentum=0.99, epsilon=0.001
         )
-        self.dropout1 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
-        self.dropout2 = nn.Dropout(self.dropout_rate, deterministic=is_eval)
+        self.dropout1 = nn.Dropout(self.dropout_rate)
+        self.dropout2 = nn.Dropout(self.dropout_rate)
 
         self.disp = self.param(
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
 
-    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, is_training: Optional[bool] = None):
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, is_training: bool = False):
 
-        is_training = nn.merge_param('is_training', self.is_training, is_training)
         is_eval = not is_training
 
         h = self.dense1(z)
@@ -128,7 +112,7 @@ class JaxVAE(JaxBaseModuleClass):
     n_hidden: int = 128
     n_latent: int = 30
     dropout_rate: float = 0.0
-    is_training: bool = None
+    is_training: bool = False
     n_layers: int = 1
     gene_likelihood: str = "nb"
     eps: float = 1e-8
@@ -139,15 +123,19 @@ class JaxVAE(JaxBaseModuleClass):
             n_latent=self.n_latent,
             n_hidden=self.n_hidden,
             dropout_rate=self.dropout_rate,
-            is_training=self.is_training,
         )
 
         self.decoder = FlaxDecoder(
             n_input=self.n_input,
             dropout_rate=0.0,
             n_hidden=self.n_hidden,
-            is_training=self.is_training,
         )
+    
+    def train(self):
+        self.is_training = True
+    
+    def eval(self):
+        self.is_training = False
 
     @property
     def required_rngs(self):
@@ -160,7 +148,7 @@ class JaxVAE(JaxBaseModuleClass):
         return input_dict
 
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
-        mean, var = self.encoder(x)
+        mean, var = self.encoder(x, is_training=self.is_training)
         stddev = jnp.sqrt(var) + self.eps
 
         qz = dist.Normal(mean, stddev)
@@ -189,7 +177,7 @@ class JaxVAE(JaxBaseModuleClass):
     def generative(self, x, z, batch_index) -> dict:
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
-        rho_unnorm, disp = self.decoder(z, batch)
+        rho_unnorm, disp = self.decoder(z, batch, is_training=self.is_training)
         disp_ = jnp.exp(disp)
         rho = jax.nn.softmax(rho_unnorm, axis=-1)
         total_count = x.sum(-1)[:, jnp.newaxis]

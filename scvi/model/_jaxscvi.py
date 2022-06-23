@@ -72,7 +72,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             n_hidden=n_hidden,
             n_latent=n_latent,
             dropout_rate=dropout_rate,
-            is_training=None,
+            is_training=False,
             gene_likelihood=gene_likelihood,
             **model_kwargs,
         )
@@ -157,6 +157,12 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         latent = jnp.concatenate(latent, axis=concat_axis)
 
         return np.array(jax.device_get(latent))
+    
+    def train(self):
+        self.module.train()
+    
+    def eval(self):
+        self.module.eval()
 
     def to_device(self, device):
         pass
