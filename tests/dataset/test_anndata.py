@@ -15,11 +15,14 @@ from scvi.dataloaders import AnnTorchDataset
 
 from .utils import generic_setup_adata_manager
 
+
 @pytest.fixture
 def adata():
     return synthetic_iid()
 
+
 adata1 = adata2 = adata
+
 
 def test_transfer_fields_basic(adata1, adata2):
     # test transfer_fields function
@@ -260,6 +263,7 @@ def test_setup_anndata_view_error(adata):
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata[1])
 
+
 def test_setup_anndata_view_error_df_protein_none(adata):
     # If obsm is a df and protein_names_uns_key is None, protein names should be grabbed from column of df
     new_protein_names = np.array(random.sample(range(100), 100)).astype("str")
@@ -422,6 +426,7 @@ def test_anntorchdataset_numpy(adata):
     for value in bd[1].values():
         assert type(value) == np.ndarray
 
+
 def test_anntorchdataset_numpy_sparse(adata):
     # check AnnTorchDataset returns numpy array counts were sparse
     adata.X = sparse.csr_matrix(adata.X)
@@ -505,6 +510,7 @@ def test_backed_anndata(adata, save_path):
     # test get item
     bd = AnnTorchDataset(adata_manager)
     bd[np.arange(adata.n_obs)]
+
 
 def test_backed_anndata_sparse(adata, save_path):
     # sparse
