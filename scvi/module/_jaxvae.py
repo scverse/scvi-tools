@@ -5,7 +5,6 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 from flax import linen as nn
 from flax.linen.initializers import variance_scaling
-from pyro import deterministic
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
