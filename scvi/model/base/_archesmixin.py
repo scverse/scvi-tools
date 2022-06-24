@@ -208,8 +208,10 @@ class ArchesMixin:
         genes_to_add = var_names.difference(adata.var_names)
         needs_padding = len(genes_to_add) > 0
         if needs_padding:
+            padding_mtx = csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
             adata_padding = AnnData(
-                csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
+                X=padding_mtx.copy(),
+                layers={layer: padding_mtx.copy() for layer in adata.layers},
             )
             adata_padding.var_names = genes_to_add
             adata_padding.obs_names = adata.obs_names

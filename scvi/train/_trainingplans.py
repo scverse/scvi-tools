@@ -1,6 +1,11 @@
+from functools import partial
 from inspect import getfullargspec, signature
-from typing import Callable, Optional, Union
+from typing import Callable, Dict, Optional, Union
 
+import jax
+import jax.numpy as jnp
+import numpy as np
+import optax
 import pyro
 import pytorch_lightning as pl
 import torch
@@ -11,7 +16,13 @@ from torchmetrics import MetricCollection
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.module import Classifier
-from scvi.module.base import BaseModuleClass, LossRecorder, PyroBaseModuleClass
+from scvi.module.base import (
+    BaseModuleClass,
+    JaxModuleWrapper,
+    LossRecorder,
+    PyroBaseModuleClass,
+    TrainStateWithBatchNorm,
+)
 from scvi.nn import one_hot
 
 from ._metrics import ElboMetric
@@ -863,3 +874,186 @@ class ClassifierTrainingPlan(pl.LightningModule):
         )
 
         return optimizer
+
+
+class JaxTrainingPlan(pl.LightningModule):
+    """
+    Lightning module task to train Pyro scvi-tools modules.
+
+    Parameters
+    ----------
+    module
+        An instance of :class:`~scvi.module.base.JaxModuleWraper`.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+        Only activated when `n_epochs_kl_warmup` is set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from 0 to 1.
+        Overrides `n_steps_kl_warmup` when both are not `None`.
+    """
+
+    def __init__(
+        self,
+        module: JaxModuleWrapper,
+        n_steps_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = 400,
+        optim_kwargs: Optional[dict] = None,
+        **loss_kwargs,
+    ):
+        super().__init__()
+        self.module = module
+        self._n_obs_training = None
+        self.loss_kwargs = loss_kwargs
+        self.n_steps_kl_warmup = n_steps_kl_warmup
+        self.n_epochs_kl_warmup = n_epochs_kl_warmup
+
+        self.automatic_optimization = False
+
+        # automatic handling of kl weight
+        self._loss_args = signature(self.module.loss).parameters
+        if "kl_weight" in self._loss_args:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+
+        # set optim kwargs
+        self.optim_kwargs = dict(learning_rate=1e-3, eps=0.01, weight_decay=1e-6)
+        if optim_kwargs is not None:
+            self.optim_kwargs.update(optim_kwargs)
+
+    def set_train_state(self, params, batch_stats=None):
+        self.module.train()
+
+        if self.module.train_state is not None:
+            return
+
+        weight_decay = self.optim_kwargs.pop("weight_decay")
+        # replicates PyTorch Adam
+        optimizer = optax.chain(
+            optax.additive_weight_decay(weight_decay=weight_decay),
+            optax.adam(**self.optim_kwargs),
+        )
+        train_state = TrainStateWithBatchNorm.create(
+            apply_fn=self.module.apply,
+            params=params,
+            tx=optimizer,
+            batch_stats=batch_stats,
+        )
+        self.module.train_state = train_state
+
+    @staticmethod
+    @jax.jit
+    def jit_training_step(
+        state: TrainStateWithBatchNorm,
+        batch: Dict[str, np.ndarray],
+        rngs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        # batch stats can't be passed here
+        def loss_fn(params):
+            vars_in = {"params": params, "batch_stats": state.batch_stats}
+            outputs, new_model_state = state.apply_fn(
+                vars_in, batch, rngs=rngs, mutable=["batch_stats"], **kwargs
+            )
+            loss_recorder = outputs[2]
+            loss = loss_recorder.loss
+            elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
+            return loss, (elbo, new_model_state)
+
+        (loss, (elbo, new_model_state)), grads = jax.value_and_grad(
+            loss_fn, has_aux=True
+        )(state.params)
+        new_state = state.apply_gradients(
+            grads=grads, batch_stats=new_model_state["batch_stats"]
+        )
+        return new_state, loss, elbo
+
+    def training_step(self, batch, batch_idx):
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        self.module.train()
+        self.module.train_state, loss, elbo = self.jit_training_step(
+            self.module.train_state,
+            batch,
+            self.module.rngs,
+            loss_kwargs=self.loss_kwargs,
+        )
+        loss = torch.tensor(jax.device_get(loss))
+        elbo = torch.tensor(jax.device_get(elbo))
+        # TODO: Better way to get batch size
+        self.log(
+            "train_loss",
+            loss,
+            on_epoch=True,
+            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+        )
+        self.log(
+            "elbo_train",
+            elbo,
+            on_epoch=True,
+            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+        )
+
+    @partial(jax.jit, static_argnums=(0,))
+    def jit_validation_step(
+        self,
+        state: TrainStateWithBatchNorm,
+        batch: Dict[str, np.ndarray],
+        rngs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        vars_in = {"params": state.params, "batch_stats": state.batch_stats}
+        outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
+        loss_recorder = outputs[2]
+        loss = loss_recorder.loss
+        elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
+
+        return loss, elbo
+
+    def validation_step(self, batch, batch_idx):
+        self.module.eval()
+        loss, elbo = self.jit_validation_step(
+            self.module.train_state,
+            batch,
+            self.module.rngs,
+            loss_kwargs=self.loss_kwargs,
+        )
+        loss = torch.tensor(jax.device_get(loss))
+        elbo = torch.tensor(jax.device_get(elbo))
+        self.log(
+            "validation_loss",
+            loss,
+            on_epoch=True,
+            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+        )
+        self.log(
+            "elbo_validation",
+            elbo,
+            on_epoch=True,
+            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+        )
+
+    @property
+    def kl_weight(self):
+        """Scaling factor on KL divergence during training."""
+        return _compute_kl_weight(
+            self.current_epoch,
+            self.global_step,
+            self.n_epochs_kl_warmup,
+            self.n_steps_kl_warmup,
+        )
+
+    @staticmethod
+    def transfer_batch_to_device(batch, device, dataloader_idx):
+        """Bypass Pytorch Lightning device management."""
+        return batch
+
+    def configure_optimizers(self):
+        return None
+
+    def optimizer_step(self, *args, **kwargs):
+        pass
+
+    def backward(self, *args, **kwargs):
+        pass
+
+    def forward(self, *args, **kwargs):
+        pass
