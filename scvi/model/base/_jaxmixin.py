@@ -1,3 +1,4 @@
+import warnings
 from asyncio.log import logger
 from typing import Optional
 
@@ -54,7 +55,12 @@ class JaxTrainingMixin:
             use_gpu=use_gpu,
             **trainer_kwargs,
         )
-        runner()
+        # Ignore Pytorch Lightning warnings for Jax workarounds.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, module=r"pytorch_lightning.*"
+            )
+            runner()
 
         self.is_trained_ = True
         self.module.eval()
