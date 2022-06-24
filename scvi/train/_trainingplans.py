@@ -4,6 +4,7 @@ from typing import Callable, Dict, Optional, Union
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import optax
 import pyro
 import pytorch_lightning as pl
@@ -943,7 +944,7 @@ class JaxTrainingPlan(pl.LightningModule):
     @jax.jit
     def jit_training_step(
         state: TrainStateWithBatchNorm,
-        batch: Dict[str, jnp.ndarray],
+        batch: Dict[str, np.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
@@ -997,7 +998,7 @@ class JaxTrainingPlan(pl.LightningModule):
     def jit_validation_step(
         self,
         state: TrainStateWithBatchNorm,
-        batch: Dict[str, jnp.ndarray],
+        batch: Dict[str, np.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):

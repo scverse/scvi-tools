@@ -51,6 +51,32 @@ def test_data_prep(save_path):
     SCVI.load_query_data(adata5, dir_path)
 
 
+def test_data_prep_layer(save_path):
+    n_latent = 5
+    adata1 = synthetic_iid()
+    adata1.layers["counts"] = adata1.X.copy()
+    SCVI.setup_anndata(adata1, layer="counts", batch_key="batch", labels_key="labels")
+    model = SCVI(adata1, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # adata4 has more genes and missing 10 genes from adata1
+    adata4 = synthetic_iid(n_genes=110)
+    adata4.layers["counts"] = adata4.X.copy()
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
+    adata4.var_names = new_var_names
+
+    SCVI.prepare_query_anndata(adata4, dir_path)
+    # should be padded 0s
+    assert np.sum(adata4[:, adata4.var_names[:10]].layers["counts"]) == 0
+    np.testing.assert_equal(
+        adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy()
+    )
+    SCVI.load_query_data(adata4, dir_path)
+
+
 def test_scvi_online_update(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
