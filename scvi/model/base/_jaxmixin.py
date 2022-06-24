@@ -27,7 +27,7 @@ class JaxTrainingMixin:
             try:
                 self.module.to(jax.devices("gpu")[0])
             except RuntimeError:
-                logger.debug("No GPU available.")
+                logger.debug("No GPU available to Jax.")
 
         data_splitter = DataSplitter(
             self.adata_manager,
