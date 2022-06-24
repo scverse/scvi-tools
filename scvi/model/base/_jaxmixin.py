@@ -23,7 +23,7 @@ class JaxTrainingMixin:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
-        if use_gpu is None:
+        if use_gpu is None or use_gpu is True:
             try:
                 self.module.to(jax.devices("gpu")[0])
             except RuntimeError:
