@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from flax.core import FrozenDict
 from flax.training import train_state
 from jax import random
-from jaxlib.xla_extension import CpuDevice, Device
+from jaxlib.xla_extension import Device
 
 from scvi.utils._jax import device_selecting_PRNGKey
 
@@ -149,5 +149,5 @@ class JaxModuleWrapper:
     def to(self, device: Device):
         """Move module to device."""
         # TODO: move params and other state as well
-        fn = jax.device_get if not isinstance(device, CpuDevice) else jax.device_put
-        self._rngs = fn(self._rngs, device)
+        # TODO: be able to run device_get to get to CPU
+        self._rngs = jax.device_put(self._rngs, device)
