@@ -1,5 +1,7 @@
+from asyncio.log import logger
 from typing import Optional
 
+import jax
 import numpy as np
 
 from scvi.dataloaders import DataSplitter
@@ -10,6 +12,7 @@ class JaxTrainingMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
+        use_gpu: Optional[bool] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -19,6 +22,12 @@ class JaxTrainingMixin:
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+
+        if use_gpu is None:
+            try:
+                self.module.to(jax.devices("gpu")[0])
+            except RuntimeError:
+                logger.debug("No GPU available.")
 
         data_splitter = DataSplitter(
             self.adata_manager,

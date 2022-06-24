@@ -6,6 +6,7 @@ import jax.numpy as jnp
 from flax.core import FrozenDict
 from flax.training import train_state
 from jax import random
+from jaxlib.xla_extension import CpuDevice, Device
 
 from scvi.utils._jax import device_selecting_PRNGKey
 
@@ -21,7 +22,6 @@ class JaxModuleWrapper:
         self,
         module_cls: JaxBaseModuleClass,
         seed: int = 0,  # switch to using a global scvi.settings seed that gets forked everytime a modulewrapper is initialized by default
-        use_gpu: bool = False,
         **module_kwargs,
     ) -> None:
         self.module_cls = module_cls
@@ -31,8 +31,7 @@ class JaxModuleWrapper:
         self._eval_module = None
         self._train_state = None
 
-        self.use_gpu = use_gpu
-        self.key_fn = device_selecting_PRNGKey(use_gpu=self.use_gpu)
+        self.key_fn = device_selecting_PRNGKey()
         self.seed_rng = self.key_fn(seed)
         self._set_rngs()
 
@@ -146,3 +145,9 @@ class JaxModuleWrapper:
         self.train_state = flax.serialization.from_state_dict(
             self.train_state, state_dict
         )
+
+    def to(self, device: Device):
+        """Move module to device."""
+        # TODO: move params and other state as well
+        fn = jax.device_get if not isinstance(device, CpuDevice) else jax.device_put
+        self._rngs = fn(self._rngs, device)
