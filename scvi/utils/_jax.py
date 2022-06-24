@@ -4,7 +4,7 @@ import jax
 from jax import random
 
 
-def device_selecting_PRNGKey(use_cpu: bool) -> Callable:
+def device_selecting_PRNGKey(use_cpu: bool = True) -> Callable:
     # if key is generated on CPU, model params will be on CPU
     # we have to pay the price of a JIT compilation though
     if use_cpu is True:
