@@ -32,6 +32,8 @@ class JaxTrainingMixin:
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
+        use_gpu
+            Whether or not to use GPU resources. If None, will use GPU if available.
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
