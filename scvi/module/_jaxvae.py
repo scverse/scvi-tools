@@ -129,10 +129,10 @@ class JaxVAE(JaxBaseModuleClass):
             n_hidden=self.n_hidden,
         )
 
-    def train(self):
+    def train_mode(self):
         self.is_training = True
 
-    def eval(self):
+    def eval_mode(self):
         self.is_training = False
 
     @property
@@ -146,6 +146,7 @@ class JaxVAE(JaxBaseModuleClass):
         return input_dict
 
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
+        self.train_mode()
         mean, var = self.encoder(x, is_training=self.is_training)
         stddev = jnp.sqrt(var) + self.eps
 
@@ -173,6 +174,7 @@ class JaxVAE(JaxBaseModuleClass):
         return input_dict
 
     def generative(self, x, z, batch_index) -> dict:
+        self.train_mode()
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
         rho_unnorm, disp = self.decoder(z, batch, is_training=self.is_training)

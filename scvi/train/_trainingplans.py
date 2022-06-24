@@ -921,6 +921,7 @@ class JaxTrainingPlan(pl.LightningModule):
 
     def set_train_state(self, params, batch_stats=None):
         self.module.train()
+        self.module.train_mode()
 
         if self.module.train_state is not None:
             return
@@ -970,6 +971,7 @@ class JaxTrainingPlan(pl.LightningModule):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.module.train()
+        self.module.train_mode()
         self.module.train_state, loss, elbo = self.jit_training_step(
             self.module.train_state,
             batch,

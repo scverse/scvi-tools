@@ -143,6 +143,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
+        self.module.eval_mode()
         run_inference = self.module.get_inference_fn(mc_samples=mc_samples)
 
         latent = []
@@ -157,12 +158,6 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         latent = jnp.concatenate(latent, axis=concat_axis)
 
         return np.array(jax.device_get(latent))
-
-    def train(self):
-        self.module.train()
-
-    def eval(self):
-        self.module.eval()
 
     def to_device(self, device):
         pass
