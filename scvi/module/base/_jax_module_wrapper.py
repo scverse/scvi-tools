@@ -81,13 +81,13 @@ class JaxModuleWrapper:
         return self.module_cls(**kwargs)
 
     def eval(self):
-        """Switch to evaluation mode. Emulates Pytorch's ``eval()`` method."""
+        """Switch to evaluation mode. Emulates Pytorch's interface."""
         if self._eval_module is None:
             self._eval_module = self._get_module(dict(is_training=False))
         self._module = self._eval_module
 
     def train(self):
-        """Switch to train mode. Emulates Pytorch's ``train()`` method."""
+        """Switch to train mode. Emulates Pytorch's interface."""
         if self._train_module is None:
             self._train_module = self._get_module(dict(is_training=True))
         self._module = self._train_module
