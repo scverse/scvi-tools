@@ -29,7 +29,7 @@ class JaxTrainingMixin:
         if use_gpu is None or use_gpu is True:
             try:
                 self.module.to(jax.devices("gpu")[0])
-                logger.debug(
+                logger.info(
                     "Jax module moved to GPU. "
                     "Note: Pytorch lightning will show GPU is not being used for the Trainer."
                 )
@@ -38,7 +38,7 @@ class JaxTrainingMixin:
         else:
             cpu_device = jax.devices("cpu")[0]
             self.module.to(cpu_device)
-            logger.debug("Jax module moved to CPU.")
+            logger.info("Jax module moved to CPU.")
 
         data_splitter = DataSplitter(
             self.adata_manager,
