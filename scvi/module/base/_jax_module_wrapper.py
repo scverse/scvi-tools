@@ -151,7 +151,7 @@ class JaxModuleWrapper:
         # TODO: move params and other state as well
         # TODO: be able to run device_get to get to CPU
         if device is not self.device:
-            if self.train_state is None:
+            if self.train_state is not None:
                 raise NotImplementedError(
                     "Currently unable to move module across devices with an "
                     "existing train state."
