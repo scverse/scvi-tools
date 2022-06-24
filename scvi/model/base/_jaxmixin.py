@@ -66,7 +66,7 @@ class JaxTrainingMixin:
                 training_plan=self.training_plan,
                 data_splitter=data_splitter,
                 max_epochs=max_epochs,
-                use_gpu=use_gpu,
+                use_gpu=False,
                 **trainer_kwargs,
             )
             runner()
