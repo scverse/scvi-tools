@@ -27,6 +27,10 @@ class JaxTrainingMixin:
         if use_gpu is None or use_gpu is True:
             try:
                 self.module.to(jax.devices("gpu")[0])
+                logger.debug(
+                    "Jax module moved to GPU successfully. "
+                    "Note: Pytorch lightning will show GPU is not being used for the Trainer."
+                )
             except RuntimeError:
                 logger.debug("No GPU available to Jax.")
 
@@ -47,18 +51,18 @@ class JaxTrainingMixin:
             trainer_kwargs["callbacks"] = []
         trainer_kwargs["callbacks"].append(JaxModuleInit())
 
-        runner = TrainRunner(
-            self,
-            training_plan=self.training_plan,
-            data_splitter=data_splitter,
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
-            **trainer_kwargs,
-        )
         # Ignore Pytorch Lightning warnings for Jax workarounds.
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore", category=UserWarning, module=r"pytorch_lightning.*"
+            )
+            runner = TrainRunner(
+                self,
+                training_plan=self.training_plan,
+                data_splitter=data_splitter,
+                max_epochs=max_epochs,
+                use_gpu=use_gpu,
+                **trainer_kwargs,
             )
             runner()
 
