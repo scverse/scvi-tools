@@ -63,7 +63,6 @@ class TrainRunner:
         gpus, device = parse_use_gpu_arg(use_gpu)
         self.gpus = gpus
         self.device = device
-        print(gpus)
         self.trainer = Trainer(max_epochs=max_epochs, gpus=gpus, **trainer_kwargs)
 
     def __call__(self):
