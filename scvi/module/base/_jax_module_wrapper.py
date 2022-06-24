@@ -33,8 +33,6 @@ class JaxModuleWrapper:
         Flax module class to wrap.
     seed
         Random seed to initialize Jax RNGs with.
-    use_gpu
-        Whether or not to use GPU resources.
     **module_kwargs
         Keyword arguments that will be used to initialize ``module_cls``.
     """
