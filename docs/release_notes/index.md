@@ -3,6 +3,13 @@
 This is the list of changes to scvi-tools between each release. Full commit history
 is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits/).
 
+## Version 0.17
+
+```{toctree}
+:maxdepth: 2
+
+v0.17.0
+```
 
 ## Version 0.16
 
