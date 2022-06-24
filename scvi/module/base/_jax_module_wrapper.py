@@ -150,5 +150,12 @@ class JaxModuleWrapper:
         """Move module to device."""
         # TODO: move params and other state as well
         # TODO: be able to run device_get to get to CPU
-        self.seed_rng = jax.device_put(self.seed_rng, device)
-        self._rngs = jax.device_put(self._rngs, device)
+        if device is not self.device:
+            if self.train_state is None:
+                raise NotImplementedError(
+                    "Currently unable to move module across devices with an "
+                    "existing train state."
+                )
+
+            self.seed_rng = jax.device_put(self.seed_rng, device)
+            self._rngs = jax.device_put(self._rngs, device)

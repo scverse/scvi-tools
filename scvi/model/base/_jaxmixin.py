@@ -1,5 +1,5 @@
+import logging
 import warnings
-from asyncio.log import logger
 from typing import Optional
 
 import jax
@@ -7,6 +7,8 @@ import numpy as np
 
 from scvi.dataloaders import DataSplitter
 from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
+
+logger = logging.getLogger(__name__)
 
 
 class JaxTrainingMixin:
@@ -35,9 +37,8 @@ class JaxTrainingMixin:
                 logger.debug("No GPU available to Jax.")
         else:
             cpu_device = jax.devices("cpu")[0]
-            if self.module.device is not cpu_device:
-                self.module.to(cpu_device)
-                logger.debug("Jax module moved back to CPU. ")
+            self.module.to(cpu_device)
+            logger.debug("Jax module moved to CPU.")
 
         data_splitter = DataSplitter(
             self.adata_manager,
