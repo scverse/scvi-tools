@@ -18,6 +18,27 @@ class TrainStateWithBatchNorm(train_state.TrainState):
 
 
 class JaxModuleWrapper:
+    """
+    Wrapper class for Flax (Jax-backed) modules used to interact with model classes.
+
+    This class maintains all state necessary for training and updating the state
+    via the Flax module. The Flax module should remain stateless. In addition, the
+    ``JaxModuleWrapper`` duck-types the methods of :class:`~scvi.module.base.BaseModuleClass`,
+    which supports PyTorch-backed modules, to provide a consistent interface for
+    :class:`~scvi.model.base.BaseModelClass`.
+
+    Parameters
+    ----------
+    module_cls
+        Flax module class to wrap.
+    seed
+        Random seed to initialize Jax RNGs with.
+    use_gpu
+        Whether or not to use GPU resources.
+    **module_kwargs
+        Keyword arguments that will be used to initialize ``module_cls``.
+    """
+
     def __init__(
         self,
         module_cls: JaxBaseModuleClass,
@@ -55,29 +76,41 @@ class JaxModuleWrapper:
         return self._module
 
     def _get_module(self, kwargs=None):
+        """Helper function to get or reinitialize the module with ``kwargs``."""
         kwargs = (
             self.module_kwargs if kwargs is None else {**self.module_kwargs, **kwargs}
         )
         return self.module_cls(**kwargs)
 
     def eval(self):
+        """Switch to evaluation mode. Emulates Pytorch's ``eval()`` method."""
         if self._eval_module is None:
             self._eval_module = self._get_module(dict(is_training=False))
         self._module = self._eval_module
 
     def train(self):
+        """Switch to train mode. Emulates Pytorch's ``train()`` method."""
         if self._train_module is None:
             self._train_module = self._get_module(dict(is_training=True))
         self._module = self._train_module
 
     @property
     def _bound_module(self):
+        """Module bound with parameters learned from training."""
         return self.module.bind(
             {"params": self.params, "batch_stats": self.batch_stats},
             rngs=self.rngs,
         )
 
     def get_inference_fn(self, mc_samples: int = 1):
+        """
+        Returns a method to run inference using the bound module.
+
+        Parameters
+        ----------
+        mc_samples
+            Number of Monte Carlo samples to run for each input.
+        """
         bound_module = self._bound_module
 
         @jax.jit
@@ -90,27 +123,42 @@ class JaxModuleWrapper:
 
     @property
     def apply(self):
+        """Apply function of the Flax module."""
         return self.module.apply
 
     @property
     def loss(self):
+        """Loss function of the Flax module."""
         return self.module.loss
 
     @property
     def init(self):
+        """Init function of the Flax module."""
         return self.module.init
 
     @property
     def rngs(self) -> Dict[str, jnp.ndarray]:
+        """
+        Dictionary of RNGs mapping required RNG name to RNG values.
+
+        Calls ``self._split_rngs()`` resulting in newly generated RNGs on
+        every reference to ``self.rngs``.
+        """
         return self._split_rngs()
 
     def _set_rngs(self):
+        """Creates RNGs split off of the seed RNG for each RNG required by the module."""
         required_rngs = self.module.required_rngs
         rng_keys = random.split(self.seed_rng, num=len(required_rngs) + 1)
         self.seed, module_rngs = rng_keys[0], rng_keys[1:]
         self._rngs = {k: module_rngs[i] for i, k in enumerate(required_rngs)}
 
     def _split_rngs(self):
+        """
+        Regenerates the current set of RNGs and returns newly split RNGs.
+
+        Importantly, this method does not reuse RNGs in future references to ``self.rngs``.
+        """
         new_rngs = {}
         ret_rngs = {}
         for k, v in self._rngs.items():
@@ -120,6 +168,7 @@ class JaxModuleWrapper:
 
     @property
     def train_state(self) -> TrainStateWithBatchNorm:
+        """Train state containing learned parameter values from training."""
         return self._train_state
 
     @train_state.setter
@@ -135,9 +184,11 @@ class JaxModuleWrapper:
         return self.train_state.batch_stats
 
     def state_dict(self) -> Dict[str, Any]:
+        """Returns a serialized version of the train state as a dictionary."""
         return flax.serialization.to_state_dict(self.train_state)
 
     def load_state_dict(self, state_dict: Dict[str, Any]):
+        """Load a state dictionary into a train state."""
         if self.train_state is None:
             raise RuntimeError(
                 "Train state is not set. Train for one iteration prior to loading state dict."
