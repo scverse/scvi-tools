@@ -3,6 +3,7 @@ import pytest
 
 from scvi.data import synthetic_iid
 
+
 @pytest.fixture
 def adata():
     anndata = synthetic_iid()
@@ -14,5 +15,6 @@ def adata():
     anndata.obs["cat2"] = np.random.randint(0, 5, size=(anndata.shape[0],))
 
     return anndata
+
 
 adata1 = adata2 = adata
