@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class JaxTrainingMixin:
+    """General purpose train method for Jax-backed modules."""
+
     def train(
         self,
         max_epochs: Optional[int] = None,
@@ -22,6 +24,28 @@ class JaxTrainingMixin:
         lr: float = 1e-3,
         **trainer_kwargs,
     ):
+        """
+        Train the model.
+
+        Parameters
+        ----------
+        max_epochs
+            Number of passes through the dataset. If `None`, defaults to
+            `np.min([round((20000 / n_cells) * 400), 400])`
+        use_gpu
+            Whether or not to use GPU resources. If None, will use GPU if available.
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        batch_size
+            Minibatch size to use during training.
+        lr
+            Learning rate to use during training.
+        **trainer_kwargs
+            Other keyword args for :class:`~scvi.train.Trainer`.
+        """
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
