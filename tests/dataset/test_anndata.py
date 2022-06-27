@@ -16,14 +16,6 @@ from scvi.dataloaders import AnnTorchDataset
 from .utils import generic_setup_adata_manager
 
 
-@pytest.fixture
-def adata():
-    return synthetic_iid()
-
-
-adata1 = adata2 = adata
-
-
 def test_transfer_fields_basic(adata1, adata2):
     # test transfer_fields function
     adata2.X = adata1.X
@@ -36,9 +28,6 @@ def test_transfer_fields_basic(adata1, adata2):
 
 def test_transfer_fields_layer_use(adata1, adata2):
     # test if layer was used initially, again used in transfer setup
-    raw_counts = adata1.X.copy()
-    adata1.layers["raw"] = raw_counts
-    adata2.layers["raw"] = raw_counts
     zeros = np.zeros_like(adata1.X)
     ones = np.ones_like(adata1.X)
     adata1.X = zeros
@@ -319,7 +308,6 @@ def test_setup_anndata_nan(adata):
 
 def test_setup_anndata_cat(adata):
     # test error is thrown when categorical joint obsm field contains nans
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat1"][:10] = np.nan
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata, categorical_covariate_keys=["cat1"])
@@ -337,10 +325,6 @@ def test_save_setup_anndata(adata, save_path):
 
 
 def test_extra_covariates(adata):
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     scvi.model.SCVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -356,10 +340,6 @@ def test_extra_covariates(adata):
 
 
 def test_extra_covariates_transfer(adata):
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata_manager = generic_setup_adata_manager(
         adata,
         batch_key="batch",
@@ -463,10 +443,6 @@ def test_anntorchdataset_getitem_pro_exp(adata):
 
 
 def test_view_registry(adata):
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata_manager = generic_setup_adata_manager(
         adata,
         batch_key="batch",
@@ -482,8 +458,6 @@ def test_view_registry(adata):
 
 def test_saving(adata, save_path):
     save_path = os.path.join(save_path, "tmp_adata.h5ad")
-    adata.obs["cont1"] = np.random.uniform(5, adata.n_obs)
-    adata.obs["cont2"] = np.random.uniform(5, adata.n_obs)
     adata.obs["cat1"] = np.random.randint(0, 3, adata.n_obs).astype(str)
     adata.obs["cat1"][1] = "asdf"
     adata.obs["cat1"][2] = "f34"
