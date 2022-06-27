@@ -1,9 +1,7 @@
 import pytest
 import numpy as np
 
-import scvi
 from scvi.data import synthetic_iid
-from .utils import generic_setup_adata_manager
 
 @pytest.fixture
 def adata():
