@@ -74,8 +74,6 @@ class JaxTrainingMixin:
             iter_ndarray=True,
         )
 
-        self.module.train_mode()
-
         self.training_plan = JaxTrainingPlan(
             self.module, optim_kwargs=dict(learning_rate=lr)
         )
@@ -100,4 +98,3 @@ class JaxTrainingMixin:
 
         self.is_trained_ = True
         self.module.eval()
-        self.module.eval_mode()
