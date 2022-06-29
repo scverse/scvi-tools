@@ -430,7 +430,6 @@ class JaxBaseModuleClass(linen.Module):
             Whether to compute loss on forward pass. This adds
             another return value.
         """
-        self.train_mode()
         return _generic_forward(
             self,
             tensors,
