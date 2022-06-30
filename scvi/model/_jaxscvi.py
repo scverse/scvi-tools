@@ -72,7 +72,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             n_hidden=n_hidden,
             n_latent=n_latent,
             dropout_rate=dropout_rate,
-            is_training=False,
+            training=False,
             gene_likelihood=gene_likelihood,
             **model_kwargs,
         )
