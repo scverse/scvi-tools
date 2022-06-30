@@ -388,7 +388,7 @@ class JaxBaseModuleClass(linen.Module):
 
         https://flax.readthedocs.io/en/latest/design_notes/setup_or_nncompact.html
         """
-        pass
+        self.training = True
 
     @property
     @abstractmethod

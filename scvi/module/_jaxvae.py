@@ -38,9 +38,9 @@ class FlaxEncoder(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
-    def __call__(self, x: jnp.ndarray, is_training: bool = False):
+    def __call__(self, x: jnp.ndarray, training: bool = False):
 
-        is_eval = not is_training
+        is_eval = not training
 
         x_ = jnp.log1p(x)
 
@@ -80,9 +80,9 @@ class FlaxDecoder(nn.Module):
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
 
-    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, is_training: bool = False):
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training: bool = False):
 
-        is_eval = not is_training
+        is_eval = not training
 
         h = self.dense1(z)
         h += self.dense2(batch)
@@ -106,12 +106,14 @@ class JaxVAE(JaxBaseModuleClass):
     n_hidden: int = 128
     n_latent: int = 30
     dropout_rate: float = 0.0
-    is_training: bool = False
+    training: bool = True
     n_layers: int = 1
     gene_likelihood: str = "nb"
     eps: float = 1e-8
 
     def setup(self):
+        # super().setup()
+
         self.encoder = FlaxEncoder(
             n_input=self.n_input,
             n_latent=self.n_latent,
@@ -136,7 +138,7 @@ class JaxVAE(JaxBaseModuleClass):
         return input_dict
 
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
-        mean, var = self.encoder(x, is_training=self.is_training)
+        mean, var = self.encoder(x, training=self.training)
         stddev = jnp.sqrt(var) + self.eps
 
         qz = dist.Normal(mean, stddev)
@@ -165,7 +167,7 @@ class JaxVAE(JaxBaseModuleClass):
     def generative(self, x, z, batch_index) -> dict:
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
-        rho_unnorm, disp = self.decoder(z, batch, is_training=self.is_training)
+        rho_unnorm, disp = self.decoder(z, batch, training=self.training)
         disp_ = jnp.exp(disp)
         rho = jax.nn.softmax(rho_unnorm, axis=-1)
         total_count = x.sum(-1)[:, jnp.newaxis]

@@ -40,7 +40,6 @@ class JaxModuleWrapper:
     def __init__(
         self,
         module_cls: JaxBaseModuleClass,
-        is_training: bool = False,
         seed: int = 0,  # switch to using a global scvi.settings seed that gets forked everytime a modulewrapper is initialized by default
         **module_kwargs,
     ) -> None:
@@ -50,7 +49,6 @@ class JaxModuleWrapper:
         self._train_module = None
         self._eval_module = None
         self._train_state = None
-        self.is_training = is_training
 
         self.key_fn = device_selecting_PRNGKey()
         self.seed_rng = self.key_fn(seed)
@@ -80,23 +78,24 @@ class JaxModuleWrapper:
         kwargs = (
             self.module_kwargs if kwargs is None else {**self.module_kwargs, **kwargs}
         )
+        print(kwargs)
         return self.module_cls(**kwargs)
 
     def eval(self):
         """Switch to evaluation mode. Emulates Pytorch's interface."""
         if self._eval_module is None:
-            self._eval_module = self._get_module(dict(is_training=False))
+            self._eval_module = self._get_module(dict(training=False))
         self._module = self._eval_module
 
-        self.is_training = False
+        self.module.training = False
 
     def train(self):
         """Switch to train mode. Emulates Pytorch's interface."""
         if self._train_module is None:
-            self._train_module = self._get_module(dict(is_training=True))
+            self._train_module = self._get_module(dict(training=True))
         self._module = self._train_module
 
-        self.is_training = True
+        self.module.training = True
 
     @property
     def _bound_module(self):
