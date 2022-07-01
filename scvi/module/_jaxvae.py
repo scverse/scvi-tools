@@ -106,14 +106,12 @@ class JaxVAE(JaxBaseModuleClass):
     n_hidden: int = 128
     n_latent: int = 30
     dropout_rate: float = 0.0
-    training: bool = True
     n_layers: int = 1
     gene_likelihood: str = "nb"
     eps: float = 1e-8
+    training: bool = True
 
     def setup(self):
-        # super().setup()
-
         self.encoder = FlaxEncoder(
             n_input=self.n_input,
             n_latent=self.n_latent,
@@ -138,7 +136,9 @@ class JaxVAE(JaxBaseModuleClass):
         return input_dict
 
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
-        mean, var = self.encoder(x, training=self.training)
+        import pdb
+        pdb.set_trace()
+        mean, var = self.encoder(x, training=True)
         stddev = jnp.sqrt(var) + self.eps
 
         qz = dist.Normal(mean, stddev)
@@ -167,7 +167,9 @@ class JaxVAE(JaxBaseModuleClass):
     def generative(self, x, z, batch_index) -> dict:
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
-        rho_unnorm, disp = self.decoder(z, batch, training=self.training)
+        import pdb
+        pdb.set_trace()
+        rho_unnorm, disp = self.decoder(z, batch, training=False)
         disp_ = jnp.exp(disp)
         rho = jax.nn.softmax(rho_unnorm, axis=-1)
         total_count = x.sum(-1)[:, jnp.newaxis]
