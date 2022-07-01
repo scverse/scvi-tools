@@ -1,6 +1,6 @@
 from abc import abstractmethod
-from typing import Callable, Dict, Iterable, Optional, Tuple, Union
 from dataclasses import field
+from typing import Callable, Dict, Iterable, Optional, Tuple, Union
 
 import jax.numpy as jnp
 import pyro

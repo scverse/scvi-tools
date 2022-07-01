@@ -138,7 +138,7 @@ class JaxModuleWrapper:
     def init(self):
         """Init function of the Flax module."""
         return self.module.init
-    
+
     @property
     def training(self):
         """Init function of the Flax module."""
