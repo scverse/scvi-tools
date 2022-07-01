@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from typing import Callable, Dict, Iterable, Optional, Tuple, Union
+from dataclasses import field
 
 import jax.numpy as jnp
 import pyro
@@ -375,6 +376,7 @@ class PyroBaseModuleClass(nn.Module):
 
 
 class JaxBaseModuleClass(linen.Module):
+    # training: bool = field(default=True, init=False) # Instance variable tracking if in training mode.
     """Abstract class for Jax-based scvi-tools modules."""
 
     @abstractmethod
@@ -388,7 +390,7 @@ class JaxBaseModuleClass(linen.Module):
 
         https://flax.readthedocs.io/en/latest/design_notes/setup_or_nncompact.html
         """
-        self.training = True
+        pass
 
     @property
     @abstractmethod

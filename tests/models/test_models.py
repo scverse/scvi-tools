@@ -6,10 +6,12 @@ import anndata
 import numpy as np
 import pandas as pd
 import pytest
+from unittest import mock
 import torch
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
+from flax import linen as nn
 
 import scvi
 from scvi.data import _constants, synthetic_iid
@@ -102,6 +104,32 @@ def test_jax_scvi():
     assert z1.ndim == 2
     z2 = model.get_latent_representation(give_mean=False, mc_samples=15)
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
+
+
+def test_jax_scvi_training():
+    n_latent = 5
+    dropout_rate = 0.1
+
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+    model = JaxSCVI(adata, n_latent=n_latent, dropout_rate=dropout_rate)
+    assert model.module.training
+
+    model.train(2, train_size=0.5, check_val_every_n_epoch=1)
+    assert not model.module.training
+
+    dropout1_mock = mock.Mock(wraps=nn.Dropout(dropout_rate))
+    dropout2_mock = mock.Mock(wraps=nn.Dropout(dropout_rate))
+
+    with mock.patch("nn.Dropout") as dropout_pkg_mock:
+        dropout_pkg_mock.side_effect([dropout1_mock, dropout2_mock])
+        model.get_latent_representation()
+
+    dropout1_mock.assert_called_once_with(mock.ANY, deterministic=True)
+    dropout2_mock.assert_called_once_with(mock.ANY, deterministic=True)
 
 
 def test_jax_scvi_save_load(save_path):

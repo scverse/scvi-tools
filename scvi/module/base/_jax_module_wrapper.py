@@ -83,17 +83,17 @@ class JaxModuleWrapper:
 
     def eval(self):
         """Switch to evaluation mode. Emulates Pytorch's interface."""
-        if self._eval_module is None:
-            self._eval_module = self._get_module(dict(training=False))
-        self._module = self._eval_module
+        # if self._eval_module is None:
+        #     self._eval_module = self._get_module(dict(training=False))
+        # self._module = self._eval_module
 
         self.module.training = False
 
     def train(self):
         """Switch to train mode. Emulates Pytorch's interface."""
-        if self._train_module is None:
-            self._train_module = self._get_module(dict(training=True))
-        self._module = self._train_module
+        # if self._train_module is None:
+        #     self._train_module = self._get_module(dict(training=True))
+        # self._module = self._train_module
 
         self.module.training = True
 
@@ -138,6 +138,11 @@ class JaxModuleWrapper:
     def init(self):
         """Init function of the Flax module."""
         return self.module.init
+    
+    @property
+    def training(self):
+        """Init function of the Flax module."""
+        return self.module.training
 
     @property
     def rngs(self) -> Dict[str, jnp.ndarray]:
