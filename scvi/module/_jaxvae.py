@@ -137,6 +137,7 @@ class JaxVAE(JaxBaseModuleClass):
 
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
         import pdb
+
         pdb.set_trace()
         mean, var = self.encoder(x, training=True)
         stddev = jnp.sqrt(var) + self.eps
@@ -168,6 +169,7 @@ class JaxVAE(JaxBaseModuleClass):
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
         import pdb
+
         pdb.set_trace()
         rho_unnorm, disp = self.decoder(z, batch, training=False)
         disp_ = jnp.exp(disp)

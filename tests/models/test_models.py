@@ -1,17 +1,17 @@
 import os
 import pickle
 import tarfile
+from unittest import mock
 
 import anndata
 import numpy as np
 import pandas as pd
 import pytest
-from unittest import mock
 import torch
+from flax import linen as nn
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
-from flax import linen as nn
 
 import scvi
 from scvi.data import _constants, synthetic_iid
