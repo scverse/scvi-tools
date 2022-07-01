@@ -920,8 +920,6 @@ class JaxTrainingPlan(pl.LightningModule):
             self.optim_kwargs.update(optim_kwargs)
 
     def set_train_state(self, params, batch_stats=None):
-        self.module.train()
-
         if self.module.train_state is not None:
             return
 

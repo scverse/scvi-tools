@@ -39,7 +39,6 @@ class FlaxEncoder(nn.Module):
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
     def __call__(self, x: jnp.ndarray, training: bool = False):
-
         is_eval = not training
 
         x_ = jnp.log1p(x)
@@ -81,7 +80,6 @@ class FlaxDecoder(nn.Module):
         )
 
     def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training: bool = False):
-
         is_eval = not training
 
         h = self.dense1(z)
@@ -136,10 +134,7 @@ class JaxVAE(JaxBaseModuleClass):
         return input_dict
 
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
-        import pdb
-
-        pdb.set_trace()
-        mean, var = self.encoder(x, training=True)
+        mean, var = self.encoder(x, training=self.training)
         stddev = jnp.sqrt(var) + self.eps
 
         qz = dist.Normal(mean, stddev)
@@ -168,10 +163,7 @@ class JaxVAE(JaxBaseModuleClass):
     def generative(self, x, z, batch_index) -> dict:
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
-        import pdb
-
-        pdb.set_trace()
-        rho_unnorm, disp = self.decoder(z, batch, training=False)
+        rho_unnorm, disp = self.decoder(z, batch, training=self.training)
         disp_ = jnp.exp(disp)
         rho = jax.nn.softmax(rho_unnorm, axis=-1)
         total_count = x.sum(-1)[:, jnp.newaxis]
