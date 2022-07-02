@@ -107,7 +107,6 @@ class JaxVAE(JaxBaseModuleClass):
     n_layers: int = 1
     gene_likelihood: str = "nb"
     eps: float = 1e-8
-    training: bool = True
 
     def setup(self):
         self.encoder = FlaxEncoder(

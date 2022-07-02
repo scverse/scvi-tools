@@ -78,8 +78,7 @@ class JaxModuleWrapper:
         kwargs = (
             self.module_kwargs if kwargs is None else {**self.module_kwargs, **kwargs}
         )
-        print(kwargs)
-        return self.module_cls(**kwargs)
+        return self.module_cls(training=True, **kwargs)
 
     def eval(self):
         """Switch to evaluation mode. Emulates Pytorch's interface."""
