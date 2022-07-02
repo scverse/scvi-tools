@@ -377,7 +377,7 @@ class PyroBaseModuleClass(nn.Module):
 class JaxBaseModuleClass(linen.Module):
     training: bool
     """Abstract class for Jax-based scvi-tools modules."""
-    
+
     @abstractmethod
     def setup(self):
         """
