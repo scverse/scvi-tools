@@ -205,7 +205,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 logger.info(
                     "No amortization for proportions, ignoring indices and returning results for the full data"
                 )
-            data = self.module.get_proportions(keep_noise=keep_noise, normalize=normalize)
+            data = self.module.get_proportions(
+                keep_noise=keep_noise, normalize=normalize
+            )
 
         return pd.DataFrame(
             data=data,
