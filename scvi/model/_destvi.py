@@ -401,7 +401,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
-            ObsmField("expected_proportions", expected_proportions),
+            ObsmField("expected_proportions", expected_proportions, required=False),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
