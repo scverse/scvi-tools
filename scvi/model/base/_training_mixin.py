@@ -1,9 +1,50 @@
-from typing import Optional, Union
+import warnings
+from typing import Any, Dict, Optional, Union
 
 import numpy as np
 
 from scvi.dataloaders import DataSplitter
 from scvi.train import TrainingPlan, TrainRunner
+
+
+def _check_warmup(
+    plan_kwargs: Dict[str, Any], max_epochs: int, n_cells: int, batch_size: int
+):
+    _WARNING_MESSAGE = (
+        "max_{mode}={max} is less than n_{mode}_kl_warmup={warm_up}. "
+        "The max_kl_weight will not be reached during training."
+    )
+
+    n_steps_kl_warmup = plan_kwargs.get("n_steps_kl_warmup", None)
+    n_epochs_kl_warmup = plan_kwargs.get("n_epochs_kl_warmup", None)
+
+    # The only time n_steps_kl_warmup is used, is when n_epochs_kl_warmup is explicitly
+    # set to None.
+    if (
+        "n_epochs_kl_warmup" in plan_kwargs
+        and plan_kwargs["n_epochs_kl_warmup"] is None
+    ):
+        max_steps = n_cells // batch_size + (n_cells % batch_size >= 3)
+        if n_steps_kl_warmup and max_steps < n_steps_kl_warmup:
+            warnings.warn(
+                _WARNING_MESSAGE.format(
+                    mode="steps", max=max_steps, warm_up=n_steps_kl_warmup
+                )
+            )
+        return
+
+    if n_epochs_kl_warmup:
+        if max_epochs < n_epochs_kl_warmup:
+            warnings.warn(
+                _WARNING_MESSAGE.format(
+                    mode="epochs", max=max_epochs, warm_up=n_epochs_kl_warmup
+                )
+            )
+    else:
+        if max_epochs < 400:
+            warnings.warn(
+                _WARNING_MESSAGE.format(mode="epochs", max=max_epochs, warm_up=400)
+            )
 
 
 class UnsupervisedTrainingMixin:
@@ -47,11 +88,13 @@ class UnsupervisedTrainingMixin:
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
+        n_cells = self.adata.n_obs
         if max_epochs is None:
-            n_cells = self.adata.n_obs
             max_epochs = np.min([round((20000 / n_cells) * 400), 400])
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+
+        _check_warmup(plan_kwargs, max_epochs, n_cells, batch_size)
 
         data_splitter = DataSplitter(
             self.adata_manager,
