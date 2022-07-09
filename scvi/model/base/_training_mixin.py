@@ -24,7 +24,7 @@ def _check_warmup(
         "n_epochs_kl_warmup" in plan_kwargs
         and plan_kwargs["n_epochs_kl_warmup"] is None
     ):
-        max_steps = n_cells // batch_size + (n_cells % batch_size >= 3)
+        max_steps = max_epochs * (n_cells // batch_size + (n_cells % batch_size >= 3))
         if n_steps_kl_warmup and max_steps < n_steps_kl_warmup:
             warnings.warn(
                 _WARNING_MESSAGE.format(

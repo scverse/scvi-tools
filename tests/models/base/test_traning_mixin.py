@@ -10,8 +10,8 @@ from scvi.model.base._training_mixin import _check_warmup
     [
         ({}, 399, 1, 1),
         ({"n_epochs_kl_warmup": 200}, 100, 1, 1),
-        ({"n_epochs_kl_warmup": None, "n_steps_kl_warmup": 100}, 100, 100, 10),
-        ({"n_epochs_kl_warmup": None, "n_steps_kl_warmup": 12}, 100, 103, 10),
+        ({"n_epochs_kl_warmup": None, "n_steps_kl_warmup": 100}, 1, 100, 10),
+        ({"n_epochs_kl_warmup": None, "n_steps_kl_warmup": 12}, 1, 103, 10),
     ],
 )
 def test_unsupervised_training_mixin_warmup_warning(
@@ -30,7 +30,7 @@ def test_unsupervised_training_mixin_warmup_warning(
         ({"n_epochs_kl_warmup": 200, "n_steps_kl_warmup": 100}, 200, 100, 10),
         ({"n_epochs_kl_warmup": None, "n_steps_kl_warmup": None}, 200, 1, 1),
         ({"n_epochs_kl_warmup": None}, 200, 1, 1),
-        ({"n_epochs_kl_warmup": None, "n_steps_kl_warmup": 10}, 100, 102, 10),
+        ({"n_epochs_kl_warmup": None, "n_steps_kl_warmup": 10}, 1, 102, 10),
     ],
 )
 def test_unsupervised_training_mixin_warmup_no_warning(
