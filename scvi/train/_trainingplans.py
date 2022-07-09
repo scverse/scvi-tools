@@ -37,7 +37,9 @@ def _compute_kl_weight(
     min_kl_weight: float,
 ) -> float:
     if min_kl_weight > max_kl_weight:
-        raise ValueError(f"{min_kl_weight=} is larger than {max_kl_weight=}.")
+        raise ValueError(
+            f"min_kl_weight={min_kl_weight} is larger than max_kl_weight={max_kl_weight}."
+        )
 
     slope = max_kl_weight - min_kl_weight
     if n_epochs_kl_warmup:
