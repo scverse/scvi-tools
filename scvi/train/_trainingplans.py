@@ -36,6 +36,27 @@ def _compute_kl_weight(
     max_kl_weight: float = 1.0,
     min_kl_weight: float = 0.0,
 ) -> float:
+    """Computes the kl weight for the current step or epoch depending on
+    `n_epochs_kl_warmup` and `n_steps_kl_warmup`. If both `n_epochs_kl_warmup` and
+    `n_steps_kl_warmup` are None `max_kl_weight` is returned.
+
+    Parameters
+    ----------
+    epoch
+        Current epoch.
+    step
+        Current step.
+    n_epochs_kl_warmup
+        Number of training epochs to scale weight on KL divergences from
+        `min_kl_weight` to `max_kl_weight`
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from
+        `min_kl_weight` to `max_kl_weight`
+    max_kl_weight
+        Maximum scaling factor on KL divergence during training.
+    min_kl_weight
+        Minimum scaling factor on KL divergence during training.
+    """
     if min_kl_weight > max_kl_weight:
         raise ValueError(
             f"min_kl_weight={min_kl_weight} is larger than max_kl_weight={max_kl_weight}."
@@ -80,11 +101,12 @@ class TrainingPlan(pl.LightningModule):
     optimizer
         One of "Adam" (:class:`~torch.optim.Adam`), "AdamW" (:class:`~torch.optim.AdamW`).
     n_steps_kl_warmup
-        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
-        Only activated when `n_epochs_kl_warmup` is set to None.
+        Number of training steps (minibatches) to scale weight on KL divergences from
+        `min_kl_weight` to `max_kl_weight`. Only activated when `n_epochs_kl_warmup` is
+        set to None.
     n_epochs_kl_warmup
-        Number of epochs to scale weight on KL divergences from 0 to 1.
-        Overrides `n_steps_kl_warmup` when both are not `None`.
+        Number of epochs to scale weight on KL divergences from `min_kl_weight` to
+        `max_kl_weight`. Overrides `n_steps_kl_warmup` when both are not `None`.
     reduce_lr_on_plateau
         Whether to monitor validation loss and reduce learning rate when validation set
         `lr_scheduler_metric` plateaus.
@@ -97,7 +119,7 @@ class TrainingPlan(pl.LightningModule):
     lr_scheduler_metric
         Which metric to track for learning rate reduction.
     lr_min
-        Minimum learning rate
+        Minimum learning rate allowed.
     max_kl_weight
         Maximum scaling factor on KL divergence during training.
     min_kl_weight
