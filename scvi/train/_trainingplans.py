@@ -36,7 +36,8 @@ def _compute_kl_weight(
     max_kl_weight: float = 1.0,
     min_kl_weight: float = 0.0,
 ) -> float:
-    """Computes the kl weight for the current step or epoch depending on
+    """
+    Computes the kl weight for the current step or epoch depending on
     `n_epochs_kl_warmup` and `n_steps_kl_warmup`. If both `n_epochs_kl_warmup` and
     `n_steps_kl_warmup` are None `max_kl_weight` is returned.
 
