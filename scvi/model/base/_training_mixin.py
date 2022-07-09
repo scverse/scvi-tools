@@ -39,8 +39,9 @@ def _check_warmup(
     n_steps_kl_warmup = plan_kwargs.get("n_steps_kl_warmup", None)
     n_epochs_kl_warmup = plan_kwargs.get("n_epochs_kl_warmup", None)
 
-    # The only time n_steps_kl_warmup is used, is when n_epochs_kl_warmup is explicitly
-    # set to None.
+    # The only time n_steps_kl_warmup is used is when n_epochs_kl_warmup is explicitly
+    # set to None. This also catches the case when both n_epochs_kl_warmup and
+    # n_steps_kl_warmup are set to None and max_kl_weight will always be reached.
     if (
         "n_epochs_kl_warmup" in plan_kwargs
         and plan_kwargs["n_epochs_kl_warmup"] is None
