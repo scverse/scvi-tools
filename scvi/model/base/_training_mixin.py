@@ -1,4 +1,5 @@
 import warnings
+from math import ceil
 from typing import Any, Dict, Optional, Union
 
 import numpy as np
@@ -8,8 +9,28 @@ from scvi.train import TrainingPlan, TrainRunner
 
 
 def _check_warmup(
-    plan_kwargs: Dict[str, Any], max_epochs: int, n_cells: int, batch_size: int
-):
+    plan_kwargs: Dict[str, Any],
+    max_epochs: int,
+    n_cells: int,
+    batch_size: int,
+    train_size: float = 1.0,
+) -> None:
+    """
+    Raises a warning if the max_kl_weight is not reached by the end of training.
+
+    Parameters
+    ----------
+    plan_kwargs
+        Keyword args for :class:`~scvi.train.TrainingPlan`.
+    max_epochs
+        Number of passes through the dataset.
+    n_cells
+        Number of cells in the whole datasets.
+    batch_size
+        Minibatch size to use during training.
+    train_size
+        Fraction of cells used for training.
+    """
     _WARNING_MESSAGE = (
         "max_{mode}={max} is less than n_{mode}_kl_warmup={warm_up}. "
         "The max_kl_weight will not be reached during training."
@@ -24,7 +45,9 @@ def _check_warmup(
         "n_epochs_kl_warmup" in plan_kwargs
         and plan_kwargs["n_epochs_kl_warmup"] is None
     ):
-        max_steps = max_epochs * (n_cells // batch_size + (n_cells % batch_size >= 3))
+        n_cell_train = ceil(train_size * n_cells)
+        steps_per_epoch = n_cell_train // batch_size + (n_cell_train % batch_size >= 3)
+        max_steps = max_epochs * steps_per_epoch
         if n_steps_kl_warmup and max_steps < n_steps_kl_warmup:
             warnings.warn(
                 _WARNING_MESSAGE.format(
