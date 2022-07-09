@@ -33,8 +33,8 @@ def _compute_kl_weight(
     step: int,
     n_epochs_kl_warmup: Optional[int],
     n_steps_kl_warmup: Optional[int],
-    max_kl_weight: float,
-    min_kl_weight: float,
+    max_kl_weight: float = 1.0,
+    min_kl_weight: float = 0.0,
 ) -> float:
     if min_kl_weight > max_kl_weight:
         raise ValueError(
