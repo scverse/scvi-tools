@@ -33,19 +33,20 @@ def _compute_kl_weight(
     step: int,
     n_epochs_kl_warmup: Optional[int],
     n_steps_kl_warmup: Optional[int],
-    min_weight: Optional[float] = None,
+    max_kl_weight: float,
+    min_kl_weight: float,
 ) -> float:
-    epoch_criterion = n_epochs_kl_warmup is not None
-    step_criterion = n_steps_kl_warmup is not None
-    if epoch_criterion:
-        kl_weight = min(1.0, epoch / n_epochs_kl_warmup)
-    elif step_criterion:
-        kl_weight = min(1.0, step / n_steps_kl_warmup)
-    else:
-        kl_weight = 1.0
-    if min_weight is not None:
-        kl_weight = max(kl_weight, min_weight)
-    return kl_weight
+    if min_kl_weight > max_kl_weight:
+        raise ValueError(f"{min_kl_weight=} is larger than {max_kl_weight=}.")
+
+    slope = max_kl_weight - min_kl_weight
+    if n_epochs_kl_warmup:
+        if epoch < n_epochs_kl_warmup:
+            return slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
+    elif n_steps_kl_warmup:
+        if step < n_steps_kl_warmup:
+            return slope * (step / n_steps_kl_warmup) + min_kl_weight
+    return max_kl_weight
 
 
 class TrainingPlan(pl.LightningModule):
@@ -94,7 +95,11 @@ class TrainingPlan(pl.LightningModule):
     lr_scheduler_metric
         Which metric to track for learning rate reduction.
     lr_min
-        Minimum learning rate allowed
+        Minimum learning rate
+    max_kl_weight
+        Maximum scaling factor on KL divergence during training.
+    min_kl_weight
+        Minimum scaling factor on KL divergence during training.
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -117,6 +122,8 @@ class TrainingPlan(pl.LightningModule):
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
         lr_min: float = 0,
+        max_kl_weight: float = 1.0,
+        min_kl_weight: float = 0.0,
         **loss_kwargs,
     ):
         super(TrainingPlan, self).__init__()
@@ -134,6 +141,8 @@ class TrainingPlan(pl.LightningModule):
         self.lr_threshold = lr_threshold
         self.lr_min = lr_min
         self.loss_kwargs = loss_kwargs
+        self.min_kl_weight = min_kl_weight
+        self.max_kl_weight = max_kl_weight
 
         self._n_obs_training = None
         self._n_obs_validation = None
@@ -340,6 +349,8 @@ class TrainingPlan(pl.LightningModule):
             self.global_step,
             self.n_epochs_kl_warmup,
             self.n_steps_kl_warmup,
+            self.max_kl_weight,
+            self.min_kl_weight,
         )
 
 
@@ -789,7 +800,7 @@ class PyroTrainingPlan(pl.LightningModule):
             self.global_step,
             self.n_epochs_kl_warmup,
             self.n_steps_kl_warmup,
-            min_weight=1e-3,
+            min_kl_weight=1e-3,
         )
 
 
