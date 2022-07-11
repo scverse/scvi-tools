@@ -11,8 +11,8 @@ from scvi.model.base import BaseModelClass
 
 class ModelSave(Callback):
     def __init__(self, model: BaseModelClass):
-        super()
-        self.model = model
+        super().__init__()
+        self.model_cls = model
 
     def on_validation_epoch_end(
         self,
@@ -24,7 +24,7 @@ class ModelSave(Callback):
             return
         step = f"epoch={trainer.current_epoch}-step={trainer.global_step}"
         with tune.checkpoint_dir(step=step) as checkpoint_dir:
-            self.model.save(dir_path=os.path.join(checkpoint_dir, "checkpoint"))
+            self.model_cls.save(dir_path=os.path.join(checkpoint_dir, "checkpoint"))
 
 
 class _TuneReportMetricFunctionsCallback(TuneCallback):

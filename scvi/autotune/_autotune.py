@@ -7,7 +7,6 @@ from typing import List, Optional, Union
 import anndata
 import numpy as np
 import ray
-import scanpy as sc
 import torch
 from ray import tune
 from ray.tune import CLIReporter, ExperimentAnalysis
@@ -16,7 +15,7 @@ from ray.tune.schedulers.trial_scheduler import TrialScheduler
 
 from scvi.model.base import BaseModelClass
 
-from ._utils import apply_model_config, format_config, train_model
+from ._utils import apply_model_config, fetch_config, train_model
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +99,9 @@ class Autotune:
             )
 
         self.adata = adata
-        self.model = model
+        self.model_cls = model
         self.setup_signature = inspect.signature(
-            self.model.setup_anndata
+            self.model_cls.setup_anndata
         ).parameters  # Fetch available parameters
         self.training_metrics = training_metrics
         self.metric_functions = metric_functions
@@ -168,18 +167,7 @@ class Autotune:
 
     def _trainable(self, config):
 
-        model_config, trainer_config, plan_config, hvg_config = format_config(
-            self, config
-        )
-
-        if "subset_adata" in hvg_config is True:
-            sc.pp.highly_variable_genes(
-                self.adata,
-                flavor="seurat_v3",
-                n_top_genes=hvg_config["top_n"],
-                batch_key=self.batch_key_hvg,
-                subset=True,
-            )
+        model_config, trainer_config, plan_config = fetch_config(self, config)
 
         model = apply_model_config(self, model_config)
         train_model(self, model, trainer_config, plan_config)
@@ -249,12 +237,10 @@ class Autotune:
             or self.top_hvg
         ):
             warnings.warn(
-                "You are optimizing over {} and testing different model architectures. "
+                f"You are optimizing over {metric} and testing different model architectures. "
                 "This is not a recommended approach as the metric will be influenced"
                 " by the architecture and not the model hyperparameters. Consider "
-                "optimizing over a non-training metric, such as `autotune.metrics.silhouette_score`".format(
-                    metric
-                )
+                "optimizing over a non-training metric, such as `autotune.metrics.silhouette_score`"
             )
 
         ray.init(num_cpus=resources_per_trial["cpu"], ignore_reinit_error=True)
@@ -279,20 +265,12 @@ class Autotune:
 
         best_config = analysis.best_config
 
-        _, trainer_config, plan_config, hvg_config = format_config(self, best_config)
-
-        if "subset_adata" in hvg_config is True:
-            sc.pp.highly_variable_genes(
-                self.adata,
-                flavor="seurat_v3",
-                n_top_genes=hvg_config["top_n"],
-                batch_key=self.batch_key_hvg,
-                subset=True,
-            )
+        _, trainer_config, plan_config = fetch_config(self, best_config)
 
         # retrieve and load best model
         best_checkpoint = analysis.best_checkpoint
-        best_model = self.model.load(
+        print(best_checkpoint)
+        best_model = self.model_cls.load(
             dir_path=os.path.join(best_checkpoint, "checkpoint"), adata=self.adata
         )
         best_model = train_model(

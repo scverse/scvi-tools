@@ -1,13 +1,15 @@
 from typing import Tuple, Union
 
+import scanpy as sc
+
 from scvi.model.base import BaseModelClass
 
 from ._callbacks import ModelSave, _TuneReportMetricFunctionsCallback
 
 
-def format_config(self, config: dict = None) -> Tuple[dict, ...]:
+def fetch_config(self, config: dict = None) -> Tuple[dict, ...]:
     """
-    Format tune's config dictionaries to use as input in scvi-tools' workflow
+    Fetch and format tune's config dictionaries to use as input in scvi-tools' workflow and filter adata accordingly
 
     ----------
     config
@@ -39,7 +41,16 @@ def format_config(self, config: dict = None) -> Tuple[dict, ...]:
         elif key in self.top_hvg:
             hvg_config[key] = config[key]
 
-    return model_config, trainer_config, plan_config, hvg_config
+    if "subset_adata" in hvg_config is True:
+        sc.pp.highly_variable_genes(
+            self.adata,
+            flavor="seurat_v3",
+            n_top_genes=hvg_config["top_n"],
+            batch_key=self.batch_key_hvg,
+            subset=True,
+        )
+
+    return model_config, trainer_config, plan_config
 
 
 def apply_model_config(
@@ -58,11 +69,11 @@ def apply_model_config(
     An object of class :class:`~scvi.model.base.BaseModelClass`
     """
 
-    self.model.setup_anndata(
+    self.model_cls.setup_anndata(
         self.adata,
         **self.setup_args,
     )
-    model = self.model(self.adata, **model_config)
+    model = self.model_cls(self.adata, **model_config)
     return model
 
 

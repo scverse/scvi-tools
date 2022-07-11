@@ -11,6 +11,15 @@ from scvi.model import SCVI
 def tune_scvi(adata: anndata.AnnData, n_epochs: int, run_kwargs: Optional[dict] = None):
     """
     Tune scvi with defaults for `tune.run` and return the best model.
+
+    The following hyperparameters will be compared:
+    - dropout_rate: `loguniform(1e-4, 1e-1)`
+    - n_layers: `random integer between 1 and 5`
+    - n_hidden: `random integer 64, 128 and 256`
+    - n_latent: `random integer between 20 and 50 in increments of 5`
+
+    The default metrics used to optimize the model are `elbo_validation` and `reconstruction_loss_validation`
+
     Parameters
     ----------
     adata
@@ -23,6 +32,11 @@ def tune_scvi(adata: anndata.AnnData, n_epochs: int, run_kwargs: Optional[dict] 
     Returns
     -------
     A tuple with the best model object and tune `Analysis` object
+
+    Notes
+    -------
+    This is a wrapper with limited functionality. If you want to have more control over the hyperparameters,
+    their values and the metrics used to optimize the model, please refer to :class:`~scvi.autotune.Autotune`
     """
     metrics = [
         "elbo_validation",
@@ -32,7 +46,7 @@ def tune_scvi(adata: anndata.AnnData, n_epochs: int, run_kwargs: Optional[dict] 
         "dropout_rate": tune.loguniform(1e-4, 1e-1),
         "n_layers": tune.choice([i for i in range(1, 5)]),
         "n_hidden": tune.choice([64, 128, 256]),
-        "n_latent": tune.choice([5, 10]),
+        "n_latent": tune.choice(list(range(20, 55, 5))),
     }
     plan_config = {"lr": tune.loguniform(1e-4, 1e-1)}
     tuner = Autotune(
