@@ -338,8 +338,12 @@ class RNASeqMixin:
                 generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
-            px_scale = generative_outputs["px"].scale
-            px_r = generative_outputs["px"].theta
+            if "px" in generative_outputs:
+                px_scale = generative_outputs["px"].scale
+                px_r = generative_outputs["px"].theta
+            else:
+                px_scale = generative_outputs["px_scale"]
+                px_r = generative_outputs["px_r"]
             device = px_r.device
 
             rate = rna_size_factor * px_scale

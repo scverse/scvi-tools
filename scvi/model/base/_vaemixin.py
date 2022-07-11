@@ -161,7 +161,11 @@ class VAEMixin:
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
-            qz = outputs["qz"]
+            if "qz" in outputs:
+                qz = outputs["qz"]
+            else:
+                qz_m, qz_v = outputs["qz_m"], outputs["qz_v"]
+                qz = torch.distributions.Normal(qz_m, qz_v.sqrt())
             z = outputs["z"]
 
             if give_mean:
