@@ -41,7 +41,7 @@ class FlaxEncoder(nn.Module):
     def __call__(self, x: jnp.ndarray, training: bool = False):
         is_eval = not training
 
-        print('LOLOLOLOLOL')
+        print("LOLOLOLOLOL")
         print(nn.Dropout(0.25))
 
         x_ = jnp.log1p(x)
