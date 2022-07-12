@@ -4,12 +4,11 @@ import tarfile
 
 import anndata
 import numpy as np
-from numpyro import deterministic
 import pandas as pd
 import pytest
 import torch
-
 from flax import linen as nn
+from numpyro import deterministic
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
@@ -40,9 +39,6 @@ from scvi.model import (
 from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
-
-from unittest import mock
-
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
