@@ -110,8 +110,8 @@ def test_jax_scvi():
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
 
 
-@mock.patch('scvi.module._jaxvae.nn.Dropout')
-def test_jax_scvi_training(JaxSCVI_module__module_nn_Dropout):
+@mock.patch('scvi.module._jaxvae.nn.Dropout', wraps=nn.Dropout, instance=True)
+def test_jax_scvi_training(scvi_module__jaxvae_nn_Dropout):
     n_latent = 5
     dropout_rate = 0.1
 
@@ -120,26 +120,17 @@ def test_jax_scvi_training(JaxSCVI_module__module_nn_Dropout):
         adata,
         batch_key="batch",
     )
+
+    x = mock.create_autospec(scvi.module._module.FlaxEncoder.__call__, instance=False)
+    y = mock.create_autospec(scvi.module._module.FlaxEncoder, instance=False)
     model = JaxSCVI(adata, n_latent=n_latent, dropout_rate=dropout_rate)
     assert model.module.training
 
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     assert not model.module.training
 
-    # dropout1_mock = mock.Mock(wraps=nn.Dropout(dropout_rate))
-    # dropout2_mock = mock.Mock(wraps=nn.Dropout(dropout_rate))
-
-    JaxSCVI_module__module_nn_Dropout.assert_called_once_with(mock.ANY, deterministic=True)
-
-    # with mock.patch.object(nn, 'Dropout') as dropout_pkg_mock:
-    #     # dropout_pkg_mock.side_effect([dropout1_mock, dropout2_mock])
-    #     model.get_latent_representation()
-
-    # dropout1_mock.assert_called_once_with(mock.ANY, deterministic=True)
-    # dropout2_mock.assert_called_once_with(mock.ANY, deterministic=True)
-
-    print(model.module._module.n_input)
-    model.module._module = mock.MagicMock()
+    x.assert_called_once(mock.ANY, mock.ANY, True) # __call__ patching
+    scvi_module__jaxvae_nn_Dropout.assert_called_with(mock.ANY, False) # patching nn.Dropout
 
 
 def test_jax_scvi_save_load(save_path):
