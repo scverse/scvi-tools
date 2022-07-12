@@ -24,7 +24,7 @@ class ElboMetric(Metric):
         Keyword args for :class:`torchmetrics.Metric`
     """
 
-    full_state_update = True
+    full_state_update = True # Needs to be explicitly set to avoid TorchMetrics UserWarning.
     _N_OBS_MINIBATCH_KEY = "n_obs_minibatch"
 
     def __init__(
