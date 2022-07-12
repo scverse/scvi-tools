@@ -6,11 +6,12 @@ from unittest import mock
 
 import anndata
 import numpy as np
+from numpyro import deterministic
 import pandas as pd
 import pytest
 import torch
 
-# from flax import linen as nn
+from flax import linen as nn
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
@@ -42,7 +43,7 @@ from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
-# from unittest import mock
+from unittest import mock
 
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
@@ -111,7 +112,8 @@ def test_jax_scvi():
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
 
 
-def test_jax_scvi_training():
+@mock.patch('scvi.module._jaxvae.nn.Dropout')
+def test_jax_scvi_training(JaxSCVI_module__module_nn_Dropout):
     n_latent = 5
     dropout_rate = 0.1
 
@@ -123,18 +125,23 @@ def test_jax_scvi_training():
     model = JaxSCVI(adata, n_latent=n_latent, dropout_rate=dropout_rate)
     assert model.module.training
 
-    model.train(2, train_size=0.5, check_val_every_n_epoch=1)
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     assert not model.module.training
 
     # dropout1_mock = mock.Mock(wraps=nn.Dropout(dropout_rate))
     # dropout2_mock = mock.Mock(wraps=nn.Dropout(dropout_rate))
 
-    # with mock.patch("scvi.module._jaxvae.JaxVAE.nn.Dropout") as dropout_pkg_mock:
-    #     dropout_pkg_mock.side_effect([dropout1_mock, dropout2_mock])
+    JaxSCVI_module__module_nn_Dropout.assert_called_once_with(mock.ANY, deterministic=True)
+
+    # with mock.patch.object(nn, 'Dropout') as dropout_pkg_mock:
+    #     # dropout_pkg_mock.side_effect([dropout1_mock, dropout2_mock])
     #     model.get_latent_representation()
 
     # dropout1_mock.assert_called_once_with(mock.ANY, deterministic=True)
     # dropout2_mock.assert_called_once_with(mock.ANY, deterministic=True)
+
+    print(model.module._module.n_input)
+    model.module._module = mock.MagicMock()
 
 
 def test_jax_scvi_save_load(save_path):
