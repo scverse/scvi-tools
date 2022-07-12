@@ -6,12 +6,11 @@ from unittest import mock
 
 import anndata
 import numpy as np
-from numpyro import deterministic
 import pandas as pd
 import pytest
 import torch
-
 from flax import linen as nn
+from numpyro import deterministic
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
@@ -42,9 +41,6 @@ from scvi.model import (
 from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
-
-from unittest import mock
-
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
@@ -112,7 +108,7 @@ def test_jax_scvi():
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
 
 
-@mock.patch('scvi.module._jaxvae.nn.Dropout')
+@mock.patch("scvi.module._jaxvae.nn.Dropout")
 def test_jax_scvi_training(JaxSCVI_module__module_nn_Dropout):
     n_latent = 5
     dropout_rate = 0.1
@@ -131,7 +127,9 @@ def test_jax_scvi_training(JaxSCVI_module__module_nn_Dropout):
     # dropout1_mock = mock.Mock(wraps=nn.Dropout(dropout_rate))
     # dropout2_mock = mock.Mock(wraps=nn.Dropout(dropout_rate))
 
-    JaxSCVI_module__module_nn_Dropout.assert_called_once_with(mock.ANY, deterministic=True)
+    JaxSCVI_module__module_nn_Dropout.assert_called_once_with(
+        mock.ANY, deterministic=True
+    )
 
     # with mock.patch.object(nn, 'Dropout') as dropout_pkg_mock:
     #     # dropout_pkg_mock.side_effect([dropout1_mock, dropout2_mock])
