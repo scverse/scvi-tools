@@ -55,9 +55,7 @@ def _check_warmup(
                     mode="steps", max=max_steps, warm_up=n_steps_kl_warmup
                 )
             )
-        return
-
-    if n_epochs_kl_warmup:
+    elif n_epochs_kl_warmup:
         if max_epochs < n_epochs_kl_warmup:
             warnings.warn(
                 _WARNING_MESSAGE.format(
