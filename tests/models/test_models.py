@@ -1,3 +1,4 @@
+import inspect
 import os
 import pickle
 import tarfile
@@ -374,6 +375,63 @@ def test_scvi(save_path):
         plan_kwargs={"reduce_lr_on_plateau": True},
     )
     assert "lr-Adam" in m.history.keys()
+
+
+def test_scvi_get_latent_rep_backwards_compat():
+    n_latent = 5
+
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    vae = model.module
+    vae_mock = mock.Mock(wraps=model.module)
+
+    def old_inference(*args, **kwargs):
+        inf_outs = vae.inference(*args, **kwargs)
+        qz = inf_outs.pop("qz")
+        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
+        return inf_outs
+
+    vae_mock.inference.side_effect = old_inference
+    model.module = vae_mock
+
+    model.get_latent_representation()
+
+
+def test_scvi_get_feature_corr_backwards_compat():
+    n_latent = 5
+
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    vae = model.module
+    vae_mock = mock.Mock(wraps=model.module)
+
+    def old_forward(*args, **kwargs):
+        inf_outs, gen_outs = vae.forward(*args, **kwargs)
+        qz = inf_outs.pop("qz")
+        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
+        px = gen_outs.pop("px")
+        gen_outs["px_scale"], gen_outs["px_r"] = px.scale, px.theta
+        return inf_outs, gen_outs
+
+    vae_mock.forward.side_effect = old_forward
+    vae_mock.generative.__signature__ = inspect.signature(
+        vae.generative
+    )  # Necessary to pass transform_batch check.
+    model.module = vae_mock
+
+    model.get_feature_correlation_matrix()
 
 
 def test_scvi_sparse(save_path):
