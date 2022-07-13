@@ -202,7 +202,7 @@ class ArchesMixin:
         logger.info("Found {}% reference vars in query data.".format(ratio * 100))
         if ratio < MIN_VAR_NAME_RATIO:
             warnings.warn(
-                f"Query data contains less than {MIN_VAR_NAME_RATIO:.0f}% of reference var names. "
+                f"Query data contains less than {MIN_VAR_NAME_RATIO:.0%} of reference var names. "
                 "This may result in poor performance."
             )
         genes_to_add = var_names.difference(adata.var_names)
