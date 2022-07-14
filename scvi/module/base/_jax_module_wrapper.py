@@ -45,7 +45,7 @@ class JaxModuleWrapper:
     ) -> None:
         self.module_cls = module_cls
         self.module_kwargs = module_kwargs
-        self._module = self._get_module()
+        self._module = self.module_cls(training=True, **self.module_kwargs)
         self._train_module = None
         self._eval_module = None
         self._train_state = None
@@ -73,24 +73,22 @@ class JaxModuleWrapper:
     def module(self):
         return self._module
 
-    def _get_module(self, kwargs=None):
-        """Helper function to get or reinitialize the module with ``kwargs``."""
-        kwargs = (
-            self.module_kwargs if kwargs is None else {**self.module_kwargs, **kwargs}
-        )
-        return self.module_cls(**kwargs)
+    @property
+    def training(self):
+        """Whether or not the Flax module is in training mode."""
+        return self.module.training
+
+    @training.setter
+    def training(self, training):
+        self.module.training = training
 
     def eval(self):
         """Switch to evaluation mode. Emulates Pytorch's interface."""
-        if self._eval_module is None:
-            self._eval_module = self._get_module(dict(is_training=False))
-        self._module = self._eval_module
+        self.training = False
 
     def train(self):
         """Switch to train mode. Emulates Pytorch's interface."""
-        if self._train_module is None:
-            self._train_module = self._get_module(dict(is_training=True))
-        self._module = self._train_module
+        self.training = True
 
     @property
     def _bound_module(self):
