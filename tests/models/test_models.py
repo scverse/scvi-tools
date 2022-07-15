@@ -108,13 +108,7 @@ def test_jax_scvi():
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
 
 
-<<<<<<< HEAD
-@mock.patch("scvi.module._jaxvae.nn.Dropout")
-def test_jax_scvi_training(JaxSCVI_module__module_nn_Dropout):
-=======
-@mock.patch('scvi.module._jaxvae.nn.Dropout', wraps=nn.Dropout, instance=True)
 def test_jax_scvi_training(scvi_module__jaxvae_nn_Dropout):
->>>>>>> mock
     n_latent = 5
     dropout_rate = 0.1
 
@@ -132,8 +126,10 @@ def test_jax_scvi_training(scvi_module__jaxvae_nn_Dropout):
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     assert not model.module.training
 
-    x.assert_called_once(mock.ANY, mock.ANY, True) # __call__ patching
-    scvi_module__jaxvae_nn_Dropout.assert_called_with(mock.ANY, False) # patching nn.Dropout
+    x.assert_called_once(mock.ANY, mock.ANY, True)  # __call__ patching
+    scvi_module__jaxvae_nn_Dropout.assert_called_with(
+        mock.ANY, False
+    )  # patching nn.Dropout
 
 
 def test_jax_scvi_save_load(save_path):
