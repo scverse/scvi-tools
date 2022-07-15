@@ -10,7 +10,6 @@ import pandas as pd
 import pytest
 import torch
 from flax import linen as nn
-from numpyro import deterministic
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
@@ -108,7 +107,7 @@ def test_jax_scvi():
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
 
 
-def test_jax_scvi_training(scvi_module__jaxvae_nn_Dropout):
+def test_jax_scvi_training():
     n_latent = 5
     dropout_rate = 0.1
 
@@ -118,18 +117,23 @@ def test_jax_scvi_training(scvi_module__jaxvae_nn_Dropout):
         batch_key="batch",
     )
 
-    x = mock.create_autospec(scvi.module._module.FlaxEncoder.__call__, instance=False)
-    y = mock.create_autospec(scvi.module._module.FlaxEncoder, instance=False)
     model = JaxSCVI(adata, n_latent=n_latent, dropout_rate=dropout_rate)
     assert model.module.training
 
-    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
-    assert not model.module.training
+    with mock.patch(
+        "scvi.module._jaxvae.nn.Dropout", wraps=nn.Dropout
+    ) as mock_dropout_cls:
+        mock_dropout = mock.Mock()
+        mock_dropout.side_effect = lambda h, **_kwargs: h
+        mock_dropout_cls.return_value = mock_dropout
+        model.train(1, train_size=0.5, check_val_every_n_epoch=1)
 
-    x.assert_called_once(mock.ANY, mock.ANY, True)  # __call__ patching
-    scvi_module__jaxvae_nn_Dropout.assert_called_with(
-        mock.ANY, False
-    )  # patching nn.Dropout
+        assert not model.module.training
+        mock_dropout_cls.assert_called()
+        mock_dropout.assert_has_calls(
+            12 * [mock.call(mock.ANY, deterministic=False)]
+            + 8 * [mock.call(mock.ANY, deterministic=True)]
+        )
 
 
 def test_jax_scvi_save_load(save_path):
