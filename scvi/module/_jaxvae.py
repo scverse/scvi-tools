@@ -45,6 +45,9 @@ class FlaxEncoder(nn.Module):
     def __call__(self, x: jnp.ndarray, training: bool = False):
         is_eval = not training
 
+        print('LOLOLOLOLOL')
+        print(nn.Dropout(0.25))
+
         x_ = jnp.log1p(x)
 
         h = self.dense1(x_)
@@ -88,6 +91,8 @@ class FlaxDecoder(nn.Module):
 
         h = self.dense1(z)
         h += self.dense2(batch)
+
+        print(is_eval)
 
         h = self.batchnorm1(h, use_running_average=is_eval)
         h = nn.relu(h)
