@@ -2,6 +2,8 @@ from typing import Optional
 
 import torch
 from torch.distributions import Bernoulli as BernoulliTorch
+
+
 class Bernoulli(BernoulliTorch):
     """
     Bernoulli distribution.
