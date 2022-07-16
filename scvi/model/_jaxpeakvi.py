@@ -3,6 +3,9 @@ from typing import Optional, Sequence
 
 from anndata import AnnData
 
+from scvi import REGISTRY_KEYS
+from scvi.data import AnnDataManager
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.module import JaxPEAKVAE
 from scvi.module.base import JaxModuleWrapper
 from scvi.utils import setup_anndata_dsp
@@ -60,5 +63,15 @@ class JaxPEAKVI(JaxTrainingMixin, BaseModelClass):
         batch_key: Optional[str] = None,
         **kwargs,
     ):
-        pass
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
+
     
