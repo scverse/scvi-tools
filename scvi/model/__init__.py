@@ -24,4 +24,5 @@ __all__ = [
     "AmortizedLDA",
     "utils",
     "JaxSCVI",
+    "JaxPEAKVI",
 ]

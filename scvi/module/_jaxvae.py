@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-from typing import Dict, Optional
-=======
 from typing import Dict
->>>>>>> Remove imports
 
 import jax
 import jax.numpy as jnp
