@@ -1,21 +1,23 @@
+import inspect
 import os
 import pickle
 import tarfile
+from unittest import mock
 
 import anndata
 import numpy as np
 import pandas as pd
 import pytest
 import torch
+from flax import linen as nn
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
-from scvi.data import synthetic_iid
-from scvi.data._built_in_data._download import _download
-from scvi.data.anndata import _constants
-from scvi.data.anndata._compat import LEGACY_REGISTRY_KEY_MAP, manager_from_setup_dict
+from scvi.data import _constants, synthetic_iid
+from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
+from scvi.data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -32,21 +34,23 @@ from scvi.model import (
     TOTALVI,
     CondSCVI,
     DestVI,
+    JaxSCVI,
     LinearSCVI,
 )
+from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
-from tests.dataset.utils import generic_setup_adata_manager
+from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
     "scvi_version": "0.0.0",
     "categorical_mappings": {
         "_scvi_batch": {
-            "original_key": "batch",
+            "original_key": "testbatch",
             "mapping": np.array(["batch_0", "batch_1"], dtype=object),
         },
         "_scvi_labels": {
-            "original_key": "labels",
+            "original_key": "testlabels",
             "mapping": np.array(["label_0", "label_1", "label_2"], dtype=object),
         },
     },
@@ -83,6 +87,97 @@ LEGACY_SETUP_DICT = {
 }
 
 
+def test_jax_scvi():
+    n_latent = 5
+
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+    model = JaxSCVI(adata, n_latent=n_latent)
+    model.train(2, train_size=0.5, check_val_every_n_epoch=1)
+    model.get_latent_representation()
+
+    model = JaxSCVI(adata, n_latent=n_latent, gene_likelihood="poisson")
+    model.train(1, train_size=0.5)
+    z1 = model.get_latent_representation(give_mean=True, mc_samples=1)
+    assert z1.ndim == 2
+    z2 = model.get_latent_representation(give_mean=False, mc_samples=15)
+    assert (z2.ndim == 3) and (z2.shape[0] == 15)
+
+
+def test_jax_scvi_training():
+    n_latent = 5
+    dropout_rate = 0.1
+
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+
+    model = JaxSCVI(adata, n_latent=n_latent, dropout_rate=dropout_rate)
+    assert model.module.training
+
+    with mock.patch(
+        "scvi.module._jaxvae.nn.Dropout", wraps=nn.Dropout
+    ) as mock_dropout_cls:
+        mock_dropout = mock.Mock()
+        mock_dropout.side_effect = lambda h, **_kwargs: h
+        mock_dropout_cls.return_value = mock_dropout
+        model.train(1, train_size=0.5, check_val_every_n_epoch=1)
+
+        assert not model.module.training
+        mock_dropout_cls.assert_called()
+        mock_dropout.assert_has_calls(
+            12 * [mock.call(mock.ANY, deterministic=False)]
+            + 8 * [mock.call(mock.ANY, deterministic=True)]
+        )
+
+
+def test_jax_scvi_save_load(save_path):
+    n_latent = 5
+
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+    model = JaxSCVI(adata, n_latent=n_latent)
+    model.train(2, train_size=0.5, check_val_every_n_epoch=1)
+    z1 = model.get_latent_representation(adata)
+    model.save(save_path, overwrite=True, save_anndata=True)
+    model.view_setup_args(save_path)
+    model = JaxSCVI.load(save_path)
+    model.get_latent_representation()
+
+    # Load with mismatched genes.
+    tmp_adata = synthetic_iid(
+        n_genes=200,
+    )
+    with pytest.raises(ValueError):
+        JaxSCVI.load(save_path, adata=tmp_adata)
+
+    # Load with different batches.
+    tmp_adata = synthetic_iid()
+    tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(
+        ["batch_2", "batch_3"]
+    )
+    with pytest.raises(ValueError):
+        JaxSCVI.load(save_path, adata=tmp_adata)
+
+    model = JaxSCVI.load(save_path, adata=adata)
+    assert "batch" in model.adata_manager.data_registry
+    assert model.adata_manager.data_registry["batch"] == dict(
+        attr_name="obs", attr_key="_scvi_batch"
+    )
+    assert model.is_trained is True
+
+    z2 = model.get_latent_representation()
+    np.testing.assert_array_equal(z1, z2)
+
+
 def test_scvi(save_path):
     n_latent = 5
 
@@ -97,6 +192,9 @@ def test_scvi(save_path):
     )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    # test mde
+    mde(model.get_latent_representation())
 
     # Test with observed lib size.
     adata = synthetic_iid()
@@ -117,7 +215,7 @@ def test_scvi(save_path):
 
     # tests __repr__
     print(model)
-    # test view_registry
+    # test view_anndata_setup
     model.view_anndata_setup()
     model.view_anndata_setup(hide_state_registries=True)
 
@@ -129,9 +227,10 @@ def test_scvi(save_path):
     model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
 
     adata2 = synthetic_iid()
-    # test view_registry with different anndata before transfer setup
+    # test view_anndata_setup with different anndata before transfer setup
     with pytest.raises(ValueError):
         model.view_anndata_setup(adata=adata2)
         model.view_anndata_setup(adata=adata2, hide_state_registries=True)
@@ -143,7 +242,7 @@ def test_scvi(save_path):
     assert latent.shape == (3, n_latent)
     denoised = model.get_normalized_expression(adata2)
     assert denoised.shape == adata.shape
-    # test view_registry with different anndata after transfer setup
+    # test view_anndata_setup with different anndata after transfer setup
     model.view_anndata_setup(adata=adata2)
     model.view_anndata_setup(adata=adata2, hide_state_registries=True)
 
@@ -200,7 +299,7 @@ def test_scvi(save_path):
     model._validate_anndata(adata2)
     model.get_elbo(adata2)
 
-    # test automatic transfer_anndata_setup + on a view
+    # test automatic transfer_anndata_setup on a view
     adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
@@ -210,6 +309,18 @@ def test_scvi(save_path):
     model = SCVI(adata)
     adata2 = synthetic_iid()
     model.get_elbo(adata2[:10])
+
+    # test automatic transfer_anndata_setup on a copy
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    adata2 = adata.copy()
+    model.get_elbo(adata2)
+    assert adata.uns[_constants._SCVI_UUID_KEY] != adata2.uns[_constants._SCVI_UUID_KEY]
 
     # test mismatched categories raises ValueError
     adata2 = synthetic_iid()
@@ -243,6 +354,9 @@ def test_scvi(save_path):
     # test get_likelihood_parameters() when dispersion=='gene-cell'
     model = SCVI(adata, dispersion="gene-cell")
     model.get_likelihood_parameters()
+    model.get_likelihood_parameters(indices=np.arange(10))
+    model.get_likelihood_parameters(n_samples=10)
+    model.get_likelihood_parameters(n_samples=10, indices=np.arange(10))
 
     # test train callbacks work
     a = synthetic_iid()
@@ -261,6 +375,63 @@ def test_scvi(save_path):
         plan_kwargs={"reduce_lr_on_plateau": True},
     )
     assert "lr-Adam" in m.history.keys()
+
+
+def test_scvi_get_latent_rep_backwards_compat():
+    n_latent = 5
+
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    vae = model.module
+    vae_mock = mock.Mock(wraps=model.module)
+
+    def old_inference(*args, **kwargs):
+        inf_outs = vae.inference(*args, **kwargs)
+        qz = inf_outs.pop("qz")
+        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
+        return inf_outs
+
+    vae_mock.inference.side_effect = old_inference
+    model.module = vae_mock
+
+    model.get_latent_representation()
+
+
+def test_scvi_get_feature_corr_backwards_compat():
+    n_latent = 5
+
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    vae = model.module
+    vae_mock = mock.Mock(wraps=model.module)
+
+    def old_forward(*args, **kwargs):
+        inf_outs, gen_outs = vae.forward(*args, **kwargs)
+        qz = inf_outs.pop("qz")
+        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
+        px = gen_outs.pop("px")
+        gen_outs["px_scale"], gen_outs["px_r"] = px.scale, px.theta
+        return inf_outs, gen_outs
+
+    vae_mock.forward.side_effect = old_forward
+    vae_mock.generative.__signature__ = inspect.signature(
+        vae.generative
+    )  # Necessary to pass transform_batch check.
+    model.module = vae_mock
+
+    model.get_feature_correlation_matrix()
 
 
 def test_scvi_sparse(save_path):
@@ -351,12 +522,11 @@ def test_saving_and_loading(save_path):
         with open(attr_save_path, "wb") as f:
             pickle.dump(user_attributes, f)
 
-    def test_save_load_model(cls, adata, save_path, prefix=None, legacy=False):
+    def test_save_load_model(cls, adata, save_path, prefix=None):
         if cls is TOTALVI:
             cls.setup_anndata(
                 adata,
                 batch_key="batch",
-                labels_key="labels",
                 protein_expression_obsm_key="protein_expression",
                 protein_names_uns_key="protein_names",
             )
@@ -366,13 +536,8 @@ def test_saving_and_loading(save_path):
         model.train(1, train_size=0.2)
         z1 = model.get_latent_representation(adata)
         test_idx1 = model.validation_indices
-        if legacy:
-            legacy_save(
-                model, save_path, overwrite=True, save_anndata=True, prefix=prefix
-            )
-        else:
-            model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-            model.view_setup_args(save_path, prefix=prefix)
+        model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+        model.view_setup_args(save_path, prefix=prefix)
         model = cls.load(save_path, prefix=prefix)
         model.get_latent_representation()
 
@@ -403,90 +568,118 @@ def test_saving_and_loading(save_path):
         np.testing.assert_array_equal(test_idx1, test_idx2)
         assert model.is_trained is True
 
+        # Test legacy loading
+        legacy_save_path = os.path.join(save_path, "legacy/")
+        legacy_save(
+            model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
+        )
+        with pytest.raises(ValueError):
+            cls.load(legacy_save_path, adata=adata, prefix=prefix)
+        cls.convert_legacy_save(
+            legacy_save_path,
+            legacy_save_path,
+            overwrite=True,
+            prefix=prefix,
+        )
+        m = cls.load(legacy_save_path, adata=adata, prefix=prefix)
+        m.train(1)
+
     save_path = os.path.join(save_path, "tmp")
     adata = synthetic_iid()
 
     for cls in [SCVI, LinearSCVI, TOTALVI, PEAKVI]:
-        test_save_load_model(
-            cls, adata, save_path, prefix=f"{cls.__name__}_", legacy=True
-        )
         test_save_load_model(cls, adata, save_path, prefix=f"{cls.__name__}_")
-        # Test load prioritizes newer save paradigm and thus mismatches legacy save.
-        with pytest.raises(AssertionError):
-            test_save_load_model(
-                cls, adata, save_path, prefix=f"{cls.__name__}_", legacy=True
-            )
 
     # AUTOZI
-    def test_save_load_autozi(legacy=False):
-        prefix = "AUTOZI_"
-        model = AUTOZI(adata, latent_distribution="normal")
-        model.train(1, train_size=0.5)
-        ab1 = model.get_alphas_betas()
-        if legacy:
-            legacy_save(
-                model, save_path, overwrite=True, save_anndata=True, prefix=prefix
-            )
-        else:
-            model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-            model.view_setup_args(save_path, prefix=prefix)
-        model = AUTOZI.load(save_path, prefix=prefix)
-        model.get_latent_representation()
-        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
-        with pytest.raises(ValueError):
-            AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
-        model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
-        assert "batch" in model.adata_manager.data_registry
-        assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
-        )
-
-        ab2 = model.get_alphas_betas()
-        np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
-        np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
-        assert model.is_trained is True
-
+    prefix = "AUTOZI_"
     AUTOZI.setup_anndata(adata, batch_key="batch", labels_key="labels")
-    test_save_load_autozi(legacy=True)
-    test_save_load_autozi()
-    # Test load prioritizes newer save paradigm and thus mismatches legacy save.
-    with pytest.raises(AssertionError):
-        test_save_load_autozi(legacy=True)
+    model = AUTOZI(adata, latent_distribution="normal")
+    model.train(1, train_size=0.5)
+    ab1 = model.get_alphas_betas()
+    model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    model.view_setup_args(save_path, prefix=prefix)
+    model = AUTOZI.load(save_path, prefix=prefix)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
+    model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
+    assert "batch" in model.adata_manager.data_registry
+    assert model.adata_manager.data_registry["batch"] == dict(
+        attr_name="obs", attr_key="_scvi_batch"
+    )
+
+    ab2 = model.get_alphas_betas()
+    np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
+    np.testing.assert_array_equal(ab1["beta_posterior"], ab2["beta_posterior"])
+    assert model.is_trained is True
+
+    # Test legacy loading
+    legacy_save_path = os.path.join(save_path, "legacy/")
+    legacy_save(
+        model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
+    )
+    with pytest.raises(ValueError):
+        AUTOZI.load(legacy_save_path, adata=adata, prefix=prefix)
+    AUTOZI.convert_legacy_save(
+        legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix
+    )
+    m = AUTOZI.load(legacy_save_path, adata=adata, prefix=prefix)
+    m.train(1)
 
     # SCANVI
-    def test_save_load_scanvi(legacy=False):
-        prefix = "SCANVI_"
-        model = SCANVI(adata)
-        model.train(max_epochs=1, train_size=0.5)
-        p1 = model.predict()
-        if legacy:
-            legacy_save(
-                model, save_path, overwrite=True, save_anndata=True, prefix=prefix
-            )
-        else:
-            model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
-            model.view_setup_args(save_path, prefix=prefix)
-        model = SCANVI.load(save_path, prefix=prefix)
-        model.get_latent_representation()
-        tmp_adata = scvi.data.synthetic_iid(n_genes=200)
-        with pytest.raises(ValueError):
-            SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
-        model = SCANVI.load(save_path, adata=adata, prefix=prefix)
-        assert "batch" in model.adata_manager.data_registry
-        assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
-        )
-
-        p2 = model.predict()
-        np.testing.assert_array_equal(p1, p2)
-        assert model.is_trained is True
-
+    prefix = "SCANVI_"
     SCANVI.setup_anndata(adata, "labels", "label_0", batch_key="batch")
-    test_save_load_scanvi(legacy=True)
-    test_save_load_scanvi()
-    # Test load prioritizes newer save paradigm and thus mismatches legacy save.
-    with pytest.raises(AssertionError):
-        test_save_load_scanvi(legacy=True)
+    model = SCANVI(adata)
+    model.train(max_epochs=1, train_size=0.5)
+    p1 = model.predict()
+    model.save(save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    model.view_setup_args(save_path, prefix=prefix)
+    model = SCANVI.load(save_path, prefix=prefix)
+    model.get_latent_representation()
+    tmp_adata = scvi.data.synthetic_iid(n_genes=200)
+    with pytest.raises(ValueError):
+        SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
+    model = SCANVI.load(save_path, adata=adata, prefix=prefix)
+    assert "batch" in model.adata_manager.data_registry
+    assert model.adata_manager.data_registry["batch"] == dict(
+        attr_name="obs", attr_key="_scvi_batch"
+    )
+
+    p2 = model.predict()
+    np.testing.assert_array_equal(p1, p2)
+    assert model.is_trained is True
+
+    # Test legacy loading
+    legacy_save_path = os.path.join(save_path, "legacy/")
+    legacy_save(
+        model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
+    )
+    with pytest.raises(ValueError):
+        SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
+    SCANVI.convert_legacy_save(
+        legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix
+    )
+    m = SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
+    m.train(1)
+
+
+def assert_dict_is_subset(d1, d2):
+    if not isinstance(d1, dict):
+        raise AssertionError(f"{d1} is not a dictionary.")
+    elif not isinstance(d2, dict):
+        raise AssertionError(f"{d2} is not a dictionary.")
+
+    for k, v in d1.items():
+        if k not in d2:
+            raise AssertionError(f"{k} missing from {d2}.")
+        v2 = d2[k]
+        if isinstance(v, dict):
+            assert_dict_is_subset(v, v2)
+        elif isinstance(v, np.ndarray):
+            np.testing.assert_array_equal(v, v2)
+        elif v != v2:
+            raise AssertionError(f"Mismatch between {v} and {v2}.")
 
 
 def test_new_setup_compat():
@@ -495,13 +688,16 @@ def test_new_setup_compat():
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    # Handle edge case where registry_key != obs_key.
+    adata.obs.rename(
+        columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True
+    )
     adata2 = adata.copy()
-    adata3 = adata.copy()
 
     SCVI.setup_anndata(
         adata,
-        batch_key="batch",
-        labels_key="labels",
+        batch_key="testbatch",
+        labels_key="testlabels",
         categorical_covariate_keys=["cat1", "cat2"],
         continuous_covariate_keys=["cont1", "cont2"],
     )
@@ -515,17 +711,17 @@ def test_new_setup_compat():
     }
 
     # Backwards compatibility test.
-    adata2_manager = manager_from_setup_dict(SCVI, adata2, LEGACY_SETUP_DICT)
-    np.testing.assert_equal(
+    registry = registry_from_setup_dict(SCVI, LEGACY_SETUP_DICT)
+    assert_dict_is_subset(
+        registry[_constants._FIELD_REGISTRIES_KEY],
         field_registries_legacy_subset,
-        adata2_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
 
     # Test transfer.
-    adata3_manager = adata_manager.transfer_setup(adata3)
+    adata2_manager = adata_manager.transfer_fields(adata2)
     np.testing.assert_equal(
         field_registries,
-        adata3_manager.registry[_constants._FIELD_REGISTRIES_KEY],
+        adata2_manager.registry[_constants._FIELD_REGISTRIES_KEY],
     )
 
 
@@ -544,11 +740,53 @@ def test_backwards_compatible_loading(save_path):
 
     download_080_models(save_path)
     pretrained_scvi_path = os.path.join(save_path, "testing_models/080_scvi")
+    pretrained_scvi_updated_path = os.path.join(
+        save_path, "testing_models/080_scvi_updated"
+    )
     a = scvi.data.synthetic_iid()
-    m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a)
+    # Fail legacy load.
+    with pytest.raises(ValueError):
+        m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a)
+    scvi.model.SCVI.convert_legacy_save(
+        pretrained_scvi_path, pretrained_scvi_updated_path
+    )
+    m = scvi.model.SCVI.load(pretrained_scvi_updated_path, adata=a)
     m.train(1)
     pretrained_totalvi_path = os.path.join(save_path, "testing_models/080_totalvi")
-    m = scvi.model.TOTALVI.load(pretrained_totalvi_path, adata=a)
+    pretrained_totalvi_updated_path = os.path.join(
+        save_path, "testing_models/080_totalvi_updated"
+    )
+    # Fail legacy load.
+    with pytest.raises(ValueError):
+        m = scvi.model.TOTALVI.load(pretrained_totalvi_path, adata=a)
+    scvi.model.TOTALVI.convert_legacy_save(
+        pretrained_totalvi_path, pretrained_totalvi_updated_path
+    )
+    m = scvi.model.TOTALVI.load(pretrained_totalvi_updated_path, adata=a)
+    m.train(1)
+
+
+@pytest.mark.internet
+def test_backup_url(save_path):
+    backup_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models_0150"
+    a = scvi.data.synthetic_iid()
+    a.obs["cat1"] = np.random.randint(0, 5, size=(a.shape[0],))
+    a.obs["cat2"] = np.random.randint(0, 5, size=(a.shape[0],))
+    a.obs["cont1"] = np.random.normal(size=(a.shape[0],))
+    a.obs["cont2"] = np.random.normal(size=(a.shape[0],))
+
+    # SCVI
+    pretrained_scvi_path = os.path.join(save_path, "testing_models/0150_scvi")
+    scvi_backup_url = os.path.join(backup_path, "0150_scvi/model.pt")
+    m = scvi.model.SCVI.load(pretrained_scvi_path, adata=a, backup_url=scvi_backup_url)
+    m.train(1)
+
+    # TOTALVI
+    pretrained_totalvi_path = os.path.join(save_path, "testing_models/0150_totalvi")
+    totalvi_backup_url = os.path.join(backup_path, "0150_totalvi/model.pt")
+    m = scvi.model.TOTALVI.load(
+        pretrained_totalvi_path, adata=a, backup_url=totalvi_backup_url
+    )
     m.train(1)
 
 
@@ -593,13 +831,12 @@ def test_semisupervised_dataloader():
     # test label resampling
     n_samples_per_label = 10
     a = synthetic_iid()
-    adata_manager = generic_setup_adata_manager(
-        a, batch_key="batch", labels_key="labels"
+    adata_manager = scanvi_setup_adata_manager(
+        a, labels_key="labels", unlabeled_category="label_0", batch_key="batch"
     )
     dl = SemiSupervisedDataLoader(
         adata_manager,
         indices=np.arange(a.n_obs),
-        unlabeled_category="label_0",
         n_samples_per_label=n_samples_per_label,
     )
     labeled_dl_idx = dl.dataloaders[1].indices
@@ -700,10 +937,10 @@ def test_device_backed_data_splitter():
 
 def test_semisupervised_data_splitter():
     a = synthetic_iid()
-    adata_manager = generic_setup_adata_manager(
-        a, batch_key="batch", labels_key="labels"
+    adata_manager = scanvi_setup_adata_manager(
+        a, labels_key="labels", unlabeled_category="asdf", batch_key="batch"
     )
-    ds = SemiSupervisedDataSplitter(adata_manager, "asdf")
+    ds = SemiSupervisedDataSplitter(adata_manager)
     ds.setup()
     # check the number of indices
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
@@ -718,7 +955,7 @@ def test_semisupervised_data_splitter():
 
     # test mix of labeled and unlabeled data
     unknown_label = "label_0"
-    ds = SemiSupervisedDataSplitter(adata_manager, unknown_label)
+    ds = SemiSupervisedDataSplitter(adata_manager)
     ds.setup()
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
 
@@ -756,6 +993,8 @@ def test_scanvi(save_path):
         batch_key="batch",
     )
     model = SCANVI(adata, n_latent=10)
+    assert len(model._labeled_indices) == sum(adata.obs["labels"] != "label_0")
+    assert len(model._unlabeled_indices) == sum(adata.obs["labels"] == "label_0")
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     logged_keys = model.history.keys()
     assert "elbo_validation" in logged_keys
@@ -805,11 +1044,17 @@ def test_scanvi(save_path):
     SCVI.setup_anndata(
         a,
         batch_key="batch",
-        labels_key="labels",
     )
     m = SCVI(a, use_observed_lib_size=False)
     a2 = scvi.data.synthetic_iid()
-    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(
+        m, "label_0", labels_key="labels", adata=a2
+    )
+    with pytest.raises(ValueError):
+        scanvi_model = scvi.model.SCANVI.from_scvi_model(
+            m, "label_0", labels_key=None, adata=a2
+        )
+
     # make sure the state_dicts are different objects for the two models
     assert scanvi_model.module.state_dict() is not m.module.state_dict()
     scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
@@ -820,7 +1065,7 @@ def test_scanvi(save_path):
 
     # Test without label groups
     scanvi_model = scvi.model.SCANVI.from_scvi_model(
-        m, "label_0", use_labels_groups=False
+        m, "label_0", labels_key="labels", use_labels_groups=False
     )
     scanvi_model.train(1)
 
@@ -957,6 +1202,12 @@ def test_totalvi(save_path):
     norm_exp = model.get_normalized_expression(adata2, indices=[1, 2, 3])
     assert norm_exp[0].shape == (3, adata2.n_vars)
     assert norm_exp[1].shape == (3, adata2.obsm["protein_expression"].shape[1])
+    norm_exp = model.get_normalized_expression(
+        adata2,
+        gene_list=adata2.var_names[:5].to_list(),
+        protein_list=adata2.uns["protein_names"][:3],
+        transform_batch=["batch_0", "batch_1"],
+    )
 
     latent_lib_size = model.get_latent_library_size(adata2, indices=[1, 2, 3])
     assert latent_lib_size.shape == (3, 1)
@@ -1102,6 +1353,12 @@ def test_multiple_covariates_scvi(save_path):
     )
     m = SCVI(adata)
     m.train(1)
+    m.get_latent_representation()
+    m.get_elbo()
+    m.get_marginal_ll(n_mc_samples=3)
+    m.get_reconstruction_error()
+    m.get_normalized_expression(n_samples=1)
+    m.get_normalized_expression(n_samples=2)
 
     SCANVI.setup_anndata(
         adata,
@@ -1113,6 +1370,12 @@ def test_multiple_covariates_scvi(save_path):
     )
     m = SCANVI(adata)
     m.train(1)
+    m.get_latent_representation()
+    m.get_elbo()
+    m.get_marginal_ll(n_mc_samples=3)
+    m.get_reconstruction_error()
+    m.get_normalized_expression(n_samples=1)
+    m.get_normalized_expression(n_samples=2)
 
     TOTALVI.setup_anndata(
         adata,
@@ -1123,6 +1386,52 @@ def test_multiple_covariates_scvi(save_path):
         categorical_covariate_keys=["cat1", "cat2"],
     )
     m = TOTALVI(adata)
+    m.train(1)
+    m.get_latent_representation()
+    m.get_elbo()
+    m.get_marginal_ll(n_mc_samples=3)
+    m.get_reconstruction_error()
+    m.get_normalized_expression(n_samples=1)
+    m.get_normalized_expression(n_samples=2)
+
+
+def test_multiple_encoded_covariates_scvi(save_path):
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = SCVI(adata, encode_covariates=True)
+    m.train(1)
+
+    SCANVI.setup_anndata(
+        adata,
+        "labels",
+        "Unknown",
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = SCANVI(adata, encode_covariates=True)
+    m.train(1)
+
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = TOTALVI(adata, encode_covariates=True)
     m.train(1)
 
 
@@ -1182,18 +1491,33 @@ def test_destvi(save_path):
     n_labels = 5
     n_layers = 2
     dataset = synthetic_iid(n_labels=n_labels)
+    dataset.obs["overclustering_vamp"] = list(range(dataset.n_obs))
     CondSCVI.setup_anndata(dataset, labels_key="labels")
     sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
     sc_model.train(1, train_size=1)
 
-    # step 2 learn destVI with multiple amortization scheme
+    # step 2 Check model setup
+    DestVI.setup_anndata(dataset, layer=None)
+
+    # Test clustering outside of get_vamp_prior
+
+    # vamp_prior_p>n_largest_cluster to be successful.
+    _ = DestVI.from_rna_model(dataset, sc_model, vamp_prior_p=dataset.n_obs)
+    # vamp_prior_p<n_largest_cluster leads to value error.
+    with pytest.raises(ValueError):
+        _ = DestVI.from_rna_model(dataset, sc_model, vamp_prior_p=1)
+
+    del dataset.obs["overclustering_vamp"]
+
+    # step 3 learn destVI with multiple amortization scheme
 
     for amor_scheme in ["both", "none", "proportion", "latent"]:
+        DestVI.setup_anndata(dataset, layer=None)
+        # add l1_regularization to cell type proportions
         spatial_model = DestVI.from_rna_model(
-            dataset,
-            sc_model,
-            amortization=amor_scheme,
+            dataset, sc_model, amortization=amor_scheme, l1_reg=50
         )
+        spatial_model.view_anndata_setup()
         spatial_model.train(max_epochs=1)
         assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
 

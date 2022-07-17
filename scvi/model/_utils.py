@@ -8,11 +8,10 @@ import scipy.sparse as sp_sparse
 import torch
 
 from scvi import REGISTRY_KEYS
-from scvi.data.anndata import AnnDataManager
+from scvi._types import Number
+from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
-
-Number = Union[int, float]
 
 
 def parse_use_gpu_arg(
@@ -69,7 +68,7 @@ def scrna_raw_counts_properties(
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
+        :class:`~scvi.data.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
     idx1
         subset of indices describing the first population.
     idx2
@@ -136,7 +135,7 @@ def cite_seq_raw_counts_properties(
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.TOTALVI`.
+        :class:`~scvi.data.AnnDataManager` object setup with :class:`~scvi.model.TOTALVI`.
     idx1
         subset of indices describing the first population.
     idx2
@@ -181,7 +180,7 @@ def scatac_raw_counts_properties(
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
+        :class:`~scvi.data.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
     idx1
         subset of indices describing the first population.
     idx2
@@ -236,7 +235,7 @@ def _init_library_size(
     Parameters
     ----------
     adata_manager
-        :class:`~scvi.data.anndata.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
+        :class:`~scvi.data.AnnDataManager` object setup with :class:`~scvi.model.SCVI`.
     n_batch
         Number of batches.
 
@@ -274,3 +273,9 @@ def _init_library_size(
         library_log_vars[i_batch] = np.var(log_counts).astype(np.float32)
 
     return library_log_means.reshape(1, -1), library_log_vars.reshape(1, -1)
+
+
+def _get_var_names_from_manager(
+    adata_manager: AnnDataManager, registry_key: str = REGISTRY_KEYS.X_KEY
+) -> np.ndarray:
+    return np.asarray(adata_manager.get_state_registry(registry_key).column_names)

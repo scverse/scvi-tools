@@ -12,9 +12,8 @@ from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
 
 from scvi import REGISTRY_KEYS
-from scvi.data import synthetic_iid
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata.fields import CategoricalObsField, LayerField, NumericalObsField
+from scvi.data import AnnDataManager, synthetic_iid
+from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.dataloaders import AnnDataLoader
 from scvi.model import AmortizedLDA
 from scvi.model.base import (
@@ -286,6 +285,38 @@ def test_pyro_bayesian_regression_jit():
         }
 
 
+def test_pyro_bayesian_save_load(save_path):
+    use_gpu = torch.cuda.is_available()
+    adata = synthetic_iid()
+    BayesianRegressionModel.setup_anndata(adata)
+    mod = BayesianRegressionModel(adata)
+    mod.train(
+        max_epochs=2,
+        batch_size=128,
+        lr=0.01,
+        use_gpu=use_gpu,
+    )
+
+    mod.module.cpu()
+    quants = mod.module.guide.quantiles([0.5])
+    sigma_median = quants["sigma"][0].detach().cpu().numpy()
+    linear_median = quants["linear.weight"][0].detach().cpu().numpy()
+
+    model_save_path = os.path.join(save_path, "test_pyro_bayesian/")
+    mod.save(model_save_path)
+
+    # Test setting `on_load_kwargs`
+    mod.module.on_load_kwargs = {"batch_size": 8}
+    mod = BayesianRegressionModel.load(model_save_path, adata=adata)
+
+    quants = mod.module.guide.quantiles([0.5])
+    sigma_median_new = quants["sigma"][0].detach().cpu().numpy()
+    linear_median_new = quants["linear.weight"][0].detach().cpu().numpy()
+
+    np.testing.assert_array_equal(sigma_median_new, sigma_median)
+    np.testing.assert_array_equal(linear_median_new, linear_median)
+
+
 def test_pyro_bayesian_train_sample_mixin():
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
@@ -413,7 +444,9 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0.1,
+            return_dist=True,
         )
+
         # decoder goes from n_latent-dimensional space to n_input-d data
         self.decoder = DecoderSCVI(
             n_latent,
@@ -457,9 +490,9 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
         with pyro.plate("data", x.shape[0]):
             # use the encoder to get the parameters used to define q(z|x)
             x_ = torch.log(1 + x)
-            z_loc, z_scale, _ = self.encoder(x_)
+            qz, _ = self.encoder(x_)
             # sample the latent code z
-            pyro.sample("latent", dist.Normal(z_loc, z_scale).to_event(1))
+            pyro.sample("latent", dist.Normal(qz.loc, qz.scale).to_event(1))
 
 
 class FunctionBasedPyroModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass):
@@ -586,7 +619,7 @@ def test_lda_model_save_load(save_path):
     hist_elbo = mod.history_["elbo_train"]
 
     feature_by_topic_1 = mod.get_feature_by_topic(n_samples=5000)
-    latent_1 = mod.get_latent_representation(n_samples=5000)
+    latent_1 = mod.get_latent_representation(n_samples=6000)
 
     save_path = os.path.join(save_path, "tmp")
     mod.save(save_path, overwrite=True, save_anndata=True)
@@ -595,7 +628,7 @@ def test_lda_model_save_load(save_path):
     np.testing.assert_array_equal(mod.history_["elbo_train"], hist_elbo)
 
     feature_by_topic_2 = mod.get_feature_by_topic(n_samples=5000)
-    latent_2 = mod.get_latent_representation(n_samples=5000)
+    latent_2 = mod.get_latent_representation(n_samples=6000)
     np.testing.assert_almost_equal(
         feature_by_topic_1.to_numpy(), feature_by_topic_2.to_numpy(), decimal=2
     )

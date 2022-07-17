@@ -11,6 +11,7 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.utils._docstrings import doc_differential_expression
 
@@ -18,8 +19,6 @@ from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from ._utils import _de_core
 
 logger = logging.getLogger(__name__)
-
-Number = Union[int, float]
 
 
 class RNASeqMixin:
@@ -115,10 +114,10 @@ class RNASeqMixin:
                 )
             return_numpy = True
         if library_size == "latent":
-            generative_output_key = "px_rate"
+            generative_output_key = "mu"
             scaling = 1
         else:
-            generative_output_key = "px_scale"
+            generative_output_key = "scale"
             scaling = library_size
 
         exprs = []
@@ -133,7 +132,7 @@ class RNASeqMixin:
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
-                output = generative_outputs[generative_output_key]
+                output = getattr(generative_outputs["px"], generative_output_key)
                 output = output[..., gene_mask]
                 output *= scaling
                 output = output.cpu().numpy()
@@ -339,8 +338,12 @@ class RNASeqMixin:
                 generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
-            px_scale = generative_outputs["px_scale"]
-            px_r = generative_outputs["px_r"]
+            if "px" in generative_outputs:
+                px_scale = generative_outputs["px"].scale
+                px_r = generative_outputs["px"].theta
+            else:
+                px_scale = generative_outputs["px_scale"]
+                px_r = generative_outputs["px_r"]
             device = px_r.device
 
             rate = rna_size_factor * px_scale
@@ -484,9 +487,10 @@ class RNASeqMixin:
                 inference_kwargs=inference_kwargs,
                 compute_loss=False,
             )
-            px_r = generative_outputs["px_r"]
-            px_rate = generative_outputs["px_rate"]
-            px_dropout = generative_outputs["px_dropout"]
+            px = generative_outputs["px"]
+            px_r = px.theta
+            px_rate = px.mu
+            px_dropout = px.zi_probs
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
 
@@ -498,9 +502,9 @@ class RNASeqMixin:
             mean_list += [px_rate.cpu().numpy()]
             dropout_list += [px_dropout.cpu().numpy()]
 
-        dropout = np.concatenate(dropout_list)
-        means = np.concatenate(mean_list)
-        dispersions = np.concatenate(dispersion_list)
+        dropout = np.concatenate(dropout_list, axis=-2)
+        means = np.concatenate(mean_list, axis=-2)
+        dispersions = np.concatenate(dispersion_list, axis=-2)
         if give_mean and n_samples > 1:
             dropout = dropout.mean(0)
             means = means.mean(0)
@@ -556,13 +560,13 @@ class RNASeqMixin:
             if not give_mean:
                 library = torch.exp(library)
             else:
-                ql_m = outputs["ql_m"]
-                ql_v = outputs["ql_v"]
-                if ql_m is None or ql_v is None:
+                ql = outputs["ql"]
+                if ql is None:
+
                     raise RuntimeError(
                         "The module for this model does not compute the posterior distribution "
                         "for the library size. Set `give_mean` to False to use the observed library size instead."
                     )
-                library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
+                library = torch.distributions.LogNormal(ql.loc, ql.scale).mean
             libraries += [library.cpu()]
         return torch.cat(libraries).numpy()

@@ -7,24 +7,26 @@ from typing import Dict, Optional, Sequence, Type, Union
 from uuid import uuid4
 
 import numpy as np
-import pyro
 import rich
 import torch
 from anndata import AnnData
+from mudata import MuData
 
 from scvi import settings
-from scvi.data.anndata import AnnDataManager
-from scvi.data.anndata._compat import manager_from_setup_dict
-from scvi.data.anndata._constants import (
+from scvi._types import AnnOrMuData
+from scvi.data import AnnDataManager
+from scvi.data._compat import registry_from_setup_dict
+from scvi.data._constants import (
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
     _SETUP_ARGS_KEY,
+    _SETUP_METHOD_NAME,
 )
-from scvi.data.anndata._utils import _assign_adata_uuid
+from scvi.data._utils import _assign_adata_uuid, _check_if_view
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
-from scvi.module.base import PyroBaseModuleClass
-from scvi.utils import setup_anndata_dsp
+from scvi.model.base._utils import _load_legacy_saved_files
+from scvi.utils import attrdict, setup_anndata_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -33,18 +35,18 @@ logger = logging.getLogger(__name__)
 
 _UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained model. Please train the model first."
 
-_SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "kwargs"}
+_SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "mdata", "kwargs"}
 
 
 class BaseModelMetaClass(ABCMeta):
     """
     Metaclass for :class:`~scvi.model.base.BaseModelClass`.
 
-    Constructs model class-specific mappings for :class:`~scvi.data.anndata.AnnDataManager` instances.
-    ``cls._setup_adata_manager_store`` maps from AnnData object UUIDs to :class:`~scvi.data.anndata.AnnDataManager` instances.
+    Constructs model class-specific mappings for :class:`~scvi.data.AnnDataManager` instances.
+    ``cls._setup_adata_manager_store`` maps from AnnData object UUIDs to :class:`~scvi.data.AnnDataManager` instances.
     This mapping is populated everytime ``cls.setup_anndata()`` is called.
-    ``cls._per_isntance_manager_store`` maps from model instance UUIDs to AnnData UUID::class:`~scvi.data.anndata.AnnDataManager` mappings.
-    These :class:`~scvi.data.anndata.AnnDataManager` instances are tied to a single model instance and populated either
+    ``cls._per_isntance_manager_store`` maps from model instance UUIDs to AnnData UUID::class:`~scvi.data.AnnDataManager` mappings.
+    These :class:`~scvi.data.AnnDataManager` instances are tied to a single model instance and populated either
     during model initialization or after running ``self._validate_anndata()``.
     """
 
@@ -61,7 +63,7 @@ class BaseModelMetaClass(ABCMeta):
 class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
-    def __init__(self, adata: Optional[AnnData] = None):
+    def __init__(self, adata: Optional[AnnOrMuData] = None):
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self._adata = adata
@@ -82,12 +84,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self._data_loader_cls = AnnDataLoader
 
     @property
-    def adata(self) -> AnnData:
+    def adata(self) -> AnnOrMuData:
         """Data attached to model instance."""
         return self._adata
 
     @adata.setter
-    def adata(self, adata: AnnData):
+    def adata(self, adata: AnnOrMuData):
         if adata is None:
             raise ValueError("adata cannot be None.")
         self._validate_anndata(adata)
@@ -123,7 +125,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.module.to(my_device)
 
     @property
-    def device(self):
+    def device(self) -> str:
+        """The current device that the module's params are on."""
         return self.module.device
 
     @staticmethod
@@ -135,27 +138,75 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         to avoid the inclusion of any extraneous variables.
         """
         cls = setup_locals.pop("cls")
+        method_name = None
+        if "adata" in setup_locals:
+            method_name = "setup_anndata"
+        elif "mdata" in setup_locals:
+            method_name = "setup_mudata"
+
         model_name = cls.__name__
         setup_args = dict()
         for k, v in setup_locals.items():
             if k not in _SETUP_INPUTS_EXCLUDED_PARAMS:
                 setup_args[k] = v
-        return {_MODEL_NAME_KEY: model_name, _SETUP_ARGS_KEY: setup_args}
+        return {
+            _MODEL_NAME_KEY: model_name,
+            _SETUP_METHOD_NAME: method_name,
+            _SETUP_ARGS_KEY: setup_args,
+        }
+
+    @staticmethod
+    def _create_modalities_attr_dict(
+        modalities: Dict[str, str], setup_method_args: dict
+    ) -> attrdict:
+        """
+        Preprocesses a ``modalities`` dictionary used in ``setup_mudata()`` to map modality names.
+
+        Ensures each field key has a respective modality key, defaulting to ``None``.
+        Raises a ``UserWarning`` if extraneous modality mappings are detected.
+
+        Parameters
+        ----------
+        modalities
+            Dictionary mapping ``setup_mudata()`` argument name to modality name.
+        setup_method_args
+            Output of  ``_get_setup_method_args()``.
+        """
+        setup_args = setup_method_args[_SETUP_ARGS_KEY]
+        filtered_modalities = {
+            arg_name: modalities.get(arg_name, None) for arg_name in setup_args.keys()
+        }
+        extra_modalities = set(modalities) - set(filtered_modalities)
+        if len(extra_modalities) > 0:
+            raise ValueError(
+                f"Extraneous modality mapping(s) detected: {extra_modalities}"
+            )
+        return attrdict(filtered_modalities)
 
     @classmethod
     def register_manager(cls, adata_manager: AnnDataManager):
         """
-        Registers an :class:`~scvi.data.anndata.AnnDataManager` instance with this model class.
+        Registers an :class:`~scvi.data.AnnDataManager` instance with this model class.
+
+        Stores the :class:`~scvi.data.AnnDataManager` reference in a class-specific manager store.
+        Intended for use in the ``setup_anndata()`` class method followed up by retrieval of the
+        :class:`~scvi.data.AnnDataManager` via the ``_get_most_recent_anndata_manager()`` method in
+        the model init method.
+
+        Notes
+        -----
+        Subsequent calls to this method with an :class:`~scvi.data.AnnDataManager` instance referring to the same
+        underlying AnnData object will overwrite the reference to previous :class:`~scvi.data.AnnDataManager`.
         """
         adata_id = adata_manager.adata_uuid
         cls._setup_adata_manager_store[adata_id] = adata_manager
 
     def _register_manager_for_instance(self, adata_manager: AnnDataManager):
         """
-        Registers an :class:`~scvi.data.anndata.AnnDataManager` instance with this model instance.
+        Registers an :class:`~scvi.data.AnnDataManager` instance with this model instance.
 
         Creates a model-instance specific mapping in ``cls._per_instance_manager_store`` for this
-        :class:`~scvi.data.anndata.AnnDataManager` instance.
+        :class:`~scvi.data.AnnDataManager` instance.
         """
         if self.id not in self._per_instance_manager_store:
             self._per_instance_manager_store[self.id] = dict()
@@ -166,12 +217,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     @classmethod
     def _get_most_recent_anndata_manager(
-        cls, adata: AnnData, required: bool = False
+        cls, adata: AnnOrMuData, required: bool = False
     ) -> Optional[AnnDataManager]:
         """
-        Retrieves the :class:`~scvi.data.anndata.AnnDataManager` for a given AnnData object specific to this model class.
+        Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model class.
 
-        Checks for the most recent :class:`~scvi.data.anndata.AnnDataManager` created for the given AnnData object via
+        Checks for the most recent :class:`~scvi.data.AnnDataManager` created for the given AnnData object via
         ``setup_anndata()`` on model initialization. Unlike :meth:`scvi.model.base.BaseModelClass.get_anndata_manager`,
         this method is not model instance specific and can be called before a model is fully initialized.
 
@@ -209,12 +260,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return adata_manager
 
     def get_anndata_manager(
-        self, adata: AnnData, required: bool = False
+        self, adata: AnnOrMuData, required: bool = False
     ) -> Optional[AnnDataManager]:
         """
-        Retrieves the :class:`~scvi.data.anndata.AnnDataManager` for a given AnnData object specific to this model instance.
+        Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model instance.
 
-        Requires ``self.id`` has been set. Checks for an :class:`~scvi.data.anndata.AnnDataManager`
+        Requires ``self.id`` has been set. Checks for an :class:`~scvi.data.AnnDataManager`
         specific to this model instance.
 
         Parameters
@@ -249,16 +300,18 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         adata_manager = cls._per_instance_manager_store[self.id][adata_id]
         if adata_manager.adata is not adata:
-            raise ValueError(
-                "The provided AnnData object does not match the AnnData object "
-                "previously provided for setup. Did you make a copy?"
+            logger.info(
+                "AnnData object appears to be a copy. Attempting to transfer setup."
             )
+            _assign_adata_uuid(adata, overwrite=True)
+            adata_manager = self.adata_manager.transfer_fields(adata)
+            self._register_manager_for_instance(adata_manager)
 
         return adata_manager
 
     def get_from_registry(
         self,
-        adata: AnnData,
+        adata: AnnOrMuData,
         registry_key: str,
     ) -> np.ndarray:
         """
@@ -288,7 +341,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     def _make_data_loader(
         self,
-        adata: AnnData,
+        adata: AnnOrMuData,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
         shuffle: bool = False,
@@ -341,19 +394,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return dl
 
     def _validate_anndata(
-        self, adata: Optional[AnnData] = None, copy_if_view: bool = True
+        self, adata: Optional[AnnOrMuData] = None, copy_if_view: bool = True
     ) -> AnnData:
         """Validate anndata has been properly registered, transfer if necessary."""
         if adata is None:
             adata = self.adata
-        if adata.is_view:
-            if copy_if_view:
-                logger.info("Received view of anndata, making copy.")
-                adata = adata.copy()
-                # Reassign AnnData UUID to produce a separate AnnDataManager.
-                _assign_adata_uuid(adata, overwrite=True)
-            else:
-                raise ValueError("Please run `adata = adata.copy()`")
+
+        _check_if_view(adata, copy_if_view=copy_if_view)
 
         adata_manager = self.get_anndata_manager(adata)
         if adata_manager is None:
@@ -362,7 +409,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 + "attempting to transfer AnnData setup"
             )
             self._register_manager_for_instance(
-                self.adata_manager.transfer_setup(adata)
+                self.adata_manager.transfer_fields(adata)
             )
         else:
             # Case where correct AnnDataManager is found, replay registration as necessary.
@@ -385,19 +432,23 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 raise RuntimeError(message)
 
     @property
-    def is_trained(self):
+    def is_trained(self) -> bool:
+        """Whether the model has been trained."""
         return self.is_trained_
 
     @property
-    def test_indices(self):
+    def test_indices(self) -> np.ndarray:
+        """Observations that are in test set."""
         return self.test_indices_
 
     @property
-    def train_indices(self):
+    def train_indices(self) -> np.ndarray:
+        """Observations that are in train set."""
         return self.train_indices_
 
     @property
-    def validation_indices(self):
+    def validation_indices(self) -> np.ndarray:
+        """Observations that are in validation set."""
         return self.validation_indices_
 
     @train_indices.setter
@@ -443,7 +494,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         init_params = [p.name for p in parameters]
         all_params = {p: locals[p] for p in locals if p in init_params}
         all_params = {
-            k: v for (k, v) in all_params.items() if not isinstance(v, AnnData)
+            k: v
+            for (k, v) in all_params.items()
+            if not isinstance(v, AnnData) and not isinstance(v, MuData)
         }
         # not very efficient but is explicit
         # seperates variable params (**kwargs) from non variable params into two dicts
@@ -501,8 +554,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         file_name_prefix = prefix or ""
 
         if save_anndata:
+            file_suffix = ""
+            if isinstance(self.adata, AnnData):
+                file_suffix = "adata.h5ad"
+            elif isinstance(self.adata, MuData):
+                file_suffix = "mdata.h5mu"
             self.adata.write(
-                os.path.join(dir_path, f"{file_name_prefix}adata.h5ad"),
+                os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
                 **anndata_write_kwargs,
             )
 
@@ -532,9 +590,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def load(
         cls,
         dir_path: str,
-        prefix: Optional[str] = None,
-        adata: Optional[AnnData] = None,
+        adata: Optional[AnnOrMuData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        prefix: Optional[str] = None,
+        backup_url: Optional[str] = None,
     ):
         """
         Instantiate a model from the saved output.
@@ -543,8 +602,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         ----------
         dir_path
             Path to saved outputs.
-        prefix
-            Prefix of saved file names.
         adata
             AnnData organized in the same way as data used to train model.
             It is not necessary to run setup_anndata,
@@ -553,6 +610,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        prefix
+            Prefix of saved file names.
+        backup_url
+            URL to retrieve saved outputs from if not present on disk.
 
         Returns
         -------
@@ -566,62 +627,99 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         load_adata = adata is None
         use_gpu, device = parse_use_gpu_arg(use_gpu)
 
-        (
-            attr_dict,
-            var_names,
-            model_state_dict,
-            new_adata,
-        ) = _load_saved_files(dir_path, load_adata, map_location=device, prefix=prefix)
+        (attr_dict, var_names, model_state_dict, new_adata,) = _load_saved_files(
+            dir_path,
+            load_adata,
+            map_location=device,
+            prefix=prefix,
+            backup_url=backup_url,
+        )
         adata = new_adata if new_adata is not None else adata
         _validate_var_names(adata, var_names)
 
-        # Legacy support for old setup dict format.
-        if "scvi_setup_dict_" in attr_dict:
-            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
-            cls.register_manager(manager_from_setup_dict(cls, adata, scvi_setup_dict))
-        else:
-            registry = attr_dict.pop("registry_")
-            if (
-                _MODEL_NAME_KEY in registry
-                and registry[_MODEL_NAME_KEY] != cls.__name__
-            ):
-                raise ValueError(
-                    "It appears you are loading a model from a different class."
-                )
-
-            if _SETUP_ARGS_KEY not in registry:
-                raise ValueError(
-                    "Saved model does not contain original setup inputs. "
-                    "Cannot load the original setup."
-                )
-
-            # Calling ``setup_anndata`` method with the original arguments passed into
-            # the saved model. This enables simple backwards compatibility in the case of
-            # newly introduced fields or parameters.
-            cls.setup_anndata(
-                adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+        registry = attr_dict.pop("registry_")
+        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+            raise ValueError(
+                "It appears you are loading a model from a different class."
             )
 
-        model = _initialize_model(cls, adata, attr_dict)
+        if _SETUP_ARGS_KEY not in registry:
+            raise ValueError(
+                "Saved model does not contain original setup inputs. "
+                "Cannot load the original setup."
+            )
 
-        # some Pyro modules with AutoGuides may need one training step
-        try:
-            model.module.load_state_dict(model_state_dict)
-        except RuntimeError as err:
-            if isinstance(model.module, PyroBaseModuleClass):
-                old_history = model.history_.copy()
-                logger.info("Preparing underlying module for load")
-                model.train(max_steps=1)
-                model.history_ = old_history
-                pyro.clear_param_store()
-                model.module.load_state_dict(model_state_dict)
-            else:
-                raise err
+        # Calling ``setup_anndata`` method with the original arguments passed into
+        # the saved model. This enables simple backwards compatibility in the case of
+        # newly introduced fields or parameters.
+        method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        getattr(cls, method_name)(
+            adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+        )
+
+        model = _initialize_model(cls, adata, attr_dict)
+        model.module.on_load(model)
+        model.module.load_state_dict(model_state_dict)
 
         model.to_device(device)
         model.module.eval()
         model._validate_anndata(adata)
         return model
+
+    @classmethod
+    def convert_legacy_save(
+        cls,
+        dir_path: str,
+        output_dir_path: str,
+        overwrite: bool = False,
+        prefix: Optional[str] = None,
+    ) -> None:
+        """
+        Converts a legacy saved model (<v0.15.0) to the updated save format.
+
+        Parameters
+        ----------
+        dir_path
+            Path to directory where legacy model is saved.
+        output_dir_path
+            Path to save converted save files.
+        overwrite
+            Overwrite existing data or not. If ``False`` and directory
+            already exists at ``output_dir_path``, error will be raised.
+        prefix
+            Prefix of saved file names.
+        """
+        if not os.path.exists(output_dir_path) or overwrite:
+            os.makedirs(output_dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                f"{output_dir_path} already exists. Please provide an unexisting directory for saving."
+            )
+
+        file_name_prefix = prefix or ""
+        model_state_dict, var_names, attr_dict, _ = _load_legacy_saved_files(
+            dir_path, file_name_prefix, load_adata=False
+        )
+
+        if "scvi_setup_dict_" in attr_dict:
+            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+            unlabeled_category_key = "unlabeled_category_"
+            unlabeled_category = attr_dict.get(unlabeled_category_key, None)
+            attr_dict["registry_"] = registry_from_setup_dict(
+                cls,
+                scvi_setup_dict,
+                unlabeled_category=unlabeled_category,
+            )
+
+        model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
+        torch.save(
+            dict(
+                model_state_dict=model_state_dict,
+                var_names=var_names,
+                attr_dict=attr_dict,
+            ),
+            model_save_path,
+        )
 
     def __repr__(
         self,
@@ -649,7 +747,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Each model class deriving from this class provides parameters to this method
         according to its needs. To operate correctly with the model initialization,
         the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
-        on a model-specific instance of :class:`~scvi.data.anndata.AnnDataManager`.
+        on a model-specific instance of :class:`~scvi.data.AnnDataManager`.
         """
 
     @staticmethod
@@ -670,14 +768,14 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if "scvi_setup_dict_" in attr_dict:
             raise NotImplementedError(
                 "Viewing setup args for pre v0.15.0 models is unsupported. "
-                "Load and resave the model to use this function."
+                "Update your save files with ``convert_legacy_save`` first."
             )
 
         registry = attr_dict.pop("registry_")
         AnnDataManager.view_setup_method_args(registry)
 
     def view_anndata_setup(
-        self, adata: Optional[AnnData] = None, hide_state_registries: bool = False
+        self, adata: Optional[AnnOrMuData] = None, hide_state_registries: bool = False
     ) -> None:
         """
         Print summary of the setup for the initial AnnData or a given AnnData object.
@@ -686,7 +784,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         ----------
         adata
             AnnData object setup with ``setup_anndata`` or
-            :meth:`~scvi.data.anndata.AnnDataManager.transfer_setup`.
+            :meth:`~scvi.data.AnnDataManager.transfer_fields`.
         hide_state_registries
             If True, prints a shortened summary without details of each state registry.
         """

@@ -1,8 +1,9 @@
-from ._callbacks import LoudEarlyStopping
+from ._callbacks import JaxModuleInit, LoudEarlyStopping, SaveBestState
 from ._trainer import Trainer
 from ._trainingplans import (
     AdversarialTrainingPlan,
     ClassifierTrainingPlan,
+    JaxTrainingPlan,
     PyroTrainingPlan,
     SemiSupervisedTrainingPlan,
     TrainingPlan,
@@ -18,4 +19,7 @@ __all__ = [
     "ClassifierTrainingPlan",
     "TrainRunner",
     "LoudEarlyStopping",
+    "SaveBestState",
+    "JaxModuleInit",
+    "JaxTrainingPlan",
 ]

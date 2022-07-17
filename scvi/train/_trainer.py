@@ -61,11 +61,13 @@ class Trainer(pl.Trainer):
         In 'min' mode, training will stop when the quantity monitored has stopped decreasing
         and in 'max' mode it will stop when the quantity monitored has stopped increasing.
     enable_progress_bar
-        Whether to enable or disable the default PyTorch Lightning progress bar.
+        Whether to enable or disable the progress bar.
     progress_bar_refresh_rate
         How often to refresh progress bar (in steps). Value 0 disables progress bar.
     simple_progress_bar
-        Use custom scvi-tools simple progress bar (per epoch rather than per batch)
+        Use custom scvi-tools simple progress bar (per epoch rather than per batch).
+        When `False`, uses default PyTorch Lightning progress bar, unless `enable_progress_bar`
+        is `False`.
     logger
         A valid pytorch lightning logger. Defaults to a simple dictionary logger.
         If `True`, defaults to the default pytorch lightning logger.
@@ -98,7 +100,7 @@ class Trainer(pl.Trainer):
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
-        enable_progress_bar: bool = False,
+        enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
         logger: Union[Optional[LightningLoggerBase], bool] = None,

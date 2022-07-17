@@ -1,9 +1,16 @@
 import warnings
 from typing import Optional, Tuple, Union
 
+import jax
+import jax.numpy as jnp
+import numpyro.distributions as dist
 import torch
 import torch.nn.functional as F
-from torch.distributions import Distribution, Gamma, Poisson, constraints
+from numpyro.distributions import constraints as numpyro_constraints
+from numpyro.distributions.util import promote_shapes, validate_sample
+from torch.distributions import Distribution, Gamma
+from torch.distributions import Poisson as PoissonTorch
+from torch.distributions import constraints
 from torch.distributions.utils import (
     broadcast_all,
     lazy_property,
@@ -64,7 +71,14 @@ def log_zinb_positive(
     return res
 
 
-def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=1e-8):
+def log_nb_positive(
+    x: Union[torch.Tensor, jnp.ndarray],
+    mu: Union[torch.Tensor, jnp.ndarray],
+    theta: Union[torch.Tensor, jnp.ndarray],
+    eps: float = 1e-8,
+    log_fn: callable = torch.log,
+    lgamma_fn: callable = torch.lgamma,
+):
     """
     Log likelihood (scalar) of a minibatch according to a nb model.
 
@@ -78,25 +92,16 @@ def log_nb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, eps=
         inverse dispersion parameter (has to be positive support) (shape: minibatch x vars)
     eps
         numerical stability constant
-
-    Notes
-    -----
-    We parametrize the bernoulli using the logits, hence the softplus functions appearing.
-
     """
-    if theta.ndimension() == 1:
-        theta = theta.view(
-            1, theta.size(0)
-        )  # In this case, we reshape theta for broadcasting
-
-    log_theta_mu_eps = torch.log(theta + mu + eps)
-
+    log = log_fn
+    lgamma = lgamma_fn
+    log_theta_mu_eps = log(theta + mu + eps)
     res = (
-        theta * (torch.log(theta + eps) - log_theta_mu_eps)
-        + x * (torch.log(mu + eps) - log_theta_mu_eps)
-        + torch.lgamma(x + theta)
-        - torch.lgamma(theta)
-        - torch.lgamma(x + 1)
+        theta * (log(theta + eps) - log_theta_mu_eps)
+        + x * (log(mu + eps) - log_theta_mu_eps)
+        + lgamma(x + theta)
+        - lgamma(theta)
+        - lgamma(x + 1)
     )
 
     return res
@@ -233,6 +238,33 @@ def _gamma(theta, mu):
     return gamma_d
 
 
+class Poisson(PoissonTorch):
+    """
+    Poisson distribution.
+
+    Parameters
+    ----------
+    rate
+        rate of the Poisson distribution.
+    validate_args
+        whether to validate input.
+    scale
+        Normalized mean expression of the distribution.
+        This optional parameter is not used in any computations, but allows to store
+        normalization expression levels.
+
+    """
+
+    def __init__(
+        self,
+        rate: torch.Tensor,
+        validate_args: Optional[bool] = None,
+        scale: Optional[torch.Tensor] = None,
+    ):
+        super().__init__(rate=rate, validate_args=validate_args)
+        self.scale = scale
+
+
 class NegativeBinomial(Distribution):
     r"""
     Negative binomial distribution.
@@ -259,6 +291,8 @@ class NegativeBinomial(Distribution):
         Mean of the distribution.
     theta
         Inverse dispersion.
+    scale
+        Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints
     """
@@ -276,6 +310,7 @@ class NegativeBinomial(Distribution):
         logits: Optional[torch.Tensor] = None,
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
+        scale: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
         self._eps = 1e-8
@@ -296,6 +331,7 @@ class NegativeBinomial(Distribution):
             mu, theta = broadcast_all(mu, theta)
         self.mu = mu
         self.theta = theta
+        self.scale = scale
         super().__init__(validate_args=validate_args)
 
     @property
@@ -316,7 +352,7 @@ class NegativeBinomial(Distribution):
             # Clamping as distributions objects can have buggy behaviors when
             # their parameters are too high
             l_train = torch.clamp(p_means, max=1e8)
-            counts = Poisson(
+            counts = PoissonTorch(
                 l_train
             ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
             return counts
@@ -365,6 +401,8 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         Inverse dispersion.
     zi_logits
         Logits scale of zero inflation probability.
+    scale
+        Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints
     """
@@ -385,6 +423,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
         zi_logits: Optional[torch.Tensor] = None,
+        scale: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
 
@@ -394,6 +433,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
             logits=logits,
             mu=mu,
             theta=theta,
+            scale=scale,
             validate_args=validate_args,
         )
         self.zi_logits, self.mu, self.theta = broadcast_all(
@@ -519,7 +559,7 @@ class NegativeBinomialMixture(Distribution):
             # Clamping as distributions objects can have buggy behaviors when
             # their parameters are too high
             l_train = torch.clamp(p_means, max=1e8)
-            counts = Poisson(
+            counts = PoissonTorch(
                 l_train
             ).sample()  # Shape : (n_samples, n_cells_batch, n_features)
             return counts
@@ -540,4 +580,48 @@ class NegativeBinomialMixture(Distribution):
             self.theta2,
             self.mixture_logits,
             eps=1e-08,
+        )
+
+
+class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
+    """Negative binomial parameterized by mean and inverse dispersion."""
+
+    arg_constraints = {
+        "mean": numpyro_constraints.positive,
+        "inverse_dispersion": numpyro_constraints.positive,
+    }
+    support = numpyro_constraints.nonnegative_integer
+
+    def __init__(
+        self,
+        mean: jnp.ndarray,
+        inverse_dispersion: jnp.ndarray,
+        validate_args: Optional[bool] = None,
+        eps: float = 1e-8,
+    ):
+        self._inverse_dispersion, self._mean = promote_shapes(inverse_dispersion, mean)
+        self._eps = eps
+        super().__init__(mean, inverse_dispersion, validate_args=validate_args)
+
+    @property
+    def mean(self):
+        return self._mean
+
+    @property
+    def inverse_dispersion(self):
+        return self._inverse_dispersion
+
+    @validate_sample
+    def log_prob(self, value):
+        # theta is inverse_dispersion
+        theta = self._inverse_dispersion
+        mu = self._mean
+        eps = self._eps
+        return log_nb_positive(
+            value,
+            mu,
+            theta,
+            eps=eps,
+            log_fn=jnp.log,
+            lgamma_fn=jax.scipy.special.gammaln,
         )
