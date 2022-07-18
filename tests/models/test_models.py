@@ -35,6 +35,7 @@ from scvi.model import (
     CondSCVI,
     DestVI,
     JaxSCVI,
+    JaxPEAKVI,
     LinearSCVI,
 )
 from scvi.model.utils import mde
@@ -85,6 +86,19 @@ LEGACY_SETUP_DICT = {
         "n_continuous_covs": 2,
     },
 }
+
+def test_jax_peakvi():
+    n_latent = 5
+
+    adata = synthetic_iid()
+    JaxPEAKVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+
+    model = JaxPEAKVI(adata, n_latent=n_latent)
+    model.train(2, train_size=0.5, check_val_every_n_epoch=1)
+    assert model.is_trained is True
 
 
 def test_jax_scvi():

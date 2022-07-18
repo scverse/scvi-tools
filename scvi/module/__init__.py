@@ -1,6 +1,7 @@
 from ._amortizedlda import AmortizedLDAPyroModule
 from ._autozivae import AutoZIVAE
 from ._classifier import Classifier
+from ._jaxpeakvae import JaxPEAKVAE
 from ._jaxvae import JaxVAE
 from ._mrdeconv import MRDeconv
 from ._multivae import MULTIVAE
@@ -23,4 +24,5 @@ __all__ = [
     "MULTIVAE",
     "AmortizedLDAPyroModule",
     "JaxVAE",
+    "JaxPEAKVAE",
 ]
