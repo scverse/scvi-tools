@@ -3,11 +3,8 @@ from typing import Dict
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
-from flax import linen as nn
-from flax.linen.initializers import variance_scaling
 
 from scvi import REGISTRY_KEYS
-from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.module.base import JaxBaseModuleClass, LossRecorder
 
 from ._jaxvae import FlaxDecoder, FlaxEncoder
