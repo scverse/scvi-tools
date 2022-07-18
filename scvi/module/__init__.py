@@ -2,6 +2,7 @@ from ._amortizedlda import AmortizedLDAPyroModule
 from ._autozivae import AutoZIVAE
 from ._classifier import Classifier
 from ._jaxvae import JaxVAE
+from ._jaxpeakvae import JaxPEAKVAE
 from ._mrdeconv import MRDeconv
 from ._multivae import MULTIVAE
 from ._peakvae import PEAKVAE

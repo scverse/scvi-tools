@@ -3,13 +3,17 @@ from typing import Dict
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
-from _jaxvae import FlaxDecoder, FlaxEncoder
+from flax import linen as nn
+from flax.linen.initializers import variance_scaling
 
 from scvi import REGISTRY_KEYS
-from scvi.module.base import JAXBaseModuleClass, LossRecorder
+from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
+from scvi.module.base import JaxBaseModuleClass, LossRecorder
+
+from ._jaxvae import FlaxDecoder, FlaxEncoder
 
 
-class JaxPeakVAE(JAXBaseModuleClass):
+class JaxPEAKVAE(JaxBaseModuleClass):
     n_input: int
     n_batch: int
     n_hidden: int = 128

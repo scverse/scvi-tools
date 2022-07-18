@@ -3,6 +3,7 @@ from ._amortizedlda import AmortizedLDA
 from ._autozi import AUTOZI
 from ._condscvi import CondSCVI
 from ._destvi import DestVI
+from ._jaxpeakvi import JaxPEAKVI
 from ._jaxscvi import JaxSCVI
 from ._linear_scvi import LinearSCVI
 from ._multivi import MULTIVI
