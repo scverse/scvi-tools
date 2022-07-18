@@ -34,8 +34,8 @@ from scvi.model import (
     TOTALVI,
     CondSCVI,
     DestVI,
-    JaxSCVI,
     JaxPEAKVI,
+    JaxSCVI,
     LinearSCVI,
 )
 from scvi.model.utils import mde
@@ -86,6 +86,7 @@ LEGACY_SETUP_DICT = {
         "n_continuous_covs": 2,
     },
 }
+
 
 def test_jax_peakvi():
     n_latent = 5
