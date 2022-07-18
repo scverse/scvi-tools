@@ -72,7 +72,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
 
     def generative(self, x, z, batch_index) -> dict:
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
-        rho_unnorm, disp = self.decoder(z, batch, training=self.training)
+        rho_unnorm, _ = self.decoder(z, batch, training=self.training)
         rho = jax.nn.softmax(rho_unnorm, axis=-1)
         total_count = x.sum(-1)[:, jnp.newaxis]
         mu = total_count * rho
