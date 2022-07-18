@@ -18,7 +18,7 @@ class Bernoulli(BernoulliTorch):
         whether to validate input.
 
     """
-    
+
     def __init__(
         self,
         probs: torch.Tensor = None,

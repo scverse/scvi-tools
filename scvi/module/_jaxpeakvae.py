@@ -39,13 +39,13 @@ class JaxPEAKVAE(JaxBaseModuleClass):
     @property
     def required_rngs(self):
         return ("params", "dropout", "z")
-    
+
     def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
         x = tensors[REGISTRY_KEYS.X_KEY]
 
         input_dict = dict(x=x)
         return input_dict
-    
+
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
         mean, var = self.encoder(x, training=self.training)
         stddev = jnp.sqrt(var) + self.eps
@@ -56,7 +56,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         z = qz.rsample(z_rng, sample_shape=sample_shape)
 
         return dict(qz=qz, z=z)
-    
+
     def _get_generative_input(
         self,
         tensors: Dict[str, jnp.ndarray],
@@ -72,7 +72,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
             batch_index=batch_index,
         )
         return input_dict
-    
+
     def generative(self, x, z, batch_index) -> dict:
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
         rho_unnorm, disp = self.decoder(z, batch, training=self.training)
@@ -83,7 +83,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         px = dist.Bernoulli(mu)
 
         return dict(px=px)
-    
+
     def loss(
         self,
         tensors,
@@ -99,8 +99,5 @@ class JaxPEAKVAE(JaxBaseModuleClass):
 
         kl_div = dist.kl_divergence(qz, dist.Normal(0, 1)).sum(-1)
         loss = jnp.mean(reconstruction_loss + kl_weight * kl_div)
-        
 
         return LossRecorder(loss, reconstruction_loss, kl_div)
-
-    

@@ -72,15 +72,14 @@ class JaxPEAKVI(JaxTrainingMixin, BaseModelClass):
             dropout_rate,
         )
         self.init_params_ = self._get_init_params(locals())
-    
 
     @property
     def device(self):
         return self.module.device
-    
+
     def to_device(self, device):
         pass
-    
+
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
@@ -108,5 +107,3 @@ class JaxPEAKVI(JaxTrainingMixin, BaseModelClass):
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
-
-    
