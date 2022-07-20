@@ -3,11 +3,95 @@ from typing import Dict
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
+from flax import linen as nn
+from pyrsistent import T
 
 from scvi import REGISTRY_KEYS
 from scvi.module.base import JaxBaseModuleClass, LossRecorder
 
-from ._jaxvae import FlaxDecoder, FlaxEncoder
+from ._jaxvae import Dense
+
+
+class FlaxEncoder(nn.Module):
+    n_input: int
+    n_latent: int
+    n_hidden: int
+    dropout_rate: int
+
+    def setup(self):
+        self.dense1 = Dense(self.n_hidden)
+        self.dense2 = Dense(self.n_hidden)
+        self.dense3 = Dense(self.n_latent)
+        self.dense4 = Dense(self.n_latent)
+
+        self.layernorm1 = nn.LayerNorm()
+        self.layernorm2 = nn.LayerNorm()
+        self.dropout1 = nn.Dropout(self.dropout_rate)
+        self.dropout2 = nn.Dropout(self.dropout_rate)
+
+    def __call__(self, x: jnp.ndarray, training: bool = False):
+        is_eval = not training
+
+        x_ = jnp.log1p(x)
+
+        h = self.dense1(x_)
+        h = self.layernorm1(h)
+        h = nn.leaky_relu(h)
+        h = self.dropout1(h, deterministic=is_eval)
+        h = self.dense2(h)
+        h = self.layernorm2(h)
+        h = nn.leaky_relu(h)
+        h = self.dropout2(h, deterministic=is_eval)
+
+        mean = self.dense3(h)
+        log_var = self.dense4(h)
+
+        return mean, jnp.exp(log_var)
+
+
+class FlaxDecoder(nn.Module):
+    n_input: int
+    dropout_rate: float
+    n_hidden: int
+    region_factors: bool = True
+
+    def setup(self):
+        self.dense1 = Dense(self.n_hidden)
+        self.dense2 = Dense(self.n_hidden)
+        self.dense3 = Dense(self.n_hidden)
+        self.dense4 = Dense(self.n_hidden)
+        self.dense5 = Dense(self.n_input)
+
+        self.batchnorm1 = nn.BatchNorm()
+        self.batchnorm2 = nn.BatchNorm()
+        self.dropout1 = nn.Dropout(self.dropout_rate)
+        self.dropout2 = nn.Dropout(self.dropout_rate)
+
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training: bool = False):
+        is_eval = not training
+
+        h = self.dense1(z)
+        h += self.dense2(batch)
+
+        h = self.batchnorm1(h, use_running_average=is_eval)
+        h = nn.leaky_relu(h)
+        h = self.dropout1(h, deterministic=is_eval)
+        h = self.dense3(h)
+        # skip connection
+        h += self.dense4(batch)
+        h = self.batchnorm2(h, use_running_average=is_eval)
+        h = nn.leaky_relu(h)
+        h = self.dropout2(h, deterministic=is_eval)
+        h = self.dense5(h)
+        h = nn.sigmoid(h)
+
+        if self.region_factors:
+            rf = self.param("region_factors", nn.initializers.zeros, self.n_input)
+            rf = nn.sigmoid(rf)
+        else:
+            rf = 1
+
+        return h, rf
 
 
 class JaxPEAKVAE(JaxBaseModuleClass):
@@ -72,14 +156,17 @@ class JaxPEAKVAE(JaxBaseModuleClass):
 
     def generative(self, x, z, batch_index) -> dict:
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
-        rho_unnorm, _ = self.decoder(z, batch, training=self.training)
-        rho = jax.nn.softmax(rho_unnorm, axis=-1)
+        rho = self.decoder(z, batch, training=self.training)
         total_count = x.sum(-1)[:, jnp.newaxis]
         mu = total_count * rho
 
-        px = dist.Bernoulli(mu)
+        px = dist.Bernoulli(mu) # numpyro distribution object
 
         return dict(px=px)
+    
+    def get_reconstruction_loss(self, x, px):
+        # maybe use optax.losses.binary_cross_entropy_with_logits
+        pass
 
     def loss(
         self,
