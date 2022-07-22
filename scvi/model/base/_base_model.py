@@ -751,9 +751,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """
 
     @staticmethod
-    def view_setup_args(dir_path: str, prefix: Optional[str] = None) -> dict:
+    def view_setup_args(dir_path: str, prefix: Optional[str] = None) -> None:
         """
-        Print args used to setup a saved model and return the registry as a dict.
+        Print args used to setup a saved model.
 
         Parameters
         ----------
@@ -761,6 +761,25 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             Path to saved outputs.
         prefix
             Prefix of saved file names.
+        """
+        registry = BaseModelClass.get_full_registry(dir_path, prefix)
+        AnnDataManager.view_setup_method_args(registry)
+
+    @staticmethod
+    def get_full_registry(dir_path: str, prefix: Optional[str] = None) -> dict:
+        """
+        Return the full registry saved with the model.
+
+        Parameters
+        ----------
+        dir_path
+            Path to saved outputs.
+        prefix
+            Prefix of saved file names.
+
+        Returns
+        -------
+        The full registry saved with the model
         """
         attr_dict = _load_saved_files(dir_path, False, prefix=prefix)[0]
 
@@ -771,9 +790,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Update your save files with ``convert_legacy_save`` first."
             )
 
-        registry = attr_dict.pop("registry_")
-        AnnDataManager.view_setup_method_args(registry)
-        return registry
+        return attr_dict.pop("registry_")
 
     def view_anndata_setup(
         self, adata: Optional[AnnOrMuData] = None, hide_state_registries: bool = False
