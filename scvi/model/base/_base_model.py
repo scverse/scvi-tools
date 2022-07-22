@@ -766,7 +766,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         AnnDataManager.view_setup_method_args(registry)
 
     @staticmethod
-    def get_full_registry(dir_path: str, prefix: Optional[str] = None) -> dict:
+    def load_registry(dir_path: str, prefix: Optional[str] = None) -> dict:
         """
         Return the full registry saved with the model.
 
