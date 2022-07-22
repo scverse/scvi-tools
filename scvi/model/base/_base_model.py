@@ -751,9 +751,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """
 
     @staticmethod
-    def view_setup_args(dir_path: str, prefix: Optional[str] = None) -> None:
+    def view_setup_args(dir_path: str, prefix: Optional[str] = None) -> dict:
         """
-        Print args used to setup a saved model.
+        Print args used to setup a saved model and return the registry as a dict.
 
         Parameters
         ----------
@@ -773,6 +773,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         registry = attr_dict.pop("registry_")
         AnnDataManager.view_setup_method_args(registry)
+        return registry
 
     def view_anndata_setup(
         self, adata: Optional[AnnOrMuData] = None, hide_state_registries: bool = False
