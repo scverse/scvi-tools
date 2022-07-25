@@ -40,7 +40,7 @@ def tune_scvi(
     A tuple with the best model object and tune `Analysis` object
 
     Notes
-    -------
+    -----
     This is a wrapper with limited functionality. If you want to have more control over the hyperparameters,
     their values and the metrics used to optimize the model, please refer to :class:`~scvi.autotune.Autotune`
     """

@@ -27,10 +27,12 @@ def silhouette_metric_labels_batch(
         The key of the batch.
     sample_size
         Sample size for silhouette. Randomly subsets the data
+
     Returns
     -------
     Sum of asw for batch and for labels. Scores are scaled such that
     2 is the best score and 0 is the worst.
+
     Notes
     -----
     This function is influence by the following code:

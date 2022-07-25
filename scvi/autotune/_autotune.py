@@ -59,7 +59,7 @@ class Autotune:
     batch_key_hvg
         Column in adata.obs specifying the different batches in the data used for highly_variable_gene selection
 
-     Examples
+    Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> tuner = Autotune(adata, scvi.model.SCVI, num_epochs=5)
