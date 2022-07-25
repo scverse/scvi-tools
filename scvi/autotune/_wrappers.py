@@ -1,14 +1,20 @@
-from typing import Optional
+from typing import Optional, Union
 
 import anndata
 from ray import tune
+from ray.tune import ExperimentAnalysis
 from ray.tune.schedulers import ASHAScheduler
 
 from scvi.autotune import Autotune
 from scvi.model import SCVI
+from scvi.model.base import BaseModelClass
 
 
-def tune_scvi(adata: anndata.AnnData, n_epochs: int, run_kwargs: Optional[dict] = None):
+def tune_scvi(
+    adata: anndata.AnnData,
+    n_epochs: int,
+    run_kwargs: Optional[dict] = None,
+) -> Union[BaseModelClass, ExperimentAnalysis]:
     """
     Tune scvi with defaults for `tune.run` and return the best model.
 
@@ -18,7 +24,7 @@ def tune_scvi(adata: anndata.AnnData, n_epochs: int, run_kwargs: Optional[dict] 
     - n_hidden: `random integer 64, 128 and 256`
     - n_latent: `random integer between 20 and 50 in increments of 5`
 
-    The default metrics used to optimize the model are `elbo_validation` and `reconstruction_loss_validation`
+    The default metrics used to optimize the model are `elbo_validation` and `reconstruction_loss_validation`.
 
     Parameters
     ----------

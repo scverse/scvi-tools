@@ -1,3 +1,4 @@
+"""Main class and helper functions."""
 import inspect
 import logging
 import os
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class Autotune:
     """
+
     Hyperparameter tuning using Ray Tune.
 
     Parameters
@@ -185,7 +187,9 @@ class Autotune:
         **kwargs,
     ) -> Union[BaseModelClass, ExperimentAnalysis]:
         """
-        Wrapper for `tune.run`. Searches for the configuration of model, trainer, and training_plan
+        Wrap `tune.run`.
+
+        Searches for the configuration of model, trainer, and training_plan
         hyperparameters that minimize or maximize the provided metric.
         Parameters
         ----------

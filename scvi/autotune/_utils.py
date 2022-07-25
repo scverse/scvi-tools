@@ -9,7 +9,9 @@ from ._callbacks import ModelSave, _TuneReportMetricFunctionsCallback
 
 def fetch_config(self, config: dict = None) -> Tuple[dict, ...]:
     """
-    Fetch and format tune's config dictionaries to use as input in scvi-tools' workflow and filter adata accordingly
+    Fetch and format tune's config dictionaries to use as input in scvi-tools' workflow.
+
+    If testing for variable gene selection effects, this function also subsets adata accordingly.
 
     ----------
     config
@@ -58,7 +60,7 @@ def apply_model_config(
     model_config: dict = None,
 ) -> BaseModelClass:
     """
-    Initializes the specified model in Autotune.model with a given anndata setup and model and training hyperparameters.
+    Initialize the specified model in Autotune.model with a given anndata setup and model and training hyperparameters.
 
     ----------
     model_config
@@ -68,7 +70,6 @@ def apply_model_config(
     -------
     An object of class :class:`~scvi.model.base.BaseModelClass`
     """
-
     self.model_cls.setup_anndata(
         self.adata,
         **self.setup_args,

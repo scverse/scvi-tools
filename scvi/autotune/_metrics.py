@@ -15,7 +15,8 @@ def silhouette_metric_labels_batch(
     unknown_label: Optional[str] = None,
 ) -> float:
     """
-    Batch- and label-wise silhouette.
+    Batch- and label-wise silhouette..
+
     Parameters
     ----------
     model
@@ -35,7 +36,6 @@ def silhouette_metric_labels_batch(
     This function is influence by the following code:
     https://github.com/theislab/scib/blob/main/scib/metrics/silhouette.py
     """
-
     # to obtain the latent representation at every epoch, we need to set 'is_trained_' to True
     model.is_trained_ = True
     latent = model.get_latent_representation()
