@@ -762,7 +762,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         prefix
             Prefix of saved file names.
         """
-        registry = BaseModelClass.get_full_registry(dir_path, prefix)
+        registry = BaseModelClass.load_registry(dir_path, prefix)
         AnnDataManager.view_setup_method_args(registry)
 
     @staticmethod
