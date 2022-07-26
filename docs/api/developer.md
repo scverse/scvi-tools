@@ -176,6 +176,7 @@ These classes should be used to construct module classes that define generative 
 
    module.base.BaseModuleClass
    module.base.PyroBaseModuleClass
+   module.base.JaxModuleWrapper
    module.base.LossRecorder
    module.base.auto_move_data
 
@@ -218,8 +219,9 @@ TrainingPlans define train/test/val optimization steps for modules.
    :nosignatures:
 
    train.AdversarialTrainingPlan
-   train.PyroTrainingPlan
    train.SemiSupervisedTrainingPlan
+   train.PyroTrainingPlan
+   train.JaxTrainingPlan
    train.Trainer
    train.TrainingPlan
    train.TrainRunner
