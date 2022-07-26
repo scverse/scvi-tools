@@ -120,7 +120,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         if self.region_factors:
             self.rf = self.param("rf", nn.initializers.zeros, self.n_input)
         else:
-            self.rf = 1
+            self.rf = None
 
     @property
     def required_rngs(self):
@@ -193,11 +193,12 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         print('777777777777777')
         print(self.rf * px)
 
-        reconstruction_loss = -px.log_prob(x).sum(-1)
+        f = nn.sigmoid(self.rf) if self.rf is not None else 1
+
+        reconstruction_loss = self.get_reconstruction_loss(px, d, f, x)
 
         kl_div = dist.kl_divergence(qz, dist.Normal(0, 1)).sum(-1)
-        loss = jnp.mean(reconstruction_loss + kl_weight * kl_div)
+        loss = jnp.sum(reconstruction_loss.sum() + kl_weight * kl_div)
 
         
-
         return LossRecorder(loss, reconstruction_loss, kl_div)
