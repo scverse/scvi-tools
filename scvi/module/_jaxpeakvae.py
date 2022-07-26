@@ -3,8 +3,8 @@ from typing import Dict
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
+import optax
 from flax import linen as nn
-from pyrsistent import T
 
 from scvi import REGISTRY_KEYS
 from scvi.module.base import JaxBaseModuleClass, LossRecorder
@@ -53,7 +53,6 @@ class FlaxDecoder(nn.Module):
     n_input: int
     dropout_rate: float
     n_hidden: int
-    region_factors: bool = True
 
     def setup(self):
         self.dense1 = Dense(self.n_hidden)
@@ -85,13 +84,7 @@ class FlaxDecoder(nn.Module):
         h = self.dense5(h)
         h = nn.sigmoid(h)
 
-        if self.region_factors:
-            rf = self.param("region_factors", nn.initializers.zeros, self.n_input)
-            rf = nn.sigmoid(rf)
-        else:
-            rf = 1
-
-        return h, rf
+        return h
 
 
 class JaxPEAKVAE(JaxBaseModuleClass):
@@ -102,6 +95,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
     dropout_rate: float = 0.0
     n_layers: int = 1
     eps: float = 1e-8
+    region_factors: bool = True
 
     def setup(self):
         self.encoder = FlaxEncoder(
@@ -117,6 +111,17 @@ class JaxPEAKVAE(JaxBaseModuleClass):
             n_hidden=self.n_hidden,
         )
 
+        self.d_encoder = FlaxDecoder(
+            n_input=self.n_latent,
+            dropout_rate=0.0,
+            n_hidden=self.n_hidden,
+        )
+
+        if self.region_factors:
+            self.rf = self.param("rf", nn.initializers.zeros, self.n_input)
+        else:
+            self.rf = 1
+
     @property
     def required_rngs(self):
         return ("params", "dropout", "z")
@@ -127,16 +132,19 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         input_dict = dict(x=x)
         return input_dict
 
-    def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
+    def inference(self, x: jnp.ndarray, batch_index, n_samples: int = 1) -> dict:
         mean, var = self.encoder(x, training=self.training)
         stddev = jnp.sqrt(var) + self.eps
+
+        batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
+        d = self.d_encoder(x, batch, training=self.training)
 
         qz = dist.Normal(mean, stddev)
         z_rng = self.make_rng("z")
         sample_shape = () if n_samples == 1 else (n_samples,)
         z = qz.rsample(z_rng, sample_shape=sample_shape)
 
-        return dict(qz=qz, z=z)
+        return dict(qz=qz, z=z, d=d)
 
     def _get_generative_input(
         self,
@@ -157,16 +165,18 @@ class JaxPEAKVAE(JaxBaseModuleClass):
     def generative(self, x, z, batch_index) -> dict:
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
         rho = self.decoder(z, batch, training=self.training)
-        total_count = x.sum(-1)[:, jnp.newaxis]
-        mu = total_count * rho
+        # total_count = x.sum(-1)[:, jnp.newaxis]
+        # mu = total_count * rho
 
-        px = dist.Bernoulli(mu) # numpyro distribution object
+        # px = dist.Bernoulli(mu) # numpyro distribution object
 
-        return dict(px=px)
+        return dict(px=rho)
     
-    def get_reconstruction_loss(self, x, px):
-        # maybe use optax.losses.binary_cross_entropy_with_logits
-        pass
+    def bceloss(logits, labels, eps=1e-8):
+        return -labels * jnp.log(logits + eps) - (1.0 - labels) * jnp.log(1 - logits + eps)
+    
+    def get_reconstruction_loss(self, p, d, f, x):
+        return self.bceloss(p * d * f, (x > 0).float()).sum(dim=-1)
 
     def loss(
         self,
@@ -178,10 +188,16 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         px = generative_outputs["px"]
         qz = inference_outputs["qz"]
+        d = inference_outputs["d"]
+
+        print('777777777777777')
+        print(self.rf * px)
 
         reconstruction_loss = -px.log_prob(x).sum(-1)
 
         kl_div = dist.kl_divergence(qz, dist.Normal(0, 1)).sum(-1)
         loss = jnp.mean(reconstruction_loss + kl_weight * kl_div)
+
+        
 
         return LossRecorder(loss, reconstruction_loss, kl_div)
