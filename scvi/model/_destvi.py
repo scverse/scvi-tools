@@ -78,7 +78,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         n_latent: int,
         n_layers: int,
         dropout_decoder: float,
-        l1_reg: float,
+        celltype_reg: dict,
         **module_kwargs,
     ):
         super().__init__(st_adata)
@@ -93,7 +93,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_decoder=dropout_decoder,
-            l1_reg=l1_reg,
+            celltype_reg=celltype_reg,
             **module_kwargs,
         )
         self.cell_type_mapping = cell_type_mapping
@@ -106,7 +106,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: CondSCVI,
         vamp_prior_p: int = 15,
-        l1_reg: float = 0.0,
+        celltype_reg: dict = {"l1": 0.0},
         **module_kwargs,
     ):
         """Alternate constructor for exploiting a pre-trained model on a RNA-seq dataset.
@@ -119,9 +119,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             trained CondSCVI model
         vamp_prior_p
             number of mixture parameter for VampPrior calculations
-        l1_reg
-            Scalar parameter indicating the strength of L1 regularization on cell type proportions.
-            A value of 50 leads to sparser results.
+        celltype_reg
+            Dictionary indicating the strength and type ("l1" and "entropy" supported of regularization on cell type proportions).
+            A value of 200 for entropy loss leads to sparser results. If cell-types are predicted to be not present setting
+            "entropy" to negative values increases chances of detecting all cell-types.
         **model_kwargs
             Keyword args for :class:`~scvi.model.DestVI`
         """
@@ -153,7 +154,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             var_vprior=var_vprior,
             mp_vprior=mp_vprior,
             dropout_decoder=dropout_decoder,
-            l1_reg=l1_reg,
+            celltype_reg=celltype_reg,
             **module_kwargs,
         )
 
