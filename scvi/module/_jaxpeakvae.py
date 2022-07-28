@@ -53,13 +53,17 @@ class FlaxDecoder(nn.Module):
     n_input: int
     dropout_rate: float
     n_hidden: int
+    n_output: int = None
 
     def setup(self):
         self.dense1 = Dense(self.n_hidden)
         self.dense2 = Dense(self.n_hidden)
         self.dense3 = Dense(self.n_hidden)
         self.dense4 = Dense(self.n_hidden)
-        self.dense5 = Dense(self.n_input)
+        if self.n_output is None:
+            self.dense5 = Dense(self.n_input)
+        else:
+            self.dense5 = Dense(self.n_output)
 
         self.batchnorm1 = nn.BatchNorm()
         self.batchnorm2 = nn.BatchNorm()
@@ -115,6 +119,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
             n_input=self.n_latent,
             dropout_rate=0.0,
             n_hidden=self.n_hidden,
+            n_output=1,
         )
 
         if self.region_factors:
@@ -128,8 +133,9 @@ class JaxPEAKVAE(JaxBaseModuleClass):
 
     def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
         x = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        input_dict = dict(x=x)
+        input_dict = dict(x=x, batch_index=batch_index)
         return input_dict
 
     def inference(self, x: jnp.ndarray, batch_index, n_samples: int = 1) -> dict:
@@ -176,7 +182,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         return -labels * jnp.log(logits + eps) - (1.0 - labels) * jnp.log(1 - logits + eps)
     
     def get_reconstruction_loss(self, p, d, f, x):
-        return self.bceloss(p * d * f, (x > 0).float()).sum(dim=-1)
+        return self.bceloss(p * d * f, (x > 0).astype(float)).sum(dim=-1)
 
     def loss(
         self,
@@ -190,10 +196,16 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         qz = inference_outputs["qz"]
         d = inference_outputs["d"]
 
-        print('777777777777777')
-        print(self.rf * px)
+        # print('777777777777777')
+        # print(self.rf * px)
 
         f = nn.sigmoid(self.rf) if self.rf is not None else 1
+
+        # print(px.shape, d.shape, f.shape)
+        # print(x)
+        # print(x.shape)
+
+        # return None
 
         reconstruction_loss = self.get_reconstruction_loss(px, d, f, x)
 
