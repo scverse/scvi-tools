@@ -472,9 +472,10 @@ class MRDeconv(BaseModuleClass):
             gamma_ind = self.gamma[:, :, ind_x]  # n_latent, n_labels, minibatch_size
 
         # calculate cell type specific expression
-        gamma_select = gamma_ind[
-            :, :, torch.arange(ind_x.shape[0]).reshape
-        ].T  # minibatch_size, n_latent
+        gamma_select = torch.transpose(
+            gamma_ind[:, :, torch.arange(ind_x.shape[0])], 2, 0
+        )  # minibatch_size, n_latent
+
         gamma_reshape = gamma_select.reshape(
             (-1, self.n_latent)
         )  # minibatch_size * n_labels, n_latent
