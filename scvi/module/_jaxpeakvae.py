@@ -157,35 +157,26 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         tensors: Dict[str, jnp.ndarray],
         inference_outputs: Dict[str, jnp.ndarray],
     ):
-        x = tensors[REGISTRY_KEYS.X_KEY]
         z = inference_outputs["z"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         input_dict = dict(
-            x=x,
             z=z,
             batch_index=batch_index,
         )
         return input_dict
 
-    def generative(self, x, z, batch_index) -> dict:
+    def generative(self, z, batch_index) -> dict:
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
         rho = self.decoder(z, batch, training=self.training)
-        # total_count = x.sum(-1)[:, jnp.newaxis]
-        # mu = total_count * rho
-
-        # px = dist.Bernoulli(mu) # numpyro distribution object
 
         return dict(px=rho)
     
     
     def get_reconstruction_loss(self, p, d, f, x, eps=1e-8):
-        # print('grl')
-        preds = p*d*f
-        # print(type(preds))
+        preds = p * d * f
         labels = (x > 0).astype(jnp.float32)
         return (-labels * jnp.log(preds + eps) - (1.0 - labels) * jnp.log(1 - preds + eps)).sum(-1)
-        # return self.bceloss(a, (x > 0).astype(float)).sum(dim=-1)
 
     def loss(
         self,
@@ -199,26 +190,11 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         qz = inference_outputs["qz"]
         d = inference_outputs["d"]
 
-        # print('777777777777777')
-        # print(self.rf * px)
-
         f = nn.sigmoid(self.rf) if self.rf is not None else 1
-
-        a = px * d * f
-        # print(px.shape, d.shape, f.shape)
-        # print((px * d * f).shape)
-        # print(type(px * d * f))
-        # print(a + 2.2)
-        
-        # print(x)
-        # print(x.shape)
-
-        # return None
 
         reconstruction_loss = self.get_reconstruction_loss(px, d, f, x)
 
         kl_div = dist.kl_divergence(qz, dist.Normal(0, 1)).sum(-1)
         loss = jnp.sum(reconstruction_loss.sum() + kl_weight * kl_div)
 
-        
         return LossRecorder(loss, reconstruction_loss, kl_div)

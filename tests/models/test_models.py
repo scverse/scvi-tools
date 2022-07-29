@@ -100,7 +100,9 @@ def test_jax_peakvi():
     model = JaxPEAKVI(adata, n_latent=n_latent)
     model.train(2, train_size=0.5, check_val_every_n_epoch=1)
     assert model.is_trained
-    model.get_latent_representation()
+    latent = model.get_latent_representation()
+    assert latent.ndim == 2
+    assert latent.shape[1] == n_latent
 
 
 def test_jax_scvi():
