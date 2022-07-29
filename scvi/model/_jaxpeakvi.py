@@ -107,7 +107,7 @@ class JaxPEAKVI(JaxTrainingMixin, BaseModelClass):
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
-    
+
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,

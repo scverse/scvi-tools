@@ -171,12 +171,13 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         rho = self.decoder(z, batch, training=self.training)
 
         return dict(px=rho)
-    
-    
+
     def get_reconstruction_loss(self, p, d, f, x, eps=1e-8):
         preds = p * d * f
         labels = (x > 0).astype(jnp.float32)
-        return (-labels * jnp.log(preds + eps) - (1.0 - labels) * jnp.log(1 - preds + eps)).sum(-1)
+        return (
+            -labels * jnp.log(preds + eps) - (1.0 - labels) * jnp.log(1 - preds + eps)
+        ).sum(-1)
 
     def loss(
         self,
