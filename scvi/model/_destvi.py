@@ -303,6 +303,54 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 generative_inputs["x"],
                 generative_inputs["ind_x"],
             )
+            px_scale = self.module.get_ct_specific_scale(x, ind_x, y)
+            scale += [px_scale.cpu()]
+
+        data = torch.cat(scale).numpy()
+        column_names = self.adata.var.index
+        index_names = self.adata.obs.index
+        if indices is not None:
+            index_names = index_names[indices]
+        return pd.DataFrame(data=data, columns=column_names, index=index_names)
+
+    def get_expression_for_ct(
+        self,
+        label: str,
+        indices: Optional[Sequence[int]] = None,
+        batch_size: Optional[int] = None,
+    ) -> pd.DataFrame:
+        r"""
+        Return the per cell-type expression based on likelihood for every spot in queried cell types.
+
+        Parameters
+        ----------
+        label
+            cell type of interest
+        indices
+            Indices of cells in self.adata to use. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+
+        Returns
+        -------
+        Pandas dataframe of gene_expression
+        """
+        self._check_if_trained()
+
+        if label not in self.cell_type_mapping:
+            raise ValueError("Unknown cell type")
+        y = np.where(label == self.cell_type_mapping)[0][0]
+
+        stdl = self._make_data_loader(
+            self.adata, indices=indices, batch_size=batch_size
+        )
+        scale = []
+        for tensors in stdl:
+            generative_inputs = self.module._get_generative_input(tensors, None)
+            x, ind_x = (
+                generative_inputs["x"],
+                generative_inputs["ind_x"],
+            )
             px_scale = self.module.get_ct_specific_expression(x, ind_x, y)
             scale += [px_scale.cpu()]
 

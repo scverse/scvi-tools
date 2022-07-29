@@ -295,12 +295,11 @@ class MRDeconv(BaseModuleClass):
                 torch.abs(v[:, :-1] - expected_proportion), axis=1
             )
         elif "l1" in self.celltype_reg.keys():
-            v_sparsity_loss = (
-                self.celltype_reg["l1"] * self.l1_reg * torch.sum(v, axis=1)
-            )
+            v_sparsity_loss = self.celltype_reg["l1"] * torch.sum(v, axis=1)
         elif "entropy" in self.celltype_reg.keys():
             v_sparsity_loss = (
-                self.l1_reg * torch.distributions.Categorical(probs=v).entropy().mean()
+                self.celltype_reg["entropy"]
+                * torch.distributions.Categorical(probs=v).entropy().mean()
             )
         else:
             raise ValueError(
