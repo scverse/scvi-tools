@@ -178,11 +178,14 @@ class JaxPEAKVAE(JaxBaseModuleClass):
 
         return dict(px=rho)
     
-    def bceloss(logits, labels, eps=1e-8):
-        return -labels * jnp.log(logits + eps) - (1.0 - labels) * jnp.log(1 - logits + eps)
     
-    def get_reconstruction_loss(self, p, d, f, x):
-        return self.bceloss(p * d * f, (x > 0).astype(float)).sum(dim=-1)
+    def get_reconstruction_loss(self, p, d, f, x, eps=1e-8):
+        # print('grl')
+        preds = p*d*f
+        # print(type(preds))
+        labels = (x > 0).astype(jnp.float32)
+        return (-labels * jnp.log(preds + eps) - (1.0 - labels) * jnp.log(1 - preds + eps)).sum(-1)
+        # return self.bceloss(a, (x > 0).astype(float)).sum(dim=-1)
 
     def loss(
         self,
@@ -201,7 +204,12 @@ class JaxPEAKVAE(JaxBaseModuleClass):
 
         f = nn.sigmoid(self.rf) if self.rf is not None else 1
 
+        a = px * d * f
         # print(px.shape, d.shape, f.shape)
+        # print((px * d * f).shape)
+        # print(type(px * d * f))
+        # print(a + 2.2)
+        
         # print(x)
         # print(x.shape)
 
