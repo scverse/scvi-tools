@@ -3,7 +3,6 @@ from typing import Dict
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
-import optax
 from flax import linen as nn
 
 from scvi import REGISTRY_KEYS
@@ -173,6 +172,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         return dict(px=rho)
 
     def get_reconstruction_loss(self, p, d, f, x, eps=1e-8):
+        # BCE Loss
         preds = p * d * f
         labels = (x > 0).astype(jnp.float32)
         return (

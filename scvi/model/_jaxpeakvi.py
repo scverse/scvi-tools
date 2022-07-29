@@ -5,7 +5,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from anndata import AnnData
-from pandas import concat
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
