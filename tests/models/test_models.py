@@ -1426,7 +1426,7 @@ def test_destvi(save_path):
         DestVI.setup_anndata(dataset, layer=None)
         # add l1_regularization to cell type proportions
         spatial_model = DestVI.from_rna_model(
-            dataset, sc_model, amortization=amor_scheme, l1_reg=50
+            dataset, sc_model, amortization=amor_scheme, celltype_reg={'l1': 50.}
         )
         spatial_model.view_anndata_setup()
         spatial_model.train(max_epochs=1)
@@ -1440,6 +1440,10 @@ def test_destvi(save_path):
         )
 
         assert spatial_model.get_scale_for_ct("label_0", np.arange(50)).shape == (
+            50,
+            dataset.n_vars,
+        )
+        assert spatial_model.get_expression_for_ct("label_0", np.arange(50)).shape == (
             50,
             dataset.n_vars,
         )
