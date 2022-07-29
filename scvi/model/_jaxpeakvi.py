@@ -1,6 +1,9 @@
 import logging
-from typing import Optional
+from typing import Optional, Sequence
 
+import jax
+import jax.numpy as jnp
+import numpy as np
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
@@ -103,3 +106,54 @@ class JaxPEAKVI(JaxTrainingMixin, BaseModelClass):
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+
+    def get_latent_representation(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        give_mean: bool = True,
+        mc_samples: int = 1,
+        batch_size: Optional[int] = None,
+    ) -> np.ndarray:
+        """
+        Get the latent representation of the data.
+        Parameters
+        ----------
+        adata
+            AnnData object similar in structure to the anndata used for training.
+            If `None`, the data used for training is used.
+        indices
+            Indices of the cells in the anndata to use. If `None`, use all cells.
+        give_mean
+            Whether to give the mean of the latent representation.
+        mc_samples
+            Number of Monte Carlo samples to draw.
+        batch_size
+            Batch size.
+
+        Returns
+        -------
+        latent_representation : np.ndarray
+            Latent representation of the data for each cell.
+        """
+        self._check_if_trained(warn=False)
+
+        adata = self._validate_anndata(adata)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
+        )
+
+        run_inference = self.module.get_inference_fn(mc_samples=mc_samples)
+
+        latent = []
+        for array_dict in scdl:
+            out = run_inference(array_dict)
+            if give_mean:
+                z = out["qz"].mean
+            else:
+                z = out["z"]
+            latent.append(z)
+        concat_axis = 0 if ((mc_samples == 1) or give_mean) else 1
+        latent = jnp.concatenate(latent, axis=concat_axis)
+
+        return np.array(jax.device_get(latent))
