@@ -451,7 +451,7 @@ class MRDeconv(BaseModuleClass):
         # cell-type specific gene expression, shape (minibatch, celltype, gene).
         eps = torch.nn.functional.softplus(self.eta)  # n_genes
         eps = eps.repeat((x.shape[0], 1)).view(
-            x.shape[0], 1, -1
+            x.shape[0], 1, x.shape[1]
         )  # (M, 1, n_genes) <- this is the dummy cell type
         beta = torch.exp(self.beta)  # n_genes
 
@@ -461,7 +461,7 @@ class MRDeconv(BaseModuleClass):
         else:
             v_ind = torch.nn.functional.softplus(
                 self.V[:, ind_x]
-            )  # n_spots, n_labels + 1
+            ).T  # n_spots, n_labels + 1
         # remove dummy cell type proportion values
 
         if self.amortization in ["both", "latent"]:
@@ -487,13 +487,13 @@ class MRDeconv(BaseModuleClass):
         px_ct = torch.cat(
             [
                 beta.unsqueeze(0).unsqueeze(1)
-                * px_scale.reshape(-1, self.n_labels, self.n_latent),
+                * px_scale.reshape(-1, self.n_labels, self.n_genes),
                 eps,
             ],
             dim=1,
         )
         expression = torch.expm1(x) * (
-            (v_ind[:, y] * px_ct[:, y, :])
+            (v_ind[:, y].unsqueeze(1) * px_ct[:, y, :])
             / torch.sum(v_ind.unsqueeze(2) * px_ct, dim=1)
         )
 
