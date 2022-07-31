@@ -52,7 +52,7 @@ def parse_use_gpu_arg(
     elif isinstance(use_gpu, int):
         device = torch.device(use_gpu) if not mps_available else torch.device("mps")
         accelerator = "gpu"
-        lightning_devices = [use_gpu if not mps_available else 1]
+        lightning_devices = [use_gpu] if not mps_available else 1
     elif isinstance(use_gpu, str):
         device = torch.device(use_gpu)
         accelerator = "gpu"
