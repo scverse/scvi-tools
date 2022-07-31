@@ -8,7 +8,7 @@ from flax import linen as nn
 from scvi import REGISTRY_KEYS
 from scvi.module.base import JaxBaseModuleClass, LossRecorder
 
-from ._jaxvae import Dense
+from scvi.nn import Dense
 
 
 class FlaxEncoder(nn.Module):

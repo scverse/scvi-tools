@@ -8,6 +8,7 @@ from ._base_components import (
     LinearDecoderSCVI,
     MultiDecoder,
     MultiEncoder,
+    Dense,
 )
 from ._utils import one_hot
 
@@ -22,4 +23,5 @@ __all__ = [
     "MultiEncoder",
     "MultiDecoder",
     "one_hot",
+    "Dense",
 ]

@@ -4,21 +4,12 @@ import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 from flax import linen as nn
-from flax.linen.initializers import variance_scaling
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.module.base import JaxBaseModuleClass, LossRecorder
 
-
-class Dense(nn.Dense):
-    def __init__(self, *args, **kwargs):
-        # scale set to reimplement pytorch init
-        scale = 1 / 3
-        kernel_init = variance_scaling(scale, "fan_in", "uniform")
-        # bias init can't see input shape so don't include here
-        kwargs.update({"kernel_init": kernel_init})
-        super().__init__(*args, **kwargs)
+from scvi.nn import Dense
 
 
 class FlaxEncoder(nn.Module):
