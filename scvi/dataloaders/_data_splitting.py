@@ -114,9 +114,13 @@ class DataSplitter(pl.LightningDataModule):
         self.train_idx = permutation[n_val : (n_val + n_train)]
         self.test_idx = permutation[(n_val + n_train) :]
 
-        gpus, self.device = parse_use_gpu_arg(self.use_gpu, return_device=True)
+        accelerator, lightning_devices, self.device = parse_use_gpu_arg(
+            self.use_gpu, return_device=True
+        )
         self.pin_memory = (
-            True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
+            True
+            if (settings.dl_pin_memory_gpu_training and accelerator == "gpu")
+            else False
         )
 
     def train_dataloader(self):
