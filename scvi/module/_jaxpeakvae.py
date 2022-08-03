@@ -11,8 +11,7 @@ from scvi.module.base import JaxBaseModuleClass, LossRecorder
 from scvi.nn import Dense
 
 
-class FlaxEncoder(nn.Module):
-    n_input: int
+class FlaxEncoderPeakVI(nn.Module):
     n_latent: int
     n_hidden: int
     dropout_rate: int
@@ -20,20 +19,21 @@ class FlaxEncoder(nn.Module):
     def setup(self):
         self.dense1 = Dense(self.n_hidden)
         self.dense2 = Dense(self.n_hidden)
-        self.dense3 = Dense(self.n_latent)
-        self.dense4 = Dense(self.n_latent)
+        self.mean_output = Dense(self.n_latent)
+        self.var_output = Dense(self.n_latent)
 
         self.layernorm1 = nn.LayerNorm()
         self.layernorm2 = nn.LayerNorm()
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
-    def __call__(self, x: jnp.ndarray, training: bool = False):
+    def __call__(self, x: jnp.ndarray, training: bool = False, log_normalization: bool = False):
         is_eval = not training
 
-        x_ = jnp.log1p(x)
+        if log_normalization:
+            x = jnp.log1p(x)
 
-        h = self.dense1(x_)
+        h = self.dense1(x)
         h = self.layernorm1(h)
         h = nn.leaky_relu(h)
         h = self.dropout1(h, deterministic=is_eval)
@@ -42,13 +42,13 @@ class FlaxEncoder(nn.Module):
         h = nn.leaky_relu(h)
         h = self.dropout2(h, deterministic=is_eval)
 
-        mean = self.dense3(h)
-        log_var = self.dense4(h)
+        mean = self.mean_output(h)
+        log_var = self.var_output(h)
 
         return mean, jnp.exp(log_var)
 
 
-class FlaxDecoder(nn.Module):
+class FlaxDecoderPeakVI(nn.Module):
     n_input: int
     dropout_rate: float
     n_hidden: int
@@ -56,13 +56,13 @@ class FlaxDecoder(nn.Module):
 
     def setup(self):
         self.dense1 = Dense(self.n_hidden)
+        self.densebatch1 = Dense(self.n_hidden)
         self.dense2 = Dense(self.n_hidden)
-        self.dense3 = Dense(self.n_hidden)
-        self.dense4 = Dense(self.n_hidden)
+        self.densebatch2 = Dense(self.n_hidden)
         if self.n_output is None:
-            self.dense5 = Dense(self.n_input)
+            self.output = Dense(self.n_input)
         else:
-            self.dense5 = Dense(self.n_output)
+            self.output = Dense(self.n_output)
 
         self.batchnorm1 = nn.BatchNorm()
         self.batchnorm2 = nn.BatchNorm()
@@ -73,18 +73,18 @@ class FlaxDecoder(nn.Module):
         is_eval = not training
 
         h = self.dense1(z)
-        h += self.dense2(batch)
+        h += self.densebatch1(batch)
 
         h = self.batchnorm1(h, use_running_average=is_eval)
         h = nn.leaky_relu(h)
         h = self.dropout1(h, deterministic=is_eval)
-        h = self.dense3(h)
+        h = self.dense2(h)
         # skip connection
-        h += self.dense4(batch)
+        h += self.densebatch2(batch)
         h = self.batchnorm2(h, use_running_average=is_eval)
         h = nn.leaky_relu(h)
         h = self.dropout2(h, deterministic=is_eval)
-        h = self.dense5(h)
+        h = self.output(h)
         h = nn.sigmoid(h)
 
         return h
@@ -99,27 +99,29 @@ class JaxPEAKVAE(JaxBaseModuleClass):
     n_layers: int = 1
     eps: float = 1e-8
     region_factors: bool = True
+    model_depth: bool = True
 
     def setup(self):
-        self.encoder = FlaxEncoder(
-            n_input=self.n_input,
+        self.encoder = FlaxEncoderPeakVI(
             n_latent=self.n_latent,
             n_hidden=self.n_hidden,
             dropout_rate=self.dropout_rate,
         )
 
-        self.decoder = FlaxDecoder(
+        self.decoder = FlaxDecoderPeakVI(
             n_input=self.n_input,
             dropout_rate=0.0,
             n_hidden=self.n_hidden,
         )
-
-        self.d_encoder = FlaxDecoder(
-            n_input=self.n_latent,
-            dropout_rate=0.0,
-            n_hidden=self.n_hidden,
-            n_output=1,
-        )
+        
+        self.d_encoder = None
+        if self.model_depth:
+            self.d_encoder = FlaxDecoderPeakVI(
+                n_input=self.n_latent,
+                dropout_rate=0.0,
+                n_hidden=self.n_hidden,
+                n_output=1,
+            )
 
         if self.region_factors:
             self.rf = self.param("rf", nn.initializers.zeros, self.n_input)
@@ -142,7 +144,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
         stddev = jnp.sqrt(var) + self.eps
 
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
-        d = self.d_encoder(x, batch, training=self.training)
+        d = self.d_encoder(x, batch, training=self.training) if self.model_depth else 1
 
         qz = dist.Normal(mean, stddev)
         z_rng = self.make_rng("z")

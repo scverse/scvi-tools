@@ -22,6 +22,7 @@ class JaxPEAKVI(JaxTrainingMixin, BaseModelClass):
     """
     EXPERIMENTAL PeakVI [Ashuach22]_, but with a Jax backend.
     This implementation is in a very experimental state. API is completely subject to change.
+
     Parameters
     ----------
     adata
@@ -34,6 +35,7 @@ class JaxPEAKVI(JaxTrainingMixin, BaseModelClass):
         Dropout rate for neural networks.
     **model_kwargs
         Keyword args for :class:`~scvi.module.JaxPEAKVAE`
+    
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
@@ -64,12 +66,7 @@ class JaxPEAKVI(JaxTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "JaxPEAKVI Model with the following params: \nn_hidden: {}, n_latent: {}, dropout_rate: "
-            "{}"
-        ).format(
-            n_hidden,
-            n_latent,
-            dropout_rate,
+            f"JaxPEAKVI Model with the following params: \nn_hidden: {n_hidden}, n_latent: {n_latent}, dropout_rate: {dropout_rate}"
         )
         self.init_params_ = self._get_init_params(locals())
 
