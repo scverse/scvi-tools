@@ -7,7 +7,6 @@ from flax import linen as nn
 
 from scvi import REGISTRY_KEYS
 from scvi.module.base import JaxBaseModuleClass, LossRecorder
-
 from scvi.nn import Dense
 
 
@@ -27,7 +26,9 @@ class FlaxEncoderPeakVI(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
-    def __call__(self, x: jnp.ndarray, training: bool = False, log_normalization: bool = False):
+    def __call__(
+        self, x: jnp.ndarray, training: bool = False, log_normalization: bool = False
+    ):
         is_eval = not training
 
         if log_normalization:
@@ -113,7 +114,7 @@ class JaxPEAKVAE(JaxBaseModuleClass):
             dropout_rate=0.0,
             n_hidden=self.n_hidden,
         )
-        
+
         self.d_encoder = None
         if self.model_depth:
             self.d_encoder = FlaxDecoderPeakVI(

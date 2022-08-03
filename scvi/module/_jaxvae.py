@@ -8,7 +8,6 @@ from flax import linen as nn
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.module.base import JaxBaseModuleClass, LossRecorder
-
 from scvi.nn import Dense
 
 

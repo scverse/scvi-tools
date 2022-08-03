@@ -35,7 +35,7 @@ class JaxPEAKVI(JaxTrainingMixin, BaseModelClass):
         Dropout rate for neural networks.
     **model_kwargs
         Keyword args for :class:`~scvi.module.JaxPEAKVAE`
-    
+
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
@@ -65,9 +65,7 @@ class JaxPEAKVI(JaxTrainingMixin, BaseModelClass):
             dropout_rate=dropout_rate,
             **model_kwargs,
         )
-        self._model_summary_string = (
-            f"JaxPEAKVI Model with the following params: \nn_hidden: {n_hidden}, n_latent: {n_latent}, dropout_rate: {dropout_rate}"
-        )
+        self._model_summary_string = f"JaxPEAKVI Model with the following params: \nn_hidden: {n_hidden}, n_latent: {n_latent}, dropout_rate: {dropout_rate}"
         self.init_params_ = self._get_init_params(locals())
 
     @property
