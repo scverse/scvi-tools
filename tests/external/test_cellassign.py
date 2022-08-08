@@ -29,13 +29,15 @@ def test_cellassign(save_path):
     model.predict()
 
 
-def test_cellassign_categorical_covariates(save_path):
+def test_cellassign_covariates(save_path):
     adata, marker_df = get_test_adata_marker_mat()
+    adata.obs["test"] = np.ones((adata.n_obs,))
     CellAssign.setup_anndata(
         adata,
         "size_factor",
         batch_key="batch",
         categorical_covariate_keys=["batch"],
+        continuous_covariate_keys=["test"],
     )
     model = CellAssign(adata, marker_df)
     model.train(max_epochs=1)
