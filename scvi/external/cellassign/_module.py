@@ -97,7 +97,6 @@ class CellAssignModule(BaseModuleClass):
 
         self.log_a = torch.nn.Parameter(torch.zeros(B))
 
-        design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
         if design_matrix_col_dim == 0:
             self.beta = None
         else:
@@ -128,7 +127,7 @@ class CellAssignModule(BaseModuleClass):
             ):
                 to_cat.append(one_hot(cat_input, n_cat))
 
-        design_matrix = torch.cat(to_cat) if len(to_cat) > 0 else None
+        design_matrix = torch.cat(to_cat, dim=1) if len(to_cat) > 0 else None
 
         input_dict = dict(x=x, size_factor=size_factor, design_matrix=design_matrix)
         return input_dict
