@@ -46,8 +46,6 @@ class JaxModuleWrapper:
         self.module_cls = module_cls
         self.module_kwargs = module_kwargs
         self._module = self.module_cls(training=True, **self.module_kwargs)
-        self._train_module = None
-        self._eval_module = None
         self._train_state = None
 
         self.key_fn = device_selecting_PRNGKey()
