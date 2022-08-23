@@ -227,10 +227,12 @@ class JVAE(BaseModuleClass):
             tensor of shape ``(batch_size, 1)``
 
         """
-        _, _, _, ql_m, _, library = self.encode(x, mode)
-        if deterministic and ql_m is not None:
-            library = ql_m
-        return library
+        inference_out = self.inference(x, mode)
+        return (
+            inference_out["ql"].loc
+            if (deterministic and inference_out["ql"] is not None)
+            else inference_out["library"]
+        )
 
     def sample_scale(
         self,
@@ -266,6 +268,30 @@ class JVAE(BaseModuleClass):
             tensor of predicted expression
 
         """
+
+        gen_out = self._run_forward(
+            x,
+            mode,
+            batch_index,
+            y=y,
+            deterministic=deterministic,
+            decode_mode=decode_mode,
+        )
+        return gen_out["px_scale"]
+
+    # This is a potential wrapper for a vae like get_sample_rate
+    def get_sample_rate(self, x, batch_index, *_, **__):
+        return self.sample_rate(x, 0, batch_index)
+
+    def _run_forward(
+        self,
+        x: torch.Tensor,
+        mode: int,
+        batch_index: torch.Tensor,
+        y: Optional[torch.Tensor] = None,
+        deterministic: bool = False,
+        decode_mode: int = None,
+    ) -> dict:
         if decode_mode is None:
             decode_mode = mode
         inference_out = self.inference(x, mode)
@@ -279,12 +305,7 @@ class JVAE(BaseModuleClass):
             z = inference_out["z"]
             library = inference_out["library"]
         gen_out = self.generative(z, library, batch_index, y, decode_mode)
-
-        return gen_out["px_scale"]
-
-    # This is a potential wrapper for a vae like get_sample_rate
-    def get_sample_rate(self, x, batch_index, *_, **__):
-        return self.sample_rate(x, 0, batch_index)
+        return gen_out
 
     def sample_rate(
         self,
@@ -320,18 +341,16 @@ class JVAE(BaseModuleClass):
             tensor of means of the scaled frequencies
 
         """
-        if decode_mode is None:
-            decode_mode = mode
-        qz_m, qz_v, z, ql_m, ql_v, library = self.encode(x, mode)
-        if deterministic:
-            z = qz_m
-            if ql_m is not None:
-                library = ql_m
-        px_scale, px_r, px_rate, px_dropout = self.decode(
-            z, decode_mode, library, batch_index, y
-        )
 
-        return px_rate
+        gen_out = self._run_forward(
+            x,
+            mode,
+            batch_index,
+            y=y,
+            deterministic=deterministic,
+            decode_mode=decode_mode,
+        )
+        return gen_out["px_rate"]
 
     def reconstruction_loss(
         self,
