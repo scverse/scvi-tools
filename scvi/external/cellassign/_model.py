@@ -129,7 +129,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
 
     def train(
         self,
-        max_epochs: int = 400,
+        max_epochs: Optional[int] = None,
         lr: float = 3e-3,
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
