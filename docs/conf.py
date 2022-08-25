@@ -111,7 +111,7 @@ intersphinx_mapping = dict(
 
 # General information about the project.
 project = "scvi-tools"
-copyright = "2021, Yosef Lab, UC Berkeley"
+copyright = "2022, Yosef Lab, UC Berkeley"
 author = "The scvi-tools development team"
 
 # The version info for the project you're documenting, acts as replacement
