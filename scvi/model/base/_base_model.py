@@ -26,7 +26,7 @@ from scvi.data._utils import _assign_adata_uuid, _check_if_view
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
-from scvi.utils import attrdict, setup_anndata_dsp
+from scvi.utils import attrdict, experimental, setup_anndata_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -667,6 +667,76 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return model
 
     @classmethod
+    @experimental
+    def load_with_latent_data(
+        cls,
+        dir_path: str,
+        adata_latent: Optional[AnnData] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
+        prefix: Optional[str] = None,
+        backup_url: Optional[str] = None,
+    ):
+        """
+        TODO add docstring
+        """
+        load_adata_latent = adata_latent is None
+        use_gpu, device = parse_use_gpu_arg(use_gpu)
+
+        (attr_dict, _, model_state_dict, new_adata_latent) = _load_saved_files(
+            dir_path,
+            load_adata_latent,
+            map_location=device,
+            prefix=prefix,
+            backup_url=backup_url,
+        )
+        adata = new_adata_latent if new_adata_latent is not None else adata_latent
+
+        registry = attr_dict.pop("registry_")
+        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+            raise ValueError(
+                "It appears you are loading a model from a different class."
+            )
+
+        if _SETUP_ARGS_KEY not in registry:
+            raise ValueError(
+                "Saved model does not contain original setup inputs. "
+                "Cannot load the original setup."
+            )
+
+        setup_args = registry[_SETUP_ARGS_KEY]
+        unsupported_field_names = getattr(
+            cls, "setup_anndata_params_unsupported_in_latent_mode"
+        )()
+        unsupported_fields = [
+            uf
+            for uf in unsupported_field_names
+            if uf in setup_args and not setup_args[uf] is None
+        ]
+        if len(unsupported_fields) > 0:
+            warnings.warn(
+                "Omitting the following fields in setup_anndata as they are not supported"
+                + f"in latent mode:\n{unsupported_fields}"
+            )
+            for uf in unsupported_field_names:
+                setup_args.pop(uf)
+
+        # Calling ``setup_anndata`` method with the original arguments passed into
+        # the saved model. This enables simple backwards compatibility in the case of
+        # newly introduced fields or parameters.
+        method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        getattr(cls, method_name)(adata, source_registry=registry, **setup_args)
+
+        model = _initialize_model(cls, adata, attr_dict)
+        model._latent_mode = True
+        model.module.on_load(model)
+        model.module.load_state_dict(model_state_dict)
+
+        model.to_device(device)
+        model.module.eval()
+        model._validate_anndata(adata)
+        return model
+
+    @classmethod
     def convert_legacy_save(
         cls,
         dir_path: str,
@@ -748,6 +818,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         according to its needs. To operate correctly with the model initialization,
         the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
         on a model-specific instance of :class:`~scvi.data.AnnDataManager`.
+        """
+
+    # TODO implement for all classes that implement SUAD
+    @classmethod
+    @abstractmethod
+    def setup_anndata_params_unsupported_in_latent_mode(cls) -> set[str]:
+        """
+        Each model class deriving from this class must implement this method to return
+        the set of setup_anndata parameter names that are unsupported in latent mode.
         """
 
     @staticmethod

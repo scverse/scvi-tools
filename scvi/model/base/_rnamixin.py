@@ -505,6 +505,7 @@ class RNASeqMixin:
         dropout = np.concatenate(dropout_list, axis=-2)
         means = np.concatenate(mean_list, axis=-2)
         dispersions = np.concatenate(dispersion_list, axis=-2)
+
         if give_mean and n_samples > 1:
             dropout = dropout.mean(0)
             means = means.mean(0)

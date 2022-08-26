@@ -58,6 +58,7 @@ def _load_saved_files(
     prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
     backup_url: Optional[str] = None,
+    latent_data: bool = False,
 ) -> Tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
@@ -78,22 +79,33 @@ def _load_saved_files(
     var_names = model["var_names"]
     attr_dict = model["attr_dict"]
 
-    is_mudata = False
-    registry = attr_dict["registry_"]
-    is_mudata = registry.get(_SETUP_METHOD_NAME) == "setup_mudata"
-    file_suffix = "adata.h5ad" if not is_mudata else "mdata.h5mu"
-    adata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
-
     if load_adata:
-        if os.path.exists(adata_path):
+        is_mudata = attr_dict["registry_"].get(_SETUP_METHOD_NAME) == "setup_mudata"
+        if latent_data:
             if is_mudata:
-                adata = mudata.read(adata_path)
+                raise ValueError("MuData not supported in latent data mode")
+            latent_path = os.path.join(dir_path, f"{file_name_prefix}adata_latent.csv")
+            obs_path = os.path.join(dir_path, f"{file_name_prefix}adata_obs.csv")
+            if os.path.exists(latent_path) and os.path.exists(obs_path):
+                # TODO test this
+                adata = anndata.read_csv(latent_path)
+                adata.obs = anndata.read_csv(obs_path)
             else:
-                adata = anndata.read(adata_path)
+                raise ValueError(
+                    "Model loaded in latent mode but save path does not contain latent and obs csv files."
+                )
         else:
-            raise ValueError(
-                "Save path contains no saved anndata and no adata was passed."
-            )
+            file_suffix = "adata.h5ad" if is_mudata is False else "mdata.h5mu"
+            adata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
+            if os.path.exists(adata_path):
+                if is_mudata:
+                    adata = mudata.read(adata_path)
+                else:
+                    adata = anndata.read(adata_path)
+            else:
+                raise ValueError(
+                    "Save path contains no saved anndata and no adata was passed."
+                )
     else:
         adata = None
 
@@ -107,19 +119,19 @@ def _initialize_model(cls, adata, attr_dict):
             "No init_params_ were saved by the model. Check out the "
             "developers guide if creating custom models."
         )
-    # get the parameters for the class init signiture
+    # get the parameters for the class init signature
     init_params = attr_dict.pop("init_params_")
 
     # new saving and loading, enable backwards compatibility
     if "non_kwargs" in init_params.keys():
-        # grab all the parameters execept for kwargs (is a dict)
+        # grab all the parameters except for kwargs (is a dict)
         non_kwargs = init_params["non_kwargs"]
         kwargs = init_params["kwargs"]
 
         # expand out kwargs
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
     else:
-        # grab all the parameters execept for kwargs (is a dict)
+        # grab all the parameters except for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}

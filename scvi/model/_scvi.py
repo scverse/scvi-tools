@@ -189,3 +189,9 @@ class SCVI(
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+
+    @classmethod
+    def setup_anndata_params_unsupported_in_latent_mode(
+        cls,
+    ) -> set[str]:
+        return {"layer", "categorical_covariate_keys", "continuous_covariate_keys"}
