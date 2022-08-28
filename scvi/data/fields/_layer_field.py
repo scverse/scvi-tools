@@ -106,13 +106,18 @@ class LayerField(BaseAnnDataField):
         self, state_registry: dict, adata_target: AnnData, **kwargs
     ) -> dict:
         super().transfer_field(state_registry, adata_target, **kwargs)
-        n_vars = state_registry[self.N_VARS_KEY]
-        target_n_vars = adata_target.n_vars
-        if target_n_vars != n_vars:
-            raise ValueError(
-                "Number of vars in adata_target not the same as source. "
-                + "Expected: {} Received: {}".format(target_n_vars, n_vars)
-            )
+        non_latent_to_latent = (
+            _constants._NON_LATENT_TO_LATENT in kwargs
+            and kwargs[_constants._NON_LATENT_TO_LATENT] is True
+        )
+        if not non_latent_to_latent:
+            n_vars = state_registry[self.N_VARS_KEY]
+            target_n_vars = adata_target.n_vars
+            if target_n_vars != n_vars:
+                raise ValueError(
+                    "Number of vars in adata_target not the same as source. "
+                    + "Expected: {} Received: {}".format(target_n_vars, n_vars)
+                )
 
         return self.register_field(adata_target)
 

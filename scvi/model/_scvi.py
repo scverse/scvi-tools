@@ -6,6 +6,7 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data import AnnDataManager
+from scvi.data._constants import _ADATA_IS_LATENT
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -169,9 +170,14 @@ class SCVI(
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
+        # TODO update LayerField is_count_data for other models too
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            LayerField(
+                REGISTRY_KEYS.X_KEY,
+                layer,
+                is_count_data=_ADATA_IS_LATENT not in adata.uns,
+            ),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             NumericalObsField(
@@ -189,9 +195,3 @@ class SCVI(
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
-
-    @classmethod
-    def setup_anndata_params_unsupported_in_latent_mode(
-        cls,
-    ) -> set[str]:
-        return {"layer", "categorical_covariate_keys", "continuous_covariate_keys"}

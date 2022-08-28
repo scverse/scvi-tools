@@ -147,6 +147,24 @@ class AnnDataManager:
                 f"register_fields() got unexpected keyword arguments {transfer_kwargs} passed without a source_registry."
             )
 
+        if source_registry is not None:
+            # TODO do we always have _SETUP_ARGS_KEY in source_registry?
+            # need to check if the arg is even in SUAD args for back compat with data
+            # that might be saved from before we added this arg to SUAD
+            source_adata_latent = (
+                "fff" in source_registry[_constants._SETUP_ARGS_KEY]
+                and source_registry[_constants._SETUP_ARGS_KEY]["fff"] is True
+            )
+            target_adata_latent = _constants._ADATA_IS_LATENT in adata.uns
+            if not source_adata_latent and target_adata_latent:
+                if transfer_kwargs is None:
+                    transfer_kwargs = {}
+                transfer_kwargs[_constants._NON_LATENT_TO_LATENT] = True
+            else:
+                raise ValueError(
+                    "Cannot transfer latent adata to full (non latent) adata"
+                )
+
         self._validate_anndata_object(adata)
         field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
 

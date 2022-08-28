@@ -83,16 +83,16 @@ def _load_saved_files(
         is_mudata = attr_dict["registry_"].get(_SETUP_METHOD_NAME) == "setup_mudata"
         if latent_data:
             if is_mudata:
-                raise ValueError("MuData not supported in latent data mode")
-            latent_path = os.path.join(dir_path, f"{file_name_prefix}adata_latent.csv")
-            obs_path = os.path.join(dir_path, f"{file_name_prefix}adata_obs.csv")
-            if os.path.exists(latent_path) and os.path.exists(obs_path):
-                adata = anndata.read_csv(latent_path, first_column_names=True)
-                adata.obs = pd.read_csv(obs_path, index_col=0)
-                adata.uns[_ADATA_IS_LATENT] = "True"
+                raise ValueError("MuData currently not supported in latent data mode")
+            file_name = "adata_latent.h5ad"
+            latent_path = os.path.join(dir_path, f"{file_name_prefix}{file_name}")
+            if os.path.exists(latent_path):
+                adata = anndata.read_h5ad(latent_path)
+                if _ADATA_IS_LATENT not in adata.uns:
+                    raise ValueError("Anndata object not in latent mode")
             else:
                 raise ValueError(
-                    "Model loaded in latent mode but save path does not contain latent and obs csv files."
+                    f"Model loaded in latent mode but save path does not contain {file_name}."
                 )
         else:
             file_suffix = "adata.h5ad" if is_mudata is False else "mdata.h5mu"

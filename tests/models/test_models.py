@@ -1600,12 +1600,9 @@ def test_scvi_latent_mode(save_path):
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
-    z = model.get_latent_representation()
-    assert z.shape == (adata.shape[0], n_latent)
+    adata.obsm["X_latent"] = model.get_latent_representation()
 
-    pd.DataFrame(z).to_csv(save_path + "adata_latent.csv", header=False)
-    adata.obs.to_csv(save_path + "adata_obs.csv")
-
-    model.save(save_path, overwrite=True)
-    # loaded_model = SCVI.load_with_latent_data(save_path)
+    # TODO test with an adata that has a layer and non-empty varm some var columns and make
+    # sure those are not saved in latent mode
+    model.save_with_latent_data(save_path, overwrite=True, save_anndata=True)
     SCVI.load_with_latent_data(save_path)

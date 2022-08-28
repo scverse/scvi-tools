@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Dict, Optional, Sequence, Type, Union
 from uuid import uuid4
 
+import anndata
 import numpy as np
 import rich
 import torch
@@ -667,6 +668,77 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         model._validate_anndata(adata)
         return model
 
+    def _get_latent_adata_from_adata(
+        self, adata: AnnData, use_latent_key: Optional[str] = None
+    ) -> AnnData:
+        latent_key = "X_latent" if use_latent_key is None else use_latent_key
+        if latent_key not in adata.obsm:
+            raise ValueError(f"{latent_key} key not found in adata.obsm")
+        z = adata.obsm[latent_key]
+        bdata = anndata.AnnData(z)
+        bdata.obs = adata.obs.copy()
+        bdata.obsm = adata.obsm.copy()
+        bdata.uns = adata.uns.copy()
+        bdata.uns[_ADATA_IS_LATENT] = "True"
+        return bdata
+
+    @experimental
+    def save_with_latent_data(
+        self,
+        dir_path: str,
+        prefix: Optional[str] = None,
+        overwrite: bool = False,
+        save_anndata: bool = False,
+        use_latent_key: Optional[str] = None,
+        **anndata_write_kwargs,
+    ):
+        """
+        TODO add docstring
+        """
+        if not os.path.exists(dir_path) or overwrite:
+            os.makedirs(dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                "{} already exists. Please provide another directory for saving.".format(
+                    dir_path
+                )
+            )
+
+        file_name_prefix = prefix or ""
+
+        if save_anndata:
+            if isinstance(self.adata, MuData):
+                raise ValueError("MuData currently not supported in latent data mode")
+            bdata = self._get_latent_adata_from_adata(
+                self.adata, use_latent_key=use_latent_key
+            )
+            bdata.write(
+                os.path.join(dir_path, f"{file_name_prefix}adata_latent.h5ad"),
+                **anndata_write_kwargs,
+            )
+
+        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+
+        # save the model state dict and the trainer state dict only
+        model_state_dict = self.module.state_dict()
+
+        var_names = self.adata.var_names.astype(str)
+        var_names = var_names.to_numpy()
+
+        # get all the user attributes
+        user_attributes = self._get_user_attributes()
+        # only save the public attributes with _ at the very end
+        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
+
+        torch.save(
+            dict(
+                model_state_dict=model_state_dict,
+                var_names=var_names,
+                attr_dict=user_attributes,
+            ),
+            model_save_path,
+        )
+
     @classmethod
     @experimental
     def load_with_latent_data(
@@ -708,31 +780,16 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Cannot load the original setup."
             )
 
-        setup_args = registry[_SETUP_ARGS_KEY]
-        unsupported_field_names = getattr(
-            cls, "setup_anndata_params_unsupported_in_latent_mode"
-        )()
-        unsupported_fields = [
-            uf
-            for uf in unsupported_field_names
-            if uf in setup_args and setup_args[uf] is not None
-        ]
-        if len(unsupported_fields) > 0:
-            warnings.warn(
-                "Omitting the following fields in setup_anndata as they are not supported"
-                + f"in latent mode:\n{unsupported_fields}"
-            )
-            for uf in unsupported_field_names:
-                setup_args.pop(uf)
+        # TODO deal with source registry's SUAD args having false for latent mode
 
         # Calling ``setup_anndata`` method with the original arguments passed into
         # the saved model. This enables simple backwards compatibility in the case of
         # newly introduced fields or parameters.
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        setup_args = registry[_SETUP_ARGS_KEY]
         getattr(cls, method_name)(adata, source_registry=registry, **setup_args)
 
         model = _initialize_model(cls, adata, attr_dict)
-        model._latent_mode = True
         model.module.on_load(model)
         model.module.load_state_dict(model_state_dict)
 
@@ -823,15 +880,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         according to its needs. To operate correctly with the model initialization,
         the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
         on a model-specific instance of :class:`~scvi.data.AnnDataManager`.
-        """
-
-    # TODO implement for all classes that implement SUAD
-    @classmethod
-    @abstractmethod
-    def setup_anndata_params_unsupported_in_latent_mode(cls) -> set[str]:
-        """
-        Each model class deriving from this class must implement this method to return
-        the set of setup_anndata parameter names that are unsupported in latent mode.
         """
 
     @staticmethod
