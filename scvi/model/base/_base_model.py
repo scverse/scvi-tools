@@ -17,6 +17,7 @@ from scvi._types import AnnOrMuData
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
+    _ADATA_IS_LATENT,
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
     _SETUP_ARGS_KEY,
@@ -680,6 +681,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         TODO add docstring
         """
         load_adata_latent = adata_latent is None
+        if adata_latent is not None and _ADATA_IS_LATENT not in adata_latent.uns:
+            raise ValueError("The given anndata object should be in latent mode")
+
         use_gpu, device = parse_use_gpu_arg(use_gpu)
 
         (attr_dict, _, model_state_dict, new_adata_latent) = _load_saved_files(
@@ -688,6 +692,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             map_location=device,
             prefix=prefix,
             backup_url=backup_url,
+            latent_data=True,
         )
         adata = new_adata_latent if new_adata_latent is not None else adata_latent
 
@@ -710,7 +715,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         unsupported_fields = [
             uf
             for uf in unsupported_field_names
-            if uf in setup_args and not setup_args[uf] is None
+            if uf in setup_args and setup_args[uf] is not None
         ]
         if len(unsupported_fields) > 0:
             warnings.warn(

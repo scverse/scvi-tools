@@ -43,3 +43,5 @@ class _ADATA_ATTRS_NT(NamedTuple):
 
 
 _ADATA_ATTRS = _ADATA_ATTRS_NT()
+
+_ADATA_IS_LATENT = "adata_is_latent"

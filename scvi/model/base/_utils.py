@@ -13,7 +13,7 @@ import torch
 from anndata import AnnData, read
 
 from scvi._compat import Literal
-from scvi.data._constants import _SETUP_METHOD_NAME
+from scvi.data._constants import _ADATA_IS_LATENT, _SETUP_METHOD_NAME
 from scvi.data._download import _download
 from scvi.utils import track
 
@@ -87,9 +87,9 @@ def _load_saved_files(
             latent_path = os.path.join(dir_path, f"{file_name_prefix}adata_latent.csv")
             obs_path = os.path.join(dir_path, f"{file_name_prefix}adata_obs.csv")
             if os.path.exists(latent_path) and os.path.exists(obs_path):
-                # TODO test this
-                adata = anndata.read_csv(latent_path)
-                adata.obs = anndata.read_csv(obs_path)
+                adata = anndata.read_csv(latent_path, first_column_names=True)
+                adata.obs = pd.read_csv(obs_path, index_col=0)
+                adata.uns[_ADATA_IS_LATENT] = "True"
             else:
                 raise ValueError(
                     "Model loaded in latent mode but save path does not contain latent and obs csv files."

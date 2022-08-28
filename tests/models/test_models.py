@@ -1584,3 +1584,28 @@ def test_early_stopping():
     model = SCVI(adata)
     model.train(n_epochs, early_stopping=True, plan_kwargs=dict(lr=0))
     assert len(model.history["elbo_train"]) < n_epochs
+
+
+def test_scvi_latent_mode(save_path):
+    n_latent = 5
+
+    adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        size_factor_key="size_factor",
+    )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    z = model.get_latent_representation()
+    assert z.shape == (adata.shape[0], n_latent)
+
+    pd.DataFrame(z).to_csv(save_path + "adata_latent.csv", header=False)
+    adata.obs.to_csv(save_path + "adata_obs.csv")
+
+    model.save(save_path, overwrite=True)
+    # loaded_model = SCVI.load_with_latent_data(save_path)
+    SCVI.load_with_latent_data(save_path)
