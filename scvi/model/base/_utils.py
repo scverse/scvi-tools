@@ -311,3 +311,13 @@ def _fdr_de_prediction(posterior_probas: np.ndarray, fdr: float = 0.05):
     is_pred_de = np.zeros_like(cumulative_fdr).astype(bool)
     is_pred_de[pred_de_genes] = True
     return is_pred_de
+
+
+def _raise_if_missing_latent_mode_support(
+    model_name: str, adata: Optional[AnnData] = None
+) -> bool:
+    latent_adata = adata is None or _ADATA_IS_LATENT in adata.uns
+    if latent_adata and model_name not in {"SCVI"}:
+        raise ValueError(
+            f"Latent mode currently not supported for the {model_name} model."
+        )

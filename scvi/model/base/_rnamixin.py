@@ -483,7 +483,7 @@ class RNASeqMixin:
             #         f"n_samples = {n_samples} but n_samples > 1 is not supported in latent mode"
             #     )
 
-            # _, generative_outputs = self.module.generative(
+            # generative_outputs = self.module.generative(
             #     tensors=tensors,
             #     inference_kwargs=inference_kwargs,
             #     compute_loss=False,

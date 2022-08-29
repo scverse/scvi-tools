@@ -30,7 +30,12 @@ from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
 from scvi.utils import attrdict, experimental, setup_anndata_dsp
 
-from ._utils import _initialize_model, _load_saved_files, _validate_var_names
+from ._utils import (
+    _initialize_model,
+    _load_saved_files,
+    _raise_if_missing_latent_mode_support,
+    _validate_var_names,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +71,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
+        _raise_if_missing_latent_mode_support(self.__name__, adata)
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self._adata = adata
@@ -752,6 +758,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """
         TODO add docstring
         """
+        _raise_if_missing_latent_mode_support(cls.__name__)
+
         load_adata_latent = adata_latent is None
         if adata_latent is not None and _ADATA_IS_LATENT not in adata_latent.uns:
             raise ValueError("The given anndata object should be in latent mode")
