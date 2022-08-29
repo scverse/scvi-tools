@@ -476,32 +476,41 @@ class RNASeqMixin:
         adata = self._validate_anndata(adata)
 
         if _is_latent_adata(adata):
-            # TODO
-            raise NotImplementedError()
-            # if n_samples > 1:
-            #     raise ValueError(
-            #         f"n_samples = {n_samples} but n_samples > 1 is not supported in latent mode"
-            #     )
+            # TODO need to make the dataloader latent mode-aware
+            # TODO complete and test this
+            scdl = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size
+            )
 
-            # generative_outputs = self.module.generative(
-            #     tensors=tensors,
-            #     inference_kwargs=inference_kwargs,
-            #     compute_loss=False,
-            # )
-            # px = generative_outputs["px"]
-            # px_r = px.theta
-            # px_rate = px.mu
-            # px_dropout = px.zi_probs
+            dropout_list = []
+            mean_list = []
+            dispersion_list = []
+            for tensors in scdl:
+                inference_kwargs = dict(n_samples=n_samples)
+                _, generative_outputs = self.module.forward(
+                    tensors=tensors,
+                    inference_kwargs=inference_kwargs,
+                    compute_loss=False,
+                    latent_data_type="sampled",  # TODO set depending on what's in adata
+                )
+                px = generative_outputs["px"]
+                px_r = px.theta
+                px_rate = px.mu
+                px_dropout = px.zi_probs
 
-            # n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
+                n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
 
-            # px_r = px_r.cpu().numpy()
-            # if len(px_r.shape) == 1:
-            #     dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
-            # else:
-            #     dispersion_list += [px_r]
-            # mean_list += [px_rate.cpu().numpy()]
-            # dropout_list += [px_dropout.cpu().numpy()]
+                px_r = px_r.cpu().numpy()
+                if len(px_r.shape) == 1:
+                    dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
+                else:
+                    dispersion_list += [px_r]
+                mean_list += [px_rate.cpu().numpy()]
+                dropout_list += [px_dropout.cpu().numpy()]
+
+            dropout = np.concatenate(dropout_list, axis=-2)
+            means = np.concatenate(mean_list, axis=-2)
+            dispersions = np.concatenate(dispersion_list, axis=-2)
         else:
             scdl = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size

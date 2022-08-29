@@ -207,8 +207,12 @@ class VAE(BaseModuleClass):
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
-    def _get_inference_input(self, tensors):
-        x = tensors[REGISTRY_KEYS.X_KEY]
+    def _get_inference_input(
+        self,
+        tensors,
+        latent_data_type: Optional[Literal["dist", "sampled"]] = None,
+        num_samples: int = 1,
+    ):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
@@ -217,9 +221,20 @@ class VAE(BaseModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
-        input_dict = dict(
-            x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
-        )
+        if latent_data_type is None:
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            input_dict = dict(
+                x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
+            )
+        elif latent_data_type == "sampled":
+            qz_m = tensors[REGISTRY_KEYS.X_KEY]
+            input_dict = dict(qz_m=qz_m, qz_v=None, n_samples=0)
+        else:
+            # TODO need to support registering data with latent distrib params _or_ samples
+            raise NotImplementedError()
+            # qz_m = tensors[REGISTRY_KEYS.X_KEY]
+            # input_dict = dict(qz_m=qz_m, qz_v=None, n_samples=num_samples)
+
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs):
@@ -308,6 +323,26 @@ class VAE(BaseModuleClass):
             else:
                 library = ql.sample((n_samples,))
         outputs = dict(z=z, qz=qz, ql=ql, library=library)
+        return outputs
+
+    # TODO add to base module and raise not implemented for all other modules
+    @auto_move_data
+    def inference_no_encode(self, qz_m, qz_v, n_samples):
+        """
+        TODO add docstring
+        """
+        assert n_samples >= 0
+        if n_samples == 0:
+            # in this case qz_m is expected to contain samples from z
+            assert qz_v is None
+            z = qz_m
+        else:
+            dist = Normal(qz_m, qz_v.sqrt())
+            untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
+            z = self.z_encoder.z_transformation(untran_z)
+        # TODO deal with library
+        # outputs = dict(z=z, library=library)
+        outputs = dict(z=z)
         return outputs
 
     @auto_move_data
