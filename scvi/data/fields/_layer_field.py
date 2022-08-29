@@ -39,6 +39,7 @@ class LayerField(BaseAnnDataField):
     N_CELLS_KEY = "n_cells"
     N_VARS_KEY = "n_vars"
     COLUMN_NAMES_KEY = "column_names"
+    LATENT_KEY = "is_latent"
 
     def __init__(
         self,
@@ -100,6 +101,7 @@ class LayerField(BaseAnnDataField):
             self.N_OBS_KEY: adata.n_obs,
             self.N_VARS_KEY: adata.n_vars,
             self.COLUMN_NAMES_KEY: np.asarray(adata.var_names),
+            self.LATENT_KEY: _constants._ADATA_IS_LATENT in adata.uns,
         }
 
     def transfer_field(
@@ -110,8 +112,8 @@ class LayerField(BaseAnnDataField):
             _constants._NON_LATENT_TO_LATENT in kwargs
             and kwargs[_constants._NON_LATENT_TO_LATENT] is True
         )
+        n_vars = state_registry[self.N_VARS_KEY]
         if not non_latent_to_latent:
-            n_vars = state_registry[self.N_VARS_KEY]
             target_n_vars = adata_target.n_vars
             if target_n_vars != n_vars:
                 raise ValueError(
@@ -119,7 +121,12 @@ class LayerField(BaseAnnDataField):
                     + "Expected: {} Received: {}".format(target_n_vars, n_vars)
                 )
 
-        return self.register_field(adata_target)
+        rf = self.register_field(adata_target)
+        if non_latent_to_latent:
+            rf[self.N_VARS_KEY] = n_vars
+            rf[self.COLUMN_NAMES_KEY] = state_registry[self.COLUMN_NAMES_KEY]
+
+        return rf
 
     def get_summary_stats(self, state_registry: dict) -> dict:
         summary_stats = {self.count_stat_key: state_registry[self.N_VARS_KEY]}

@@ -1606,3 +1606,6 @@ def test_scvi_latent_mode(save_path):
     # sure those are not saved in latent mode
     model.save_with_latent_data(save_path, overwrite=True, save_anndata=True)
     SCVI.load_with_latent_data(save_path)
+
+    # TODO test a call to something like get ll params
+    model.get_likelihood_parameters()

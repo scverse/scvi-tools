@@ -266,3 +266,7 @@ def _check_mudata_fully_paired(mdata: MuData):
                 "Please make sure that data is fully paired in all MuData inputs. "
                 "Either pad the unpaired modalities or take the intersection with muon.pp.intersect_obs()."
             )
+
+
+def _is_latent_adata(adata: AnnData) -> bool:
+    return _constants._ADATA_IS_LATENT in adata.uns

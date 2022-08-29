@@ -12,6 +12,7 @@ import rich
 from mudata import MuData
 
 import scvi
+from scvi._constants import REGISTRY_KEYS
 from scvi._types import AnnOrMuData
 from scvi.utils import attrdict
 
@@ -22,7 +23,7 @@ from ._utils import (
     _check_mudata_fully_paired,
     get_anndata_attribute,
 )
-from .fields import AnnDataField
+from .fields import AnnDataField, LayerField
 
 
 class AnnDataManager:
@@ -148,12 +149,12 @@ class AnnDataManager:
             )
 
         if source_registry is not None:
-            # TODO do we always have _SETUP_ARGS_KEY in source_registry?
-            # need to check if the arg is even in SUAD args for back compat with data
-            # that might be saved from before we added this arg to SUAD
+            source_X_state_registry = source_registry[_constants._FIELD_REGISTRIES_KEY][
+                REGISTRY_KEYS.X_KEY
+            ][_constants._STATE_REGISTRY_KEY]
             source_adata_latent = (
-                "fff" in source_registry[_constants._SETUP_ARGS_KEY]
-                and source_registry[_constants._SETUP_ARGS_KEY]["fff"] is True
+                LayerField.LATENT_KEY in source_X_state_registry
+                and source_X_state_registry[LayerField.LATENT_KEY] is True
             )
             target_adata_latent = _constants._ADATA_IS_LATENT in adata.uns
             if not source_adata_latent and target_adata_latent:

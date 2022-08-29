@@ -13,6 +13,7 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
+from scvi.data._utils import _is_latent_adata
 from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
@@ -473,38 +474,67 @@ class RNASeqMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
 
-        dropout_list = []
-        mean_list = []
-        dispersion_list = []
-        for tensors in scdl:
-            inference_kwargs = dict(n_samples=n_samples)
-            _, generative_outputs = self.module.forward(
-                tensors=tensors,
-                inference_kwargs=inference_kwargs,
-                compute_loss=False,
+        if _is_latent_adata(adata):
+            # TODO
+            raise NotImplementedError()
+            # if n_samples > 1:
+            #     raise ValueError(
+            #         f"n_samples = {n_samples} but n_samples > 1 is not supported in latent mode"
+            #     )
+
+            # _, generative_outputs = self.module.generative(
+            #     tensors=tensors,
+            #     inference_kwargs=inference_kwargs,
+            #     compute_loss=False,
+            # )
+            # px = generative_outputs["px"]
+            # px_r = px.theta
+            # px_rate = px.mu
+            # px_dropout = px.zi_probs
+
+            # n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
+
+            # px_r = px_r.cpu().numpy()
+            # if len(px_r.shape) == 1:
+            #     dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
+            # else:
+            #     dispersion_list += [px_r]
+            # mean_list += [px_rate.cpu().numpy()]
+            # dropout_list += [px_dropout.cpu().numpy()]
+        else:
+            scdl = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size
             )
-            px = generative_outputs["px"]
-            px_r = px.theta
-            px_rate = px.mu
-            px_dropout = px.zi_probs
 
-            n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
+            dropout_list = []
+            mean_list = []
+            dispersion_list = []
+            for tensors in scdl:
+                inference_kwargs = dict(n_samples=n_samples)
+                _, generative_outputs = self.module.forward(
+                    tensors=tensors,
+                    inference_kwargs=inference_kwargs,
+                    compute_loss=False,
+                )
+                px = generative_outputs["px"]
+                px_r = px.theta
+                px_rate = px.mu
+                px_dropout = px.zi_probs
 
-            px_r = px_r.cpu().numpy()
-            if len(px_r.shape) == 1:
-                dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
-            else:
-                dispersion_list += [px_r]
-            mean_list += [px_rate.cpu().numpy()]
-            dropout_list += [px_dropout.cpu().numpy()]
+                n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
 
-        dropout = np.concatenate(dropout_list, axis=-2)
-        means = np.concatenate(mean_list, axis=-2)
-        dispersions = np.concatenate(dispersion_list, axis=-2)
+                px_r = px_r.cpu().numpy()
+                if len(px_r.shape) == 1:
+                    dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
+                else:
+                    dispersion_list += [px_r]
+                mean_list += [px_rate.cpu().numpy()]
+                dropout_list += [px_dropout.cpu().numpy()]
+
+            dropout = np.concatenate(dropout_list, axis=-2)
+            means = np.concatenate(mean_list, axis=-2)
+            dispersions = np.concatenate(dispersion_list, axis=-2)
 
         if give_mean and n_samples > 1:
             dropout = dropout.mean(0)

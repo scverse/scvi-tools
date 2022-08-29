@@ -780,8 +780,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Cannot load the original setup."
             )
 
-        # TODO deal with source registry's SUAD args having false for latent mode
-
         # Calling ``setup_anndata`` method with the original arguments passed into
         # the saved model. This enables simple backwards compatibility in the case of
         # newly introduced fields or parameters.
