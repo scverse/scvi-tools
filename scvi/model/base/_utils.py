@@ -13,8 +13,9 @@ import torch
 from anndata import AnnData, read
 
 from scvi._compat import Literal
-from scvi.data._constants import _ADATA_IS_LATENT, _SETUP_METHOD_NAME
+from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
+from scvi.data._utils import _is_latent_adata
 from scvi.utils import track
 
 from ._differential import DifferentialComputation
@@ -88,7 +89,7 @@ def _load_saved_files(
             latent_path = os.path.join(dir_path, f"{file_name_prefix}{file_name}")
             if os.path.exists(latent_path):
                 adata = anndata.read_h5ad(latent_path)
-                if _ADATA_IS_LATENT not in adata.uns:
+                if not _is_latent_adata(adata):
                     raise ValueError("Anndata object not in latent mode")
             else:
                 raise ValueError(
@@ -316,7 +317,7 @@ def _fdr_de_prediction(posterior_probas: np.ndarray, fdr: float = 0.05):
 def _raise_if_missing_latent_mode_support(
     model_name: str, adata: Optional[AnnData] = None
 ) -> bool:
-    latent_adata = adata is None or _ADATA_IS_LATENT in adata.uns
+    latent_adata = adata is None or _is_latent_adata(adata)
     if latent_adata and model_name not in {"SCVI"}:
         raise ValueError(
             f"Latent mode currently not supported for the {model_name} model."

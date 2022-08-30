@@ -21,6 +21,7 @@ from ._utils import (
     _assign_adata_uuid,
     _check_if_view,
     _check_mudata_fully_paired,
+    _is_latent_adata,
     get_anndata_attribute,
 )
 from .fields import AnnDataField, LayerField
@@ -84,6 +85,8 @@ class AnnDataManager:
         _check_if_view(adata, copy_if_view=False)
 
         if isinstance(adata, MuData):
+            if _is_latent_adata(adata):
+                raise ValueError("MuData currently not supported in latent data mode")
             _check_mudata_fully_paired(adata)
 
     def _get_setup_method_args(self) -> dict:
@@ -149,19 +152,20 @@ class AnnDataManager:
             )
 
         if source_registry is not None:
+            non_latent_to_latent = False
             source_X_state_registry = source_registry[_constants._FIELD_REGISTRIES_KEY][
                 REGISTRY_KEYS.X_KEY
             ][_constants._STATE_REGISTRY_KEY]
             source_adata_latent = (
-                LayerField.LATENT_KEY in source_X_state_registry
-                and source_X_state_registry[LayerField.LATENT_KEY] is True
+                source_X_state_registry.get(LayerField.LATENT_KEY, None) is True
             )
-            target_adata_latent = _constants._ADATA_IS_LATENT in adata.uns
-            if not source_adata_latent and target_adata_latent:
+            target_adata_latent = _is_latent_adata(adata)
+            if (not source_adata_latent) and target_adata_latent:
                 if transfer_kwargs is None:
                     transfer_kwargs = {}
-                transfer_kwargs[_constants._NON_LATENT_TO_LATENT] = True
-            else:
+                transfer_kwargs["non_latent_to_latent"] = True
+                non_latent_to_latent = True
+            elif source_adata_latent and (not target_adata_latent):
                 raise ValueError(
                     "Cannot transfer latent adata to full (non latent) adata"
                 )
@@ -179,8 +183,13 @@ class AnnDataManager:
             # A field can be empty if the model has optional fields (e.g. extra covariates).
             # If empty, we skip registering the field.
             if not field.is_empty:
+                skip_transfer = source_registry is None or (
+                    non_latent_to_latent
+                    and field.registry_key
+                    not in source_registry[_constants._FIELD_REGISTRIES_KEY]
+                )
                 # Transfer case: Source registry is used for validation and/or setup.
-                if source_registry is not None:
+                if not skip_transfer:
                     field_registry[
                         _constants._STATE_REGISTRY_KEY
                     ] = field.transfer_field(

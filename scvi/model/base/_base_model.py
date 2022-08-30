@@ -3,7 +3,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Optional, Sequence, Type, Union
+from typing import Dict, Literal, Optional, Sequence, Type, Union
 from uuid import uuid4
 
 import anndata
@@ -23,8 +23,9 @@ from scvi.data._constants import (
     _SCVI_UUID_KEY,
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
+    _X_LATENT_QZV,
 )
-from scvi.data._utils import _assign_adata_uuid, _check_if_view
+from scvi.data._utils import _assign_adata_uuid, _check_if_view, _is_latent_adata
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
@@ -71,7 +72,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
-        _raise_if_missing_latent_mode_support(self.__name__, adata)
+        _raise_if_missing_latent_mode_support(type(self).__name__, adata)
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self._adata = adata
@@ -675,13 +676,33 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return model
 
     def _get_latent_adata_from_adata(
-        self, adata: AnnData, use_latent_key: Optional[str] = None
+        self,
+        adata: AnnData,
+        mode: Literal["sampled", "dist"],
+        use_latent_key: Optional[str] = None,
+        use_latent_qzm_key: Optional[str] = None,
+        use_latent_qzv_key: Optional[str] = None,
     ) -> AnnData:
-        latent_key = "X_latent" if use_latent_key is None else use_latent_key
-        if latent_key not in adata.obsm:
-            raise ValueError(f"{latent_key} key not found in adata.obsm")
-        z = adata.obsm[latent_key]
-        bdata = anndata.AnnData(z)
+        if mode == "sampled":
+            latent_key = "X_latent" if use_latent_key is None else use_latent_key
+            if latent_key not in adata.obsm:
+                raise ValueError(f"{latent_key} key not found in adata.obsm")
+            z = adata.obsm[latent_key]
+            bdata = anndata.AnnData(z)
+        else:
+            latent_qzm_key = (
+                "X_latent_qzm" if use_latent_qzm_key is None else use_latent_qzm_key
+            )
+            latent_qzv_key = (
+                "X_latent_qzv" if use_latent_qzv_key is None else use_latent_qzv_key
+            )
+            if latent_qzm_key not in adata.obsm:
+                raise ValueError(f"{latent_qzm_key} key not found in adata.obsm")
+            if latent_qzv_key not in adata.obsm:
+                raise ValueError(f"{latent_qzv_key} key not found in adata.obsm")
+            z = adata.obsm[latent_qzm_key]
+            bdata = anndata.AnnData(z)
+            bdata.layers[_X_LATENT_QZV] = adata.obsm[latent_qzv_key]
         bdata.obs = adata.obs.copy()
         bdata.obsm = adata.obsm.copy()
         bdata.uns = adata.uns.copy()
@@ -692,10 +713,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def save_with_latent_data(
         self,
         dir_path: str,
+        latent_mode: Literal["sampled", "dist"],
         prefix: Optional[str] = None,
         overwrite: bool = False,
         save_anndata: bool = False,
         use_latent_key: Optional[str] = None,
+        use_latent_qzm_key: Optional[str] = None,
+        use_latent_qzv_key: Optional[str] = None,
         **anndata_write_kwargs,
     ):
         """
@@ -716,7 +740,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             if isinstance(self.adata, MuData):
                 raise ValueError("MuData currently not supported in latent data mode")
             bdata = self._get_latent_adata_from_adata(
-                self.adata, use_latent_key=use_latent_key
+                self.adata,
+                latent_mode,
+                use_latent_key=use_latent_key,
+                use_latent_qzm_key=use_latent_qzm_key,
+                use_latent_qzv_key=use_latent_qzv_key,
             )
             bdata.write(
                 os.path.join(dir_path, f"{file_name_prefix}adata_latent.h5ad"),
@@ -761,7 +789,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         _raise_if_missing_latent_mode_support(cls.__name__)
 
         load_adata_latent = adata_latent is None
-        if adata_latent is not None and _ADATA_IS_LATENT not in adata_latent.uns:
+        if adata_latent is not None and not _is_latent_adata(adata_latent):
             raise ValueError("The given anndata object should be in latent mode")
 
         use_gpu, device = parse_use_gpu_arg(use_gpu)
@@ -793,6 +821,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # newly introduced fields or parameters.
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
         setup_args = registry[_SETUP_ARGS_KEY]
+        if (
+            _X_LATENT_QZV in adata.layers
+            and setup_args.get("extra_layer", None) is None
+        ):
+            setup_args["extra_layer"] = _X_LATENT_QZV
         getattr(cls, method_name)(adata, source_registry=registry, **setup_args)
 
         model = _initialize_model(cls, adata, attr_dict)

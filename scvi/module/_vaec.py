@@ -148,6 +148,10 @@ class VAEC(BaseModuleClass):
         return outputs
 
     @auto_move_data
+    def inference_no_encode(self, qz_m, qz_v, n_samples):
+        raise NotImplementedError()
+
+    @auto_move_data
     def generative(self, z, library, y):
         """Runs the generative model."""
         h = self.decoder(z, y)

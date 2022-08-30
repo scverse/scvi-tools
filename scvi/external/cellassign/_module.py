@@ -137,6 +137,10 @@ class CellAssignModule(BaseModuleClass):
         return {}
 
     @auto_move_data
+    def inference_no_encode(self, qz_m, qz_v, n_samples):
+        raise NotImplementedError()
+
+    @auto_move_data
     def generative(self, x, size_factor, design_matrix=None):
         # x has shape (n, g)
         delta = torch.exp(self.delta_log)  # (g, c)

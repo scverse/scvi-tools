@@ -9,6 +9,7 @@ from scvi import REGISTRY_KEYS
 from scvi.data import _constants
 from scvi.data._utils import (
     _check_nonnegative_integers,
+    _is_latent_adata,
     _verify_and_correct_data_format,
 )
 
@@ -101,17 +102,17 @@ class LayerField(BaseAnnDataField):
             self.N_OBS_KEY: adata.n_obs,
             self.N_VARS_KEY: adata.n_vars,
             self.COLUMN_NAMES_KEY: np.asarray(adata.var_names),
-            self.LATENT_KEY: _constants._ADATA_IS_LATENT in adata.uns,
+            self.LATENT_KEY: _is_latent_adata(adata),
         }
 
     def transfer_field(
-        self, state_registry: dict, adata_target: AnnData, **kwargs
+        self,
+        state_registry: dict,
+        adata_target: AnnData,
+        non_latent_to_latent: bool = False,
+        **kwargs,
     ) -> dict:
         super().transfer_field(state_registry, adata_target, **kwargs)
-        non_latent_to_latent = (
-            _constants._NON_LATENT_TO_LATENT in kwargs
-            and kwargs[_constants._NON_LATENT_TO_LATENT] is True
-        )
         n_vars = state_registry[self.N_VARS_KEY]
         if not non_latent_to_latent:
             target_n_vars = adata_target.n_vars

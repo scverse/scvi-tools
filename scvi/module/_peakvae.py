@@ -284,6 +284,10 @@ class PEAKVAE(BaseModuleClass):
         return dict(d=d, qz=qz, z=z)
 
     @auto_move_data
+    def inference_no_encode(self, qz_m, qz_v, n_samples):
+        raise NotImplementedError()
+
+    @auto_move_data
     def generative(
         self,
         z,

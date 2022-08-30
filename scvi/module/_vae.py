@@ -210,7 +210,7 @@ class VAE(BaseModuleClass):
     def _get_inference_input(
         self,
         tensors,
-        latent_data_type: Optional[Literal["dist", "sampled"]] = None,
+        latent_data_type: Optional[Literal["sampled", "dist"]] = None,
         num_samples: int = 1,
     ):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -325,7 +325,6 @@ class VAE(BaseModuleClass):
         outputs = dict(z=z, qz=qz, ql=ql, library=library)
         return outputs
 
-    # TODO add to base module and raise not implemented for all other modules
     @auto_move_data
     def inference_no_encode(self, qz_m, qz_v, n_samples):
         """
@@ -340,9 +339,7 @@ class VAE(BaseModuleClass):
             dist = Normal(qz_m, qz_v.sqrt())
             untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
-        # TODO deal with library
-        # outputs = dict(z=z, library=library)
-        outputs = dict(z=z)
+        outputs = dict(z=z, library=None)
         return outputs
 
     @auto_move_data

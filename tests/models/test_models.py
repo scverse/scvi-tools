@@ -1586,8 +1586,11 @@ def test_early_stopping():
     assert len(model.history["elbo_train"]) < n_epochs
 
 
-def test_scvi_latent_mode(save_path):
+def test_scvi_latent_mode_sampled(save_path):
     n_latent = 5
+
+    # TODO test with an adata that has a layer and non-empty varm and some var columns and make
+    # sure those are not saved in latent mode
 
     adata = synthetic_iid()
     adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
@@ -1602,10 +1605,41 @@ def test_scvi_latent_mode(save_path):
 
     adata.obsm["X_latent"] = model.get_latent_representation()
 
-    # TODO test with an adata that has a layer and non-empty varm some var columns and make
+    model.save_with_latent_data(
+        save_path, latent_mode="sampled", overwrite=True, save_anndata=True
+    )
+    model2 = SCVI.load_with_latent_data(save_path)
+
+    # # TODO test a call to something like get ll params
+    model2.get_likelihood_parameters()
+
+
+def test_scvi_latent_mode_dist(save_path):
+    n_latent = 5
+
+    # TODO test with an adata that has a layer and non-empty varm and some var columns and make
     # sure those are not saved in latent mode
-    model.save_with_latent_data(save_path, overwrite=True, save_anndata=True)
+
+    adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        size_factor_key="size_factor",
+    )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    qz_m, qz_v = model.get_latent_representation(return_dist=True)
+    adata.obsm["X_latent_qzm"] = qz_m
+    adata.obsm["X_latent_qzv"] = qz_v
+
+    model.save_with_latent_data(
+        save_path, latent_mode="dist", overwrite=True, save_anndata=True
+    )
+    # model2 = SCVI.load_with_latent_data(save_path)
     SCVI.load_with_latent_data(save_path)
 
-    # TODO test a call to something like get ll params
-    model.get_likelihood_parameters()
+    # # TODO test a call to something like get ll params
+    # model2.get_likelihood_parameters()

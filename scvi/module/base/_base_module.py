@@ -131,7 +131,7 @@ class BaseModuleClass(nn.Module):
         generative_kwargs: Optional[dict] = None,
         loss_kwargs: Optional[dict] = None,
         compute_loss=True,
-        latent_data_type: Optional[Literal["dist", "sampled"]] = None,
+        latent_data_type: Optional[Literal["sampled", "dist"]] = None,
     ) -> Union[
         Tuple[torch.Tensor, torch.Tensor],
         Tuple[torch.Tensor, torch.Tensor, LossRecorder],
@@ -200,6 +200,13 @@ class BaseModuleClass(nn.Module):
         data through encoder networks.
 
         This function should return a dictionary with str keys and :class:`~torch.Tensor` values.
+        """
+        pass
+
+    @abstractmethod
+    def inference_no_encode(self, qz_m, qz_v, n_samples):
+        """
+        TODO add docstring
         """
         pass
 

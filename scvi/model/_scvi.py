@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import List, Optional
 
 from anndata import AnnData
@@ -6,7 +7,7 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data import AnnDataManager
-from scvi.data._constants import _ADATA_IS_LATENT
+from scvi.data._utils import _is_latent_adata
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -96,6 +97,9 @@ class SCVI(
     ):
         super(SCVI, self).__init__(adata)
 
+        if _is_latent_adata(adata):
+            warnings.warn("This is an experimental feature. Use with caution.")
+
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
                 REGISTRY_KEYS.CAT_COVS_KEY
@@ -109,6 +113,13 @@ class SCVI(
         )
         library_log_means, library_log_vars = None, None
         if not use_size_factor_key:
+            if _is_latent_adata(adata):
+                raise ValueError(
+                    "Latent mode not supported when use_size_factor_key is False"
+                )
+                # we could add support for this as long as use_observed_lib_size is True and the
+                # adata has library size pre-compute and shoved into an obs column
+
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
             )
@@ -156,6 +167,7 @@ class SCVI(
         size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
+        extra_layer: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -169,14 +181,21 @@ class SCVI(
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        extra_layer
+            registered in the scenario where we have a latent adata that
+            stores the parameters for the latent distribution in two layer
         """
+        if extra_layer is not None and not _is_latent_adata(adata):
+            raise ValueError(
+                "extra_layer is currently only applicable in latent data mode"
+            )
         # TODO update LayerField is_count_data for other models too
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(
                 REGISTRY_KEYS.X_KEY,
                 layer,
-                is_count_data=_ADATA_IS_LATENT not in adata.uns,
+                is_count_data=not _is_latent_adata(adata),
             ),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
@@ -190,6 +209,14 @@ class SCVI(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
         ]
+        if extra_layer is not None:
+            anndata_fields.append(
+                LayerField(
+                    REGISTRY_KEYS.EXTRA_X_KEY,
+                    extra_layer,
+                    is_count_data=False,
+                ),
+            )
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
         )

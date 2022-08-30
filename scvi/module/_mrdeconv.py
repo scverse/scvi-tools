@@ -186,6 +186,10 @@ class MRDeconv(BaseModuleClass):
         return {}
 
     @auto_move_data
+    def inference_no_encode(self, qz_m, qz_v, n_samples):
+        raise NotImplementedError()
+
+    @auto_move_data
     def generative(self, x, ind_x):
         """Build the deconvolution model for every cell in the minibatch."""
         m = x.shape[0]
