@@ -1610,7 +1610,8 @@ def test_scvi_latent_mode_sampled(save_path):
     )
     model2 = SCVI.load_with_latent_data(save_path)
 
-    # # TODO test a call to something like get ll params
+    # TODO make sure it throws if n_samples > 1
+    # TODO validate result from below against result we'd get with full data
     model2.get_likelihood_parameters()
 
 
@@ -1641,5 +1642,6 @@ def test_scvi_latent_mode_dist(save_path):
     # model2 = SCVI.load_with_latent_data(save_path)
     SCVI.load_with_latent_data(save_path)
 
-    # # TODO test a call to something like get ll params
+    # TODO test with n_samples > 1
+    # TODO validate result from below against result we'd get with full data
     # model2.get_likelihood_parameters()
