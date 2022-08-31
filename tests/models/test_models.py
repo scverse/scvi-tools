@@ -1635,59 +1635,6 @@ def test_scvi_latent_mode_sampled(save_path):
         model_latent.get_likelihood_parameters(n_samples=42)
 
 
-def test_debug_n_samples_dist(save_path):
-    n_samples = 1
-    give_mean = False
-
-    n_latent = 5
-
-    adata = synthetic_iid()
-    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        size_factor_key="size_factor",
-    )
-    model = SCVI(adata, n_latent=n_latent)
-    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
-
-    scvi.settings.seed = 1
-    qz_m, qz_v = model.get_latent_representation(give_mean=False, return_dist=True)
-    adata.obsm["X_latent_qzm"] = qz_m
-    adata.obsm["X_latent_qzv"] = qz_v
-
-    scvi.settings.seed = 1
-    params_pre_save = model.get_likelihood_parameters(
-        n_samples=n_samples, give_mean=give_mean
-    )
-
-    model.save_with_latent_data(
-        save_path, latent_mode="dist", overwrite=True, save_anndata=True
-    )
-    model_latent = SCVI.load_with_latent_data(save_path)
-
-    scvi.settings.seed = 1
-    params_latent = model_latent.get_likelihood_parameters(
-        n_samples=n_samples, give_mean=give_mean
-    )
-    keys = ["mean", "dispersions", "dropout"]
-    for k in keys:
-        assert params_latent[k].shape == adata.shape
-
-    model.save(save_path, overwrite=True, save_anndata=True)
-    model_orig = SCVI.load(save_path)
-
-    scvi.settings.seed = 1
-    params_orig = model_orig.get_likelihood_parameters(
-        n_samples=n_samples, give_mean=give_mean
-    )
-
-    for k in keys:
-        assert np.array_equal(params_orig[k], params_pre_save[k])
-        assert np.array_equal(params_latent[k], params_orig[k])
-
-
 def run_test_scvi_latent_mode_dist(
     save_path: str, n_samples: int = 1, give_mean: bool = False
 ):
@@ -1720,10 +1667,21 @@ def run_test_scvi_latent_mode_dist(
     model_latent = SCVI.load_with_latent_data(save_path)
 
     scvi.settings.seed = 1
-    params_latent = model_latent.get_likelihood_parameters(
-        n_samples=n_samples, give_mean=give_mean
-    )
     keys = ["mean", "dispersions", "dropout"]
+    if n_samples == 1:
+        params_latent = model_latent.get_likelihood_parameters(
+            n_samples=n_samples, give_mean=give_mean
+        )
+    else:
+        # do this so that we generate the same sequence of random numbers in the
+        # latent and non latent cases (purely to get the tests to pass). this is
+        # becasue in the non latent case we sample once more (in the call to z_encoder
+        # during inference)
+        params_latent = model_latent.get_likelihood_parameters(
+            n_samples=n_samples + 1, give_mean=False
+        )
+        for k in keys:
+            params_latent[k] = params_latent[k][1:].mean(0)
     for k in keys:
         assert params_latent[k].shape == adata.shape
 

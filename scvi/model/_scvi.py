@@ -189,7 +189,6 @@ class SCVI(
             raise ValueError(
                 "extra_layer is currently only applicable in latent data mode"
             )
-        # TODO update LayerField is_count_data for other models too
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(

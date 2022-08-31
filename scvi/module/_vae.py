@@ -340,10 +340,7 @@ class VAE(BaseModuleClass):
             z = qz_m
         else:
             dist = Normal(qz_m, qz_v.sqrt())
-            if n_samples == 1:
-                untran_z = dist.rsample()
-            else:
-                untran_z = dist.sample((n_samples,))
+            untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
             # untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
         outputs = dict(z=z, library=None)
