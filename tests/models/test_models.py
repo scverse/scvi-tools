@@ -1586,6 +1586,52 @@ def test_early_stopping():
     assert len(model.history["elbo_train"]) < n_epochs
 
 
+def test_scvi_latent_mode_sampled_debugging(save_path):
+    n_latent = 5
+
+    adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        size_factor_key="size_factor",
+    )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    scvi.settings.seed = 1
+
+    adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
+
+    scvi.settings.seed = 1
+
+    params2 = model.get_likelihood_parameters(batch_size=adata.n_obs)
+    if len(params2) == 42:
+        pass  # remove
+
+    model.save_with_latent_data(
+        save_path, latent_mode="sampled", overwrite=True, save_anndata=True
+    )
+    model_latent = SCVI.load_with_latent_data(save_path)
+
+    scvi.settings.seed = 1
+
+    # TODO make sure it throws if n_samples > 1
+    params_l = model_latent.get_likelihood_parameters()
+
+    model.save(save_path, overwrite=True, save_anndata=True)
+    model_orig = SCVI.load(save_path)
+
+    scvi.settings.seed = 1
+
+    params_orig = model_orig.get_likelihood_parameters()
+    keys = ["mean", "dispersions", "dropout"]
+    for k in keys:
+        assert np.array_equal(params_l[k], params_orig[k])
+    print("test")
+
+
 def test_scvi_latent_mode_sampled(save_path):
     n_latent = 5
 
@@ -1603,16 +1649,39 @@ def test_scvi_latent_mode_sampled(save_path):
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
-    adata.obsm["X_latent"] = model.get_latent_representation()
+    scvi.settings.seed = 1
+    adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
+
+    scvi.settings.seed = 1
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
+    # pl.utilities.seed.seed_everything(1)
+    # torch.manual_seed(1)
+    # np.random.seed(1)
+    # random.seed(1)
+    params_pre_save = model.get_likelihood_parameters()
 
     model.save_with_latent_data(
         save_path, latent_mode="sampled", overwrite=True, save_anndata=True
     )
-    model2 = SCVI.load_with_latent_data(save_path)
+    model_latent = SCVI.load_with_latent_data(save_path)
 
+    scvi.settings.seed = 1
     # TODO make sure it throws if n_samples > 1
-    # TODO validate result from below against result we'd get with full data
-    model2.get_likelihood_parameters()
+    params_latent = model_latent.get_likelihood_parameters()
+    keys = ["mean", "dispersions", "dropout"]
+    for k in keys:
+        assert params_latent[k].shape == adata.shape
+
+    model.save(save_path, overwrite=True, save_anndata=True)
+    model_orig = SCVI.load(save_path)
+
+    scvi.settings.seed = 1
+    params_orig = model_orig.get_likelihood_parameters()
+
+    for k in keys:
+        assert np.array_equal(params_orig[k], params_pre_save[k])
+        assert np.array_equal(params_latent[k], params_orig[k])
 
 
 def test_scvi_latent_mode_dist(save_path):
