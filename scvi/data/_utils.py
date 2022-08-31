@@ -14,7 +14,7 @@ from anndata._core.sparse_dataset import SparseDataset
 from mudata import MuData
 from pandas.api.types import CategoricalDtype
 
-from scvi._types import AnnOrMuData
+from scvi._types import AnnOrMuData, LatentDataType
 
 from . import _constants
 
@@ -268,5 +268,9 @@ def _check_mudata_fully_paired(mdata: MuData):
             )
 
 
+def _get_latent_adata_type(adata: AnnData) -> Optional[LatentDataType]:
+    return adata.uns.get(_constants._ADATA_LATENT, None)
+
+
 def _is_latent_adata(adata: AnnData) -> bool:
-    return _constants._ADATA_IS_LATENT in adata.uns
+    return _get_latent_adata_type(adata) is not None

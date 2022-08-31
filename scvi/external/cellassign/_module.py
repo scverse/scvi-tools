@@ -137,7 +137,7 @@ class CellAssignModule(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def inference_no_encode(self, qz_m, qz_v, n_samples):
+    def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
         raise NotImplementedError()
 
     @auto_move_data

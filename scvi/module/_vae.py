@@ -11,6 +11,7 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import LatentDataType
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
@@ -210,8 +211,7 @@ class VAE(BaseModuleClass):
     def _get_inference_input(
         self,
         tensors,
-        latent_data_type: Optional[Literal["sampled", "dist"]] = None,
-        num_samples: int = 1,
+        latent_data_type: Optional[LatentDataType] = None,
     ):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
@@ -228,12 +228,11 @@ class VAE(BaseModuleClass):
             )
         elif latent_data_type == "sampled":
             qz_m = tensors[REGISTRY_KEYS.X_KEY]
-            input_dict = dict(qz_m=qz_m, qz_v=None, n_samples=0)
+            input_dict = dict(qz_m=qz_m, qz_v=None, latent_data_type=latent_data_type)
         else:
-            # TODO need to support registering data with latent distrib params _or_ samples
-            raise NotImplementedError()
-            # qz_m = tensors[REGISTRY_KEYS.X_KEY]
-            # input_dict = dict(qz_m=qz_m, qz_v=None, n_samples=num_samples)
+            qz_m = tensors[REGISTRY_KEYS.X_KEY]
+            qz_v = tensors[REGISTRY_KEYS.EXTRA_X_KEY]
+            input_dict = dict(qz_m=qz_m, qz_v=qz_v, latent_data_type=latent_data_type)
 
         return input_dict
 
@@ -326,18 +325,26 @@ class VAE(BaseModuleClass):
         return outputs
 
     @auto_move_data
-    def inference_no_encode(self, qz_m, qz_v, n_samples):
+    def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
         """
         TODO add docstring
         """
-        assert n_samples >= 0
-        if n_samples == 0:
+        assert latent_data_type in ["sampled", "dist"]
+        if latent_data_type == "sampled":
+            if n_samples > 1:
+                raise ValueError(
+                    f"n_samples={n_samples}. n_samples > 1 not supported when latent data is sampled."
+                )
             # in this case qz_m is expected to contain samples from z
             assert qz_v is None
             z = qz_m
         else:
             dist = Normal(qz_m, qz_v.sqrt())
-            untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
+            if n_samples == 1:
+                untran_z = dist.rsample()
+            else:
+                untran_z = dist.sample((n_samples,))
+            # untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
         outputs = dict(z=z, library=None)
         return outputs

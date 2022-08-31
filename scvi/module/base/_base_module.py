@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Callable, Dict, Iterable, Literal, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, Optional, Tuple, Union
 
 import jax.numpy as jnp
 import pyro
@@ -9,7 +9,7 @@ from flax import linen
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 
-from scvi._types import LossRecord
+from scvi._types import LatentDataType, LossRecord
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
@@ -131,7 +131,7 @@ class BaseModuleClass(nn.Module):
         generative_kwargs: Optional[dict] = None,
         loss_kwargs: Optional[dict] = None,
         compute_loss=True,
-        latent_data_type: Optional[Literal["sampled", "dist"]] = None,
+        latent_data_type: Optional[LatentDataType] = None,
     ) -> Union[
         Tuple[torch.Tensor, torch.Tensor],
         Tuple[torch.Tensor, torch.Tensor, LossRecorder],
@@ -204,7 +204,7 @@ class BaseModuleClass(nn.Module):
         pass
 
     @abstractmethod
-    def inference_no_encode(self, qz_m, qz_v, n_samples):
+    def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
         """
         TODO add docstring
         """
@@ -540,22 +540,9 @@ def _generic_forward(
     latent_data_type,
 ):
     """Core of the forward call shared by PyTorch- and Jax-based modules."""
-    if latent_data_type is not None:
-        if (
-            get_inference_input_kwargs
-            or get_generative_input_kwargs
-            or loss_kwargs
-            or compute_loss
-        ):
-            raise ValueError(
-                "These are currently not supported in forward in latent mode: get_inference_input_kwargs, get_generative_input_kwargs, loss_kwargs"
-            )
-        num_samples = (
-            inference_kwargs["n_sample"] if "n_sample" in inference_kwargs else None
-        )
-        get_inference_input_kwargs = dict(
-            latent_data_type=latent_data_type, num_samples=num_samples
-        )
+    is_latent = latent_data_type is not None
+    if is_latent and compute_loss:
+        raise ValueError("compute_loss currently not supported in latent mode forward")
 
     inference_kwargs = _get_dict_if_none(inference_kwargs)
     generative_kwargs = _get_dict_if_none(generative_kwargs)
@@ -563,11 +550,16 @@ def _generic_forward(
     get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
     get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
 
+    if is_latent and "latent_data_type" not in get_inference_input_kwargs:
+        get_inference_input_kwargs["latent_data_type"] = latent_data_type
+
     inference_inputs = module._get_inference_input(
         tensors, **get_inference_input_kwargs
     )
-    if latent_data_type is not None:
-        inference_outputs = module.inference_no_encode(**inference_inputs)
+    if is_latent:
+        inference_outputs = module.inference_no_encode(
+            **inference_inputs, **inference_kwargs
+        )
     else:
         inference_outputs = module.inference(**inference_inputs, **inference_kwargs)
     generative_inputs = module._get_generative_input(

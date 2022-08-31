@@ -3,7 +3,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Literal, Optional, Sequence, Type, Union
+from typing import Dict, Optional, Sequence, Type, Union
 from uuid import uuid4
 
 import anndata
@@ -14,11 +14,11 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import settings
-from scvi._types import AnnOrMuData
+from scvi._types import AnnOrMuData, LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
-    _ADATA_IS_LATENT,
+    _ADATA_LATENT,
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
     _SETUP_ARGS_KEY,
@@ -678,7 +678,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def _get_latent_adata_from_adata(
         self,
         adata: AnnData,
-        mode: Literal["sampled", "dist"],
+        mode: LatentDataType,
         use_latent_key: Optional[str] = None,
         use_latent_qzm_key: Optional[str] = None,
         use_latent_qzv_key: Optional[str] = None,
@@ -706,14 +706,14 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         bdata.obs = adata.obs.copy()
         bdata.obsm = adata.obsm.copy()
         bdata.uns = adata.uns.copy()
-        bdata.uns[_ADATA_IS_LATENT] = "True"
+        bdata.uns[_ADATA_LATENT] = mode
         return bdata
 
     @experimental
     def save_with_latent_data(
         self,
         dir_path: str,
-        latent_mode: Literal["sampled", "dist"],
+        latent_mode: LatentDataType,
         prefix: Optional[str] = None,
         overwrite: bool = False,
         save_anndata: bool = False,

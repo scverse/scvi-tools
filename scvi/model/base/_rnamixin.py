@@ -13,7 +13,7 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.data._utils import _is_latent_adata
+from scvi.data._utils import _get_latent_adata_type
 from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
@@ -474,8 +474,7 @@ class RNASeqMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        # TODO set "sampled" or "dist" depending on what's in adata
-        latent_data_type = "sampled" if _is_latent_adata(adata) else None
+        latent_data_type = _get_latent_adata_type(adata)
 
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -514,6 +513,7 @@ class RNASeqMixin:
         if give_mean and n_samples > 1:
             dropout = dropout.mean(0)
             means = means.mean(0)
+            dispersions = dispersions.mean(0)
 
         return_dict = {}
         return_dict["mean"] = means
