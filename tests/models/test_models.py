@@ -1586,22 +1586,33 @@ def test_early_stopping():
     assert len(model.history["elbo_train"]) < n_epochs
 
 
-def test_scvi_latent_mode_sampled(save_path):
-    n_latent = 5
-
-    # TODO test with an adata that has a layer and non-empty varm and some var columns and make
-    # sure those are not saved in latent mode
-
+def prep_model(layer=None):
     adata = synthetic_iid()
     adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    if layer is not None:
+        adata.layers[layer] = adata.X.copy()
+        adata.X = np.zeros_like(adata.X)
+    # add a few more properties to vlaidate they don't get saved in latent mode
+    adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata.X, axis=0)))
+    adata.varm["my_varm"] = np.random.negative_binomial(
+        5, 0.3, size=(adata.shape[1], 3)
+    )
+    adata.layers["my_layer"] = np.ones_like(adata.X)
     SCVI.setup_anndata(
         adata,
+        layer=layer,
         batch_key="batch",
         labels_key="labels",
         size_factor_key="size_factor",
     )
-    model = SCVI(adata, n_latent=n_latent)
+    model = SCVI(adata, n_latent=5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    return model, adata
+
+
+def run_test_scvi_latent_mode_sampled(save_path, layer=None):
+    model, adata = prep_model(layer)
 
     scvi.settings.seed = 1
     adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
@@ -1613,6 +1624,11 @@ def test_scvi_latent_mode_sampled(save_path):
         save_path, latent_mode="sampled", overwrite=True, save_anndata=True
     )
     model_latent = SCVI.load_with_latent_data(save_path)
+
+    # validate extra props are not in adata latent
+    assert len(model_latent.adata.varm) == 0
+    assert len(model_latent.adata.var.columns) == 0
+    assert len(model_latent.adata.layers) == 0
 
     scvi.settings.seed = 1
     params_latent = model_latent.get_likelihood_parameters()
@@ -1635,21 +1651,19 @@ def test_scvi_latent_mode_sampled(save_path):
         model_latent.get_likelihood_parameters(n_samples=42)
 
 
+def test_scvi_latent_mode_sampled_no_layer(save_path):
+    run_test_scvi_latent_mode_sampled(save_path)
+
+
+def test_scvi_latent_mode_sampled_with_layer(save_path):
+    # TODO fix this and add a similar one for the dist modes
+    run_test_scvi_latent_mode_sampled(save_path, layer="data_layer")
+
+
 def run_test_scvi_latent_mode_dist(
     save_path: str, n_samples: int = 1, give_mean: bool = False
 ):
-    n_latent = 5
-
-    adata = synthetic_iid()
-    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        size_factor_key="size_factor",
-    )
-    model = SCVI(adata, n_latent=n_latent)
-    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model, adata = prep_model()
 
     scvi.settings.seed = 1
     qz_m, qz_v = model.get_latent_representation(give_mean=False, return_dist=True)
@@ -1665,6 +1679,11 @@ def run_test_scvi_latent_mode_dist(
         save_path, latent_mode="dist", overwrite=True, save_anndata=True
     )
     model_latent = SCVI.load_with_latent_data(save_path)
+
+    # validate extra props are not in adata latent
+    assert len(model_latent.adata.varm) == 0
+    assert len(model_latent.adata.var.columns) == 0
+    assert len(model_latent.adata.layers) == 0
 
     scvi.settings.seed = 1
     keys = ["mean", "dispersions", "dropout"]
