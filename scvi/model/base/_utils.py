@@ -315,9 +315,8 @@ def _fdr_de_prediction(posterior_probas: np.ndarray, fdr: float = 0.05):
 
 
 def _raise_if_missing_latent_mode_support(
-    model_name: str, adata: Optional[AnnData] = None
+    model_name: str, latent_adata: bool = True
 ) -> bool:
-    latent_adata = adata is None or _is_latent_adata(adata)
     if latent_adata and model_name not in {"SCVI"}:
         raise ValueError(
             f"Latent mode currently not supported for the {model_name} model."

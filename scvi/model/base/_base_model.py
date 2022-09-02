@@ -72,7 +72,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
-        _raise_if_missing_latent_mode_support(type(self).__name__, adata)
+        latent_adata = adata is not None and _is_latent_adata(adata)
+        _raise_if_missing_latent_mode_support(type(self).__name__, latent_adata)
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self._adata = adata

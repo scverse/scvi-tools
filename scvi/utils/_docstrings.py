@@ -98,6 +98,16 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
         (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
         biologically-relevant factors that you do _not_ want to correct for."""
 
+    param_extra_layer = """\
+    extra_layer
+        key in `adata.layers` for latent distribution parameters, used in latent mode"""
+
+    param_extra_layer_not_impl = """\
+    extra_layer
+        key in `adata.layers` for latent distribution parameters, used in latent mode.
+        currently not implemented for this class but present here to ensure compatibility
+        with `from_scvi_model`"""
+
     param_copy = """\
     copy
         if `True`, a copy of adata is returned."""
@@ -125,6 +135,8 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
             param_size_factor_key=self.param_size_factor_key,
             param_copy=self.param_copy,
             returns=self.returns,
+            param_extra_layer=self.param_extra_layer,
+            param_extra_layer_not_impl=self.param_extra_layer_not_impl,
         )
 
 

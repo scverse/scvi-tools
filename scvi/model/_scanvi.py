@@ -23,6 +23,7 @@ from scvi.data.fields import (
 )
 from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model._utils import _init_library_size
+from scvi.model.base._utils import _raise_if_missing_latent_mode_support
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
@@ -413,6 +414,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
+        extra_layer: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -426,7 +428,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        %(param_extra_layer_not_impl)s
         """
+        if extra_layer is not None:
+            _raise_if_missing_latent_mode_support(cls.__name__)
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),

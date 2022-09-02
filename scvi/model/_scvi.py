@@ -181,9 +181,7 @@ class SCVI(
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
-        extra_layer
-            registered in the scenario where we have a latent adata that
-            stores the parameters for the latent distribution in two layer
+        %(param_extra_layer)s
         """
         if extra_layer is not None and not _is_latent_adata(adata):
             raise ValueError(
