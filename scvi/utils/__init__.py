@@ -1,5 +1,4 @@
 from ._attrdict import attrdict
-from ._decorators import experimental
 from ._docstrings import setup_anndata_dsp
 from ._jax import device_selecting_PRNGKey
 from ._track import track
@@ -9,5 +8,4 @@ __all__ = [
     "setup_anndata_dsp",
     "attrdict",
     "device_selecting_PRNGKey",
-    "experimental",
 ]

@@ -29,7 +29,7 @@ from scvi.data._utils import _assign_adata_uuid, _check_if_view, _is_latent_adat
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
-from scvi.utils import attrdict, experimental, setup_anndata_dsp
+from scvi.utils import attrdict, setup_anndata_dsp
 
 from ._utils import (
     _initialize_model,
@@ -529,6 +529,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         prefix: Optional[str] = None,
         overwrite: bool = False,
         save_anndata: bool = False,
+        latent_mode: Optional[LatentDataType] = None,
+        use_latent_key: Optional[str] = None,
+        use_latent_qzm_key: Optional[str] = None,
+        use_latent_qzv_key: Optional[str] = None,
         **anndata_write_kwargs,
     ):
         """
@@ -549,14 +553,26 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             already exists at `dir_path`, error will be raised.
         save_anndata
             If True, also saves the anndata
+        latent_mode
+            the type of latent mode the data is in (e.g. "sampled")
+        use_latent_key
+            the key in `adata.obsm` where the latent data is, used in "sampled" latent mode
+        use_latent_qzm_key
+            the key in `adata.obsm` where the mean of the latent data is, used in "dist" latent mode
+        use_latent_qzv_key
+            the key in `adata.obsm` where the var of the latent data is, used in "dist" latent mode
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
+        is_latent = latent_mode is not None
+        if is_latent:
+            warnings.warn("Latent mode is an experimental feature. Use with caution.")
+
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
-                "{} already exists. Please provide an unexisting directory for saving.".format(
+                "{} already exists. Please provide another directory for saving.".format(
                     dir_path
                 )
             )
@@ -564,15 +580,32 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         file_name_prefix = prefix or ""
 
         if save_anndata:
-            file_suffix = ""
-            if isinstance(self.adata, AnnData):
-                file_suffix = "adata.h5ad"
-            elif isinstance(self.adata, MuData):
-                file_suffix = "mdata.h5mu"
-            self.adata.write(
-                os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
-                **anndata_write_kwargs,
-            )
+            if is_latent:
+                if isinstance(self.adata, MuData):
+                    raise ValueError(
+                        "MuData currently not supported in latent data mode"
+                    )
+                bdata = self._get_latent_adata_from_adata(
+                    self.adata,
+                    latent_mode,
+                    use_latent_key=use_latent_key,
+                    use_latent_qzm_key=use_latent_qzm_key,
+                    use_latent_qzv_key=use_latent_qzv_key,
+                )
+                bdata.write(
+                    os.path.join(dir_path, f"{file_name_prefix}adata_latent.h5ad"),
+                    **anndata_write_kwargs,
+                )
+            else:
+                file_suffix = ""
+                if isinstance(self.adata, AnnData):
+                    file_suffix = "adata.h5ad"
+                elif isinstance(self.adata, MuData):
+                    file_suffix = "mdata.h5mu"
+                self.adata.write(
+                    os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
+                    **anndata_write_kwargs,
+                )
 
         model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
 
@@ -604,6 +637,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         use_gpu: Optional[Union[str, int, bool]] = None,
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
+        load_with_latent_data: bool = False,
     ):
         """
         Instantiate a model from the saved output.
@@ -624,6 +658,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             Prefix of saved file names.
         backup_url
             URL to retrieve saved outputs from if not present on disk.
+        load_with_latent_data
+            Whether to load in latent mode
 
         Returns
         -------
@@ -634,6 +670,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model = ModelClass.load(save_path, adata) # use the name of the model class used to save
         >>> model.get_....
         """
+        if load_with_latent_data:
+            _raise_if_missing_latent_mode_support(cls.__name__)
+            if adata is not None and not _is_latent_adata(adata):
+                raise ValueError("The given anndata object should be in latent mode")
+
         load_adata = adata is None
         use_gpu, device = parse_use_gpu_arg(use_gpu)
 
@@ -643,9 +684,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             map_location=device,
             prefix=prefix,
             backup_url=backup_url,
+            latent_data=load_with_latent_data,
         )
         adata = new_adata if new_adata is not None else adata
-        _validate_var_names(adata, var_names)
+        if not load_with_latent_data:
+            _validate_var_names(adata, var_names)
 
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
@@ -663,9 +706,14 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # the saved model. This enables simple backwards compatibility in the case of
         # newly introduced fields or parameters.
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
-        getattr(cls, method_name)(
-            adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
-        )
+        setup_args = registry[_SETUP_ARGS_KEY]
+        if (
+            load_with_latent_data
+            and _X_LATENT_QZV in adata.layers
+            and setup_args.get("extra_layer", None) is None
+        ):
+            setup_args["extra_layer"] = _X_LATENT_QZV
+        getattr(cls, method_name)(adata, source_registry=registry, **setup_args)
 
         model = _initialize_model(cls, adata, attr_dict)
         model.module.on_load(model)
@@ -690,7 +738,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 raise ValueError(f"{latent_key} key not found in adata.obsm")
             z = adata.obsm[latent_key]
             bdata = anndata.AnnData(z)
-        else:
+        elif mode == "dist":
             latent_qzm_key = (
                 "X_latent_qzm" if use_latent_qzm_key is None else use_latent_qzm_key
             )
@@ -704,139 +752,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             z = adata.obsm[latent_qzm_key]
             bdata = anndata.AnnData(z)
             bdata.layers[_X_LATENT_QZV] = adata.obsm[latent_qzv_key]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
         bdata.obs = adata.obs.copy()
         bdata.obsm = adata.obsm.copy()
         bdata.uns = adata.uns.copy()
         bdata.uns[_ADATA_LATENT] = mode
         return bdata
-
-    @experimental
-    def save_with_latent_data(
-        self,
-        dir_path: str,
-        latent_mode: LatentDataType,
-        prefix: Optional[str] = None,
-        overwrite: bool = False,
-        save_anndata: bool = False,
-        use_latent_key: Optional[str] = None,
-        use_latent_qzm_key: Optional[str] = None,
-        use_latent_qzv_key: Optional[str] = None,
-        **anndata_write_kwargs,
-    ):
-        """
-        TODO add docstring
-        """
-        if not os.path.exists(dir_path) or overwrite:
-            os.makedirs(dir_path, exist_ok=overwrite)
-        else:
-            raise ValueError(
-                "{} already exists. Please provide another directory for saving.".format(
-                    dir_path
-                )
-            )
-
-        file_name_prefix = prefix or ""
-
-        if save_anndata:
-            if isinstance(self.adata, MuData):
-                raise ValueError("MuData currently not supported in latent data mode")
-            bdata = self._get_latent_adata_from_adata(
-                self.adata,
-                latent_mode,
-                use_latent_key=use_latent_key,
-                use_latent_qzm_key=use_latent_qzm_key,
-                use_latent_qzv_key=use_latent_qzv_key,
-            )
-            bdata.write(
-                os.path.join(dir_path, f"{file_name_prefix}adata_latent.h5ad"),
-                **anndata_write_kwargs,
-            )
-
-        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
-
-        # save the model state dict and the trainer state dict only
-        model_state_dict = self.module.state_dict()
-
-        var_names = self.adata.var_names.astype(str)
-        var_names = var_names.to_numpy()
-
-        # get all the user attributes
-        user_attributes = self._get_user_attributes()
-        # only save the public attributes with _ at the very end
-        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
-
-        torch.save(
-            dict(
-                model_state_dict=model_state_dict,
-                var_names=var_names,
-                attr_dict=user_attributes,
-            ),
-            model_save_path,
-        )
-
-    @classmethod
-    @experimental
-    def load_with_latent_data(
-        cls,
-        dir_path: str,
-        adata_latent: Optional[AnnData] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
-        prefix: Optional[str] = None,
-        backup_url: Optional[str] = None,
-    ):
-        """
-        TODO add docstring
-        """
-        _raise_if_missing_latent_mode_support(cls.__name__)
-
-        load_adata_latent = adata_latent is None
-        if adata_latent is not None and not _is_latent_adata(adata_latent):
-            raise ValueError("The given anndata object should be in latent mode")
-
-        use_gpu, device = parse_use_gpu_arg(use_gpu)
-
-        (attr_dict, _, model_state_dict, new_adata_latent) = _load_saved_files(
-            dir_path,
-            load_adata_latent,
-            map_location=device,
-            prefix=prefix,
-            backup_url=backup_url,
-            latent_data=True,
-        )
-        adata = new_adata_latent if new_adata_latent is not None else adata_latent
-
-        registry = attr_dict.pop("registry_")
-        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
-            raise ValueError(
-                "It appears you are loading a model from a different class."
-            )
-
-        if _SETUP_ARGS_KEY not in registry:
-            raise ValueError(
-                "Saved model does not contain original setup inputs. "
-                "Cannot load the original setup."
-            )
-
-        # Calling ``setup_anndata`` method with the original arguments passed into
-        # the saved model. This enables simple backwards compatibility in the case of
-        # newly introduced fields or parameters.
-        method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
-        setup_args = registry[_SETUP_ARGS_KEY]
-        if (
-            _X_LATENT_QZV in adata.layers
-            and setup_args.get("extra_layer", None) is None
-        ):
-            setup_args["extra_layer"] = _X_LATENT_QZV
-        getattr(cls, method_name)(adata, source_registry=registry, **setup_args)
-
-        model = _initialize_model(cls, adata, attr_dict)
-        model.module.on_load(model)
-        model.module.load_state_dict(model_state_dict)
-
-        model.to_device(device)
-        model.module.eval()
-        model._validate_anndata(adata)
-        return model
 
     @classmethod
     def convert_legacy_save(

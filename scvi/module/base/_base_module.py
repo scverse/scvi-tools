@@ -206,7 +206,7 @@ class BaseModuleClass(nn.Module):
     @abstractmethod
     def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
         """
-        TODO add docstring
+        Runs the inference routine but skips encoding, used in latent mode
         """
         pass
 

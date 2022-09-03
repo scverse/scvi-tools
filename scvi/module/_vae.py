@@ -327,7 +327,7 @@ class VAE(BaseModuleClass):
     @auto_move_data
     def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
         """
-        TODO add docstring
+        Runs the inference routine but skips encoding, used in latent mode
         """
         assert latent_data_type in ["sampled", "dist"]
         if latent_data_type == "sampled":
@@ -338,11 +338,13 @@ class VAE(BaseModuleClass):
             # in this case qz_m is expected to contain samples from z
             assert qz_v is None
             z = qz_m
-        else:
+        elif latent_data_type == "dist":
             dist = Normal(qz_m, qz_v.sqrt())
             untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
             # untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
+        else:
+            raise ValueError(f"Unknown latent data type: {latent_data_type}")
         outputs = dict(z=z, library=None)
         return outputs
 

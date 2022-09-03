@@ -569,7 +569,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         library_size
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent libary size.
+            magnitude. If set to `"latent"`, use the latent library size.
         use_z_mean
             If True, use the mean of the latent distribution, otherwise sample from it
         n_samples
