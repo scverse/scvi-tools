@@ -16,7 +16,11 @@ from scvi._utils import _doc_params
 from scvi.data._utils import _get_latent_adata_type
 from scvi.utils._docstrings import doc_differential_expression
 
-from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
+from .._utils import (
+    _get_batch_code_from_category,
+    _get_var_names_from_manager,
+    scrna_raw_counts_properties,
+)
 from ._utils import _de_core
 
 logger = logging.getLogger(__name__)
@@ -90,6 +94,9 @@ class RNASeqMixin:
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
+        latent_data_type = _get_latent_adata_type(adata)
+        is_latent = latent_data_type is not None
+
         if indices is None:
             indices = np.arange(adata.n_obs)
         if n_samples_overall is not None:
@@ -98,15 +105,16 @@ class RNASeqMixin:
             adata=adata, indices=indices, batch_size=batch_size
         )
 
-        transform_batch = _get_batch_code_from_category(
-            self.get_anndata_manager(adata, required=True), transform_batch
-        )
+        adata_manager = self.get_anndata_manager(adata, required=True)
+        transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
 
+        var_names = (
+            _get_var_names_from_manager(adata_manager) if is_latent else adata.var_names
+        )
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [True if gene in gene_list else False for gene in var_names]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -132,8 +140,10 @@ class RNASeqMixin:
                     inference_kwargs=inference_kwargs,
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
+                    latent_data_type=latent_data_type,
                 )
                 output = getattr(generative_outputs["px"], generative_output_key)
+                # TODO deal with the gene_mask
                 output = output[..., gene_mask]
                 output *= scaling
                 output = output.cpu().numpy()
@@ -154,7 +164,7 @@ class RNASeqMixin:
         if return_numpy is None or return_numpy is False:
             return pd.DataFrame(
                 exprs,
-                columns=adata.var_names[gene_mask],
+                columns=var_names[gene_mask],
                 index=adata.obs_names[indices],
             )
         else:

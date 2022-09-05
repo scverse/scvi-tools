@@ -1719,3 +1719,24 @@ def test_scvi_latent_mode_dist_one_sample(save_path):
 
 def test_scvi_latent_mode_dist_n_samples(save_path):
     run_test_scvi_latent_mode_dist(save_path, n_samples=10, give_mean=True)
+
+
+def test_scvi_latent_mode_sampled_get_normalized_expression(save_path):
+    model, adata = prep_model()
+
+    # TODO use different library_size and gene_mask
+
+    scvi.settings.seed = 1
+    adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
+
+    scvi.settings.seed = 1
+    exprs_orig = model.get_normalized_expression()
+
+    model.save(save_path, latent_mode="sampled", overwrite=True, save_anndata=True)
+    model_latent = SCVI.load(save_path, load_with_latent_data=True)
+
+    scvi.settings.seed = 1
+    exprs_latent = model_latent.get_normalized_expression()
+    assert exprs_latent.shape == adata.shape
+
+    assert np.array_equal(exprs_latent, exprs_orig)
