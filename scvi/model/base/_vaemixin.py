@@ -5,6 +5,8 @@ import numpy as np
 import torch
 from anndata import AnnData
 
+from scvi.utils import unsupported_in_latent_mode
+
 from ._log_likelihood import compute_elbo, compute_reconstruction_error
 
 logger = logging.getLogger(__name__)
@@ -14,6 +16,7 @@ class VAEMixin:
     """Univseral VAE methods."""
 
     @torch.no_grad()
+    @unsupported_in_latent_mode
     def get_elbo(
         self,
         adata: Optional[AnnData] = None,
@@ -44,6 +47,7 @@ class VAEMixin:
         return -elbo
 
     @torch.no_grad()
+    @unsupported_in_latent_mode
     def get_marginal_ll(
         self,
         adata: Optional[AnnData] = None,
@@ -88,6 +92,7 @@ class VAEMixin:
         return log_lkl / n_samples
 
     @torch.no_grad()
+    @unsupported_in_latent_mode
     def get_reconstruction_error(
         self,
         adata: Optional[AnnData] = None,
@@ -118,6 +123,7 @@ class VAEMixin:
         return reconstruction_error
 
     @torch.no_grad()
+    @unsupported_in_latent_mode
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,

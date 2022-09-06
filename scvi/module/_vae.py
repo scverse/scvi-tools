@@ -470,6 +470,7 @@ class VAE(BaseModuleClass):
         tensors,
         n_samples=1,
         library_size=1,
+        latent_data_type=None,
     ) -> np.ndarray:
         r"""
         Generate observation samples from the posterior predictive distribution.
@@ -483,7 +484,7 @@ class VAE(BaseModuleClass):
         n_samples
             Number of required samples for each cell
         library_size
-            Library size to scale scamples to
+            Library size to scale samples to
 
         Returns
         -------
@@ -495,6 +496,7 @@ class VAE(BaseModuleClass):
             tensors,
             inference_kwargs=inference_kwargs,
             compute_loss=False,
+            latent_data_type=latent_data_type,
         )
 
         dist = generative_outputs["px"]

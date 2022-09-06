@@ -14,6 +14,7 @@ from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.data._utils import _get_latent_adata_type
+from scvi.utils import unsupported_in_latent_mode
 from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import (
@@ -172,6 +173,7 @@ class RNASeqMixin:
     @_doc_params(
         doc_differential_expression=doc_differential_expression,
     )
+    @unsupported_in_latent_mode
     def differential_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -239,6 +241,7 @@ class RNASeqMixin:
         return result
 
     @torch.no_grad()
+    @unsupported_in_latent_mode
     def posterior_predictive_sample(
         self,
         adata: Optional[AnnData] = None,
@@ -275,6 +278,8 @@ class RNASeqMixin:
             raise ValueError("Invalid gene_likelihood.")
 
         adata = self._validate_anndata(adata)
+        latent_data_type = _get_latent_adata_type(adata)
+
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
@@ -290,7 +295,9 @@ class RNASeqMixin:
 
         x_new = []
         for tensors in scdl:
-            samples = self.module.sample(tensors, n_samples=n_samples)
+            samples = self.module.sample(
+                tensors, n_samples=n_samples, latent_data_type=latent_data_type
+            )
             if gene_list is not None:
                 samples = samples[:, gene_mask, ...]
             x_new.append(samples)
@@ -300,6 +307,7 @@ class RNASeqMixin:
         return x_new.numpy()
 
     @torch.no_grad()
+    @unsupported_in_latent_mode
     def _get_denoised_samples(
         self,
         adata: Optional[AnnData] = None,
@@ -378,6 +386,7 @@ class RNASeqMixin:
         return np.concatenate(data_loader_list, axis=0)
 
     @torch.no_grad()
+    @unsupported_in_latent_mode
     def get_feature_correlation_matrix(
         self,
         adata: Optional[AnnData] = None,
@@ -536,6 +545,7 @@ class RNASeqMixin:
         return return_dict
 
     @torch.no_grad()
+    @unsupported_in_latent_mode
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,

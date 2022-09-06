@@ -151,6 +151,13 @@ class AnnDataManager:
                 f"register_fields() got unexpected keyword arguments {transfer_kwargs} passed without a source_registry."
             )
 
+        target_adata_latent = _is_latent_adata(adata)
+        if source_registry is None and target_adata_latent:
+            # we need the full adata's source registry for the obs metadata (obs, obsm) and for certain gene properties (e.g. n_vars, var_names)
+            raise ValueError(
+                "latent adata cannot be set up without a source registry from the full (non-latent) adata."
+            )
+
         if source_registry is not None:
             non_latent_to_latent = False
             source_X_state_registry = source_registry[_constants._FIELD_REGISTRIES_KEY][
@@ -159,7 +166,6 @@ class AnnDataManager:
             source_adata_latent = (
                 source_X_state_registry.get(LayerField.LATENT_KEY, None) is True
             )
-            target_adata_latent = _is_latent_adata(adata)
             if (not source_adata_latent) and target_adata_latent:
                 if transfer_kwargs is None:
                     transfer_kwargs = {}
@@ -168,6 +174,10 @@ class AnnDataManager:
             elif source_adata_latent and (not target_adata_latent):
                 raise ValueError(
                     "Cannot transfer latent adata to full (non latent) adata"
+                )
+            elif (not source_adata_latent) and (not target_adata_latent):
+                raise NotImplementedError(
+                    "cannot transfer setup from latent adata to latent data"
                 )
 
         self._validate_anndata_object(adata)

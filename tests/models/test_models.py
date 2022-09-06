@@ -37,6 +37,7 @@ from scvi.model import (
     JaxSCVI,
     LinearSCVI,
 )
+from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
@@ -193,7 +194,7 @@ def test_scvi(save_path):
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # test mde
-    # mde(model.get_latent_representation())
+    mde(model.get_latent_representation())
 
     # Test with observed lib size.
     adata = synthetic_iid()
@@ -1769,3 +1770,56 @@ def test_scvi_latent_mode_get_normalized_expression(save_path):
 
     assert exprs_latent.shape == (adata.shape[0], 5)
     assert np.array_equal(exprs_latent, exprs_orig)
+
+
+def test_latent_mode_validate_unsupported(save_path):
+    model, adata = prep_model()
+    adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
+    model.save(save_path, latent_mode="sampled", overwrite=True, save_anndata=True)
+    model_latent = SCVI.load(save_path, load_with_latent_data=True)
+
+    common_err_msg = "Latent mode currently not supported for the {} function."
+
+    model.differential_expression(groupby="labels")
+    with pytest.raises(ValueError) as e:
+        model_latent.differential_expression(groupby="labels")
+    assert str(e.value) == common_err_msg.format("RNASeqMixin.differential_expression")
+
+    with pytest.raises(ValueError) as e:
+        model_latent.posterior_predictive_sample()
+    assert str(e.value) == common_err_msg.format(
+        "RNASeqMixin.posterior_predictive_sample"
+    )
+
+    with pytest.raises(ValueError) as e:
+        model_latent.posterior_predictive_sample()
+    assert str(e.value) == common_err_msg.format(
+        "RNASeqMixin.posterior_predictive_sample"
+    )
+
+    with pytest.raises(ValueError) as e:
+        model_latent.get_feature_correlation_matrix(correlation_type="pearson")
+    assert str(e.value) == common_err_msg.format(
+        "RNASeqMixin.get_feature_correlation_matrix"
+    )
+
+    with pytest.raises(ValueError) as e:
+        model_latent.get_latent_library_size()
+    assert str(e.value) == common_err_msg.format("RNASeqMixin.get_latent_library_size")
+
+    model.get_elbo()
+    with pytest.raises(ValueError) as e:
+        model_latent.get_elbo()
+    assert str(e.value) == common_err_msg.format("VAEMixin.get_elbo")
+
+    with pytest.raises(ValueError) as e:
+        model_latent.get_reconstruction_error()
+    assert str(e.value) == common_err_msg.format("VAEMixin.get_reconstruction_error")
+
+    with pytest.raises(ValueError) as e:
+        model_latent.get_marginal_ll()
+    assert str(e.value) == common_err_msg.format("VAEMixin.get_marginal_ll")
+
+    with pytest.raises(ValueError) as e:
+        model_latent.get_latent_representation()
+    assert str(e.value) == common_err_msg.format("VAEMixin.get_latent_representation")

@@ -118,7 +118,7 @@ class SCVI(
                     "Latent mode not supported when use_size_factor_key is False"
                 )
                 # we could add support for this as long as use_observed_lib_size is True and the
-                # adata has library size pre-compute and shoved into an obs column
+                # adata has library size pre-computed and shoved into an obs column
 
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
