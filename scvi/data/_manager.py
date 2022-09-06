@@ -175,7 +175,7 @@ class AnnDataManager:
                 raise ValueError(
                     "Cannot transfer latent adata to full (non latent) adata"
                 )
-            elif (not source_adata_latent) and (not target_adata_latent):
+            elif source_adata_latent and target_adata_latent:
                 raise NotImplementedError(
                     "cannot transfer setup from latent adata to latent data"
                 )
