@@ -565,8 +565,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             Kwargs for :meth:`~anndata.AnnData.write`
         """
         is_latent = latent_mode is not None
-        if is_latent:
-            warnings.warn("Latent mode is an experimental feature. Use with caution.")
+        _raise_if_missing_latent_mode_support(type(self).__name__, is_latent)
 
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
