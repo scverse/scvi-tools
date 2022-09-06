@@ -1721,10 +1721,8 @@ def test_scvi_latent_mode_dist_n_samples(save_path):
     run_test_scvi_latent_mode_dist(save_path, n_samples=10, give_mean=True)
 
 
-def test_scvi_latent_mode_sampled_get_normalized_expression(save_path):
+def test_scvi_latent_mode_get_normalized_expression(save_path):
     model, adata = prep_model()
-
-    # TODO use different library_size and gene_mask
 
     scvi.settings.seed = 1
     adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
@@ -1739,4 +1737,33 @@ def test_scvi_latent_mode_sampled_get_normalized_expression(save_path):
     exprs_latent = model_latent.get_normalized_expression()
     assert exprs_latent.shape == adata.shape
 
+    assert np.array_equal(exprs_latent, exprs_orig)
+
+    # non-default gene list and n_samples > 1
+    scvi.settings.seed = 1
+    gl = adata.var_names[:5].to_list()
+    n_samples = 10
+    exprs_orig = model.get_normalized_expression(
+        gene_list=gl, n_samples=10, library_size="latent"
+    )
+
+    scvi.settings.seed = 1
+    qz_m, qz_v = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qz_m
+    adata.obsm["X_latent_qzv"] = qz_v
+
+    model.save(save_path, latent_mode="dist", overwrite=True, save_anndata=True)
+    model_latent = SCVI.load(save_path, load_with_latent_data=True)
+
+    scvi.settings.seed = 1
+    # do this so that we generate the same sequence of random numbers in the
+    # latent and non latent cases (purely to get the tests to pass). this is
+    # becasue in the non latent case we sample once more (in the call to z_encoder
+    # during inference)
+    exprs_latent = model_latent.get_normalized_expression(
+        gene_list=gl, n_samples=n_samples + 1, return_mean=False, library_size="latent"
+    )
+    exprs_latent = exprs_latent[1:].mean(0)
+
+    assert exprs_latent.shape == (adata.shape[0], 5)
     assert np.array_equal(exprs_latent, exprs_orig)

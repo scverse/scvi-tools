@@ -143,7 +143,6 @@ class RNASeqMixin:
                     latent_data_type=latent_data_type,
                 )
                 output = getattr(generative_outputs["px"], generative_output_key)
-                # TODO deal with the gene_mask
                 output = output[..., gene_mask]
                 output *= scaling
                 output = output.cpu().numpy()
