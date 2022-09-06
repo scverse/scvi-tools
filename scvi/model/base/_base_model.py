@@ -707,12 +707,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # newly introduced fields or parameters.
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
         setup_args = registry[_SETUP_ARGS_KEY]
-        if (
-            load_with_latent_data
-            and _X_LATENT_QZV in adata.layers
-            and setup_args.get("extra_layer", None) is None
-        ):
-            setup_args["extra_layer"] = _X_LATENT_QZV
+        if load_with_latent_data:
+            if (
+                _X_LATENT_QZV in adata.layers
+                and setup_args.get("extra_layer", None) is None
+            ):
+                setup_args["extra_layer"] = _X_LATENT_QZV
+            if setup_args.get("layer", None) is not None:
+                # latent data is always stored in adata.X
+                setup_args["layer"] = None
         getattr(cls, method_name)(adata, source_registry=registry, **setup_args)
 
         model = _initialize_model(cls, adata, attr_dict)

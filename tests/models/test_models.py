@@ -1591,7 +1591,7 @@ def prep_model(layer=None):
     if layer is not None:
         adata.layers[layer] = adata.X.copy()
         adata.X = np.zeros_like(adata.X)
-    # add a few more properties to vlaidate they don't get saved in latent mode
+    # add a few more properties to validate they don't get saved in latent mode
     adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata.X, axis=0)))
     adata.varm["my_varm"] = np.random.negative_binomial(
         5, 0.3, size=(adata.shape[1], 3)
@@ -1653,15 +1653,13 @@ def test_scvi_latent_mode_sampled_no_layer(save_path):
 
 
 def test_scvi_latent_mode_sampled_with_layer(save_path):
-    # TODO
-    # run_test_scvi_latent_mode_sampled(save_path, layer="data_layer")
-    pass
+    run_test_scvi_latent_mode_sampled(save_path, layer="data_layer")
 
 
 def run_test_scvi_latent_mode_dist(
-    save_path: str, n_samples: int = 1, give_mean: bool = False
+    save_path: str, n_samples: int = 1, give_mean: bool = False, layer: str = None
 ):
-    model, adata = prep_model()
+    model, adata = prep_model(layer)
 
     scvi.settings.seed = 1
     qz_m, qz_v = model.get_latent_representation(give_mean=False, return_dist=True)
@@ -1715,6 +1713,10 @@ def run_test_scvi_latent_mode_dist(
 
 def test_scvi_latent_mode_dist_one_sample(save_path):
     run_test_scvi_latent_mode_dist(save_path)
+
+
+def test_scvi_latent_mode_dist_one_sample_with_layer(save_path):
+    run_test_scvi_latent_mode_dist(save_path, layer="data_layer")
 
 
 def test_scvi_latent_mode_dist_n_samples(save_path):
