@@ -1,7 +1,8 @@
 from functools import wraps
 from typing import Callable
 
-import anndata
+from anndata import AnnData
+from mudata import MuData
 
 from scvi.data._utils import _get_latent_adata_type
 
@@ -11,8 +12,8 @@ def unsupported_in_latent_mode(fn: Callable) -> Callable:
     def wrapper(self, *args, **kwargs):
         adata = None
         if len(args) > 0:
-            assert isinstance(args[0], anndata.AnnData)
             adata = args[0]
+            assert isinstance(adata, AnnData) or isinstance(adata, MuData)
         if adata is None and len(kwargs) > 0:
             adata = kwargs.get("adata", None)
         adata = self._validate_anndata(adata)

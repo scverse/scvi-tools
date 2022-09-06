@@ -1,5 +1,4 @@
 import logging
-import warnings
 from typing import List, Optional
 
 from anndata import AnnData
@@ -17,6 +16,7 @@ from scvi.data.fields import (
 )
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.model.base._utils import _raise_if_missing_latent_mode_support
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 
@@ -97,8 +97,9 @@ class SCVI(
     ):
         super(SCVI, self).__init__(adata)
 
-        if _is_latent_adata(adata):
-            warnings.warn("This is an experimental feature. Use with caution.")
+        _raise_if_missing_latent_mode_support(
+            type(self).__name__, _is_latent_adata(adata)
+        )
 
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
