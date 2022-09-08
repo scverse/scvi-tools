@@ -6,7 +6,6 @@ from abc import ABCMeta, abstractmethod
 from typing import Dict, Optional, Sequence, Type, Union
 from uuid import uuid4
 
-import anndata
 import numpy as np
 import rich
 import torch
@@ -18,14 +17,18 @@ from scvi._types import AnnOrMuData, LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
-    _ADATA_LATENT,
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
     _X_LATENT_QZV,
 )
-from scvi.data._utils import _assign_adata_uuid, _check_if_view, _is_latent_adata
+from scvi.data._utils import (
+    _assign_adata_uuid,
+    _check_if_view,
+    _get_latent_adata_from_adata,
+    _is_latent_adata,
+)
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
@@ -584,7 +587,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     raise ValueError(
                         "MuData currently not supported in latent data mode"
                     )
-                bdata = self._get_latent_adata_from_adata(
+                bdata = _get_latent_adata_from_adata(
                     self.adata,
                     latent_mode,
                     use_latent_key=use_latent_key,
@@ -725,42 +728,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         model.module.eval()
         model._validate_anndata(adata)
         return model
-
-    def _get_latent_adata_from_adata(
-        self,
-        adata: AnnData,
-        mode: LatentDataType,
-        use_latent_key: Optional[str] = None,
-        use_latent_qzm_key: Optional[str] = None,
-        use_latent_qzv_key: Optional[str] = None,
-    ) -> AnnData:
-        if mode == "sampled":
-            latent_key = "X_latent" if use_latent_key is None else use_latent_key
-            if latent_key not in adata.obsm:
-                raise ValueError(f"{latent_key} key not found in adata.obsm")
-            z = adata.obsm[latent_key]
-            bdata = anndata.AnnData(z)
-        elif mode == "dist":
-            latent_qzm_key = (
-                "X_latent_qzm" if use_latent_qzm_key is None else use_latent_qzm_key
-            )
-            latent_qzv_key = (
-                "X_latent_qzv" if use_latent_qzv_key is None else use_latent_qzv_key
-            )
-            if latent_qzm_key not in adata.obsm:
-                raise ValueError(f"{latent_qzm_key} key not found in adata.obsm")
-            if latent_qzv_key not in adata.obsm:
-                raise ValueError(f"{latent_qzv_key} key not found in adata.obsm")
-            z = adata.obsm[latent_qzm_key]
-            bdata = anndata.AnnData(z)
-            bdata.layers[_X_LATENT_QZV] = adata.obsm[latent_qzv_key]
-        else:
-            raise ValueError(f"Unknown latent mode: {mode}")
-        bdata.obs = adata.obs.copy()
-        bdata.obsm = adata.obsm.copy()
-        bdata.uns = adata.uns.copy()
-        bdata.uns[_ADATA_LATENT] = mode
-        return bdata
 
     @classmethod
     def convert_legacy_save(
