@@ -27,7 +27,7 @@ packages = [
   {include = "scvi"},
 ]
 readme = "README.md"
-version = "0.17.1"
+version = "0.17.3"
 
 [tool.poetry.dependencies]
 anndata = ">=0.7.5"
@@ -74,7 +74,7 @@ scikit-misc = {version = ">=0.1.3", optional = true}
 sphinx = {version = ">=4.1", optional = true}
 sphinx-autodoc-typehints = {version = "*", optional = true}
 sphinx-design = {version = "*", optional = true}
-sphinx-gallery = {version = ">0.6", optional = true}
+sphinx-gallery = {version = ">0.6,<0.11", optional = true}
 sphinx_copybutton = {version = "<=0.3.1", optional = true}
 sphinx_remove_toctrees = {version = "*", optional = true}
 sphinxext-opengraph = {version = "*", optional = true}
@@ -118,8 +118,7 @@ extras =
 commands = pytest {posargs}
 """
 [build-system]
-build-backend = "poetry.masonry.api"
 requires = [
-  "poetry>=1.0",
-  "setuptools", # keep it here or "pip install -e" would fail
+  "poetry-core>=1.0.0",
 ]
+build-backend = "poetry.core.masonry.api"
