@@ -21,7 +21,7 @@ from scvi.module.base import (
     JaxModuleWrapper,
     LossRecorder,
     PyroBaseModuleClass,
-    TrainStateWithBatchNorm,
+    TrainStateWithState,
 )
 from scvi.nn import one_hot
 
@@ -970,7 +970,7 @@ class JaxTrainingPlan(pl.LightningModule):
         if optim_kwargs is not None:
             self.optim_kwargs.update(optim_kwargs)
 
-    def set_train_state(self, params, batch_stats=None):
+    def set_train_state(self, params, state=None):
         if self.module.train_state is not None:
             return
 
@@ -980,27 +980,27 @@ class JaxTrainingPlan(pl.LightningModule):
             optax.additive_weight_decay(weight_decay=weight_decay),
             optax.adam(**self.optim_kwargs),
         )
-        train_state = TrainStateWithBatchNorm.create(
+        train_state = TrainStateWithState.create(
             apply_fn=self.module.apply,
             params=params,
             tx=optimizer,
-            batch_stats=batch_stats,
+            state=state,
         )
         self.module.train_state = train_state
 
     @staticmethod
     @jax.jit
     def jit_training_step(
-        state: TrainStateWithBatchNorm,
+        state: TrainStateWithState,
         batch: Dict[str, np.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
-        # batch stats can't be passed here
+        # state can't be passed here
         def loss_fn(params):
-            vars_in = {"params": params, "batch_stats": state.batch_stats}
+            vars_in = {"params": params, **state.state}
             outputs, new_model_state = state.apply_fn(
-                vars_in, batch, rngs=rngs, mutable=["batch_stats"], **kwargs
+                vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs
             )
             loss_recorder = outputs[2]
             loss = loss_recorder.loss
@@ -1010,9 +1010,7 @@ class JaxTrainingPlan(pl.LightningModule):
         (loss, (elbo, new_model_state)), grads = jax.value_and_grad(
             loss_fn, has_aux=True
         )(state.params)
-        new_state = state.apply_gradients(
-            grads=grads, batch_stats=new_model_state["batch_stats"]
-        )
+        new_state = state.apply_gradients(grads=grads, state=new_model_state)
         return new_state, loss, elbo
 
     def training_step(self, batch, batch_idx):
@@ -1044,12 +1042,12 @@ class JaxTrainingPlan(pl.LightningModule):
     @partial(jax.jit, static_argnums=(0,))
     def jit_validation_step(
         self,
-        state: TrainStateWithBatchNorm,
+        state: TrainStateWithState,
         batch: Dict[str, np.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
-        vars_in = {"params": state.params, "batch_stats": state.batch_stats}
+        vars_in = {"params": state.params, **state.state}
         outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
         loss_recorder = outputs[2]
         loss = loss_recorder.loss
