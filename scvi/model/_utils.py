@@ -31,6 +31,11 @@ def parse_use_gpu_arg(
         or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
     return_device
         If True, will return the torch.device of use_gpu.
+
+    Returns
+    -------
+    Arguments for lightning trainer, including the accelerator (str), devices
+    (int or sequence of int), and optionally the torch device.
     """
     # Support Apple silicon
     cuda_available = torch.cuda.is_available()
