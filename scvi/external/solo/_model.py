@@ -15,7 +15,6 @@ from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
-from scvi.model.base._utils import _raise_if_missing_latent_mode_support
 from scvi.module import Classifier
 from scvi.module.base import auto_move_data
 from scvi.train import ClassifierTrainingPlan, LoudEarlyStopping, TrainRunner
@@ -406,7 +405,6 @@ class SOLO(BaseModelClass):
         adata: AnnData,
         labels_key: Optional[str] = None,
         layer: Optional[str] = None,
-        extra_layer: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -416,10 +414,7 @@ class SOLO(BaseModelClass):
         ----------
         %(param_labels_key)s
         %(param_layer)s
-        %(param_extra_layer_not_impl)s
         """
-        if extra_layer is not None:
-            _raise_if_missing_latent_mode_support(cls.__name__)
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=False),

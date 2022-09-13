@@ -274,39 +274,3 @@ def _get_latent_adata_type(adata: AnnData) -> Optional[LatentDataType]:
 
 def _is_latent_adata(adata: AnnData) -> bool:
     return _get_latent_adata_type(adata) is not None
-
-
-def _get_latent_adata_from_adata(
-    adata: AnnData,
-    mode: LatentDataType,
-    use_latent_key: Optional[str] = None,
-    use_latent_qzm_key: Optional[str] = None,
-    use_latent_qzv_key: Optional[str] = None,
-) -> AnnData:
-    if mode == "sampled":
-        latent_key = "X_latent" if use_latent_key is None else use_latent_key
-        if latent_key not in adata.obsm:
-            raise ValueError(f"{latent_key} key not found in adata.obsm")
-        z = adata.obsm[latent_key]
-        bdata = AnnData(z)
-    elif mode == "dist":
-        latent_qzm_key = (
-            "X_latent_qzm" if use_latent_qzm_key is None else use_latent_qzm_key
-        )
-        latent_qzv_key = (
-            "X_latent_qzv" if use_latent_qzv_key is None else use_latent_qzv_key
-        )
-        if latent_qzm_key not in adata.obsm:
-            raise ValueError(f"{latent_qzm_key} key not found in adata.obsm")
-        if latent_qzv_key not in adata.obsm:
-            raise ValueError(f"{latent_qzv_key} key not found in adata.obsm")
-        z = adata.obsm[latent_qzm_key]
-        bdata = AnnData(z)
-        bdata.layers[_constants._X_LATENT_QZV] = adata.obsm[latent_qzv_key]
-    else:
-        raise ValueError(f"Unknown latent mode: {mode}")
-    bdata.obs = adata.obs.copy()
-    bdata.obsm = adata.obsm.copy()
-    bdata.uns = adata.uns.copy()
-    bdata.uns[_constants._ADATA_LATENT] = mode
-    return bdata

@@ -13,7 +13,7 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import settings
-from scvi._types import AnnOrMuData, LatentDataType
+from scvi._types import AnnOrMuData
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
@@ -21,14 +21,8 @@ from scvi.data._constants import (
     _SCVI_UUID_KEY,
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
-    _X_LATENT_QZV,
 )
-from scvi.data._utils import (
-    _assign_adata_uuid,
-    _check_if_view,
-    _get_latent_adata_from_adata,
-    _is_latent_adata,
-)
+from scvi.data._utils import _assign_adata_uuid, _check_if_view, _is_latent_adata
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
@@ -529,13 +523,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def save(
         self,
         dir_path: str,
+        adata: Optional[AnnOrMuData] = None,
         prefix: Optional[str] = None,
         overwrite: bool = False,
         save_anndata: bool = False,
-        latent_mode: Optional[LatentDataType] = None,
-        use_latent_key: Optional[str] = None,
-        use_latent_qzm_key: Optional[str] = None,
-        use_latent_qzv_key: Optional[str] = None,
         **anndata_write_kwargs,
     ):
         """
@@ -556,20 +547,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             already exists at `dir_path`, error will be raised.
         save_anndata
             If True, also saves the anndata
-        latent_mode
-            the type of latent mode the data is in (e.g. "sampled")
-        use_latent_key
-            the key in `adata.obsm` where the latent data is, used in "sampled" latent mode
-        use_latent_qzm_key
-            the key in `adata.obsm` where the mean of the latent data is, used in "dist" latent mode
-        use_latent_qzv_key
-            the key in `adata.obsm` where the var of the latent data is, used in "dist" latent mode
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
-        is_latent = latent_mode is not None
-        _raise_if_missing_latent_mode_support(type(self).__name__, is_latent)
-
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
@@ -580,34 +560,17 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             )
 
         file_name_prefix = prefix or ""
-
         if save_anndata:
-            if is_latent:
-                if isinstance(self.adata, MuData):
-                    raise ValueError(
-                        "MuData currently not supported in latent data mode"
-                    )
-                bdata = _get_latent_adata_from_adata(
-                    self.adata,
-                    latent_mode,
-                    use_latent_key=use_latent_key,
-                    use_latent_qzm_key=use_latent_qzm_key,
-                    use_latent_qzv_key=use_latent_qzv_key,
-                )
-                bdata.write(
-                    os.path.join(dir_path, f"{file_name_prefix}adata_latent.h5ad"),
-                    **anndata_write_kwargs,
-                )
-            else:
-                file_suffix = ""
-                if isinstance(self.adata, AnnData):
-                    file_suffix = "adata.h5ad"
-                elif isinstance(self.adata, MuData):
-                    file_suffix = "mdata.h5mu"
-                self.adata.write(
-                    os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
-                    **anndata_write_kwargs,
-                )
+            file_suffix = ""
+            adata_to_save = self.adata if adata is None else adata
+            if isinstance(adata_to_save, AnnData):
+                file_suffix = "adata.h5ad"
+            elif isinstance(adata_to_save, MuData):
+                file_suffix = "mdata.h5mu"
+            adata_to_save.write(
+                os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
+                **anndata_write_kwargs,
+            )
 
         model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
 
@@ -672,11 +635,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model = ModelClass.load(save_path, adata) # use the name of the model class used to save
         >>> model.get_....
         """
-        if load_with_latent_data:
-            _raise_if_missing_latent_mode_support(cls.__name__)
-            if adata is not None and not _is_latent_adata(adata):
-                raise ValueError("The given anndata object should be in latent mode")
-
         load_adata = adata is None
         use_gpu, device = parse_use_gpu_arg(use_gpu)
 
@@ -686,11 +644,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             map_location=device,
             prefix=prefix,
             backup_url=backup_url,
-            latent_data=load_with_latent_data,
         )
         adata = new_adata if new_adata is not None else adata
+
         if not load_with_latent_data:
             _validate_var_names(adata, var_names)
+        elif _is_latent_adata(adata) is False:
+            raise ValueError("The given anndata object should be in latent mode")
 
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
@@ -709,15 +669,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # newly introduced fields or parameters.
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
         setup_args = registry[_SETUP_ARGS_KEY]
-        if load_with_latent_data:
-            if (
-                _X_LATENT_QZV in adata.layers
-                and setup_args.get("extra_layer", None) is None
-            ):
-                setup_args["extra_layer"] = _X_LATENT_QZV
-            if setup_args.get("layer", None) is not None:
-                # latent data is always stored in adata.X
-                setup_args["layer"] = None
         getattr(cls, method_name)(adata, source_registry=registry, **setup_args)
 
         model = _initialize_model(cls, adata, attr_dict)

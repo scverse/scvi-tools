@@ -1,11 +1,13 @@
 import logging
 from typing import List, Optional
 
+from _types import LatentDataType
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data import AnnDataManager
+from scvi.data._constants import _ADATA_LATENT
 from scvi.data._utils import _is_latent_adata
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -16,13 +18,14 @@ from scvi.data.fields import (
 )
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
-from scvi.model.base._utils import _raise_if_missing_latent_mode_support
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
+
+_X_LATENT_QZV = "X_latent_qzv"
 
 
 class SCVI(
@@ -97,10 +100,6 @@ class SCVI(
     ):
         super(SCVI, self).__init__(adata)
 
-        _raise_if_missing_latent_mode_support(
-            type(self).__name__, _is_latent_adata(adata)
-        )
-
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
                 REGISTRY_KEYS.CAT_COVS_KEY
@@ -168,7 +167,6 @@ class SCVI(
         size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
-        extra_layer: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -182,18 +180,16 @@ class SCVI(
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
-        %(param_extra_layer)s
         """
-        if extra_layer is not None and not _is_latent_adata(adata):
-            raise ValueError(
-                "extra_layer is currently only applicable in latent data mode"
-            )
+        is_latent = _is_latent_adata(adata)
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(
                 REGISTRY_KEYS.X_KEY,
-                layer,
-                is_count_data=not _is_latent_adata(adata),
+                layer
+                if not is_latent
+                else None,  # latent data is always stored in adata.X
+                is_count_data=not is_latent,
             ),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
@@ -207,11 +203,11 @@ class SCVI(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
         ]
-        if extra_layer is not None:
+        if is_latent:
             anndata_fields.append(
                 LayerField(
                     REGISTRY_KEYS.EXTRA_X_KEY,
-                    extra_layer,
+                    _X_LATENT_QZV,
                     is_count_data=False,
                 ),
             )
@@ -220,3 +216,32 @@ class SCVI(
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+
+    def get_latent_adata_from_adata(
+        self,
+        mode: LatentDataType,
+        use_latent_key: Optional[str] = None,
+        use_latent_qzm_key: Optional[str] = None,
+        use_latent_qzv_key: Optional[str] = None,
+    ) -> AnnData:
+        if mode == "sampled":
+            latent_key = "X_latent" if use_latent_key is None else use_latent_key
+            z = self.adata.obsm[latent_key]
+            bdata = AnnData(z)
+        elif mode == "dist":
+            latent_qzm_key = (
+                "X_latent_qzm" if use_latent_qzm_key is None else use_latent_qzm_key
+            )
+            latent_qzv_key = (
+                "X_latent_qzv" if use_latent_qzv_key is None else use_latent_qzv_key
+            )
+            z = self.adata.obsm[latent_qzm_key]
+            bdata = AnnData(z)
+            bdata.layers[_X_LATENT_QZV] = self.adata.obsm[latent_qzv_key]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        bdata.obs = self.adata.obs.copy()
+        bdata.obsm = self.adata.obsm.copy()
+        bdata.uns = self.adata.uns.copy()
+        bdata.uns[_ADATA_LATENT] = mode
+        return bdata

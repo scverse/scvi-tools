@@ -33,7 +33,6 @@ _DR_ATTR_KEY = "attr_key"
 # Constants used in handling adata in latent mode.
 
 _ADATA_LATENT = "adata_latent"
-_X_LATENT_QZV = "X_latent_qzv"
 
 # AnnData Object Constants
 # ------------------------

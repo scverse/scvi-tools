@@ -15,7 +15,6 @@ from anndata import AnnData, read
 from scvi._compat import Literal
 from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
-from scvi.data._utils import _is_latent_adata
 from scvi.utils import track
 
 from ._differential import DifferentialComputation
@@ -59,7 +58,6 @@ def _load_saved_files(
     prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
     backup_url: Optional[str] = None,
-    latent_data: bool = False,
 ) -> Tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
@@ -82,31 +80,17 @@ def _load_saved_files(
 
     if load_adata:
         is_mudata = attr_dict["registry_"].get(_SETUP_METHOD_NAME) == "setup_mudata"
-        if latent_data:
+        file_suffix = "adata.h5ad" if is_mudata is False else "mdata.h5mu"
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
+        if os.path.exists(adata_path):
             if is_mudata:
-                raise ValueError("MuData currently not supported in latent data mode")
-            file_name = "adata_latent.h5ad"
-            latent_path = os.path.join(dir_path, f"{file_name_prefix}{file_name}")
-            if os.path.exists(latent_path):
-                adata = anndata.read_h5ad(latent_path)
-                if not _is_latent_adata(adata):
-                    raise ValueError("Anndata object not in latent mode")
+                adata = mudata.read(adata_path)
             else:
-                raise ValueError(
-                    f"Model loaded in latent mode but save path does not contain {file_name}."
-                )
+                adata = anndata.read(adata_path)
         else:
-            file_suffix = "adata.h5ad" if is_mudata is False else "mdata.h5mu"
-            adata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
-            if os.path.exists(adata_path):
-                if is_mudata:
-                    adata = mudata.read(adata_path)
-                else:
-                    adata = anndata.read(adata_path)
-            else:
-                raise ValueError(
-                    "Save path contains no saved anndata and no adata was passed."
-                )
+            raise ValueError(
+                "Save path contains no saved anndata and no adata was passed."
+            )
     else:
         adata = None
 
