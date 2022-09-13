@@ -40,7 +40,7 @@ def parse_use_gpu_arg(
     # Support Apple silicon
     cuda_available = torch.cuda.is_available()
     mps_available = torch.backends.mps.is_available()
-    gpu_available = cuda_available or mps_available
+    gpu_available = cuda_available
     lightning_devices = None
     if (use_gpu is None and not gpu_available) or (use_gpu is False):
         accelerator = "cpu"
@@ -54,9 +54,10 @@ def parse_use_gpu_arg(
             accelerator = "mps"
             lightning_devices = 1
         device = torch.device(current)
+    # Also captures bool case
     elif isinstance(use_gpu, int):
         device = torch.device(use_gpu) if not mps_available else torch.device("mps")
-        accelerator = "gpu"
+        accelerator = "gpu" if not mps_available else "mps"
         lightning_devices = [use_gpu] if not mps_available else 1
     elif isinstance(use_gpu, str):
         device = torch.device(use_gpu)
