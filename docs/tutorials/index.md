@@ -11,12 +11,12 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 ## Quick start
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/api_overview
-   notebooks/data_loading
-   notebooks/python_in_R
+notebooks/api_overview
+notebooks/data_loading
+notebooks/python_in_R
 
 ```
 
@@ -24,63 +24,63 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 ### scRNA-seq
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/harmonization
-   notebooks/scvi_in_R
-   notebooks/tabula_muris
-   notebooks/scarches_scvi_tools
-   notebooks/query_hlca_knn
-   notebooks/seed_labeling
-   notebooks/linear_decoder
-   notebooks/AutoZI_tutorial
-   notebooks/cellassign_tutorial
-   notebooks/amortized_lda
+notebooks/harmonization
+notebooks/scvi_in_R
+notebooks/tabula_muris
+notebooks/scarches_scvi_tools
+notebooks/query_hlca_knn
+notebooks/seed_labeling
+notebooks/linear_decoder
+notebooks/AutoZI_tutorial
+notebooks/cellassign_tutorial
+notebooks/amortized_lda
 
 ```
 
 ### ATAC-seq
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/PeakVI
-   notebooks/peakvi_in_R
+notebooks/PeakVI
+notebooks/peakvi_in_R
 
 ```
 
 ### Spatial transcriptomics
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/DestVI_tutorial
-   notebooks/DestVI_in_R
-   notebooks/gimvi_tutorial
+notebooks/DestVI_tutorial
+notebooks/DestVI_in_R
+notebooks/gimvi_tutorial
 
 ```
 
 ### Multimodal
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/totalVI
-   notebooks/cite_scrna_integration_w_totalVI
-   notebooks/totalVI_reference_mapping
-   notebooks/totalvi_in_R
-   notebooks/MultiVI_tutorial
+notebooks/totalVI
+notebooks/cite_scrna_integration_w_totalVI
+notebooks/totalVI_reference_mapping
+notebooks/totalvi_in_R
+notebooks/MultiVI_tutorial
 
 ```
 
 ## Contributed tutorials
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/stereoscope_heart_LV_tutorial
-   notebooks/cell2location_lymph_node_spatial_tutorial
+notebooks/stereoscope_heart_LV_tutorial
+notebooks/cell2location_lymph_node_spatial_tutorial
 
 ```
 
@@ -102,7 +102,7 @@ notebooks/model_user_guide
 
 ### Glossary
 
-```{eval-rst}
+```{toctree}
 .. tab-set::
 
     .. tab-item:: Model
@@ -123,7 +123,7 @@ notebooks/model_user_guide
         while the `loss` method computes the loss, e.g, ELBO in the case of variational inference.
 ```
 
-```{eval-rst}
+```{toctree}
 .. tab-set::
 
     .. tab-item:: TrainingPlan

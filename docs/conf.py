@@ -35,12 +35,10 @@ needs_sphinx = "4.3"  # Nicer param docs
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    "myst_parser",
+    "myst_nb",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
-    "nbsphinx",
-    "nbsphinx_link",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",  # needs to be after napoleon
@@ -64,11 +62,13 @@ ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
 
 # nbsphinx specific settings
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
-nbsphinx_execute = "never"
 
 templates_path = ["_templates"]
-# source_suffix = ".rst"
-
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".ipynb": "myst-nb",
+    ".myst": "myst-nb",
+}
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
@@ -82,10 +82,17 @@ todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
 myst_enable_extensions = [
-    "colon_fence",
-    "dollarmath",
     "amsmath",
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "html_image",
+    "html_admonition",
 ]
+myst_url_schemes = ("http", "https", "mailto")
+nb_output_stderr = "remove"
+nb_execution_mode = "off"
+nb_merge_streams = True
 
 # The master toctree document.
 master_doc = "index"
