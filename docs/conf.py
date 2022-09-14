@@ -281,7 +281,12 @@ def linkcode_resolve(domain, info):
     return f"{github_repo}/blob/{git_ref}/scvi/{path}"
 
 
-hoverxref_auto_ref = True
+hoverx_default_type = "tooltip"
+hoverxref_domains = ["py"]
+hoverxref_role_types = dict.fromkeys(
+    ["ref", "class", "func", "meth", "attr", "exc", "data"],
+    "tooltip",
+)
 hoverxref_intersphinx = [
     "python",
     "numpy",
