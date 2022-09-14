@@ -75,6 +75,7 @@ sphinx = {version = ">=4.1", optional = true}
 sphinx-autodoc-typehints = {version = "*", optional = true}
 sphinx-design = {version = "*", optional = true}
 sphinx-gallery = {version = ">0.6,<0.11", optional = true}
+sphinx-hoverxref = {version = "*", optional = true}
 sphinx_copybutton = {version = "<=0.3.1", optional = true}
 sphinx_remove_toctrees = {version = "*", optional = true}
 sphinxext-opengraph = {version = "*", optional = true}
@@ -99,6 +100,7 @@ docs = [
   "sphinx_remove_toctrees",
   "sphinx-design",
   "sphinxext-opengraph",
+  "sphinx-hoverxref",
   "myst-parser",
 ]
 pymde = ["pymde"]
