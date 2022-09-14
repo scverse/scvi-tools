@@ -107,7 +107,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         use_observed_lib_size: bool = True,
         **model_kwargs,
     ):
-        super(AUTOZI, self).__init__(adata)
+        super().__init__(adata)
 
         self.use_observed_lib_size = use_observed_lib_size
         n_batch = self.summary_stats.n_batch
