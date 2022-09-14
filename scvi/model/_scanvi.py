@@ -97,7 +97,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         **model_kwargs,
     ):
-        super(SCANVI, self).__init__(adata)
+        super().__init__(adata)
         scanvae_model_kwargs = dict(model_kwargs)
 
         self._set_indices_and_labels()

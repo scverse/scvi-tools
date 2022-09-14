@@ -109,7 +109,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         override_missing_proteins: bool = False,
         **model_kwargs,
     ):
-        super(TOTALVI, self).__init__(adata)
+        super().__init__(adata)
         self.protein_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.PROTEIN_EXP_KEY
         )
