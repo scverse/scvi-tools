@@ -281,6 +281,16 @@ def linkcode_resolve(domain, info):
     return f"{github_repo}/blob/{git_ref}/scvi/{path}"
 
 
+hoverxref_auto_ref = True
+hoverxref_intersphinx = [
+    "python",
+    "numpy",
+    "scanpy",
+    "anndata",
+    "pytorch_lightning",
+    "scipy",
+    "pandas",
+]
 # use proxied API endpoint on rtd to avoid CORS issues
 if os.environ.get("READTHEDOCS"):
     hoverxref_api_host = "/_"
