@@ -41,6 +41,7 @@ extensions = [
     "sphinx_remove_toctrees",
     "sphinx_design",
     "sphinxext.opengraph",
+    "hoverxref.extension",
 ]
 github_repo = "https://github.com/scverse/scvi-tools"
 
@@ -179,6 +180,8 @@ html_static_path = ["_static"]
 html_css_files = ["css/override.css", "css/sphinx_gallery.css"]
 html_show_sphinx = False
 
+# --------------------------------------------------------
+
 
 nbsphinx_prolog = r"""
 .. raw:: html
@@ -276,3 +279,16 @@ def linkcode_resolve(domain, info):
 
     path = f"{path}#L{lineno}-L{lineno + len(src) - 1}"
     return f"{github_repo}/blob/{git_ref}/scvi/{path}"
+
+
+hoverx_default_type = "tooltip"
+hoverxref_domains = ["py"]
+hoverxref_role_types = dict.fromkeys(
+    ["ref", "class", "func", "meth", "attr", "exc", "data"],
+    "tooltip",
+)
+hoverxref_tooltip_theme = ["tooltipster-custom"]
+
+# use proxied API endpoint on rtd to avoid CORS issues
+if os.environ.get("READTHEDOCS"):
+    hoverxref_api_host = "/_"
