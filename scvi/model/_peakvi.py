@@ -99,7 +99,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         encode_covariates: bool = False,
         **model_kwargs,
     ):
-        super(PEAKVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
