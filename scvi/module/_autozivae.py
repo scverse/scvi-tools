@@ -302,8 +302,14 @@ class AutoZIVAE(VAE):
             size_factor=size_factor,
         )
         # Rescale dropout
-        outputs["px_dropout"] = self.rescale_dropout(
-            outputs["px_dropout"], eps_log=eps_log
+        rescaled_dropout = self.rescale_dropout(
+            outputs["px"].zi_logits, eps_log=eps_log
+        )
+        outputs["px"] = ZeroInflatedNegativeBinomial(
+            mu=outputs["px"].mu,
+            theta=outputs["px"].theta,
+            zi_logits=rescaled_dropout,
+            scale=outputs["px"].scale,
         )
 
         # Bernoulli parameters
@@ -365,32 +371,29 @@ class AutoZIVAE(VAE):
         n_obs: int = 1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # Parameters for z latent distribution
-        qz_m = inference_outputs["qz_m"]
-        qz_v = inference_outputs["qz_v"]
-        px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px_r"]
-        px_dropout = generative_outputs["px_dropout"]
+        qz = inference_outputs["qz"]
+        px = generative_outputs["px"]
+        px_rate = px.mu
+        px_r = px.theta
+        px_dropout = px.zi_logits
         bernoulli_params = generative_outputs["bernoulli_params"]
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
         # KL divergences wrt z_n,l_n
-        mean = torch.zeros_like(qz_m)
-        scale = torch.ones_like(qz_v)
+        mean = torch.zeros_like(qz.loc)
+        scale = torch.ones_like(qz.scale)
 
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
-            dim=1
-        )
+        kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
         if not self.use_observed_lib_size:
-            ql_m = inference_outputs["ql_m"]
-            ql_v = inference_outputs["ql_v"]
+            ql = inference_outputs["ql"]
+
             (
                 local_library_log_means,
                 local_library_log_vars,
             ) = self._compute_local_library_params(batch_index)
 
             kl_divergence_l = kl(
-                Normal(ql_m, torch.sqrt(ql_v)),
+                ql,
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:

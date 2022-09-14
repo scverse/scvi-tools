@@ -10,32 +10,40 @@ class ElboMetric(Metric):
 
     Parameters
     ----------
-    n_obs_total
-        Number of total observations, for rescaling the ELBO
+    name
+        Name of metric, used as the prefix of the logged name.
     mode
-        Train or validation, used for logging names
+        Train or validation, used as the suffix of the logged name.
+    interval
+        The interval over which the metric is computed. If "obs", the metric value
+        per observation is computed. If "batch", the metric value per batch is computed.
     dist_sync_on_step
-        optional, by default False
+        Synchronize metric state across processes at each ``forward()``
+        before returning the value at the step.
     **kwargs
         Keyword args for :class:`torchmetrics.Metric`
     """
 
+    # Needs to be explicitly set to avoid TorchMetrics UserWarning.
+    full_state_update = True
+    _N_OBS_MINIBATCH_KEY = "n_obs_minibatch"
+
     def __init__(
         self,
-        n_obs_total: int,
+        name: str,
         mode: Literal["train", "validation"],
+        interval: Literal["obs", "batch"],
         dist_sync_on_step: bool = False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(dist_sync_on_step=dist_sync_on_step, **kwargs)
 
-        self.n_obs_total = 1 if n_obs_total is None else n_obs_total
+        self._name = name
         self._mode = mode
+        self._interval = interval
 
         default_val = torch.tensor(0.0)
-        self.add_state("reconstruction_loss", default=default_val)
-        self.add_state("kl_local", default=default_val)
-        self.add_state("kl_global", default=default_val)
+        self.add_state("elbo_component", default=default_val)
         self.add_state("n_obs", default=default_val)
         self.add_state("n_batches", default=default_val)
 
@@ -43,31 +51,48 @@ class ElboMetric(Metric):
     def mode(self):
         return self._mode
 
+    @property
+    def name(self):
+        return f"{self._name}_{self.mode}"
+
+    @name.setter
+    def name(self, new_name):
+        self._name = new_name
+
+    @property
+    def interval(self):
+        return self._interval
+
+    def get_intervals_recorded(self):
+        if self.interval == "obs":
+            return self.n_obs
+        elif self.interval == "batch":
+            return self.n_batches
+        raise ValueError(f"Unrecognized interval: {self.interval}.")
+
     def update(
         self,
-        reconstruction_loss_sum: torch.Tensor,
-        kl_local_sum: torch.Tensor,
-        kl_global: torch.Tensor,
-        n_obs_minibatch: int,
+        **kwargs,
     ):
-        """Updates all metrics."""
-        reconstruction_loss_sum = reconstruction_loss_sum.detach()
-        kl_local_sum = kl_local_sum.detach()
-        kl_global = kl_global.detach()
+        """
+        Updates this metric for one minibatch.
 
-        self.reconstruction_loss += reconstruction_loss_sum
-        self.kl_local += kl_local_sum
-        self.kl_global += kl_global
+        Takes kwargs associated with all metrics being updated for a given minibatch.
+        Filters for the relevant metric's value and updates this metric.
+        """
+        if self._N_OBS_MINIBATCH_KEY not in kwargs:
+            raise ValueError(
+                f"Missing {self._N_OBS_MINIBATCH_KEY} value in metrics update."
+            )
+        if self._name not in kwargs:
+            raise ValueError(f"Missing {self._name} value in metrics update.")
+
+        elbo_component = kwargs[self._name].detach()
+        self.elbo_component += elbo_component
+
+        n_obs_minibatch = kwargs[self._N_OBS_MINIBATCH_KEY]
         self.n_obs += n_obs_minibatch
         self.n_batches += 1
 
     def compute(self):
-        avg_reconstruction_loss = self.reconstruction_loss / self.n_obs
-        avg_kl_local = self.kl_local / self.n_obs
-        avg_kl_global = self.kl_global / self.n_batches
-        # elbo on the scale of one observation
-        elbo = (
-            avg_reconstruction_loss + avg_kl_local + (avg_kl_global / self.n_obs_total)
-        )
-
-        return elbo
+        return self.elbo_component / self.get_intervals_recorded()

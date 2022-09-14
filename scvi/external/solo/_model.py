@@ -260,7 +260,7 @@ class SOLO(BaseModelClass):
         max_epochs: int = 400,
         lr: float = 1e-3,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        train_size: float = 1,
+        train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
@@ -311,7 +311,7 @@ class SOLO(BaseModelClass):
         if early_stopping:
             early_stopping_callback = [
                 LoudEarlyStopping(
-                    monitor="validation_loss",
+                    monitor="validation_loss" if train_size != 1.0 else "train_loss",
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
                     mode="min",
@@ -417,7 +417,7 @@ class SOLO(BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=False),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(

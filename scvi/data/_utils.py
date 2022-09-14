@@ -3,14 +3,18 @@ import warnings
 from typing import Optional, Union
 from uuid import uuid4
 
-import anndata
 import h5py
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+from anndata import AnnData
 from anndata._core.sparse_dataset import SparseDataset
+from mudata import MuData
+from pandas.api.types import CategoricalDtype
+
+from scvi._types import AnnOrMuData
 
 from . import _constants
 
@@ -18,9 +22,18 @@ logger = logging.getLogger(__name__)
 
 
 def get_anndata_attribute(
-    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+    adata: AnnOrMuData,
+    attr_name: str,
+    attr_key: Optional[str],
+    mod_key: Optional[str] = None,
 ) -> Union[np.ndarray, pd.DataFrame]:
-    """Returns the requested data from a given AnnData object."""
+    """Returns the requested data from a given AnnData/MuData object."""
+    if mod_key is not None:
+        if isinstance(adata, AnnData):
+            raise ValueError(f"Cannot access modality {mod_key} on an AnnData object.")
+        if mod_key not in adata.mod:
+            raise ValueError(f"{mod_key} is not a valid modality in adata.mod.")
+        adata = adata.mod[mod_key]
     adata_attr = getattr(adata, attr_name)
     if attr_key is None:
         field = adata_attr
@@ -41,7 +54,7 @@ def get_anndata_attribute(
 
 
 def _set_data_in_registry(
-    adata: anndata.AnnData,
+    adata: AnnData,
     data: Union[np.ndarray, pd.DataFrame],
     attr_name: str,
     attr_key: Optional[str],
@@ -77,7 +90,7 @@ def _set_data_in_registry(
 
 
 def _verify_and_correct_data_format(
-    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+    adata: AnnData, attr_name: str, attr_key: Optional[str]
 ):
     """
     Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
@@ -120,54 +133,48 @@ def _verify_and_correct_data_format(
         _set_data_in_registry(adata, data, attr_name, attr_key)
 
 
-def _make_obs_column_categorical(
-    adata,
-    column_key,
-    alternate_column_key,
-    categorical_dtype=None,
+def _make_column_categorical(
+    df: pd.DataFrame,
+    column_key: str,
+    alternate_column_key: str,
+    categorical_dtype: Optional[Union[str, CategoricalDtype]] = None,
 ):
     """
-    Makes the data in column_key in obs all categorical.
+    Makes the data in column_key in DataFrame all categorical.
 
-    Categorizes adata.obs[column_key], then saves category codes to
-    .obs[alternate_column_key] and the category mappings
-    to .uns["scvi"]["categorical_mappings"].
+    Categorizes df[column_key], then saves category codes to
+    df[alternate_column_key] and returns the category mappings.
     """
     if categorical_dtype is None:
-        categorical_obs = adata.obs[column_key].astype("category")
+        categorical_obs = df[column_key].astype("category")
     else:
-        categorical_obs = adata.obs[column_key].astype(categorical_dtype)
+        categorical_obs = df[column_key].astype(categorical_dtype)
 
     # put codes in .obs[alternate_column_key]
     codes = categorical_obs.cat.codes
+    unique, counts = np.unique(codes, return_counts=True)
     mapping = categorical_obs.cat.categories.to_numpy(copy=True)
-    if -1 in np.unique(codes):
-        received_categories = adata.obs[column_key].astype("category").cat.categories
+    if -1 in unique:
+        received_categories = df[column_key].astype("category").cat.categories
         raise ValueError(
             'Making .obs["{}"] categorical failed. Expected categories: {}. '
             "Received categories: {}. ".format(column_key, mapping, received_categories)
         )
-    adata.obs[alternate_column_key] = codes
+    df[alternate_column_key] = codes
 
     # make sure each category contains enough cells
-    unique, counts = np.unique(adata.obs[alternate_column_key], return_counts=True)
     if np.min(counts) < 3:
         category = unique[np.argmin(counts)]
         warnings.warn(
-            "Category {} in adata.obs['{}'] has fewer than 3 cells. SCVI may not train properly.".format(
+            "Category {} in adata.obs['{}'] has fewer than 3 cells. Models may not train properly.".format(
                 category, alternate_column_key
             )
-        )
-    # possible check for continuous?
-    if len(unique) > (adata.shape[0] / 3):
-        warnings.warn(
-            "Is adata.obs['{}'] continuous? SCVI doesn't support continuous obs yet."
         )
 
     return mapping
 
 
-def _assign_adata_uuid(adata: anndata.AnnData, overwrite: bool = False) -> None:
+def _assign_adata_uuid(adata: AnnOrMuData, overwrite: bool = False) -> None:
     """
     Assigns a UUID unique to the AnnData object.
 
@@ -211,7 +218,7 @@ def _is_not_count_val(data: jnp.ndarray):
 
 
 def _get_batch_mask_protein_data(
-    adata: anndata.AnnData, protein_expression_obsm_key: str, batch_key: str
+    adata: AnnData, protein_expression_obsm_key: str, batch_key: str
 ):
     """
     Returns a list with length number of batches where each entry is a mask.
@@ -230,3 +237,32 @@ def _get_batch_mask_protein_data(
         batch_mask[b] = ~all_zero
 
     return batch_mask
+
+
+def _check_if_view(adata: AnnOrMuData, copy_if_view: bool = False):
+    if adata.is_view:
+        if copy_if_view:
+            logger.info("Received view of anndata, making copy.")
+            adata._init_as_actual(adata.copy())
+            # Reassign AnnData UUID to produce a separate AnnDataManager.
+            _assign_adata_uuid(adata, overwrite=True)
+        else:
+            raise ValueError("Please run `adata = adata.copy()`")
+    elif isinstance(adata, MuData):
+        for mod_key in adata.mod.keys():
+            mod_adata = adata.mod[mod_key]
+            _check_if_view(mod_adata, copy_if_view)
+
+
+def _check_mudata_fully_paired(mdata: MuData):
+    if isinstance(mdata, AnnData):
+        raise AssertionError(
+            "Cannot call ``_check_mudata_fully_paired`` with AnnData object."
+        )
+    for mod_key in mdata.mod:
+        if not mdata.obsm[mod_key].all():
+            raise ValueError(
+                f"Detected unpaired observations in modality {mod_key}. "
+                "Please make sure that data is fully paired in all MuData inputs. "
+                "Either pad the unpaired modalities or take the intersection with muon.pp.intersect_obs()."
+            )

@@ -1,10 +1,11 @@
+import warnings
 from typing import Optional, Union
 
 import numpy as np
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
-from scvi.data._utils import _make_obs_column_categorical
+from scvi.data._utils import _make_column_categorical, _set_data_in_registry
 
 from ._obs_field import CategoricalObsField
 
@@ -27,7 +28,6 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
     """
 
     UNLABELED_CATEGORY = "unlabeled_category"
-    WAS_REMAPPED = "was_remapped"
 
     def __init__(
         self,
@@ -55,8 +55,8 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
 
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
         # rerun setup for the batch column
-        mapping = _make_obs_column_categorical(
-            adata,
+        mapping = _make_column_categorical(
+            adata.obs,
             self._original_attr_key,
             self.attr_key,
             categorical_dtype=cat_dtype,
@@ -69,9 +69,6 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         }
 
     def register_field(self, adata: AnnData) -> dict:
-        if self.is_default:
-            self._setup_default_attr(adata)
-
         state_registry = super().register_field(adata)
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
         return self._remap_unlabeled_to_final_category(adata, mapping)
@@ -80,11 +77,31 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         self,
         state_registry: dict,
         adata_target: AnnData,
-        extend_categories: bool = False,
+        allow_missing_labels: bool = False,
         **kwargs,
     ) -> dict:
+        if (
+            allow_missing_labels
+            and self._original_attr_key is not None
+            and self._original_attr_key not in adata_target.obs
+        ):
+            # Fill in original .obs attribute with unlabeled_category values.
+            warnings.warn(
+                f"Missing labels key {self._original_attr_key}. Filling in with unlabeled category {self._unlabeled_category}."
+            )
+            _set_data_in_registry(
+                adata_target,
+                self._unlabeled_category,
+                self.attr_name,
+                self._original_attr_key,
+            )
+
+        # don't extend labels for query data
+        ec = "extend_categories"
+        if ec in kwargs:
+            kwargs.pop(ec)
         transfer_state_registry = super().transfer_field(
-            state_registry, adata_target, extend_categories=extend_categories, **kwargs
+            state_registry, adata_target, extend_categories=False, **kwargs
         )
         mapping = transfer_state_registry[self.CATEGORICAL_MAPPING_KEY]
         return self._remap_unlabeled_to_final_category(adata_target, mapping)

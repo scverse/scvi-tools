@@ -311,6 +311,7 @@ class MULTIVAE(BaseModuleClass):
         n_input_encoder_exp = input_exp + n_continuous_cov * encode_covariates
 
         self.gene_likelihood = gene_likelihood
+        ## expression encoder
         self.z_encoder_expression = Encoder(
             n_input=n_input_encoder_exp,
             n_layers=self.n_layers_encoder,
@@ -323,6 +324,7 @@ class MULTIVAE(BaseModuleClass):
             var_eps=0,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
+            return_dist=True,
         )
 
         # expression decoder
@@ -373,6 +375,7 @@ class MULTIVAE(BaseModuleClass):
             var_eps=0,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
+            return_dist=True,
         )
 
         # accessibility decoder
@@ -541,16 +544,19 @@ class MULTIVAE(BaseModuleClass):
             categorical_input = tuple()
 
         # Z Encoders
-        qzm_acc, qzv_acc, z_acc = self.z_encoder_accessibility(
+        qz_acc, z_acc = self.z_encoder_accessibility(
             encoder_input_accessibility, batch_index, *categorical_input
         )
-        qzm_expr, qzv_expr, z_expr = self.z_encoder_expression(
+        qz_expr, z_expr = self.z_encoder_expression(
             encoder_input_expression, batch_index, *categorical_input
         )
         qzm_pro, qzv_pro, z_pro = self.z_encoder_protein(
             encoder_input_protein, batch_index, *categorical_input
         )
-
+        qzm_acc = qz_acc.loc
+        qzm_expr = qz_expr.loc
+        qzv_acc = qz_acc.scale**2
+        qzv_expr = qz_expr.scale**2
         # L encoders
         libsize_expr = self.l_encoder_expression(
             encoder_input_expression, batch_index, *categorical_input
@@ -561,22 +567,9 @@ class MULTIVAE(BaseModuleClass):
 
         # ReFormat Outputs
         if n_samples > 1:
-            qzm_acc = qzm_acc.unsqueeze(0).expand(
-                (n_samples, qzm_acc.size(0), qzm_acc.size(1))
-            )
-            qzv_acc = qzv_acc.unsqueeze(0).expand(
-                (n_samples, qzv_acc.size(0), qzv_acc.size(1))
-            )
-            untran_za = Normal(qzm_acc, qzv_acc.sqrt()).sample()
+            untran_za = qz_acc.sample((n_samples,))
             z_acc = self.z_encoder_accessibility.z_transformation(untran_za)
-
-            qzm_expr = qzm_expr.unsqueeze(0).expand(
-                (n_samples, qzm_expr.size(0), qzm_expr.size(1))
-            )
-            qzv_expr = qzv_expr.unsqueeze(0).expand(
-                (n_samples, qzv_expr.size(0), qzv_expr.size(1))
-            )
-            untran_zr = Normal(qzm_expr, qzv_expr.sqrt()).sample()
+            untran_zr = qz_expr.sample((n_samples,))
             z_expr = self.z_encoder_expression.z_transformation(untran_zr)
 
             qzm_pro = qzm_pro.unsqueeze(0).expand(
@@ -725,9 +718,14 @@ class MULTIVAE(BaseModuleClass):
             categorical_input = tuple()
 
         latent = z if not use_z_mean else qz_m
-        decoder_input = (
-            latent if cont_covs is None else torch.cat([latent, cont_covs], dim=-1)
-        )
+        if cont_covs is None:
+            decoder_input = latent
+        elif latent.dim() != cont_covs.dim():
+            decoder_input = torch.cat(
+                [latent, cont_covs.unsqueeze(0).expand(latent.size(0), -1, -1)], dim=-1
+            )
+        else:
+            decoder_input = torch.cat([latent, cont_covs], dim=-1)
 
         # Accessibility Decoder
         p = self.z_decoder_accessibility(decoder_input, batch_index, *categorical_input)

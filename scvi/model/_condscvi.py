@@ -5,6 +5,7 @@ from typing import Optional, Union
 import numpy as np
 import torch
 from anndata import AnnData
+from sklearn.cluster import KMeans
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -35,10 +36,10 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         Dimensionality of the latent space.
     n_layers
         Number of hidden layers used for encoder and decoder NNs.
-    dropout_rate
-        Dropout rate for the encoder neural networks.
     weight_obs
         Whether to reweight observations by their inverse proportion (useful for lowly abundant cell types)
+    dropout_rate
+        Dropout rate for neural networks.
     **module_kwargs
         Keyword args for :class:`~scvi.modules.VAEC`
 
@@ -57,8 +58,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,
-        dropout_rate: float = 0.1,
         weight_obs: bool = False,
+        dropout_rate: float = 0.05,
         **module_kwargs,
     ):
         super(CondSCVI, self).__init__(adata)
@@ -92,9 +93,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
     @torch.no_grad()
     def get_vamp_prior(
-        self,
-        adata: Optional[AnnData] = None,
-        p: int = 50,
+        self, adata: Optional[AnnData] = None, p: int = 10
     ) -> np.ndarray:
         r"""
         Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
@@ -105,7 +104,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         p
-            number of components in the mixture model underlying the empirical prior
+            number of clusters in kmeans clustering for cell-type sub-clustering for empirical prior
 
         Returns
         -------
@@ -121,41 +120,82 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         adata = self._validate_anndata(adata)
 
+        # Extracting latent representation of adata including variances.
         mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
-        var_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
+        var_vprior = np.ones((self.summary_stats.n_labels, p, self.module.n_latent))
+        mp_vprior = np.zeros((self.summary_stats.n_labels, p))
+
         labels_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         )
         key = labels_state_registry.original_key
         mapping = labels_state_registry.categorical_mapping
-        for ct in range(self.summary_stats.n_labels):
-            # pick p cells
-            local_indices = np.random.choice(
-                np.where(adata.obs[key] == mapping[ct])[0], p
-            )
-            # get mean and variance from posterior
-            scdl = self._make_data_loader(
-                adata=adata, indices=local_indices, batch_size=p
-            )
-            mean = []
-            var = []
-            for tensors in scdl:
-                x = tensors[REGISTRY_KEYS.X_KEY]
-                y = tensors[REGISTRY_KEYS.LABELS_KEY]
-                out = self.module.inference(x, y)
-                mean_, var_ = out["qz_m"], out["qz_v"]
-                mean += [mean_.cpu()]
-                var += [var_.cpu()]
 
-            mean_vprior[ct], var_vprior[ct] = np.array(torch.cat(mean)), np.array(
-                torch.cat(var)
-            )
+        scdl = self._make_data_loader(adata=adata, batch_size=p)
 
-        return mean_vprior, var_vprior
+        mean = []
+        var = []
+        for tensors in scdl:
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            y = tensors[REGISTRY_KEYS.LABELS_KEY]
+            out = self.module.inference(x, y)
+            mean_, var_ = out["qz"].loc, (out["qz"].scale ** 2)
+            mean += [mean_.cpu()]
+            var += [var_.cpu()]
+
+        mean_cat, var_cat = torch.cat(mean).numpy(), torch.cat(var).numpy()
+
+        for ct in range(self.summary_stats["n_labels"]):
+            local_indices = np.where(adata.obs[key] == mapping[ct])[0]
+            n_local_indices = len(local_indices)
+            if "overclustering_vamp" not in adata.obs.columns:
+                if p < n_local_indices and p > 0:
+                    overclustering_vamp = KMeans(n_clusters=p, n_init=30).fit_predict(
+                        mean_cat[local_indices]
+                    )
+                else:
+                    # Every cell is its own cluster
+                    overclustering_vamp = np.arange(n_local_indices)
+            else:
+                overclustering_vamp = adata[local_indices, :].obs["overclustering_vamp"]
+
+            keys, counts = np.unique(overclustering_vamp, return_counts=True)
+
+            n_labels_overclustering = len(keys)
+            if n_labels_overclustering > p:
+                error_mess = """
+                    Given cell type specific clustering contains more clusters than vamp_prior_p.
+                    Increase value of vamp_prior_p to largest number of cell type specific clusters."""
+
+                raise ValueError(error_mess)
+
+            var_cluster = np.ones(
+                [
+                    n_labels_overclustering,
+                    self.module.n_latent,
+                ]
+            )
+            mean_cluster = np.zeros_like(var_cluster)
+
+            for index, cluster in enumerate(keys):
+                indices_curr = local_indices[
+                    np.where(overclustering_vamp == cluster)[0]
+                ]
+                var_cluster[index, :] = np.mean(var_cat[indices_curr], axis=0) + np.var(
+                    mean_cat[indices_curr], axis=0
+                )
+                mean_cluster[index, :] = np.mean(mean_cat[indices_curr], axis=0)
+
+            slicing = slice(n_labels_overclustering)
+            mean_vprior[ct, slicing, :] = mean_cluster
+            var_vprior[ct, slicing, :] = var_cluster
+            mp_vprior[ct, slicing] = counts / sum(counts)
+
+        return mean_vprior, var_vprior, mp_vprior
 
     def train(
         self,
-        max_epochs: int = 400,
+        max_epochs: int = 300,
         lr: float = 0.001,
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 1,

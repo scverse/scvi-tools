@@ -1,35 +1,25 @@
 import logging
-from typing import Any, Optional, Sequence, Union
+from typing import Optional, Sequence
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-import optax
-import pandas as pd
-import tqdm
 from anndata import AnnData
-from flax.core import FrozenDict
-from flax.training import train_state
-from jax import random
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
-from scvi.dataloaders import DataSplitter
 from scvi.module import JaxVAE
+from scvi.module.base import JaxModuleWrapper
 from scvi.utils import setup_anndata_dsp
 
-from .base import BaseModelClass
+from .base import BaseModelClass, JaxTrainingMixin
 
 logger = logging.getLogger(__name__)
 
 
-class TrainState(train_state.TrainState):
-    batch_stats: FrozenDict[str, Any]
-
-
-class JaxSCVI(BaseModelClass):
+class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     """
     EXPERIMENTAL single-cell Variational Inference [Lopez18]_, but with a Jax backend.
 
@@ -75,17 +65,16 @@ class JaxSCVI(BaseModelClass):
 
         n_batch = self.summary_stats.n_batch
 
-        self.module_kwargs = dict(
+        self.module = JaxModuleWrapper(
+            JaxVAE,
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,
             n_latent=n_latent,
             dropout_rate=dropout_rate,
-            is_training=False,
             gene_likelihood=gene_likelihood,
+            **model_kwargs,
         )
-        self.module_kwargs.update(model_kwargs)
-        self._module = None
 
         self._model_summary_string = ""
         self.init_params_ = self._get_init_params(locals())
@@ -117,154 +106,6 @@ class JaxSCVI(BaseModelClass):
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
-
-    def _get_module(self, kwargs=None):
-        if kwargs is None:
-            kwargs = self.module_kwargs
-        return JaxVAE(**kwargs)
-
-    @property
-    def module(self):
-        if self._module is None:
-            self._module = self._get_module()
-        return self._module
-
-    def train(
-        self,
-        max_epochs: Optional[int] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
-        train_size: float = 0.9,
-        validation_size: Optional[float] = None,
-        batch_size: int = 128,
-        lr: float = 1e-3,
-    ):
-        """
-        Train the model.
-
-        Parameters
-        ----------
-        max_epochs
-            Number of passes through the dataset. If `None`, defaults to
-            `np.min([round((20000 / n_cells) * 400), 400])`
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
-        train_size
-            Size of training set in the range [0.0, 1.0].
-        validation_size
-            Size of the test set. If `None`, defaults to 1 - `train_size`. If
-            `train_size + validation_size < 1`, the remaining cells belong to a test set.
-        batch_size
-            Minibatch size to use during training.
-        """
-        if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
-
-        data_splitter = DataSplitter(
-            self.adata_manager,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            # for pinning memory only
-            use_gpu=False,
-            iter_ndarray=True,
-        )
-        data_splitter.setup()
-        train_loader = data_splitter.train_dataloader()
-
-        module_kwargs = self.module_kwargs.copy()
-        module_kwargs.update(dict(is_training=True))
-        module = self._get_module(module_kwargs)
-
-        # if key is generated on CPU, model params will be on CPU
-        # we have to pay the price of a JIT compilation though
-        if use_gpu is False:
-            key = jax.jit(lambda i: random.PRNGKey(i), backend="cpu")
-        else:
-            # dummy function
-            def key(i: int):
-                return random.PRNGKey(i)
-
-        self.rngs = {
-            "params": key(0),
-            "dropout": key(1),
-            "z": key(2),
-        }
-        module_init = module.init(self.rngs, next(iter(train_loader)))
-        params = module_init["params"]
-        batch_stats = module_init["batch_stats"]
-
-        state = TrainState.create(
-            apply_fn=module.apply,
-            params=params,
-            tx=optax.adamw(lr, eps=0.01, weight_decay=1e-6),
-            batch_stats=batch_stats,
-        )
-
-        @jax.jit
-        def train_step(state, array_dict, rngs, kl_weight=1) -> jnp.ndarray:
-            rngs = {k: random.split(v)[1] for k, v in rngs.items()}
-
-            # batch stats can't be passed here
-            def loss_fn(params):
-                vars_in = {"params": params, "batch_stats": state.batch_stats}
-                outputs, new_model_state = state.apply_fn(
-                    vars_in, array_dict, rngs=rngs, mutable=["batch_stats"]
-                )
-                rec_loss = outputs.rec_loss
-                kl_div = outputs.kl
-                loss = rec_loss + kl_div
-                elbo = rec_loss + kl_div
-                return jnp.mean(loss), (jnp.mean(elbo), new_model_state)
-
-            (loss, (elbo, new_model_state)), grads = jax.value_and_grad(
-                loss_fn, has_aux=True
-            )(state.params)
-            new_state = state.apply_gradients(
-                grads=grads, batch_stats=new_model_state["batch_stats"]
-            )
-            return new_state, loss, elbo, rngs
-
-        history = dict(elbo_train=[], loss_train=[])
-        epoch = 0
-        with tqdm.trange(1, max_epochs + 1) as t:
-            try:
-                for i in t:
-                    epoch += 1
-                    epoch_loss = 0
-                    epoch_elbo = 0
-                    counter = 0
-                    for data in train_loader:
-                        kl_weight = min(1.0, epoch / 400.0)
-                        # gets new key for each epoch
-                        state, loss, elbo, self.rngs = train_step(
-                            state, data, self.rngs, kl_weight=kl_weight
-                        )
-                        epoch_loss += loss
-                        epoch_elbo += elbo
-                        counter += 1
-                    history["loss_train"] += [jax.device_get(epoch_loss) / counter]
-                    history["elbo_train"] += [jax.device_get(epoch_elbo) / counter]
-                    t.set_postfix_str(
-                        f"Epoch {i}, Elbo: {epoch_elbo / counter}, KL weight: {kl_weight}"
-                    )
-            except KeyboardInterrupt:
-                logger.info(
-                    "Keyboard interrupt detected. Attempting graceful shutdown."
-                )
-
-        self.train_state = state
-        self.params = state.params
-        self.batch_stats = state.batch_stats
-        self.history_ = {k: pd.DataFrame(v, columns=[k]) for k, v in history.items()}
-        self.is_trained_ = True
-
-        self.module_kwargs.update(dict(is_training=False))
-        self._module = None
-        self.bound_module = self.module.bind(
-            {"params": self.params, "batch_stats": self.batch_stats}, rngs=self.rngs
-        )
 
     def get_latent_representation(
         self,
@@ -301,33 +142,24 @@ class JaxSCVI(BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
-        @jax.jit
-        def _get_val(array_dict):
-            out = self.bound_module(array_dict, n_samples=mc_samples)
-            return out
+        run_inference = self.module.get_inference_fn(mc_samples=mc_samples)
 
         latent = []
         for array_dict in scdl:
-            out = _get_val(array_dict)
+            out = run_inference(array_dict)
             if give_mean:
-                z = out.qz.mean
+                z = out["qz"].mean
             else:
-                z = out.z
+                z = out["z"]
             latent.append(z)
         concat_axis = 0 if ((mc_samples == 1) or give_mean) else 1
         latent = jnp.concatenate(latent, axis=concat_axis)
 
         return np.array(jax.device_get(latent))
 
-    def save(self):
-        raise NotImplementedError
-
-    def load(self):
-        raise NotImplementedError
-
-    def to_device(self):
-        raise NotImplementedError
+    def to_device(self, device):
+        pass
 
     @property
     def device(self):
-        raise NotImplementedError
+        return self.module.device

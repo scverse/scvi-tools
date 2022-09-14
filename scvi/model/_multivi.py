@@ -13,6 +13,7 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
@@ -38,7 +39,6 @@ from scvi.utils._docstrings import doc_differential_expression, setup_anndata_ds
 from .base import BaseModelClass, VAEMixin
 from .base._utils import _de_core
 
-Number = Union[int, float]
 logger = logging.getLogger(__name__)
 
 
@@ -279,10 +279,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             eps=eps,
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             n_steps_kl_warmup=n_steps_kl_warmup,
-            check_val_every_n_epoch=check_val_every_n_epoch,
-            early_stopping=early_stopping,
-            early_stopping_monitor="reconstruction_loss_validation",
-            early_stopping_patience=50,
             optimizer="AdamW",
             scale_adversarial_loss=1,
         )
@@ -313,6 +309,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             max_epochs=max_epochs,
             use_gpu=use_gpu,
             early_stopping=early_stopping,
+            check_val_every_n_epoch=check_val_every_n_epoch,
+            early_stopping_monitor="reconstruction_loss_validation",
+            early_stopping_patience=50,
             **kwargs,
         )
         return runner()

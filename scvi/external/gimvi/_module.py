@@ -134,6 +134,7 @@ class JVAE(BaseModuleClass):
             n_layers_individual=n_layers_encoder_individual,
             n_layers_shared=n_layers_encoder_shared,
             dropout_rate=dropout_rate_encoder,
+            return_dist=True,
         )
 
         self.l_encoders = ModuleList(
@@ -143,6 +144,7 @@ class JVAE(BaseModuleClass):
                     1,
                     n_layers=1,
                     dropout_rate=dropout_rate_encoder,
+                    return_dist=True,
                 )
                 if self.model_library_bools[i]
                 else None
@@ -197,7 +199,7 @@ class JVAE(BaseModuleClass):
             else:
                 raise Exception("Must provide a mode when having multiple datasets")
         outputs = self.inference(x, mode)
-        qz_m = outputs["qz_m"]
+        qz_m = outputs["qz"].loc
         z = outputs["z"]
         if deterministic:
             z = qz_m
@@ -225,10 +227,12 @@ class JVAE(BaseModuleClass):
             tensor of shape ``(batch_size, 1)``
 
         """
-        _, _, _, ql_m, _, library = self.encode(x, mode)
-        if deterministic and ql_m is not None:
-            library = ql_m
-        return library
+        inference_out = self.inference(x, mode)
+        return (
+            inference_out["ql"].loc
+            if (deterministic and inference_out["ql"] is not None)
+            else inference_out["library"]
+        )
 
     def sample_scale(
         self,
@@ -264,25 +268,44 @@ class JVAE(BaseModuleClass):
             tensor of predicted expression
 
         """
+
+        gen_out = self._run_forward(
+            x,
+            mode,
+            batch_index,
+            y=y,
+            deterministic=deterministic,
+            decode_mode=decode_mode,
+        )
+        return gen_out["px_scale"]
+
+    # This is a potential wrapper for a vae like get_sample_rate
+    def get_sample_rate(self, x, batch_index, *_, **__):
+        return self.sample_rate(x, 0, batch_index)
+
+    def _run_forward(
+        self,
+        x: torch.Tensor,
+        mode: int,
+        batch_index: torch.Tensor,
+        y: Optional[torch.Tensor] = None,
+        deterministic: bool = False,
+        decode_mode: int = None,
+    ) -> dict:
         if decode_mode is None:
             decode_mode = mode
         inference_out = self.inference(x, mode)
         if deterministic:
-            z = inference_out["qz_m"]
-            if inference_out["ql_m"] is not None:
-                library = inference_out["ql_m"]
+            z = inference_out["qz"].loc
+            if inference_out["ql"] is not None:
+                library = inference_out["ql"].loc
             else:
                 library = inference_out["library"]
         else:
             z = inference_out["z"]
             library = inference_out["library"]
         gen_out = self.generative(z, library, batch_index, y, decode_mode)
-
-        return gen_out["px_scale"]
-
-    # This is a potential wrapper for a vae like get_sample_rate
-    def get_sample_rate(self, x, batch_index, *_, **__):
-        return self.sample_rate(x, 0, batch_index)
+        return gen_out
 
     def sample_rate(
         self,
@@ -318,18 +341,16 @@ class JVAE(BaseModuleClass):
             tensor of means of the scaled frequencies
 
         """
-        if decode_mode is None:
-            decode_mode = mode
-        qz_m, qz_v, z, ql_m, ql_v, library = self.encode(x, mode)
-        if deterministic:
-            z = qz_m
-            if ql_m is not None:
-                library = ql_m
-        px_scale, px_r, px_rate, px_dropout = self.decode(
-            z, decode_mode, library, batch_index, y
-        )
 
-        return px_rate
+        gen_out = self._run_forward(
+            x,
+            mode,
+            batch_index,
+            y=y,
+            deterministic=deterministic,
+            decode_mode=decode_mode,
+        )
+        return gen_out["px_rate"]
 
     def reconstruction_loss(
         self,
@@ -372,14 +393,14 @@ class JVAE(BaseModuleClass):
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
-        qz_m, qz_v, z = self.z_encoder(x_, mode)
-        ql_m, ql_v, library = None, None, None
+        qz, z = self.z_encoder(x_, mode)
+        ql, library = None, None
         if self.model_library_bools[mode]:
-            ql_m, ql_v, library = self.l_encoders[mode](x_)
+            ql, library = self.l_encoders[mode](x_)
         else:
             library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
 
-        return dict(qz_m=qz_m, qz_v=qz_v, z=z, ql_m=ql_m, ql_v=ql_v, library=library)
+        return dict(qz=qz, z=z, ql=ql, library=library)
 
     @auto_move_data
     def generative(
@@ -447,10 +468,8 @@ class JVAE(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        qz_m = inference_outputs["qz_m"]
-        qz_v = inference_outputs["qz_v"]
-        ql_m = inference_outputs["ql_m"]
-        ql_v = inference_outputs["ql_v"]
+        qz = inference_outputs["qz"]
+        ql = inference_outputs["ql"]
         px_rate = generative_outputs["px_rate"]
         px_r = generative_outputs["px_r"]
         px_dropout = generative_outputs["px_dropout"]
@@ -466,11 +485,9 @@ class JVAE(BaseModuleClass):
         )
 
         # KL Divergence
-        mean = torch.zeros_like(qz_m)
-        scale = torch.ones_like(qz_v)
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
-            dim=1
-        )
+        mean = torch.zeros_like(qz.loc)
+        scale = torch.ones_like(qz.scale)
+        kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
 
         if self.model_library_bools[mode]:
             library_log_means = getattr(self, f"library_log_means_{mode}")
@@ -483,7 +500,7 @@ class JVAE(BaseModuleClass):
                 one_hot(batch_index, self.n_batch), library_log_vars
             )
             kl_divergence_l = kl(
-                Normal(ql_m, torch.sqrt(ql_v)),
+                ql,
                 Normal(local_library_log_means, local_library_log_vars.sqrt()),
             ).sum(dim=1)
         else:
