@@ -289,6 +289,7 @@ hoverxref_role_types = dict.fromkeys(
     ["ref", "class", "func", "meth", "attr", "exc", "data"],
     "tooltip",
 )
+hoverxref_tooltip_theme = ["tooltipster-custom"]
 
 # use proxied API endpoint on rtd to avoid CORS issues
 if os.environ.get("READTHEDOCS"):
