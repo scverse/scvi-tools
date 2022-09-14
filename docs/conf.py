@@ -281,16 +281,6 @@ def linkcode_resolve(domain, info):
     return f"{github_repo}/blob/{git_ref}/scvi/{path}"
 
 
-hoverxref_mathjax = True
-hoverxref_auto_ref = True
-hoverx_default_type = "tooltip"
-hoverxref_domains = ["py"]
-hoverxref_role_types = dict.fromkeys(
-    ["ref", "class", "func", "meth", "attr", "exc", "data"],
-    "tooltip",
-)
-hoverxref_tooltip_theme = ["tooltipster-custom"]
-
 # use proxied API endpoint on rtd to avoid CORS issues
 if os.environ.get("READTHEDOCS"):
     hoverxref_api_host = "/_"
