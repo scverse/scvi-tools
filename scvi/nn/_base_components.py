@@ -434,7 +434,7 @@ class LinearDecoderSCVI(nn.Module):
         use_layer_norm: bool = False,
         bias: bool = False,
     ):
-        super(LinearDecoderSCVI, self).__init__()
+        super().__init__()
 
         # mean gamma
         self.factor_regressor = FCLayers(

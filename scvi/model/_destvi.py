@@ -76,7 +76,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         l1_reg: float,
         **module_kwargs,
     ):
-        super(DestVI, self).__init__(st_adata)
+        super().__init__(st_adata)
         self.module = MRDeconv(
             n_spots=st_adata.n_obs,
             n_labels=cell_type_mapping.shape[0],

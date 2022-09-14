@@ -82,7 +82,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         n_latent: int = 10,
         **model_kwargs,
     ):
-        super(GIMVI, self).__init__()
+        super().__init__()
         if adata_seq is adata_spatial:
             raise ValueError(
                 "`adata_seq` and `adata_spatial` cannot point to the same object. "
