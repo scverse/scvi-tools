@@ -151,7 +151,7 @@ class TrainingPlan(pl.LightningModule):
         min_kl_weight: float = 0.0,
         **loss_kwargs,
     ):
-        super(TrainingPlan, self).__init__()
+        super().__init__()
         self.module = module
         self.lr = lr
         self.weight_decay = weight_decay
@@ -618,7 +618,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         ] = "elbo_validation",
         **loss_kwargs,
     ):
-        super(SemiSupervisedTrainingPlan, self).__init__(
+        super().__init__(
             module=module,
             lr=lr,
             weight_decay=weight_decay,

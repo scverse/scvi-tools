@@ -62,7 +62,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         dropout_rate: float = 0.05,
         **module_kwargs,
     ):
-        super(CondSCVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_labels = self.summary_stats.n_labels
         n_vars = self.summary_stats.n_vars
