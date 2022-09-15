@@ -38,6 +38,7 @@ flake8 = {version = ">=3.7.7", optional = true}
 flax = "*"
 furo = {version = ">=2022.2.14.1", optional = true}
 h5py = ">=2.9.0"
+hyperopt = "*"
 importlib-metadata = {version = ">1.0", python = "<3.8"}
 ipython = {version = ">=7.20", optional = true, python = ">=3.7"}
 ipywidgets = "*"
@@ -67,6 +68,7 @@ python = ">=3.7,<4.0"
 python-igraph = {version = "*", optional = true}
 pytorch-lightning = ">=1.7.0,<1.8"
 rich = ">=9.1.0"
+ray = {extras = ["tune"], version = ">=1.12.1", optional = true}
 scanpy = {version = ">=1.6", optional = true}
 scanpydoc = {version = ">=0.5", optional = true}
 scikit-learn = ">=0.21.2"
@@ -104,6 +106,7 @@ docs = [
   "myst-parser",
 ]
 pymde = ["pymde"]
+tune = ["ray"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde"]
 
 [tool.poetry.dev-dependencies]
