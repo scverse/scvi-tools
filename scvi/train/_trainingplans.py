@@ -151,7 +151,7 @@ class TrainingPlan(pl.LightningModule):
         min_kl_weight: float = 0.0,
         **loss_kwargs,
     ):
-        super(TrainingPlan, self).__init__()
+        super().__init__()
         self.module = module
         self.lr = lr
         self.weight_decay = weight_decay
@@ -618,7 +618,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         ] = "elbo_validation",
         **loss_kwargs,
     ):
-        super(SemiSupervisedTrainingPlan, self).__init__(
+        super().__init__(
             module=module,
             lr=lr,
             weight_decay=weight_decay,
@@ -763,6 +763,8 @@ class PyroTrainingPlan(pl.LightningModule):
             loss=self.loss_fn,
         )
 
+        self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
+
     @property
     def n_obs_training(self):
         """
@@ -797,6 +799,9 @@ class PyroTrainingPlan(pl.LightningModule):
         # pytorch lightning requires a Tensor object for loss
         loss = torch.Tensor([self.svi.step(*args, **kwargs)])
 
+        _opt = self.optimizers()
+        _opt.step()
+
         return {"loss": loss}
 
     def training_epoch_end(self, outputs):
@@ -809,7 +814,17 @@ class PyroTrainingPlan(pl.LightningModule):
         self.log("elbo_train", elbo, prog_bar=True)
 
     def configure_optimizers(self):
-        return None
+        """
+        PyTorch Lightning shim optimizer.
+
+        PyTorch Lightning wants to take steps on an optimizer
+        returned by this function in order to increment the global
+        step count. See PyTorch Lighinting optimizer manual loop.
+
+        Here we provide a shim optimizer that we can take steps on
+        at minimal computational cost in order to keep Lightning happy :).
+        """
+        return torch.optim.Adam([self._dummy_param])
 
     def optimizer_step(self, *args, **kwargs):
         pass
