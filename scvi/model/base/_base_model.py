@@ -625,7 +625,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model.get_....
         """
         load_adata = adata is None
-        use_gpu, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_use_gpu_arg(use_gpu)
 
         (attr_dict, var_names, model_state_dict, new_adata,) = _load_saved_files(
             dir_path,
