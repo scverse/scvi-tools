@@ -75,7 +75,7 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
-        use_gpu, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_use_gpu_arg(use_gpu)
 
         attr_dict, var_names, load_state_dict = _get_loaded_data(
             reference_model, device=device
