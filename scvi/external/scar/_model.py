@@ -1,13 +1,12 @@
 import logging
 from typing import List, Optional, Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import torch
 from anndata import AnnData
 from torch.distributions.multinomial import Multinomial
+from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
@@ -85,7 +84,7 @@ class SCAR(
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> raw_adata = anndata.read_h5ad(path_to_raw_anndata)
     >>> scvi_external.SCAR.setup_anndata(adata, batch_key="batch")
-    >>> scvi_external.SCAR.get_ambient_profile(adata=adata, raw_adata=raw_adata, feature_type="mRNA")
+    >>> scvi_external.SCAR.get_ambient_profile(adata=adata, raw_adata=raw_adata, prob=0.995)
     >>> vae = scvi_external.SCAR(adata)
     >>> vae.train()
     >>> adata.obsm["X_scAR"] = vae.get_latent_representation()
@@ -130,7 +129,7 @@ class SCAR(
         # self.summary_stats provides information about anndata dimensions and other tensor info
         if not torch.is_tensor(ambient_profile):
             if isinstance(ambient_profile, str):
-                ambient_profile = adata.uns[ambient_profile].fillna(0).values
+                ambient_profile = np.nan_to_num(adata.varm[ambient_profile])
             elif isinstance(ambient_profile, pd.DataFrame):
                 ambient_profile = ambient_profile.fillna(0).values
             elif isinstance(ambient_profile, np.ndarray):
@@ -226,20 +225,15 @@ class SCAR(
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    @classmethod
+    @staticmethod
     def get_ambient_profile(
-        cls,
         adata: AnnData,
         raw_adata: AnnData,
-        feature_type: Union[str, list] = "mRNA",
         prob: float = 0.995,
         min_raw_counts: int = 2,
         iterations: int = 3,
         n_batch: int = 1,
         sample: int = 50000,
-        kneeplot: bool = True,
-        verbose: bool = True,
-        figsize: tuple = (6, 6),
     ):
         """Calculate ambient profile for relevant features
         Identify the cell-free droplets through a multinomial distribution. See EmptyDrops [Lun2019]_ for details.
@@ -247,11 +241,9 @@ class SCAR(
         Parameters
         ----------
         adata : AnnData
-            A filtered adata object, loaded from filtered_feature_bc_matrix using `scanpy.read` , gene filtering is recommended to save memory
+            A filtered adata object, loaded from filtered_feature_bc_matrix using `scanpy.read`, gene filtering is recommended to save memory
         raw_adata : AnnData
-            An raw adata object, loaded from raw_feature_bc_matrix using `scanpy.read`
-        feature_type : Union[str, list], optional
-            Feature type, e.g. 'Gene Expression', 'Antibody Capture', 'CRISPR Guide Capture' or 'Multiplexing Capture', all feature types are calculated if None, by default None
+            A raw adata object, loaded from raw_feature_bc_matrix using `scanpy.read`
         prob : float, optional
             The probability of each gene, considered as containing ambient RNA if greater than prob (joint prob euqals to the product of all genes for a droplet), by default 0.995
         min_raw_counts : int, optional
@@ -262,76 +254,25 @@ class SCAR(
             Total number of batches, set it to a bigger number when out of memory issue occurs, by default 1
         sample : int, optional
             Randomly sample droplets to test, if greater than total droplets, use all droplets, by default 50000
-        kneeplot : bool, optional
-            Kneeplot to show subpopulations of droplets, by default True
-        verbose : bool, optional
-            Whether to display message
-        figsize : tuple, optimal
-            Figure size, by default (6, 6)
 
         Returns
         -------
-        The relevant ambient profile is added in `adata.uns`
-
-        Examples
-        ---------
-        .. plot::
-            :context: close-figs
-
-            import scanpy as sc
-            from scar import setup_anndata
-            # read filtered data
-            adata = sc.read_10x_h5(filename='500_hgmm_3p_LT_Chromium_Controller_filtered_feature_bc_matrix.h5ad',
-                                backup_url='https://cf.10xgenomics.com/samples/cell-exp/6.1.0/500_hgmm_3p_LT_Chromium_Controller/500_hgmm_3p_LT_Chromium_Controller_filtered_feature_bc_matrix.h5');
-            adata.var_names_make_unique();
-            # read raw data
-            adata_raw = sc.read_10x_h5(filename='500_hgmm_3p_LT_Chromium_Controller_raw_feature_bc_matrix.h5ad',
-                                backup_url='https://cf.10xgenomics.com/samples/cell-exp/6.1.0/500_hgmm_3p_LT_Chromium_Controller/500_hgmm_3p_LT_Chromium_Controller_raw_feature_bc_matrix.h5');
-            adata_raw.var_names_make_unique();
-            # gene and cell filter
-            sc.pp.filter_genes(adata, min_counts=200);
-            sc.pp.filter_genes(adata, max_counts=6000);
-            sc.pp.filter_cells(adata, min_genes=200);
-            # setup anndata
-            SCAR.get_ambient_profile(
-                adata,
-                adata_raw,
-                feature_type="mRNA",
-                prob=0.975,
-                min_raw_counts=2,
-                kneeplot=True,
-            )
+        The relevant ambient profile is added in `adata.varm`
         """
-        if feature_type is None:
-            feature_type = adata.var["feature_types"].unique()
-        elif isinstance(feature_type, str):
-            feature_type = [feature_type]
-
         # take subset genes to save memory
         raw_adata = raw_adata[:, raw_adata.var_names.isin(adata.var_names)]
         raw_adata = raw_adata[raw_adata.X.sum(axis=1) >= min_raw_counts]
-
-        raw_adata.obs["total_counts"] = raw_adata.X.sum(axis=1)
 
         sample = int(sample)
         idx = np.random.choice(
             raw_adata.shape[0], size=min(raw_adata.shape[0], sample), replace=False
         )
         raw_adata = raw_adata[idx]
-        if verbose:
-            print(
-                "Randomly sample ",
-                sample,
-                " droplets to calculate the ambient profile.",
-            )
-        # initial estimation of ambient profile, will be update
+        print(f"Randomly sampling {sample} droplets to calculate the ambient profile.")
+        # initial estimation of ambient profile, will be updated
         ambient_prof = raw_adata.X.sum(axis=0) / raw_adata.X.sum()
 
-        if verbose:
-            print("Estimating ambient profile for ", feature_type, "...")
-
-        i = 0
-        while i < iterations:
+        for _ in tqdm(range(iterations)):
             # calculate joint probability (log) of being cell-free droplets for each droplet
             log_prob = []
             batch_idx = np.floor(
@@ -360,76 +301,10 @@ class SCAR(
             )
             emptydrops = raw_adata[raw_adata.obs["droplets"] == "cell-free droplets"]
             if emptydrops.shape[0] < 50:
-                raise Exception("Too few emptydroplets! Lower the prob parameter")
+                raise Exception("Too few emptydroplets. Lower the prob parameter")
             ambient_prof = emptydrops.X.sum(axis=0) / emptydrops.X.sum()
-            i += 1
-            if verbose:
-                print("iteration: ", i)
 
         # update ambient profile
-        for ft in feature_type:
-            tmp = emptydrops[:, emptydrops.var["feature_types"] == ft]
-            adata.uns[f"ambient_profile_{ft}"] = pd.DataFrame(
-                tmp.X.sum(axis=0).reshape(-1, 1) / tmp.X.sum(),
-                index=tmp.var_names,
-                columns=[f"ambient_profile_{ft}"],
-            )
-
-        if kneeplot:
-            _, axs = plt.subplots(2, figsize=figsize)
-
-            all_droplets = raw_adata.obs.copy()
-            index_name = all_droplets.index.name
-            all_droplets = (
-                all_droplets.sort_values(by="total_counts", ascending=False)
-                .reset_index()
-                .rename_axis("rank_by_counts")
-                .reset_index()
-            )
-            all_droplets = all_droplets.loc[
-                all_droplets["total_counts"] >= min_raw_counts
-            ]
-            all_droplets = all_droplets.set_index(index_name).rename_axis("cells")
-            all_droplets = (
-                all_droplets.sort_values(by="log_prob", ascending=True)
-                .reset_index()
-                .rename_axis("rank_by_log_prob")
-                .reset_index()
-                .set_index("cells")
-            )
-
-            ax = sns.lineplot(
-                data=all_droplets,
-                x="rank_by_counts",
-                y="total_counts",
-                hue="droplets",
-                hue_order=["cells", "other droplets", "cell-free droplets"],
-                palette=sns.color_palette()[-3:],
-                markers=False,
-                lw=2,
-                ci=None,
-                ax=axs[0],
-            )
-
-            ax.set_xscale("log")
-            ax.set_yscale("log")
-            ax.set_xlabel("")
-            ax.set_title("cell-free droplets have lower counts")
-
-            all_droplets["prob"] = np.exp(all_droplets["log_prob"])
-            ax = sns.lineplot(
-                data=all_droplets,
-                x="rank_by_log_prob",
-                y="prob",
-                hue="droplets",
-                hue_order=["cells", "other droplets", "cell-free droplets"],
-                palette=sns.color_palette()[-3:],
-                markers=False,
-                lw=2,
-                ci=None,
-                ax=axs[1],
-            )
-            ax.set_xscale("log")
-            ax.set_xlabel("sorted droplets")
-            ax.set_title("cell-free droplets have relatively higher probs")
-            plt.tight_layout()
+        adata.varm["ambient_profile"] = (
+            emptydrops.X.sum(axis=0).reshape(-1, 1) / emptydrops.X.sum()
+        )
