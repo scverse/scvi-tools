@@ -602,7 +602,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         use_gpu: Optional[Union[str, int, bool]] = None,
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
-        load_with_latent_data: bool = False,
     ):
         """
         Instantiate a model from the saved output.
@@ -623,8 +622,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             Prefix of saved file names.
         backup_url
             URL to retrieve saved outputs from if not present on disk.
-        load_with_latent_data
-            Whether to load in latent mode
 
         Returns
         -------
@@ -647,10 +644,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         )
         adata = new_adata if new_adata is not None else adata
 
-        if not load_with_latent_data:
-            _validate_var_names(adata, var_names)
-        elif _is_latent_adata(adata) is False:
-            raise ValueError("The given anndata object should be in latent mode")
+        _validate_var_names(adata, var_names)
 
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
@@ -668,8 +662,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # the saved model. This enables simple backwards compatibility in the case of
         # newly introduced fields or parameters.
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
-        setup_args = registry[_SETUP_ARGS_KEY]
-        getattr(cls, method_name)(adata, source_registry=registry, **setup_args)
+        getattr(cls, method_name)(
+            adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+        )
 
         model = _initialize_model(cls, adata, attr_dict)
         model.module.on_load(model)

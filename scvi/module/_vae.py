@@ -227,12 +227,14 @@ class VAE(BaseModuleClass):
                 x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
             )
         elif latent_data_type == "sampled":
-            qz_m = tensors[REGISTRY_KEYS.X_KEY]
-            input_dict = dict(qz_m=qz_m, qz_v=None, latent_data_type=latent_data_type)
+            qzm = tensors[REGISTRY_KEYS.LATENT_SAMPLES_KEY]
+            input_dict = dict(qzm=qzm, qzv=None, latent_data_type=latent_data_type)
+        elif latent_data_type == "dist":
+            qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
+            qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
+            input_dict = dict(qzm=qzm, qzv=qzv, latent_data_type=latent_data_type)
         else:
-            qz_m = tensors[REGISTRY_KEYS.X_KEY]
-            qz_v = tensors[REGISTRY_KEYS.EXTRA_X_KEY]
-            input_dict = dict(qz_m=qz_m, qz_v=qz_v, latent_data_type=latent_data_type)
+            raise ValueError(f"Unknown latent data type: {latent_data_type}")
 
         return input_dict
 
@@ -325,20 +327,16 @@ class VAE(BaseModuleClass):
         return outputs
 
     @auto_move_data
-    def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
-        assert latent_data_type in ["sampled", "dist"]
+    def inference_no_encode(self, qzm, qzv, latent_data_type, n_samples=1):
         if latent_data_type == "sampled":
             if n_samples > 1:
                 raise ValueError(
                     f"n_samples={n_samples}. n_samples > 1 not supported when latent data is sampled."
                 )
-            # in this case qz_m is expected to contain samples from z
-            assert qz_v is None
-            z = qz_m
+            z = qzm
         elif latent_data_type == "dist":
-            dist = Normal(qz_m, qz_v.sqrt())
+            dist = Normal(qzm, qzv.sqrt())
             untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
-            # untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
         else:
             raise ValueError(f"Unknown latent data type: {latent_data_type}")

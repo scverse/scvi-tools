@@ -157,9 +157,7 @@ class BaseModuleClass(nn.Module):
             Whether to compute loss on forward pass. This adds
             another return value.
         latent_data_type
-            None if we are not in latent mode, else one of "dist" or "sampled"
-            depending on whether the latent data holds parameters of the latent
-            distribution or samples from it.
+            The type of latent mode we are in if the data is in latent mode, else None.
         """
         return _generic_forward(
             self,
@@ -548,7 +546,7 @@ def _generic_forward(
     get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
     get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
 
-    if is_latent and "latent_data_type" not in get_inference_input_kwargs:
+    if is_latent:
         get_inference_input_kwargs["latent_data_type"] = latent_data_type
 
     inference_inputs = module._get_inference_input(
