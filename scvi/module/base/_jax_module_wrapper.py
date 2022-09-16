@@ -60,8 +60,7 @@ class JaxModuleWrapper:
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """
         old_history = model.history_.copy()
-        # max_epochs not used, but necessary to specify due to lightning issues
-        model.train(max_steps=1, max_epochs=1)
+        model.train(max_steps=1)
         model.history_ = old_history
 
     @property
