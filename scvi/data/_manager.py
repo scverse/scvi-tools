@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from typing import Optional, Sequence, Union
+from typing import List, Optional, Union
 from uuid import uuid4
 
 import numpy as np
@@ -55,7 +55,7 @@ class AnnDataManager:
 
     def __init__(
         self,
-        fields: Optional[Sequence[AnnDataField]] = None,
+        fields: Optional[List[AnnDataField]] = None,
         setup_method_args: Optional[dict] = None,
     ) -> None:
         self.id = str(uuid4())
@@ -190,6 +190,42 @@ class AnnDataManager:
         self._assign_uuid()
         self._assign_most_recent_manager_uuid()
 
+    def register_new_fields(self, fields: List[AnnDataField]):
+        """Register new fields to a manager instance.
+
+        This is useful to augment the functionality of an existing manager.
+
+        Parameters
+        ----------
+        fields
+            List of AnnDataFields to register
+        """
+        if self.adata is not None:
+            raise AssertionError(
+                "Existing AnnData object registered with this Manager instance."
+            )
+        field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
+        for field in fields:
+            field_registries[field.registry_key] = {
+                _constants._DATA_REGISTRY_KEY: field.get_data_registry(),
+                _constants._STATE_REGISTRY_KEY: dict(),
+            }
+            field_registry = field_registries[field.registry_key]
+            field_registry[_constants._STATE_REGISTRY_KEY] = field.register_field(
+                self.adata
+            )
+            # Compute and set summary stats for the given field.
+            state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
+            field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(
+                state_registry
+            )
+
+        # Source registry is not None if this manager was created from transfer_fields
+        # In this case self._registry is originally equivalent to self._source_registry
+        # However, with newly registered fields the equality breaks so we reset it
+        if self._source_registry is not None:
+            self._source_registry = deepcopy(self._registry)
+
     def transfer_fields(self, adata_target: AnnOrMuData, **kwargs) -> AnnDataManager:
         """
         Transfers an existing setup to each field associated with this instance with the target AnnData object.
@@ -223,6 +259,19 @@ class AnnDataManager:
         if most_recent_manager_id != self.id:
             adata, self.adata = self.adata, None  # Reset self.adata.
             self.register_fields(adata, self._source_registry, **self._transfer_kwargs)
+
+    def update_setup_method_args(self, setup_method_args: dict):
+        """Update setup method args.
+
+        Parameters
+        ----------
+        setup_method_args
+            This is a bit of a misnomer, this is a dict representing kwargs
+            of the setup method that will be used to update the existing values
+            in the registry of this instance.
+        """
+        if setup_method_args is not None:
+            self._registry[_constants._SETUP_ARGS_KEY].update(setup_method_args)
 
     @property
     def adata_uuid(self) -> str:
