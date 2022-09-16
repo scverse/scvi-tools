@@ -347,7 +347,7 @@ class PyroSampleMixin:
         """
         samples = dict()
 
-        _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_use_gpu_arg(use_gpu)
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
 
