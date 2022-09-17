@@ -359,6 +359,10 @@ def test_scvi(save_path):
     model.get_likelihood_parameters(n_samples=10)
     model.get_likelihood_parameters(n_samples=10, indices=np.arange(10))
 
+    # test get_likelihood_parameters() when gene_likelihood!='zinb'
+    model = SCVI(adata, gene_likelihood="nb")
+    model.get_likelihood_parameters()
+
     # test train callbacks work
     a = synthetic_iid()
     SCVI.setup_anndata(

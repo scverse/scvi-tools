@@ -43,7 +43,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         sc_adata: AnnData,
         **model_kwargs,
     ):
-        super(RNAStereoscope, self).__init__(sc_adata)
+        super().__init__(sc_adata)
         self.n_genes = self.summary_stats.n_vars
         self.n_labels = self.summary_stats.n_labels
         # first we have the scRNA-seq model

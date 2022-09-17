@@ -97,7 +97,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         **model_kwargs,
     ):
-        super(SCANVI, self).__init__(adata)
+        super().__init__(adata)
         scanvae_model_kwargs = dict(model_kwargs)
 
         self._set_indices_and_labels()
@@ -362,7 +362,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         if max_epochs is None:
             n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
 
             if self.was_pretrained:
                 max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))

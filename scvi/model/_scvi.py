@@ -103,7 +103,7 @@ class SCVI(
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super(SCVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(

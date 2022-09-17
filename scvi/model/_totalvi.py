@@ -109,7 +109,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         override_missing_proteins: bool = False,
         **model_kwargs,
     ):
-        super(TOTALVI, self).__init__(adata)
+        super().__init__(adata)
         self.protein_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.PROTEIN_EXP_KEY
         )
@@ -275,7 +275,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         if max_epochs is None:
             n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 

@@ -82,7 +82,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         n_latent: int = 10,
         **model_kwargs,
     ):
-        super(GIMVI, self).__init__()
+        super().__init__()
         if adata_seq is adata_spatial:
             raise ValueError(
                 "`adata_seq` and `adata_spatial` cannot point to the same object. "
@@ -192,11 +192,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        gpus, device = parse_use_gpu_arg(use_gpu)
+        accelerator, lightning_devices, device = parse_use_gpu_arg(use_gpu)
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
-            gpus=gpus,
+            accelerator=accelerator,
+            devices=lightning_devices,
             **kwargs,
         )
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
@@ -480,7 +481,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         >>> vae = GIMVI.load(adata_seq, adata_spatial, save_path)
         >>> vae.get_latent_representation()
         """
-        _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_use_gpu_arg(use_gpu)
 
         (
             attr_dict,
