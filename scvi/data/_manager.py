@@ -230,7 +230,7 @@ class AnnDataManager:
         if self._source_registry is not None:
             self._source_registry = deepcopy(self._registry)
 
-        self.fields.append(fields)
+        self.fields += fields
 
     def transfer_fields(self, adata_target: AnnOrMuData, **kwargs) -> AnnDataManager:
         """
