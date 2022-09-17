@@ -11,7 +11,7 @@ from scipy.sparse.csr import csr_matrix
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import _constants, synthetic_iid
-from scvi.data.fields import ProteinObsmField
+from scvi.data.fields import ObsmField, ProteinObsmField
 from scvi.dataloaders import AnnTorchDataset
 
 from .utils import generic_setup_adata_manager
@@ -201,6 +201,23 @@ def test_register_new_fields(adata):
         adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
     )
     assert len(incremental_adata_manager.fields) == len(adata_manager.fields)
+
+
+def test_register_new_fields_with_transferred_manager(adata):
+    bdata = adata.copy()
+    cdata = adata.copy()
+    adata_manager = generic_setup_adata_manager(adata, batch_key="batch")
+    bdata.obs["batch"] = adata.obs["batch"].to_numpy()[0]
+    bdata_manager = adata_manager.transfer_fields(bdata)
+    new_fields = [ObsmField(REGISTRY_KEYS.PROTEIN_EXP_KEY, "protein_expression")]
+    bdata_manager.register_new_fields(new_fields)
+    cdata_manager = bdata_manager.transfer_fields(cdata)
+
+    # Should have protein field
+    cdata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
+    np.testing.assert_array_equal(
+        cdata.obs["_scvi_batch"].values, adata.obs["_scvi_batch"].values
+    )
 
 
 def test_update_setup_args(adata):
