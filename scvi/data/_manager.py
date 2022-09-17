@@ -191,7 +191,8 @@ class AnnDataManager:
         self._assign_most_recent_manager_uuid()
 
     def register_new_fields(self, fields: List[AnnDataField]):
-        """Register new fields to a manager instance.
+        """
+        Register new fields to a manager instance.
 
         This is useful to augment the functionality of an existing manager.
 
@@ -267,7 +268,8 @@ class AnnDataManager:
             self.register_fields(adata, self._source_registry, **self._transfer_kwargs)
 
     def update_setup_method_args(self, setup_method_args: dict):
-        """Update setup method args.
+        """
+        Update setup method args.
 
         Parameters
         ----------
