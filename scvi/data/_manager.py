@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from typing import Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
 from uuid import uuid4
 
 import numpy as np
@@ -12,7 +12,6 @@ import rich
 from mudata import MuData
 
 import scvi
-from scvi._constants import REGISTRY_KEYS
 from scvi._types import AnnOrMuData
 from scvi.utils import attrdict
 
@@ -21,10 +20,9 @@ from ._utils import (
     _assign_adata_uuid,
     _check_if_view,
     _check_mudata_fully_paired,
-    _is_latent_adata,
     get_anndata_attribute,
 )
-from .fields import AnnDataField, LayerField
+from .fields import AnnDataField
 
 
 class AnnDataManager:
@@ -85,8 +83,6 @@ class AnnDataManager:
         _check_if_view(adata, copy_if_view=False)
 
         if isinstance(adata, MuData):
-            if _is_latent_adata(adata):
-                raise ValueError("MuData currently not supported in latent data mode")
             _check_mudata_fully_paired(adata)
 
     def _get_setup_method_args(self) -> dict:
@@ -151,22 +147,6 @@ class AnnDataManager:
                 f"register_fields() got unexpected keyword arguments {transfer_kwargs} passed without a source_registry."
             )
 
-        if source_registry is not None:
-            non_latent_to_latent = False
-            source_X_state_registry = source_registry[_constants._FIELD_REGISTRIES_KEY][
-                REGISTRY_KEYS.X_KEY
-            ][_constants._STATE_REGISTRY_KEY]
-            source_adata_latent = (
-                source_X_state_registry.get(LayerField.LATENT_KEY, None) is True
-            )
-            target_adata_latent = _is_latent_adata(adata)
-            if (not source_adata_latent) and target_adata_latent:
-                non_latent_to_latent = True
-            elif source_adata_latent and (not target_adata_latent):
-                raise ValueError(
-                    "Cannot transfer latent adata to full (non latent) adata"
-                )
-
         self._validate_anndata_object(adata)
         field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
 
@@ -180,10 +160,8 @@ class AnnDataManager:
             # A field can be empty if the model has optional fields (e.g. extra covariates).
             # If empty, we skip registering the field.
             if not field.is_empty:
-                # certain latent-mode fields (e.g. latent samples, parameters, etc.) may not be present in the source registry
                 skip_transfer = source_registry is None or (
-                    non_latent_to_latent
-                    and field.registry_key
+                    field.registry_key
                     not in source_registry[_constants._FIELD_REGISTRIES_KEY]
                 )
                 # Transfer case: Source registry is used for validation and/or setup.
@@ -215,6 +193,47 @@ class AnnDataManager:
         self.adata = adata
         self._assign_uuid()
         self._assign_most_recent_manager_uuid()
+
+    def register_new_fields(self, fields: List[AnnDataField]):
+        """
+        Register new fields to a manager instance.
+        This is useful to augment the functionality of an existing manager.
+        Parameters
+        ----------
+        fields
+            List of AnnDataFields to register
+        """
+        if self.adata is None:
+            raise AssertionError(
+                "No AnnData object has been registered with this Manager instance."
+            )
+        field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
+        for field in fields:
+            if field.registry_key in field_registries:
+                raise ValueError(
+                    f"Registry key {field.registry_key} for field already taken."
+                )
+            field_registries[field.registry_key] = {
+                _constants._DATA_REGISTRY_KEY: field.get_data_registry(),
+                _constants._STATE_REGISTRY_KEY: dict(),
+            }
+            field_registry = field_registries[field.registry_key]
+            field_registry[_constants._STATE_REGISTRY_KEY] = field.register_field(
+                self.adata
+            )
+            # Compute and set summary stats for the given field.
+            state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
+            field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(
+                state_registry
+            )
+
+        # Source registry is not None if this manager was created from transfer_fields
+        # In this case self._registry is originally equivalent to self._source_registry
+        # However, with newly registered fields the equality breaks so we reset it
+        if self._source_registry is not None:
+            self._source_registry = deepcopy(self._registry)
+
+        self.fields += fields
 
     def transfer_fields(self, adata_target: AnnOrMuData, **kwargs) -> AnnDataManager:
         """

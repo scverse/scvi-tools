@@ -523,7 +523,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def save(
         self,
         dir_path: str,
-        adata: Optional[AnnOrMuData] = None,
         prefix: Optional[str] = None,
         overwrite: bool = False,
         save_anndata: bool = False,
@@ -562,12 +561,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         file_name_prefix = prefix or ""
         if save_anndata:
             file_suffix = ""
-            adata_to_save = self.adata if adata is None else adata
-            if isinstance(adata_to_save, AnnData):
+            if isinstance(self.adata, AnnData):
                 file_suffix = "adata.h5ad"
-            elif isinstance(adata_to_save, MuData):
+            elif isinstance(self.adata, MuData):
                 file_suffix = "mdata.h5mu"
-            adata_to_save.write(
+            self.adata.write(
                 os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
                 **anndata_write_kwargs,
             )
