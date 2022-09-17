@@ -11,6 +11,7 @@ from scipy.sparse.csr import csr_matrix
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import synthetic_iid
+from scvi.data.fields import ProteinObsmField
 from scvi.dataloaders import AnnTorchDataset
 
 from .utils import generic_setup_adata_manager
@@ -172,6 +173,31 @@ def test_clobber_different_models(adata):
     )
 
 
+def test_register_new_fields(adata):
+    bdata = adata.copy()
+    incremental_adata_manager = generic_setup_adata_manager(bdata)
+    new_fields = [
+        ProteinObsmField(
+            REGISTRY_KEYS.PROTEIN_EXP_KEY,
+            "protein_expression",
+            use_batch_mask=True,
+            is_count_data=True,
+        )
+    ]
+    incremental_adata_manager.register_new_fields(new_fields)
+    with pytest.raises(ValueError):
+        incremental_adata_manager.register_new_fields(new_fields)
+
+    adata_manager = generic_setup_adata_manager(
+        adata, protein_expression_obsm_key="protein_expression"
+    )
+    np.testing.assert_array_equal(
+        incremental_adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
+        adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
+    )
+    assert len(incremental_adata_manager.fields) == len(adata_manager.fields)
+
+
 def test_data_format(adata):
     # if data was dense np array, check after setup_anndata, data is C_CONTIGUOUS
     old_x = adata.X
@@ -282,7 +308,7 @@ def test_setup_anndata_layer(adata):
     )
 
 
-def test_setup_anndat_create_label_batch(adata):
+def test_setup_anndata_create_label_batch(adata):
     # test that it creates labels and batch if no layers_key is passed
     adata_manager = generic_setup_adata_manager(
         adata,

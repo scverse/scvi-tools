@@ -206,6 +206,10 @@ class AnnDataManager:
             )
         field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
         for field in fields:
+            if field.registry_key in field_registries:
+                raise ValueError(
+                    f"Registry key {field.registry_key} for field already taken."
+                )
             field_registries[field.registry_key] = {
                 _constants._DATA_REGISTRY_KEY: field.get_data_registry(),
                 _constants._STATE_REGISTRY_KEY: dict(),
@@ -225,6 +229,8 @@ class AnnDataManager:
         # However, with newly registered fields the equality breaks so we reset it
         if self._source_registry is not None:
             self._source_registry = deepcopy(self._registry)
+
+        self.fields.append(fields)
 
     def transfer_fields(self, adata_target: AnnOrMuData, **kwargs) -> AnnDataManager:
         """
