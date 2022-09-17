@@ -278,8 +278,7 @@ class AnnDataManager:
             of the setup method that will be used to update the existing values
             in the registry of this instance.
         """
-        if setup_method_args is not None:
-            self._registry[_constants._SETUP_ARGS_KEY].update(setup_method_args)
+        self._registry[_constants._SETUP_ARGS_KEY].update(setup_method_args)
 
     @property
     def adata_uuid(self) -> str:
