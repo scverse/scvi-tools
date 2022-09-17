@@ -122,8 +122,6 @@ class SCVI(
                 raise ValueError(
                     "Latent mode not supported when use_size_factor_key is False"
                 )
-                # we could add support for this as long as use_observed_lib_size is True and the
-                # adata has library size pre-computed and shoved into an obs column
 
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
@@ -188,11 +186,7 @@ class SCVI(
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(
-                REGISTRY_KEYS.X_KEY,
-                layer,
-                is_count_data=True,
-            ),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             NumericalObsField(

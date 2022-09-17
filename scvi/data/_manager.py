@@ -160,12 +160,8 @@ class AnnDataManager:
             # A field can be empty if the model has optional fields (e.g. extra covariates).
             # If empty, we skip registering the field.
             if not field.is_empty:
-                skip_transfer = source_registry is None or (
-                    field.registry_key
-                    not in source_registry[_constants._FIELD_REGISTRIES_KEY]
-                )
                 # Transfer case: Source registry is used for validation and/or setup.
-                if not skip_transfer:
+                if source_registry is not None:
                     field_registry[
                         _constants._STATE_REGISTRY_KEY
                     ] = field.transfer_field(
