@@ -200,9 +200,9 @@ class AnnDataManager:
         fields
             List of AnnDataFields to register
         """
-        if self.adata is not None:
+        if self.adata is None:
             raise AssertionError(
-                "Existing AnnData object registered with this Manager instance."
+                "No AnnData object has been registered with this Manager instance."
             )
         field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
         for field in fields:

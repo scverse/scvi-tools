@@ -10,7 +10,7 @@ from scipy.sparse.csr import csr_matrix
 
 import scvi
 from scvi import REGISTRY_KEYS
-from scvi.data import synthetic_iid
+from scvi.data import _constants, synthetic_iid
 from scvi.data.fields import ProteinObsmField
 from scvi.dataloaders import AnnTorchDataset
 
@@ -176,10 +176,15 @@ def test_clobber_different_models(adata):
 def test_register_new_fields(adata):
     bdata = adata.copy()
     incremental_adata_manager = generic_setup_adata_manager(bdata)
+    batch_field = None
+    for field in incremental_adata_manager.fields:
+        if field.registry_key == REGISTRY_KEYS.BATCH_KEY:
+            batch_field = field
     new_fields = [
         ProteinObsmField(
             REGISTRY_KEYS.PROTEIN_EXP_KEY,
             "protein_expression",
+            batch_field=batch_field,
             use_batch_mask=True,
             is_count_data=True,
         )
@@ -196,6 +201,15 @@ def test_register_new_fields(adata):
         adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
     )
     assert len(incremental_adata_manager.fields) == len(adata_manager.fields)
+
+
+def test_update_setup_args(adata):
+    adata_manager = generic_setup_adata_manager(adata)
+    adata_manager.update_setup_method_args({"test_arg": "test_val"})
+    assert (
+        "test_arg"
+        in adata_manager._get_setup_method_args()[_constants._SETUP_ARGS_KEY].keys()
+    )
 
 
 def test_data_format(adata):
