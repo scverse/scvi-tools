@@ -148,38 +148,13 @@ class AnnDataManager:
             )
 
         self._validate_anndata_object(adata)
-        field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
 
         for field in self.fields:
-            field_registries[field.registry_key] = {
-                _constants._DATA_REGISTRY_KEY: field.get_data_registry(),
-                _constants._STATE_REGISTRY_KEY: dict(),
-            }
-            field_registry = field_registries[field.registry_key]
-
-            # A field can be empty if the model has optional fields (e.g. extra covariates).
-            # If empty, we skip registering the field.
-            if not field.is_empty:
-                # Transfer case: Source registry is used for validation and/or setup.
-                if source_registry is not None:
-                    field_registry[
-                        _constants._STATE_REGISTRY_KEY
-                    ] = field.transfer_field(
-                        source_registry[_constants._FIELD_REGISTRIES_KEY][
-                            field.registry_key
-                        ][_constants._STATE_REGISTRY_KEY],
-                        adata,
-                        **transfer_kwargs,
-                    )
-                else:
-                    field_registry[
-                        _constants._STATE_REGISTRY_KEY
-                    ] = field.register_field(adata)
-
-            # Compute and set summary stats for the given field.
-            state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
-            field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(
-                state_registry
+            self._add_field(
+                field=field,
+                adata=adata,
+                source_registry=source_registry,
+                **transfer_kwargs,
             )
 
         # Save arguments for register_fields.
@@ -189,6 +164,47 @@ class AnnDataManager:
         self.adata = adata
         self._assign_uuid()
         self._assign_most_recent_manager_uuid()
+
+    def _add_field(
+        self,
+        field: AnnDataField,
+        adata: AnnOrMuData,
+        source_registry: Optional[dict] = None,
+        **transfer_kwargs,
+    ):
+        """Internal function for adding a field with optional transferring."""
+        field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
+        if field.registry_key in field_registries:
+            raise ValueError(
+                f"Registry key {field.registry_key} for field already taken."
+            )
+        field_registries[field.registry_key] = {
+            _constants._DATA_REGISTRY_KEY: field.get_data_registry(),
+            _constants._STATE_REGISTRY_KEY: dict(),
+        }
+        field_registry = field_registries[field.registry_key]
+
+        # A field can be empty if the model has optional fields (e.g. extra covariates).
+        # If empty, we skip registering the field.
+        if not field.is_empty:
+            # Transfer case: Source registry is used for validation and/or setup.
+            if source_registry is not None:
+                field_registry[_constants._STATE_REGISTRY_KEY] = field.transfer_field(
+                    source_registry[_constants._FIELD_REGISTRIES_KEY][
+                        field.registry_key
+                    ][_constants._STATE_REGISTRY_KEY],
+                    adata,
+                    **transfer_kwargs,
+                )
+            else:
+                field_registry[_constants._STATE_REGISTRY_KEY] = field.register_field(
+                    adata
+                )
+        # Compute and set summary stats for the given field.
+        state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
+        field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(
+            state_registry
+        )
 
     def register_new_fields(self, fields: List[AnnDataField]):
         """
@@ -205,24 +221,11 @@ class AnnDataManager:
             raise AssertionError(
                 "No AnnData object has been registered with this Manager instance."
             )
-        field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
+        self.validate()
         for field in fields:
-            if field.registry_key in field_registries:
-                raise ValueError(
-                    f"Registry key {field.registry_key} for field already taken."
-                )
-            field_registries[field.registry_key] = {
-                _constants._DATA_REGISTRY_KEY: field.get_data_registry(),
-                _constants._STATE_REGISTRY_KEY: dict(),
-            }
-            field_registry = field_registries[field.registry_key]
-            field_registry[_constants._STATE_REGISTRY_KEY] = field.register_field(
-                self.adata
-            )
-            # Compute and set summary stats for the given field.
-            state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
-            field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(
-                state_registry
+            self._add_field(
+                field=field,
+                adata=self.adata,
             )
 
         # Source registry is not None if this manager was created from transfer_fields
