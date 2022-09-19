@@ -101,7 +101,7 @@ class PyroSviTrainMixin:
         """
         if max_epochs is None:
             n_obs = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_obs) * 1000), 1000])
+            max_epochs = int(np.min([round((20000 / n_obs) * 1000), 1000]))
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
         if lr is not None and "optim" not in plan_kwargs.keys():
