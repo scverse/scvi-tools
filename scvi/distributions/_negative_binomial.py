@@ -346,7 +346,7 @@ class NegativeBinomial(Distribution):
     def sample(
         self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
     ) -> torch.Tensor:
-        with torch.no_grad():
+        with torch.inference_mode():
             gamma_d = self._gamma()
             p_means = gamma_d.sample(sample_shape)
 
