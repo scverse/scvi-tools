@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -11,13 +11,7 @@ from tqdm import tqdm
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data import AnnDataManager
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-)
+from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.model._utils import _init_library_size
 from scvi.model.base import (
     ArchesMixin,
@@ -55,12 +49,6 @@ class SCAR(
         Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
         Dropout rate for neural networks.
-    dispersion
-        One of the following:
-        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-        * ``'gene-batch'`` - dispersion can differ between different batches
-        * ``'gene-label'`` - dispersion can differ between different labels
-        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     gene_likelihood
         One of:
         * ``'nb'`` - Negative binomial distribution
@@ -100,7 +88,6 @@ class SCAR(
         n_latent: int = 10,
         n_layers: int = 1,
         dropout_rate: float = 0.1,
-        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         latent_distribution: Literal["normal", "ln"] = "normal",
         scale_activation: Literal["softmax", "softplus", "softplus_sp"] = "softplus",
@@ -109,13 +96,6 @@ class SCAR(
     ):
         super(SCAR, self).__init__(adata)
 
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
-        )
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = (
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
@@ -148,15 +128,10 @@ class SCAR(
         self.module = SCAR_VAE(
             ambient_profile=ambient_profile,
             n_input=self.summary_stats.n_vars,
-            n_batch=n_batch,
-            n_labels=self.summary_stats.n_labels,
-            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
-            n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
-            dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
             use_size_factor_key=use_size_factor_key,
@@ -168,13 +143,12 @@ class SCAR(
         )
         self._model_summary_string = (
             "SCVI-AR Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
-            "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
+            "{}, gene_likelihood: {}, latent_distribution: {}"
         ).format(
             n_hidden,
             n_latent,
             n_layers,
             dropout_rate,
-            dispersion,
             gene_likelihood,
             latent_distribution,
         )
@@ -189,8 +163,6 @@ class SCAR(
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
         size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
         **kwargs,
     ):
         """
@@ -201,8 +173,6 @@ class SCAR(
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_size_factor_key)s
-        %(param_cat_cov_keys)s
-        %(param_cont_cov_keys)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
@@ -211,12 +181,6 @@ class SCAR(
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
         ]
         adata_manager = AnnDataManager(

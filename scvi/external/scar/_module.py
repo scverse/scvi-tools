@@ -1,7 +1,4 @@
-from typing import Iterable, Optional
-
 import torch
-import torch.nn.functional as F
 from torch import nn as nn
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
@@ -11,7 +8,7 @@ from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module._vae import VAE
 from scvi.module.base import LossRecorder, auto_move_data
-from scvi.nn import FCLayers, one_hot
+from scvi.nn import FCLayers
 
 torch.backends.cudnn.benchmark = True
 
@@ -66,18 +63,12 @@ class DecoderSCAR(nn.Module):
         The dimensionality of the input (latent space)
     n_output
         The dimensionality of the output (data space)
-    n_cat_list
-        A list containing the number of categories
-        for each category of interest. Each category will be
-        included using a one-hot encoding
     n_layers
         The number of fully-connected hidden layers
     n_hidden
         The number of nodes per hidden layer
     dropout_rate
         Dropout rate to apply to each of the hidden layers
-    inject_covariates
-        Whether to inject covariates in each layer, or just the first (default).
     use_batch_norm
         Whether to use batch norm in layers
     use_layer_norm
@@ -90,10 +81,8 @@ class DecoderSCAR(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        n_cat_list: Iterable[int] = None,
         n_layers: int = 1,
         n_hidden: int = 128,
-        inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         scale_activation: Literal["softmax", "softplus", "softplus_sp"] = "softplus",
@@ -103,11 +92,9 @@ class DecoderSCAR(nn.Module):
         self.px_decoder = FCLayers(
             n_in=n_input,
             n_out=n_hidden,
-            n_cat_list=n_cat_list,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0,
-            inject_covariates=inject_covariates,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
         )
@@ -131,50 +118,35 @@ class DecoderSCAR(nn.Module):
             tanh(),
         )
 
-        # dispersion: here we only deal with gene-cell dispersion case
-        self.px_r_decoder = nn.Linear(n_hidden, n_output)
-
         # dropout
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
 
     def forward(
         self,
-        dispersion: str,
         z: torch.Tensor,
         library: torch.Tensor,
-        *cat_list: int,
     ):
         """
         The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns parameters for the ZINB distribution of expression
-         #. If ``dispersion != 'gene-cell'`` then value for that param will be ``None``
 
         Parameters
         ----------
-        dispersion
-            One of the following
-
-            * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-            * ``'gene-batch'`` - dispersion can differ between different batches
-            * ``'gene-label'`` - dispersion can differ between different labels
-            * ``'gene-cell'`` - dispersion can differ for every gene in every cell
         z :
             tensor with shape ``(n_input,)``
         library_size
             library size
-        cat_list
-            list of category membership(s) for this sample
 
         Returns
         -------
         4-tuple of :py:class:`torch.Tensor`
-            parameters for the ZINB distribution of expression
+            parameters for the ZINB distribution of native expression and noise ratio
 
         """
         # The decoder returns values for the parameters of the ZINB distribution
-        px = self.px_decoder(z, *cat_list)
+        px = self.px_decoder(z)
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
 
@@ -183,9 +155,8 @@ class DecoderSCAR(nn.Module):
 
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
         px_rate = torch.exp(library) * px_scale  # torch.clamp( , max=12)
-        px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
 
-        return px_scale, px_noise_ratio, px_r, px_rate, px_dropout
+        return px_scale, px_noise_ratio, px_rate, px_dropout
 
 
 class SCAR_VAE(VAE):
@@ -198,20 +169,12 @@ class SCAR_VAE(VAE):
         The probability of occurrence of each ambient transcript.
     n_input
         Number of input genes
-    n_batch
-        Number of batches, if 0, no batch correction is performed.
-    n_labels
-        Number of labels
     n_hidden
         Number of nodes per hidden layer
     n_latent
         Dimensionality of the latent space
     n_layers
         Number of hidden layers used for encoder and decoder NNs
-    n_continuous_cov
-        Number of continuous covarites
-    n_cats_per_cov
-        Number of categories for each extra categorical covariate
     dropout_rate
         Dropout rate for neural networks
     sparsity
@@ -219,12 +182,6 @@ class SCAR_VAE(VAE):
         e.g. if one prefilters genes -- use only highly variable genes --
         the sparsity should be low; on the other hand, it should be set high
         in the case of unflitered genes.
-    dispersion
-        One of the following
-        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-        * ``'gene-batch'`` - dispersion can differ between different batches
-        * ``'gene-label'`` - dispersion can differ between different labels
-        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
     gene_likelihood
@@ -236,11 +193,6 @@ class SCAR_VAE(VAE):
         One of
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
-    encode_covariates
-        Whether to concatenate covariates to expression in encoder
-    deeply_inject_covariates
-        Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
-        only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     use_layer_norm
         Whether to use layer norm in layers
     use_size_factor_key
@@ -263,55 +215,39 @@ class SCAR_VAE(VAE):
         self,
         ambient_profile: torch.tensor,
         n_input: int,
-        n_batch: int = 0,
-        n_labels: int = 0,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
-        n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
         scale_activation: Literal["softmax", "softplus", "softplus_sp"] = "softplus",
         sparsity: float = 0.9,
-        dispersion: str = "gene",
         log_variational: bool = True,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         latent_distribution: str = "normal",
-        deeply_inject_covariates: bool = True,
         use_observed_lib_size: bool = True,
         **vae_kwargs,
     ):
         super().__init__(
             n_input=n_input,
-            n_batch=n_batch,
-            n_labels=n_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
-            n_continuous_cov=n_continuous_cov,
             dropout_rate=dropout_rate,
-            dispersion=dispersion,
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
-            deeply_inject_covariates=deeply_inject_covariates,
             use_observed_lib_size=use_observed_lib_size,
             **vae_kwargs,
         )
         self.sparsity = sparsity
         self.ambient_profile = ambient_profile
 
-        cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
-
         # decoder goes from n_latent-dimensional space to n_input-d data
-        n_input_decoder = n_latent + n_continuous_cov
         self.decoder = DecoderSCAR(
-            n_input_decoder,
+            n_latent,
             n_input,
-            n_cat_list=cat_list,
             n_layers=n_layers,
             n_hidden=n_hidden,
-            inject_covariates=deeply_inject_covariates,
             scale_activation=scale_activation,
             sparsity=self.sparsity,
         )
@@ -329,44 +265,18 @@ class SCAR_VAE(VAE):
         transform_batch=None,
     ):
         """Runs the generative model."""
-        # TODO: refactor forward function to not rely on y
         # Likelihood distribution
-        if cont_covs is None:
-            decoder_input = z
-        elif z.dim() != cont_covs.dim():
-            decoder_input = torch.cat(
-                [z, cont_covs.unsqueeze(0).expand(z.size(0), -1, -1)], dim=-1
-            )
-        else:
-            decoder_input = torch.cat([z, cont_covs], dim=-1)
-
-        if cat_covs is not None:
-            categorical_input = torch.split(cat_covs, 1, dim=1)
-        else:
-            categorical_input = tuple()
-
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
         if not self.use_size_factor_key:
             size_factor = library
 
-        px_scale, px_noise_ratio, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion,
-            decoder_input,
+        px_scale, px_noise_ratio, px_rate, px_dropout = self.decoder(
+            z,
             size_factor,
-            batch_index,
-            *categorical_input,
-            y,
         )
-        if self.dispersion == "gene-label":
-            px_r = F.linear(
-                one_hot(y, self.n_labels), self.px_r
-            )  # px_r gets transposed - last dimension is nb genes
-        elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
-        elif self.dispersion == "gene":
-            px_r = self.px_r
+        px_r = self.px_r
 
         # remove estimated noise
         px_scale = px_scale * (1 - px_noise_ratio)
