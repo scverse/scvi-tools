@@ -190,9 +190,6 @@ def test_register_new_fields(adata):
         )
     ]
     incremental_adata_manager.register_new_fields(new_fields)
-    with pytest.raises(ValueError):
-        incremental_adata_manager.register_new_fields(new_fields)
-
     adata_manager = generic_setup_adata_manager(
         adata, protein_expression_obsm_key="protein_expression"
     )
