@@ -14,8 +14,7 @@ This model was ported from another [Github](https://github.com/Novartis/scar).
 >>> vae = scvi_external.SCAR(adata, ambient_profile="ambient_profile")
 >>> vae.train()
 >>> adata.obsm["X_scAR"] = vae.get_latent_representation()
->>> posterior_preds = vae.posterior_predictive_sample(n_samples=15)
->>> adata.layers['denoised'] = sp.sparse.csr_matrix(np.median(posterior_preds, axis=-1))
+>>> adata.layers['denoised'] = vae.get_denoised_counts(flavor="sample_denoised_counts")
 ```
 
 

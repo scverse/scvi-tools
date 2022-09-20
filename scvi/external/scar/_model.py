@@ -30,6 +30,13 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Ambient RNA removal in scRNA-seq data [Sheng22]_.
     Original Github: https://github.com/Novartis/scar.
+    The models are parameter matched in architecture, activations, dropout, sparsity, and batch normalization.
+    The only difference is that we use a Zero-Inflated Negative Binomial (ZINB) distribution instead of a Binomial
+    by default and the second hidden layer is set to 150 instead of 100. We also added an option to denoise counts
+    by estimating the ambient counts from the learned distribution and subtracting them from the original count matrix
+    which is a more conservative removal approach than the one used in the original paper (directly estimating native
+    counts from the learned distribution).
+    This can be done by setting the `flavor` parameter of the `SCAR.get_denoised_counts()` function.
 
     Parameters
     ----------
@@ -73,21 +80,20 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     >>> vae = scvi_external.SCAR(adata)
     >>> vae.train()
     >>> adata.obsm["X_scAR"] = vae.get_latent_representation()
-    >>> posterior_preds = vae.posterior_predictive_sample(n_samples=15)
-    >>> adata.layers['denoised'] = sp.sparse.csr_matrix(np.median(posterior_preds, axis=-1))
+    >>> adata.layers['denoised'] = vae.get_denoised_counts(flavor="sample_denoised_counts")
     """
 
     def __init__(
         self,
         adata: AnnData,
         ambient_profile: Union[str, np.ndarray, pd.DataFrame, torch.tensor] = None,
-        n_hidden: int = 128,
-        n_latent: int = 10,
-        n_layers: int = 1,
-        dropout_rate: float = 0.1,
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        n_hidden: int = 150,
+        n_latent: int = 15,
+        n_layers: int = 2,
+        dropout_rate: float = 0.0,
+        gene_likelihood: Literal["zinb", "nb", "poisson"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        scale_activation: Literal["softmax", "softplus", "softplus_sp"] = "softplus",
+        scale_activation: Literal["softmax", "softplus", "softplus_sp"] = "softplus_sp",
         sparsity: float = 0.9,
         **model_kwargs,
     ):
@@ -349,8 +355,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             elif x_registry["attr_name"] == "layers":
                 data = adata.layers[x_registry["attr_key"]]
             ambient_counts = torch.cat(data_loader_list, dim=0).numpy()
-            # x_denoised = np.clip(data - ambient_counts, a_min=0., a_max=None)
             x_denoised = np.asarray(data - ambient_counts)
+            x_denoised = np.clip(x_denoised, a_min=0.0, a_max=None)
         else:
             x_denoised = torch.cat(data_loader_list, dim=0).numpy()
 
