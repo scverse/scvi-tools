@@ -62,9 +62,9 @@ class MULTIVAE(BaseModuleClass):
         * ``"universal"``: Learn weights across modalities w_m.
         * ``"cell"``: Learn weights across modalities and cells. w_{m,c}
     modality_penalty
-        "Jeffreys": Jeffreys penalty to align modalities
-         "MMD": MMD penalty to align modalities
-          "None": No penalty
+        * ``"Jeffreys"``: Jeffreys penalty to align modalities
+        * ``"MMD"``: MMD penalty to align modalities
+        * ``"None"``: No penalty
     n_batch
         Number of batches, if 0, no batch correction is performed.
     gene_likelihood
