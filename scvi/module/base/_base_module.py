@@ -315,8 +315,7 @@ class PyroBaseModuleClass(nn.Module):
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """
         old_history = model.history_.copy()
-        # TODO(adamgayoso): remove max epochs after lightning fix
-        model.train(max_steps=1, max_epochs=1, **self.on_load_kwargs)
+        model.train(max_steps=1, **self.on_load_kwargs)
         model.history_ = old_history
         pyro.clear_param_store()
 

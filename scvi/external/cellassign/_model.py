@@ -200,7 +200,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
 
         if max_epochs is None:
             n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 

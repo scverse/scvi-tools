@@ -160,6 +160,5 @@ class JaxModuleInit(Callback):
         else:
             dl = self.dataloader
         module_init = module.init(module.rngs, next(iter(dl)))
-        params = module_init["params"]
-        batch_stats = module_init["batch_stats"]
-        pl_module.set_train_state(params, batch_stats)
+        state, params = module_init.pop("params")
+        pl_module.set_train_state(params, state)
