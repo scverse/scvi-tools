@@ -14,7 +14,6 @@ from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.model._utils import _init_library_size
 from scvi.model.base import (
-    ArchesMixin,
     BaseModelClass,
     RNASeqMixin,
     UnsupervisedTrainingMixin,
@@ -27,9 +26,7 @@ from ._module import SCAR_VAE
 logger = logging.getLogger(__name__)
 
 
-class SCAR(
-    RNASeqMixin, ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass
-):
+class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Ambient RNA removal in scRNA-seq data [Sheng22]_.
     Original Github: https://github.com/Novartis/scar.
@@ -269,6 +266,92 @@ class SCAR(
             ambient_prof = emptydrops.X.sum(axis=0) / emptydrops.X.sum()
 
         # update ambient profile
-        adata.varm["ambient_profile"] = (
+        adata.varm["ambient_profile"] = np.asarray(
             emptydrops.X.sum(axis=0).reshape(-1, 1) / emptydrops.X.sum()
         )
+
+    @torch.no_grad()
+    def get_denoised_counts(
+        self,
+        adata: Optional[AnnData] = None,
+        n_samples: int = 1,
+        flavor: Literal[
+            "sample_denoised_counts", "remove_ambient_counts"
+        ] = "sample_denoised_counts",
+        batch_size: Optional[int] = None,
+    ) -> np.ndarray:
+        r"""
+        Generate observation samples from the posterior predictive distribution.
+
+        The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        n_samples
+            Number of samples for each cell.
+        flavor
+            The flavor of the denoising method. The following options are available:
+            `sample_denoised_counts` - sample from the count distribution (default)
+            `remove_ambient_counts` - remove the ambient distribution from the original counts
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+
+        Returns
+        -------
+        x_denoised : :py:class:`torch.Tensor`
+            tensor with shape (n_cells, n_genes)
+        """
+        adata = self._validate_anndata(adata)
+        scdl = self._make_data_loader(adata=adata, batch_size=batch_size)
+
+        data_loader_list = []
+        for tensors in scdl:
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            inference_kwargs = dict(n_samples=n_samples)
+            _, generative_outputs = self.module.forward(
+                tensors=tensors,
+                inference_kwargs=inference_kwargs,
+                compute_loss=False,
+            )
+
+            total_count_per_cell = x.sum(dim=1).reshape(-1, 1)
+
+            if flavor == "sample_denoised_counts":
+                expected_counts = (
+                    total_count_per_cell * generative_outputs["px"].scale.cpu()
+                )
+            elif flavor == "remove_ambient_counts":
+                expected_counts = (
+                    total_count_per_cell * generative_outputs["pamb_scale"].cpu()
+                )
+            else:
+                raise ValueError(
+                    "Invalid flavor. Needs to be one of 'sample_count_dist' or 'remove_ambient_dist'."
+                )
+
+            b = torch.distributions.Binomial(
+                probs=expected_counts - expected_counts.floor()
+            )
+            expected_counts = expected_counts.floor() + b.sample()
+
+            if n_samples > 1:
+                expected_counts = torch.median(expected_counts, dim=0)[0]
+
+            data_loader_list.append(expected_counts)
+
+        if flavor == "remove_ambient_counts":
+            x_registry = self.adata_manager.data_registry["X"]
+            if x_registry["attr_name"] == "X":
+                data = adata.X
+            elif x_registry["attr_name"] == "layers":
+                data = adata.layers[x_registry["attr_key"]]
+            ambient_counts = torch.cat(data_loader_list, dim=0).numpy()
+            # x_denoised = np.clip(data - ambient_counts, a_min=0., a_max=None)
+            x_denoised = np.asarray(data - ambient_counts)
+        else:
+            x_denoised = torch.cat(data_loader_list, dim=0).numpy()
+
+        return x_denoised
