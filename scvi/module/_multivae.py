@@ -132,7 +132,7 @@ class MULTIVAE(BaseModuleClass):
         modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
         n_batch: int = 0,
         n_obs: int = 0,
-        n_labels: int=0,
+        n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         gene_dispersion: str = "gene",
         n_hidden: Optional[int] = None,
@@ -361,7 +361,7 @@ class MULTIVAE(BaseModuleClass):
         if self.n_input_regions == 0:
             x_chr = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
-            x_chr = x[:, self.n_input_genes :]
+            x_chr = x[:, self.n_input_genes:]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
@@ -487,7 +487,7 @@ class MULTIVAE(BaseModuleClass):
         libsize_expr=None,
         size_factor=None,
         use_z_mean=False,
-        label: torch.Tensor=None,
+        label: torch.Tensor = None,
     ):
         """Runs the generative model."""
         if cat_covs is not None:
@@ -529,9 +529,9 @@ class MULTIVAE(BaseModuleClass):
         # Get the data
         x = tensors[REGISTRY_KEYS.X_KEY]
 
-        #TODO: CHECK IF THIS FAILS IN ONLY RNA DATA
+        # TODO: CHECK IF THIS FAILS IN ONLY RNA DATA
         x_rna = x[:, : self.n_input_genes]
-        x_chr = x[:, self.n_input_genes :]
+        x_chr = x[:, self.n_input_genes:]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
@@ -539,7 +539,7 @@ class MULTIVAE(BaseModuleClass):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         # Compute Accessibility loss
-        x_accessibility = x[:, self.n_input_genes :]
+        x_accessibility = x[:, self.n_input_genes:]
         p = generative_outputs["p"]
         libsize_acc = inference_outputs["libsize_acc"]
         reg_factor = torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
@@ -569,7 +569,7 @@ class MULTIVAE(BaseModuleClass):
         ).sum(dim=1)
 
         # Compute KLD between distributions for paired data
-        #TODO : CHECK ORIGINAL MODALITY PENALTY
+        # TODO : CHECK ORIGINAL MODALITY PENALTY
         kld_paired = self._compute_mod_penalty(
             (inference_outputs["qzm_expr"], inference_outputs["qzv_expr"]),
             (inference_outputs["qzm_acc"], inference_outputs["qzv_acc"]),
@@ -595,8 +595,8 @@ class MULTIVAE(BaseModuleClass):
                 -ZeroInflatedNegativeBinomial(
                     mu=px_rate, theta=px_r, zi_logits=px_dropout
                 )
-                .log_prob(x)
-                .sum(dim=-1)
+                    .log_prob(x)
+                    .sum(dim=-1)
             )
         elif self.gene_likelihood == "nb":
             rl = -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)

@@ -498,7 +498,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             region_mask = slice(None)
         else:
             region_mask = [
-                region in region_list for region in adata.var_names[self.n_genes :]
+                region in region_list for region in adata.var_names[self.n_genes:]
             ]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
@@ -538,13 +538,13 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             return pd.DataFrame.sparse.from_spmatrix(
                 imputed,
                 index=adata.obs_names[indices],
-                columns=adata.var_names[self.n_genes :][region_mask],
+                columns=adata.var_names[self.n_genes:][region_mask],
             )
         else:
             return pd.DataFrame(
                 imputed,
                 index=adata.obs_names[indices],
-                columns=adata.var_names[self.n_genes :][region_mask],
+                columns=adata.var_names[self.n_genes:][region_mask],
             )
 
     @torch.no_grad()
@@ -720,7 +720,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         """
         adata = self._validate_anndata(adata)
-        col_names = adata.var_names[self.n_genes :]
+        col_names = adata.var_names[self.n_genes:]
         model_fn = partial(
             self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
         )
@@ -741,7 +741,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         all_stats_fn = partial(
             scatac_raw_counts_properties,
-            var_idx=np.arange(adata.shape[1])[self.n_genes :],
+            var_idx=np.arange(adata.shape[1])[self.n_genes:],
         )
 
         result = _de_core(

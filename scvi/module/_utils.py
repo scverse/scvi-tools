@@ -42,6 +42,7 @@ def enumerate_discrete(x, y_dim):
     batch_size = x.size(0)
     return torch.cat([batch(batch_size, i) for i in range(y_dim)])
 
+
 def masked_softmax(weights, mask, dim=-1, eps=1e-30):
     """
     Computes a softmax of ``weights`` along ``dim`` where ``mask is True``.
