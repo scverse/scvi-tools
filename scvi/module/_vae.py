@@ -461,7 +461,7 @@ class VAE(BaseModuleClass):
 
         dist = generative_outputs["px"]
         if self.gene_likelihood == "poisson":
-            l_train = generative_outputs["px"].mu
+            l_train = generative_outputs["px"].rate
             l_train = torch.clamp(l_train, max=1e8)
             dist = torch.distributions.Poisson(
                 l_train
