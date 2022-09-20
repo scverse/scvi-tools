@@ -58,9 +58,9 @@ class MULTIVAE(BaseModuleClass):
     n_input_genes
         Number of input genes.
     modality_weights
-        "equal": Equal weight in each modality
-        "universal": Learn weights across modalities w_m.
-         "cell": Learn weights across modalities and cells. w_{m,c}
+        * ``"equal"``: Equal weight in each modality
+        * ``"universal"``: Learn weights across modalities w_m.
+        * ``"cell"``: Learn weights across modalities and cells. w_{m,c}
     modality_penalty
         "Jeffreys": Jeffreys penalty to align modalities
          "MMD": MMD penalty to align modalities
