@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, Optional, Union, Callable
+from typing import Dict, Iterable, Optional
 
 import numpy as np
 import torch
@@ -7,18 +7,12 @@ from torch.distributions import kl_divergence as kld
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.distributions import (
-    NegativeBinomial,
-    ZeroInflatedNegativeBinomial,
-    NegativeBinomialMixture,
-)
+from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module._peakvae import Decoder as DecoderPeakVI
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
-from scvi.nn import DecoderSCVI, Encoder, FCLayers, one_hot
-from ._utils import masked_softmax
+from scvi.nn import DecoderSCVI, Encoder, FCLayers
 
-from torch import nn
-from torch.nn import functional as F
+from ._utils import masked_softmax
 
 
 class LibrarySizeEncoder(torch.nn.Module):
@@ -361,7 +355,7 @@ class MULTIVAE(BaseModuleClass):
         if self.n_input_regions == 0:
             x_chr = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
-            x_chr = x[:, self.n_input_genes:]
+            x_chr = x[:, self.n_input_genes :]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
@@ -410,6 +404,7 @@ class MULTIVAE(BaseModuleClass):
 
         # Sample
         if n_samples > 1:
+
             def unsqz(zt, n_s):
                 return zt.unsqueeze(0).expand((n_s, zt.size(0), zt.size(1)))
 
@@ -512,7 +507,11 @@ class MULTIVAE(BaseModuleClass):
         if not self.use_size_factor_key:
             size_factor = libsize_expr
         px_scale, _, px_rate, px_dropout = self.z_decoder_expression(
-            self.gene_dispersion, decoder_input, size_factor, batch_index, *categorical_input
+            self.gene_dispersion,
+            decoder_input,
+            size_factor,
+            batch_index,
+            *categorical_input
         )
 
         return dict(
@@ -531,18 +530,18 @@ class MULTIVAE(BaseModuleClass):
 
         # TODO: CHECK IF THIS FAILS IN ONLY RNA DATA
         x_rna = x[:, : self.n_input_genes]
-        x_chr = x[:, self.n_input_genes:]
+        x_chr = x[:, self.n_input_genes :]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
 
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
         # Compute Accessibility loss
-        x_accessibility = x[:, self.n_input_genes:]
+        x_accessibility = x[:, self.n_input_genes :]
         p = generative_outputs["p"]
         libsize_acc = inference_outputs["libsize_acc"]
-        reg_factor = torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
+        reg_factor = (
+            torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
+        )
         rl_accessibility = self.get_reconstruction_loss_accessibility(
             x_accessibility, p, reg_factor, libsize_acc
         )
@@ -595,8 +594,8 @@ class MULTIVAE(BaseModuleClass):
                 -ZeroInflatedNegativeBinomial(
                     mu=px_rate, theta=px_r, zi_logits=px_dropout
                 )
-                    .log_prob(x)
-                    .sum(dim=-1)
+                .log_prob(x)
+                .sum(dim=-1)
             )
         elif self.gene_likelihood == "nb":
             rl = -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
