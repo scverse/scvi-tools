@@ -609,8 +609,7 @@ class MULTIVAE(BaseModuleClass):
         ).sum(dim=-1)
 
     def _compute_mod_penalty(self, mod_params1, mod_params2, mask1, mask2):
-        """Compute the weighted mean of the Xs while masking values that originate
-        from modalities that aren't measured.
+        """Weighted mean of Xs while masking values that originate from non-measured modalities
 
         Parameters
         ----------
