@@ -394,8 +394,8 @@ class MULTIVAE(BaseModuleClass):
         else:
             weights = self.mod_weights.unsqueeze(0).expand(len(cell_idx), -1)
 
-        qz_m = self._mix_modalities((qzm_expr, qzm_acc), (mask_expr, mask_acc), weights)
-        qz_v = self._mix_modalities(
+        qz_m = mix_modalities((qzm_expr, qzm_acc), (mask_expr, mask_acc), weights)
+        qz_v = mix_modalities(
             (qzv_expr, qzv_acc),
             (mask_expr, mask_acc),
             weights,
@@ -539,11 +539,8 @@ class MULTIVAE(BaseModuleClass):
         x_accessibility = x[:, self.n_input_genes :]
         p = generative_outputs["p"]
         libsize_acc = inference_outputs["libsize_acc"]
-        reg_factor = (
-            torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
-        )
         rl_accessibility = self.get_reconstruction_loss_accessibility(
-            x_accessibility, p, reg_factor, libsize_acc
+            x_accessibility, p, libsize_acc
         )
 
         # Compute Expression loss
@@ -603,41 +600,13 @@ class MULTIVAE(BaseModuleClass):
             rl = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return rl
 
-    def get_reconstruction_loss_accessibility(self, x, p, f, d):
-        return torch.nn.BCELoss(reduction="none")(p * d * f, (x > 0).float()).sum(
-            dim=-1
+    def get_reconstruction_loss_accessibility(self, x, p, d):
+        reg_factor = (
+            torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
         )
-
-    @auto_move_data
-    def _mix_modalities(self, Xs, masks, weights, weight_transform: callable = None):
-        """Compute the weighted mean of the Xs while masking values that originate
-        from modalities that aren't measured.
-
-        Parameters
-        ----------
-        Xs
-            Sequence of Xs to mix, each should be (N x D)
-        masks
-            Sequence of masks corresponding to the Xs, indicating whether the values
-            should be included in the mix or not (N)
-        weights
-            Weights for each modality (either K or N x K)
-        weight_transform
-            Transformation to apply to the weights before using them
-        """
-        # (batch_size x latent) -> (batch_size x modalities x latent)
-        Xs = torch.stack(Xs, dim=1)
-        # (batch_size) -> (batch_size x modalities)
-        masks = torch.stack(masks, dim=1).float()
-        weights = masked_softmax(weights, masks, dim=-1)
-
-        # (batch_size x modalities) -> (batch_size x modalities x latent)
-        weights = weights.unsqueeze(-1)
-        if weight_transform is not None:
-            weights = weight_transform(weights)
-
-        # sum over modalities, so output is (batch_size x latent)
-        return (weights * Xs).sum(1)
+        return torch.nn.BCELoss(reduction="none")(
+            p * d * reg_factor, (x > 0).float()
+        ).sum(dim=-1)
 
     def _compute_mod_penalty(self, mod_params1, mod_params2, mask1, mask2):
         """Compute the weighted mean of the Xs while masking values that originate
@@ -665,3 +634,35 @@ class MULTIVAE(BaseModuleClass):
             pair_penalty.T,
             torch.zeros_like(pair_penalty).T,
         ).sum(dim=0)
+
+
+@auto_move_data
+def mix_modalities(Xs, masks, weights, weight_transform: callable = None):
+    """Compute the weighted mean of the Xs while masking values that originate
+    from modalities that aren't measured.
+
+    Parameters
+    ----------
+    Xs
+        Sequence of Xs to mix, each should be (N x D)
+    masks
+        Sequence of masks corresponding to the Xs, indicating whether the values
+        should be included in the mix or not (N)
+    weights
+        Weights for each modality (either K or N x K)
+    weight_transform
+        Transformation to apply to the weights before using them
+    """
+    # (batch_size x latent) -> (batch_size x modalities x latent)
+    Xs = torch.stack(Xs, dim=1)
+    # (batch_size) -> (batch_size x modalities)
+    masks = torch.stack(masks, dim=1).float()
+    weights = masked_softmax(weights, masks, dim=-1)
+
+    # (batch_size x modalities) -> (batch_size x modalities x latent)
+    weights = weights.unsqueeze(-1)
+    if weight_transform is not None:
+        weights = weight_transform(weights)
+
+    # sum over modalities, so output is (batch_size x latent)
+    return (weights * Xs).sum(1)

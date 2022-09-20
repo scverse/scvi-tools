@@ -46,6 +46,7 @@ def enumerate_discrete(x, y_dim):
 def masked_softmax(weights, mask, dim=-1, eps=1e-30):
     """
     Computes a softmax of ``weights`` along ``dim`` where ``mask is True``.
+
     Adds a small ``eps`` term in the numerator and denominator to avoid zero division.
     Taken from: https://discuss.pytorch.org/t/apply-mask-softmax/14212/15.
     Pytorch issue tracked at: https://github.com/pytorch/pytorch/issues/55056.
