@@ -63,6 +63,14 @@ class MULTIVAE(BaseModuleClass):
         Number of input regions.
     n_input_genes
         Number of input genes.
+    modality_weights
+        "equal": Equal weight in each modality
+        "universal": Learn weights across modalities w_m.
+         "cell": Learn weights across modalities and cells. w_{m,c}
+    modality_penalty
+        "Jeffreys": Jeffreys penalty to align modalities
+         "MMD": MMD penalty to align modalities
+          "None": No penalty
     n_batch
         Number of batches, if 0, no batch correction is performed.
     gene_likelihood
@@ -70,6 +78,12 @@ class MULTIVAE(BaseModuleClass):
         * ``'zinb'`` - Zero-Inflated Negative Binomial
         * ``'nb'`` - Negative Binomial
         * ``'poisson'`` - Poisson
+    dispersion
+        One of the following:
+        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
+        * ``'gene-batch'`` - dispersion can differ between different batches
+        * ``'gene-label'`` - dispersion can differ between different labels
+        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     n_hidden
         Number of nodes per hidden layer. If `None`, defaults to square root
         of number of regions.
@@ -341,11 +355,11 @@ class MULTIVAE(BaseModuleClass):
 
         # Get Data and Additional Covs
         if self.n_input_genes == 0:
-            x_rna = torch.zeros(x.shape[0], device=x.device, requires_grad=False)
+            x_rna = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             x_rna = x[:, : self.n_input_genes]
         if self.n_input_regions == 0:
-            x_chr = torch.zeros(x.shape[0], device=x.device, requires_grad=False)
+            x_chr = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             x_chr = x[:, self.n_input_genes :]
 
