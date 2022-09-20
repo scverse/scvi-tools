@@ -638,8 +638,8 @@ class MULTIVAE(BaseModuleClass):
 
 @auto_move_data
 def mix_modalities(Xs, masks, weights, weight_transform: callable = None):
-    """Compute the weighted mean of the Xs while masking values that originate
-    from modalities that aren't measured.
+    """
+    Compute the weighted mean of the Xs while masking unmeasured modality values.
 
     Parameters
     ----------
