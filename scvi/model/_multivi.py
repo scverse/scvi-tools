@@ -326,6 +326,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         -------
         Library size factor for expression and accessibility
         """
+        self._check_adata_modalityweights(adata)
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -386,7 +387,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """
         if not self.is_trained_:
             raise RuntimeError("Please train the model first.")
-
+        self._check_adata_modalityweights(adata)
         keys = {"z": "z", "qz_m": "qz_m", "qz_v": "qz_v"}
         if self.fully_paired and modality != "joint":
             raise RuntimeError(
@@ -480,6 +481,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model
         """
+        self._check_adata_modalityweights(adata)
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata, required=True)
         if indices is None:
@@ -598,6 +600,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
+        self._check_adata_modalityweights(adata)
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata, required=True)
         if indices is None:
@@ -716,6 +719,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             the empirical (observed) probability of accessibility in population 2
 
         """
+        self._check_adata_modalityweights(adata)
         adata = self._validate_anndata(adata)
         col_names = adata.var_names[self.n_genes :]
         model_fn = partial(
@@ -816,6 +820,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         -------
         Differential expression DataFrame.
         """
+        self._check_adata_modalityweights(adata)
         adata = self._validate_anndata(adata)
 
         col_names = adata.var_names[: self.n_genes]
@@ -897,3 +902,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+
+    def _check_adata_modalityweights(self, adata):
+        """
+        Checks if adata is None and weights are per cell.
+
+        :param adata: anndata object
+        :return:
+        """
+        if (adata is not None) and (self.modality_weights == "cell"):
+            raise RuntimeError(
+                "Held out data not permitted when using per cell weights"
+            )
