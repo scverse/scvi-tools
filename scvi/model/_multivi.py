@@ -54,6 +54,16 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         The number of gene expression features (genes).
     n_regions
         The number of accessibility features (genomic regions).
+    modality_weights
+        Weighting scheme across modalities. One of the following:
+        * ``"equal"``: Equal weight in each modality
+        * ``"universal"``: Learn weights across modalities w_m.
+        * ``"cell"``: Learn weights across modalities and cells. w_{m,c}
+    modality_penalty
+        Training Penalty across modalities. One of the following:
+        * ``"Jeffreys"``: Jeffreys penalty to align modalities
+        * ``"MMD"``: MMD penalty to align modalities
+        * ``"None"``: No penalty
     n_hidden
         Number of nodes per hidden layer. If `None`, defaults to square root
         of number of regions.
@@ -80,7 +90,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     fully_paired
         allows the simplification of the model if the data is fully paired. Currently ignored.
     **model_kwargs
-        Keyword args for :class:`~scvi.module.PEAKVAE`
+        Keyword args for :class:`~scvi.module.MULTIVAE`
 
     Examples
     --------
