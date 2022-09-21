@@ -13,8 +13,8 @@ from scvi.utils._jax import device_selecting_PRNGKey
 from ._base_module import JaxBaseModuleClass
 
 
-class TrainStateWithBatchNorm(train_state.TrainState):
-    batch_stats: FrozenDict[str, Any]
+class TrainStateWithState(train_state.TrainState):
+    state: FrozenDict[str, Any]
 
 
 class JaxModuleWrapper:
@@ -92,7 +92,7 @@ class JaxModuleWrapper:
     def _bound_module(self):
         """Module bound with parameters learned from training."""
         return self.module.bind(
-            {"params": self.params, "batch_stats": self.batch_stats},
+            {"params": self.params, **self.state},
             rngs=self.rngs,
         )
 
@@ -161,21 +161,21 @@ class JaxModuleWrapper:
         return ret_rngs
 
     @property
-    def train_state(self) -> TrainStateWithBatchNorm:
+    def train_state(self) -> TrainStateWithState:
         """Train state containing learned parameter values from training."""
         return self._train_state
 
     @train_state.setter
-    def train_state(self, train_state: TrainStateWithBatchNorm):
+    def train_state(self, train_state: TrainStateWithState):
         self._train_state = train_state
 
     @property
-    def params(self) -> flax.core.FrozenDict[str, Any]:
+    def params(self) -> FrozenDict[str, Any]:
         return self.train_state.params
 
     @property
-    def batch_stats(self) -> FrozenDict[str, Any]:
-        return self.train_state.batch_stats
+    def state(self) -> FrozenDict[str, Any]:
+        return self.train_state.state
 
     def state_dict(self) -> Dict[str, Any]:
         """Returns a serialized version of the train state as a dictionary."""

@@ -39,7 +39,11 @@ def parse_use_gpu_arg(
     """
     # Support Apple silicon
     cuda_available = torch.cuda.is_available()
-    mps_available = torch.backends.mps.is_available()
+    # If using an older version of torch.
+    try:
+        mps_available = torch.backends.mps.is_available()
+    except AttributeError:
+        mps_available = False
     gpu_available = cuda_available
     lightning_devices = None
     if (use_gpu is None and not gpu_available) or (use_gpu is False):
