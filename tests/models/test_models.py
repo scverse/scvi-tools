@@ -921,6 +921,46 @@ def test_data_splitter():
         ds.train_dataloader()
         ds.val_dataloader()
 
+    # test that data_loader_kwargs get default drop_last=3 when respective keyword arg is not provided to DataSplitter   
+    ds = DataSplitter(adata_manager, train_size=400/a.n_obs, batch_size=397)
+    ds.setup()
+    adl = ds.train_dataloader()
+    assert len(adl) == 2
+    for i, x in enumerate(adl):
+        pass
+    assert i == 1
+
+    ds = DataSplitter(adata_manager, train_size=400/a.n_obs, batch_size=398)
+    ds.setup()
+    adl = ds.train_dataloader()
+    assert len(adl) == 1
+    for i, x in enumerate(adl):
+        pass
+    assert i == 0
+
+    # test that splitter kwargs are able to override default values for data_loader_kwargs: integer drop last batch size   
+    ds = DataSplitter(adata_manager, train_size=400/a.n_obs, batch_size=398, drop_last=2)
+    ds.setup()
+    adl = ds.train_dataloader()
+    assert len(adl) == 2
+    for i, x in enumerate(adl):
+        pass
+    assert i == 1
+
+    # test that splitter kwargs are able to override default values for data_loader_kwargs: boolean drop_last=True
+    ds = DataSplitter(adata_manager, train_size=400/a.n_obs, batch_size=398)
+    ds.setup()
+    adl = ds.train_dataloader()
+    assert len(adl) == 1
+    for i, x in enumerate(adl):
+        pass
+    assert i == 0
+
+    with pytest.raises(ValueError):
+        ds = DataSplitter(adata_manager, train_size=400/a.n_obs, batch_size=1, drop_last=2)
+        ds.setup()
+        adl = ds.train_dataloader()
+
 
 def test_device_backed_data_splitter():
     a = synthetic_iid()
