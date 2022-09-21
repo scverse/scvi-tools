@@ -238,7 +238,7 @@ class CellAssignModule(BaseModuleClass):
             loss, q_per_cell, torch.zeros_like(q_per_cell), prior_log_prob
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
