@@ -31,12 +31,6 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Ambient RNA removal in scRNA-seq data [Sheng22]_.
     Original Github: https://github.com/Novartis/scar.
     The models are parameter matched in architecture, activations, dropout, sparsity, and batch normalization.
-    The only difference is that we use a Zero-Inflated Negative Binomial (ZINB) distribution instead of a Binomial
-    by default and the second hidden layer is set to 150 instead of 100. We also added an option to denoise counts
-    by estimating the ambient counts from the learned distribution and subtracting them from the original count matrix
-    which is a more conservative removal approach than the one used in the original paper (directly estimating native
-    counts from the learned distribution).
-    This can be done by setting the `flavor` parameter of the `SCAR.get_denoised_counts()` function.
 
     Parameters
     ----------
@@ -55,6 +49,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Dropout rate for neural networks.
     gene_likelihood
         One of:
+        * ``'b'`` - Binomial distribution
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
@@ -80,7 +75,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     >>> vae = scvi_external.SCAR(adata)
     >>> vae.train()
     >>> adata.obsm["X_scAR"] = vae.get_latent_representation()
-    >>> adata.layers['denoised'] = vae.get_denoised_counts(flavor="sample_denoised_counts")
+    >>> adata.layers['denoised'] = vae.get_denoised_counts()
     """
 
     def __init__(
@@ -91,7 +86,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_latent: int = 15,
         n_layers: int = 2,
         dropout_rate: float = 0.0,
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "nb",
+        gene_likelihood: Literal["zinb", "nb", "b", "poisson"] = "b",
         latent_distribution: Literal["normal", "ln"] = "normal",
         scale_activation: Literal["softmax", "softplus", "softplus_sp"] = "softplus_sp",
         sparsity: float = 0.9,
@@ -281,9 +276,6 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: Optional[AnnData] = None,
         n_samples: int = 1,
-        flavor: Literal[
-            "sample_denoised_counts", "remove_ambient_counts"
-        ] = "sample_denoised_counts",
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
         r"""
@@ -298,10 +290,6 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             AnnData object used to initialize the model.
         n_samples
             Number of samples for each cell.
-        flavor
-            The flavor of the denoising method. The following options are available:
-            `sample_denoised_counts` - sample from the count distribution (default)
-            `remove_ambient_counts` - remove the ambient distribution from the original counts
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 
@@ -325,18 +313,11 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
             total_count_per_cell = x.sum(dim=1).reshape(-1, 1)
 
-            if flavor == "sample_denoised_counts":
-                expected_counts = (
-                    total_count_per_cell * generative_outputs["px"].scale.cpu()
-                )
-            elif flavor == "remove_ambient_counts":
-                expected_counts = (
-                    total_count_per_cell * generative_outputs["pamb_scale"].cpu()
-                )
+            if self.module.gene_likelihood == "b":
+                px_scale = generative_outputs["px"].probs
             else:
-                raise ValueError(
-                    "Invalid flavor. Needs to be one of 'sample_count_dist' or 'remove_ambient_dist'."
-                )
+                px_scale = generative_outputs["px"].scale
+            expected_counts = total_count_per_cell * px_scale.cpu()
 
             b = torch.distributions.Binomial(
                 probs=expected_counts - expected_counts.floor()
@@ -348,16 +329,6 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
             data_loader_list.append(expected_counts)
 
-        if flavor == "remove_ambient_counts":
-            x_registry = self.adata_manager.data_registry["X"]
-            if x_registry["attr_name"] == "X":
-                data = adata.X
-            elif x_registry["attr_name"] == "layers":
-                data = adata.layers[x_registry["attr_key"]]
-            ambient_counts = torch.cat(data_loader_list, dim=0).numpy()
-            x_denoised = np.asarray(data - ambient_counts)
-            x_denoised = np.clip(x_denoised, a_min=0.0, a_max=None)
-        else:
-            x_denoised = torch.cat(data_loader_list, dim=0).numpy()
+        x_denoised = torch.cat(data_loader_list, dim=0).numpy()
 
         return x_denoised

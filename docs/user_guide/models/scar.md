@@ -14,7 +14,7 @@ This model was ported from another [Github](https://github.com/Novartis/scar).
 >>> vae = scvi_external.SCAR(adata, ambient_profile="ambient_profile")
 >>> vae.train()
 >>> adata.obsm["X_scAR"] = vae.get_latent_representation()
->>> adata.layers['denoised'] = vae.get_denoised_counts(flavor="sample_denoised_counts")
+>>> adata.layers['denoised'] = vae.get_denoised_counts()
 ```
 
 

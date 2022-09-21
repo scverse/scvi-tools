@@ -1,6 +1,6 @@
 import torch
 from torch import nn as nn
-from torch.distributions import Normal
+from torch.distributions import Binomial, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
@@ -186,6 +186,7 @@ class SCAR_VAE(VAE):
         Log(data+1) prior to encoding for numerical stability. Not normalization.
     gene_likelihood
         One of
+        * ``'b'`` - Binomial distribution
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
@@ -222,7 +223,7 @@ class SCAR_VAE(VAE):
         scale_activation: Literal["softmax", "softplus", "softplus_sp"] = "softplus_sp",
         sparsity: float = 0.9,
         log_variational: bool = True,
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "nb",
+        gene_likelihood: Literal["zinb", "nb", "b", "poisson"] = "b",
         latent_distribution: str = "normal",
         use_observed_lib_size: bool = True,
         **vae_kwargs,
@@ -294,6 +295,8 @@ class SCAR_VAE(VAE):
             )
         elif self.gene_likelihood == "nb":
             px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
+        elif self.gene_likelihood == "b":
+            px = Binomial(total_count=torch.exp(size_factor).int(), probs=px_scale)
         elif self.gene_likelihood == "poisson":
             px = Poisson(rate=px_rate, scale=px_scale)
 
@@ -348,6 +351,11 @@ class SCAR_VAE(VAE):
                 mu=px.mu + generative_outputs["pamb_rate"],
                 theta=px.theta,
                 scale=px.scale + generative_outputs["pamb_scale"],
+            )
+        elif self.gene_likelihood == "b":
+            px = Binomial(
+                total_count=px.total_count,
+                probs=px.probs + generative_outputs["pamb_scale"],
             )
         elif self.gene_likelihood == "poisson":
             px = Poisson(

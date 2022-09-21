@@ -13,9 +13,7 @@ def test_scar():
     model.get_latent_representation()
     model.get_marginal_ll(n_mc_samples=5)
     model.get_reconstruction_error()
-    # testing both flavors of count removal
     model.get_denoised_counts(adata, n_samples=1)
-    model.get_denoised_counts(adata, n_samples=1, flavor="remove_ambient_counts")
     model.history
 
     # tests __repr__
