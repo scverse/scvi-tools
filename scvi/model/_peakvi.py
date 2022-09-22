@@ -243,7 +243,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **kwargs,
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_library_size_factors(
         self,
         adata: Optional[AnnData] = None,
@@ -280,14 +280,14 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         return torch.cat(library_sizes).numpy().squeeze()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_region_factors(self):
         """Return region-specific factors."""
         if self.module.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
         return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_accessibility_estimates(
         self,
         adata: Optional[AnnData] = None,

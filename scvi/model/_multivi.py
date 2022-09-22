@@ -312,7 +312,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         return runner()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_library_size_factors(
         self,
         adata: Optional[AnnData] = None,
@@ -354,7 +354,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             "accessibility": torch.cat(lib_acc).numpy().squeeze(),
         }
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_region_factors(self) -> np.ndarray:
         """Return region-specific factors."""
         if self.n_regions == 0:
@@ -364,7 +364,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 raise RuntimeError("region factors were not included in this model")
             return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,
@@ -437,7 +437,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             latent += [z.cpu()]
         return torch.cat(latent).numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_accessibility_estimates(
         self,
         adata: Optional[AnnData] = None,
@@ -556,7 +556,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 columns=adata.var_names[self.n_genes :][region_mask],
             )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_normalized_expression(
         self,
         adata: Optional[AnnData] = None,
