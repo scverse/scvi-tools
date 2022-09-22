@@ -1,4 +1,6 @@
 import logging
+import warnings
+from collections.abc import Iterable as IterableClass
 from functools import partial
 from typing import Dict, Iterable, List, Optional, Sequence, Union
 
@@ -20,6 +22,7 @@ from scvi.data.fields import (
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
+    ProteinObsmField,
 )
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
@@ -80,6 +83,16 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Model sequencing depth / library size.
     region_factors
         Include region-specific factors in the model.
+    gene_dispersion
+        One of the following
+        * ``'gene'`` - genes_dispersion parameter of NB is constant per gene across cells
+        * ``'gene-batch'`` - genes_dispersion can differ between different batches
+        * ``'gene-label'`` - genes_dispersion can differ between different labels
+    protein_dispersion
+        One of the following
+        * ``'protein'`` - protein_dispersion parameter is constant per protein across cells
+        * ``'protein-batch'`` - protein_dispersion can differ between different batches NOT TESTED
+        * ``'protein-label'`` - protein_dispersion can differ between different labels NOT TESTED
     latent_distribution
         One of
         * ``'normal'`` - Normal distribution
@@ -120,6 +133,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: AnnData,
         n_genes: int,
         n_regions: int,
+        n_proteins: int,
         modality_weights: Literal["equal", "cell", "universal"] = "equal",
         modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
         n_hidden: Optional[int] = None,
@@ -136,9 +150,17 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
         fully_paired: bool = False,
+        empirical_protein_background_prior: bool = True,
+        protein_dispersion: str = "protein",
         **model_kwargs,
     ):
         super().__init__(adata)
+
+        n_batch = self.summary_stats.n_batch
+        if empirical_protein_background_prior:
+            prior_mean, prior_scale = None, None
+        else:
+            prior_mean, prior_scale = None, None
 
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
@@ -155,6 +177,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self.module = MULTIVAE(
             n_input_genes=n_genes,
             n_input_regions=n_regions,
+            n_input_proteins=n_proteins,
             modality_weights=modality_weights,
             modality_penalty=modality_penalty,
             n_batch=self.summary_stats.n_batch,
@@ -175,16 +198,20 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             latent_distribution=latent_distribution,
             deeply_inject_covariates=deeply_inject_covariates,
             encode_covariates=encode_covariates,
+            protein_background_prior_mean=prior_mean,
+            protein_background_prior_scale=prior_scale,
+            protein_dispersion=protein_dispersion,
             **model_kwargs,
         )
         self._model_summary_string = (
-            "MultiVI Model with INPUTS: n_genes:{}, n_regions:{}\n"
+            "MultiVI Model with INPUTS: n_genes:{}, n_regions:{}, n_proteins:{}\n"
             "n_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
             "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
-            "gene_likelihood: {}, gene_dispersion:{}, Mod.Weights:{}, Mod.Penalty:{}"
+            "gene_likelihood: {}, gene_dispersion:{}, Mod.Weights:{}, Mod.Penalty:{}, protein_dispersion:{}"
         ).format(
             n_genes,
             n_regions,
+            n_proteins,
             self.module.n_hidden,
             self.module.n_latent,
             n_layers_encoder,
@@ -196,12 +223,14 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             dispersion,
             modality_weights,
             modality_penalty,
+            protein_dispersion,
         )
         self.fully_paired = fully_paired
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
         self.n_genes = n_genes
         self.n_regions = n_regions
+        self.n_proteins = n_proteins
 
     def train(
         self,
@@ -408,9 +437,11 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 keys = {"z": "z_expr", "qz_m": "qzm_expr", "qz_v": "qzv_expr"}
             elif modality == "accessibility":
                 keys = {"z": "z_acc", "qz_m": "qzm_acc", "qz_v": "qzv_acc"}
+            elif modality == "protein":
+                keys = {"z": "z_pro", "qz_m": "qzm_pro", "qz_v": "qzv_pro"}
             else:
                 raise RuntimeError(
-                    "modality must be 'joint', 'expression', or 'accessibility'."
+                    "modality must be 'joint', 'expression', 'accessibility', or 'protein'."
                 )
 
         adata = self._validate_anndata(adata)
@@ -865,6 +896,132 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         return result
 
+    @torch.no_grad()
+    def get_protein_foreground_probability(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
+        protein_list: Optional[Sequence[str]] = None,
+        n_samples: int = 1,
+        batch_size: Optional[int] = None,
+        use_z_mean: bool = True,
+        return_mean: bool = True,
+        return_numpy: Optional[bool] = None,
+    ):
+        r"""
+        Returns the foreground probability for proteins.
+
+        This is denoted as :math:`(1 - \pi_{nt})` in the totalVI paper.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+
+            - None, then real observed batch is used
+            - int, then batch transform_batch is used
+            - List[int], then average over batches in list
+        protein_list
+            Return protein expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        n_samples
+            Number of posterior samples to use for estimation.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
+            gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
+            Otherwise, it defaults to `True`.
+
+        Returns
+        -------
+        - **foreground_probability** - probability foreground for each protein
+
+        If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
+        Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        """
+        adata = self._validate_anndata(adata)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
+
+        if protein_list is None:
+            protein_mask = slice(None)
+        else:
+            all_proteins = self.scvi_setup_dict_["protein_names"]
+            protein_mask = [True if p in protein_list else False for p in all_proteins]
+
+        if n_samples > 1 and return_mean is False:
+            if return_numpy is False:
+                warnings.warn(
+                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                )
+            return_numpy = True
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+
+        py_mixings = []
+        if not isinstance(transform_batch, IterableClass):
+            transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(
+            self.adata_manager, transform_batch
+        )
+        for tensors in post:
+            y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
+            py_mixing = torch.zeros_like(y[..., protein_mask])
+            if n_samples > 1:
+                py_mixing = torch.stack(n_samples * [py_mixing])
+            for b in transform_batch:
+                # generative_kwargs = dict(transform_batch=b)
+                generative_kwargs = dict(use_z_mean=use_z_mean)
+                inference_kwargs = dict(n_samples=n_samples)
+                _, generative_outputs = self.module.forward(
+                    tensors=tensors,
+                    inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
+                    compute_loss=False,
+                )
+                py_mixing += torch.sigmoid(generative_outputs["py_"]["mixing"])[
+                    ..., protein_mask
+                ].cpu()
+            py_mixing /= len(transform_batch)
+            py_mixings += [py_mixing]
+        if n_samples > 1:
+            # concatenate along batch dimension -> result shape = (samples, cells, features)
+            py_mixings = torch.cat(py_mixings, dim=1)
+            # (cells, features, samples)
+            py_mixings = py_mixings.permute(1, 2, 0)
+        else:
+            py_mixings = torch.cat(py_mixings, dim=0)
+
+        if return_mean is True and n_samples > 1:
+            py_mixings = torch.mean(py_mixings, dim=-1)
+
+        py_mixings = py_mixings.cpu().numpy()
+
+        if return_numpy is True:
+            return 1 - py_mixings
+        else:
+            pro_names = self.protein_state_registry.column_names
+            # pro_names = self.scvi_setup_dict_["protein_names"]
+            foreground_prob = pd.DataFrame(
+                1 - py_mixings,
+                columns=pro_names[protein_mask],
+                index=adata.obs_names[indices],
+            )
+            return foreground_prob
+
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
@@ -875,6 +1032,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
+        protein_expression_obsm_key: Optional[str] = None,
+        protein_names_uns_key: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -907,6 +1066,18 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             ),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
+        if protein_expression_obsm_key is not None:
+            anndata_fields.append(
+                ProteinObsmField(
+                    REGISTRY_KEYS.PROTEIN_EXP_KEY,
+                    protein_expression_obsm_key,
+                    use_batch_mask=True,
+                    batch_field=batch_field,
+                    colnames_uns_key=protein_names_uns_key,
+                    is_count_data=True,
+                )
+            )
+
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
         )
