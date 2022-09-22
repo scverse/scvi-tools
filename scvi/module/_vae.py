@@ -127,7 +127,7 @@ class VAE(BaseModuleClass):
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         if not self.use_observed_lib_size:
-            if library_log_means is None or library_log_means is None:
+            if library_log_means is None or library_log_vars is None:
                 raise ValueError(
                     "If not using observed_lib_size, "
                     "must provide library_log_means and library_log_vars."
@@ -325,7 +325,15 @@ class VAE(BaseModuleClass):
         """Runs the generative model."""
         # TODO: refactor forward function to not rely on y
         # Likelihood distribution
-        decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
+        if cont_covs is None:
+            decoder_input = z
+        elif z.dim() != cont_covs.dim():
+            decoder_input = torch.cat(
+                [z, cont_covs.unsqueeze(0).expand(z.size(0), -1, -1)], dim=-1
+            )
+        else:
+            decoder_input = torch.cat([z, cont_covs], dim=-1)
+
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
@@ -453,7 +461,7 @@ class VAE(BaseModuleClass):
 
         dist = generative_outputs["px"]
         if self.gene_likelihood == "poisson":
-            l_train = generative_outputs["px"].mu
+            l_train = generative_outputs["px"].rate
             l_train = torch.clamp(l_train, max=1e8)
             dist = torch.distributions.Poisson(
                 l_train

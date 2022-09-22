@@ -48,7 +48,8 @@ def log_zinb_positive(
             1, theta.size(0)
         )  # In this case, we reshape theta for broadcasting
 
-    softplus_pi = F.softplus(-pi)  #  uses log(sigmoid(x)) = -softplus(-x)
+    # Uses log(sigmoid(x)) = -softplus(-x)
+    softplus_pi = F.softplus(-pi)
     log_theta_eps = torch.log(theta + eps)
     log_theta_mu_eps = torch.log(theta + mu + eps)
     pi_theta_log = -pi + theta * (log_theta_eps - log_theta_mu_eps)
@@ -246,9 +247,9 @@ class Poisson(PoissonTorch):
     ----------
     rate
         rate of the Poisson distribution.
-    validate_args : optional
+    validate_args
         whether to validate input.
-    scale : optional
+    scale
         Normalized mean expression of the distribution.
         This optional parameter is not used in any computations, but allows to store
         normalization expression levels.
@@ -291,9 +292,9 @@ class NegativeBinomial(Distribution):
         Mean of the distribution.
     theta
         Inverse dispersion.
-    scale : optional
+    scale
         Normalized mean expression of the distribution.
-    validate_args : optional
+    validate_args
         Raise ValueError if arguments do not match constraints
     """
 
@@ -401,7 +402,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         Inverse dispersion.
     zi_logits
         Logits scale of zero inflation probability.
-    scale : optional
+    scale
         Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints

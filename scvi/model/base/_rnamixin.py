@@ -265,8 +265,12 @@ class RNASeqMixin:
                 generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
-            px_scale = generative_outputs["px"].scale
-            px_r = generative_outputs["px"].theta
+            if "px" in generative_outputs:
+                px_scale = generative_outputs["px"].scale
+                px_r = generative_outputs["px"].theta
+            else:
+                px_scale = generative_outputs["px_scale"]
+                px_r = generative_outputs["px_r"]
             device = px_r.device
 
             rate = rna_size_factor * px_scale
@@ -413,7 +417,8 @@ class RNASeqMixin:
             px = generative_outputs["px"]
             px_r = px.theta
             px_rate = px.mu
-            px_dropout = px.zi_probs
+            if self.module.gene_likelihood == "zinb":
+                px_dropout = px.zi_probs
 
             n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
 
@@ -423,13 +428,14 @@ class RNASeqMixin:
             else:
                 dispersion_list += [px_r]
             mean_list += [px_rate.cpu().numpy()]
-            dropout_list += [px_dropout.cpu().numpy()]
-
-        dropout = np.concatenate(dropout_list, axis=-2)
+            if self.module.gene_likelihood == "zinb":
+                dropout_list += [px_dropout.cpu().numpy()]
+                dropout = np.concatenate(dropout_list, axis=-2)
         means = np.concatenate(mean_list, axis=-2)
         dispersions = np.concatenate(dispersion_list, axis=-2)
         if give_mean and n_samples > 1:
-            dropout = dropout.mean(0)
+            if self.module.gene_likelihood == "zinb":
+                dropout = dropout.mean(0)
             means = means.mean(0)
 
         return_dict = {}

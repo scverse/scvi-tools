@@ -75,7 +75,7 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
-        use_gpu, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_use_gpu_arg(use_gpu)
 
         attr_dict, var_names, load_state_dict = _get_loaded_data(
             reference_model, device=device
@@ -202,14 +202,16 @@ class ArchesMixin:
         logger.info("Found {}% reference vars in query data.".format(ratio * 100))
         if ratio < MIN_VAR_NAME_RATIO:
             warnings.warn(
-                f"Query data contains less than {MIN_VAR_NAME_RATIO:.0f}% of reference var names. "
+                f"Query data contains less than {MIN_VAR_NAME_RATIO:.0%} of reference var names. "
                 "This may result in poor performance."
             )
         genes_to_add = var_names.difference(adata.var_names)
         needs_padding = len(genes_to_add) > 0
         if needs_padding:
+            padding_mtx = csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
             adata_padding = AnnData(
-                csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
+                X=padding_mtx.copy(),
+                layers={layer: padding_mtx.copy() for layer in adata.layers},
             )
             adata_padding.var_names = genes_to_add
             adata_padding.obs_names = adata.obs_names

@@ -84,7 +84,7 @@ class LinearSCVI(
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super(LinearSCVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
         library_log_means, library_log_vars = _init_library_size(

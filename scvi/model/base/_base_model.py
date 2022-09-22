@@ -625,7 +625,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model.get_....
         """
         load_adata = adata is None
-        use_gpu, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_use_gpu_arg(use_gpu)
 
         (attr_dict, var_names, model_state_dict, new_adata,) = _load_saved_files(
             dir_path,
@@ -762,6 +762,25 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         prefix
             Prefix of saved file names.
         """
+        registry = BaseModelClass.load_registry(dir_path, prefix)
+        AnnDataManager.view_setup_method_args(registry)
+
+    @staticmethod
+    def load_registry(dir_path: str, prefix: Optional[str] = None) -> dict:
+        """
+        Return the full registry saved with the model.
+
+        Parameters
+        ----------
+        dir_path
+            Path to saved outputs.
+        prefix
+            Prefix of saved file names.
+
+        Returns
+        -------
+        The full registry saved with the model
+        """
         attr_dict = _load_saved_files(dir_path, False, prefix=prefix)[0]
 
         # Legacy support for old setup dict format.
@@ -771,8 +790,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Update your save files with ``convert_legacy_save`` first."
             )
 
-        registry = attr_dict.pop("registry_")
-        AnnDataManager.view_setup_method_args(registry)
+        return attr_dict.pop("registry_")
 
     def view_anndata_setup(
         self, adata: Optional[AnnOrMuData] = None, hide_state_registries: bool = False
