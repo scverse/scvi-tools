@@ -343,20 +343,20 @@ class NegativeBinomial(Distribution):
     def variance(self):
         return self.mean + (self.mean**2) / self.theta
 
+    @torch.inference_mode()
     def sample(
         self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
     ) -> torch.Tensor:
-        with torch.inference_mode():
-            gamma_d = self._gamma()
-            p_means = gamma_d.sample(sample_shape)
+        gamma_d = self._gamma()
+        p_means = gamma_d.sample(sample_shape)
 
-            # Clamping as distributions objects can have buggy behaviors when
-            # their parameters are too high
-            l_train = torch.clamp(p_means, max=1e8)
-            counts = PoissonTorch(
-                l_train
-            ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
-            return counts
+        # Clamping as distributions objects can have buggy behaviors when
+        # their parameters are too high
+        l_train = torch.clamp(p_means, max=1e8)
+        counts = PoissonTorch(
+            l_train
+        ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
+        return counts
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         if self._validate_args:
@@ -458,14 +458,14 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
     def zi_probs(self) -> torch.Tensor:
         return logits_to_probs(self.zi_logits, is_binary=True)
 
+    @torch.inference_mode()
     def sample(
         self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
     ) -> torch.Tensor:
-        with torch.inference_mode():
-            samp = super().sample(sample_shape=sample_shape)
-            is_zero = torch.rand_like(samp) <= self.zi_probs
-            samp_ = torch.where(is_zero, 0.0, samp)
-            return samp_
+        samp = super().sample(sample_shape=sample_shape)
+        is_zero = torch.rand_like(samp) <= self.zi_probs
+        samp_ = torch.where(is_zero, 0.0, samp)
+        return samp_
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         try:
@@ -543,27 +543,27 @@ class NegativeBinomialMixture(Distribution):
     def mixture_probs(self) -> torch.Tensor:
         return logits_to_probs(self.mixture_logits, is_binary=True)
 
+    @torch.inference_mode()
     def sample(
         self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
     ) -> torch.Tensor:
-        with torch.inference_mode():
-            pi = self.mixture_probs
-            mixing_sample = torch.distributions.Bernoulli(pi).sample()
-            mu = self.mu1 * mixing_sample + self.mu2 * (1 - mixing_sample)
-            if self.theta2 is None:
-                theta = self.theta1
-            else:
-                theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
-            gamma_d = _gamma(mu, theta)
-            p_means = gamma_d.sample(sample_shape)
+        pi = self.mixture_probs
+        mixing_sample = torch.distributions.Bernoulli(pi).sample()
+        mu = self.mu1 * mixing_sample + self.mu2 * (1 - mixing_sample)
+        if self.theta2 is None:
+            theta = self.theta1
+        else:
+            theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
+        gamma_d = _gamma(mu, theta)
+        p_means = gamma_d.sample(sample_shape)
 
-            # Clamping as distributions objects can have buggy behaviors when
-            # their parameters are too high
-            l_train = torch.clamp(p_means, max=1e8)
-            counts = PoissonTorch(
-                l_train
-            ).sample()  # Shape : (n_samples, n_cells_batch, n_features)
-            return counts
+        # Clamping as distributions objects can have buggy behaviors when
+        # their parameters are too high
+        l_train = torch.clamp(p_means, max=1e8)
+        counts = PoissonTorch(
+            l_train
+        ).sample()  # Shape : (n_samples, n_cells_batch, n_features)
+        return counts
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         try:
