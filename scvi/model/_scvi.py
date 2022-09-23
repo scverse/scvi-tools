@@ -23,7 +23,6 @@ from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 logger = logging.getLogger(__name__)
 
 
-
 class SCVI(
     RNASeqMixin, VAEMixin, ArchesMixin, UnsupervisedTrainingMixin, BaseModelClass
 ):
