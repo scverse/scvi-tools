@@ -5,7 +5,7 @@ name: scvi-tools
 
 on:
   push:
-    branches: [master, scar, 0.15.x, 0.16.x, 0.17.x]
+    branches: [master, 0.15.x, 0.16.x, 0.17.x]
   pull_request:
     branches: [master, 0.15.x, 0.16.x, 0.17.x]
 

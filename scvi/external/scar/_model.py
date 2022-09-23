@@ -6,7 +6,6 @@ import pandas as pd
 import torch
 from anndata import AnnData
 from torch.distributions.multinomial import Multinomial
-from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
@@ -19,7 +18,7 @@ from scvi.model.base import (
     UnsupervisedTrainingMixin,
     VAEMixin,
 )
-from scvi.utils import setup_anndata_dsp
+from scvi.utils import setup_anndata_dsp, track
 
 from ._module import SCAR_VAE
 
@@ -158,8 +157,6 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         adata: AnnData,
         layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
         size_factor_key: Optional[str] = None,
         **kwargs,
     ):
@@ -175,8 +172,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, None),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
             NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
             ),
@@ -234,7 +231,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         # initial estimation of ambient profile, will be updated
         ambient_prof = raw_adata.X.sum(axis=0) / raw_adata.X.sum()
 
-        for _ in tqdm(range(iterations)):
+        for _ in track(range(iterations)):
             # calculate joint probability (log) of being cell-free droplets for each droplet
             log_prob = []
             batch_idx = np.floor(
