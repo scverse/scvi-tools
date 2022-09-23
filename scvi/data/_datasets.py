@@ -1,3 +1,4 @@
+import warnings
 from typing import List, Optional
 
 import anndata
@@ -356,6 +357,10 @@ def mouse_ob_dataset(save_path: str = "data/") -> anndata.AnnData:
     >>> import scvi
     >>> adata = scvi.data.mouse_ob_dataset()
     """
+    warnings.warn(
+        "Mouse ob dataset will be removed in the next version (0.18).",
+        category=FutureWarning,
+    )
     return _load_mouse_ob_dataset(save_path=save_path)
 
 
@@ -377,6 +382,10 @@ def breast_cancer_dataset(save_path: str = "data/") -> anndata.AnnData:
     >>> import scvi
     >>> adata = scvi.data.breast_cancer_dataset()
     """
+    warnings.warn(
+        "Breast cancer dataset will be removed in the next version (0.18).",
+        category=FutureWarning,
+    )
     return _load_breast_cancer_dataset(save_path=save_path)
 
 

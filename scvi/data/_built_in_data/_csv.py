@@ -1,6 +1,5 @@
 import logging
 import os
-import warnings
 
 import anndata
 import numpy as np
@@ -20,10 +19,7 @@ def _load_breast_cancer_dataset(save_path: str = "data/"):
     )
     adata.obs["batch"] = np.zeros(adata.shape[0]).astype(int)
     adata.obs["labels"] = np.zeros(adata.shape[0]).astype(int)
-    warnings.warn(
-        "Breast cancer dataset will be removed in the next version.",
-        category=FutureWarning,
-    )
+
     return adata
 
 
@@ -37,9 +33,7 @@ def _load_mouse_ob_dataset(save_path: str = "data/"):
     )
     adata.obs["batch"] = np.zeros(adata.shape[0]).astype(int)
     adata.obs["labels"] = np.zeros(adata.shape[0]).astype(int)
-    warnings.warn(
-        "Mouse ob dataset will be removed in the next version.", category=FutureWarning
-    )
+
     return adata
 
 
