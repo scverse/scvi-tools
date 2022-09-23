@@ -10,6 +10,7 @@ import numpy as np
 import rich
 import torch
 from anndata import AnnData
+from ml_collections.config_dict import FrozenConfigDict as attrdict
 from mudata import MuData
 
 from scvi import settings
@@ -26,7 +27,7 @@ from scvi.data._utils import _assign_adata_uuid, _check_if_view
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
-from scvi.utils import attrdict, setup_anndata_dsp
+from scvi.utils import setup_anndata_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 

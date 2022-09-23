@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 import torch
 from flax import linen as nn
+from ml_collections.config_dict import FrozenConfigDict as attrdict
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
@@ -169,8 +170,8 @@ def test_jax_scvi_save_load(save_path):
 
     model = JaxSCVI.load(save_path, adata=adata)
     assert "batch" in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry["batch"] == dict(
-        attr_name="obs", attr_key="_scvi_batch"
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(attr_name="obs", attr_key="_scvi_batch")
     )
     assert model.is_trained is True
 
@@ -570,8 +571,8 @@ def test_saving_and_loading(save_path):
 
         model = cls.load(save_path, adata=adata, prefix=prefix)
         assert "batch" in model.adata_manager.data_registry
-        assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
+        assert model.adata_manager.data_registry.batch == attrdict(
+            dict(attr_name="obs", attr_key="_scvi_batch")
         )
 
         z2 = model.get_latent_representation()
@@ -617,8 +618,8 @@ def test_saving_and_loading(save_path):
         AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
     model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry["batch"] == dict(
-        attr_name="obs", attr_key="_scvi_batch"
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(attr_name="obs", attr_key="_scvi_batch")
     )
 
     ab2 = model.get_alphas_betas()
@@ -654,8 +655,8 @@ def test_saving_and_loading(save_path):
         SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
     model = SCANVI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry["batch"] == dict(
-        attr_name="obs", attr_key="_scvi_batch"
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(attr_name="obs", attr_key="_scvi_batch")
     )
 
     p2 = model.predict()

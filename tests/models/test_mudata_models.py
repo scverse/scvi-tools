@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pytest
 from anndata import AnnData
+from ml_collections.config_dict import FrozenConfigDict as attrdict
 from mudata import MuData
 
 import scvi
@@ -161,6 +162,7 @@ def test_totalvi_missing_proteins(save_path):
     )
     protein_adata = AnnData(adata.obsm["protein_expression"])
     mdata = MuData({"rna": adata, "protein": protein_adata})
+    print(mdata)
     TOTALVI.setup_mudata(
         mdata,
         batch_key="batch",
@@ -273,8 +275,8 @@ def test_totalvi_saving_and_loading(save_path):
 
     model = TOTALVI.load(save_path, adata=mdata)
     assert scvi.REGISTRY_KEYS.BATCH_KEY in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry["batch"] == dict(
-        mod_key="rna", attr_name="obs", attr_key="_scvi_batch"
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(mod_key="rna", attr_name="obs", attr_key="_scvi_batch")
     )
 
     z2 = model.get_latent_representation()
