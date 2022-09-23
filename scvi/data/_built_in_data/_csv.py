@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 
 import anndata
 import numpy as np
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def _load_breast_cancer_dataset(save_path: str = "data/"):
     save_path = os.path.abspath(save_path)
-    url = "http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/2016/07/Layer2_BC_count_matrix-1.tsv"
+    url = "https://www.spatialresearch.org/wp-content/uploads/2016/07/Layer2_BC_count_matrix-1.tsv"
     save_fn = "Layer2_BC_count_matrix-1.tsv"
     _download(url, save_path, save_fn)
     adata = _load_csv(
@@ -19,13 +20,16 @@ def _load_breast_cancer_dataset(save_path: str = "data/"):
     )
     adata.obs["batch"] = np.zeros(adata.shape[0]).astype(int)
     adata.obs["labels"] = np.zeros(adata.shape[0]).astype(int)
-
+    warnings.warn(
+        "Breast cancer dataset will be removed in the next version.",
+        category=FutureWarning,
+    )
     return adata
 
 
 def _load_mouse_ob_dataset(save_path: str = "data/"):
     save_path = os.path.abspath(save_path)
-    url = "http://www.spatialtranscriptomicsresearch.org/wp-content/uploads/2016/07/Rep11_MOB_count_matrix-1.tsv"
+    url = "https://www.spatialresearch.org/wp-content/uploads/2016/07/Rep11_MOB_count_matrix-1.tsv"
     save_fn = "Rep11_MOB_count_matrix-1.tsv"
     _download(url, save_path, save_fn)
     adata = _load_csv(
@@ -33,7 +37,9 @@ def _load_mouse_ob_dataset(save_path: str = "data/"):
     )
     adata.obs["batch"] = np.zeros(adata.shape[0]).astype(int)
     adata.obs["labels"] = np.zeros(adata.shape[0]).astype(int)
-
+    warnings.warn(
+        "Mouse ob dataset will be removed in the next version.", category=FutureWarning
+    )
     return adata
 
 
