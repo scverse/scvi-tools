@@ -263,7 +263,7 @@ class TrainingPlan(pl.LightningModule):
         """Passthrough to `model.forward()`."""
         return self.module(*args, **kwargs)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def compute_and_log_metrics(
         self,
         loss_recorder: LossRecorder,

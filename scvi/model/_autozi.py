@@ -157,7 +157,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """Return parameters of Bernoulli Beta distributions in a dictionary."""
         return self.module.get_alphas_betas(as_numpy=as_numpy)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_marginal_ll(
         self,
         adata: Optional[AnnData] = None,

@@ -313,7 +313,7 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         )
 
     @auto_move_data
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_topic_distribution(self, x: torch.Tensor, n_samples: int) -> torch.Tensor:
         """
         Converts `x` to its inferred topic distribution.
@@ -344,7 +344,7 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         )
 
     @auto_move_data
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_elbo(self, x: torch.Tensor, library: torch.Tensor, n_obs: int) -> float:
         """
         Computes ELBO.

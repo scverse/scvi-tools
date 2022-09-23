@@ -650,10 +650,10 @@ class TOTALVAE(BaseModuleClass):
 
         return LossRecorder(loss, reconst_losses, kl_local, kl_global=torch.tensor(0.0))
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(self, tensors, n_samples=1):
         inference_kwargs = dict(n_samples=n_samples)
-        with torch.no_grad():
+        with torch.inference_mode():
             inference_outputs, generative_outputs, = self.forward(
                 tensors,
                 inference_kwargs=inference_kwargs,
@@ -675,7 +675,7 @@ class TOTALVAE(BaseModuleClass):
 
         return rna_sample, protein_sample
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         x = tensors[REGISTRY_KEYS.X_KEY]

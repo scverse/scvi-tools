@@ -341,7 +341,7 @@ class DifferentialComputation:
 
         return res
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def scale_sampler(
         self,
         selection: Union[List[bool], np.ndarray],
