@@ -31,7 +31,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     pyenv virtualenv scvi-tools-dev
     pyenv activate scvi-tools-dev
     # If you have conda (omit the python parameter if you already have the relevant python version installed)
-    conda create -n scvi-tools-dev python=3.8.8 # or any python >3.7 that is available (conda search python)
+    conda create -n scvi-tools-dev python=3.8.8 # or any python >=3.8 that is available (conda search python)
     conda activate scvi-tools-dev
     # Enter the cloned repository and install the package in editable mode
     cd scvi-tools
