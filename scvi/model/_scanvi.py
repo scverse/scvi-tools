@@ -1,7 +1,7 @@
 import logging
 import warnings
 from copy import deepcopy
-from typing import List, Optional, Sequence, Union
+from typing import List, Literal, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,6 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data._constants import _SETUP_ARGS_KEY
 from scvi.data._utils import get_anndata_attribute

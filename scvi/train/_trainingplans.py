@@ -1,6 +1,6 @@
 from functools import partial
 from inspect import getfullargspec, signature
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -14,7 +14,6 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchmetrics import MetricCollection
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,

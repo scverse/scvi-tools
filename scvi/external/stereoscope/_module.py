@@ -1,11 +1,10 @@
-from typing import Tuple
+from typing import Literal, Tuple
 
 import numpy as np
 import torch
 from torch.distributions import NegativeBinomial, Normal
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 
 

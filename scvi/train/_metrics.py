@@ -1,7 +1,7 @@
+from typing import Literal
+
 import torch
 from torchmetrics import Metric
-
-from scvi._compat import Literal
 
 
 class ElboMetric(Metric):

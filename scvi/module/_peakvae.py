@@ -1,11 +1,10 @@
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Literal, Optional
 
 import numpy as np
 import torch
 from torch.distributions import Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import Encoder, FCLayers
 

@@ -10,9 +10,9 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.7",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
@@ -39,7 +39,7 @@ flax = "*"
 furo = {version = ">=2022.2.14.1", optional = true}
 h5py = ">=2.9.0"
 importlib-metadata = {version = ">1.0", python = "<3.8"}
-ipython = {version = ">=7.20", optional = true, python = ">=3.7"}
+ipython = {version = ">=7.20", optional = true, python = ">=3.8"}
 ipywidgets = "*"
 isort = {version = ">=5.7", optional = true}
 jax = ">=0.3"
@@ -63,7 +63,7 @@ pymde = {version = "*", optional = true}
 pynndescent = {version = "*", optional = true}
 pyro-ppl = ">=1.6.0"
 pytest = {version = ">=4.4", optional = true}
-python = ">=3.7,<4.0"
+python = ">=3.8,<4.0"
 python-igraph = {version = "*", optional = true}
 pytorch-lightning = ">=1.7.0,<1.8"
 rich = ">=9.1.0"
@@ -111,7 +111,7 @@ tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "p
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py37
+envlist = py38
 
 [testenv]
 deps = pytest

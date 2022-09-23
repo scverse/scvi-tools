@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, Literal, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -8,7 +8,6 @@ from torch import logsumexp
 from torch.distributions import Beta
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model._utils import _init_library_size

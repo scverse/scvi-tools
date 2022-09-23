@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Sequence
+from typing import Literal, Optional, Sequence
 
 import jax
 import jax.numpy as jnp
@@ -7,7 +7,6 @@ import numpy as np
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.module import JaxVAE

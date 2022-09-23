@@ -3,7 +3,7 @@ import os
 import pickle
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import List, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 import anndata
 import mudata
@@ -12,7 +12,6 @@ import pandas as pd
 import torch
 from anndata import AnnData, read
 
-from scvi._compat import Literal
 from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
 from scvi.utils import track
