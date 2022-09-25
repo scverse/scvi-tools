@@ -36,6 +36,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/solo`
      - [Bernstein19]_
      - Doublet detection
+   * - :doc:`/user_guide/models/scar`
+     - [Sheng22]_
+     - Ambient RNA removal
 
 ```
 

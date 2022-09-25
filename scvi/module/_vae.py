@@ -459,7 +459,7 @@ class VAE(BaseModuleClass):
         kl_global = torch.tensor(0.0)
         return LossRecorder(loss, reconst_loss, kl_local, kl_global)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
@@ -496,7 +496,7 @@ class VAE(BaseModuleClass):
 
         dist = generative_outputs["px"]
         if self.gene_likelihood == "poisson":
-            l_train = generative_outputs["px"].mu
+            l_train = generative_outputs["px"].rate
             l_train = torch.clamp(l_train, max=1e8)
             dist = torch.distributions.Poisson(
                 l_train
@@ -510,7 +510,7 @@ class VAE(BaseModuleClass):
 
         return exprs.cpu()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         sample_batch = tensors[REGISTRY_KEYS.X_KEY]
@@ -676,7 +676,7 @@ class LDVAE(VAE):
             bias=bias,
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_loadings(self) -> np.ndarray:
         """Extract per-gene weights (for each Z, shape is genes by dim(Z)) in the linear decoder."""
         # This is BW, where B is diag(b) batch norm, W is weight matrix

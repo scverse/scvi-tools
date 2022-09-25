@@ -363,6 +363,14 @@ def test_scvi(save_path):
     model = SCVI(adata, gene_likelihood="nb")
     model.get_likelihood_parameters()
 
+    # test different gene_likelihoods
+    for gene_likelihood in ["zinb", "nb", "poisson"]:
+        model = SCVI(adata, gene_likelihood=gene_likelihood)
+        model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+        model.posterior_predictive_sample()
+        model.get_latent_representation()
+        model.get_normalized_expression()
+
     # test train callbacks work
     a = synthetic_iid()
     SCVI.setup_anndata(
@@ -1574,6 +1582,16 @@ def test_multivi():
         n_genes=50,
         n_regions=50,
     )
+    vae.train(3)
+
+    # Test with modality weights and penalties
+    data = synthetic_iid()
+    MULTIVI.setup_anndata(data, batch_key="batch")
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
+    vae.train(3)
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="universal")
+    vae.train(3)
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_penalty="MMD")
     vae.train(3)
 
 

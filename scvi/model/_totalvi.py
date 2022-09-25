@@ -299,7 +299,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         return runner()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,
@@ -343,7 +343,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             libraries += [library.cpu()]
         return torch.cat(libraries).numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_normalized_expression(
         self,
         adata=None,
@@ -536,7 +536,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         else:
             return scale_list_gene, scale_list_pro
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_protein_foreground_probability(
         self,
         adata: Optional[AnnData] = None,
@@ -777,7 +777,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         return result
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def posterior_predictive_sample(
         self,
         adata: Optional[AnnData] = None,
@@ -849,7 +849,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         return scdl_list
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def _get_denoised_samples(
         self,
         adata=None,
@@ -890,7 +890,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
             generative_kwargs = dict(transform_batch=transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
-            with torch.no_grad():
+            with torch.inference_mode():
                 inference_outputs, generative_outputs, = self.module.forward(
                     tensors,
                     inference_kwargs=inference_kwargs,
@@ -931,7 +931,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         return np.concatenate(scdl_list, axis=0)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_feature_correlation_matrix(
         self,
         adata=None,
@@ -1023,7 +1023,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         return pd.DataFrame(corr_matrix, index=names, columns=names)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_likelihood_parameters(
         self,
         adata: Optional[AnnData] = None,
@@ -1167,7 +1167,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         return batch_avg_mus, batch_avg_scales
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_protein_background_mean(self, adata, indices, batch_size):
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(

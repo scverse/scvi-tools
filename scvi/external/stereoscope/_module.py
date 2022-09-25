@@ -48,7 +48,7 @@ class RNADeconv(BaseModuleClass):
             ct_weight = torch.ones((self.n_labels,), dtype=torch.float32)
         self.register_buffer("ct_weight", ct_weight)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_params(self) -> Tuple[np.ndarray]:
         """
         Returns the parameters for feeding into the spatial data.
@@ -114,7 +114,7 @@ class RNADeconv(BaseModuleClass):
 
         return LossRecorder(loss, reconst_loss, torch.zeros((1,)), torch.tensor(0.0))
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
@@ -165,7 +165,7 @@ class SpatialDeconv(BaseModuleClass):
         # additive gene bias
         self.beta = torch.nn.Parameter(0.01 * torch.randn(self.n_genes))
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_proportions(self, keep_noise=False) -> np.ndarray:
         """Returns the loadings."""
         # get estimated unadjusted proportions
@@ -246,7 +246,7 @@ class SpatialDeconv(BaseModuleClass):
             loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
@@ -255,7 +255,7 @@ class SpatialDeconv(BaseModuleClass):
     ):
         raise NotImplementedError("No sampling method for Stereoscope")
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @auto_move_data
     def get_ct_specific_expression(self, y):
         """

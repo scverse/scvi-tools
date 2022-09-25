@@ -314,7 +314,7 @@ class MRDeconv(BaseModuleClass):
             loss, reconst_loss, neg_log_likelihood_prior, glo_neg_log_likelihood_prior
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
@@ -323,7 +323,7 @@ class MRDeconv(BaseModuleClass):
     ):
         raise NotImplementedError("No sampling method for DestVI")
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @auto_move_data
     def get_proportions(self, x=None, keep_noise=False) -> np.ndarray:
         """Returns the loadings."""
@@ -342,7 +342,7 @@ class MRDeconv(BaseModuleClass):
         res = res / res.sum(axis=1).reshape(-1, 1)
         return res
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @auto_move_data
     def get_gamma(self, x: torch.Tensor = None) -> torch.Tensor:
         """
@@ -363,7 +363,7 @@ class MRDeconv(BaseModuleClass):
         else:
             return self.gamma.cpu().numpy()  # (n_latent, n_labels, n_spots)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @auto_move_data
     def get_ct_specific_expression(
         self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None

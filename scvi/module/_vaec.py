@@ -183,7 +183,7 @@ class VAEC(BaseModuleClass):
 
         return LossRecorder(loss, reconst_loss, kl_divergence_z, torch.tensor(0.0))
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,

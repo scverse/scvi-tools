@@ -34,7 +34,7 @@ class RNASeqMixin:
                 "Transforming batches is not implemented for this model."
             )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_normalized_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -234,7 +234,7 @@ class RNASeqMixin:
 
         return result
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @unsupported_in_latent_mode
     def posterior_predictive_sample(
         self,
@@ -300,7 +300,7 @@ class RNASeqMixin:
 
         return x_new.numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @unsupported_in_latent_mode
     def _get_denoised_samples(
         self,
@@ -379,7 +379,7 @@ class RNASeqMixin:
 
         return np.concatenate(data_loader_list, axis=0)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @unsupported_in_latent_mode
     def get_feature_correlation_matrix(
         self,
@@ -459,7 +459,7 @@ class RNASeqMixin:
         var_names = adata.var_names
         return pd.DataFrame(corr_matrix, index=var_names, columns=var_names)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_likelihood_parameters(
         self,
         adata: Optional[AnnData] = None,
@@ -540,7 +540,7 @@ class RNASeqMixin:
 
         return return_dict
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @unsupported_in_latent_mode
     def get_latent_library_size(
         self,

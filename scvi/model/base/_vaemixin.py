@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class VAEMixin:
     """Univseral VAE methods."""
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @unsupported_in_latent_mode
     def get_elbo(
         self,
@@ -46,7 +46,7 @@ class VAEMixin:
         elbo = compute_elbo(self.module, scdl)
         return -elbo
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @unsupported_in_latent_mode
     def get_marginal_ll(
         self,
@@ -91,7 +91,7 @@ class VAEMixin:
         n_samples = len(indices)
         return log_lkl / n_samples
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @unsupported_in_latent_mode
     def get_reconstruction_error(
         self,
@@ -122,7 +122,7 @@ class VAEMixin:
         reconstruction_error = compute_reconstruction_error(self.module, scdl)
         return reconstruction_error
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @unsupported_in_latent_mode
     def get_latent_representation(
         self,

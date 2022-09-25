@@ -112,7 +112,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def predict(self) -> pd.DataFrame:
         """Predict soft cell type assignment probability for each cell."""
         adata = self._validate_anndata(None)
@@ -270,6 +270,6 @@ class ClampCallback(Callback):
         super().__init__()
 
     def on_batch_end(self, trainer, pl_module):
-        with torch.no_grad():
+        with torch.inference_mode():
             pl_module.module.delta_log.clamp_(np.log(pl_module.module.min_delta))
         super().on_batch_end(trainer, pl_module)
