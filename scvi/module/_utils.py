@@ -41,3 +41,17 @@ def enumerate_discrete(x, y_dim):
 
     batch_size = x.size(0)
     return torch.cat([batch(batch_size, i) for i in range(y_dim)])
+
+
+def masked_softmax(weights, mask, dim=-1, eps=1e-30):
+    """
+    Computes a softmax of ``weights`` along ``dim`` where ``mask is True``.
+
+    Adds a small ``eps`` term in the numerator and denominator to avoid zero division.
+    Taken from: https://discuss.pytorch.org/t/apply-mask-softmax/14212/15.
+    Pytorch issue tracked at: https://github.com/pytorch/pytorch/issues/55056.
+    """
+    weight_exps = torch.exp(weights)
+    masked_exps = weight_exps.masked_fill(mask == 0, eps)
+    masked_sums = masked_exps.sum(dim, keepdim=True) + eps
+    return masked_exps / masked_sums

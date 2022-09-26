@@ -153,7 +153,7 @@ class PyroSampleMixin:
     Works using both minibatches and full data.
     """
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def _get_one_posterior_sample(
         self,
         args,

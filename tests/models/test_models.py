@@ -1584,6 +1584,16 @@ def test_multivi():
     )
     vae.train(3)
 
+    # Test with modality weights and penalties
+    data = synthetic_iid()
+    MULTIVI.setup_anndata(data, batch_key="batch")
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
+    vae.train(3)
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="universal")
+    vae.train(3)
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_penalty="MMD")
+    vae.train(3)
+
 
 def test_early_stopping():
     n_epochs = 100

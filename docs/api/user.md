@@ -54,6 +54,7 @@ import scvi
    external.RNAStereoscope
    external.SpatialStereoscope
    external.SOLO
+   external.SCAR
 
 ```
 
