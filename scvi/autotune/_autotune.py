@@ -1,11 +1,9 @@
-"""Main class and helper functions."""
 import inspect
 import logging
 import os
 import warnings
 from typing import List, Optional, Union
 
-import anndata
 import numpy as np
 import ray
 import torch
@@ -16,6 +14,7 @@ from ray.tune.schedulers.trial_scheduler import TrialScheduler
 
 from scvi.model.base import BaseModelClass
 
+from .._types import AnnOrMuData
 from ._utils import apply_model_config, fetch_config, train_model
 
 logger = logging.getLogger(__name__)
@@ -29,9 +28,9 @@ class Autotune:
     Parameters
     ----------
     adata
-        AnnData object we will tune the model on.
+        AnnData object that has been registered via the model's ``setup_anndata`` method.
     model
-        Model from scvi.model we will tune.
+        :class:`~scvi.model.base.BaseModelClass` on which to tune hyperparameters.
     num_epochs
         Number of epochs to tune the model over
     training_metrics
@@ -62,13 +61,15 @@ class Autotune:
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> tuner = Autotune(adata, scvi.model.SCVI, num_epochs=5)
+    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
+    >>> model = scvi.model.SCVI(adata)
+    >>> tuner = scvi.autotune.Tuner(model)
     >>> best_model, analysis = tuner.run(metric="elbo_validation")
     """
 
     def __init__(
         self,
-        adata: anndata.AnnData,
+        adata: AnnOrMuData,
         model: BaseModelClass,
         num_epochs: int = 2,
         training_metrics: Optional[List[str]] = None,
@@ -84,6 +85,10 @@ class Autotune:
         top_hvg: Optional[List[int]] = None,
         batch_key_hvg: Optional[str] = None,
     ):
+        try:
+            from ray import tune
+        except ImportError:
+            raise ImportError("Please install ray via `pip install ray`")
         training_metrics = training_metrics or []
         metric_functions = metric_functions or {}
         model_hyperparams = model_hyperparams or {}
