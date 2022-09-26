@@ -13,7 +13,7 @@ from ._utils import _check_nonnegative_integers
 logger = logging.getLogger(__name__)
 
 
-@torch.no_grad()
+@torch.inference_mode()
 def poisson_gene_selection(
     adata,
     layer: Optional[str] = None,

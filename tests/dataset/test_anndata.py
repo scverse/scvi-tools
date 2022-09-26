@@ -10,7 +10,8 @@ from scipy.sparse.csr import csr_matrix
 
 import scvi
 from scvi import REGISTRY_KEYS
-from scvi.data import synthetic_iid
+from scvi.data import _constants, synthetic_iid
+from scvi.data.fields import ObsmField, ProteinObsmField
 from scvi.dataloaders import AnnTorchDataset
 
 from .utils import generic_setup_adata_manager
@@ -172,6 +173,59 @@ def test_clobber_different_models(adata):
     )
 
 
+def test_register_new_fields(adata):
+    bdata = adata.copy()
+    incremental_adata_manager = generic_setup_adata_manager(bdata)
+    batch_field = None
+    for field in incremental_adata_manager.fields:
+        if field.registry_key == REGISTRY_KEYS.BATCH_KEY:
+            batch_field = field
+    new_fields = [
+        ProteinObsmField(
+            REGISTRY_KEYS.PROTEIN_EXP_KEY,
+            "protein_expression",
+            batch_field=batch_field,
+            use_batch_mask=True,
+            is_count_data=True,
+        )
+    ]
+    incremental_adata_manager.register_new_fields(new_fields)
+    adata_manager = generic_setup_adata_manager(
+        adata, protein_expression_obsm_key="protein_expression"
+    )
+    np.testing.assert_array_equal(
+        incremental_adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
+        adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
+    )
+    assert len(incremental_adata_manager.fields) == len(adata_manager.fields)
+
+
+def test_register_new_fields_with_transferred_manager(adata):
+    bdata = adata.copy()
+    cdata = adata.copy()
+    adata_manager = generic_setup_adata_manager(adata, batch_key="batch")
+    bdata.obs["batch"] = adata.obs["batch"].to_numpy()[0]
+    bdata_manager = adata_manager.transfer_fields(bdata)
+    new_fields = [ObsmField(REGISTRY_KEYS.PROTEIN_EXP_KEY, "protein_expression")]
+    bdata_manager.register_new_fields(new_fields)
+    cdata_manager = bdata_manager.transfer_fields(cdata)
+
+    # Should have protein field
+    cdata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
+    np.testing.assert_array_equal(
+        cdata.obs["_scvi_batch"].values, adata.obs["_scvi_batch"].values
+    )
+
+
+def test_update_setup_args(adata):
+    adata_manager = generic_setup_adata_manager(adata)
+    adata_manager.update_setup_method_args({"test_arg": "test_val"})
+    assert (
+        "test_arg"
+        in adata_manager._get_setup_method_args()[_constants._SETUP_ARGS_KEY].keys()
+    )
+
+
 def test_data_format(adata):
     # if data was dense np array, check after setup_anndata, data is C_CONTIGUOUS
     old_x = adata.X
@@ -282,7 +336,7 @@ def test_setup_anndata_layer(adata):
     )
 
 
-def test_setup_anndat_create_label_batch(adata):
+def test_setup_anndata_create_label_batch(adata):
     # test that it creates labels and batch if no layers_key is passed
     adata_manager = generic_setup_adata_manager(
         adata,
