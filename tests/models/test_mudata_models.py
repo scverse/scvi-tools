@@ -162,7 +162,6 @@ def test_totalvi_missing_proteins(save_path):
     )
     protein_adata = AnnData(adata.obsm["protein_expression"])
     mdata = MuData({"rna": adata, "protein": protein_adata})
-    print(mdata)
     TOTALVI.setup_mudata(
         mdata,
         batch_key="batch",
