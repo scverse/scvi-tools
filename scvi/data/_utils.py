@@ -277,7 +277,3 @@ def _get_latent_adata_type(adata: AnnData) -> Optional[LatentDataType]:
 
 def _is_latent_adata(adata: AnnData) -> bool:
     return _get_latent_adata_type(adata) is not None
-
-
-# def _is_latent_adata_with_counts(adata: AnnData) -> bool:
-#     return _get_latent_adata_type(adata) is not None
