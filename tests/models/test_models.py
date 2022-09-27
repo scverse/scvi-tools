@@ -1615,7 +1615,6 @@ def prep_model(layer=None):
     if layer is not None:
         adata.layers[layer] = adata.X.copy()
         adata.X = np.zeros_like(adata.X)
-    # add a few more properties to validate they don't get saved in latent mode
     adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata.X, axis=0)))
     adata.varm["my_varm"] = np.random.negative_binomial(
         5, 0.3, size=(adata.shape[1], 3)
@@ -1649,10 +1648,9 @@ def run_test_scvi_latent_mode_sampled(layer=None):
     assert model_orig.adata.layers.keys() == model.adata.layers.keys()
     assert model.adata.obs.equals(model_orig.adata.obs)
     assert model.adata.var_names.equals(model_orig.adata.var_names)
-
-    # validate extra props are not in adata latent
-    assert len(model.adata.varm) == 0
-    assert len(model.adata.var.columns) == 0
+    assert model.adata.var.equals(model_orig.adata.var)
+    assert model.adata.varm.keys() == model_orig.adata.varm.keys()
+    assert np.array_equal(model.adata.varm["my_varm"], model_orig.adata.varm["my_varm"])
 
     scvi.settings.seed = 1
     params_latent = model.get_likelihood_parameters()
@@ -1697,10 +1695,9 @@ def run_test_scvi_latent_mode_dist(
     assert model_orig.adata.layers.keys() == model.adata.layers.keys()
     assert model.adata.obs.equals(model_orig.adata.obs)
     assert model.adata.var_names.equals(model_orig.adata.var_names)
-
-    # validate extra props are not in adata latent
-    assert len(model.adata.varm) == 0
-    assert len(model.adata.var.columns) == 0
+    assert model.adata.var.equals(model_orig.adata.var)
+    assert model.adata.varm.keys() == model_orig.adata.varm.keys()
+    assert np.array_equal(model.adata.varm["my_varm"], model_orig.adata.varm["my_varm"])
 
     scvi.settings.seed = 1
     keys = ["mean", "dispersions", "dropout"]
@@ -1745,7 +1742,6 @@ def test_scvi_latent_mode_get_normalized_expression():
 
     scvi.settings.seed = 1
     exprs_orig = model.get_normalized_expression()
-    model_orig = deepcopy(model)
 
     model.to_latent_mode(mode="sampled")
 
@@ -1755,27 +1751,32 @@ def test_scvi_latent_mode_get_normalized_expression():
 
     assert np.array_equal(exprs_latent, exprs_orig)
 
+
+def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
+    model, adata = prep_model()
+
     # non-default gene list and n_samples > 1
-    scvi.settings.seed = 1
     gl = adata.var_names[:5].to_list()
     n_samples = 10
-    exprs_orig = model_orig.get_normalized_expression(
-        gene_list=gl, n_samples=10, library_size="latent"
-    )
 
     scvi.settings.seed = 1
-    qzm, qzv = model_orig.get_latent_representation(give_mean=False, return_dist=True)
-    model_orig.adata.obsm["X_latent_qzm"] = qzm
-    model_orig.adata.obsm["X_latent_qzv"] = qzv
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
 
-    model_orig.to_latent_mode(mode="dist")
+    scvi.settings.seed = 1
+    exprs_orig = model.get_normalized_expression(
+        gene_list=gl, n_samples=n_samples, library_size="latent"
+    )
+
+    model.to_latent_mode(mode="dist")
 
     scvi.settings.seed = 1
     # do this so that we generate the same sequence of random numbers in the
     # latent and non latent cases (purely to get the tests to pass). this is
     # becasue in the non latent case we sample once more (in the call to z_encoder
     # during inference)
-    exprs_latent = model_orig.get_normalized_expression(
+    exprs_latent = model.get_normalized_expression(
         gene_list=gl, n_samples=n_samples + 1, return_mean=False, library_size="latent"
     )
     exprs_latent = exprs_latent[1:].mean(0)

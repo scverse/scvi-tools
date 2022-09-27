@@ -76,10 +76,6 @@ class RNADeconv(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
-        raise NotImplementedError()
-
-    @auto_move_data
     def generative(self, x, y):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
         px_scale = torch.nn.functional.softplus(self.W)[
@@ -193,10 +189,6 @@ class SpatialDeconv(BaseModuleClass):
     @auto_move_data
     def inference(self):
         return {}
-
-    @auto_move_data
-    def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
-        raise NotImplementedError()
 
     @auto_move_data
     def generative(self, x, ind_x):

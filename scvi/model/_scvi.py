@@ -1,7 +1,6 @@
 import logging
 from typing import List, Optional
 
-import numpy as np
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 
@@ -215,27 +214,19 @@ class SCVI(
         use_latent_key: str = "X_latent",
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
-    ) -> AnnData:
-        all_zeros = csr_matrix(self.adata.X.shape, dtype=np.int8).toarray()
-        bdata = AnnData(
-            X=all_zeros.copy(),
-            layers={layer: all_zeros.copy() for layer in self.adata.layers},
-        )
-        bdata.obs = self.adata.obs
-        bdata.obsm = self.adata.obsm
-        bdata.obsp = self.adata.obsp
-        bdata.uns = self.adata.uns
-        bdata.var_names = self.adata.var_names
-        # add latent related metadata
+    ):
         if mode == "sampled":
-            bdata.obsm[_SCVI_LATENT_SAMPLES] = self.adata.obsm[use_latent_key]
+            self.adata.obsm[_SCVI_LATENT_SAMPLES] = self.adata.obsm[use_latent_key]
         elif mode == "dist":
-            bdata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-            bdata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+            self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+            self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
         else:
             raise ValueError(f"Unknown latent mode: {mode}")
-        bdata.uns[_ADATA_LATENT] = mode
-        return bdata
+        self.adata.uns[_ADATA_LATENT] = mode
+        del self.adata.raw
+        all_zeros = csr_matrix(self.adata.X.shape)
+        self.adata.X = all_zeros.copy()
+        self.adata.layers = {layer: all_zeros.copy() for layer in self.adata.layers}
 
     @staticmethod
     def _get_latent_fields(mode: LatentDataType):
@@ -268,7 +259,7 @@ class SCVI(
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ):
-        self.adata = self._get_latent_adata_from_adata(
+        self._get_latent_adata_from_adata(
             mode, use_latent_key, use_latent_qzm_key, use_latent_qzv_key
         )
         self.adata_manager.register_new_fields(self.__class__._get_latent_fields(mode))

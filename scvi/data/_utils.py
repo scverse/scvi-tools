@@ -203,10 +203,13 @@ def _check_nonnegative_integers(
     else:
         raise TypeError("data type not understood")
 
-    inds = np.random.choice(len(data), size=(n_to_check,))
-    check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
-    negative, non_integer = _is_not_count_val(check)
-    return not (negative or non_integer)
+    ret = True
+    if len(data) != 0:
+        inds = np.random.choice(len(data), size=(n_to_check,))
+        check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
+        negative, non_integer = _is_not_count_val(check)
+        ret = not (negative or non_integer)
+    return ret
 
 
 @jax.jit
@@ -274,3 +277,7 @@ def _get_latent_adata_type(adata: AnnData) -> Optional[LatentDataType]:
 
 def _is_latent_adata(adata: AnnData) -> bool:
     return _get_latent_adata_type(adata) is not None
+
+
+# def _is_latent_adata_with_counts(adata: AnnData) -> bool:
+#     return _get_latent_adata_type(adata) is not None

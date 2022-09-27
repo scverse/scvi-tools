@@ -550,10 +550,6 @@ class TOTALVAE(BaseModuleClass):
             untran_l=untran_l,
         )
 
-    @auto_move_data
-    def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
-        raise NotImplementedError()
-
     def loss(
         self,
         tensors,

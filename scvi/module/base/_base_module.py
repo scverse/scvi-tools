@@ -202,11 +202,6 @@ class BaseModuleClass(nn.Module):
         pass
 
     @abstractmethod
-    def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
-        """Runs the inference routine but skips encoding, used in latent mode."""
-        pass
-
-    @abstractmethod
     def generative(
         self, *args, **kwargs
     ) -> Dict[str, Union[torch.Tensor, torch.distributions.Distribution]]:
@@ -236,6 +231,10 @@ class BaseModuleClass(nn.Module):
     def sample(self, *args, **kwargs):
         """Generate samples from the learned model."""
         pass
+
+    def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
+        """Runs the inference routine but skips encoding, used in latent mode."""
+        raise NotImplementedError()
 
 
 def _get_dict_if_none(param):
