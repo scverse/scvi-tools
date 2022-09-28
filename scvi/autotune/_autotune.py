@@ -4,7 +4,6 @@ import os
 import warnings
 from typing import List, Optional, Union
 
-import numpy as np
 import ray
 import torch
 from ray import tune
@@ -12,9 +11,9 @@ from ray.tune import CLIReporter, ExperimentAnalysis
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.schedulers.trial_scheduler import TrialScheduler
 
+from scvi._types import AnnOrMuData
 from scvi.model.base import BaseModelClass
 
-from .._types import AnnOrMuData
 from ._utils import apply_model_config, fetch_config, train_model
 
 logger = logging.getLogger(__name__)
@@ -22,13 +21,12 @@ logger = logging.getLogger(__name__)
 
 class Autotune:
     """
-
-    Hyperparameter tuning using Ray Tune.
+    Automated and parallel hyperparameter searches with Ray Tune.
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via the model's ``setup_anndata`` method.
+        AnnData/MuData object that has been registered via the model's ``setup_anndata`` or ``setup_mudata`` method.
     model
         :class:`~scvi.model.base.BaseModelClass` on which to tune hyperparameters.
     num_epochs
@@ -51,12 +49,6 @@ class Autotune:
         continuous covariates from `adata` to tune the model on
     categorical_covariates
         Categorical covariates from `adata` to tune the model on
-    test_effect_hvg
-        Whether to test the effect of filtering adata with highly variable genes on model performance or not. Default is `False`.
-    top_hvg
-        Top hvgs to test. If `test_effect_hvg` is set, defaults to top 2000, 2500, 3000 and 3500 highly variable genes
-    batch_key_hvg
-        Column in adata.obs specifying the different batches in the data used for highly_variable_gene selection
 
     Examples
     --------
@@ -64,7 +56,13 @@ class Autotune:
     >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
     >>> model = scvi.model.SCVI(adata)
     >>> tuner = scvi.autotune.Tuner(model)
-    >>> best_model, analysis = tuner.run(metric="elbo_validation")
+    >>> best_model, analysis = tuner.fit(metric="elbo_validation")
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/autotune`
     """
 
     def __init__(
@@ -81,14 +79,11 @@ class Autotune:
         continuous_covariates: Optional[List[str]] = None,
         categorical_covariates: Optional[List[str]] = None,
         test_effect_covariates: bool = False,
-        test_effect_hvg: bool = False,
-        top_hvg: Optional[List[int]] = None,
-        batch_key_hvg: Optional[str] = None,
     ):
         try:
             from ray import tune
         except ImportError:
-            raise ImportError("Please install ray via `pip install ray`")
+            raise ImportError("Please install ray via `pip install ray`.")
         training_metrics = training_metrics or []
         metric_functions = metric_functions or {}
         model_hyperparams = model_hyperparams or {}
@@ -97,13 +92,6 @@ class Autotune:
         setup_args = setup_args or {}
         continuous_covariates = continuous_covariates or []
         categorical_covariates = categorical_covariates or []
-        top_hvg = top_hvg or [None]
-
-        if test_effect_hvg and not top_hvg:
-            raise ValueError(
-                "test_effect_hvg is set to True but no list of top_hvgs was given. Please"
-                " provide a list"
-            )
 
         self.adata = adata
         self.model_cls = model
@@ -138,21 +126,6 @@ class Autotune:
             else None
         }
 
-        if test_effect_hvg:
-            self.test_effect_hvg = {"subset_adata": tune.choice([True, False])}
-        else:
-            self.test_effect_hvg = {"subset_adata": False}
-
-        # Using conditional search spaces is not supported in all space search algorithms
-        # If necessary we would need to re-factor to Optuna / HyperOptSearch spaces
-        self.top_hvg = {
-            "top_n": tune.sample_from(
-                lambda spec: np.random.choice(top_hvg)
-                if spec.config["subset_adata"]
-                else None
-            )
-        }
-
         self.metrics = training_metrics
         self.reporter = CLIReporter(
             metric_columns=training_metrics + list(self.metric_functions.keys())
@@ -169,7 +142,6 @@ class Autotune:
         ]:
             if att is not None:
                 self.config.update(att)
-        self.batch_key_hvg = batch_key_hvg
         self.num_epochs = num_epochs
 
     def _trainable(self, config):
