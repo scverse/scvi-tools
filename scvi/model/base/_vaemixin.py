@@ -123,7 +123,6 @@ class VAEMixin:
         return reconstruction_error
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,

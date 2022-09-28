@@ -22,7 +22,7 @@ from scvi.data._constants import (
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
 )
-from scvi.data._utils import _assign_adata_uuid, _check_if_view, _is_latent_adata
+from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_latent_adata_type
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
@@ -69,7 +69,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
-        latent_adata = adata is not None and _is_latent_adata(adata)
+        latent_adata = adata is not None and _get_latent_adata_type(adata) is not None
         _raise_if_missing_latent_mode_support(type(self).__name__, latent_adata)
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:

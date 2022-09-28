@@ -13,7 +13,6 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.utils import unsupported_in_latent_mode
 from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
@@ -165,7 +164,6 @@ class RNASeqMixin:
     @_doc_params(
         doc_differential_expression=doc_differential_expression,
     )
-    @unsupported_in_latent_mode
     def differential_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -233,7 +231,6 @@ class RNASeqMixin:
         return result
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
     def posterior_predictive_sample(
         self,
         adata: Optional[AnnData] = None,
@@ -299,7 +296,6 @@ class RNASeqMixin:
         return x_new.numpy()
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
     def _get_denoised_samples(
         self,
         adata: Optional[AnnData] = None,
@@ -378,7 +374,6 @@ class RNASeqMixin:
         return np.concatenate(data_loader_list, axis=0)
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
     def get_feature_correlation_matrix(
         self,
         adata: Optional[AnnData] = None,
@@ -537,7 +532,6 @@ class RNASeqMixin:
         return return_dict
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,

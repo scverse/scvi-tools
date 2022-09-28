@@ -6,7 +6,7 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.data import AnnDataManager
-from scvi.data._utils import _get_latent_adata_type, _is_latent_adata
+from scvi.data._utils import _get_latent_adata_type
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -114,7 +114,7 @@ class SCVI(
         )
         library_log_means, library_log_vars = None, None
         if not use_size_factor_key:
-            if _is_latent_adata(adata):
+            if self.latent_data_type is not None:
                 raise ValueError(
                     "Latent mode not supported when use_size_factor_key is False"
                 )

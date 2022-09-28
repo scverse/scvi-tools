@@ -1797,26 +1797,6 @@ def test_latent_mode_validate_unsupported():
     common_err_msg = "Latent mode currently not supported for the {} function."
 
     with pytest.raises(ValueError) as e:
-        model.differential_expression(groupby="labels")
-    assert str(e.value) == common_err_msg.format("RNASeqMixin.differential_expression")
-
-    with pytest.raises(ValueError) as e:
-        model.posterior_predictive_sample()
-    assert str(e.value) == common_err_msg.format(
-        "RNASeqMixin.posterior_predictive_sample"
-    )
-
-    with pytest.raises(ValueError) as e:
-        model.get_feature_correlation_matrix(correlation_type="pearson")
-    assert str(e.value) == common_err_msg.format(
-        "RNASeqMixin.get_feature_correlation_matrix"
-    )
-
-    with pytest.raises(ValueError) as e:
-        model.get_latent_library_size()
-    assert str(e.value) == common_err_msg.format("RNASeqMixin.get_latent_library_size")
-
-    with pytest.raises(ValueError) as e:
         model.get_elbo()
     assert str(e.value) == common_err_msg.format("VAEMixin.get_elbo")
 
@@ -1827,10 +1807,6 @@ def test_latent_mode_validate_unsupported():
     with pytest.raises(ValueError) as e:
         model.get_marginal_ll()
     assert str(e.value) == common_err_msg.format("VAEMixin.get_marginal_ll")
-
-    with pytest.raises(ValueError) as e:
-        model.get_latent_representation()
-    assert str(e.value) == common_err_msg.format("VAEMixin.get_latent_representation")
 
 
 def test_scvi_latent_mode_save_load_latent(save_path):
