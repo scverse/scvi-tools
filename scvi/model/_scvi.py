@@ -19,7 +19,7 @@ from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin, LatentModeMixin
+from .base import ArchesMixin, BaseModelClass, LatentModeMixin, RNASeqMixin, VAEMixin
 
 logger = logging.getLogger(__name__)
 

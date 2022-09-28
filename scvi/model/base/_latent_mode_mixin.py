@@ -6,10 +6,7 @@ from scipy.sparse import csr_matrix
 from scvi import REGISTRY_KEYS
 from scvi._types import LatentDataType
 from scvi.data._constants import _ADATA_LATENT_UNS_KEY
-from scvi.data.fields import (
-    ObsmField,
-    StringUnsField,
-)
+from scvi.data.fields import ObsmField, StringUnsField
 
 logger = logging.getLogger(__name__)
 

@@ -8,8 +8,8 @@ from anndata._core.sparse_dataset import SparseDataset
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
-from scvi.data import AnnDataManager
 from scvi._constants import REGISTRY_KEYS
+from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
 

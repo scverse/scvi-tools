@@ -1645,6 +1645,8 @@ def run_test_scvi_latent_mode_sampled(layer=None):
 
     model.to_latent_mode(mode="sampled")
 
+    assert model.latent_data_type == "sampled"
+
     assert model_orig.adata.layers.keys() == model.adata.layers.keys()
     assert model.adata.obs.equals(model_orig.adata.obs)
     assert model.adata.var_names.equals(model_orig.adata.var_names)
@@ -1691,6 +1693,8 @@ def run_test_scvi_latent_mode_dist(
     model_orig = deepcopy(model)
 
     model.to_latent_mode(mode="dist")
+
+    assert model.latent_data_type == "dist"
 
     assert model_orig.adata.layers.keys() == model.adata.layers.keys()
     assert model.adata.obs.equals(model_orig.adata.obs)
