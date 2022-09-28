@@ -9,7 +9,7 @@ from flax import linen
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 
-from scvi._types import LatentDataType, LossRecord
+from scvi._types import LossRecord
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
@@ -131,7 +131,6 @@ class BaseModuleClass(nn.Module):
         generative_kwargs: Optional[dict] = None,
         loss_kwargs: Optional[dict] = None,
         compute_loss=True,
-        latent_data_type: Optional[LatentDataType] = None,
     ) -> Union[
         Tuple[torch.Tensor, torch.Tensor],
         Tuple[torch.Tensor, torch.Tensor, LossRecorder],
@@ -156,8 +155,6 @@ class BaseModuleClass(nn.Module):
         compute_loss
             Whether to compute loss on forward pass. This adds
             another return value.
-        latent_data_type
-            The type of latent mode we are in if the data is in latent mode, else None.
         """
         return _generic_forward(
             self,
@@ -168,7 +165,6 @@ class BaseModuleClass(nn.Module):
             get_inference_input_kwargs,
             get_generative_input_kwargs,
             compute_loss,
-            latent_data_type,
         )
 
     @abstractmethod
@@ -231,10 +227,6 @@ class BaseModuleClass(nn.Module):
     def sample(self, *args, **kwargs):
         """Generate samples from the learned model."""
         pass
-
-    def inference_no_encode(self, qz_m, qz_v, latent_data_type, n_samples=1):
-        """Runs the inference routine but skips encoding, used in latent mode."""
-        raise NotImplementedError()
 
 
 def _get_dict_if_none(param):
@@ -459,7 +451,6 @@ class JaxBaseModuleClass(linen.Module):
             get_inference_input_kwargs,
             get_generative_input_kwargs,
             compute_loss,
-            latent_data_type=None,
         )
 
     @abstractmethod
@@ -532,31 +523,18 @@ def _generic_forward(
     get_inference_input_kwargs,
     get_generative_input_kwargs,
     compute_loss,
-    latent_data_type,
 ):
     """Core of the forward call shared by PyTorch- and Jax-based modules."""
-    is_latent = latent_data_type is not None
-    if is_latent and compute_loss:
-        raise ValueError("compute_loss currently not supported in latent mode forward")
-
     inference_kwargs = _get_dict_if_none(inference_kwargs)
     generative_kwargs = _get_dict_if_none(generative_kwargs)
     loss_kwargs = _get_dict_if_none(loss_kwargs)
     get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
     get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
 
-    if is_latent:
-        get_inference_input_kwargs["latent_data_type"] = latent_data_type
-
     inference_inputs = module._get_inference_input(
         tensors, **get_inference_input_kwargs
     )
-    if is_latent:
-        inference_outputs = module.inference_no_encode(
-            **inference_inputs, **inference_kwargs
-        )
-    else:
-        inference_outputs = module.inference(**inference_inputs, **inference_kwargs)
+    inference_outputs = module.inference(**inference_inputs, **inference_kwargs)
     generative_inputs = module._get_generative_input(
         tensors, inference_outputs, **get_generative_input_kwargs
     )

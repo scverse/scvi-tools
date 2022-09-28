@@ -22,16 +22,12 @@ class LatentModeMixin:
     """Functionality relevant to models that support latent mode."""
 
     @property
-    def latent_data_type(self) -> Optional[str]:
+    def latent_data_type(self) -> Optional[LatentDataType]:
         return (
             self.adata_manager.get_from_registry(REGISTRY_KEYS.LATENT_MODE_KEY)
             if REGISTRY_KEYS.LATENT_MODE_KEY in self.adata_manager.data_registry
             else None
         )
-
-    @property
-    def has_latent_data(self) -> bool:
-        return self.latent_data_type is not None
 
     def _get_latent_adata_from_adata(
         self,
@@ -94,3 +90,4 @@ class LatentModeMixin:
             mode, use_latent_key, use_latent_qzm_key, use_latent_qzv_key
         )
         self.adata_manager.register_new_fields(self.__class__._get_latent_fields(mode))
+        self.module.latent_data_type = mode

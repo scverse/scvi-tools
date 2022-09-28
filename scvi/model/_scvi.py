@@ -139,6 +139,7 @@ class SCVI(
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
+            latent_data_type=self.latent_data_type,
             **model_kwargs,
         )
         self._model_summary_string = (

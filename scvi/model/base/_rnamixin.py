@@ -13,7 +13,6 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.data._utils import _get_latent_adata_type
 from scvi.utils import unsupported_in_latent_mode
 from scvi.utils._docstrings import doc_differential_expression
 
@@ -135,7 +134,6 @@ class RNASeqMixin:
                     inference_kwargs=inference_kwargs,
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
-                    latent_data_type=_get_latent_adata_type(adata),
                 )
                 output = getattr(generative_outputs["px"], generative_output_key)
                 output = output[..., gene_mask]
@@ -272,7 +270,6 @@ class RNASeqMixin:
             raise ValueError("Invalid gene_likelihood.")
 
         adata = self._validate_anndata(adata)
-        latent_data_type = _get_latent_adata_type(adata)
 
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -290,7 +287,8 @@ class RNASeqMixin:
         x_new = []
         for tensors in scdl:
             samples = self.module.sample(
-                tensors, n_samples=n_samples, latent_data_type=latent_data_type
+                tensors,
+                n_samples=n_samples,
             )
             if gene_list is not None:
                 samples = samples[:, gene_mask, ...]
@@ -486,7 +484,6 @@ class RNASeqMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        latent_data_type = _get_latent_adata_type(adata)
 
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -501,7 +498,6 @@ class RNASeqMixin:
                 tensors=tensors,
                 inference_kwargs=inference_kwargs,
                 compute_loss=False,
-                latent_data_type=latent_data_type,
             )
             px = generative_outputs["px"]
             px_r = px.theta

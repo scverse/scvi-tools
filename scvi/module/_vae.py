@@ -87,6 +87,8 @@ class VAE(BaseModuleClass):
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
+    latent_data_type
+        None or the type of latent data.
     """
 
     def __init__(
@@ -113,6 +115,7 @@ class VAE(BaseModuleClass):
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
         var_activation: Optional[Callable] = None,
+        latent_data_type: Optional[LatentDataType] = None,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -124,6 +127,7 @@ class VAE(BaseModuleClass):
         self.n_labels = n_labels
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
+        self._latent_data_type = latent_data_type
 
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
@@ -208,10 +212,17 @@ class VAE(BaseModuleClass):
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
+    @property
+    def latent_data_type(self) -> Optional[LatentDataType]:
+        return self._latent_data_type
+
+    @latent_data_type.setter
+    def latent_data_type(self, latent_data_type):
+        self._latent_data_type = latent_data_type
+
     def _get_inference_input(
         self,
         tensors,
-        latent_data_type: Optional[LatentDataType] = None,
     ):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
@@ -221,20 +232,21 @@ class VAE(BaseModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
-        if latent_data_type is None:
+        if self.latent_data_type is None:
             x = tensors[REGISTRY_KEYS.X_KEY]
             input_dict = dict(
                 x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
             )
-        elif latent_data_type == "sampled":
-            qzm = tensors[REGISTRY_KEYS.LATENT_SAMPLES_KEY]
-            input_dict = dict(qzm=qzm, qzv=None, latent_data_type=latent_data_type)
-        elif latent_data_type == "dist":
-            qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
-            qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
-            input_dict = dict(qzm=qzm, qzv=qzv, latent_data_type=latent_data_type)
         else:
-            raise ValueError(f"Unknown latent data type: {latent_data_type}")
+            if self.latent_data_type == "sampled":
+                qzm = tensors[REGISTRY_KEYS.LATENT_SAMPLES_KEY]
+                input_dict = dict(qzm=qzm, qzv=None)
+            elif self.latent_data_type == "dist":
+                qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
+                qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
+                input_dict = dict(qzm=qzm, qzv=qzv)
+            else:
+                raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
 
         return input_dict
 
@@ -286,7 +298,16 @@ class VAE(BaseModuleClass):
         return local_library_log_means, local_library_log_vars
 
     @auto_move_data
-    def inference(self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1):
+    def inference(self, *args, **kwargs):
+        if self.latent_data_type is None:
+            return self._regular_inference(*args, **kwargs)
+        else:
+            return self._inference_no_encode(*args, **kwargs)
+
+    @auto_move_data
+    def _regular_inference(
+        self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1
+    ):
         """
         High level inference method.
 
@@ -327,19 +348,19 @@ class VAE(BaseModuleClass):
         return outputs
 
     @auto_move_data
-    def inference_no_encode(self, qzm, qzv, latent_data_type, n_samples=1):
-        if latent_data_type == "sampled":
+    def _inference_no_encode(self, qzm, qzv, n_samples=1):
+        if self.latent_data_type == "sampled":
             if n_samples > 1:
                 raise ValueError(
                     f"n_samples={n_samples}. n_samples > 1 not supported when latent data is sampled."
                 )
             z = qzm
-        elif latent_data_type == "dist":
+        elif self.latent_data_type == "dist":
             dist = Normal(qzm, qzv.sqrt())
             untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
         else:
-            raise ValueError(f"Unknown latent data type: {latent_data_type}")
+            raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
         outputs = dict(z=z, library=None)
         return outputs
 
@@ -465,7 +486,6 @@ class VAE(BaseModuleClass):
         tensors,
         n_samples=1,
         library_size=1,
-        latent_data_type=None,
     ) -> np.ndarray:
         r"""
         Generate observation samples from the posterior predictive distribution.
@@ -491,7 +511,6 @@ class VAE(BaseModuleClass):
             tensors,
             inference_kwargs=inference_kwargs,
             compute_loss=False,
-            latent_data_type=latent_data_type,
         )
 
         dist = generative_outputs["px"]
