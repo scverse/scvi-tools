@@ -425,8 +425,6 @@ def test_totalvi_online_update(save_path):
 
     # load from model in memory
     model3 = TOTALVI.load_query_data(adata2, model)
-    model3.module.protein_batch_mask[str(2)]
-    model3.module.protein_batch_mask[str(3)]
     model3.train(max_epochs=1)
     model3.get_latent_representation()
 
