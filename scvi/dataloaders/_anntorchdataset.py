@@ -9,6 +9,7 @@ from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
 from scvi.data import AnnDataManager
+from scvi._constants import REGISTRY_KEYS
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,9 @@ class AnnTorchDataset(Dataset):
                 sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
             elif issparse(cur_data):
                 sliced_data = cur_data[idx].toarray().astype(dtype)
+            # for latent mode anndata
+            elif isinstance(cur_data, str) and key == REGISTRY_KEYS.LATENT_MODE_KEY:
+                continue
             else:
                 raise TypeError(f"{key} is not a supported type")
             data_numpy[key] = sliced_data

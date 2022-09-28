@@ -32,7 +32,7 @@ _DR_ATTR_KEY = "attr_key"
 # ------------------------
 # Constants used in handling adata in latent mode.
 
-_ADATA_LATENT = "adata_latent"
+_ADATA_LATENT_UNS_KEY = "_scvi_adata_latent"
 
 # AnnData Object Constants
 # ------------------------
@@ -46,6 +46,7 @@ class _ADATA_ATTRS_NT(NamedTuple):
     OBSM: str = "obsm"
     VAR: str = "var"
     VARM: str = "varm"
+    UNS: str = "uns"
 
 
 _ADATA_ATTRS = _ADATA_ATTRS_NT()

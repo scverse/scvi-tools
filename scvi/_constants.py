@@ -10,6 +10,7 @@ class _REGISTRY_KEYS_NT(NamedTuple):
     CONT_COVS_KEY: str = "extra_continuous_covs"
     INDICES_KEY: str = "ind_x"
     SIZE_FACTOR_KEY: str = "size_factor"
+    LATENT_MODE_KEY: str = "latent_mode"
     LATENT_SAMPLES_KEY: str = "latent_samples"
     LATENT_QZM_KEY: str = "latent_qzm"
     LATENT_QZV_KEY: str = "latent_qzv"

@@ -6,6 +6,7 @@ from ._pyromixin import PyroJitGuideWarmup, PyroSampleMixin, PyroSviTrainMixin
 from ._rnamixin import RNASeqMixin
 from ._training_mixin import UnsupervisedTrainingMixin
 from ._vaemixin import VAEMixin
+from ._latent_mode_mixin import LatentModeMixin
 
 __all__ = [
     "ArchesMixin",
@@ -18,4 +19,5 @@ __all__ = [
     "PyroJitGuideWarmup",
     "DifferentialComputation",
     "JaxTrainingMixin",
+    "LatentModeMixin",
 ]

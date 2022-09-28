@@ -272,7 +272,7 @@ def _check_mudata_fully_paired(mdata: MuData):
 
 
 def _get_latent_adata_type(adata: AnnData) -> Optional[LatentDataType]:
-    return adata.uns.get(_constants._ADATA_LATENT, None)
+    return adata.uns.get(_constants._ADATA_LATENT_UNS_KEY, None)
 
 
 def _is_latent_adata(adata: AnnData) -> bool:
