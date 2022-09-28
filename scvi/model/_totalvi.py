@@ -1110,7 +1110,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
                 # non missing
                 if batch_mask is not None:
-                    batch_pro_exp = batch_pro_exp[:, batch_mask[b]]
+                    batch_pro_exp = batch_pro_exp[:, batch_mask[str(b)]]
                     if batch_pro_exp.shape[1] < 5:
                         logger.debug(
                             f"Batch {b} has too few proteins to set prior, setting randomly."

@@ -304,7 +304,7 @@ class AnnDataManager:
             if field_data_registry:
                 data_registry[registry_key] = field_data_registry
 
-        return attrdict(data_registry, recursive=True)
+        return attrdict(data_registry)
 
     @property
     def summary_stats(self) -> attrdict:
