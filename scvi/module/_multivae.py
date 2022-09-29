@@ -895,7 +895,7 @@ class MULTIVAE(BaseModuleClass):
             p * d * reg_factor, (x > 0).float()
         ).sum(dim=-1)
 
-    def get_reconstruction_loss_protein(self, y, py_, pro_batch_mask_minibatch):
+    def get_reconstruction_loss_protein(self, y, py_, pro_batch_mask_minibatch=None):
 
         py_conditional = NegativeBinomialMixture(
             mu1=py_["rate_back"],
@@ -905,6 +905,7 @@ class MULTIVAE(BaseModuleClass):
         )
 
         reconst_loss_protein_full = -py_conditional.log_prob(y)
+
         if pro_batch_mask_minibatch is not None:
             temp_pro_loss_full = torch.zeros_like(reconst_loss_protein_full)
             temp_pro_loss_full.masked_scatter_(
