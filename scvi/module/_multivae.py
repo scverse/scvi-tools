@@ -830,7 +830,7 @@ class MULTIVAE(BaseModuleClass):
         # Compute Protein loss - No ability to mask minibatch (Param:None)
         if mask_pro.sum().gt(0):
             py_ = generative_outputs["py_"]
-            rl_protein = self.get_reconstruction_loss_protein(y, py_, None)
+            rl_protein = get_reconstruction_loss_protein(y, py_, None)
         else:
             rl_protein = torch.zeros(x.shape[0], device=x.device, requires_grad=False)
 
@@ -895,32 +895,11 @@ class MULTIVAE(BaseModuleClass):
             p * d * reg_factor, (x > 0).float()
         ).sum(dim=-1)
 
-    def get_reconstruction_loss_protein(self, y, py_, pro_batch_mask_minibatch=None):
-
-        py_conditional = NegativeBinomialMixture(
-            mu1=py_["rate_back"],
-            mu2=py_["rate_fore"],
-            theta1=py_["r"],
-            mixture_logits=py_["mixing"],
-        )
-
-        reconst_loss_protein_full = -py_conditional.log_prob(y)
-
-        if pro_batch_mask_minibatch is not None:
-            temp_pro_loss_full = torch.zeros_like(reconst_loss_protein_full)
-            temp_pro_loss_full.masked_scatter_(
-                pro_batch_mask_minibatch.bool(), reconst_loss_protein_full
-            )
-            rl_protein = temp_pro_loss_full.sum(dim=-1)
-        else:
-            rl_protein = reconst_loss_protein_full.sum(dim=-1)
-
-        return rl_protein
-
     def _compute_mod_penalty(
         self, mod_params1, mod_params2, mod_params3, mask1, mask2, mask3
     ):
-        """Computes Similarity Penalty across modalities given selection (None, Jeffreys, MMD)
+        """
+        Computes Similarity Penalty across modalities given selection (None, Jeffreys, MMD)
 
         Parameters
         ----------
@@ -1039,3 +1018,27 @@ def sym_kld(qzm1, qzv1, qzm2, qzv2):
     rv2 = Normal(qzm2, qzv2.sqrt())
 
     return kld(rv1, rv2) + kld(rv2, rv1)
+
+
+@auto_move_data
+def get_reconstruction_loss_protein(y, py_, pro_batch_mask_minibatch=None):
+
+    py_conditional = NegativeBinomialMixture(
+        mu1=py_["rate_back"],
+        mu2=py_["rate_fore"],
+        theta1=py_["r"],
+        mixture_logits=py_["mixing"],
+    )
+
+    reconst_loss_protein_full = -py_conditional.log_prob(y)
+
+    if pro_batch_mask_minibatch is not None:
+        temp_pro_loss_full = torch.zeros_like(reconst_loss_protein_full)
+        temp_pro_loss_full.masked_scatter_(
+            pro_batch_mask_minibatch.bool(), reconst_loss_protein_full
+        )
+        rl_protein = temp_pro_loss_full.sum(dim=-1)
+    else:
+        rl_protein = reconst_loss_protein_full.sum(dim=-1)
+
+    return rl_protein
