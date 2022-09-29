@@ -156,7 +156,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     ):
         super().__init__(adata)
 
-        n_batch = self.summary_stats.n_batch
         if empirical_protein_background_prior:
             prior_mean, prior_scale = None, None
         else:
@@ -982,7 +981,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for b in transform_batch:
+            for __ in transform_batch:
                 # generative_kwargs = dict(transform_batch=b)
                 generative_kwargs = dict(use_z_mean=use_z_mean)
                 inference_kwargs = dict(n_samples=n_samples)
