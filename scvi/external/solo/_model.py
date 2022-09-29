@@ -347,7 +347,7 @@ class SOLO(BaseModelClass):
         )
         return runner()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def predict(
         self, soft: bool = True, include_simulated_doublets: bool = False
     ) -> pd.DataFrame:
