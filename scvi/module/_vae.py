@@ -13,14 +13,19 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import LatentDataType
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import (
+    BaseModuleClass,
+    LossRecorder,
+    auto_move_data,
+    LatentModeModuleMixin,
+)
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(BaseModuleClass):
+class VAE(LatentModeModuleMixin, BaseModuleClass):
     """
     Variational auto-encoder model.
 
@@ -212,14 +217,6 @@ class VAE(BaseModuleClass):
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
-    @property
-    def latent_data_type(self) -> Optional[LatentDataType]:
-        return self._latent_data_type
-
-    @latent_data_type.setter
-    def latent_data_type(self, latent_data_type):
-        self._latent_data_type = latent_data_type
-
     def _get_inference_input(
         self,
         tensors,
@@ -296,13 +293,6 @@ class VAE(BaseModuleClass):
             one_hot(batch_index, n_batch), self.library_log_vars
         )
         return local_library_log_means, local_library_log_vars
-
-    @auto_move_data
-    def inference(self, *args, **kwargs):
-        if self.latent_data_type is None:
-            return self._regular_inference(*args, **kwargs)
-        else:
-            return self._inference_no_encode(*args, **kwargs)
 
     @auto_move_data
     def _regular_inference(

@@ -6,6 +6,7 @@ from ._base_module import (
 )
 from ._decorators import auto_move_data
 from ._jax_module_wrapper import JaxModuleWrapper, TrainStateWithState
+from ._latent_mode_module_mixin import LatentModeModuleMixin
 
 __all__ = [
     "BaseModuleClass",
@@ -15,4 +16,5 @@ __all__ = [
     "JaxBaseModuleClass",
     "JaxModuleWrapper",
     "TrainStateWithState",
+    "LatentModeModuleMixin",
 ]
