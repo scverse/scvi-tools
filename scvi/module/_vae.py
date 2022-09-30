@@ -99,7 +99,7 @@ class VAE(BaseModuleClass):
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
-        dispersion: str = "gene",
+        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         log_variational: bool = True,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         latent_distribution: str = "normal",
@@ -150,9 +150,8 @@ class VAE(BaseModuleClass):
             pass
         else:
             raise ValueError(
-                "dispersion must be one of ['gene', 'gene-batch',"
-                " 'gene-label', 'gene-cell'], but input was "
-                "{}.format(self.dispersion)"
+                "dispersion must be one of ['gene', 'gene-batch', "
+                f"'gene-label', 'gene-cell'], but input was {self.dispersion}."
             )
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"

@@ -1,155 +1,134 @@
-import inspect
 import logging
 import os
 import warnings
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import ray
 import torch
 from ray import tune
-from ray.tune import CLIReporter, ExperimentAnalysis
-from ray.tune.schedulers import ASHAScheduler
+from ray.tune import ExperimentAnalysis
+from ray.tune.schedulers import ASHAScheduler, PopulationBasedTraining
 from ray.tune.schedulers.trial_scheduler import TrialScheduler
 
+from scvi import model
+from scvi._compat import Literal
 from scvi._types import AnnOrMuData
 from scvi.model.base import BaseModelClass
 
-from ._utils import apply_model_config, fetch_config, train_model
+from ._utils import fetch_config, train_model
 
 logger = logging.getLogger(__name__)
 
 
-class Autotune:
+class ModelTuner:
     """
-    Automated and parallel hyperparameter searches with Ray Tune.
+    Automated and parallel hyperparameter searches with Ray Tune. Wraps a :class:`~ray.tune.Tuner` instance that is
+    attached to a scvi-tools model.
 
     Parameters
     ----------
+    model_cls
+        :class:`~scvi.model.base.BaseModelClass` on which to tune hyperparameters.
     adata
         AnnData/MuData object that has been registered via the model's ``setup_anndata`` or ``setup_mudata`` method.
-    model
-        :class:`~scvi.model.base.BaseModelClass` on which to tune hyperparameters.
-    num_epochs
-        Number of epochs to tune the model over
-    training_metrics
-        Metrics to track during training.
-    metric_functions
-        For metrics calculated after training a model, like silhouette distance.
-    model_hyperparams
-        Config for the model hyperparameters https://docs.ray.io/en/master/tune/api_docs/search_space.html.
-    trainer_hyperparams
-        Config for the trainer hyperparameters https://docs.ray.io/en/master/tune/api_docs/search_space.html.
-    plan_hyperparams
-        Config for the training_plan hyperparameters https://docs.ray.io/en/master/tune/api_docs/search_space.html.
-    setup_args
-        Non tunable anndata setup parameters
-    test_effect_covariates
-        Whether to test the effect of including covariates in the model. Default is `True`
-    continuous_covariates
-        continuous covariates from `adata` to tune the model on
-    categorical_covariates
-        Categorical covariates from `adata` to tune the model on
-
-    Examples
-    --------
-    >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
-    >>> model = scvi.model.SCVI(adata)
-    >>> tuner = scvi.autotune.Tuner(model)
-    >>> best_model, analysis = tuner.fit(metric="elbo_validation")
+    train_metrics:
+        Metrics to compute during training.
+    val_metrics:
+        Metrics to compute after training.
+    model_config:
+        Configuration dictionary where keys correspond to keyword args in the model's ``__init__`` method.
+        Values can be constants or instances of :class:`~ray.tune.search.sample.Domain`.
+    trainer_config:
+        Configuration dictionary where keys correspond to keyword args in the model's ``train`` method.
+        Values can beconstants or instances of :class:`~ray.tune.search.sample.Domain`.
+    plan_config:
+        Configuration dictionary where keys correspond to keyword args in the model's :class:`~scvi.train.TrainingPlan`.
+        Values can be constants or instances of :class:`~ray.tune.search.sample.Domain`.
 
     Notes
     -----
-    See further usage examples in the following tutorials:
+    See usage examples in the following tutorial(s):
 
     1. :doc:`/tutorials/notebooks/autotune`
     """
 
     def __init__(
         self,
+        model_cls: BaseModelClass,
         adata: AnnOrMuData,
-        model: BaseModelClass,
-        num_epochs: int = 2,
-        training_metrics: Optional[List[str]] = None,
-        metric_functions: Optional[dict] = None,
-        model_hyperparams: Optional[dict] = None,
-        trainer_hyperparams: Optional[dict] = None,
-        plan_hyperparams: Optional[dict] = None,
-        setup_args: Optional[dict] = None,
-        continuous_covariates: Optional[List[str]] = None,
-        categorical_covariates: Optional[List[str]] = None,
-        test_effect_covariates: bool = False,
+        train_metrics: Optional[List[Union[str, Callable]]] = None,
+        val_metrics: Optional[List[Union[str, Callable]]] = None,
+        model_config: Optional[dict] = None,
+        trainer_config: Optional[dict] = None,
+        plan_config: Optional[dict] = None,
     ):
         try:
             from ray import tune
         except ImportError:
             raise ImportError("Please install ray via `pip install ray`.")
-        training_metrics = training_metrics or []
-        metric_functions = metric_functions or {}
-        model_hyperparams = model_hyperparams or {}
-        trainer_hyperparams = trainer_hyperparams or {}
-        plan_hyperparams = plan_hyperparams or {}
-        setup_args = setup_args or {}
-        continuous_covariates = continuous_covariates or []
-        categorical_covariates = categorical_covariates or []
 
+        if model_cls not in [model.SCVI]:
+            raise NotImplementedError(
+                f"Tuning currently unsupported for {str(model_cls)}."
+            )
+
+        self.model_cls = model_cls
         self.adata = adata
-        self.model_cls = model
-        self.setup_signature = inspect.signature(
-            self.model_cls.setup_anndata
-        ).parameters  # Fetch available parameters
-        self.training_metrics = training_metrics
-        self.metric_functions = metric_functions
-        self.model_hyperparams = model_hyperparams
-        self.trainer_hyperparams = trainer_hyperparams
-        self.plan_hyperparams = plan_hyperparams
-        self.setup_args = setup_args
+        self.model_config = model_config or {}
+        self.train_metrics = train_metrics or []
+        self.val_metrics = val_metrics or []
+        self.trainer_config = trainer_config or {}
+        self.plan_config = plan_config or {}
 
-        continuous_covariates = [[covariate] for covariate in continuous_covariates]
-        categorical_covariates = [[covariate] for covariate in categorical_covariates]
-        if test_effect_covariates:
-            continuous_covariates.append(None)
-            categorical_covariates.append(None)
+        # Change fixed values to tune.choice with a single option
+        for config in [self.model_config, self.trainer_config, self.plan_config]:
+            for k, v in config:
+                if not isinstance(v, tune.search.sample.Domain):
+                    config[k] = tune.choice([v])
 
-        self.continuous_covariates = {
-            "continuous_covariate_keys": tune.choice(continuous_covariates)
-            if continuous_covariates
-            and "continuous_covariate_keys"
-            in self.setup_signature  # Change default None only if setup_anndata signature has covariates
-            else None
-        }
-        self.categorical_covariates = {
-            "categorical_covariate_keys": tune.choice(categorical_covariates)
-            if categorical_covariates
-            and "categorical_covariate_keys"
-            in self.setup_signature  # Change default None only if setup_anndata signature has covariates
-            else None
-        }
+    def fit(
+        self,
+        metric,
+        scheduler: Literal[
+            "asha", "pbt", "pbt_replay", "pb_bandits", "hyperband", "bohb", "median"
+        ] = "asha",
+        resources_per_trial: Optional[dict] = None,
+        **scheduler_kwargs,
+    ) -> None:
+        """
+        Wrapper around `fit` of the current :class:`~ray.tune.Tuner` instance. Executes a hyperparameter search
+        as specified.
 
-        self.metrics = training_metrics
-        self.reporter = CLIReporter(
-            metric_columns=training_metrics + list(self.metric_functions.keys())
-        )
-        self.config = {}
-        for att in [
-            self.model_hyperparams,
-            self.trainer_hyperparams,
-            self.plan_hyperparams,
-            self.continuous_covariates,
-            self.categorical_covariates,
-            self.test_effect_hvg,
-            self.top_hvg,
-        ]:
-            if att is not None:
-                self.config.update(att)
-        self.num_epochs = num_epochs
+        Parameters
+        ----------
+        metric
+            Metric to optimize over. Must be present in ``self.train_metrics`` or ``self.val_metrics``.
+        scheduler
+            Ray Tune scheduler for trials. Options are:
 
-    def _trainable(self, config):
-
-        model_config, trainer_config, plan_config = fetch_config(self, config)
-
-        model = apply_model_config(self, model_config)
-        train_model(self, model, trainer_config, plan_config)
+            * ``'asha'``: `~ray.tune.schedulers.ASHAScheduler`.
+            * ``'pbt'``: `~ray.tune.schedulers.PopulationBasedTraining`.
+            * ``'pbt_replay'``: `~ray.tune.schedulers.PopulationBasedTrainingReplay`.
+            * ``'pb_bandits'``: `~ray.tune.schedulers.pb2.PB2`.
+            * ``'hyperband'``: `~ray.tune.schedulers.HyperBandScheduler`.
+            * ``'bohb'``: `~ray.tune.schedulers.HyperBandForBOHB`.
+            * ``'median'``: `~ray.tune.schedulers.MedianStoppingRule`.
+        **scheduler_kwargs
+            Keyword args for the scheduler. If not provided, appropriate defaults are used for each scheduler.
+        """
+        if metric not in self.train_metrics + self.val_metrics:
+            raise ValueError(
+                f"Metric {metric} not in tuner's train_metrics or val_metrics."
+            )
+        if scheduler == "asha":
+            schedule = ASHAScheduler()
+        elif scheduler == "pbt":
+            schedule = PopulationBasedTraining()
+        else:
+            raise ValueError(
+                f"Tuning currently unsupported for scheduler {scheduler}. Must be one of ['asha', 'pbt']."
+            )
+        print(schedule)
 
     def run(
         self,

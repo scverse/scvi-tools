@@ -93,7 +93,6 @@ class TrainingPlan(pl.LightningModule):
     module
         A module instance from class ``BaseModuleClass``.
     lr
-
         Learning rate used for optimization.
     weight_decay
         Weight decay used in optimizatoin.
