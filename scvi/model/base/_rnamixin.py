@@ -14,6 +14,7 @@ from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.utils._docstrings import doc_differential_expression
+from scvi.utils import unsupported_in_latent_mode
 
 from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from ._utils import _de_core
@@ -369,7 +370,8 @@ class RNASeqMixin:
             # """
             data_loader_list += [data]
 
-            data_loader_list[-1] = np.transpose(data_loader_list[-1], (1, 2, 0))
+            if n_samples > 1:
+                data_loader_list[-1] = np.transpose(data_loader_list[-1], (1, 2, 0))
 
         return np.concatenate(data_loader_list, axis=0)
 
@@ -436,9 +438,14 @@ class RNASeqMixin:
                 (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
             )
             for i in range(n_samples):
-                flattened[
-                    denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
-                ] = denoised_data[:, :, i]
+                if n_samples == 1:
+                    flattened[
+                        denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
+                    ] = denoised_data[:, :]
+                else:
+                    flattened[
+                        denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
+                    ] = denoised_data[:, :, i]
             if correlation_type == "pearson":
                 corr_matrix = np.corrcoef(flattened, rowvar=False)
             elif correlation_type == "spearman":
@@ -532,6 +539,7 @@ class RNASeqMixin:
         return return_dict
 
     @torch.inference_mode()
+    @unsupported_in_latent_mode
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,

@@ -1712,7 +1712,7 @@ def run_test_scvi_latent_mode_dist(
     else:
         # do this so that we generate the same sequence of random numbers in the
         # latent and non latent cases (purely to get the tests to pass). this is
-        # becasue in the non latent case we sample once more (in the call to z_encoder
+        # because in the non latent case we sample once more (in the call to z_encoder
         # during inference)
         params_latent = model.get_likelihood_parameters(
             n_samples=n_samples + 1, give_mean=False
@@ -1742,12 +1742,14 @@ def test_scvi_latent_mode_get_normalized_expression():
     model, adata = prep_model()
 
     scvi.settings.seed = 1
-    adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     exprs_orig = model.get_normalized_expression()
 
-    model.to_latent_mode(mode="sampled")
+    model.to_latent_mode(mode="dist")
 
     scvi.settings.seed = 1
     exprs_latent = model.get_normalized_expression()
@@ -1778,7 +1780,7 @@ def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
     scvi.settings.seed = 1
     # do this so that we generate the same sequence of random numbers in the
     # latent and non latent cases (purely to get the tests to pass). this is
-    # becasue in the non latent case we sample once more (in the call to z_encoder
+    # because in the non latent case we sample once more (in the call to z_encoder
     # during inference)
     exprs_latent = model.get_normalized_expression(
         gene_list=gl, n_samples=n_samples + 1, return_mean=False, library_size="latent"
@@ -1791,8 +1793,12 @@ def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
 
 def test_latent_mode_validate_unsupported():
     model, adata = prep_model()
-    adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
-    model.to_latent_mode(mode="sampled")
+
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
+
+    model.to_latent_mode(mode="dist")
 
     common_err_msg = "Latent mode currently not supported for the {} function."
 
@@ -1808,17 +1814,23 @@ def test_latent_mode_validate_unsupported():
         model.get_marginal_ll()
     assert str(e.value) == common_err_msg.format("VAEMixin.get_marginal_ll")
 
+    with pytest.raises(ValueError) as e:
+        model.get_latent_library_size()
+    assert str(e.value) == common_err_msg.format("RNASeqMixin.get_latent_library_size")
+
 
 def test_scvi_latent_mode_save_load_latent(save_path):
     model, adata = prep_model()
 
     scvi.settings.seed = 1
-    adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters()
 
-    model.to_latent_mode(mode="sampled")
+    model.to_latent_mode(mode="dist")
 
     model.save(save_path, overwrite=True, save_anndata=True)
     # load saved latent model with saved latent adata
@@ -1834,13 +1846,15 @@ def test_scvi_latent_mode_save_load_latent_to_non_latent(save_path):
     model, adata = prep_model()
 
     scvi.settings.seed = 1
-    adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters()
     model_orig = deepcopy(model)
 
-    model.to_latent_mode(mode="sampled")
+    model.to_latent_mode(mode="dist")
 
     model.save(save_path, overwrite=True, save_anndata=True)
     # load saved latent model with non-latent adata
@@ -1856,13 +1870,15 @@ def test_scvi_latent_mode_save_load_non_latent_to_latent(save_path):
     model, adata = prep_model()
 
     scvi.settings.seed = 1
-    adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters()
     model_orig = deepcopy(model)
 
-    model.to_latent_mode(mode="sampled")
+    model.to_latent_mode(mode="dist")
 
     model_orig.save(save_path, overwrite=True, save_anndata=True)
     # load saved non-latent model with latent adata
@@ -1872,3 +1888,75 @@ def test_scvi_latent_mode_save_load_non_latent_to_latent(save_path):
     params_latent = loaded_model.get_likelihood_parameters()
     assert params_latent["mean"].shape == adata.shape
     assert np.array_equal(params_latent["mean"], params_orig["mean"])
+
+
+def test_scvi_latent_mode_get_latent_representation():
+    model, adata = prep_model()
+
+    scvi.settings.seed = 1
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
+
+    scvi.settings.seed = 1
+    latent_repr_orig = model.get_latent_representation()
+
+    model.to_latent_mode(mode="dist")
+
+    scvi.settings.seed = 1
+    latent_repr_latent = model.get_latent_representation()
+
+    assert np.array_equal(latent_repr_latent, latent_repr_orig)
+
+
+def test_scvi_latent_mode_posterior_predictive_sample():
+    model, adata = prep_model()
+
+    scvi.settings.seed = 1
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
+
+    scvi.settings.seed = 1
+    sample_orig = model.posterior_predictive_sample(
+        indices=[1, 2, 3], gene_list=["1", "2"]
+    )
+
+    model.to_latent_mode(mode="dist")
+
+    scvi.settings.seed = 1
+    sample_latent = model.posterior_predictive_sample(
+        indices=[1, 2, 3], gene_list=["1", "2"]
+    )
+    assert sample_latent.shape == (3, 2)
+
+    assert np.array_equal(sample_latent, sample_orig)
+
+
+def test_scvi_latent_mode_get_feature_correlation_matrix():
+    model, adata = prep_model()
+
+    scvi.settings.seed = 1
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
+
+    scvi.settings.seed = 1
+    fcm_orig = model.get_feature_correlation_matrix(
+        indices=[1, 2, 3],
+        correlation_type="pearson",
+        n_samples=1,
+        transform_batch=["batch_0", "batch_1"],
+    )
+
+    model.to_latent_mode(mode="dist")
+
+    scvi.settings.seed = 1
+    fcm_latent = model.get_feature_correlation_matrix(
+        indices=[1, 2, 3],
+        correlation_type="pearson",
+        n_samples=1,
+        transform_batch=["batch_0", "batch_1"],
+    )
+
+    assert np.array_equal(fcm_latent, fcm_orig)

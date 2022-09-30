@@ -361,7 +361,7 @@ class VAE(BaseModuleClass):
             z = self.z_encoder.z_transformation(untran_z)
         else:
             raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
-        outputs = dict(z=z, library=None)
+        outputs = dict(z=z, qz_m=qzm, qz_v=qzv, ql=None, library=None)
         return outputs
 
     @auto_move_data
