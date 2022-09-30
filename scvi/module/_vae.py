@@ -15,9 +15,9 @@ from scvi._types import LatentDataType
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import (
     BaseModuleClass,
+    LatentModeModuleMixin,
     LossRecorder,
     auto_move_data,
-    LatentModeModuleMixin,
 )
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
