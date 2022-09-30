@@ -13,8 +13,8 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.utils._docstrings import doc_differential_expression
 from scvi.utils import unsupported_in_latent_mode
+from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from ._utils import _de_core
