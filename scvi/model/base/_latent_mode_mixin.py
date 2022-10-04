@@ -33,9 +33,7 @@ class LatentModeMixin:
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ):
-        if mode == "sampled":
-            self.adata.obsm[_SCVI_LATENT_SAMPLES] = self.adata.obsm[use_latent_key]
-        elif mode == "dist":
+        if mode == "dist":
             self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
             self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
         else:
@@ -48,14 +46,7 @@ class LatentModeMixin:
 
     @staticmethod
     def _get_latent_fields(mode: LatentDataType):
-        if mode == "sampled":
-            latent_fields = [
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_SAMPLES_KEY,
-                    _SCVI_LATENT_SAMPLES,
-                ),
-            ]
-        elif mode == "dist":
+        if mode == "dist":
             latent_fields = [
                 ObsmField(
                     REGISTRY_KEYS.LATENT_QZM_KEY,

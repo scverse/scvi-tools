@@ -235,10 +235,7 @@ class VAE(LatentModeModuleMixin, BaseModuleClass):
                 x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
             )
         else:
-            if self.latent_data_type == "sampled":
-                qzm = tensors[REGISTRY_KEYS.LATENT_SAMPLES_KEY]
-                input_dict = dict(qzm=qzm, qzv=None)
-            elif self.latent_data_type == "dist":
+            if self.latent_data_type == "dist":
                 qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
                 qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
                 input_dict = dict(qzm=qzm, qzv=qzv)
@@ -339,13 +336,7 @@ class VAE(LatentModeModuleMixin, BaseModuleClass):
 
     @auto_move_data
     def _inference_no_encode(self, qzm, qzv, n_samples=1):
-        if self.latent_data_type == "sampled":
-            if n_samples > 1:
-                raise ValueError(
-                    f"n_samples={n_samples}. n_samples > 1 not supported when latent data is sampled."
-                )
-            z = qzm
-        elif self.latent_data_type == "dist":
+        if self.latent_data_type == "dist":
             dist = Normal(qzm, qzv.sqrt())
             untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)

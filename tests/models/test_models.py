@@ -1633,49 +1633,6 @@ def prep_model(layer=None):
     return model, adata
 
 
-def run_test_scvi_latent_mode_sampled(layer=None):
-    model, adata = prep_model(layer)
-
-    scvi.settings.seed = 1
-    adata.obsm["X_latent"] = model.get_latent_representation(give_mean=False)
-
-    scvi.settings.seed = 1
-    params_orig = model.get_likelihood_parameters()
-    model_orig = deepcopy(model)
-
-    model.to_latent_mode(mode="sampled")
-
-    assert model.latent_data_type == "sampled"
-
-    assert model_orig.adata.layers.keys() == model.adata.layers.keys()
-    assert model.adata.obs.equals(model_orig.adata.obs)
-    assert model.adata.var_names.equals(model_orig.adata.var_names)
-    assert model.adata.var.equals(model_orig.adata.var)
-    assert model.adata.varm.keys() == model_orig.adata.varm.keys()
-    assert np.array_equal(model.adata.varm["my_varm"], model_orig.adata.varm["my_varm"])
-
-    scvi.settings.seed = 1
-    params_latent = model.get_likelihood_parameters()
-    keys = ["mean", "dispersions", "dropout"]
-    for k in keys:
-        assert params_latent[k].shape == adata.shape
-
-    for k in keys:
-        assert np.array_equal(params_latent[k], params_orig[k])
-
-    # n_samples > 1 not supported in sampled latent mode
-    with pytest.raises(ValueError):
-        model.get_likelihood_parameters(n_samples=42)
-
-
-def test_scvi_latent_mode_sampled_no_layer():
-    run_test_scvi_latent_mode_sampled()
-
-
-def test_scvi_latent_mode_sampled_with_layer():
-    run_test_scvi_latent_mode_sampled(layer="data_layer")
-
-
 def run_test_scvi_latent_mode_dist(
     n_samples: int = 1, give_mean: bool = False, layer: str = None
 ):
