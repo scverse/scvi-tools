@@ -42,6 +42,7 @@ for operating over a collection of AnnDataFields and an AnnData object.
    data.fields.MuDataObsmField
    data.fields.MuDataNumericalJointObsField
    data.fields.MuDataCategoricalJointObsField
+   data.fields.BaseUnsField
 
 ```
 

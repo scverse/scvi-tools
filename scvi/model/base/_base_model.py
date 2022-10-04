@@ -12,8 +12,8 @@ import torch
 from anndata import AnnData
 from mudata import MuData
 
-from scvi import settings
-from scvi._types import AnnOrMuData
+from scvi import REGISTRY_KEYS, settings
+from scvi._types import AnnOrMuData, LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
@@ -28,12 +28,7 @@ from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
 from scvi.utils import attrdict, setup_anndata_dsp
 
-from ._utils import (
-    _initialize_model,
-    _load_saved_files,
-    _raise_if_missing_latent_mode_support,
-    _validate_var_names,
-)
+from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +65,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
         latent_adata = adata is not None and _get_latent_adata_type(adata) is not None
-        _raise_if_missing_latent_mode_support(type(self).__name__, latent_adata)
+        if latent_adata and not issubclass(type(self), BaseLatentModeModelClass):
+            raise NotImplementedError(
+                f"Latent mode currently not supported for the {type(self).__name__} model."
+            )
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self._adata = adata
@@ -823,3 +821,24 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Cannot view setup summary."
             )
         adata_manager.view_registry(hide_state_registries=hide_state_registries)
+
+
+class BaseLatentModeModelClass(BaseModelClass):
+    """Base class for models that support latent mode."""
+
+    @property
+    def latent_data_type(self) -> Optional[LatentDataType]:
+        return (
+            self.adata_manager.get_from_registry(REGISTRY_KEYS.LATENT_MODE_KEY)
+            if REGISTRY_KEYS.LATENT_MODE_KEY in self.adata_manager.data_registry
+            else None
+        )
+
+    @abstractmethod
+    def to_latent_mode(
+        self,
+        mode: LatentDataType,
+        *args,
+        **kwargs,
+    ):
+        pass

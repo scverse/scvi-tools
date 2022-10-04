@@ -9,7 +9,7 @@ from flax import linen
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 
-from scvi._types import LossRecord
+from scvi._types import LatentDataType, LossRecord
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
@@ -227,6 +227,33 @@ class BaseModuleClass(nn.Module):
     def sample(self, *args, **kwargs):
         """Generate samples from the learned model."""
         pass
+
+
+class BaseLatentModeModuleClass(BaseModuleClass):
+    """Base class for modules that support latent mode."""
+
+    @property
+    def latent_data_type(self) -> Optional[LatentDataType]:
+        return self._latent_data_type
+
+    @latent_data_type.setter
+    def latent_data_type(self, latent_data_type):
+        self._latent_data_type = latent_data_type
+
+    @abstractmethod
+    def _cached_inference(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def _regular_inference(self, *args, **kwargs):
+        pass
+
+    @auto_move_data
+    def inference(self, *args, **kwargs):
+        if self.latent_data_type is None:
+            return self._regular_inference(*args, **kwargs)
+        else:
+            return self._cached_inference(*args, **kwargs)
 
 
 def _get_dict_if_none(param):

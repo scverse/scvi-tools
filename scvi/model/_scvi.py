@@ -2,10 +2,13 @@ import logging
 from typing import List, Optional
 
 from anndata import AnnData
+from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
+from scvi.data._constants import _ADATA_LATENT_UNS_KEY
 from scvi.data._utils import _get_latent_adata_type
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -13,13 +16,21 @@ from scvi.data.fields import (
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
+    ObsmField,
+    StringUnsField,
 )
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 
-from .base import ArchesMixin, BaseModelClass, LatentModeMixin, RNASeqMixin, VAEMixin
+from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
+
+logger = logging.getLogger(__name__)
+
+_SCVI_LATENT_QZM = "_scvi_latent_qzm"
+_SCVI_LATENT_QZV = "_scvi_latent_qzv"
+
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +40,7 @@ class SCVI(
     VAEMixin,
     ArchesMixin,
     UnsupervisedTrainingMixin,
-    LatentModeMixin,
-    BaseModelClass,
+    BaseLatentModeModelClass,
 ):
     """
     single-cell Variational Inference [Lopez18]_.
@@ -196,12 +206,62 @@ class SCVI(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
         ]
+        # register new fields for latent mode if needed
+        latent_mode = _get_latent_adata_type(adata)
+        if latent_mode is not None:
+            anndata_fields += cls._get_latent_fields(latent_mode)
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
         )
         adata_manager.register_fields(adata, **kwargs)
-        # register new fields for latent mode if needed
-        latent_mode = _get_latent_adata_type(adata)
-        if latent_mode is not None:
-            adata_manager.register_new_fields(cls._get_latent_fields(latent_mode))
         cls.register_manager(adata_manager)
+
+    def _get_latent_adata_from_adata(
+        self,
+        mode: LatentDataType,
+        use_latent_qzm_key: str = "X_latent_qzm",
+        use_latent_qzv_key: str = "X_latent_qzv",
+    ):
+        if mode == "dist":
+            self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+            self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        self.adata.uns[_ADATA_LATENT_UNS_KEY] = mode
+        del self.adata.raw
+        all_zeros = csr_matrix(self.adata.X.shape)
+        self.adata.X = all_zeros.copy()
+        self.adata.layers = {layer: all_zeros.copy() for layer in self.adata.layers}
+
+    @staticmethod
+    def _get_latent_fields(mode: LatentDataType):
+        if mode == "dist":
+            latent_fields = [
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZM_KEY,
+                    _SCVI_LATENT_QZM,
+                ),
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZV_KEY,
+                    _SCVI_LATENT_QZV,
+                ),
+            ]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        latent_fields.append(
+            StringUnsField(
+                REGISTRY_KEYS.LATENT_MODE_KEY,
+                _ADATA_LATENT_UNS_KEY,
+            ),
+        )
+        return latent_fields
+
+    def to_latent_mode(
+        self,
+        mode: LatentDataType,
+        use_latent_qzm_key: str = "X_latent_qzm",
+        use_latent_qzv_key: str = "X_latent_qzv",
+    ):
+        self._get_latent_adata_from_adata(mode, use_latent_qzm_key, use_latent_qzv_key)
+        self.adata_manager.register_new_fields(self.__class__._get_latent_fields(mode))
+        self.module.latent_data_type = mode

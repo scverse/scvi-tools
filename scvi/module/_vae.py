@@ -13,19 +13,14 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import LatentDataType
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
-from scvi.module.base import (
-    BaseModuleClass,
-    LatentModeModuleMixin,
-    LossRecorder,
-    auto_move_data,
-)
+from scvi.module.base import BaseLatentModeModuleClass, LossRecorder, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(LatentModeModuleMixin, BaseModuleClass):
+class VAE(BaseLatentModeModuleClass):
     """
     Variational auto-encoder model.
 
@@ -335,7 +330,7 @@ class VAE(LatentModeModuleMixin, BaseModuleClass):
         return outputs
 
     @auto_move_data
-    def _inference_no_encode(self, qzm, qzv, n_samples=1):
+    def _cached_inference(self, qzm, qzv, n_samples=1):
         if self.latent_data_type == "dist":
             dist = Normal(qzm, qzv.sqrt())
             untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
