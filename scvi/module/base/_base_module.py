@@ -244,8 +244,10 @@ class BaseLatentModeModuleClass(BaseModuleClass):
 
     @abstractmethod
     def _cached_inference(self, *args, **kwargs):
-        """Uses the cached latent mode distribution to perform inference,
-        thus bypassing the encoder"""
+        """
+        Uses the cached latent mode distribution to perform inference,
+        thus bypassing the encoder
+        """
         pass
 
     @abstractmethod
@@ -255,8 +257,10 @@ class BaseLatentModeModuleClass(BaseModuleClass):
 
     @auto_move_data
     def inference(self, *args, **kwargs):
-        """Main inference call site which branches off to regular or cached
-        inference depending on the latent data type of the module"""
+        """
+        Main inference call site which branches off to regular or cached
+        inference depending on the latent data type of the module
+        """
         if self.latent_data_type is None:
             return self._regular_inference(*args, **kwargs)
         else:
