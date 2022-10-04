@@ -57,16 +57,7 @@ class BaseUnsField(BaseAnnDataField):
 
 
 class StringUnsField(BaseUnsField):
-    """
-    An AnnDataField for string .uns attributes in the AnnData data structure.
-
-    Parameters
-    ----------
-    registry_key
-        Key to register field under in data registry.
-    obs_key
-        Key to access the field in the AnnData uns mapping. If None, defaults to `registry_key`.
-    """
+    """An AnnDataField for string .uns attributes in the AnnData data structure."""
 
     def validate_field(self, adata: AnnData) -> None:
         super().validate_field(adata)

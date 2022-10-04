@@ -824,10 +824,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
 
 class BaseLatentModeModelClass(BaseModelClass):
-    """Base class for models that support latent mode."""
+    """Abstract base class for scvi-tools models that support latent mode."""
 
     @property
     def latent_data_type(self) -> Optional[LatentDataType]:
+        """The latent data type associated with this model."""
         return (
             self.adata_manager.get_from_registry(REGISTRY_KEYS.LATENT_MODE_KEY)
             if REGISTRY_KEYS.LATENT_MODE_KEY in self.adata_manager.data_registry
@@ -841,4 +842,7 @@ class BaseLatentModeModelClass(BaseModelClass):
         *args,
         **kwargs,
     ):
+        """Puts this model into latent mode by registering new anndata fields required
+        for latent mode (can be model class-specific) and marking the model's module
+        as latent as well."""
         pass

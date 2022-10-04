@@ -230,26 +230,33 @@ class BaseModuleClass(nn.Module):
 
 
 class BaseLatentModeModuleClass(BaseModuleClass):
-    """Base class for modules that support latent mode."""
+    """Abstract base class for scvi-tools modules that support latent mode."""
 
     @property
     def latent_data_type(self) -> Optional[LatentDataType]:
+        """The latent data type associated with this module."""
         return self._latent_data_type
 
     @latent_data_type.setter
     def latent_data_type(self, latent_data_type):
+        """Set latent data type associated with this module."""
         self._latent_data_type = latent_data_type
 
     @abstractmethod
     def _cached_inference(self, *args, **kwargs):
+        """Uses the cached latent mode distribution to perform inference,
+        thus bypassing the encoder"""
         pass
 
     @abstractmethod
     def _regular_inference(self, *args, **kwargs):
+        """Runs inference (encoder forward pass)."""
         pass
 
     @auto_move_data
     def inference(self, *args, **kwargs):
+        """Main inference call site which branches off to regular or cached
+        inference depending on the latent data type of the module"""
         if self.latent_data_type is None:
             return self._regular_inference(*args, **kwargs)
         else:
