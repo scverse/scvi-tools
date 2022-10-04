@@ -842,7 +842,5 @@ class BaseLatentModeModelClass(BaseModelClass):
         *args,
         **kwargs,
     ):
-        """
-        Puts this model into latent mode by registering new anndata fields required for latent mode and marking the module as latent.
-        """
+        """Put the model in latent mode by registering new fields required for latent mode and marking the module as latent."""
         pass
