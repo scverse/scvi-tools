@@ -151,7 +151,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         encode_covariates: bool = False,
         fully_paired: bool = False,
         empirical_protein_background_prior: bool = True,
-        protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
+        protein_dispersion: Literal[
+            "protein", "protein-batch", "protein-label"
+        ] = "protein",
         **model_kwargs,
     ):
         super().__init__(adata)
