@@ -64,6 +64,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
+        # check if the given adata is in latent mode and check if the model being created
+        # supports latent mode (i.e. inherits from the abstract BaseLatentModeModelClass).
+        # If not, raise an error to inform the user of the lack of latent mode functionality
+        # for this model
         latent_adata = adata is not None and _get_latent_adata_type(adata) is not None
         if latent_adata and not issubclass(type(self), BaseLatentModeModelClass):
             raise NotImplementedError(
@@ -842,5 +846,10 @@ class BaseLatentModeModelClass(BaseModelClass):
         *args,
         **kwargs,
     ):
-        """Put the model in latent mode by registering new fields required for latent mode and marking the module as latent."""
+        """
+        Put the model in latent mode by registering new fields required for
+        latent mode and marking the module as latent. This modifies the anndata
+        (and subsequently the model and module properties). Please make a copy
+        of those objects if needed.
+        """
         pass

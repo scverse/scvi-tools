@@ -333,7 +333,9 @@ class VAE(BaseLatentModeModuleClass):
     def _cached_inference(self, qzm, qzv, n_samples=1):
         if self.latent_data_type == "dist":
             dist = Normal(qzm, qzv.sqrt())
-            untran_z = dist.rsample() if n_samples == 1 else dist.sample((n_samples,))
+            # use dist.sample() rather than rsample because we aren't optimizing
+            # the z in latent/cached mode
+            untran_z = dist.sample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
         else:
             raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
