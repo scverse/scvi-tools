@@ -217,7 +217,7 @@ class MULTIVAE(BaseModuleClass):
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     protein_dispersion
-        One of the following
+        One of the following:
 
         * ``'protein'`` - protein_dispersion parameter is constant per protein across cells
         * ``'protein-batch'`` - protein_dispersion can differ between different batches NOT TESTED
