@@ -924,9 +924,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Batch to condition on.
             If transform_batch is:
 
-            - None, then real observed batch is used
-            - int, then batch transform_batch is used
-            - List[int], then average over batches in list
+            * ``None`` - real observed batch is used
+            * ``int`` - batch transform_batch is used
+            * ``List[int]`` - average over batches in list
         protein_list
             Return protein expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
