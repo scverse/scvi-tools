@@ -1009,7 +1009,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             return 1 - py_mixings
         else:
             pro_names = self.protein_state_registry.column_names
-            # pro_names = self.scvi_setup_dict_["protein_names"]
             foreground_prob = pd.DataFrame(
                 1 - py_mixings,
                 columns=pro_names[protein_mask],
