@@ -1,4 +1,5 @@
 from ._base_module import (
+    BaseLatentModeModuleClass,
     BaseModuleClass,
     JaxBaseModuleClass,
     LossRecorder,
@@ -15,4 +16,5 @@ __all__ = [
     "JaxBaseModuleClass",
     "JaxModuleWrapper",
     "TrainStateWithState",
+    "BaseLatentModeModuleClass",
 ]
