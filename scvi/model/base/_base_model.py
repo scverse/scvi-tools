@@ -842,7 +842,7 @@ class BaseLatentModeModelClass(BaseModelClass):
     @abstractmethod
     def to_latent_mode(
         self,
-        mode: LatentDataType,
+        mode: LatentDataType = "dist",
         *args,
         **kwargs,
     ):

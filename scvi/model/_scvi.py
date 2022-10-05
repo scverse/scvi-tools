@@ -258,7 +258,7 @@ class SCVI(
 
     def to_latent_mode(
         self,
-        mode: LatentDataType,
+        mode: LatentDataType = "dist",
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ):
