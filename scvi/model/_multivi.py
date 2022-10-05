@@ -156,11 +156,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     ):
         super().__init__(adata)
 
-        if empirical_protein_background_prior:
-            prior_mean, prior_scale = None, None
-        else:
-            prior_mean, prior_scale = None, None
-
+        prior_mean, prior_scale = None, None
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
                 REGISTRY_KEYS.CAT_COVS_KEY
