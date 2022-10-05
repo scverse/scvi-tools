@@ -977,7 +977,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for __ in transform_batch:
+            for _ in transform_batch:
                 # generative_kwargs = dict(transform_batch=b)
                 generative_kwargs = dict(use_z_mean=use_z_mean)
                 inference_kwargs = dict(n_samples=n_samples)
