@@ -262,6 +262,25 @@ class SCVI(
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ):
+        """
+        Put the model into latent mode.
+
+        The model is put into latent mode by registering new anndata fields
+        required for latent mode support - latent qzm, latent qzv, and adata uns
+        containing latent mode type - and marking the module as latent. Note that
+        this modifies the anndata (and subsequently the model and module properties)
+        in place. Please make a copy of those objects (before calling this function)
+        if needed.
+
+        Parameters
+        ----------
+        mode
+            The latent data type used
+        use_latent_qzm_key
+            Key to use in `adata.obsm` where the latent qzm params are stored
+        use_latent_qzv_key
+            Key to use in `adata.obsm` where the latent qzv params are stored
+        """
         self._get_latent_adata_from_adata(mode, use_latent_qzm_key, use_latent_qzv_key)
         self.adata_manager.register_new_fields(self.__class__._get_latent_fields(mode))
         self.module.latent_data_type = mode
