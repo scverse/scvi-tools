@@ -1022,7 +1022,6 @@ def sym_kld(qzm1, qzv1, qzm2, qzv2):
 
 @auto_move_data
 def get_reconstruction_loss_protein(y, py_, pro_batch_mask_minibatch=None):
-
     py_conditional = NegativeBinomialMixture(
         mu1=py_["rate_back"],
         mu2=py_["rate_fore"],
