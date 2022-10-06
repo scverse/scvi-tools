@@ -14,7 +14,7 @@ from anndata._core.sparse_dataset import SparseDataset
 from mudata import MuData
 from pandas.api.types import CategoricalDtype
 
-from scvi._types import AnnOrMuData
+from scvi._types import AnnOrMuData, LatentDataType
 
 from . import _constants
 
@@ -203,10 +203,13 @@ def _check_nonnegative_integers(
     else:
         raise TypeError("data type not understood")
 
-    inds = np.random.choice(len(data), size=(n_to_check,))
-    check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
-    negative, non_integer = _is_not_count_val(check)
-    return not (negative or non_integer)
+    ret = True
+    if len(data) != 0:
+        inds = np.random.choice(len(data), size=(n_to_check,))
+        check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
+        negative, non_integer = _is_not_count_val(check)
+        ret = not (negative or non_integer)
+    return ret
 
 
 @jax.jit
@@ -266,3 +269,7 @@ def _check_mudata_fully_paired(mdata: MuData):
                 "Please make sure that data is fully paired in all MuData inputs. "
                 "Either pad the unpaired modalities or take the intersection with muon.pp.intersect_obs()."
             )
+
+
+def _get_latent_adata_type(adata: AnnData) -> Optional[LatentDataType]:
+    return adata.uns.get(_constants._ADATA_LATENT_UNS_KEY, None)

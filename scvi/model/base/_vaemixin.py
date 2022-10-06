@@ -5,6 +5,8 @@ import numpy as np
 import torch
 from anndata import AnnData
 
+from scvi.utils import unsupported_in_latent_mode
+
 from ._log_likelihood import compute_elbo, compute_reconstruction_error
 
 logger = logging.getLogger(__name__)
@@ -14,6 +16,7 @@ class VAEMixin:
     """Univseral VAE methods."""
 
     @torch.inference_mode()
+    @unsupported_in_latent_mode
     def get_elbo(
         self,
         adata: Optional[AnnData] = None,
@@ -44,6 +47,7 @@ class VAEMixin:
         return -elbo
 
     @torch.inference_mode()
+    @unsupported_in_latent_mode
     def get_marginal_ll(
         self,
         adata: Optional[AnnData] = None,
@@ -88,6 +92,7 @@ class VAEMixin:
         return log_lkl / n_samples
 
     @torch.inference_mode()
+    @unsupported_in_latent_mode
     def get_reconstruction_error(
         self,
         adata: Optional[AnnData] = None,
@@ -125,6 +130,7 @@ class VAEMixin:
         give_mean: bool = True,
         mc_samples: int = 5000,
         batch_size: Optional[int] = None,
+        return_dist: bool = False,
     ) -> np.ndarray:
         r"""
         Return the latent representation for each cell.
@@ -145,11 +151,13 @@ class VAEMixin:
             samples to take for computing mean.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_dist
+            Return the distribution parameters of the latent variables rather than their sampled values
 
         Returns
         -------
-        latent_representation : np.ndarray
-            Low-dimensional representation for each cell
+        latent_representation : Union[np.ndarray, tuple(np.ndarray)]
+            Low-dimensional representation for each cell or a tuple containing its distribution parameters
         """
         self._check_if_trained(warn=False)
 
@@ -158,6 +166,8 @@ class VAEMixin:
             adata=adata, indices=indices, batch_size=batch_size
         )
         latent = []
+        latent_qzm = []
+        latent_qzv = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
@@ -178,4 +188,10 @@ class VAEMixin:
                     z = qz.loc
 
             latent += [z.cpu()]
-        return torch.cat(latent).numpy()
+            latent_qzm += [qz.loc.cpu()]
+            latent_qzv += [qz.scale.square().cpu()]
+        return (
+            (torch.cat(latent_qzm).numpy(), torch.cat(latent_qzv).numpy())
+            if return_dist
+            else torch.cat(latent).numpy()
+        )

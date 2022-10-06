@@ -32,6 +32,7 @@ for operating over a collection of AnnDataFields and an AnnData object.
    data.fields.CategoricalJointObsField
    data.fields.ObsmField
    data.fields.ProteinObsmField
+   data.fields.StringUnsField
    data.fields.LabelsWithUnlabeledObsField
    data.fields.BaseMuDataWrapperClass
    data.fields.MuDataWrapper
@@ -101,6 +102,7 @@ These classes should be used to construct user-facing model classes.
     :nosignatures:
 
     model.base.BaseModelClass
+    model.base.BaseLatentModeModelClass
     model.base.VAEMixin
     model.base.RNASeqMixin
     model.base.ArchesMixin
@@ -176,6 +178,7 @@ These classes should be used to construct module classes that define generative 
    :nosignatures:
 
    module.base.BaseModuleClass
+   module.base.BaseLatentModeModuleClass
    module.base.PyroBaseModuleClass
    module.base.JaxModuleWrapper
    module.base.LossRecorder
