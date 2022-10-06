@@ -17,6 +17,7 @@ from ._obsm_field import (
 )
 from ._protein import MuDataProteinLayerField, ProteinObsmField
 from ._scanvi import LabelsWithUnlabeledObsField
+from ._uns_field import StringUnsField
 
 __all__ = [
     "BaseAnnDataField",
@@ -38,4 +39,5 @@ __all__ = [
     "MuDataCategoricalJointObsField",
     "ProteinObsmField",
     "LabelsWithUnlabeledObsField",
+    "StringUnsField",
 ]

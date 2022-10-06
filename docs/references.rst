@@ -64,3 +64,7 @@ References
 .. [Blei03] David M. Blei, Andrew Y. Ng, Michael I. Jordan (2003),
    *Latent Dirichlet Allocation*,
    `Journal of Machine Learning Research <https://www.jmlr.org/papers/volume3/blei03a/blei03a.pdf>`__.
+
+.. [Sheng22] Caibin Sheng, Rui Lopes, Gang Li, Sven Schuierer, Annick Waldt, Rachel Cuttat, Slavica Dimitrieva, Audrey Kauffmann, Eric Durand, Giorgio G. Galli, Guglielmo Roma, Antoine de Weck (2022),
+    *Probabilistic machine learning ensures accurate ambient denoising in droplet-based single-cell omics*,
+    `bioRxiv <https://www.biorxiv.org/content/10.1101/2022.01.14.476312v4>`__.

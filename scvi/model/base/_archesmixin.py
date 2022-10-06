@@ -75,7 +75,7 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
-        use_gpu, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_use_gpu_arg(use_gpu)
 
         attr_dict, var_names, load_state_dict = _get_loaded_data(
             reference_model, device=device
@@ -252,7 +252,7 @@ def _set_params_online_update(
     if unfrozen:
         return
 
-    mod_no_grad = set(["encoder_z2_z1", "decoder_z1_z2"])
+    mod_inference_mode = set(["encoder_z2_z1", "decoder_z1_z2"])
     mod_no_hooks_yes_grad = set(["l_encoder"])
     if not freeze_classifier:
         mod_no_hooks_yes_grad.add("classifier")
@@ -266,7 +266,7 @@ def _set_params_online_update(
     def requires_grad(key):
         mod_name = key.split(".")[0]
         # linear weights and bias that need grad
-        one = "fc_layers" in key and ".0." in key and mod_name not in mod_no_grad
+        one = "fc_layers" in key and ".0." in key and mod_name not in mod_inference_mode
         # modules that need grad
         two = mod_name in mod_no_hooks_yes_grad
         three = sum([p in key for p in parameters_yes_grad]) > 0

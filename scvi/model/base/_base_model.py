@@ -12,8 +12,8 @@ import torch
 from anndata import AnnData
 from mudata import MuData
 
-from scvi import settings
-from scvi._types import AnnOrMuData
+from scvi import REGISTRY_KEYS, settings
+from scvi._types import AnnOrMuData, LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
@@ -22,7 +22,7 @@ from scvi.data._constants import (
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
 )
-from scvi.data._utils import _assign_adata_uuid, _check_if_view
+from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_latent_adata_type
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
@@ -64,6 +64,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
+        # check if the given adata is in latent mode and check if the model being created
+        # supports latent mode (i.e. inherits from the abstract BaseLatentModeModelClass).
+        # If not, raise an error to inform the user of the lack of latent mode functionality
+        # for this model
+        latent_adata = adata is not None and _get_latent_adata_type(adata) is not None
+        if latent_adata and not issubclass(type(self), BaseLatentModeModelClass):
+            raise NotImplementedError(
+                f"Latent mode currently not supported for the {type(self).__name__} model."
+            )
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self._adata = adata
@@ -546,13 +555,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
-                "{} already exists. Please provide an unexisting directory for saving.".format(
+                "{} already exists. Please provide another directory for saving.".format(
                     dir_path
                 )
             )
 
         file_name_prefix = prefix or ""
-
         if save_anndata:
             file_suffix = ""
             if isinstance(self.adata, AnnData):
@@ -625,7 +633,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model.get_....
         """
         load_adata = adata is None
-        use_gpu, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_use_gpu_arg(use_gpu)
 
         (attr_dict, var_names, model_state_dict, new_adata,) = _load_saved_files(
             dir_path,
@@ -635,6 +643,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             backup_url=backup_url,
         )
         adata = new_adata if new_adata is not None else adata
+
         _validate_var_names(adata, var_names)
 
         registry = attr_dict.pop("registry_")
@@ -816,3 +825,39 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Cannot view setup summary."
             )
         adata_manager.view_registry(hide_state_registries=hide_state_registries)
+
+
+class BaseLatentModeModelClass(BaseModelClass):
+    """Abstract base class for scvi-tools models that support latent mode."""
+
+    @property
+    def latent_data_type(self) -> Optional[LatentDataType]:
+        """The latent data type associated with this model."""
+        return (
+            self.adata_manager.get_from_registry(REGISTRY_KEYS.LATENT_MODE_KEY)
+            if REGISTRY_KEYS.LATENT_MODE_KEY in self.adata_manager.data_registry
+            else None
+        )
+
+    @abstractmethod
+    def to_latent_mode(
+        self,
+        mode: LatentDataType = "dist",
+        *args,
+        **kwargs,
+    ):
+        """
+        Put the model into latent mode.
+
+        The model is put into latent mode by registering new anndata fields
+        required for latent mode support (can be model-specific) and marking
+        the module as latent. Note that this modifies the anndata (and subsequently
+        the model and module properties) in place. Please make a copy of those objects
+        (before calling this function) if needed.
+
+        Parameters
+        ----------
+        mode
+            The latent data type used
+        """
+        pass

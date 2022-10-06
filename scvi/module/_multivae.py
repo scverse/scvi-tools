@@ -12,6 +12,8 @@ from scvi.module._peakvae import Decoder as DecoderPeakVI
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, FCLayers
 
+from ._utils import masked_softmax
+
 
 class LibrarySizeEncoder(torch.nn.Module):
     def __init__(
@@ -55,6 +57,16 @@ class MULTIVAE(BaseModuleClass):
         Number of input regions.
     n_input_genes
         Number of input genes.
+    modality_weights
+        Weighting scheme across modalities. One of the following:
+        * ``"equal"``: Equal weight in each modality
+        * ``"universal"``: Learn weights across modalities w_m.
+        * ``"cell"``: Learn weights across modalities and cells. w_{m,c}
+    modality_penalty
+        Training Penalty across modalities. One of the following:
+        * ``"Jeffreys"``: Jeffreys penalty to align modalities
+        * ``"MMD"``: MMD penalty to align modalities
+        * ``"None"``: No penalty
     n_batch
         Number of batches, if 0, no batch correction is performed.
     gene_likelihood
@@ -62,6 +74,12 @@ class MULTIVAE(BaseModuleClass):
         * ``'zinb'`` - Zero-Inflated Negative Binomial
         * ``'nb'`` - Negative Binomial
         * ``'poisson'`` - Poisson
+    dispersion
+        One of the following:
+        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
+        * ``'gene-batch'`` - dispersion can differ between different batches
+        * ``'gene-label'`` - dispersion can differ between different labels
+        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     n_hidden
         Number of nodes per hidden layer. If `None`, defaults to square root
         of number of regions.
@@ -101,13 +119,18 @@ class MULTIVAE(BaseModuleClass):
         Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional RNA distribution.
     """
 
-    ## TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes forst or that they're even contiguous)
+    ## TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes first or that they're even contiguous)
     def __init__(
         self,
         n_input_regions: int = 0,
         n_input_genes: int = 0,
+        modality_weights: Literal["equal", "cell", "universal"] = "equal",
+        modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
         n_batch: int = 0,
+        n_obs: int = 0,
+        n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        gene_dispersion: str = "gene",
         n_hidden: Optional[int] = None,
         n_latent: Optional[int] = None,
         n_layers_encoder: int = 2,
@@ -128,11 +151,13 @@ class MULTIVAE(BaseModuleClass):
         # INIT PARAMS
         self.n_input_regions = n_input_regions
         self.n_input_genes = n_input_genes
-        self.n_hidden = (
-            int(np.sqrt(self.n_input_regions + self.n_input_genes))
-            if n_hidden is None
-            else n_hidden
-        )
+        if n_hidden is None:
+            if n_input_regions == 0:
+                self.n_hidden = np.min([128, int(np.sqrt(self.n_input_genes))])
+            else:
+                self.n_hidden = int(np.sqrt(self.n_input_regions))
+        else:
+            self.n_hidden = n_hidden
         self.n_batch = n_batch
 
         self.gene_likelihood = gene_likelihood
@@ -163,7 +188,80 @@ class MULTIVAE(BaseModuleClass):
         n_input_encoder_exp = self.n_input_genes + n_continuous_cov * encode_covariates
         encoder_cat_list = cat_list if encode_covariates else None
 
-        ## accessibility encoder
+        ### expression
+        ## expression encoder
+        ##      expression dispersion parameters
+        self.gene_likelihood = gene_likelihood
+        self.gene_dispersion = gene_dispersion
+        if self.gene_dispersion == "gene":
+            self.px_r = torch.nn.Parameter(torch.randn(n_input_genes))
+        elif self.gene_dispersion == "gene-batch":
+            self.px_r = torch.nn.Parameter(torch.randn(n_input_genes, n_batch))
+        elif self.gene_dispersion == "gene-label":
+            self.px_r = torch.nn.Parameter(torch.randn(n_input_genes, n_labels))
+        elif self.gene_dispersion == "gene-cell":
+            pass
+        else:
+            raise ValueError(
+                "dispersion must be one of ['gene', 'gene-batch',"
+                " 'gene-label', 'gene-cell'], but input was "
+                "{}.format(self.dispersion)"
+            )
+
+        ##      expression encoder
+        if self.n_input_genes == 0:
+            input_exp = 1
+        else:
+            input_exp = self.n_input_genes
+        n_input_encoder_exp = input_exp + n_continuous_cov * encode_covariates
+        self.z_encoder_expression = Encoder(
+            n_input=n_input_encoder_exp,
+            n_output=self.n_latent,
+            n_cat_list=encoder_cat_list,
+            n_layers=self.n_layers_encoder,
+            n_hidden=self.n_hidden,
+            dropout_rate=self.dropout_rate,
+            distribution=self.latent_distribution,
+            inject_covariates=deeply_inject_covariates,
+            use_batch_norm=self.use_batch_norm_encoder,
+            use_layer_norm=self.use_layer_norm_encoder,
+            activation_fn=torch.nn.LeakyReLU,
+            var_eps=0,
+            return_dist=False,
+        )
+
+        ##      expression library size encoder
+        self.l_encoder_expression = LibrarySizeEncoder(
+            n_input_encoder_exp,
+            n_cat_list=encoder_cat_list,
+            n_layers=self.n_layers_encoder,
+            n_hidden=self.n_hidden,
+            use_batch_norm=self.use_batch_norm_encoder,
+            use_layer_norm=self.use_layer_norm_encoder,
+            deep_inject_covariates=self.deeply_inject_covariates,
+        )
+
+        # expression decoder
+        n_input_decoder = self.n_latent + self.n_continuous_cov
+        self.z_decoder_expression = DecoderSCVI(
+            n_input_decoder,
+            n_input_genes,
+            n_cat_list=cat_list,
+            n_layers=n_layers_decoder,
+            n_hidden=self.n_hidden,
+            inject_covariates=self.deeply_inject_covariates,
+            use_batch_norm=self.use_batch_norm_decoder,
+            use_layer_norm=self.use_layer_norm_decoder,
+            scale_activation="softplus" if use_size_factor_key else "softmax",
+        )
+
+        ### accessibility
+        ##      accessibility encoder
+        if self.n_input_regions == 0:
+            input_acc = 1
+        else:
+            input_acc = self.n_input_regions
+        n_input_encoder_acc = input_acc + n_continuous_cov * encode_covariates
         self.z_encoder_accessibility = Encoder(
             n_input=n_input_encoder_acc,
             n_layers=self.n_layers_encoder,
@@ -176,39 +274,15 @@ class MULTIVAE(BaseModuleClass):
             var_eps=0,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
-            return_dist=True,
+            return_dist=False,
         )
 
-        ## expression encoder
-        self.z_encoder_expression = Encoder(
-            n_input=n_input_encoder_exp,
-            n_layers=self.n_layers_encoder,
-            n_output=self.n_latent,
-            n_hidden=self.n_hidden,
-            n_cat_list=encoder_cat_list,
-            dropout_rate=self.dropout_rate,
-            activation_fn=torch.nn.LeakyReLU,
-            distribution=self.latent_distribution,
-            var_eps=0,
-            use_batch_norm=self.use_batch_norm_encoder,
-            use_layer_norm=self.use_layer_norm_encoder,
-            return_dist=True,
-        )
+        ##      accessibility region-specific factors
+        self.region_factors = None
+        if region_factors:
+            self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
 
-        # expression decoder
-        self.z_decoder_expression = DecoderSCVI(
-            self.n_latent + self.n_continuous_cov,
-            n_input_genes,
-            n_cat_list=cat_list,
-            n_layers=n_layers_decoder,
-            n_hidden=self.n_hidden,
-            inject_covariates=self.deeply_inject_covariates,
-            use_batch_norm=self.use_batch_norm_decoder,
-            use_layer_norm=self.use_layer_norm_decoder,
-            scale_activation="softplus" if use_size_factor_key else "softmax",
-        )
-
-        # accessibility decoder
+        ##       accessibility decoder
         self.z_decoder_accessibility = DecoderPeakVI(
             n_input=self.n_latent + self.n_continuous_cov,
             n_output=n_input_regions,
@@ -220,26 +294,7 @@ class MULTIVAE(BaseModuleClass):
             deep_inject_covariates=self.deeply_inject_covariates,
         )
 
-        ## accessibility region-specific factors
-        self.region_factors = None
-        if region_factors:
-            self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
-
-        ## expression dispersion parameters
-        self.px_r = torch.nn.Parameter(torch.randn(n_input_genes))
-
-        ## expression library size encoder
-        self.l_encoder_expression = LibrarySizeEncoder(
-            n_input_encoder_exp,
-            n_cat_list=encoder_cat_list,
-            n_layers=self.n_layers_encoder,
-            n_hidden=self.n_hidden,
-            use_batch_norm=self.use_batch_norm_encoder,
-            use_layer_norm=self.use_layer_norm_encoder,
-            deep_inject_covariates=self.deeply_inject_covariates,
-        )
-
-        ## accessibility library size encoder
+        ##      accessibility library size encoder
         self.l_encoder_accessibility = DecoderPeakVI(
             n_input=n_input_encoder_acc,
             n_output=1,
@@ -251,16 +306,34 @@ class MULTIVAE(BaseModuleClass):
             deep_inject_covariates=self.deeply_inject_covariates,
         )
 
+        ##      modality alignment
+        self.n_obs = n_obs
+        self.modality_weights = modality_weights
+        self.modality_penalty = modality_penalty
+        self.n_modalities = int(n_input_genes > 0) + int(n_input_regions > 0)
+        max_n_modalities = 2
+        if modality_weights == "equal":
+            mod_weights = torch.ones(max_n_modalities)
+            self.register_buffer("mod_weights", mod_weights)
+        elif modality_weights == "universal":
+            self.mod_weights = torch.nn.Parameter(torch.ones(max_n_modalities))
+        else:  # cell-specific weights
+            self.mod_weights = torch.nn.Parameter(torch.ones(n_obs, max_n_modalities))
+
     def _get_inference_input(self, tensors):
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        cell_idx = tensors.get(REGISTRY_KEYS.INDICES_KEY).long().ravel()
         cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY)
         cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY)
+        label = tensors[REGISTRY_KEYS.LABELS_KEY]
         input_dict = dict(
             x=x,
             batch_index=batch_index,
             cont_covs=cont_covs,
             cat_covs=cat_covs,
+            label=label,
+            cell_idx=cell_idx,
         )
         return input_dict
 
@@ -271,12 +344,20 @@ class MULTIVAE(BaseModuleClass):
         batch_index,
         cont_covs,
         cat_covs,
+        label,
+        cell_idx,
         n_samples=1,
     ) -> Dict[str, torch.Tensor]:
 
         # Get Data and Additional Covs
-        x_rna = x[:, : self.n_input_genes]
-        x_chr = x[:, self.n_input_genes :]
+        if self.n_input_genes == 0:
+            x_rna = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
+        else:
+            x_rna = x[:, : self.n_input_genes]
+        if self.n_input_regions == 0:
+            x_chr = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
+        else:
+            x_chr = x[:, self.n_input_genes :]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
@@ -294,16 +375,13 @@ class MULTIVAE(BaseModuleClass):
             categorical_input = tuple()
 
         # Z Encoders
-        qz_acc, z_acc = self.z_encoder_accessibility(
+        qzm_acc, qzv_acc, z_acc = self.z_encoder_accessibility(
             encoder_input_accessibility, batch_index, *categorical_input
         )
-        qz_expr, z_expr = self.z_encoder_expression(
+        qzm_expr, qzv_expr, z_expr = self.z_encoder_expression(
             encoder_input_expression, batch_index, *categorical_input
         )
-        qzm_acc = qz_acc.loc
-        qzm_expr = qz_expr.loc
-        qzv_acc = qz_acc.scale**2
-        qzv_expr = qz_expr.scale**2
+
         # L encoders
         libsize_expr = self.l_encoder_expression(
             encoder_input_expression, batch_index, *categorical_input
@@ -312,29 +390,37 @@ class MULTIVAE(BaseModuleClass):
             encoder_input_accessibility, batch_index, *categorical_input
         )
 
-        # ReFormat Outputs
+        ## mix representations
+        if self.modality_weights == "cell":
+            weights = self.mod_weights[cell_idx, :]
+        else:
+            weights = self.mod_weights.unsqueeze(0).expand(len(cell_idx), -1)
+
+        qz_m = mix_modalities((qzm_expr, qzm_acc), (mask_expr, mask_acc), weights)
+        qz_v = mix_modalities(
+            (qzv_expr, qzv_acc),
+            (mask_expr, mask_acc),
+            weights,
+            torch.sqrt,
+        )
+
+        # Sample
         if n_samples > 1:
-            untran_za = qz_acc.sample((n_samples,))
+
+            def unsqz(zt, n_s):
+                return zt.unsqueeze(0).expand((n_s, zt.size(0), zt.size(1)))
+
+            untran_za = Normal(qzm_acc, qzv_acc.sqrt()).sample((n_samples,))
             z_acc = self.z_encoder_accessibility.z_transformation(untran_za)
-            untran_zr = qz_expr.sample((n_samples,))
-            z_expr = self.z_encoder_expression.z_transformation(untran_zr)
+            untran_ze = Normal(qzm_expr, qzv_expr.sqrt()).sample((n_samples,))
+            z_expr = self.z_encoder_expression.z_transformation(untran_ze)
 
-            libsize_expr = libsize_expr.unsqueeze(0).expand(
-                (n_samples, libsize_expr.size(0), libsize_expr.size(1))
-            )
-            libsize_acc = libsize_acc.unsqueeze(0).expand(
-                (n_samples, libsize_acc.size(0), libsize_acc.size(1))
-            )
+            libsize_expr = unsqz(libsize_expr, n_samples)
+            libsize_acc = unsqz(libsize_acc, n_samples)
 
-        ## Sample from the average distribution
-        qzp_m = (qzm_acc + qzm_expr) / 2
-        qzp_v = (qzv_acc + qzv_expr) / (2**0.5)
-        zp = Normal(qzp_m, qzp_v.sqrt()).rsample()
-
-        ## choose the correct latent representation based on the modality
-        qz_m = self._mix_modalities(qzp_m, qzm_expr, qzm_acc, mask_expr, mask_acc)
-        qz_v = self._mix_modalities(qzp_v, qzv_expr, qzv_acc, mask_expr, mask_acc)
-        z = self._mix_modalities(zp, z_expr, z_acc, mask_expr, mask_acc)
+        ## Sample from the mixed representation
+        untran_z = Normal(qz_m, qz_v.sqrt()).rsample()
+        z = self.z_encoder_accessibility.z_transformation(untran_z)
 
         outputs = dict(
             z=z,
@@ -373,6 +459,8 @@ class MULTIVAE(BaseModuleClass):
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
+        label = tensors[REGISTRY_KEYS.LABELS_KEY]
+
         input_dict = dict(
             z=z,
             qz_m=qz_m,
@@ -381,6 +469,7 @@ class MULTIVAE(BaseModuleClass):
             cat_covs=cat_covs,
             libsize_expr=libsize_expr,
             size_factor=size_factor,
+            label=label,
         )
         return input_dict
 
@@ -395,6 +484,7 @@ class MULTIVAE(BaseModuleClass):
         libsize_expr=None,
         size_factor=None,
         use_z_mean=False,
+        label: torch.Tensor = None,
     ):
         """Runs the generative model."""
         if cat_covs is not None:
@@ -419,7 +509,11 @@ class MULTIVAE(BaseModuleClass):
         if not self.use_size_factor_key:
             size_factor = libsize_expr
         px_scale, _, px_rate, px_dropout = self.z_decoder_expression(
-            "gene", decoder_input, size_factor, batch_index, *categorical_input
+            self.gene_dispersion,
+            decoder_input,
+            size_factor,
+            batch_index,
+            *categorical_input
         )
 
         return dict(
@@ -436,6 +530,7 @@ class MULTIVAE(BaseModuleClass):
         # Get the data
         x = tensors[REGISTRY_KEYS.X_KEY]
 
+        # TODO: CHECK IF THIS FAILS IN ONLY RNA DATA
         x_rna = x[:, : self.n_input_genes]
         x_chr = x[:, self.n_input_genes :]
 
@@ -459,14 +554,9 @@ class MULTIVAE(BaseModuleClass):
             x_expression, px_rate, px_r, px_dropout
         )
 
-        # mix losses to get the correct loss for each cell
-        recon_loss = self._mix_modalities(
-            rl_accessibility + rl_expression,  # paired
-            rl_expression,  # expression
-            rl_accessibility,  # accessibility
-            mask_expr,
-            mask_acc,
-        )
+        # calling without weights makes this act like a masked sum
+        # TODO : CHECK MIXING HERE
+        recon_loss = (rl_expression * mask_expr) + (rl_accessibility * mask_acc)
 
         # Compute KLD between Z and N(0,I)
         qz_m = inference_outputs["qz_m"]
@@ -477,27 +567,17 @@ class MULTIVAE(BaseModuleClass):
         ).sum(dim=1)
 
         # Compute KLD between distributions for paired data
-        qzm_expr = inference_outputs["qzm_expr"]
-        qzv_expr = inference_outputs["qzv_expr"]
-        qzm_acc = inference_outputs["qzm_acc"]
-        qzv_acc = inference_outputs["qzv_acc"]
-        kld_paired = kld(
-            Normal(qzm_expr, torch.sqrt(qzv_expr)), Normal(qzm_acc, torch.sqrt(qzv_acc))
-        ) + kld(
-            Normal(qzm_acc, torch.sqrt(qzv_acc)), Normal(qzm_expr, torch.sqrt(qzv_expr))
+        # TODO : CHECK ORIGINAL MODALITY PENALTY
+        kld_paired = self._compute_mod_penalty(
+            (inference_outputs["qzm_expr"], inference_outputs["qzv_expr"]),
+            (inference_outputs["qzm_acc"], inference_outputs["qzv_acc"]),
+            mask_expr,
+            mask_acc,
         )
-        kld_paired = torch.where(
-            torch.logical_and(mask_acc, mask_expr),
-            kld_paired.T,
-            torch.zeros_like(kld_paired).T,
-        ).sum(dim=0)
 
         # KL WARMUP
         kl_local_for_warmup = kl_div_z
         weighted_kl_local = kl_weight * kl_local_for_warmup
-
-        # PENALTY
-        # distance_penalty = kl_weight * torch.pow(z_acc - z_expr, 2).sum(dim=1)
 
         # TOTAL LOSS
         loss = torch.mean(recon_loss + weighted_kl_local + kld_paired)
@@ -523,37 +603,68 @@ class MULTIVAE(BaseModuleClass):
         return rl
 
     def get_reconstruction_loss_accessibility(self, x, p, d):
-        f = torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
-        return torch.nn.BCELoss(reduction="none")(p * d * f, (x > 0).float()).sum(
-            dim=-1
+        reg_factor = (
+            torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
         )
+        return torch.nn.BCELoss(reduction="none")(
+            p * d * reg_factor, (x > 0).float()
+        ).sum(dim=-1)
 
-    @staticmethod
-    def _mix_modalities(x_paired, x_expr, x_acc, mask_expr, mask_acc):
+    def _compute_mod_penalty(self, mod_params1, mod_params2, mask1, mask2):
         """
-        Mixes modality-specific vectors according to the modality masks.
-
-        in positions where both `mask_expr` and `mask_acc` are True (corresponding to cell
-        for which both expression and accessibility data is available), values from `x_paired`
-        will be used. If only `mask_expr` is True, use values from `x_expr`, and if only
-        `mask_acc` is True, use values from `x_acc`.
+        Weighted mean of Xs while masking values that originate from non-measured modalities.
 
         Parameters
         ----------
-        x_paired
-            the values for paired cells (both modalities available), will be used in
-            positions where both `mask_expr` and `mask_acc` are True.
-        x_expr
-            the values for expression-only cells, will be used in positions where
-            only `mask_expr` is True.
-        x_acc
-            the values for accessibility-only cells, will be used on positions where
-            only `mask_acc` is True.
-        mask_expr
-            the expression mask, indicating which cells have expression data
-        mask_acc
-            the accessibility mask, indicating which cells have accessibility data
+        mod_params1/2
+            Posterior parameters for for modality 1/2
+        mask1/2
+            mask for modality 1/2
         """
-        x = torch.where(mask_expr.T, x_expr.T, x_acc.T).T
-        x = torch.where(torch.logical_and(mask_acc, mask_expr), x_paired.T, x.T).T
-        return x
+        if self.modality_penalty == "None":
+            return 0
+        elif self.modality_penalty == "Jeffreys":
+            rv1 = Normal(mod_params1[0], mod_params1[1].sqrt())
+            rv2 = Normal(mod_params2[0], mod_params2[1].sqrt())
+            pair_penalty = kld(rv1, rv2) + kld(rv2, rv1)
+        elif self.modality_penalty == "MMD":
+            pair_penalty = torch.linalg.norm(mod_params1[0] - mod_params2[0], dim=1)
+        else:
+            raise ValueError("modality penalty not supported")
+        return torch.where(
+            torch.logical_and(mask1, mask2),
+            pair_penalty.T,
+            torch.zeros_like(pair_penalty).T,
+        ).sum(dim=0)
+
+
+@auto_move_data
+def mix_modalities(Xs, masks, weights, weight_transform: callable = None):
+    """
+    Compute the weighted mean of the Xs while masking unmeasured modality values.
+
+    Parameters
+    ----------
+    Xs
+        Sequence of Xs to mix, each should be (N x D)
+    masks
+        Sequence of masks corresponding to the Xs, indicating whether the values
+        should be included in the mix or not (N)
+    weights
+        Weights for each modality (either K or N x K)
+    weight_transform
+        Transformation to apply to the weights before using them
+    """
+    # (batch_size x latent) -> (batch_size x modalities x latent)
+    Xs = torch.stack(Xs, dim=1)
+    # (batch_size) -> (batch_size x modalities)
+    masks = torch.stack(masks, dim=1).float()
+    weights = masked_softmax(weights, masks, dim=-1)
+
+    # (batch_size x modalities) -> (batch_size x modalities x latent)
+    weights = weights.unsqueeze(-1)
+    if weight_transform is not None:
+        weights = weight_transform(weights)
+
+    # sum over modalities, so output is (batch_size x latent)
+    return (weights * Xs).sum(1)

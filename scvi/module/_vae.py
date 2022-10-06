@@ -11,15 +11,16 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._types import LatentDataType
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseLatentModeModuleClass, LossRecorder, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class VAE(BaseModuleClass):
+class VAE(BaseLatentModeModuleClass):
     """
     Variational auto-encoder model.
 
@@ -86,6 +87,8 @@ class VAE(BaseModuleClass):
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
+    latent_data_type
+        None or the type of latent data.
     """
 
     def __init__(
@@ -112,6 +115,7 @@ class VAE(BaseModuleClass):
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
         var_activation: Optional[Callable] = None,
+        latent_data_type: Optional[LatentDataType] = None,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -123,6 +127,7 @@ class VAE(BaseModuleClass):
         self.n_labels = n_labels
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
+        self._latent_data_type = latent_data_type
 
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
@@ -207,8 +212,10 @@ class VAE(BaseModuleClass):
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
-    def _get_inference_input(self, tensors):
-        x = tensors[REGISTRY_KEYS.X_KEY]
+    def _get_inference_input(
+        self,
+        tensors,
+    ):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
@@ -217,9 +224,19 @@ class VAE(BaseModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
-        input_dict = dict(
-            x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
-        )
+        if self.latent_data_type is None:
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            input_dict = dict(
+                x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
+            )
+        else:
+            if self.latent_data_type == "dist":
+                qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
+                qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
+                input_dict = dict(qzm=qzm, qzv=qzv)
+            else:
+                raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
+
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs):
@@ -270,7 +287,9 @@ class VAE(BaseModuleClass):
         return local_library_log_means, local_library_log_vars
 
     @auto_move_data
-    def inference(self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1):
+    def _regular_inference(
+        self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1
+    ):
         """
         High level inference method.
 
@@ -308,6 +327,19 @@ class VAE(BaseModuleClass):
             else:
                 library = ql.sample((n_samples,))
         outputs = dict(z=z, qz=qz, ql=ql, library=library)
+        return outputs
+
+    @auto_move_data
+    def _cached_inference(self, qzm, qzv, n_samples=1):
+        if self.latent_data_type == "dist":
+            dist = Normal(qzm, qzv.sqrt())
+            # use dist.sample() rather than rsample because we aren't optimizing
+            # the z in latent/cached mode
+            untran_z = dist.sample() if n_samples == 1 else dist.sample((n_samples,))
+            z = self.z_encoder.z_transformation(untran_z)
+        else:
+            raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
+        outputs = dict(z=z, qz_m=qzm, qz_v=qzv, ql=None, library=None)
         return outputs
 
     @auto_move_data
@@ -426,7 +458,7 @@ class VAE(BaseModuleClass):
         kl_global = torch.tensor(0.0)
         return LossRecorder(loss, reconst_loss, kl_local, kl_global)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
@@ -445,7 +477,7 @@ class VAE(BaseModuleClass):
         n_samples
             Number of required samples for each cell
         library_size
-            Library size to scale scamples to
+            Library size to scale samples to
 
         Returns
         -------
@@ -461,7 +493,7 @@ class VAE(BaseModuleClass):
 
         dist = generative_outputs["px"]
         if self.gene_likelihood == "poisson":
-            l_train = generative_outputs["px"].mu
+            l_train = generative_outputs["px"].rate
             l_train = torch.clamp(l_train, max=1e8)
             dist = torch.distributions.Poisson(
                 l_train
@@ -475,7 +507,7 @@ class VAE(BaseModuleClass):
 
         return exprs.cpu()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         sample_batch = tensors[REGISTRY_KEYS.X_KEY]
@@ -641,7 +673,7 @@ class LDVAE(VAE):
             bias=bias,
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_loadings(self) -> np.ndarray:
         """Extract per-gene weights (for each Z, shape is genes by dim(Z)) in the linear decoder."""
         # This is BW, where B is diag(b) batch norm, W is weight matrix

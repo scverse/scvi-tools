@@ -8,6 +8,7 @@ from anndata._core.sparse_dataset import SparseDataset
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
+from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,12 @@ class AnnTorchDataset(Dataset):
                 sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
             elif issparse(cur_data):
                 sliced_data = cur_data[idx].toarray().astype(dtype)
+            # for latent mode anndata, we need this because we can have a string
+            # cur_data, which is the value of the LATENT_MODE_KEY in adata.uns,
+            # used to record the latent data type in latent mode
+            # TODO: Adata manager should have a list of which fields it will load
+            elif isinstance(cur_data, str) and key == REGISTRY_KEYS.LATENT_MODE_KEY:
+                continue
             else:
                 raise TypeError(f"{key} is not a supported type")
             data_numpy[key] = sliced_data

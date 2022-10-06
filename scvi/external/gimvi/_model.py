@@ -192,11 +192,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        gpus, device = parse_use_gpu_arg(use_gpu)
+        accelerator, lightning_devices, device = parse_use_gpu_arg(use_gpu)
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
-            gpus=gpus,
+            accelerator=accelerator,
+            devices=lightning_devices,
             **kwargs,
         )
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
@@ -252,7 +253,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         return post_list
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_latent_representation(
         self,
         adatas: List[AnnData] = None,
@@ -294,7 +295,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         return latents
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_imputed_values(
         self,
         adatas: List[AnnData] = None,
@@ -480,7 +481,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         >>> vae = GIMVI.load(adata_seq, adata_spatial, save_path)
         >>> vae.get_latent_representation()
         """
-        _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_use_gpu_arg(use_gpu)
 
         (
             attr_dict,
