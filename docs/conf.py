@@ -296,6 +296,7 @@ hoverxref_intersphinx = [
     "pytorch_lightning",
     "scipy",
     "pandas",
+    "ray",
 ]
 # use proxied API endpoint on rtd to avoid CORS issues
 if os.environ.get("READTHEDOCS"):
