@@ -10,7 +10,6 @@ import pandas as pd
 import pytest
 import torch
 from flax import linen as nn
-from ml_collections.config_dict import FrozenConfigDict as attrdict
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
@@ -40,6 +39,7 @@ from scvi.model import (
 )
 from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
+from scvi.utils import attrdict
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())

@@ -249,4 +249,5 @@ Utility functions used by scvi-tools.
 
    utils.track
    utils.setup_anndata_dsp
+   utils.attrdict
 ```

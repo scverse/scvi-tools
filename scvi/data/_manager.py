@@ -9,11 +9,11 @@ from uuid import uuid4
 import numpy as np
 import pandas as pd
 import rich
-from ml_collections.config_dict import FrozenConfigDict as attrdict
 from mudata import MuData
 
 import scvi
 from scvi._types import AnnOrMuData
+from scvi.utils import attrdict
 
 from . import _constants
 from ._utils import (

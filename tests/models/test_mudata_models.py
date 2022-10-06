@@ -3,12 +3,12 @@ import os
 import numpy as np
 import pytest
 from anndata import AnnData
-from ml_collections.config_dict import FrozenConfigDict as attrdict
 from mudata import MuData
 
 import scvi
 from scvi.data import synthetic_iid
 from scvi.model import TOTALVI
+from scvi.utils import attrdict
 
 
 def test_totalvi(save_path):
