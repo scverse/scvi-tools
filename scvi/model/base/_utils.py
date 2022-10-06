@@ -78,13 +78,10 @@ def _load_saved_files(
     var_names = model["var_names"]
     attr_dict = model["attr_dict"]
 
-    is_mudata = False
-    registry = attr_dict["registry_"]
-    is_mudata = registry.get(_SETUP_METHOD_NAME) == "setup_mudata"
-    file_suffix = "adata.h5ad" if not is_mudata else "mdata.h5mu"
-    adata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
-
     if load_adata:
+        is_mudata = attr_dict["registry_"].get(_SETUP_METHOD_NAME) == "setup_mudata"
+        file_suffix = "adata.h5ad" if is_mudata is False else "mdata.h5mu"
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
         if os.path.exists(adata_path):
             if is_mudata:
                 adata = mudata.read(adata_path)
@@ -107,19 +104,19 @@ def _initialize_model(cls, adata, attr_dict):
             "No init_params_ were saved by the model. Check out the "
             "developers guide if creating custom models."
         )
-    # get the parameters for the class init signiture
+    # get the parameters for the class init signature
     init_params = attr_dict.pop("init_params_")
 
     # new saving and loading, enable backwards compatibility
     if "non_kwargs" in init_params.keys():
-        # grab all the parameters execept for kwargs (is a dict)
+        # grab all the parameters except for kwargs (is a dict)
         non_kwargs = init_params["non_kwargs"]
         kwargs = init_params["kwargs"]
 
         # expand out kwargs
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
     else:
-        # grab all the parameters execept for kwargs (is a dict)
+        # grab all the parameters except for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}

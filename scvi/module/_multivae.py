@@ -119,7 +119,7 @@ class MULTIVAE(BaseModuleClass):
         Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional RNA distribution.
     """
 
-    ## TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes forst or that they're even contiguous)
+    ## TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes first or that they're even contiguous)
     def __init__(
         self,
         n_input_regions: int = 0,
