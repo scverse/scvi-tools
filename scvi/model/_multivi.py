@@ -30,19 +30,23 @@ from scvi.model._utils import (
     scatac_raw_counts_properties,
     scrna_raw_counts_properties,
 )
-from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.model.base import (
+    ArchesMixin,
+    BaseModelClass,
+    UnsupervisedTrainingMixin,
+    VAEMixin,
+)
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
-from .base import BaseModelClass, VAEMixin
 from .base._utils import _de_core
 
 logger = logging.getLogger(__name__)
 
 
-class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     """
     Integration of multi-modal and single-modality data [AshuachGabitto21]_.
 

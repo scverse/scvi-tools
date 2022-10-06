@@ -1597,6 +1597,23 @@ def test_multivi():
     vae = MULTIVI(data, n_genes=50, n_regions=50, n_proteins=0, modality_penalty="MMD")
     vae.train(3)
 
+    # Test with non-zero protein data
+    data = synthetic_iid()
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    vae = MULTIVI(
+        data,
+        n_genes=50,
+        n_regions=50,
+        n_proteins=data.obsm["protein_expression"].shape[1],
+        modality_weights="cell",
+    )
+    vae.train(3)
+
 
 def test_early_stopping():
     n_epochs = 100
