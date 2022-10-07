@@ -72,6 +72,16 @@ def _check_warmup(
 class UnsupervisedTrainingMixin:
     """General purpose unsupervised train method."""
 
+    # TODO(martinkim0): Probably need to refactor this
+    @property
+    def _training_plan_cls(self) -> TrainingPlan:
+        return TrainingPlan
+
+    # TODO(martinkim0): Probably need to refactor this
+    @property
+    def _train_runner_cls(self) -> TrainRunner:
+        return TrainRunner
+
     def train(
         self,
         max_epochs: Optional[int] = None,
@@ -125,13 +135,13 @@ class UnsupervisedTrainingMixin:
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = TrainingPlan(self.module, **plan_kwargs)
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
             early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         )
-        runner = TrainRunner(
+        runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
             data_splitter=data_splitter,

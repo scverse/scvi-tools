@@ -12,6 +12,7 @@ from torch.distributions import kl_divergence as kl
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import LatentDataType
+from scvi.autotune import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseLatentModeModuleClass, LossRecorder, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
@@ -96,20 +97,22 @@ class VAE(BaseLatentModeModuleClass):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: int = 128,
-        n_latent: int = 10,
-        n_layers: int = 1,
+        n_hidden: Tunable[int] = 128,
+        n_latent: Tunable[int] = 10,
+        n_layers: Tunable[int] = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: float = 0.1,
-        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
+        dropout_rate: Tunable[float] = 0.1,
+        dispersion: Tunable[
+            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
+        ] = "gene",
         log_variational: bool = True,
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
-        latent_distribution: str = "normal",
-        encode_covariates: bool = False,
-        deeply_inject_covariates: bool = True,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        gene_likelihood: Tunable[Literal["zinb", "nb", "poisson"]] = "zinb",
+        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
+        encode_covariates: Tunable[bool] = False,
+        deeply_inject_covariates: Tunable[bool] = True,
+        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
+        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
         use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,

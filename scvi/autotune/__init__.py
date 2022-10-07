@@ -1,9 +1,9 @@
-from ._autotune import ModelTuner
-from ._metrics import silhouette_metric_labels_batch
-from ._wrappers import tune_scvi
+from ._manager import TunerManager
+from ._model_tuner import ModelTuner
+from ._types import Tunable
 
 __all__ = [
+    "TunerManager",
     "ModelTuner",
-    "tune_scvi",
-    "silhouette_metric_labels_batch",
+    "Tunable",
 ]

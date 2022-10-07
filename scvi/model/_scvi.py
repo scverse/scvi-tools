@@ -133,7 +133,7 @@ class SCVI(
                 self.adata_manager, n_batch
             )
 
-        self.module = VAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=self.summary_stats.n_labels,
@@ -165,6 +165,16 @@ class SCVI(
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
+
+    # TODO(martinkim0): Probably need to refactor this
+    @property
+    def _module_cls(self):
+        return VAE
+
+    # TODO(martinkim0): Probably need to refactor this
+    @property
+    def _tunables(self):
+        return (self._module_cls, self._training_plan_cls, self._train_runner_cls)
 
     @classmethod
     @setup_anndata_dsp.dedent
