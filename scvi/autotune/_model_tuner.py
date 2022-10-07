@@ -36,14 +36,23 @@ class ModelTuner:
         use_defaults: bool = True,
         exclude: Optional[dict] = None,
     ) -> None:
+        from ray import tune
+
         search_config = self._manager.validate_search_space(
             search_config,
             use_defaults=use_defaults,
             exclude=exclude,
         )
+        reporter = tune.CLIReporter(
+            parameter_columns=None,
+            metric_columns=None,
+        )
+        print(reporter)
 
     @staticmethod
     def _fit(
+        model_cls: BaseModelClass,
+        adata: AnnOrMuData,
         search_config: dict,
         scheduler: Any,
         reporter: Any,

@@ -2,11 +2,11 @@ import inspect
 import logging
 import sys
 import warnings
-from typing import Any
+from typing import Any, Optional
 
 import rich
 
-from scvi.autotune._defaults import SUPPORTED
+from scvi.autotune._defaults import CLS_TO_TUNABLE_TYPE, SUPPORTED
 from scvi.autotune._types import TunableMeta
 from scvi.model.base import BaseModelClass
 from scvi.utils import attrdict
@@ -26,9 +26,7 @@ class TunerManager:
     ----------
     model_cls
         :class:`~scvi.model.base.BaseModelClass` on which to tune hyperparameters.
-        Currently supports one of the following:
-
-        * :class:`~scvi.model.SCVI`
+        See :class:`~scvi.autotune.ModelTuner` for supported models.
     """
 
     def __init__(self, model_cls: BaseModelClass):
@@ -72,22 +70,34 @@ class TunerManager:
             are the sources of the parameters.
         """
 
-        def _get_tunables(attr: Any) -> dict:
+        def _cls_to_tunable_type(cls):
+            return CLS_TO_TUNABLE_TYPE.get(cls, None)
+
+        def _get_tunables(
+            attr: Any, parent: Optional[Any] = None, type: Optional[str] = None
+        ) -> dict:
             tunables = dict()
-            if hasattr(attr, "_tunables"):
+            if inspect.isfunction(attr):
+                for k, v in inspect.signature(attr).parameters.items():
+                    if isinstance(v.annotation, TunableMeta):
+                        default = v.default
+                        if default is inspect.Parameter.empty:
+                            default = None
+                        tunables[k] = dict(
+                            source=parent,
+                            default=default,
+                            func=attr,
+                            type=type,
+                        )
+            elif inspect.isclass(attr) and hasattr(attr, "_tunables"):
+                tunable_type = _cls_to_tunable_type(attr)
                 for child in attr._tunables:
-                    if inspect.isfunction(child):
-                        for k, v in inspect.signature(attr).parameters.items():
-                            if isinstance(v.annotation, TunableMeta):
-                                default = v.default
-                                if default is inspect.Parameter.empty:
-                                    default = None
-                                tunables[k] = (attr, default, child)
-                    else:
-                        tunables.update(_get_tunables(child))
+                    tunables.update(
+                        _get_tunables(child, parent=attr, type=tunable_type)
+                    )
             return tunables
 
-        return attrdict(_get_tunables(model_cls))
+        return attrdict(_get_tunables(model_cls), recursive=True)
 
     def validate_search_space(
         self, search_config: dict, use_defaults: bool, exclude: dict
@@ -135,7 +145,11 @@ class TunerManager:
                 )
             _ = search_config_.pop(key, None)
 
-        return attrdict(search_config_)
+        # Separate model and train parameters
+        model_config = {k: v for k, v in search_config_.items() if v.type == "model"}
+        train_config = {k: v for k, v in search_config_.items() if v.type == "train"}
+
+        return attrdict(dict(model=model_config, train=train_config), recursive=True)
 
     def view_registry(self) -> None:
         """
@@ -171,7 +185,14 @@ class TunerManager:
             no_wrap=True,
             overflow="fold",
         )
+        table.add_column(
+            "Type",
+            justify="center",
+            style="yellow",
+            no_wrap=True,
+            overflow="fold",
+        )
         for k, v in registry.items():
-            table.add_row(str(k), str(v[0]), str(v[1]))
+            table.add_row(str(k), str(v.source), str(v.default), str(v.type))
 
         console.print(table)
