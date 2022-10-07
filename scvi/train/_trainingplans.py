@@ -1,6 +1,6 @@
 from functools import partial
 from inspect import getfullargspec, signature
-from typing import Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import jax
 import jax.numpy as jnp
@@ -15,6 +15,7 @@ from torchmetrics import MetricCollection
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._decorators import classproperty
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -178,6 +179,10 @@ class TrainingPlan(pl.LightningModule):
 
         self.initialize_train_metrics()
         self.initialize_val_metrics()
+
+    @classproperty
+    def _tunables(cls) -> Tuple[Any]:
+        return (cls.__init__,)
 
     @staticmethod
     def _create_elbo_metric_components(mode: str, n_total: Optional[int] = None):

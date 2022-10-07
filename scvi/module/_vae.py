@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Main module."""
-from typing import Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, Tuple
 
 import numpy as np
 import torch
@@ -11,8 +11,9 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._decorators import classproperty
 from scvi._types import LatentDataType
-from scvi.autotune import Tunable
+from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseLatentModeModuleClass, LossRecorder, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
@@ -42,7 +43,7 @@ class VAE(BaseLatentModeModuleClass):
     n_layers
         Number of hidden layers used for encoder and decoder NNs
     n_continuous_cov
-        Number of continuous covarites
+        Number of continuous covariates
     n_cats_per_cov
         Number of categories for each extra categorical covariate
     dropout_rate
@@ -106,7 +107,7 @@ class VAE(BaseLatentModeModuleClass):
         dispersion: Tunable[
             Literal["gene", "gene-batch", "gene-label", "gene-cell"]
         ] = "gene",
-        log_variational: bool = True,
+        log_variational: Tunable[bool] = True,
         gene_likelihood: Tunable[Literal["zinb", "nb", "poisson"]] = "zinb",
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
         encode_covariates: Tunable[bool] = False,
@@ -213,6 +214,10 @@ class VAE(BaseLatentModeModuleClass):
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
+
+    @classproperty
+    def _tunables(cls) -> Tuple[Any]:
+        return (cls.__init__,)
 
     def _get_inference_input(
         self,

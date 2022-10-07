@@ -1,19 +1,15 @@
-import logging
-from typing import Any, Literal, Optional
+from typing import Any, Optional
 
 from scvi._types import AnnOrMuData
+from scvi.autotune import TunerManager
 from scvi.model.base import BaseModelClass
-
-from ._manager import TunerManager
-
-logger = logging.getLogger(__name__)
 
 
 class ModelTuner:
     """
-    Automated and parallel hyperparameter searches with Ray Tune. Wraps a
-    :class:`~ray.tune.Tuner` instance that is attached to a scvi-tools model
-    class.
+    Automated and parallel hyperparameter searches with Ray Tune.
+
+    Wraps a :class:`~ray.tune.Tuner` instance attached to a scvi-tools model class.
 
     Parameters
     ----------
@@ -30,28 +26,21 @@ class ModelTuner:
     def __init__(
         self,
         model_cls: BaseModelClass,
-        adata: AnnOrMuData,
     ):
-        self._manager = TunerManager(model_cls, adata)
+        self._manager = TunerManager(model_cls)  # safe to import tune after this
 
     def fit(
         self,
-        metric: str,
+        adata: AnnOrMuData,
         search_config: Optional[dict] = None,
         use_defaults: bool = True,
-        scheduler: Literal["asha"] = "asha",
-        resources_per_trial: Optional[dict] = None,
+        exclude: Optional[dict] = None,
     ) -> None:
-        # from ray import tune
-
         search_config = self._manager.validate_search_space(
-            search_config, use_defaults=use_defaults
+            search_config,
+            use_defaults=use_defaults,
+            exclude=exclude,
         )
-        # scheduler = None
-        # reporter = None
-        # search = None
-
-        return self._fit()
 
     @staticmethod
     def _fit(
