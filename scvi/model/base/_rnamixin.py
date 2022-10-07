@@ -13,6 +13,7 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
+from scvi.utils import unsupported_in_latent_mode
 from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
@@ -32,7 +33,7 @@ class RNASeqMixin:
                 "Transforming batches is not implemented for this model."
             )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_normalized_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -89,6 +90,7 @@ class RNASeqMixin:
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
+
         if indices is None:
             indices = np.arange(adata.n_obs)
         if n_samples_overall is not None:
@@ -104,8 +106,9 @@ class RNASeqMixin:
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [
+                True if gene in gene_list else False for gene in adata.var_names
+            ]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -228,7 +231,7 @@ class RNASeqMixin:
 
         return result
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def posterior_predictive_sample(
         self,
         adata: Optional[AnnData] = None,
@@ -265,6 +268,7 @@ class RNASeqMixin:
             raise ValueError("Invalid gene_likelihood.")
 
         adata = self._validate_anndata(adata)
+
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
@@ -280,7 +284,10 @@ class RNASeqMixin:
 
         x_new = []
         for tensors in scdl:
-            samples = self.module.sample(tensors, n_samples=n_samples)
+            samples = self.module.sample(
+                tensors,
+                n_samples=n_samples,
+            )
             if gene_list is not None:
                 samples = samples[:, gene_mask, ...]
             x_new.append(samples)
@@ -289,7 +296,7 @@ class RNASeqMixin:
 
         return x_new.numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def _get_denoised_samples(
         self,
         adata: Optional[AnnData] = None,
@@ -363,11 +370,12 @@ class RNASeqMixin:
             # """
             data_loader_list += [data]
 
-            data_loader_list[-1] = np.transpose(data_loader_list[-1], (1, 2, 0))
+            if n_samples > 1:
+                data_loader_list[-1] = np.transpose(data_loader_list[-1], (1, 2, 0))
 
         return np.concatenate(data_loader_list, axis=0)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_feature_correlation_matrix(
         self,
         adata: Optional[AnnData] = None,
@@ -430,9 +438,14 @@ class RNASeqMixin:
                 (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
             )
             for i in range(n_samples):
-                flattened[
-                    denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
-                ] = denoised_data[:, :, i]
+                if n_samples == 1:
+                    flattened[
+                        denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
+                    ] = denoised_data[:, :]
+                else:
+                    flattened[
+                        denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
+                    ] = denoised_data[:, :, i]
             if correlation_type == "pearson":
                 corr_matrix = np.corrcoef(flattened, rowvar=False)
             elif correlation_type == "spearman":
@@ -446,7 +459,7 @@ class RNASeqMixin:
         var_names = adata.var_names
         return pd.DataFrame(corr_matrix, index=var_names, columns=var_names)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_likelihood_parameters(
         self,
         adata: Optional[AnnData] = None,
@@ -473,6 +486,7 @@ class RNASeqMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
+
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
@@ -506,10 +520,12 @@ class RNASeqMixin:
                 dropout = np.concatenate(dropout_list, axis=-2)
         means = np.concatenate(mean_list, axis=-2)
         dispersions = np.concatenate(dispersion_list, axis=-2)
+
         if give_mean and n_samples > 1:
             if self.module.gene_likelihood == "zinb":
                 dropout = dropout.mean(0)
             means = means.mean(0)
+            dispersions = dispersions.mean(0)
 
         return_dict = {}
         return_dict["mean"] = means
@@ -522,7 +538,8 @@ class RNASeqMixin:
 
         return return_dict
 
-    @torch.no_grad()
+    @torch.inference_mode()
+    @unsupported_in_latent_mode
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,

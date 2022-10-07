@@ -1,4 +1,6 @@
 import logging
+import warnings
+from collections.abc import Iterable as IterableClass
 from functools import partial
 from typing import Dict, Iterable, List, Optional, Sequence, Union
 
@@ -20,6 +22,7 @@ from scvi.data.fields import (
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
+    ProteinObsmField,
 )
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
@@ -27,19 +30,23 @@ from scvi.model._utils import (
     scatac_raw_counts_properties,
     scrna_raw_counts_properties,
 )
-from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.model.base import (
+    ArchesMixin,
+    BaseModelClass,
+    UnsupervisedTrainingMixin,
+    VAEMixin,
+)
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
-from .base import BaseModelClass, VAEMixin
 from .base._utils import _de_core
 
 logger = logging.getLogger(__name__)
 
 
-class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     """
     Integration of multi-modal and single-modality data [AshuachGabitto21]_.
 
@@ -54,6 +61,16 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         The number of gene expression features (genes).
     n_regions
         The number of accessibility features (genomic regions).
+    modality_weights
+        Weighting scheme across modalities. One of the following:
+        * ``"equal"``: Equal weight in each modality
+        * ``"universal"``: Learn weights across modalities w_m.
+        * ``"cell"``: Learn weights across modalities and cells. w_{m,c}
+    modality_penalty
+        Training Penalty across modalities. One of the following:
+        * ``"Jeffreys"``: Jeffreys penalty to align modalities
+        * ``"MMD"``: MMD penalty to align modalities
+        * ``"None"``: No penalty
     n_hidden
         Number of nodes per hidden layer. If `None`, defaults to square root
         of number of regions.
@@ -70,6 +87,16 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Model sequencing depth / library size.
     region_factors
         Include region-specific factors in the model.
+    gene_dispersion
+        One of the following
+        * ``'gene'`` - genes_dispersion parameter of NB is constant per gene across cells
+        * ``'gene-batch'`` - genes_dispersion can differ between different batches
+        * ``'gene-label'`` - genes_dispersion can differ between different labels
+    protein_dispersion
+        One of the following
+        * ``'protein'`` - protein_dispersion parameter is constant per protein across cells
+        * ``'protein-batch'`` - protein_dispersion can differ between different batches NOT TESTED
+        * ``'protein-label'`` - protein_dispersion can differ between different labels NOT TESTED
     latent_distribution
         One of
         * ``'normal'`` - Normal distribution
@@ -80,7 +107,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     fully_paired
         allows the simplification of the model if the data is fully paired. Currently ignored.
     **model_kwargs
-        Keyword args for :class:`~scvi.module.PEAKVAE`
+        Keyword args for :class:`~scvi.module.MULTIVAE`
 
     Examples
     --------
@@ -110,6 +137,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata: AnnData,
         n_genes: int,
         n_regions: int,
+        n_proteins: int,
+        modality_weights: Literal["equal", "cell", "universal"] = "equal",
+        modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
         n_hidden: Optional[int] = None,
         n_latent: Optional[int] = None,
         n_layers_encoder: int = 2,
@@ -117,16 +147,22 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         dropout_rate: float = 0.1,
         region_factors: bool = True,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
         fully_paired: bool = False,
+        empirical_protein_background_prior: bool = True,
+        protein_dispersion: Literal[
+            "protein", "protein-batch", "protein-label"
+        ] = "protein",
         **model_kwargs,
     ):
         super().__init__(adata)
 
+        prior_mean, prior_scale = None, None
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
                 REGISTRY_KEYS.CAT_COVS_KEY
@@ -142,7 +178,11 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self.module = MULTIVAE(
             n_input_genes=n_genes,
             n_input_regions=n_regions,
+            n_input_proteins=n_proteins,
+            modality_weights=modality_weights,
+            modality_penalty=modality_penalty,
             n_batch=self.summary_stats.n_batch,
+            n_obs=adata.n_obs,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers_encoder=n_layers_encoder,
@@ -152,22 +192,27 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             dropout_rate=dropout_rate,
             region_factors=region_factors,
             gene_likelihood=gene_likelihood,
+            gene_dispersion=dispersion,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
             use_size_factor_key=use_size_factor_key,
             latent_distribution=latent_distribution,
             deeply_inject_covariates=deeply_inject_covariates,
             encode_covariates=encode_covariates,
+            protein_background_prior_mean=prior_mean,
+            protein_background_prior_scale=prior_scale,
+            protein_dispersion=protein_dispersion,
             **model_kwargs,
         )
         self._model_summary_string = (
-            "MultiVI Model with INPUTS: n_genes:{}, n_regions:{}\n"
+            "MultiVI Model with INPUTS: n_genes:{}, n_regions:{}, n_proteins:{}\n"
             "n_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
             "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
-            "gene_likelihood: {}"
+            "gene_likelihood: {}, gene_dispersion:{}, Mod.Weights:{}, Mod.Penalty:{}, protein_dispersion:{}"
         ).format(
             n_genes,
             n_regions,
+            n_proteins,
             self.module.n_hidden,
             self.module.n_latent,
             n_layers_encoder,
@@ -176,11 +221,17 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             latent_distribution,
             deeply_inject_covariates,
             gene_likelihood,
+            dispersion,
+            modality_weights,
+            modality_penalty,
+            protein_dispersion,
         )
         self.fully_paired = fully_paired
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
         self.n_genes = n_genes
+        self.n_regions = n_regions
+        self.n_proteins = n_proteins
 
     def train(
         self,
@@ -291,7 +342,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         return runner()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_library_size_factors(
         self,
         adata: Optional[AnnData] = None,
@@ -315,6 +366,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         -------
         Library size factor for expression and accessibility
         """
+        self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -332,14 +384,17 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             "accessibility": torch.cat(lib_acc).numpy().squeeze(),
         }
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_region_factors(self) -> np.ndarray:
         """Return region-specific factors."""
-        if self.module.region_factors is None:
-            raise RuntimeError("region factors were not included in this model")
-        return torch.sigmoid(self.module.region_factors).cpu().numpy()
+        if self.n_regions == 0:
+            return np.zeros(1)
+        else:
+            if self.module.region_factors is None:
+                raise RuntimeError("region factors were not included in this model")
+            return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,
@@ -372,7 +427,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """
         if not self.is_trained_:
             raise RuntimeError("Please train the model first.")
-
+        self._check_adata_modality_weights(adata)
         keys = {"z": "z", "qz_m": "qz_m", "qz_v": "qz_v"}
         if self.fully_paired and modality != "joint":
             raise RuntimeError(
@@ -383,9 +438,11 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 keys = {"z": "z_expr", "qz_m": "qzm_expr", "qz_v": "qzv_expr"}
             elif modality == "accessibility":
                 keys = {"z": "z_acc", "qz_m": "qzm_acc", "qz_v": "qzv_acc"}
+            elif modality == "protein":
+                keys = {"z": "z_pro", "qz_m": "qzm_pro", "qz_v": "qzv_pro"}
             else:
                 raise RuntimeError(
-                    "modality must be 'joint', 'expression', or 'accessibility'."
+                    "modality must be 'joint', 'expression', 'accessibility', or 'protein'."
                 )
 
         adata = self._validate_anndata(adata)
@@ -412,7 +469,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             latent += [z.cpu()]
         return torch.cat(latent).numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_accessibility_estimates(
         self,
         adata: Optional[AnnData] = None,
@@ -466,6 +523,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         batch_size
             Minibatch size for data loading into model
         """
+        self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata, required=True)
         if indices is None:
@@ -530,7 +588,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 columns=adata.var_names[self.n_genes :][region_mask],
             )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_normalized_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -569,7 +627,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         library_size
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent libary size.
+            magnitude. If set to `"latent"`, use the latent library size.
         use_z_mean
             If True, use the mean of the latent distribution, otherwise sample from it
         n_samples
@@ -584,6 +642,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
+        self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata, required=True)
         if indices is None:
@@ -702,6 +761,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             the empirical (observed) probability of accessibility in population 2
 
         """
+        self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
         col_names = adata.var_names[self.n_genes :]
         model_fn = partial(
@@ -802,6 +862,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         -------
         Differential expression DataFrame.
         """
+        self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
 
         col_names = adata.var_names[: self.n_genes]
@@ -836,6 +897,131 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         return result
 
+    @torch.no_grad()
+    def get_protein_foreground_probability(
+        self,
+        adata: Optional[AnnData] = None,
+        indices: Optional[Sequence[int]] = None,
+        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
+        protein_list: Optional[Sequence[str]] = None,
+        n_samples: int = 1,
+        batch_size: Optional[int] = None,
+        use_z_mean: bool = True,
+        return_mean: bool = True,
+        return_numpy: Optional[bool] = None,
+    ):
+        r"""
+        Returns the foreground probability for proteins.
+
+        This is denoted as :math:`(1 - \pi_{nt})` in the totalVI paper.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If ``None``, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+
+            * ``None`` - real observed batch is used
+            * ``int`` - batch transform_batch is used
+            * ``List[int]`` - average over batches in list
+        protein_list
+            Return protein expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        n_samples
+            Number of posterior samples to use for estimation.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
+            gene names as columns. If either ``n_samples=1`` or ``return_mean=True``, defaults to ``False``.
+            Otherwise, it defaults to `True`.
+
+        Returns
+        -------
+        - **foreground_probability** - probability foreground for each protein
+
+        If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
+        Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        """
+        adata = self._validate_anndata(adata)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
+
+        if protein_list is None:
+            protein_mask = slice(None)
+        else:
+            all_proteins = self.scvi_setup_dict_["protein_names"]
+            protein_mask = [True if p in protein_list else False for p in all_proteins]
+
+        if n_samples > 1 and return_mean is False:
+            if return_numpy is False:
+                warnings.warn(
+                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                )
+            return_numpy = True
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+
+        py_mixings = []
+        if not isinstance(transform_batch, IterableClass):
+            transform_batch = [transform_batch]
+
+        transform_batch = _get_batch_code_from_category(
+            self.adata_manager, transform_batch
+        )
+        for tensors in post:
+            y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
+            py_mixing = torch.zeros_like(y[..., protein_mask])
+            if n_samples > 1:
+                py_mixing = torch.stack(n_samples * [py_mixing])
+            for _ in transform_batch:
+                # generative_kwargs = dict(transform_batch=b)
+                generative_kwargs = dict(use_z_mean=use_z_mean)
+                inference_kwargs = dict(n_samples=n_samples)
+                _, generative_outputs = self.module.forward(
+                    tensors=tensors,
+                    inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
+                    compute_loss=False,
+                )
+                py_mixing += torch.sigmoid(generative_outputs["py_"]["mixing"])[
+                    ..., protein_mask
+                ].cpu()
+            py_mixing /= len(transform_batch)
+            py_mixings += [py_mixing]
+        if n_samples > 1:
+            # concatenate along batch dimension -> result shape = (samples, cells, features)
+            py_mixings = torch.cat(py_mixings, dim=1)
+            # (cells, features, samples)
+            py_mixings = py_mixings.permute(1, 2, 0)
+        else:
+            py_mixings = torch.cat(py_mixings, dim=0)
+
+        if return_mean is True and n_samples > 1:
+            py_mixings = torch.mean(py_mixings, dim=-1)
+
+        py_mixings = py_mixings.cpu().numpy()
+
+        if return_numpy is True:
+            return 1 - py_mixings
+        else:
+            pro_names = self.protein_state_registry.column_names
+            foreground_prob = pd.DataFrame(
+                1 - py_mixings,
+                columns=pro_names[protein_mask],
+                index=adata.obs_names[indices],
+            )
+            return foreground_prob
+
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
@@ -846,6 +1032,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         size_factor_key: Optional[str] = None,
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
+        protein_expression_obsm_key: Optional[str] = None,
+        protein_names_uns_key: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -860,8 +1048,12 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         %(param_cont_cov_keys)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
+        adata.obs["_indices"] = np.arange(adata.n_obs)
+        batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            batch_field,
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
@@ -872,9 +1064,34 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             NumericalJointObsField(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
+            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
+        if protein_expression_obsm_key is not None:
+            anndata_fields.append(
+                ProteinObsmField(
+                    REGISTRY_KEYS.PROTEIN_EXP_KEY,
+                    protein_expression_obsm_key,
+                    use_batch_mask=True,
+                    batch_field=batch_field,
+                    colnames_uns_key=protein_names_uns_key,
+                    is_count_data=True,
+                )
+            )
+
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+
+    def _check_adata_modality_weights(self, adata):
+        """
+        Checks if adata is None and weights are per cell.
+
+        :param adata: anndata object
+        :return:
+        """
+        if (adata is not None) and (self.module.modality_weights == "cell"):
+            raise RuntimeError(
+                "Held out data not permitted when using per cell weights"
+            )
