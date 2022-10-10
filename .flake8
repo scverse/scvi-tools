@@ -62,4 +62,4 @@ rst-directives =
 rst-substitutions =
     version,
 extend-ignore =
-    RST307,
+    RST307,RST210,RST201,RST203,RST301,
