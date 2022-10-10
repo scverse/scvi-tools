@@ -244,9 +244,7 @@ class SOLO(BaseModelClass):
 
         doublets_ad = AnnData(doublets)
         doublets_ad.var_names = adata.var_names
-        doublets_ad.obs_names = [
-            f"sim_doublet_{i}" for i in range(num_doublets)
-        ]
+        doublets_ad.obs_names = [f"sim_doublet_{i}" for i in range(num_doublets)]
 
         # if adata setup with a layer, need to add layer to doublets adata
         layer = adata_manager.data_registry[REGISTRY_KEYS.X_KEY].attr_key

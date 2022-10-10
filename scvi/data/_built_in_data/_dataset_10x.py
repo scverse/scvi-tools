@@ -52,9 +52,9 @@ available_datasets = {
 }
 
 dataset_to_group = {
-        dataset_name: group
-        for group, list_datasets in available_datasets.items()
-        for dataset_name in list_datasets
+    dataset_name: group
+    for group, list_datasets in available_datasets.items()
+    for dataset_name in list_datasets
 }
 
 group_to_url_skeleton = {
