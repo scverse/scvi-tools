@@ -1110,7 +1110,8 @@ class JaxTrainingPlan(pl.LightningModule):
         """Bypass Pytorch Lightning device management."""
         return batch
 
-    def configure_optimizers(self):  # noqa: D102
+    def configure_optimizers(self):
+        """Configure optimizers."""
         return None
 
     def optimizer_step(self, *args, **kwargs):  # noqa: D102

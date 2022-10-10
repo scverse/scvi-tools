@@ -850,11 +850,11 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\
+        r"""
+        \
 
-        A unified method for differential expression analysis.
-
-        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+        A unified method for differential expression analysis. Implements `"vanilla"`
+        DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
 
         Parameters
         ----------
