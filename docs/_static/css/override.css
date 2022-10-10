@@ -10,11 +10,6 @@ body {
     --sd-color-shadow: dimgrey;
 }
 
-dt:target,
-span.highlighted {
-    background-color: #f0f0f0;
-}
-
 dl.citation > dt {
     float: left;
     margin-right: 15px;
