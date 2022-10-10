@@ -187,8 +187,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         batch_size
             Minibatch size to use during training.
         plan_kwargs
-            Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed to
-            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+            Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed
+            to `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
