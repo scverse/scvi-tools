@@ -56,10 +56,11 @@ rst-roles =
     meth,
     doc,
     py:class,
+    method,
 rst-directives =
     envvar,
     exception,
 rst-substitutions =
     version,
 extend-ignore =
-    RST307,
+    RST307,RST210,RST201,RST203,RST301,
