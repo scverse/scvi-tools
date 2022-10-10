@@ -21,24 +21,6 @@ dl.citation > dt {
     font-weight: bold;
 }
 
-<<<<<<< refs/remotes/scverse/precommit
-<<<<<<< refs/remotes/scverse/precommit
-/* Parameters normalize size and captialized, */
-dl .field-list dt {
-    font-size: var(--font-size--normal) !important;
-    text-transform: none !important;
-}
-
-/* examples and headings in classes */
-p.rubric {
-    font-size: var(--font-size--normal);
-    text-transform: none;
-    font-weight: 500;
-}
-
-=======
->>>>>>> cleanup docs
-=======
 /* so that api methods are small in sidebar */
 li.toctree-l3 {
     font-size: 81.25% !important;
@@ -50,17 +32,13 @@ li.toctree-l4 {
 
 /* Notebook stuff below */
 
->>>>>>> cleanup docs
 /* adapted from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
 
 .nbinput .prompt,
 .nboutput .prompt {
     display: none;
 }
-<<<<<<< refs/remotes/scverse/precommit
-=======
 
->>>>>>> cleanup docs
 .nboutput .stderr {
     display: none;
 }
