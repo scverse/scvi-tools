@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Main module."""
 from typing import Dict, Iterable, Optional, Tuple, Union
 

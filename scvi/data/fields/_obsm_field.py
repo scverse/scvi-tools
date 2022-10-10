@@ -266,7 +266,7 @@ class NumericalJointObsField(JointObsField):
             overflow="fold",
         )
         for key in state_registry[self.COLUMNS_KEY]:
-            t.add_row("adata.obs['{}']".format(key))
+            t.add_row(f"adata.obs['{key}']")
         return t
 
 
@@ -394,7 +394,7 @@ class CategoricalJointObsField(JointObsField):
         for key, mappings in state_registry[self.MAPPINGS_KEY].items():
             for i, mapping in enumerate(mappings):
                 if i == 0:
-                    t.add_row("adata.obs['{}']".format(key), str(mapping), str(i))
+                    t.add_row(f"adata.obs['{key}']", str(mapping), str(i))
                 else:
                     t.add_row("", str(mapping), str(i))
             t.add_row("", "")

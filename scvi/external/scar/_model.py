@@ -91,7 +91,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         sparsity: float = 0.9,
         **model_kwargs,
     ):
-        super(SCAR, self).__init__(adata)
+        super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = (

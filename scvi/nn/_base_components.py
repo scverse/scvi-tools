@@ -83,7 +83,7 @@ class FCLayers(nn.Module):
             collections.OrderedDict(
                 [
                     (
-                        "Layer {}".format(i),
+                        f"Layer {i}",
                         nn.Sequential(
                             nn.Linear(
                                 n_in + cat_dim * self.inject_into_layer(i),

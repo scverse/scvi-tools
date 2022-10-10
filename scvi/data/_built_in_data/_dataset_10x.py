@@ -51,13 +51,11 @@ available_datasets = {
     "3.1.0": ["5k_pbmc_protein_v3", "5k_pbmc_protein_v3_nextgem"],
 }
 
-dataset_to_group = dict(
-    [
-        (dataset_name, group)
+dataset_to_group = {
+        dataset_name: group
         for group, list_datasets in available_datasets.items()
         for dataset_name in list_datasets
-    ]
-)
+}
 
 group_to_url_skeleton = {
     "1.1.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
@@ -129,7 +127,7 @@ def _load_dataset_10x(
         if was_extracted and remove_extracted_data:
             folders_in_save_path = path_to_data_folder[len(save_path) + 1 :].split("/")
             extracted_folder_path = save_path + "/" + folders_in_save_path[0]
-            logger.info("Removing extracted data at {}".format(extracted_folder_path))
+            logger.info(f"Removing extracted data at {extracted_folder_path}")
             shutil.rmtree(extracted_folder_path)
     else:
         adata = scanpy.read_10x_h5(file_path, **scanpy_read_10x_kwargs)

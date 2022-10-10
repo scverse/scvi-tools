@@ -217,7 +217,7 @@ class MRDeconv(BaseModuleClass):
             (-1, self.n_latent)
         )  # minibatch_size * n_labels, n_latent
         enum_label = (
-            torch.arange(0, self.n_labels).repeat((m)).view((-1, 1))
+            torch.arange(0, self.n_labels).repeat(m).view((-1, 1))
         )  # minibatch_size * n_labels, 1
         h = self.decoder(gamma_reshape, enum_label.to(x.device))
         px_rate = self.px_decoder(h).reshape(

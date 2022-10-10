@@ -6,19 +6,20 @@ For this reason, scANVI can help annotate a data set of unlabelled cells from ma
 
 The advantages of scANVI are:
 
-- Comprehensive in capabilities.
-- Scalable to very large datasets (>1 million cells).
+-   Comprehensive in capabilities.
+-   Scalable to very large datasets (>1 million cells).
 
 The limitations of scANVI include:
 
-- Effectively requires a GPU for fast inference.
-- Latent space is not interpretable, unlike that of a linear method.
-- May not scale to very large number of cell types.
+-   Effectively requires a GPU for fast inference.
+-   Latent space is not interpretable, unlike that of a linear method.
+-   May not scale to very large number of cell types.
 
 :::{topic} Tutorials:
-- {doc}`/tutorials/notebooks/harmonization`
-- {doc}`/tutorials/notebooks/scarches_scvi_tools`
-:::
+
+-   {doc}`/tutorials/notebooks/harmonization`
+-   {doc}`/tutorials/notebooks/scarches_scvi_tools`
+    :::
 
 ## Preliminaries
 
@@ -51,7 +52,7 @@ graphical model inspired by works on semi-supervised VAEs [^ref2].
 We assume no knowledge over the distribution of cell types in the data (i.e.,
 uniform probabilities for categorical distribution on $c_n$).
 This modeling choice helps ensure a proper handling of rare cell types in the data.
-We assume that the within-cell-type characterization of the cell follows a  Normal distribution, s.t. $u_n \sim \mathcal{N}(0, I_d)$.
+We assume that the within-cell-type characterization of the cell follows a Normal distribution, s.t. $u_n \sim \mathcal{N}(0, I_d)$.
 The distribution over the random vector $z_n$ contains learnable parameters in the form of
 the neural networks $f_z^\mu$, $f_z^\sigma$. Qualitatively, $z_n$ characterizes each cell
 cellular state as a continuous, low-dimensional random variable, and has the same interpretation as in the scVI model.
@@ -294,18 +295,22 @@ For prediction, scANVI returns $q_\eta(c_n \mid z_n)$ in the following function:
 >>> adata.obs["scanvi_prediction"] = model.predict()
 ```
 
-[^ref1]: Xu Chenling, Romain Lopez, Edouard Mehlman, Jeffrey Regier, Michael I. Jordan, Nir Yosef (2021),
-    *Probabilistic harmonization and annotation of single‐cell transcriptomics data with deep generative models*,
+[^ref1]:
+    Xu Chenling, Romain Lopez, Edouard Mehlman, Jeffrey Regier, Michael I. Jordan, Nir Yosef (2021),
+    _Probabilistic harmonization and annotation of single‐cell transcriptomics data with deep generative models_,
     [Molecular systems biology 17.1](https://www.embopress.org/doi/epdf/10.15252/msb.20209620).
 
-[^refts]: Tabula Sapiens Consortium (2021),
-    *The Tabula Sapiens: a single cell transcriptomic atlas of multiple organs from individual human donors*,
+[^refts]:
+    Tabula Sapiens Consortium (2021),
+    _The Tabula Sapiens: a single cell transcriptomic atlas of multiple organs from individual human donors_,
     [BioRxiv](https://www.biorxiv.org/content/10.1101/2021.07.19.452956v1.full.pdf).
 
-[^ref2]: Diederik P. Kingma, Shakir Mohamed, Danilo Jimenez Rezende, and Max Welling (2014),
-    *Semi-supervised learning with deep generative models*,
+[^ref2]:
+    Diederik P. Kingma, Shakir Mohamed, Danilo Jimenez Rezende, and Max Welling (2014),
+    _Semi-supervised learning with deep generative models_,
     [Advances in neural information processing systems](https://proceedings.neurips.cc/paper/2014/file/d523773c6b194f37b938d340d5d02232-Paper.pdf).
 
-[^ref3]: Diederik P. Kingma, Max Welling (2013) (2014),
-    *Auto-Encoding Variational Bayes*,
+[^ref3]:
+    Diederik P. Kingma, Max Welling (2013) (2014),
+    _Auto-Encoding Variational Bayes_,
     [Arxiv](https://arxiv.org/abs/1312.6114).

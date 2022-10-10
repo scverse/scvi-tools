@@ -33,7 +33,7 @@ scvi-tools is composed of models that can perform one or more tasks in single-ce
     for deconvolution of spatial transcriptomics data.
 -   [DestVI](https://www.nature.com/articles/s41587-022-01272-8) for multi-resolution deconvolution
     of spatial transcriptomics data.
--   [peakVI](https://www.cell.com/cell-reports-methods/pdfExtended/S2667-2375(22)00037-6) for analysis of scATAC-seq data.
+-   [peakVI](<https://www.cell.com/cell-reports-methods/pdfExtended/S2667-2375(22)00037-6>) for analysis of scATAC-seq data.
 -   [scArches](https://www.nature.com/articles/s41587-021-01001-7)
     for transfer learning from one single-cell atlas to a query dataset
     (currently supports scVI, scANVI and TotalVI).
@@ -67,13 +67,17 @@ starting point for developing and deploying new models with scvi-tools.
 # Basic installation
 
 For conda,
+
 ```
 conda install scvi-tools -c conda-forge
 ```
+
 and for pip,
+
 ```
 pip install scvi-tools
 ```
+
 Please be sure to install a version of [PyTorch](https://pytorch.org/) that is compatible with your GPU (if applicable).
 
 # Resources
@@ -105,5 +109,5 @@ If you used scvi-tools in your research, please consider citing
          url={https://doi.org/10.1038/s41587-021-01206-w}
 }
 ```
-along with the publicaton describing the model used. 
 
+along with the publicaton describing the model used.

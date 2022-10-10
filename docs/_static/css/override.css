@@ -10,7 +10,8 @@ body {
     --sd-color-shadow: dimgrey;
 }
 
-dt:target, span.highlighted {
+dt:target,
+span.highlighted {
     background-color: #f0f0f0;
 }
 
@@ -33,15 +34,14 @@ p.rubric {
     font-weight: 500;
 }
 
-
-  /* adapted from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
+/* adapted from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
 
 .nbinput .prompt,
 .nboutput .prompt {
-      display: none;
+    display: none;
 }
-.nboutput .stderr{
-      display: none;
+.nboutput .stderr {
+    display: none;
 }
 
 div.nblast.container {
@@ -58,7 +58,7 @@ div.nbinput.container {
 
 div.nbinput.container div.input_area {
     /* Code cell border that works in both dark and light mode */
-    border-color: rgba(127,127,127,.25) !important;
+    border-color: rgba(127, 127, 127, 0.25) !important;
 }
 
 div.nbinput.container div.input_area div[class*="highlight"] > pre {
@@ -67,9 +67,8 @@ div.nbinput.container div.input_area div[class*="highlight"] > pre {
 }
 
 p.topic-title {
-  margin-top: 0;
+    margin-top: 0;
 }
-
 
 /* so that api methods are small in sidebar */
 li.toctree-l3 {

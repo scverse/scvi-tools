@@ -197,8 +197,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for k, v in {**non_kwargs, **kwargs}.items():
             if k in scanvi_kwargs.keys():
                 warnings.warn(
-                    "Ignoring param '{}' as it was already passed in to ".format(k)
-                    + "pretrained scvi model with value {}.".format(v)
+                    f"Ignoring param '{k}' as it was already passed in to "
+                    + f"pretrained scvi model with value {v}."
                 )
                 del scanvi_kwargs[k]
 
@@ -367,7 +367,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if self.was_pretrained:
                 max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))
 
-        logger.info("Training for {} epochs.".format(max_epochs))
+        logger.info(f"Training for {max_epochs} epochs.")
 
         plan_kwargs = {} if plan_kwargs is None else plan_kwargs
 

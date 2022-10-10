@@ -2,7 +2,7 @@ try:
     from typing import Literal
 except ImportError:
     try:
-        from typing_extensions import Literal
+        from typing import Literal
     except ImportError:
 
         class LiteralMeta(type):

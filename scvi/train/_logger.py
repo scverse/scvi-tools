@@ -13,7 +13,6 @@ class SimpleExperiment:
 
     def log_hparams(self, params: Dict[str, Any]) -> None:
         """Record hparams."""
-        pass
 
     def log_metrics(
         self, metrics: Dict[str, float], step: Optional[int] = None
@@ -42,7 +41,6 @@ class SimpleExperiment:
 
     def save(self) -> None:
         """Save data."""
-        pass
 
 
 class SimpleLogger(Logger):

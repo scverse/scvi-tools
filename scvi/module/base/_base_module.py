@@ -110,7 +110,7 @@ class BaseModuleClass(nn.Module):
 
     @property
     def device(self):
-        device = list(set(p.device for p in self.parameters()))
+        device = list({p.device for p in self.parameters()})
         if len(device) > 1:
             raise RuntimeError("Module tensors on multiple devices.")
         return device[0]
@@ -119,7 +119,6 @@ class BaseModuleClass(nn.Module):
         """
         Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
         """
-        pass
 
     @auto_move_data
     def forward(
@@ -195,7 +194,6 @@ class BaseModuleClass(nn.Module):
 
         This function should return a dictionary with str keys and :class:`~torch.Tensor` values.
         """
-        pass
 
     @abstractmethod
     def generative(
@@ -209,7 +207,6 @@ class BaseModuleClass(nn.Module):
 
         This function should return a dictionary with str keys and :class:`~torch.Tensor` values.
         """
-        pass
 
     @abstractmethod
     def loss(self, *args, **kwargs) -> LossRecorder:
@@ -221,12 +218,10 @@ class BaseModuleClass(nn.Module):
 
         This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
         """
-        pass
 
     @abstractmethod
     def sample(self, *args, **kwargs):
         """Generate samples from the learned model."""
-        pass
 
 
 class BaseLatentModeModuleClass(BaseModuleClass):
@@ -248,12 +243,10 @@ class BaseLatentModeModuleClass(BaseModuleClass):
         Uses the cached latent mode distribution to perform inference,
         thus bypassing the encoder
         """
-        pass
 
     @abstractmethod
     def _regular_inference(self, *args, **kwargs):
         """Runs inference (encoder forward pass)."""
-        pass
 
     @auto_move_data
     def inference(self, *args, **kwargs):
@@ -438,7 +431,6 @@ class JaxBaseModuleClass(linen.Module):
 
         https://flax.readthedocs.io/en/latest/design_notes/setup_or_nncompact.html
         """
-        pass
 
     @property
     @abstractmethod
@@ -519,7 +511,6 @@ class JaxBaseModuleClass(linen.Module):
 
         This function should return a dictionary with str keys and :class:`~jnp.ndarray` values.
         """
-        pass
 
     @abstractmethod
     def generative(
@@ -533,7 +524,6 @@ class JaxBaseModuleClass(linen.Module):
 
         This function should return a dictionary with str keys and :class:`~jnp.ndarray` values.
         """
-        pass
 
     @abstractmethod
     def loss(self, *args, **kwargs) -> LossRecorder:
@@ -545,11 +535,9 @@ class JaxBaseModuleClass(linen.Module):
 
         This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
         """
-        pass
 
     def eval(self):
         """No-op for PyTorch compatibility."""
-        pass
 
 
 def _generic_forward(

@@ -860,4 +860,3 @@ class BaseLatentModeModelClass(BaseModelClass):
         mode
             The latent data type used
         """
-        pass

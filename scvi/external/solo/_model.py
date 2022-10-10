@@ -245,7 +245,7 @@ class SOLO(BaseModelClass):
         doublets_ad = AnnData(doublets)
         doublets_ad.var_names = adata.var_names
         doublets_ad.obs_names = [
-            "sim_doublet_{}".format(i) for i in range(num_doublets)
+            f"sim_doublet_{i}" for i in range(num_doublets)
         ]
 
         # if adata setup with a layer, need to add layer to doublets adata

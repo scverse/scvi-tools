@@ -214,7 +214,7 @@ class CategoricalObsField(BaseObsField):
         )
         for i, cat in enumerate(mapping):
             if i == 0:
-                t.add_row("adata.obs['{}']".format(source_key), str(cat), str(i))
+                t.add_row(f"adata.obs['{source_key}']", str(cat), str(i))
             else:
                 t.add_row("", str(cat), str(i))
         return t

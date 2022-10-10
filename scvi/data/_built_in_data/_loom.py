@@ -102,7 +102,7 @@ def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
     url = "https://github.com/YosefLab/scVI-data/raw/master/simulation/simulation_{}.loom".format(
         name
     )
-    save_fn = "simulation_{}.loom".format(name)
+    save_fn = f"simulation_{name}.loom"
     _download(url, save_path, save_fn)
     adata = _load_loom(os.path.join(save_path, save_fn))
 

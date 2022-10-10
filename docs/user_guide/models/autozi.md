@@ -4,8 +4,9 @@
 is a model for assessing gene-specific levels of zero-inflation in scRNA-seq data.
 
 :::{topic} Tutorials:
-- {doc}`/tutorials/notebooks/AutoZI_tutorial`
-:::
+
+-   {doc}`/tutorials/notebooks/AutoZI_tutorial`
+    :::
 
 ## Generative process
 
@@ -71,4 +72,4 @@ is $q(\delta_g < 0.5)$.
 >>> zi_probs = beta.cdf(0.5, alpha_posterior, beta_posterior)
 ```
 
-[^ref1]: Oscar Clivio, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef (2019), *Detecting zero-inflated genes in single-cell transcriptomics data*, [Machine Learning in Computational Biology (MLCB)](https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf).
+[^ref1]: Oscar Clivio, Romain Lopez, Jeffrey Regier, Adam Gayoso, Michael I. Jordan, Nir Yosef (2019), _Detecting zero-inflated genes in single-cell transcriptomics data_, [Machine Learning in Computational Biology (MLCB)](https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf).
