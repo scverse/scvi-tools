@@ -11,8 +11,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 ## Quick start
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
    notebooks/api_overview
    notebooks/data_loading
@@ -24,8 +24,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 ### scRNA-seq
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
    notebooks/harmonization
    notebooks/scvi_in_R
@@ -42,8 +42,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 ### ATAC-seq
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
    notebooks/PeakVI
    notebooks/peakvi_in_R
@@ -52,8 +52,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 ### Spatial transcriptomics
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
    notebooks/DestVI_tutorial
    notebooks/DestVI_in_R
@@ -63,8 +63,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 ### Multimodal
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
    notebooks/totalVI
    notebooks/cite_scrna_integration_w_totalVI
@@ -76,8 +76,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 ## Contributed tutorials
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
    notebooks/stereoscope_heart_LV_tutorial
    notebooks/cell2location_lymph_node_spatial_tutorial
