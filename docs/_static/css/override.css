@@ -22,6 +22,7 @@ dl.citation > dt {
 }
 
 <<<<<<< refs/remotes/scverse/precommit
+<<<<<<< refs/remotes/scverse/precommit
 /* Parameters normalize size and captialized, */
 dl .field-list dt {
     font-size: var(--font-size--normal) !important;
@@ -36,6 +37,19 @@ p.rubric {
 }
 
 =======
+>>>>>>> cleanup docs
+=======
+/* so that api methods are small in sidebar */
+li.toctree-l3 {
+    font-size: 81.25% !important;
+}
+
+li.toctree-l4 {
+    font-size: 75% !important;
+}
+
+/* Notebook stuff below */
+
 >>>>>>> cleanup docs
 /* adapted from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
 
@@ -75,13 +89,4 @@ div.nbinput.container div.input_area div[class*="highlight"] > pre {
 
 p.topic-title {
     margin-top: 0;
-}
-
-/* so that api methods are small in sidebar */
-li.toctree-l3 {
-    font-size: 81.25% !important;
-}
-
-li.toctree-l4 {
-    font-size: 75% !important;
 }
