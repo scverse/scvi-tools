@@ -8,6 +8,7 @@ from mudata import MuData
 import scvi
 from scvi.data import synthetic_iid
 from scvi.model import TOTALVI
+from scvi.utils import attrdict
 
 
 def test_totalvi(save_path):
@@ -273,8 +274,8 @@ def test_totalvi_saving_and_loading(save_path):
 
     model = TOTALVI.load(save_path, adata=mdata)
     assert scvi.REGISTRY_KEYS.BATCH_KEY in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry["batch"] == dict(
-        mod_key="rna", attr_name="obs", attr_key="_scvi_batch"
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(mod_key="rna", attr_name="obs", attr_key="_scvi_batch")
     )
 
     z2 = model.get_latent_representation()
