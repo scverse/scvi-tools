@@ -155,6 +155,7 @@ class ProteinLayerField(ProteinFieldMixin, LayerField):
 
 
 def copy_over_batch_attr(self, mdata: MuData):
+    """Copy over batch attributes from the original MuData object."""
     # Assign self.batch_field if not yet assigned to MuDataWrapped field.
     # Then, reassign self.adata_field.batch_field to the batch AnnDataField.
     if isinstance(self.adata_field.batch_field, BaseMuDataWrapperClass):

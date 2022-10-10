@@ -28,12 +28,12 @@ class AutoZIVAE(VAE):
     alpha_prior
         Float denoting the alpha parameter of the prior Beta distribution of
         the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-        When set to ``None'', will be set to 1 - beta_prior if beta_prior is not ``None'',
+        When set to ``None``, will be set to 1 - beta_prior if beta_prior is not ``None``,
         otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
     beta_prior
         Float denoting the beta parameter of the prior Beta distribution of
         the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-        When set to ``None'', will be set to 1 - alpha_prior if alpha_prior is not ``None'',
+        When set to ``None``, will be set to 1 - alpha_prior if alpha_prior is not ``None``,
         otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
     minimal_dropout
         Float denoting the lower bound of the cell-gene ZI rate in the ZINB component.

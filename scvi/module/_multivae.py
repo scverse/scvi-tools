@@ -54,9 +54,7 @@ class LibrarySizeEncoder(torch.nn.Module):
 
 
 class DecoderADT(torch.nn.Module):
-    """
-    Decoder for just surface proteins (ADT)
-    """
+    """Decoder for just surface proteins (ADT)."""
 
     def __init__(
         self,
@@ -1014,6 +1012,7 @@ def mix_modalities(Xs, masks, weights, weight_transform: callable = None):
 
 @auto_move_data
 def sym_kld(qzm1, qzv1, qzm2, qzv2):
+    """Symmetric KL divergence between two Gaussians."""
     rv1 = Normal(qzm1, qzv1.sqrt())
     rv2 = Normal(qzm2, qzv2.sqrt())
 
@@ -1022,6 +1021,7 @@ def sym_kld(qzm1, qzv1, qzm2, qzv2):
 
 @auto_move_data
 def get_reconstruction_loss_protein(y, py_, pro_batch_mask_minibatch=None):
+    """Get the reconstruction loss for protein data."""
     py_conditional = NegativeBinomialMixture(
         mu1=py_["rate_back"],
         mu2=py_["rate_fore"],

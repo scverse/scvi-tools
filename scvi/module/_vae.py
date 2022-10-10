@@ -23,7 +23,7 @@ class VAE(BaseLatentModeModuleClass):
     """
     Variational auto-encoder model.
 
-    This is an implementation of the scVI model described in [Lopez18]_
+    This is an implementation of the scVI model described in [Lopez18]_.
 
     Parameters
     ----------

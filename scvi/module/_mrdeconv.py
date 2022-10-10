@@ -12,6 +12,7 @@ from scvi.nn import FCLayers
 
 
 def identity(x):
+    """Identity function."""
     return x
 
 

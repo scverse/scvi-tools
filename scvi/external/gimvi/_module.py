@@ -190,7 +190,6 @@ class JVAE(BaseModuleClass):
         -------
         type
             tensor of shape ``(batch_size, n_latent)``
-
         """
         if mode is None:
             if len(self.n_input_list) == 1:
@@ -224,7 +223,6 @@ class JVAE(BaseModuleClass):
         -------
         type
             tensor of shape ``(batch_size, 1)``
-
         """
         inference_out = self.inference(x, mode)
         return (
@@ -265,9 +263,7 @@ class JVAE(BaseModuleClass):
         -------
         type
             tensor of predicted expression
-
         """
-
         gen_out = self._run_forward(
             x,
             mode,
@@ -338,9 +334,7 @@ class JVAE(BaseModuleClass):
         -------
         type
             tensor of means of the scaled frequencies
-
         """
-
         gen_out = self._run_forward(
             x,
             mode,
@@ -457,7 +451,6 @@ class JVAE(BaseModuleClass):
         Returns
         -------
         the reconstruction loss and the Kullback divergences
-
         """
         if mode is None:
             if len(self.n_input_list) == 1:

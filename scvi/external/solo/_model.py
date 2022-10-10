@@ -30,7 +30,7 @@ class SOLO(BaseModelClass):
     Doublet detection in scRNA-seq [Bernstein19]_.
 
     Most users will initialize the model using the class method
-    :func:`~scvi.external.SOLO.from_scvi_model`, which takes as
+    :meth:`~scvi.external.SOLO.from_scvi_model`, which takes as
     input a pre-trained :class:`~scvi.model.SCVI` object.
 
     Parameters
@@ -70,7 +70,7 @@ class SOLO(BaseModelClass):
     :class:`~scvi.model.SCVI` instance that was trained with multiple
     batches can be used as input, but Solo should be created and run
     multiple times, each with a new `restrict_to_batch` in
-    :func:`~scvi.external.SOLO.from_scvi_model`.
+    :meth:`~scvi.external.SOLO.from_scvi_model`.
     """
 
     def __init__(

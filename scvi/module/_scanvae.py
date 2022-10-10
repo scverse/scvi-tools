@@ -88,7 +88,7 @@ class SCANVAE(VAE):
         y_prior=None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
-        classifier_parameters: dict = dict(),
+        classifier_parameters: Optional[dict] = None,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         **vae_kwargs
@@ -110,6 +110,7 @@ class SCANVAE(VAE):
             **vae_kwargs
         )
 
+        classifier_parameters = classifier_parameters or dict()
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"

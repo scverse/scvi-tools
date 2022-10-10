@@ -54,7 +54,7 @@ def _move_data_to_device(batch: Any, device: torch.device):
     ----------
     batch
         A tensor or collection of tensors or anything that has a method `.to(...)`.
-        See :func:`apply_to_collection` for a list of supported collection types.
+        See :meth:`apply_to_collection` for a list of supported collection types.
     device
         The device to which the data should be moved
 
@@ -79,15 +79,15 @@ def _apply_to_collection(
     Parameters
     ----------
     data
-        The collection to apply the function to
+        The collection to apply the function to.
     dtype
-        The given function will be applied to all elements of this dtype
+        The given function will be applied to all elements of this dtype.
     function
-        The function to apply
+        The function to apply.
     *args
-        positional arguments (will be forwarded to calls of ``function``)
+        positional arguments (will be forwarded to calls of ``function``).
     **kwargs
-        keyword arguments (will be forwarded to calls of ``function``)
+        keyword arguments (will be forwarded to calls of ``function``).
 
     Returns
     -------

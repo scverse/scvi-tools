@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Ambient RNA removal in scRNA-seq data [Sheng22]_.
+
     Original Github: https://github.com/Novartis/scar.
     The models are parameter matched in architecture, activations, dropout, sparsity, and batch normalization.
 
@@ -162,6 +163,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     ):
         """
         %(summary)s.
+
         Parameters
         ----------
         %(param_layer)s
@@ -194,25 +196,29 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_batch: int = 1,
         sample: int = 50000,
     ):
-        """Calculate ambient profile for relevant features
+        """
+        Calculate ambient profile for relevant features.
+
         Identify the cell-free droplets through a multinomial distribution. See EmptyDrops [Lun2019]_ for details.
 
         Parameters
         ----------
-        adata : AnnData
-            A filtered adata object, loaded from filtered_feature_bc_matrix using `scanpy.read`, gene filtering is recommended to save memory
-        raw_adata : AnnData
-            A raw adata object, loaded from raw_feature_bc_matrix using `scanpy.read`
-        prob : float, optional
-            The probability of each gene, considered as containing ambient RNA if greater than prob (joint prob euqals to the product of all genes for a droplet), by default 0.995
-        min_raw_counts : int, optional
-            Total counts filter for raw_adata, filtering out low counts to save memory, by default 2
-        iterations : int, optional
-            Total iterations, by default 3
-        n_batch : int, optional
-            Total number of batches, set it to a bigger number when out of memory issue occurs, by default 1
-        sample : int, optional
-            Randomly sample droplets to test, if greater than total droplets, use all droplets, by default 50000
+        adata
+            A filtered adata object, loaded from filtered_feature_bc_matrix using `scanpy.read`, gene filtering is
+            recommended to save memory.
+        raw_adata
+            A raw adata object, loaded from raw_feature_bc_matrix using :meth:`~scanpy.read`.
+        prob
+            The probability of each gene, considered as containing ambient RNA if greater than prob
+            (joint prob euqals to the product of all genes for a droplet), by default 0.995.
+        min_raw_counts
+            Total counts filter for raw_adata, filtering out low counts to save memory, by default 2.
+        iterations
+            Total iterations, by default 3.
+        n_batch
+            Total number of batches, set it to a bigger number when out of memory issue occurs, by default 1.
+        sample
+            Randomly sample droplets to test, if greater than total droplets, use all droplets, by default 50000.
 
         Returns
         -------

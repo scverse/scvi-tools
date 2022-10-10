@@ -10,12 +10,11 @@ import torch
 from anndata import AnnData
 from mudata import MuData
 
-import scvi.data.fields as fields
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.data import AnnDataManager
+from scvi.data import AnnDataManager, fields
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
@@ -1072,7 +1071,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     def _get_totalvi_protein_priors(self, adata, n_cells=100):
         """Compute an empirical prior for protein background."""
-
         from sklearn.exceptions import ConvergenceWarning
         from sklearn.mixture import GaussianMixture
 

@@ -37,9 +37,9 @@ def _compute_kl_weight(
     min_kl_weight: float = 0.0,
 ) -> float:
     """
-    Computes the kl weight for the current step or epoch depending on
-    `n_epochs_kl_warmup` and `n_steps_kl_warmup`. If both `n_epochs_kl_warmup` and
-    `n_steps_kl_warmup` are None `max_kl_weight` is returned.
+    Computes the kl weight for the current step or epoch.
+
+    If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None `max_kl_weight` is returned.
 
     Parameters
     ----------
@@ -261,7 +261,7 @@ class TrainingPlan(pl.LightningModule):
         self.initialize_val_metrics()
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the module's forward method."""
         return self.module(*args, **kwargs)
 
     @torch.inference_mode()
@@ -780,14 +780,14 @@ class PyroTrainingPlan(pl.LightningModule):
         # important for scaling log prob in Pyro plates
         if n_obs is not None:
             if hasattr(self.module.model, "n_obs"):
-                setattr(self.module.model, "n_obs", n_obs)
+                self.module.model.n_obs = n_obs
             if hasattr(self.module.guide, "n_obs"):
-                setattr(self.module.guide, "n_obs", n_obs)
+                self.module.guide.n_obs = n_obs
 
         self._n_obs_training = n_obs
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the model's forward method."""
         return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
@@ -895,7 +895,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
             )
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the module's forward function."""
         return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):

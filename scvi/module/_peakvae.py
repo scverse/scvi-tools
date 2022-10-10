@@ -2,6 +2,7 @@ from typing import Dict, Iterable, Optional
 
 import numpy as np
 import torch
+from torch import nn
 from torch.distributions import Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
@@ -10,9 +11,9 @@ from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
 
-class Decoder(torch.nn.Module):
+class Decoder(nn.Module):
     """
-    Decodes data from latent space of ``n_input`` dimensions ``n_output``dimensions.
+    Decodes data from latent space of ``n_input`` dimensions ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -294,7 +295,6 @@ class PEAKVAE(BaseModuleClass):
         use_z_mean=False,
     ):
         """Runs the generative model."""
-
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:

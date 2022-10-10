@@ -12,7 +12,7 @@ def _load_heart_cell_atlas_subsampled(
     """
     Combined single cell and single nuclei RNA-Seq data of 485K cardiac cells with annotations.
 
-    Dataset was filtered down randomly to 20k cells using :func:`~scanpy.pp.subsample`. The original
+    Dataset was filtered down randomly to 20k cells using :meth:`~scanpy.pp.subsample`. The original
     data can be sourced from https://www.heartcellatlas.org/#DataSources.
 
     Parameters
