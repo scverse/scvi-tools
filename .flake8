@@ -1,6 +1,10 @@
 [flake8]
 max-line-length = 119
 ignore =
+    # Unnecessary dict call - rewrite as a literal.
+    C408
+    # Missing docstring in public method
+    D102
     # Too many leading '#' for block comment
     E266
     # line break before a binary operator -> black does not adhere to PEP8
