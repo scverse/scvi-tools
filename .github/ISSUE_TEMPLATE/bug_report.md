@@ -13,13 +13,13 @@ assignees: ""
 <!-- To reproduce -->
 
 ```python
-[CODE HERE]
+# Your code here
 ```
 
 <!-- Put your Error output in this code block (if applicable, else delete the block): -->
 
 ```pytb
-[ERROR HERE]
+[Paste the error output produced by the above code here]
 ```
 
 #### Versions:
