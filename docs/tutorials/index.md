@@ -27,17 +27,16 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 ```{toctree}
 :maxdepth: 1
 
-   notebooks/harmonization
-   notebooks/scvi_in_R
-   notebooks/tabula_muris
-   notebooks/scarches_scvi_tools
-   notebooks/query_hlca_knn
-   notebooks/seed_labeling
-   notebooks/linear_decoder
-   notebooks/AutoZI_tutorial
-   notebooks/cellassign_tutorial
-   notebooks/amortized_lda
-
+notebooks/harmonization
+notebooks/scvi_in_R
+notebooks/tabula_muris
+notebooks/scarches_scvi_tools
+notebooks/query_hlca_knn
+notebooks/seed_labeling
+notebooks/linear_decoder
+notebooks/AutoZI_tutorial
+notebooks/cellassign_tutorial
+notebooks/amortized_lda
 ```
 
 ### ATAC-seq
@@ -45,9 +44,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 ```{toctree}
 :maxdepth: 1
 
-   notebooks/PeakVI
-   notebooks/peakvi_in_R
-
+notebooks/PeakVI
+notebooks/peakvi_in_R
 ```
 
 ### Spatial transcriptomics
@@ -55,10 +53,9 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 ```{toctree}
 :maxdepth: 1
 
-   notebooks/DestVI_tutorial
-   notebooks/DestVI_in_R
-   notebooks/gimvi_tutorial
-
+notebooks/DestVI_tutorial
+notebooks/DestVI_in_R
+notebooks/gimvi_tutorial
 ```
 
 ### Multimodal
@@ -66,12 +63,11 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 ```{toctree}
 :maxdepth: 1
 
-   notebooks/totalVI
-   notebooks/cite_scrna_integration_w_totalVI
-   notebooks/totalVI_reference_mapping
-   notebooks/totalvi_in_R
-   notebooks/MultiVI_tutorial
-
+notebooks/totalVI
+notebooks/cite_scrna_integration_w_totalVI
+notebooks/totalVI_reference_mapping
+notebooks/totalvi_in_R
+notebooks/MultiVI_tutorial
 ```
 
 ## Contributed tutorials
@@ -79,9 +75,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 ```{toctree}
 :maxdepth: 1
 
-   notebooks/stereoscope_heart_LV_tutorial
-   notebooks/cell2location_lymph_node_spatial_tutorial
-
+notebooks/stereoscope_heart_LV_tutorial
+notebooks/cell2location_lymph_node_spatial_tutorial
 ```
 
 ## Developer tutorials
