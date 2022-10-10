@@ -189,6 +189,7 @@ class SCANVAE(VAE):
 
     @auto_move_data
     def classify(self, x, batch_index=None, cont_covs=None, cat_covs=None):
+        """Classify cells into cell types."""
         if self.log_variational:
             x = torch.log(1 + x)
 
@@ -219,7 +220,7 @@ class SCANVAE(VAE):
         return w_y
 
     @auto_move_data
-    def classification_loss(self, labelled_dataset):
+    def classification_loss(self, labelled_dataset):  # noqa: D102
         x = labelled_dataset[REGISTRY_KEYS.X_KEY]
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
@@ -250,6 +251,7 @@ class SCANVAE(VAE):
         labelled_tensors=None,
         classification_ratio=None,
     ):
+        """Compute the loss."""
         px = generative_ouputs["px"]
         qz1 = inference_outputs["qz"]
         z1 = inference_outputs["z"]

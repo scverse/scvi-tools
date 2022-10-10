@@ -162,6 +162,7 @@ class VAEC(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
+        """Loss computation."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
         qz = inference_outputs["qz"]

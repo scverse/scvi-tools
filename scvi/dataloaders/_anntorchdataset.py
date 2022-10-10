@@ -128,7 +128,7 @@ class AnnTorchDataset(Dataset):
 
         return data_numpy
 
-    def get_data(self, scvi_data_key):
+    def get_data(self, scvi_data_key):  # noqa: D102
         tensors = self.__getitem__(idx=list(range(self.__len__())))
         return tensors[scvi_data_key]
 

@@ -71,6 +71,7 @@ class Decoder(nn.Module):
         )
 
     def forward(self, z: torch.Tensor, *cat_list: int):
+        """Forward pass."""
         x = self.output(self.px_decoder(z, *cat_list))
         return x
 
@@ -247,6 +248,7 @@ class PEAKVAE(BaseModuleClass):
         return input_dict
 
     def get_reconstruction_loss(self, p, d, f, x):
+        """Compute the reconstruction loss."""
         rl = torch.nn.BCELoss(reduction="none")(p * d * f, (x > 0).float()).sum(dim=-1)
         return rl
 
@@ -317,6 +319,7 @@ class PEAKVAE(BaseModuleClass):
     def loss(
         self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
     ):
+        """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         qz = inference_outputs["qz"]
         d = inference_outputs["d"]

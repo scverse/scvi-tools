@@ -110,6 +110,7 @@ class FCLayers(nn.Module):
         return user_cond
 
     def set_online_update_hooks(self, hook_first_layer=True):
+        """Set online update hooks."""
         self.hooks = []
 
         def _hook_fn_weight(grad):
@@ -419,6 +420,8 @@ class DecoderSCVI(nn.Module):
 
 
 class LinearDecoderSCVI(nn.Module):
+    """Linear decoder for scVI."""
+
     def __init__(
         self,
         n_input: int,
@@ -459,6 +462,7 @@ class LinearDecoderSCVI(nn.Module):
     def forward(
         self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int
     ):
+        """Forward pass."""
         # The decoder returns values for the parameters of the ZINB distribution
         raw_px_scale = self.factor_regressor(z, *cat_list)
         px_scale = torch.softmax(raw_px_scale, dim=-1)
@@ -549,6 +553,8 @@ class Decoder(nn.Module):
 
 
 class MultiEncoder(nn.Module):
+    """MultiEncoder."""
+
     def __init__(
         self,
         n_heads: int,
@@ -592,6 +598,7 @@ class MultiEncoder(nn.Module):
         self.return_dist = return_dist
 
     def forward(self, x: torch.Tensor, head_id: int, *cat_list: int):
+        """Forward pass."""
         q = self.encoders[head_id](x, *cat_list)
         q = self.encoder_shared(q, *cat_list)
 
@@ -605,6 +612,8 @@ class MultiEncoder(nn.Module):
 
 
 class MultiDecoder(nn.Module):
+    """MultiDecoder."""
+
     def __init__(
         self,
         n_input: int,
@@ -662,7 +671,7 @@ class MultiDecoder(nn.Module):
         dispersion: str,
         *cat_list: int,
     ):
-
+        """Forward pass."""
         px = z
         if self.px_decoder_conditioned:
             px = self.px_decoder_conditioned(px, *cat_list)
@@ -982,6 +991,7 @@ class EncoderTOTALVI(nn.Module):
         self.l_transformation = torch.exp
 
     def reparameterize_transformation(self, mu, var):
+        """Reparameterization trick to sample from a normal distribution."""
         untran_z = Normal(mu, var.sqrt()).rsample()
         z = self.z_transformation(untran_z)
         return z, untran_z

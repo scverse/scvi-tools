@@ -62,4 +62,5 @@ class Classifier(nn.Module):
         self.classifier = nn.Sequential(*layers)
 
     def forward(self, x):
+        """Forward computation."""
         return self.classifier(x)

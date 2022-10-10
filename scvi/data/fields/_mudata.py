@@ -60,7 +60,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         return self.adata_field.attr_key
 
     @property
-    def is_empty(self) -> bool:
+    def is_empty(self) -> bool:  # noqa: D102
         return self.adata_field.is_empty
 
     def get_modality(self, mdata: MuData) -> AnnOrMuData:
@@ -75,6 +75,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         return bdata
 
     def validate_field(self, mdata: MuData) -> None:
+        """Validate the field."""
         if isinstance(mdata, AnnData):
             raise ValueError("`get_modality` can only be called on MuData objects.")
         bdata = self.get_modality(mdata)
@@ -91,6 +92,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         return self._preregister(self, mdata)
 
     def register_field(self, mdata: MuData) -> dict:
+        """Register the field."""
         self.preregister(mdata)
         bdata = self.get_modality(mdata)
         return self.adata_field.register_field(bdata)
@@ -98,14 +100,17 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
     def transfer_field(
         self, state_registry: dict, mdata_target: MuData, **kwargs
     ) -> dict:
+        """Transfer the field."""
         self.preregister(mdata_target)
         bdata_target = self.get_modality(mdata_target)
         return self.adata_field.transfer_field(state_registry, bdata_target, **kwargs)
 
     def get_summary_stats(self, state_registry: dict) -> dict:
+        """Get summary stats."""
         return self.adata_field.get_summary_stats(state_registry)
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        """View the state registry."""
         return self.adata_field.view_state_registry(state_registry)
 
 

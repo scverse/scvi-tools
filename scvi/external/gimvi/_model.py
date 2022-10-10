@@ -660,6 +660,8 @@ class GIMVI(VAEMixin, BaseModelClass):
 
 
 class TrainDL(DataLoader):
+    """Train data loader."""
+
     def __init__(self, data_loader_list, **kwargs):
         self.data_loader_list = data_loader_list
         self.largest_train_dl_idx = np.argmax(

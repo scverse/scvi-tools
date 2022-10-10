@@ -84,19 +84,19 @@ class LossRecorder:
         return total
 
     @property
-    def loss(self) -> Union[torch.Tensor, jnp.ndarray]:
+    def loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
         return self._get_dict_sum(self._loss)
 
     @property
-    def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:
+    def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
         return self._get_dict_sum(self._reconstruction_loss)
 
     @property
-    def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:
+    def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
         return self._get_dict_sum(self._kl_local)
 
     @property
-    def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:
+    def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
         return self._get_dict_sum(self._kl_global)
 
 
@@ -109,7 +109,7 @@ class BaseModuleClass(nn.Module):
         super().__init__()
 
     @property
-    def device(self):
+    def device(self):  # noqa: D102
         device = list({p.device for p in self.parameters()})
         if len(device) > 1:
             raise RuntimeError("Module tensors on multiple devices.")
@@ -312,12 +312,12 @@ class PyroBaseModuleClass(nn.Module):
 
     @property
     @abstractmethod
-    def model(self):
+    def model(self):  # noqa: D102
         pass
 
     @property
     @abstractmethod
-    def guide(self):
+    def guide(self):  # noqa: D102
         pass
 
     @property

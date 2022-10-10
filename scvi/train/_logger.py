@@ -8,6 +8,8 @@ from pytorch_lightning.utilities import rank_zero_only
 
 
 class SimpleExperiment:
+    """Simple experiment class."""
+
     def __init__(self):
         self.data = {}
 
@@ -44,6 +46,8 @@ class SimpleExperiment:
 
 
 class SimpleLogger(Logger):
+    """Simple logger class."""
+
     def __init__(
         self, name: str = "lightning_logs", version: Optional[Union[int, str]] = None
     ):
@@ -61,7 +65,7 @@ class SimpleLogger(Logger):
         return self._experiment
 
     @rank_zero_only
-    def log_hyperparams(self, params):
+    def log_hyperparams(self, params):  # noqa: D102
         # params is an argparse.Namespace
         # your code to record hyperparameters goes here
         pass
@@ -72,7 +76,7 @@ class SimpleLogger(Logger):
         self.experiment.log_metrics(metrics, step)
 
     @property
-    def history(self) -> Dict[str, pd.DataFrame]:
+    def history(self) -> Dict[str, pd.DataFrame]:  # noqa: D102
         return self.experiment.data
 
     @property
@@ -89,5 +93,5 @@ class SimpleLogger(Logger):
         return self._version
 
     @property
-    def name(self):
+    def name(self):  # noqa: D102
         return self._name

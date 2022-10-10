@@ -14,29 +14,38 @@ torch.backends.cudnn.benchmark = True
 
 
 class tanh(nn.Module):
+    """Hyperbolic tangent activation function."""
+
     def __init__(self):
         super().__init__()
 
     def forward(self, input_x):
+        """Forward pass."""
         var_tanh = torch.tanh(input_x)
         output = (1 + var_tanh) / 2
         return output
 
 
 class hnormalization(nn.Module):
+    """Hyperbolic normalization."""
+
     def __init__(self):
         super().__init__()
 
     def forward(self, input_x):
+        """Forward pass."""
         return input_x / (input_x.sum(dim=-1, keepdim=True) + 1e-5)
 
 
 class softplus(nn.Module):
+    """Softplus activation function."""
+
     def __init__(self, sparsity=0.9):
         super().__init__()
         self.sparsity = sparsity
 
     def forward(self, input_x):
+        """Forward pass."""
         return self._softplus(input_x)
 
     def _softplus(self, input_x):
@@ -325,6 +334,7 @@ class SCAR_VAE(VAE):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
+        """Compute the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
             dim=1

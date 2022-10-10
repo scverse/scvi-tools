@@ -377,6 +377,7 @@ class TOTALVAE(BaseModuleClass):
         size_factor=None,
         transform_batch: Optional[int] = None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
+        """Run the generative step."""
         if cont_covs is None:
             decoder_input = z
         elif z.dim() != cont_covs.dim():
@@ -652,6 +653,7 @@ class TOTALVAE(BaseModuleClass):
 
     @torch.inference_mode()
     def sample(self, tensors, n_samples=1):
+        """Sample from the generative model."""
         inference_kwargs = dict(n_samples=n_samples)
         with torch.inference_mode():
             inference_outputs, generative_outputs, = self.forward(
@@ -678,6 +680,7 @@ class TOTALVAE(BaseModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
+        """Computes the marginal log likelihood of the data under the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         to_sum = torch.zeros(x.size()[0], n_mc_samples)

@@ -73,6 +73,7 @@ class RNADeconv(BaseModuleClass):
 
     @auto_move_data
     def inference(self):
+        """Inference."""
         return {}
 
     @auto_move_data
@@ -100,6 +101,7 @@ class RNADeconv(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
+        """Loss computation."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
@@ -117,6 +119,7 @@ class RNADeconv(BaseModuleClass):
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the model."""
         raise NotImplementedError("No sampling method for Stereoscope")
 
 
@@ -188,6 +191,7 @@ class SpatialDeconv(BaseModuleClass):
 
     @auto_move_data
     def inference(self):
+        """Inference."""
         return {}
 
     @auto_move_data
@@ -218,6 +222,7 @@ class SpatialDeconv(BaseModuleClass):
         kl_weight: float = 1.0,
         n_obs: int = 1.0,
     ):
+        """Loss computation."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
@@ -245,6 +250,7 @@ class SpatialDeconv(BaseModuleClass):
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the model."""
         raise NotImplementedError("No sampling method for Stereoscope")
 
     @torch.inference_mode()

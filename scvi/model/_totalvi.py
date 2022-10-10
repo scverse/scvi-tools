@@ -1169,6 +1169,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @torch.inference_mode()
     def get_protein_background_mean(self, adata, indices, batch_size):
+        """Get protein background mean."""
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -1261,6 +1262,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         modalities: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> Optional[AnnData]:
+        """Setup MuData."""
         setup_method_args = cls._get_setup_method_args(**locals())
 
         if modalities is None:

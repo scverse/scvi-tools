@@ -430,6 +430,7 @@ class VAE(BaseLatentModeModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
+        """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
             dim=1
@@ -509,6 +510,7 @@ class VAE(BaseLatentModeModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
+        """Computes the marginal log likelihood of the model."""
         sample_batch = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 

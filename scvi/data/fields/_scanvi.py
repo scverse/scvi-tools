@@ -69,6 +69,7 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         }
 
     def register_field(self, adata: AnnData) -> dict:
+        """Register the field"""
         state_registry = super().register_field(adata)
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
         return self._remap_unlabeled_to_final_category(adata, mapping)
@@ -80,6 +81,7 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         allow_missing_labels: bool = False,
         **kwargs,
     ) -> dict:
+        """Transfer the field"""
         if (
             allow_missing_labels
             and self._original_attr_key is not None

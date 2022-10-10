@@ -75,6 +75,7 @@ class ProteinFieldMixin:
         return None
 
     def register_field(self, adata: AnnData) -> dict:
+        """Register the field."""
         state_registry = super().register_field(adata)
 
         if self.use_batch_mask:
@@ -87,6 +88,7 @@ class ProteinFieldMixin:
     def transfer_field(
         self, state_registry: dict, adata_target: AnnData, **kwargs
     ) -> dict:
+        """Transfer the field."""
         transfer_state_registry = super().transfer_field(
             state_registry, adata_target, **kwargs
         )

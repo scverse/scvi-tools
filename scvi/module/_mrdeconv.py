@@ -184,6 +184,7 @@ class MRDeconv(BaseModuleClass):
 
     @auto_move_data
     def inference(self):
+        """Run the inference model."""
         return {}
 
     @auto_move_data
@@ -250,6 +251,7 @@ class MRDeconv(BaseModuleClass):
         kl_weight: float = 1.0,
         n_obs: int = 1.0,
     ):
+        """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
@@ -318,6 +320,7 @@ class MRDeconv(BaseModuleClass):
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the posterior."""
         raise NotImplementedError("No sampling method for DestVI")
 
     @torch.inference_mode()
