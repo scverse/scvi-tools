@@ -1557,6 +1557,7 @@ def test_multivi():
         data,
         n_genes=50,
         n_regions=50,
+        n_proteins=0,
     )
     vae.train(1, save_best=False)
     vae.train(1, adversarial_mixing=False)
@@ -1581,17 +1582,37 @@ def test_multivi():
         data,
         n_genes=50,
         n_regions=50,
+        n_proteins=0,
     )
     vae.train(3)
 
     # Test with modality weights and penalties
     data = synthetic_iid()
     MULTIVI.setup_anndata(data, batch_key="batch")
-    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
+    vae = MULTIVI(data, n_genes=50, n_regions=50, n_proteins=0, modality_weights="cell")
     vae.train(3)
-    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="universal")
+    vae = MULTIVI(
+        data, n_genes=50, n_regions=50, n_proteins=0, modality_weights="universal"
+    )
     vae.train(3)
-    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_penalty="MMD")
+    vae = MULTIVI(data, n_genes=50, n_regions=50, n_proteins=0, modality_penalty="MMD")
+    vae.train(3)
+
+    # Test with non-zero protein data
+    data = synthetic_iid()
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    vae = MULTIVI(
+        data,
+        n_genes=50,
+        n_regions=50,
+        n_proteins=data.obsm["protein_expression"].shape[1],
+        modality_weights="cell",
+    )
     vae.train(3)
 
 
