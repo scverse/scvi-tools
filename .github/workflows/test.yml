@@ -5,9 +5,9 @@ name: scvi-tools
 
 on:
   push:
-    branches: [master, 0.15.x, 0.16.x, 0.17.x]
+    branches: [master, 0.15.x, 0.16.x, 0.17.x, 0.18.x]
   pull_request:
-    branches: [master, 0.15.x, 0.16.x, 0.17.x]
+    branches: [master, 0.15.x, 0.16.x, 0.17.x, 0.18.x]
 
 jobs:
   build:
@@ -57,7 +57,7 @@ jobs:
 
     - name: Test with pytest
       run: |
-        pytest --cov-report=xml --cov=scvi --internet-tests
+        pytest --cov-report=xml --cov=scvi --internet-tests --color=yes
       if: ${{ steps.dependencies.outcome == 'success' && always() }}
     # --------------------------------------------------------------
 
