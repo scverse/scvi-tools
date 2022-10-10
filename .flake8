@@ -3,6 +3,8 @@ max-line-length = 119
 ignore =
     # Unnecessary dict call - rewrite as a literal.
     C408
+    # Missing docstring in public class
+    D101
     # Missing docstring in public method
     D102
     # Too many leading '#' for block comment
