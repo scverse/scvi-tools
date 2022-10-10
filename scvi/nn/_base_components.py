@@ -2,7 +2,7 @@ import collections
 from typing import Callable, Iterable, List, Optional
 
 import torch
-from torch import nn as nn
+from torch import nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
 
@@ -11,11 +11,7 @@ from scvi._compat import Literal
 from ._utils import one_hot
 
 
-def reparameterize_gaussian(mu, var):
-    return Normal(mu, var.sqrt()).rsample()
-
-
-def identity(x):
+def _identity(x):
     return x
 
 
@@ -149,13 +145,11 @@ class FCLayers(nn.Module):
             tensor of values with shape ``(n_in,)``
         cat_list
             list of category membership(s) for this sample
-        x: torch.Tensor
 
         Returns
         -------
-        py:class:`torch.Tensor`
+        :class:`torch.Tensor`
             tensor of shape ``(n_out,)``
-
         """
         one_hot_cat_list = []  # for generality in this list many indices useless.
 
@@ -201,7 +195,7 @@ class FCLayers(nn.Module):
 # Encoder
 class Encoder(nn.Module):
     """
-    Encodes data of ``n_input`` dimensions into a latent space of ``n_output`` dimensions.
+    Encode data of ``n_input`` dimensions into a latent space of ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -228,11 +222,11 @@ class Encoder(nn.Module):
         used for numerical stability
     var_activation
         Callable used to ensure positivity of the variance.
-        When `None`, defaults to `torch.exp`.
+        Defaults to :func:`torch.exp`.
     return_dist
-        If `True`, returns directly the distribution of z instead of its parameters.
+        Return directly the distribution of z instead of its parameters.
     **kwargs
-        Keyword args for :class:`~scvi.module._base.FCLayers`
+        Keyword args for :class:`~scvi.nn.FCLayers`
     """
 
     def __init__(
@@ -269,7 +263,7 @@ class Encoder(nn.Module):
         if distribution == "ln":
             self.z_transformation = nn.Softmax(dim=-1)
         else:
-            self.z_transformation = identity
+            self.z_transformation = _identity
         self.var_activation = torch.exp if var_activation is None else var_activation
 
     def forward(self, x: torch.Tensor, *cat_list: int):
@@ -307,7 +301,7 @@ class Encoder(nn.Module):
 # Decoder
 class DecoderSCVI(nn.Module):
     """
-    Decodes data from latent space of ``n_input`` dimensions into ``n_output``dimensions.
+    Decodes data from latent space of ``n_input`` dimensions into ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -983,7 +977,7 @@ class EncoderTOTALVI(nn.Module):
         if distribution == "ln":
             self.z_transformation = nn.Softmax(dim=-1)
         else:
-            self.z_transformation = identity
+            self.z_transformation = _identity
 
         self.l_transformation = torch.exp
 
