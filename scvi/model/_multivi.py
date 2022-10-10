@@ -723,7 +723,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\
+        r"""
+        \
 
         A unified method for differential accessibility analysis.
 

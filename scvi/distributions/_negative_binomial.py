@@ -454,7 +454,8 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         raise NotImplementedError
 
     @lazy_property
-    def zi_logits(self) -> torch.Tensor:  # noqa: D102
+    def zi_logits(self) -> torch.Tensor:
+        """ZI logits."""
         return probs_to_logits(self.zi_probs, is_binary=True)
 
     @lazy_property

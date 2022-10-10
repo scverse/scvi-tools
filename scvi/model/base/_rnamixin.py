@@ -184,7 +184,8 @@ class RNASeqMixin:
         silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\
+        r"""
+        \
 
         A unified method for differential expression analysis.
 

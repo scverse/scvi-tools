@@ -713,7 +713,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         include_protein_background: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\
+        r"""
+        \
 
         A unified method for differential expression analysis.
 
