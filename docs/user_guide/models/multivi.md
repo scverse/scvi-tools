@@ -14,11 +14,11 @@ The limitations of MultiVI include:
 
 -   Effectively requires a GPU for fast inference.
 
-:::{topic} Tutorials:
+```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/api_overview`
 -   {doc}`/tutorials/notebooks/MultiVI_tutorial`
-    :::
+```
 
 ## Preliminaries
 

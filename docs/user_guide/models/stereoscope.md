@@ -12,10 +12,10 @@ The limitations of Stereoscope include:
 
 -   Effectively requires a GPU for fast inference.
 
-:::{topic} Tutorial:
+```{topic} Tutorial:
 
 -   {doc}`/tutorials/notebooks/stereoscope_heart_LV_tutorial`
-    :::
+```
 
 ## Preliminaries
 

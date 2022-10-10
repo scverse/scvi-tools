@@ -13,10 +13,10 @@ The limitations of DestVI include:
 
 -   Effectively requires a GPU for fast inference.
 
-:::{topic} Tutorial:
+```{topic} Tutorial:
 
 -   {doc}`/tutorials/notebooks/DestVI_tutorial`
-    :::
+```
 
 ## Preliminaries
 

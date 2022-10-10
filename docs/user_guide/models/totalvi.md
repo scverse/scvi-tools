@@ -13,12 +13,12 @@ The limitations of totalVI include:
 -   Effectively requires a GPU for fast inference.
 -   Difficult to understand the balance between RNA and protein data in the low-dimensional representation of cells.
 
-:::{topic} Tutorials:
+```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/totalVI`
 -   {doc}`/tutorials/notebooks/cite_scrna_integration_w_totalVI`
 -   {doc}`/tutorials/notebooks/scarches_scvi_tools`
-    :::
+```
 
 ## Preliminaries
 

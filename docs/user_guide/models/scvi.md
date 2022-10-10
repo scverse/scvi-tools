@@ -13,13 +13,13 @@ The limitations of scVI include:
 -   Effectively requires a GPU for fast inference.
 -   Latent space is not interpretable, unlike that of a linear method.
 
-:::{topic} Tutorials:
+```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/api_overview`
 -   {doc}`/tutorials/notebooks/harmonization`
 -   {doc}`/tutorials/notebooks/scarches_scvi_tools`
 -   {doc}`/tutorials/notebooks/scvi_in_R`
-    :::
+```
 
 ## Preliminaries
 
