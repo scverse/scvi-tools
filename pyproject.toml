@@ -74,7 +74,6 @@ scikit-misc = {version = ">=0.1.3", optional = true}
 sphinx = {version = ">=4.1", optional = true}
 sphinx-autodoc-typehints = {version = "*", optional = true}
 sphinx-design = {version = "*", optional = true}
-sphinx-gallery = {version = ">0.6,<0.11", optional = true}
 sphinx-hoverxref = {version = "*", optional = true}
 sphinx_copybutton = {version = "<=0.3.1", optional = true}
 sphinxext-opengraph = {version = "*", optional = true}
@@ -88,13 +87,11 @@ dev = ["black", "pytest", "flake8", "codecov", "scanpy", "loompy", "jupyter", "n
 docs = [
   "sphinx",
   "nbsphinx",
-  "nbsphinx-link",
   "ipython",
   "furo",
   "typing_extensions",
   "sphinx-autodoc-typehints",
   "sphinx_copybutton",
-  "sphinx_gallery",
   "sphinx-design",
   "sphinxext-opengraph",
   "sphinx-hoverxref",
