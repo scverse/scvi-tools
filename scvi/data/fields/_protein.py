@@ -66,7 +66,7 @@ class ProteinFieldMixin:
             b_inds = np.where(batches.ravel() == b)[0]
             batch_sum = pro_exp[b_inds, :].sum(axis=0)
             all_zero = batch_sum == 0
-            batch_mask[b] = ~all_zero
+            batch_mask[str(b)] = ~all_zero
 
         if np.sum([~b[1] for b in batch_mask.items()]) > 0:
             logger.info("Found batches with missing protein expression")

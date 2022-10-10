@@ -593,7 +593,7 @@ class TOTALVAE(BaseModuleClass):
             for b in torch.unique(batch_index):
                 b_indices = (batch_index == b).reshape(-1)
                 pro_batch_mask_minibatch[b_indices] = torch.tensor(
-                    self.protein_batch_mask[b.item()].astype(np.float32),
+                    self.protein_batch_mask[str(int(b.item()))].astype(np.float32),
                     device=y.device,
                 )
         else:

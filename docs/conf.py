@@ -96,6 +96,7 @@ intersphinx_mapping = dict(
     pymde=("https://pymde.org/", None),
     flax=("https://flax.readthedocs.io/en/latest/", None),
     jax=("https://jax.readthedocs.io/en/latest/", None),
+    ml_collections=("https://ml-collections.readthedocs.io/en/latest/", None),
 )
 
 
@@ -295,6 +296,7 @@ hoverxref_intersphinx = [
     "pytorch_lightning",
     "scipy",
     "pandas",
+    "ml_collections",
 ]
 # use proxied API endpoint on rtd to avoid CORS issues
 if os.environ.get("READTHEDOCS"):
