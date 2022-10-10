@@ -98,6 +98,8 @@ def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
         * ``'1'``
         * ``'2'``
         * ``'3'``
+    save_path
+        Location for saving the dataset.
     """
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/simulation/simulation_{}.loom".format(

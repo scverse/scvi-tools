@@ -277,7 +277,7 @@ def linkcode_resolve(domain, info):
 
         path = os.path.relpath(inspect.getsourcefile(obj), start=_scvi_tools_module_path)  # type: ignore
         src, lineno = inspect.getsourcelines(obj)
-    except Exception:  # noqa
+    except Exception:  # noqa: B902
         return None
 
     path = f"{path}#L{lineno}-L{lineno + len(src) - 1}"
