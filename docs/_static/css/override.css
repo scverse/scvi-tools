@@ -21,6 +21,7 @@ dl.citation > dt {
     font-weight: bold;
 }
 
+<<<<<<< refs/remotes/scverse/precommit
 /* Parameters normalize size and captialized, */
 dl .field-list dt {
     font-size: var(--font-size--normal) !important;
@@ -34,12 +35,18 @@ p.rubric {
     font-weight: 500;
 }
 
+=======
+>>>>>>> cleanup docs
 /* adapted from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
 
 .nbinput .prompt,
 .nboutput .prompt {
     display: none;
 }
+<<<<<<< refs/remotes/scverse/precommit
+=======
+
+>>>>>>> cleanup docs
 .nboutput .stderr {
     display: none;
 }
@@ -74,6 +81,7 @@ p.topic-title {
 li.toctree-l3 {
     font-size: 81.25% !important;
 }
+
 li.toctree-l4 {
     font-size: 75% !important;
 }
