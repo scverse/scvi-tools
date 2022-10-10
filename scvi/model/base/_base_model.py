@@ -482,7 +482,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return self.history_
 
     def _get_user_attributes(self):
-        """Returns all the self attributes defined in a model class, e.g., self.is_trained_."""
+        """Returns all the self attributes defined in a model class, e.g., `self.is_trained_`."""
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
         attributes = [
             a for a in attributes if not (a[0].startswith("__") and a[0].endswith("__"))

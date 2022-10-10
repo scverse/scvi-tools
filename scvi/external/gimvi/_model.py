@@ -49,9 +49,9 @@ class GIMVI(VAEMixin, BaseModelClass):
     n_hidden
         Number of nodes per hidden layer.
     generative_distributions
-        List of generative distribution for adata_seq data and adata_spatial data.
+        List of generative distribution for adata_seq data and adata_spatial data. Defaults to ['zinb', 'nb'].
     model_library_size
-        List of bool of whether to model library size for adata_seq and adata_spatial.
+        List of bool of whether to model library size for adata_seq and adata_spatial. Defaults to [True, False].
     n_latent
         Dimensionality of the latent space.
     **model_kwargs
@@ -77,8 +77,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         self,
         adata_seq: AnnData,
         adata_spatial: AnnData,
-        generative_distributions: List = ["zinb", "nb"],
-        model_library_size: List = [True, False],
+        generative_distributions: Optional[List[str]] = None,
+        model_library_size: Optional[List[bool]] = None,
         n_latent: int = 10,
         **model_kwargs,
     ):
@@ -88,6 +88,8 @@ class GIMVI(VAEMixin, BaseModelClass):
                 "`adata_seq` and `adata_spatial` cannot point to the same object. "
                 "If you would really like to do this, make a copy of the object and pass it in as `adata_spatial`."
             )
+        model_library_size = model_library_size or [True, False]
+        generative_distributions = generative_distributions or ["zinb", "nb"]
         self.adatas = [adata_seq, adata_spatial]
         self.adata_managers = {
             "seq": self._get_most_recent_anndata_manager(adata_seq, required=True),

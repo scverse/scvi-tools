@@ -65,7 +65,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Float denoting the lower bound of the cell-gene ZI rate in the ZINB component.
         Must be non-negative. Can be set to 0 but not recommended as this may make
         the mixture problem ill-defined.
-    zero_inflation: One of the following
+    zero_inflation
+        One of the following:
 
         * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across cells
         * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different batches
