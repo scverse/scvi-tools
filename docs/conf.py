@@ -33,7 +33,6 @@ extensions = [
     "sphinx.ext.autosummary",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
     "sphinx_copybutton",
-    "sphinx_gallery.load_style",
     "sphinx_design",
     "sphinxext.opengraph",
     "hoverxref.extension",
