@@ -43,8 +43,9 @@ Attributes
 ~~~~~~~~~~
 
 {% for item in attributes %}
-
-.. autoattribute:: {{ [objname, item] | join(".") }}
+{%- if item not in inherited_members%}
+    .. autoattribute:: {{ [objname, item] | join(".") }}
+{%- endif -%}
 {%- endfor %}
 
 {% endif %}
