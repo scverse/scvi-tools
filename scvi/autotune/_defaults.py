@@ -17,18 +17,8 @@ TUNABLE_TYPE_TO_CLS = dict(
     ],
 )
 
-
-def _invert_dict_with_lists(d: dict):
-    d_inv = dict()
-    for k, v in d.items():
-        for v_ in v:
-            d_inv[v_] = k
-
-
-CLS_TO_TUNABLE_TYPE = _invert_dict_with_lists(TUNABLE_TYPE_TO_CLS)
-
 SUPPORTED = [
     model.SCVI,
 ]
 
-DEFAULTS = []
+DEFAULTS = {model.SCVI: dict()}

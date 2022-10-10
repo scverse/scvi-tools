@@ -1,5 +1,5 @@
 from math import ceil, floor
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pytorch_lightning as pl
@@ -7,6 +7,8 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from scvi import REGISTRY_KEYS, settings
+from scvi._decorators import classproperty
+from scvi.autotune._types import Tunable
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
@@ -85,11 +87,16 @@ class DataSplitter(pl.LightningDataModule):
     >>> train_dl = splitter.train_dataloader()
     """
 
+    @classproperty
+    def _tunables(cls) -> Tuple[Any]:
+        return (cls.__init__,)
+
     def __init__(
         self,
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        batch_size: Tunable[int] = 128,
         use_gpu: bool = False,
         **kwargs,
     ):
@@ -97,6 +104,7 @@ class DataSplitter(pl.LightningDataModule):
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
+        self.batch_size = batch_size
         self.data_loader_kwargs = kwargs
         self.use_gpu = use_gpu
 
@@ -130,6 +138,7 @@ class DataSplitter(pl.LightningDataModule):
             shuffle=True,
             drop_last=3,
             pin_memory=self.pin_memory,
+            batch_size=self.batch_size,
             **self.data_loader_kwargs,
         )
 
@@ -141,6 +150,7 @@ class DataSplitter(pl.LightningDataModule):
                 shuffle=False,
                 drop_last=3,
                 pin_memory=self.pin_memory,
+                batch_size=self.batch_size,
                 **self.data_loader_kwargs,
             )
         else:
@@ -154,6 +164,7 @@ class DataSplitter(pl.LightningDataModule):
                 shuffle=False,
                 drop_last=3,
                 pin_memory=self.pin_memory,
+                batch_size=self.batch_size,
                 **self.data_loader_kwargs,
             )
         else:

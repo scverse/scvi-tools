@@ -18,9 +18,6 @@ class ModelTuner:
         Currently supports one of the following:
 
         * :class:`~scvi.model.SCVI`
-    adata
-        AnnData/MuData object that has been registered via the model's ``setup_anndata``
-        or ``setup_mudata`` method.
     """
 
     def __init__(

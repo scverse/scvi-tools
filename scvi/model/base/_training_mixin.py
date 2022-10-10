@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 
 from scvi._decorators import classproperty
+from scvi.autotune._types import Tunable
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.train import SemiSupervisedTrainingPlan, TrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
@@ -95,7 +96,7 @@ class UnsupervisedTrainingMixin:
         use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
-        batch_size: int = 128,
+        batch_size: Tunable[int] = 128,
         early_stopping: bool = False,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,

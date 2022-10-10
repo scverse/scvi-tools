@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 import rich
 
-from scvi.autotune._defaults import CLS_TO_TUNABLE_TYPE, SUPPORTED
+from scvi.autotune._defaults import DEFAULTS, SUPPORTED, TUNABLE_TYPE_TO_CLS
 from scvi.autotune._types import TunableMeta
 from scvi.model.base import BaseModelClass
 from scvi.utils import attrdict
@@ -71,7 +71,10 @@ class TunerManager:
         """
 
         def _cls_to_tunable_type(cls):
-            return CLS_TO_TUNABLE_TYPE.get(cls, None)
+            for tunable_type, cls_list in TUNABLE_TYPE_TO_CLS.items():
+                if any([issubclass(cls, c) for c in cls_list]):
+                    return tunable_type
+            return None
 
         def _get_tunables(
             attr: Any, parent: Optional[Any] = None, type: Optional[str] = None
@@ -104,6 +107,15 @@ class TunerManager:
     ) -> attrdict:
         """
         Given a user-provided search space, validate it against the registry.
+
+        Parameters
+        ----------
+        search_config
+            User-provided search space.
+        use_defaults
+            Whether to use default values for parameters not specified in the search.
+        exclude
+            If using defaults, whether to exclude certain parameters from the search.
         """
         return self._validate_search_space(
             self._model_cls,
@@ -121,11 +133,15 @@ class TunerManager:
         use_defaults: bool,
         exclude: dict,
     ) -> attrdict:
+        # Initialize search space with defaults if requested
+        search_config_ = dict()
         if use_defaults:
-            logger.info(f"Incorporating default search space for {model_cls}")
-            search_config_ = registry.copy()
-        else:
-            search_config_ = dict()
+            if model_cls in DEFAULTS:
+                # TODO(martinkim0): Validate default params against registry
+                logger.info(f"Initializing with default search space for {model_cls}")
+                search_config_ = registry.copy()
+            else:
+                logger.info(f"No default search space available for {model_cls}.")
 
         # Validate user search space
         for key in search_config:

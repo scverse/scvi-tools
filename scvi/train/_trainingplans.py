@@ -16,6 +16,7 @@ from torchmetrics import MetricCollection
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._decorators import classproperty
+from scvi.autotune._types import Tunable
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -133,7 +134,7 @@ class TrainingPlan(pl.LightningModule):
     def __init__(
         self,
         module: BaseModuleClass,
-        lr: float = 1e-3,
+        lr: Tunable[float] = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
         optimizer: Literal["Adam", "AdamW"] = "Adam",

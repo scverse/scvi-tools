@@ -107,7 +107,7 @@ docs = [
   "myst-parser",
 ]
 pymde = ["pymde"]
-tune = ["ray"]
+tune = ["ray", "docstring-parser"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde"]
 
 [tool.poetry.dev-dependencies]
