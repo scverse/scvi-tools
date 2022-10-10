@@ -345,8 +345,10 @@ class NegativeBinomial(Distribution):
 
     @torch.inference_mode()
     def sample(
-        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+        self,
+        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
     ) -> torch.Tensor:
+        sample_shape = sample_shape or torch.Size()
         gamma_d = self._gamma()
         p_means = gamma_d.sample(sample_shape)
 
@@ -460,8 +462,10 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
 
     @torch.inference_mode()
     def sample(
-        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+        self,
+        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
     ) -> torch.Tensor:
+        sample_shape = sample_shape or torch.Size()
         samp = super().sample(sample_shape=sample_shape)
         is_zero = torch.rand_like(samp) <= self.zi_probs
         samp_ = torch.where(is_zero, 0.0, samp)
@@ -545,8 +549,10 @@ class NegativeBinomialMixture(Distribution):
 
     @torch.inference_mode()
     def sample(
-        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+        self,
+        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
     ) -> torch.Tensor:
+        sample_shape = sample_shape or torch.Size()
         pi = self.mixture_probs
         mixing_sample = torch.distributions.Bernoulli(pi).sample()
         mu = self.mu1 * mixing_sample + self.mu2 * (1 - mixing_sample)

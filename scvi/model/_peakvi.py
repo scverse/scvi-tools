@@ -432,7 +432,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
+        r"""\
+
         A unified method for differential accessibility analysis.
 
         Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.

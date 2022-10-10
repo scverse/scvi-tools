@@ -59,8 +59,9 @@ class DifferentialComputation:
 
         Two modes coexist:
 
-        - the `"vanilla"` mode follows protocol described in [Lopez18]_ and [Xu21]_
-        In this case, we perform hypothesis testing based on the hypotheses
+        - The ``'vanilla'`` mode follows protocol described in [Lopez18]_ and [Xu21]_.
+
+            In this case, we perform hypothesis testing based on the hypotheses.
 
         .. math::
             M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2.
@@ -70,11 +71,12 @@ class DifferentialComputation:
         .. math::
             \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2).
 
-        - the `"change"` mode (described in [Boyeau19]_)
-        This mode consists of estimating an effect size random variable (e.g., log fold-change) and
-        performing Bayesian hypothesis testing on this variable.
-        The `change_fn` function computes the effect size variable :math:`r` based on two inputs
-        corresponding to the posterior quantities (e.g., normalized expression) in both populations.
+        - The ``'change'`` mode (described in [Boyeau19]_).
+
+            This mode consists of estimating an effect size random variable (e.g., log fold-change) and
+            performing Bayesian hypothesis testing on this variable. The `change_fn` function computes
+            the effect size variable :math:`r` based on two inputs corresponding to the posterior quantities
+            (e.g., normalized expression) in both populations.
 
         Hypotheses:
 
@@ -696,6 +698,7 @@ def save_cluster_xlsx(
 
 
 def densify(arr):
+    """Densify a sparse array."""
     if issparse(arr):
         return np.asarray(arr.todense()).squeeze()
     return arr

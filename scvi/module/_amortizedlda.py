@@ -3,9 +3,9 @@ from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
 
 import pyro
 import pyro.distributions as dist
-import pyro.poutine as poutine
 import torch
 import torch.nn.functional as F
+from pyro import poutine
 from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 

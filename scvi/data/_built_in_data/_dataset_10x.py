@@ -151,7 +151,7 @@ def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
     path in which files are contains and their suffix if compressed.
 
     """
-    for root, subdirs, files in os.walk(save_path):
+    for root, _, files in os.walk(save_path):
         # do not consider hidden files
         files = [f for f in files if not f[0] == "."]
         contains_mat = [

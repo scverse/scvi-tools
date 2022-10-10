@@ -4,10 +4,10 @@ from typing import Callable, Dict, Iterable, Optional, Tuple, Union
 import jax.numpy as jnp
 import pyro
 import torch
-import torch.nn as nn
 from flax import linen
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
+from torch import nn
 
 from scvi._types import LatentDataType, LossRecord
 
@@ -116,9 +116,7 @@ class BaseModuleClass(nn.Module):
         return device[0]
 
     def on_load(self, model):
-        """
-        Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
-        """
+        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict."""
 
     @auto_move_data
     def forward(
@@ -186,7 +184,7 @@ class BaseModuleClass(nn.Module):
         **kwargs,
     ) -> Dict[str, Union[torch.Tensor, torch.distributions.Distribution]]:
         """
-        Run the inference (recognition) model.
+        Run the recognition model.
 
         In the case of variational inference, this function will perform steps related to
         computing variational distribution parameters. In a VAE, this will involve running
@@ -239,10 +237,7 @@ class BaseLatentModeModuleClass(BaseModuleClass):
 
     @abstractmethod
     def _cached_inference(self, *args, **kwargs):
-        """
-        Uses the cached latent mode distribution to perform inference,
-        thus bypassing the encoder
-        """
+        """Uses the cached latent mode distribution to perform inference, thus bypassing the encoder."""
 
     @abstractmethod
     def _regular_inference(self, *args, **kwargs):
@@ -251,8 +246,10 @@ class BaseLatentModeModuleClass(BaseModuleClass):
     @auto_move_data
     def inference(self, *args, **kwargs):
         """
-        Main inference call site which branches off to regular or cached
-        inference depending on the latent data type of the module
+        Main inference call site.
+
+        Branches off to regular or cached inference depending on the latent data
+        type of the module.
         """
         if self.latent_data_type is None:
             return self._regular_inference(*args, **kwargs)
@@ -503,7 +500,7 @@ class JaxBaseModuleClass(linen.Module):
         **kwargs,
     ) -> Dict[str, Union[jnp.ndarray, Distribution]]:
         """
-        Run the inference (recognition) model.
+        Run the recognition model.
 
         In the case of variational inference, this function will perform steps related to
         computing variational distribution parameters. In a VAE, this will involve running

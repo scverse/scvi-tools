@@ -36,7 +36,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
 
     @property
     def adata_field(self) -> AnnDataField:
-        """AnnDataField instance that this class instance wraps."""
+        """:class"`~scvi.data.fields.AnnDataField` instance that this class instance wraps."""
         return self._adata_field
 
     @property

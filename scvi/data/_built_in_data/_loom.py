@@ -88,7 +88,8 @@ def _load_frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
 
 
 def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
-    """Simulated datasets for scANVI tutorials.
+    """
+    Simulated datasets for scANVI tutorials.
 
     Parameters
     ----------
@@ -98,7 +99,6 @@ def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
         * ``'2'``
         * ``'3'``
     """
-
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/simulation/simulation_{}.loom".format(
         name

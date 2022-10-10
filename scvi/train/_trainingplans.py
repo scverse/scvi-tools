@@ -815,7 +815,7 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def configure_optimizers(self):
         """
-        PyTorch Lightning shim optimizer.
+        Shim optimizer for PyTorch Lightning.
 
         PyTorch Lightning wants to take steps on an optimizer
         returned by this function in order to increment the global

@@ -50,6 +50,7 @@ class BaseModelMetaClass(ABCMeta):
     during model initialization or after running ``self._validate_anndata()``.
     """
 
+    @abstractmethod
     def __init__(cls, name, bases, dct):
         cls._setup_adata_manager_store: Dict[
             str, Type[AnnDataManager]
