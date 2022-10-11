@@ -18,7 +18,7 @@ data, built on top of [PyTorch](https://pytorch.org) and
 
 # Analysis of single-cell omics data
 
-scvi-tools is composed of models that perform many analysis tasks across many omics:
+scvi-tools is composed of models that perform many analysis tasks across single- or multi-omics:
 
 - Dimensionality reduction
 - Data integration
