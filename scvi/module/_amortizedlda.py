@@ -218,7 +218,7 @@ class AmortizedLDAPyroGuide(PyroModule):
 
 class AmortizedLDAPyroModule(PyroBaseModuleClass):
     """
-    An amortized implementation of Latent Dirichlet Allocation [Blei03]_ implemented in Pyro.
+    An amortized implementation of Latent Dirichlet Allocation :cite:p:`Blei03` implemented in Pyro.
 
     This module uses auto encoding variational Bayes to optimize the latent variables in the model.
     In particular, a fully-connected neural network is used as an encoder, which takes in feature counts

@@ -29,7 +29,7 @@ B = 10
 
 class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Reimplementation of CellAssign for reference-based annotation [Zhang19]_.
+    Reimplementation of CellAssign for reference-based annotation :cite:p:`Zhang19`.
 
     Parameters
     ----------

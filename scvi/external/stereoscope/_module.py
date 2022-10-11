@@ -13,7 +13,7 @@ class RNADeconv(BaseModuleClass):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
-    Reimplementation of the ScModel module of Stereoscope [Andersson20]_:
+    Reimplementation of the ScModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
 
     Parameters
@@ -127,7 +127,7 @@ class SpatialDeconv(BaseModuleClass):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
-    Reimplementation of the STModel module of Stereoscope [Andersson20]_:
+    Reimplementation of the STModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
 
     Parameters

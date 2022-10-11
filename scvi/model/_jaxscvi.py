@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     """
-    EXPERIMENTAL single-cell Variational Inference [Lopez18]_, but with a Jax backend.
+    EXPERIMENTAL single-cell Variational Inference :cite:p:`Lopez18`, but with a Jax backend.
 
     This implementation is in a very experimental state. API is completely subject to change.
 

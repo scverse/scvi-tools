@@ -1,10 +1,9 @@
 import importlib.util
 import inspect
 import os
+import re
 import subprocess
 import sys
-import re
-
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +30,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",  # needs to be after napoleon
     "sphinx.ext.autosummary",
+    "sphinxcontrib.bibtex",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
     "sphinx_copybutton",
     "sphinx_design",
@@ -48,11 +48,13 @@ ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 nbsphinx_execute = "never"
 
+bibtex_bibfiles = ["references.bib"]
 templates_path = ["_templates"]
 
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
+bibtex_reference_style = "author_year"
 napoleon_google_docstring = True  # for pytorch lightning
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False

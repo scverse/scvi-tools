@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
-    total Variational Inference [GayosoSteier21]_.
+    total Variational Inference :cite:p:`GayosoSteier21`.
 
     Parameters
     ----------
@@ -719,7 +719,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         A unified method for differential expression analysis.
 
 
-        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+        Implements `"vanilla"` DE :cite:p:`Lopez18`. and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------

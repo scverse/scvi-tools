@@ -22,7 +22,7 @@ class DifferentialComputation:
 
     This class takes a function from a model like `SCVI` or `TOTALVI` and takes outputs
     from this function with respect to the adata input and computed Bayes factors as
-    described in [Lopez18]_, [Xu21]_, or [Boyeau19]_.
+    described in :cite:p:`Lopez18`, :cite:p:`Xu21`, or :cite:p:`Boyeau19`.
 
     Parameters
     ----------
@@ -59,7 +59,7 @@ class DifferentialComputation:
 
         Two modes coexist:
 
-        - The ``'vanilla'`` mode follows protocol described in [Lopez18]_ and [Xu21]_.
+        - The ``'vanilla'`` mode follows protocol described in :cite:p:`Lopez18` and :cite:p:`Xu21`.
 
             In this case, we perform hypothesis testing based on the hypotheses.
 
@@ -71,7 +71,7 @@ class DifferentialComputation:
         .. math::
             \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2).
 
-        - The ``'change'`` mode (described in [Boyeau19]_).
+        - The ``'change'`` mode (described in :cite:p:`Boyeau19`).
 
             This mode consists of estimating an effect size random variable (e.g., log fold-change) and
             performing Bayesian hypothesis testing on this variable. The `change_fn` function computes

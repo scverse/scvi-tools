@@ -23,7 +23,7 @@ class VAE(BaseLatentModeModuleClass):
     """
     Variational auto-encoder model.
 
-    This is an implementation of the scVI model described in [Lopez18]_.
+    This is an implementation of the scVI model described in :cite:p:`Lopez18`.
 
     Parameters
     ----------
@@ -563,7 +563,7 @@ class LDVAE(VAE):
     """
     Linear-decoded Variational auto-encoder model.
 
-    Implementation of [Svensson20]_.
+    Implementation of :cite:p:`Svensson20`.
 
     This model uses a linear decoder, directly mapping the latent representation
     to gene expression levels. It still uses a deep neural network to encode
