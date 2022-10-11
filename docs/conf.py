@@ -55,6 +55,7 @@ ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
 exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 nbsphinx_execute = "never"
 
+bibtex_bibfiles = ["references.bib"]
 templates_path = ["_templates"]
 # source_suffix = ".rst"
 
