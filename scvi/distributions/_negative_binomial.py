@@ -11,12 +11,8 @@ from numpyro.distributions.util import promote_shapes, validate_sample
 from torch.distributions import Distribution, Gamma
 from torch.distributions import Poisson as PoissonTorch
 from torch.distributions import constraints
-from torch.distributions.utils import (
-    broadcast_all,
-    lazy_property,
-    logits_to_probs,
-    probs_to_logits,
-)
+from torch.distributions.utils import (broadcast_all, lazy_property,
+                                       logits_to_probs, probs_to_logits)
 
 
 def log_zinb_positive(

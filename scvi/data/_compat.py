@@ -6,14 +6,9 @@ import numpy as np
 from scvi import REGISTRY_KEYS
 
 from . import _constants
-from .fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LabelsWithUnlabeledObsField,
-    LayerField,
-    NumericalJointObsField,
-    ProteinObsmField,
-)
+from .fields import (CategoricalJointObsField, CategoricalObsField,
+                     LabelsWithUnlabeledObsField, LayerField,
+                     NumericalJointObsField, ProteinObsmField)
 
 LEGACY_REGISTRY_KEY_MAP = {
     "X": REGISTRY_KEYS.X_KEY,

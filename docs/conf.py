@@ -1,10 +1,9 @@
 import importlib.util
 import inspect
 import os
+import re
 import subprocess
 import sys
-import re
-
 from pathlib import Path
 from typing import Any
 

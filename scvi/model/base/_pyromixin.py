@@ -7,7 +7,8 @@ from pyro import poutine
 from pytorch_lightning.callbacks import Callback
 
 from scvi import settings
-from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
+from scvi.dataloaders import (AnnDataLoader, DataSplitter,
+                              DeviceBackedDataSplitter)
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track

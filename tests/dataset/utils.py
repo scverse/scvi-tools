@@ -7,19 +7,13 @@ from mudata import MuData
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LabelsWithUnlabeledObsField,
-    LayerField,
-    MuDataCategoricalJointObsField,
-    MuDataCategoricalObsField,
-    MuDataLayerField,
-    MuDataNumericalJointObsField,
-    MuDataProteinLayerField,
-    NumericalJointObsField,
-    ProteinObsmField,
-)
+from scvi.data.fields import (CategoricalJointObsField, CategoricalObsField,
+                              LabelsWithUnlabeledObsField, LayerField,
+                              MuDataCategoricalJointObsField,
+                              MuDataCategoricalObsField, MuDataLayerField,
+                              MuDataNumericalJointObsField,
+                              MuDataProteinLayerField, NumericalJointObsField,
+                              ProteinObsmField)
 from scvi.model import SCVI
 
 use_gpu = torch.cuda.is_available()

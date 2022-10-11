@@ -10,15 +10,9 @@ from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import _ADATA_LATENT_UNS_KEY
 from scvi.data._utils import _get_latent_adata_type
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-    ObsmField,
-    StringUnsField,
-)
+from scvi.data.fields import (CategoricalJointObsField, CategoricalObsField,
+                              LayerField, NumericalJointObsField,
+                              NumericalObsField, ObsmField, StringUnsField)
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE

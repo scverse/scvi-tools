@@ -13,14 +13,9 @@ from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data._constants import _SETUP_ARGS_KEY
 from scvi.data._utils import get_anndata_attribute
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LabelsWithUnlabeledObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-)
+from scvi.data.fields import (CategoricalJointObsField, CategoricalObsField,
+                              LabelsWithUnlabeledObsField, LayerField,
+                              NumericalJointObsField, NumericalObsField)
 from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model._utils import _init_library_size
 from scvi.module import SCANVAE

@@ -12,12 +12,8 @@ from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.model._utils import _init_library_size
-from scvi.model.base import (
-    BaseModelClass,
-    RNASeqMixin,
-    UnsupervisedTrainingMixin,
-    VAEMixin,
-)
+from scvi.model.base import (BaseModelClass, RNASeqMixin,
+                             UnsupervisedTrainingMixin, VAEMixin)
 from scvi.utils import setup_anndata_dsp, track
 
 from ._module import SCAR_VAE

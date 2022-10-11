@@ -16,13 +16,10 @@ from scvi import REGISTRY_KEYS, settings
 from scvi._types import AnnOrMuData, LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
-from scvi.data._constants import (
-    _MODEL_NAME_KEY,
-    _SCVI_UUID_KEY,
-    _SETUP_ARGS_KEY,
-    _SETUP_METHOD_NAME,
-)
-from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_latent_adata_type
+from scvi.data._constants import (_MODEL_NAME_KEY, _SCVI_UUID_KEY,
+                                  _SETUP_ARGS_KEY, _SETUP_METHOD_NAME)
+from scvi.data._utils import (_assign_adata_uuid, _check_if_view,
+                              _get_latent_adata_type)
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files

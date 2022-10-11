@@ -16,12 +16,8 @@ from scvi._types import AnnOrMuData
 from scvi.utils import attrdict
 
 from . import _constants
-from ._utils import (
-    _assign_adata_uuid,
-    _check_if_view,
-    _check_mudata_fully_paired,
-    get_anndata_attribute,
-)
+from ._utils import (_assign_adata_uuid, _check_if_view,
+                     _check_mudata_fully_paired, get_anndata_attribute)
 from .fields import AnnDataField
 
 

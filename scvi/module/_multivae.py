@@ -9,11 +9,8 @@ from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.distributions import (
-    NegativeBinomial,
-    NegativeBinomialMixture,
-    ZeroInflatedNegativeBinomial,
-)
+from scvi.distributions import (NegativeBinomial, NegativeBinomialMixture,
+                                ZeroInflatedNegativeBinomial)
 from scvi.module._peakvae import Decoder as DecoderPeakVI
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, FCLayers, one_hot

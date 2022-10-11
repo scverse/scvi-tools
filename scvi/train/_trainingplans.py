@@ -16,13 +16,8 @@ from torchmetrics import MetricCollection
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.module import Classifier
-from scvi.module.base import (
-    BaseModuleClass,
-    JaxModuleWrapper,
-    LossRecorder,
-    PyroBaseModuleClass,
-    TrainStateWithState,
-)
+from scvi.module.base import (BaseModuleClass, JaxModuleWrapper, LossRecorder,
+                              PyroBaseModuleClass, TrainStateWithState)
 from scvi.nn import one_hot
 
 from ._metrics import ElboMetric
