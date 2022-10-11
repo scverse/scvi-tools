@@ -134,3 +134,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 -   {doc}`/user_guide/background/counterfactual_prediction`
 -   {doc}`/user_guide/background/transfer_learning`
 -   {doc}`/user_guide/background/codebase_overview`
+
+```{bibliography} references.bib
+
+```
