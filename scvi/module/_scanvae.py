@@ -88,7 +88,7 @@ class SCANVAE(VAE):
         y_prior=None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
-        classifier_parameters: dict = dict(),
+        classifier_parameters: Optional[dict] = None,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         **vae_kwargs
@@ -110,6 +110,7 @@ class SCANVAE(VAE):
             **vae_kwargs
         )
 
+        classifier_parameters = classifier_parameters or dict()
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
@@ -188,6 +189,7 @@ class SCANVAE(VAE):
 
     @auto_move_data
     def classify(self, x, batch_index=None, cont_covs=None, cat_covs=None):
+        """Classify cells into cell types."""
         if self.log_variational:
             x = torch.log(1 + x)
 
@@ -218,7 +220,7 @@ class SCANVAE(VAE):
         return w_y
 
     @auto_move_data
-    def classification_loss(self, labelled_dataset):
+    def classification_loss(self, labelled_dataset):  # noqa: D102
         x = labelled_dataset[REGISTRY_KEYS.X_KEY]
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
@@ -249,6 +251,7 @@ class SCANVAE(VAE):
         labelled_tensors=None,
         classification_ratio=None,
     ):
+        """Compute the loss."""
         px = generative_ouputs["px"]
         qz1 = inference_outputs["qz"]
         z1 = inference_outputs["z"]

@@ -5,6 +5,7 @@ import pytest
 
 
 def pytest_addoption(parser):
+    """Docstring for pytest_addoption."""
     parser.addoption(
         "--model_fit",
         action="store_true",
@@ -21,6 +22,7 @@ def pytest_addoption(parser):
 
 
 def pytest_collection_modifyitems(config, items):
+    """Docstring for pytest_collection_modifyitems."""
     run_internet = config.getoption("--internet-tests")
     skip_internet = pytest.mark.skip(reason="need --internet-tests option to run")
     for item in items:
@@ -32,6 +34,7 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(scope="session")
 def save_path(tmpdir_factory):
+    """Docstring for save_path."""
     dir = tmpdir_factory.mktemp("temp_data", numbered=False)
     path = str(dir)
     copy_tree("tests/data", path)
@@ -41,4 +44,5 @@ def save_path(tmpdir_factory):
 
 @pytest.fixture(scope="session")
 def model_fit(request):
+    """Docstring for model_fit."""
     return request.config.getoption("--model_fit")

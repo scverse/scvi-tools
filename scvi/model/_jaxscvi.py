@@ -157,9 +157,9 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         return np.array(jax.device_get(latent))
 
-    def to_device(self, device):
+    def to_device(self, device):  # noqa: D102
         pass
 
     @property
-    def device(self):
+    def device(self):  # noqa: D102
         return self.module.device

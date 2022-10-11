@@ -10,17 +10,18 @@ of the model described in the original LDA paper.
 
 The advantages of amortized LDA are:
 
-- Can learn underlying topics without a reference.
-- Scalable to very large datasets (>1 million cells).
+-   Can learn underlying topics without a reference.
+-   Scalable to very large datasets (>1 million cells).
 
 The limitations of amortized LDA include:
 
-- Optimal selection of the number of topics is unclear.
-- Amortization gap in optimizing variational parameters.
+-   Optimal selection of the number of topics is unclear.
+-   Amortization gap in optimizing variational parameters.
 
 :::{topic} Tutorials:
-- {doc}`/tutorials/notebooks/amortized_lda`
-:::
+
+-   {doc}`/tutorials/notebooks/amortized_lda`
+    :::
 
 ## Preliminaries
 
@@ -127,10 +128,12 @@ Once the model has been fitted, one can retrieve the estimated feature-by-topic 
 Like the `get_latent_representation()` method, this returns a Monte Carlo estimate of the logistic-Normal expectation.
 Similarly, we can configure the number of samples with `n_samples`.
 
-[^ref1]: David M. Blei, Andrew Y. Ng, Michael I. Jordan (2003),
-    *Latent Dirichlet Allocation*,
+[^ref1]:
+    David M. Blei, Andrew Y. Ng, Michael I. Jordan (2003),
+    _Latent Dirichlet Allocation_,
     [Journal of Machine Learning Research](https://www.jmlr.org/papers/volume3/blei03a/blei03a.pdf).
 
-[^ref2]: Akash Srivastava, Charles Sutton (2017),
-    *Autoencoding Variational Inference for Topic Models*,
+[^ref2]:
+    Akash Srivastava, Charles Sutton (2017),
+    _Autoencoding Variational Inference for Topic Models_,
     [International Conference on Learning Representations](https://arxiv.org/pdf/1703.01488.pdf).

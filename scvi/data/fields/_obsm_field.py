@@ -34,11 +34,11 @@ class BaseObsmField(BaseAnnDataField):
         self._registry_key = registry_key
 
     @property
-    def registry_key(self) -> str:
+    def registry_key(self) -> str:  # noqa: D102
         return self._registry_key
 
     @property
-    def attr_name(self) -> str:
+    def attr_name(self) -> str:  # noqa: D102
         return self._attr_name
 
 
@@ -85,14 +85,15 @@ class ObsmField(BaseObsmField):
         self.count_stat_key = f"n_{self.registry_key}"
 
     @property
-    def attr_key(self) -> str:
+    def attr_key(self) -> str:  # noqa: D102
         return self._attr_key
 
     @property
-    def is_empty(self) -> bool:
+    def is_empty(self) -> bool:  # noqa: D102
         return False
 
     def validate_field(self, adata: AnnData) -> None:
+        """Validate the field."""
         super().validate_field(adata)
         if self.attr_key not in adata.obsm:
             raise KeyError(f"{self.attr_key} not found in adata.obsm.")
@@ -129,6 +130,7 @@ class ObsmField(BaseObsmField):
         return column_names
 
     def register_field(self, adata: AnnData) -> dict:
+        """Register the field."""
         super().register_field(adata)
         if self.correct_data_format:
             _verify_and_correct_data_format(adata, self.attr_name, self.attr_key)
@@ -140,6 +142,7 @@ class ObsmField(BaseObsmField):
     def transfer_field(
         self, state_registry: dict, adata_target: AnnData, **kwargs
     ) -> dict:
+        """Transfer the field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         self.validate_field(adata_target)
         source_cols = state_registry[self.COLUMN_NAMES_KEY]
@@ -161,10 +164,12 @@ class ObsmField(BaseObsmField):
         return {self.COLUMN_NAMES_KEY: state_registry[self.COLUMN_NAMES_KEY].copy()}
 
     def get_summary_stats(self, state_registry: dict) -> dict:
+        """Get summary stats."""
         n_obsm_cols = len(state_registry[self.COLUMN_NAMES_KEY])
         return {self.count_stat_key: n_obsm_cols}
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        """View the state registry."""
         return None
 
 
@@ -192,12 +197,14 @@ class JointObsField(BaseObsmField):
         self._is_empty = len(self.obs_keys) == 0
 
     def validate_field(self, adata: AnnData) -> None:
+        """Validate the field."""
         super().validate_field(adata)
         for obs_key in self._obs_keys:
             if obs_key not in adata.obs:
                 raise KeyError(f"{obs_key} not found in adata.obs.")
 
     def _combine_obs_fields(self, adata: AnnData) -> None:
+        """Combine the .obs fields into a single .obsm field."""
         adata.obsm[self.attr_key] = adata.obs[self.obs_keys].copy()
 
     @property
@@ -206,11 +213,11 @@ class JointObsField(BaseObsmField):
         return self._obs_keys
 
     @property
-    def attr_key(self) -> str:
+    def attr_key(self) -> str:  # noqa: D102
         return self._attr_key
 
     @property
-    def is_empty(self) -> bool:
+    def is_empty(self) -> bool:  # noqa: D102
         return self._is_empty
 
 
@@ -236,6 +243,7 @@ class NumericalJointObsField(JointObsField):
         self.count_stat_key = f"n_{self.registry_key}"
 
     def register_field(self, adata: AnnData) -> dict:
+        """Register the field."""
         super().register_field(adata)
         self._combine_obs_fields(adata)
         return {self.COLUMNS_KEY: adata.obsm[self.attr_key].columns.to_numpy()}
@@ -246,14 +254,17 @@ class NumericalJointObsField(JointObsField):
         adata_target: AnnData,
         **kwargs,
     ) -> dict:
+        """Transfer the field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         return self.register_field(adata_target)
 
     def get_summary_stats(self, _state_registry: dict) -> dict:
+        """Get summary stats."""
         n_obs_keys = len(self.obs_keys)
         return {self.count_stat_key: n_obs_keys}
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        """View the state registry."""
         if self.is_empty:
             return None
 
@@ -266,7 +277,7 @@ class NumericalJointObsField(JointObsField):
             overflow="fold",
         )
         for key in state_registry[self.COLUMNS_KEY]:
-            t.add_row("adata.obs['{}']".format(key))
+            t.add_row(f"adata.obs['{key}']")
         return t
 
 
@@ -306,6 +317,7 @@ class CategoricalJointObsField(JointObsField):
     def _make_obsm_categorical(
         self, adata: AnnData, category_dict: Optional[Dict[str, List[str]]] = None
     ) -> dict:
+        """Make the .obsm categorical."""
         if self.obs_keys != adata.obsm[self.attr_key].columns.tolist():
             raise ValueError(
                 "Original .obs keys do not match the columns in the generated .obsm field."
@@ -334,6 +346,7 @@ class CategoricalJointObsField(JointObsField):
         return mappings_dict
 
     def register_field(self, adata: AnnData) -> dict:
+        """Register the field."""
         super().register_field(adata)
         self._combine_obs_fields(adata)
         return self._make_obsm_categorical(adata)
@@ -345,6 +358,7 @@ class CategoricalJointObsField(JointObsField):
         extend_categories: bool = False,
         **kwargs,
     ) -> dict:
+        """Transfer the field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
 
         if self.is_empty:
@@ -363,6 +377,7 @@ class CategoricalJointObsField(JointObsField):
         return self._make_obsm_categorical(adata_target, category_dict=source_cat_dict)
 
     def get_summary_stats(self, _state_registry: dict) -> dict:
+        """Get summary stats."""
         n_obs_keys = len(self.obs_keys)
 
         return {
@@ -370,6 +385,7 @@ class CategoricalJointObsField(JointObsField):
         }
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        """View the state registry."""
         if self.is_empty:
             return None
 
@@ -394,7 +410,7 @@ class CategoricalJointObsField(JointObsField):
         for key, mappings in state_registry[self.MAPPINGS_KEY].items():
             for i, mapping in enumerate(mappings):
                 if i == 0:
-                    t.add_row("adata.obs['{}']".format(key), str(mapping), str(i))
+                    t.add_row(f"adata.obs['{key}']", str(mapping), str(i))
                 else:
                     t.add_row("", str(mapping), str(i))
             t.add_row("", "")

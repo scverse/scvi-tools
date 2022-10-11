@@ -69,6 +69,7 @@ def unsupervised_clustering_accuracy(
 
 
 def knn_purity(latent, label, n_neighbors=30):
+    """KNN purity."""
     nbrs = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(latent)
     indices = nbrs.kneighbors(latent, return_distance=False)[:, 1:]
     neighbors_labels = np.vectorize(lambda i: label[i])(indices)

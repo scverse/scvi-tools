@@ -4,10 +4,10 @@ from typing import Callable, Dict, Iterable, Optional, Tuple, Union
 import jax.numpy as jnp
 import pyro
 import torch
-import torch.nn as nn
 from flax import linen
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
+from torch import nn
 
 from scvi._types import LatentDataType, LossRecord
 
@@ -84,19 +84,19 @@ class LossRecorder:
         return total
 
     @property
-    def loss(self) -> Union[torch.Tensor, jnp.ndarray]:
+    def loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
         return self._get_dict_sum(self._loss)
 
     @property
-    def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:
+    def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
         return self._get_dict_sum(self._reconstruction_loss)
 
     @property
-    def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:
+    def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
         return self._get_dict_sum(self._kl_local)
 
     @property
-    def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:
+    def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
         return self._get_dict_sum(self._kl_global)
 
 
@@ -109,17 +109,14 @@ class BaseModuleClass(nn.Module):
         super().__init__()
 
     @property
-    def device(self):
-        device = list(set(p.device for p in self.parameters()))
+    def device(self):  # noqa: D102
+        device = list({p.device for p in self.parameters()})
         if len(device) > 1:
             raise RuntimeError("Module tensors on multiple devices.")
         return device[0]
 
     def on_load(self, model):
-        """
-        Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
-        """
-        pass
+        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict."""
 
     @auto_move_data
     def forward(
@@ -187,7 +184,7 @@ class BaseModuleClass(nn.Module):
         **kwargs,
     ) -> Dict[str, Union[torch.Tensor, torch.distributions.Distribution]]:
         """
-        Run the inference (recognition) model.
+        Run the recognition model.
 
         In the case of variational inference, this function will perform steps related to
         computing variational distribution parameters. In a VAE, this will involve running
@@ -195,7 +192,6 @@ class BaseModuleClass(nn.Module):
 
         This function should return a dictionary with str keys and :class:`~torch.Tensor` values.
         """
-        pass
 
     @abstractmethod
     def generative(
@@ -209,7 +205,6 @@ class BaseModuleClass(nn.Module):
 
         This function should return a dictionary with str keys and :class:`~torch.Tensor` values.
         """
-        pass
 
     @abstractmethod
     def loss(self, *args, **kwargs) -> LossRecorder:
@@ -221,12 +216,10 @@ class BaseModuleClass(nn.Module):
 
         This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
         """
-        pass
 
     @abstractmethod
     def sample(self, *args, **kwargs):
         """Generate samples from the learned model."""
-        pass
 
 
 class BaseLatentModeModuleClass(BaseModuleClass):
@@ -244,22 +237,19 @@ class BaseLatentModeModuleClass(BaseModuleClass):
 
     @abstractmethod
     def _cached_inference(self, *args, **kwargs):
-        """
-        Uses the cached latent mode distribution to perform inference,
-        thus bypassing the encoder
-        """
-        pass
+        """Uses the cached latent mode distribution to perform inference, thus bypassing the encoder."""
 
     @abstractmethod
     def _regular_inference(self, *args, **kwargs):
         """Runs inference (encoder forward pass)."""
-        pass
 
     @auto_move_data
     def inference(self, *args, **kwargs):
         """
-        Main inference call site which branches off to regular or cached
-        inference depending on the latent data type of the module
+        Main inference call site.
+
+        Branches off to regular or cached inference depending on the latent data
+        type of the module.
         """
         if self.latent_data_type is None:
             return self._regular_inference(*args, **kwargs)
@@ -322,12 +312,12 @@ class PyroBaseModuleClass(nn.Module):
 
     @property
     @abstractmethod
-    def model(self):
+    def model(self):  # noqa: D102
         pass
 
     @property
     @abstractmethod
-    def guide(self):
+    def guide(self):  # noqa: D102
         pass
 
     @property
@@ -438,7 +428,6 @@ class JaxBaseModuleClass(linen.Module):
 
         https://flax.readthedocs.io/en/latest/design_notes/setup_or_nncompact.html
         """
-        pass
 
     @property
     @abstractmethod
@@ -511,7 +500,7 @@ class JaxBaseModuleClass(linen.Module):
         **kwargs,
     ) -> Dict[str, Union[jnp.ndarray, Distribution]]:
         """
-        Run the inference (recognition) model.
+        Run the recognition model.
 
         In the case of variational inference, this function will perform steps related to
         computing variational distribution parameters. In a VAE, this will involve running
@@ -519,7 +508,6 @@ class JaxBaseModuleClass(linen.Module):
 
         This function should return a dictionary with str keys and :class:`~jnp.ndarray` values.
         """
-        pass
 
     @abstractmethod
     def generative(
@@ -533,7 +521,6 @@ class JaxBaseModuleClass(linen.Module):
 
         This function should return a dictionary with str keys and :class:`~jnp.ndarray` values.
         """
-        pass
 
     @abstractmethod
     def loss(self, *args, **kwargs) -> LossRecorder:
@@ -545,11 +532,9 @@ class JaxBaseModuleClass(linen.Module):
 
         This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
         """
-        pass
 
     def eval(self):
         """No-op for PyTorch compatibility."""
-        pass
 
 
 def _generic_forward(

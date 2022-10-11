@@ -1,17 +1,17 @@
 version: 2
 build:
-  image: latest
+    image: latest
 sphinx:
-  configuration: docs/conf.py
+    configuration: docs/conf.py
 python:
-  version: 3.8
-  install:
-  - method: pip
-    path: .
-    extra_requirements:
-    - docs
-    - pymde
+    version: 3.8
+    install:
+        - method: pip
+          path: .
+          extra_requirements:
+              - docs
+              - pymde
 submodules:
-  include:
-     - "docs/tutorials/notebooks"
-  recursive: true
+    include:
+        - "docs/tutorials/notebooks"
+    recursive: true

@@ -37,9 +37,9 @@ def _compute_kl_weight(
     min_kl_weight: float = 0.0,
 ) -> float:
     """
-    Computes the kl weight for the current step or epoch depending on
-    `n_epochs_kl_warmup` and `n_steps_kl_warmup`. If both `n_epochs_kl_warmup` and
-    `n_steps_kl_warmup` are None `max_kl_weight` is returned.
+    Computes the kl weight for the current step or epoch.
+
+    If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None `max_kl_weight` is returned.
 
     Parameters
     ----------
@@ -261,7 +261,7 @@ class TrainingPlan(pl.LightningModule):
         self.initialize_val_metrics()
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the module's forward method."""
         return self.module(*args, **kwargs)
 
     @torch.inference_mode()
@@ -321,6 +321,7 @@ class TrainingPlan(pl.LightningModule):
             )
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step for the model."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
@@ -329,6 +330,7 @@ class TrainingPlan(pl.LightningModule):
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
+        """Validation step for the model."""
         # loss kwargs here contains `n_obs` equal to n_training_obs
         # so when relevant, the actual loss value is rescaled to number
         # of training examples
@@ -337,6 +339,7 @@ class TrainingPlan(pl.LightningModule):
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
     def configure_optimizers(self):
+        """Configure optimizers for the model."""
         params = filter(lambda p: p.requires_grad, self.module.parameters())
         if self.optimizer_name == "Adam":
             optim_cls = torch.optim.Adam
@@ -468,6 +471,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         self.scale_adversarial_loss = scale_adversarial_loss
 
     def loss_adversarial_classifier(self, z, batch_index, predict_true_class=True):
+        """Loss for adversarial classifier."""
         n_classes = self.n_output_classifier
         cls_logits = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
 
@@ -487,6 +491,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         return loss
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step for adversarial training."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         kappa = (
@@ -522,6 +527,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             return loss
 
     def configure_optimizers(self):
+        """Configure optimizers for adversarial training."""
         params1 = filter(lambda p: p.requires_grad, self.module.parameters())
         optimizer1 = torch.optim.Adam(
             params1, lr=self.lr, eps=0.01, weight_decay=self.weight_decay
@@ -634,6 +640,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step for semi-supervised training."""
         # Potentially dangerous if batch is from a single dataloader with two keys
         if len(batch) == 2:
             full_dataset = batch[0]
@@ -661,6 +668,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         return loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
+        """Validation step for semi-supervised training."""
         # Potentially dangerous if batch is from a single dataloader with two keys
         if len(batch) == 2:
             full_dataset = batch[0]
@@ -780,17 +788,18 @@ class PyroTrainingPlan(pl.LightningModule):
         # important for scaling log prob in Pyro plates
         if n_obs is not None:
             if hasattr(self.module.model, "n_obs"):
-                setattr(self.module.model, "n_obs", n_obs)
+                self.module.model.n_obs = n_obs
             if hasattr(self.module.guide, "n_obs"):
-                setattr(self.module.guide, "n_obs", n_obs)
+                self.module.guide.n_obs = n_obs
 
         self._n_obs_training = n_obs
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the model's forward method."""
         return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
+        """Training step for Pyro training."""
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         # Set KL weight if necessary.
         # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
@@ -805,6 +814,7 @@ class PyroTrainingPlan(pl.LightningModule):
         return {"loss": loss}
 
     def training_epoch_end(self, outputs):
+        """Training epoch end for Pyro training."""
         elbo = 0
         n = 0
         for out in outputs:
@@ -815,7 +825,7 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def configure_optimizers(self):
         """
-        PyTorch Lightning shim optimizer.
+        Shim optimizer for PyTorch Lightning.
 
         PyTorch Lightning wants to take steps on an optimizer
         returned by this function in order to increment the global
@@ -826,10 +836,10 @@ class PyroTrainingPlan(pl.LightningModule):
         """
         return torch.optim.Adam([self._dummy_param])
 
-    def optimizer_step(self, *args, **kwargs):
+    def optimizer_step(self, *args, **kwargs):  # noqa: D102
         pass
 
-    def backward(self, *args, **kwargs):
+    def backward(self, *args, **kwargs):  # noqa: D102
         pass
 
     @property
@@ -895,17 +905,18 @@ class ClassifierTrainingPlan(pl.LightningModule):
             )
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the module's forward function."""
         return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-
+        """Training step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
         self.log("train_loss", loss, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
+        """Validation step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
         self.log("validation_loss", loss)
@@ -913,6 +924,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
+        """Configure optimizers for classifier training."""
         params = filter(lambda p: p.requires_grad, self.module.parameters())
         if self.optimizer_name == "Adam":
             optim_cls = torch.optim.Adam
@@ -971,6 +983,7 @@ class JaxTrainingPlan(pl.LightningModule):
             self.optim_kwargs.update(optim_kwargs)
 
     def set_train_state(self, params, state=None):
+        """Set the state of the module."""
         if self.module.train_state is not None:
             return
 
@@ -996,6 +1009,7 @@ class JaxTrainingPlan(pl.LightningModule):
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
+        """Jit training step."""
         # state can't be passed here
         def loss_fn(params):
             vars_in = {"params": params, **state.state}
@@ -1014,6 +1028,7 @@ class JaxTrainingPlan(pl.LightningModule):
         return new_state, loss, elbo
 
     def training_step(self, batch, batch_idx):
+        """Training step for Jax."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.module.train()
@@ -1047,6 +1062,7 @@ class JaxTrainingPlan(pl.LightningModule):
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
+        """Jit validation step."""
         vars_in = {"params": state.params, **state.state}
         outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
         loss_recorder = outputs[2]
@@ -1056,6 +1072,7 @@ class JaxTrainingPlan(pl.LightningModule):
         return loss, elbo
 
     def validation_step(self, batch, batch_idx):
+        """Validation step for Jax."""
         self.module.eval()
         loss, elbo = self.jit_validation_step(
             self.module.train_state,
@@ -1094,13 +1111,14 @@ class JaxTrainingPlan(pl.LightningModule):
         return batch
 
     def configure_optimizers(self):
+        """Configure optimizers."""
         return None
 
-    def optimizer_step(self, *args, **kwargs):
+    def optimizer_step(self, *args, **kwargs):  # noqa: D102
         pass
 
-    def backward(self, *args, **kwargs):
+    def backward(self, *args, **kwargs):  # noqa: D102
         pass
 
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs):  # noqa: D102
         pass

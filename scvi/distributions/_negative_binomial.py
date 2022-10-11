@@ -336,17 +336,20 @@ class NegativeBinomial(Distribution):
         super().__init__(validate_args=validate_args)
 
     @property
-    def mean(self):
+    def mean(self):  # noqa: D102
         return self.mu
 
     @property
-    def variance(self):
+    def variance(self):  # noqa: D102
         return self.mean + (self.mean**2) / self.theta
 
     @torch.inference_mode()
     def sample(
-        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+        self,
+        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
     ) -> torch.Tensor:
+        """Sample from the distribution."""
+        sample_shape = sample_shape or torch.Size()
         gamma_d = self._gamma()
         p_means = gamma_d.sample(sample_shape)
 
@@ -358,7 +361,7 @@ class NegativeBinomial(Distribution):
         ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
         return counts
 
-    def log_prob(self, value: torch.Tensor) -> torch.Tensor:
+    def log_prob(self, value: torch.Tensor) -> torch.Tensor:  # noqa: D102
         if self._validate_args:
             try:
                 self._validate_sample(value)
@@ -442,32 +445,37 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         )
 
     @property
-    def mean(self):
+    def mean(self):  # noqa: D102
         pi = self.zi_probs
         return (1 - pi) * self.mu
 
     @property
-    def variance(self):
+    def variance(self):  # noqa: D102
         raise NotImplementedError
 
     @lazy_property
     def zi_logits(self) -> torch.Tensor:
+        """ZI logits."""
         return probs_to_logits(self.zi_probs, is_binary=True)
 
     @lazy_property
-    def zi_probs(self) -> torch.Tensor:
+    def zi_probs(self) -> torch.Tensor:  # noqa: D102
         return logits_to_probs(self.zi_logits, is_binary=True)
 
     @torch.inference_mode()
     def sample(
-        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+        self,
+        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
     ) -> torch.Tensor:
+        """Sample from the distribution."""
+        sample_shape = sample_shape or torch.Size()
         samp = super().sample(sample_shape=sample_shape)
         is_zero = torch.rand_like(samp) <= self.zi_probs
         samp_ = torch.where(is_zero, 0.0, samp)
         return samp_
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
+        """Log probability."""
         try:
             self._validate_sample(value)
         except ValueError:
@@ -535,18 +543,21 @@ class NegativeBinomialMixture(Distribution):
             self.theta2 = None
 
     @property
-    def mean(self):
+    def mean(self):  # noqa: D102
         pi = self.mixture_probs
         return pi * self.mu1 + (1 - pi) * self.mu2
 
     @lazy_property
-    def mixture_probs(self) -> torch.Tensor:
+    def mixture_probs(self) -> torch.Tensor:  # noqa: D102
         return logits_to_probs(self.mixture_logits, is_binary=True)
 
     @torch.inference_mode()
     def sample(
-        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+        self,
+        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
     ) -> torch.Tensor:
+        """Sample from the distribution."""
+        sample_shape = sample_shape or torch.Size()
         pi = self.mixture_probs
         mixing_sample = torch.distributions.Bernoulli(pi).sample()
         mu = self.mu1 * mixing_sample + self.mu2 * (1 - mixing_sample)
@@ -566,6 +577,7 @@ class NegativeBinomialMixture(Distribution):
         return counts
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
+        """Log probability."""
         try:
             self._validate_sample(value)
         except ValueError:
@@ -605,15 +617,16 @@ class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
         super().__init__(mean, inverse_dispersion, validate_args=validate_args)
 
     @property
-    def mean(self):
+    def mean(self):  # noqa: D102
         return self._mean
 
     @property
-    def inverse_dispersion(self):
+    def inverse_dispersion(self):  # noqa: D102
         return self._inverse_dispersion
 
     @validate_sample
     def log_prob(self, value):
+        """Log probability."""
         # theta is inverse_dispersion
         theta = self._inverse_dispersion
         mu = self._mean

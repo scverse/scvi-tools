@@ -5,20 +5,21 @@ be used for many common downstream tasks.
 
 The advantages of peakVI are:
 
-- Comprehensive in capabilities.
-- Scalable to very large datasets (>1 million cells).
+-   Comprehensive in capabilities.
+-   Scalable to very large datasets (>1 million cells).
 
 The limitations of peakVI include:
 
-- Effectively requires a GPU for fast inference.
-- Latent space is not interpretable, unlike that of a linear method.
+-   Effectively requires a GPU for fast inference.
+-   Latent space is not interpretable, unlike that of a linear method.
 
 :::{topic} Tutorials:
-- {doc}`/tutorials/notebooks/api_overview`
-- {doc}`/tutorials/notebooks/PeakVI`
-- {doc}`/tutorials/notebooks/peakvi_in_R`
-- {doc}`/tutorials/notebooks/scarches_scvi_tools`
-:::
+
+-   {doc}`/tutorials/notebooks/api_overview`
+-   {doc}`/tutorials/notebooks/PeakVI`
+-   {doc}`/tutorials/notebooks/peakvi_in_R`
+-   {doc}`/tutorials/notebooks/scarches_scvi_tools`
+    :::
 
 ## Preliminaries
 
@@ -149,6 +150,7 @@ Notably, this function also has the `transform_batch` parameter that allows coun
 
 Differential accessibility analysis is achieved with {func}`~scvi.model.PEAKVI.differential_accessibility`. PeakVI tests differences in accessibility of $g_z\left( z_i, s_i \right)$.
 
-[^ref1]: Tal Ashuach, Daniel A. Reidenbach, Nir Yosef (2021),
-    *PeakVI: A Deep Generative Model For Single Cell Chromatin Accessibility Analysis*,
+[^ref1]:
+    Tal Ashuach, Daniel A. Reidenbach, Nir Yosef (2021),
+    _PeakVI: A Deep Generative Model For Single Cell Chromatin Accessibility Analysis_,
     [BioRxiv](https://www.biorxiv.org/content/10.1101/2021.04.29.442020v1).

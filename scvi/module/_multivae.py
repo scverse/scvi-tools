@@ -22,6 +22,8 @@ from ._utils import masked_softmax
 
 
 class LibrarySizeEncoder(torch.nn.Module):
+    """Library size encoder."""
+
     def __init__(
         self,
         n_input: int,
@@ -50,13 +52,12 @@ class LibrarySizeEncoder(torch.nn.Module):
         )
 
     def forward(self, x: torch.Tensor, *cat_list: int):
+        """Forward pass."""
         return self.output(self.px_decoder(x, *cat_list))
 
 
 class DecoderADT(torch.nn.Module):
-    """
-    Decoder for just surface proteins (ADT)
-    """
+    """Decoder for just surface proteins (ADT)."""
 
     def __init__(
         self,
@@ -149,6 +150,7 @@ class DecoderADT(torch.nn.Module):
         )
 
     def forward(self, z: torch.Tensor, *cat_list: int):
+        """Forward pass."""
         # z is the latent repr
         py_ = {}
 
@@ -261,7 +263,7 @@ class MULTIVAE(BaseModuleClass):
         Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional RNA distribution.
     """
 
-    ## TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes first or that they're even contiguous)
+    # TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes first or that they're even contiguous)
     def __init__(
         self,
         n_input_regions: int = 0,
@@ -330,8 +332,8 @@ class MULTIVAE(BaseModuleClass):
         )
         encoder_cat_list = cat_list if encode_covariates else None
 
-        ### expression
-        ##      expression dispersion parameters
+        # expression
+        # expression dispersion parameters
         self.gene_likelihood = gene_likelihood
         self.gene_dispersion = gene_dispersion
         if self.gene_dispersion == "gene":
@@ -349,7 +351,7 @@ class MULTIVAE(BaseModuleClass):
                 "{}.format(self.dispersion)"
             )
 
-        ##      expression encoder
+        # expression encoder
         if self.n_input_genes == 0:
             input_exp = 1
         else:
@@ -371,7 +373,7 @@ class MULTIVAE(BaseModuleClass):
             return_dist=False,
         )
 
-        ##      expression library size encoder
+        # expression library size encoder
         self.l_encoder_expression = LibrarySizeEncoder(
             n_input_encoder_exp,
             n_cat_list=encoder_cat_list,
@@ -396,8 +398,8 @@ class MULTIVAE(BaseModuleClass):
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
-        ### accessibility
-        ##      accessibility encoder
+        # accessibility
+        # accessibility encoder
         if self.n_input_regions == 0:
             input_acc = 1
         else:
@@ -418,12 +420,12 @@ class MULTIVAE(BaseModuleClass):
             return_dist=False,
         )
 
-        ##      accessibility region-specific factors
+        # accessibility region-specific factors
         self.region_factors = None
         if region_factors:
             self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
 
-        ##       accessibility decoder
+        # accessibility decoder
         self.z_decoder_accessibility = DecoderPeakVI(
             n_input=self.n_latent + self.n_continuous_cov,
             n_output=n_input_regions,
@@ -435,7 +437,7 @@ class MULTIVAE(BaseModuleClass):
             deep_inject_covariates=self.deeply_inject_covariates,
         )
 
-        ##      accessibility library size encoder
+        # accessibility library size encoder
         self.l_encoder_accessibility = DecoderPeakVI(
             n_input=n_input_encoder_acc,
             n_output=1,
@@ -448,7 +450,7 @@ class MULTIVAE(BaseModuleClass):
         )
 
         # protein
-        ##      protein encoder
+        # protein encoder
         self.protein_dispersion = protein_dispersion
         if protein_background_prior_mean is None:
             if n_batch > 0:
@@ -479,7 +481,7 @@ class MULTIVAE(BaseModuleClass):
                 torch.log(torch.from_numpy(init_scale.astype(np.float32)))
             )
 
-        ##      protein encoder
+        # protein encoder
         if self.n_input_proteins == 0:
             input_pro = 1
         else:
@@ -500,7 +502,7 @@ class MULTIVAE(BaseModuleClass):
             return_dist=False,
         )
 
-        ##      protein decoder
+        # protein decoder
         self.z_decoder_pro = DecoderADT(
             n_input=n_input_decoder,
             n_output_proteins=n_input_proteins,
@@ -512,7 +514,7 @@ class MULTIVAE(BaseModuleClass):
             deep_inject_covariates=self.deeply_inject_covariates,
         )
 
-        ##      protein dispersion parameters
+        # protein dispersion parameters
         if self.protein_dispersion == "protein":
             self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins))
         elif self.protein_dispersion == "protein-batch":
@@ -526,7 +528,7 @@ class MULTIVAE(BaseModuleClass):
         else:  # protein-cell
             pass
 
-        ##      modality alignment
+        # modality alignment
         self.n_obs = n_obs
         self.modality_weights = modality_weights
         self.modality_penalty = modality_penalty
@@ -541,6 +543,7 @@ class MULTIVAE(BaseModuleClass):
             self.mod_weights = torch.nn.Parameter(torch.ones(n_obs, max_n_modalities))
 
     def _get_inference_input(self, tensors):
+        """Get input tensors for the inference model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         if self.n_input_proteins == 0:
             y = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
@@ -574,7 +577,7 @@ class MULTIVAE(BaseModuleClass):
         cell_idx,
         n_samples=1,
     ) -> Dict[str, torch.Tensor]:
-
+        """Run the inference model."""
         # Get Data and Additional Covs
         if self.n_input_genes == 0:
             x_rna = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
@@ -624,7 +627,7 @@ class MULTIVAE(BaseModuleClass):
             encoder_input_accessibility, batch_index, *categorical_input
         )
 
-        ## mix representations
+        # mix representations
         if self.modality_weights == "cell":
             weights = self.mod_weights[cell_idx, :]
         else:
@@ -640,7 +643,7 @@ class MULTIVAE(BaseModuleClass):
             torch.sqrt,
         )
 
-        # Sample
+        # sample
         if n_samples > 1:
 
             def unsqz(zt, n_s):
@@ -656,7 +659,7 @@ class MULTIVAE(BaseModuleClass):
             libsize_expr = unsqz(libsize_expr, n_samples)
             libsize_acc = unsqz(libsize_acc, n_samples)
 
-        ## Sample from the mixed representation
+        # sample from the mixed representation
         untran_z = Normal(qz_m, qz_v.sqrt()).rsample()
         z = self.z_encoder_accessibility.z_transformation(untran_z)
 
@@ -679,6 +682,7 @@ class MULTIVAE(BaseModuleClass):
         return outputs
 
     def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
+        """Get the input for the generative model."""
         z = inference_outputs["z"]
         qz_m = inference_outputs["qz_m"]
         libsize_expr = inference_outputs["libsize_expr"]
@@ -796,6 +800,7 @@ class MULTIVAE(BaseModuleClass):
     def loss(
         self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
     ):
+        """Computes the loss function for the model."""
         # Get the data
         x = tensors[REGISTRY_KEYS.X_KEY]
 
@@ -872,6 +877,7 @@ class MULTIVAE(BaseModuleClass):
         return LossRecorder(loss, recon_loss, kl_local, kl_global)
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
+        """Computes the reconstruction loss for the expression data."""
         rl = 0.0
         if self.gene_likelihood == "zinb":
             rl = (
@@ -888,6 +894,7 @@ class MULTIVAE(BaseModuleClass):
         return rl
 
     def get_reconstruction_loss_accessibility(self, x, p, d):
+        """Computes the reconstruction loss for the accessibility data."""
         reg_factor = (
             torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
         )
@@ -1014,6 +1021,7 @@ def mix_modalities(Xs, masks, weights, weight_transform: callable = None):
 
 @auto_move_data
 def sym_kld(qzm1, qzv1, qzm2, qzv2):
+    """Symmetric KL divergence between two Gaussians."""
     rv1 = Normal(qzm1, qzv1.sqrt())
     rv2 = Normal(qzm2, qzv2.sqrt())
 
@@ -1022,6 +1030,7 @@ def sym_kld(qzm1, qzv1, qzm2, qzv2):
 
 @auto_move_data
 def get_reconstruction_loss_protein(y, py_, pro_batch_mask_minibatch=None):
+    """Get the reconstruction loss for protein data."""
     py_conditional = NegativeBinomialMixture(
         mu1=py_["rate_back"],
         mu2=py_["rate_fore"],

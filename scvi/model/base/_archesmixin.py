@@ -199,7 +199,7 @@ class ArchesMixin:
             )
 
         ratio = inter_len / len(var_names)
-        logger.info("Found {}% reference vars in query data.".format(ratio * 100))
+        logger.info(f"Found {ratio * 100}% reference vars in query data.")
         if ratio < MIN_VAR_NAME_RATIO:
             warnings.warn(
                 f"Query data contains less than {MIN_VAR_NAME_RATIO:.0%} of reference var names. "
@@ -252,11 +252,11 @@ def _set_params_online_update(
     if unfrozen:
         return
 
-    mod_inference_mode = set(["encoder_z2_z1", "decoder_z1_z2"])
-    mod_no_hooks_yes_grad = set(["l_encoder"])
+    mod_inference_mode = {"encoder_z2_z1", "decoder_z1_z2"}
+    mod_no_hooks_yes_grad = {"l_encoder"}
     if not freeze_classifier:
         mod_no_hooks_yes_grad.add("classifier")
-    parameters_yes_grad = set(["background_pro_alpha", "background_pro_log_beta"])
+    parameters_yes_grad = {"background_pro_alpha", "background_pro_log_beta"}
 
     def no_hook_cond(key):
         one = (not freeze_expression) and "encoder" in key

@@ -46,7 +46,7 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
         if drop_last > batch_size:
             raise ValueError(
                 "drop_last can't be greater than batch_size. "
-                + "drop_last is {} but batch_size is {}.".format(drop_last, batch_size)
+                + f"drop_last is {drop_last} but batch_size is {batch_size}."
             )
 
         last_batch_len = self.n_obs % self.batch_size

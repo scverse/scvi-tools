@@ -266,10 +266,13 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
 
 
 class ClampCallback(Callback):
+    """Clamp callback."""
+
     def __init__(self):
         super().__init__()
 
     def on_batch_end(self, trainer, pl_module):
+        """Clamp parameters."""
         with torch.inference_mode():
             pl_module.module.delta_log.clamp_(np.log(pl_module.module.min_delta))
         super().on_batch_end(trainer, pl_module)
