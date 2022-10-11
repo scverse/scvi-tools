@@ -96,7 +96,7 @@ docs = [
   "sphinx-design",
   "sphinxext-opengraph",
   "sphinx-hoverxref",
-  "sphinxcontrib-bibtext",
+  "sphinxcontrib-bibtex",
   "myst-parser",
 ]
 pymde = ["pymde"]
