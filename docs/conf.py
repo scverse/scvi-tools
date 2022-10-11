@@ -31,6 +31,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",  # needs to be after napoleon
     "sphinx.ext.autosummary",
+    "sphinxcontrib.bibtex",
     "scanpydoc.elegant_typehints",
     "scanpydoc.definition_list_typed_field",
     "scanpydoc.autosummary_generate_imported",
