@@ -30,8 +30,7 @@ scvi-tools is composed of models that perform many analysis tasks across single-
 
 In the [user guide](https://docs.scvi-tools.org/en/stable/user_guide/index.html), we provide an overview of each model.
 All model implementations have a high-level API that interacts with
-[scanpy](http://scanpy.readthedocs.io/), standard save/load functions,
-and support GPU acceleration.
+[scanpy](http://scanpy.readthedocs.io/) and includes standard save/load functions, GPU acceleration, etc.
 
 # Rapid development of novel probabilistic models
 
