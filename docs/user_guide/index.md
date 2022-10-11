@@ -19,25 +19,25 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
      - Tasks
    * - :doc:`/user_guide/models/scvi`
-     - :cite:p`Lopez18`
+     - :cite:p:`Lopez18`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
    * - :doc:`/user_guide/models/scanvi`
-     - :cite:p`Xu21`
+     - :cite:p:`Xu21`
      - scVI tasks with cell type transfer from reference, seed labeling
    * - :doc:`/user_guide/models/linearscvi`
-     - :cite:p`Svensson20`
+     - :cite:p:`Svensson20`
      - scVI tasks with linear decoder
    * - :doc:`/user_guide/models/autozi`
-     - :cite:p`Clivio19`
+     - :cite:p:`Clivio19`
      -  for assessing gene-specific levels of zero-inflation in scRNA-seq data
    * - :doc:`/user_guide/models/cellassign`
-     - :cite:p`Zhang19`
+     - :cite:p:`Zhang19`
      - Marker-based automated annotation
    * - :doc:`/user_guide/models/solo`
-     - :cite:p`Bernstein19`
+     - :cite:p:`Bernstein19`
      - Doublet detection
    * - :doc:`/user_guide/models/scar`
-     - :cite:p`Sheng22`
+     - :cite:p:`Sheng22`
      - Ambient RNA removal
 
 ```
@@ -53,7 +53,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
      - Tasks
    * - :doc:`/user_guide/models/peakvi`
-     - :cite:p`Ashuach22`
+     - :cite:p:`Ashuach22`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
 ```
 
@@ -70,7 +70,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
      - Tasks
    * - :doc:`/user_guide/models/totalvi`
-     - :cite:p`GayosoSteier21`
+     - :cite:p:`GayosoSteier21`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, protein imputation, imputation, normalization of other cell- and sample-level confounding factors
 ```
 
@@ -85,7 +85,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
      - Tasks
    * - :doc:`/user_guide/models/multivi`
-     - :cite:p`AshuachGabitto21`
+     - :cite:p:`AshuachGabitto21`
      - Integration of paired/unpaired multiome data, missing modality imputation, normalization of other cell- and sample-level confounding factors
 
 ```
@@ -101,13 +101,13 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
      - Tasks
    * - :doc:`/user_guide/models/destvi`
-     - :cite:p`Lopez21`
+     - :cite:p:`Lopez21`
      - Multi-resolution deconvolution, cell-type-specific gene expression imputation, comparative analysis
    * - :doc:`/user_guide/models/stereoscope`
-     - :cite:p`Andersson20`
+     - :cite:p:`Andersson20`
      - Deconvolution
    * - :doc:`/user_guide/models/gimvi`
-     - :cite:p`Lopez19`
+     - :cite:p:`Lopez19`
      - Imputation of missing spatial genes
 ```
 
@@ -122,7 +122,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
      - Tasks
    * - :doc:`/user_guide/models/amortizedlda`
-     - :cite:p`Blei03`
+     - :cite:p:`Blei03`
      - Topic modeling
 
 ```
