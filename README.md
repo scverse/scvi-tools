@@ -28,8 +28,7 @@ scvi-tools is composed of models that perform many analysis tasks across single-
 -   Spatial deconvolution
 -   and more!
 
-In the [user guide](https://docs.scvi-tools.org/en/stable/user_guide/index.html), we provide an overview of each model with emphasis on the math behind the model, how it connects to the code, and how the code connects to analysis.
-
+In the [user guide](https://docs.scvi-tools.org/en/stable/user_guide/index.html), we provide an overview of each model.
 All model implementations have a high-level API that interacts with
 [scanpy](http://scanpy.readthedocs.io/), standard save/load functions,
 and support GPU acceleration.
