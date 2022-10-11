@@ -143,7 +143,7 @@ def poisson_gene_selection(
         expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
         extra_zeros = torch.zeros(expected_fraction_zeros.shape, device=dev)
-        for i in track(
+        for _ in track(
             range(n_samples),
             description="Sampling from binomial...",
             disable=silent,
@@ -288,6 +288,7 @@ def organize_multiome_anndatas(
 ) -> anndata.AnnData:
     """
     Concatenate multiome and single-modality input anndata objects.
+
     These anndata objects should already have been preprocessed so that both single-modality
     objects use a subset of the features used in the multiome object. The feature names (index of
     `.var`) should match between the objects.

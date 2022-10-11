@@ -133,11 +133,12 @@ class CellAssignModule(BaseModuleClass):
         return input_dict
 
     @auto_move_data
-    def inference(self):
+    def inference(self):  # noqa: D102
         return {}
 
     @auto_move_data
     def generative(self, x, size_factor, design_matrix=None):
+        """Run the generative model."""
         # x has shape (n, g)
         delta = torch.exp(self.delta_log)  # (g, c)
         theta_log = F.log_softmax(self.theta_logit, dim=-1)  # (c)
@@ -208,6 +209,7 @@ class CellAssignModule(BaseModuleClass):
         generative_outputs,
         n_obs: int = 1.0,
     ):
+        """Compute the loss."""
         # generative_outputs is a dict of the return value from `generative(...)`
         # assume that `n_obs` is the number of training data points
         p_x_c = generative_outputs["p_x_c"]
@@ -245,4 +247,5 @@ class CellAssignModule(BaseModuleClass):
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the posterior distribution."""
         raise NotImplementedError("No sampling method for CellAssign")

@@ -828,14 +828,14 @@ def test_ann_dataloader():
     assert a.n_obs == 400
     adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=3)
     assert len(adl) == 2
-    for i, x in enumerate(adl):
+    for _i, _ in enumerate(adl):
         pass
-    assert i == 1
+    assert _i == 1
     adl = AnnDataLoader(adata_manager, batch_size=398, drop_last=3)
     assert len(adl) == 1
-    for i, x in enumerate(adl):
+    for _i, _ in enumerate(adl):
         pass
-    assert i == 0
+    assert _i == 0
     with pytest.raises(ValueError):
         AnnDataLoader(adata_manager, batch_size=1, drop_last=2)
 

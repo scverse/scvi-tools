@@ -4,6 +4,7 @@ from scvi.nn import one_hot
 
 
 def iterate(obj, func):
+    """Iterates over an object and applies a function to each element."""
     t = type(obj)
     if t is list or t is tuple:
         return t([iterate(o, func) for o in obj])
@@ -35,6 +36,8 @@ def broadcast_labels(y, *o, n_broadcast=-1):
 
 
 def enumerate_discrete(x, y_dim):
+    """Enumerate discrete variables."""
+
     def batch(batch_size, label):
         labels = torch.ones(batch_size, 1, device=x.device, dtype=torch.long) * label
         return one_hot(labels, y_dim)

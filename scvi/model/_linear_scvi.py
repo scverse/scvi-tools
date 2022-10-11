@@ -125,7 +125,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         Shape is genes by `n_latent`.
 
         """
-        cols = ["Z_{}".format(i) for i in range(self.n_latent)]
+        cols = [f"Z_{i}" for i in range(self.n_latent)]
         var_names = self.adata.var_names
         loadings = pd.DataFrame(
             self.module.get_loadings(), index=var_names, columns=cols

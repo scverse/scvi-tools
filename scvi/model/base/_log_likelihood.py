@@ -48,7 +48,7 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
                 log_lkl[key] = 0.0
 
     n_samples = len(data_loader.indices)
-    for key, value in log_lkl.items():
+    for key, _ in log_lkl.items():
         log_lkl[key] = log_lkl[key] / n_samples
         log_lkl[key] = -log_lkl[key]
     return log_lkl
