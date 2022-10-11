@@ -13,10 +13,10 @@ The limitations of LDVAE include:
 -   Less capacity than scVI, which uses a neural network decoder.
 -   Less capable of integrating data with complex batch effects.
 
-:::{topic} Tutorials:
+```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/linear_decoder`
-    :::
+```
 
 ## Contrasting with scVI
 

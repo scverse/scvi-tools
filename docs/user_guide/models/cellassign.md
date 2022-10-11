@@ -16,10 +16,10 @@ The limitations of CellAssign include:
 -   Requirement for a cell types by gene markers binary matrix.
 -   The simple linear model may not handle non-linear batch effects.
 
-:::{topic} Tutorials:
+```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/cellassign_tutorial`
-    :::
+```
 
 ## Preliminaries
 

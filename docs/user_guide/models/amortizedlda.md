@@ -18,10 +18,10 @@ The limitations of amortized LDA include:
 -   Optimal selection of the number of topics is unclear.
 -   Amortization gap in optimizing variational parameters.
 
-:::{topic} Tutorials:
+```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/amortized_lda`
-    :::
+```
 
 ## Preliminaries
 
