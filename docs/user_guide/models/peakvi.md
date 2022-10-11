@@ -13,13 +13,13 @@ The limitations of peakVI include:
 -   Effectively requires a GPU for fast inference.
 -   Latent space is not interpretable, unlike that of a linear method.
 
-:::{topic} Tutorials:
+```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/api_overview`
 -   {doc}`/tutorials/notebooks/PeakVI`
 -   {doc}`/tutorials/notebooks/peakvi_in_R`
 -   {doc}`/tutorials/notebooks/scarches_scvi_tools`
-    :::
+```
 
 ## Preliminaries
 

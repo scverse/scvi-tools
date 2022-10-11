@@ -15,11 +15,11 @@ The limitations of scANVI include:
 -   Latent space is not interpretable, unlike that of a linear method.
 -   May not scale to very large number of cell types.
 
-:::{topic} Tutorials:
+```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/harmonization`
 -   {doc}`/tutorials/notebooks/scarches_scvi_tools`
-    :::
+```
 
 ## Preliminaries
 
