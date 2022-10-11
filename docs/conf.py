@@ -88,6 +88,7 @@ intersphinx_mapping = {
     "pymde": ("https://pymde.org/", None),
     "flax": ("https://flax.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
+    "ml_collections"=("https://ml-collections.readthedocs.io/en/latest/", None),
 }
 
 
