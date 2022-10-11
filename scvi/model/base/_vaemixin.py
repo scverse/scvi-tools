@@ -131,7 +131,7 @@ class VAEMixin:
         mc_samples: int = 5000,
         batch_size: Optional[int] = None,
         return_dist: bool = False,
-    ) -> Union[np.ndarray, Tuple(np.ndarray)]:
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """
         Return the latent representation for each cell.
 
