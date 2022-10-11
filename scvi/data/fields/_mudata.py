@@ -36,7 +36,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
 
     @property
     def adata_field(self) -> AnnDataField:
-        """AnnDataField instance that this class instance wraps."""
+        """:class"`~scvi.data.fields.AnnDataField` instance that this class instance wraps."""
         return self._adata_field
 
     @property
@@ -60,7 +60,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         return self.adata_field.attr_key
 
     @property
-    def is_empty(self) -> bool:
+    def is_empty(self) -> bool:  # noqa: D102
         return self.adata_field.is_empty
 
     def get_modality(self, mdata: MuData) -> AnnOrMuData:
@@ -75,6 +75,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         return bdata
 
     def validate_field(self, mdata: MuData) -> None:
+        """Validate the field."""
         if isinstance(mdata, AnnData):
             raise ValueError("`get_modality` can only be called on MuData objects.")
         bdata = self.get_modality(mdata)
@@ -84,13 +85,14 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         """
         Function that is called prior to registering fields.
 
-        Function that is be called at the beginning of :func:`~scvi.data.fields.BaseMuDataWrapperClass.register_field`
-        and :func:`~scvi.data.fields.BaseMuDataWrapperClass.transfer_field`.
+        Function that is be called at the beginning of :meth:`~scvi.data.fields.BaseMuDataWrapperClass.register_field`
+        and :meth:`~scvi.data.fields.BaseMuDataWrapperClass.transfer_field`.
         Used when data manipulation is necessary across modalities.
         """
         return self._preregister(self, mdata)
 
     def register_field(self, mdata: MuData) -> dict:
+        """Register the field."""
         self.preregister(mdata)
         bdata = self.get_modality(mdata)
         return self.adata_field.register_field(bdata)
@@ -98,14 +100,17 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
     def transfer_field(
         self, state_registry: dict, mdata_target: MuData, **kwargs
     ) -> dict:
+        """Transfer the field."""
         self.preregister(mdata_target)
         bdata_target = self.get_modality(mdata_target)
         return self.adata_field.transfer_field(state_registry, bdata_target, **kwargs)
 
     def get_summary_stats(self, state_registry: dict) -> dict:
+        """Get summary stats."""
         return self.adata_field.get_summary_stats(state_registry)
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        """View the state registry."""
         return self.adata_field.view_state_registry(state_registry)
 
 
@@ -120,8 +125,8 @@ def MuDataWrapper(
     adata_field_cls
         AnnDataField class to wrap.
     preregister_fn
-        Function that will be called at the beginning of :func:`~scvi.data.fields.BaseMuDataWrapperClass.register_field`
-        and :func:`~scvi.data.fields.BaseMuDataWrapperClass.transfer_field`.
+        Function that will be called at the beginning of :meth:`~scvi.data.fields.BaseMuDataWrapperClass.register_field`
+        and :meth:`~scvi.data.fields.BaseMuDataWrapperClass.transfer_field`.
     """
     if not isinstance(adata_field_cls, type):
         raise ValueError("`adata_field_cls` must be a class, not an instance.")

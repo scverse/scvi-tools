@@ -189,7 +189,6 @@ def _check_nonnegative_integers(
     n_to_check: int = 20,
 ):
     """Approximately checks values of data to ensure it is count data."""
-
     # for backed anndata
     if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
         data = data[:100]

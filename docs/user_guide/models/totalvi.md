@@ -5,19 +5,20 @@ be used for many common downstream tasks.
 
 The advantages of totalVI are:
 
-- Comprehensive in capabilities.
-- Scalable to very large datasets (>1 million cells).
+-   Comprehensive in capabilities.
+-   Scalable to very large datasets (>1 million cells).
 
 The limitations of totalVI include:
 
-- Effectively requires a GPU for fast inference.
-- Difficult to understand the balance between RNA and protein data in the low-dimensional representation of cells.
+-   Effectively requires a GPU for fast inference.
+-   Difficult to understand the balance between RNA and protein data in the low-dimensional representation of cells.
 
 :::{topic} Tutorials:
-- {doc}`/tutorials/notebooks/totalVI`
-- {doc}`/tutorials/notebooks/cite_scrna_integration_w_totalVI`
-- {doc}`/tutorials/notebooks/scarches_scvi_tools`
-:::
+
+-   {doc}`/tutorials/notebooks/totalVI`
+-   {doc}`/tutorials/notebooks/cite_scrna_integration_w_totalVI`
+-   {doc}`/tutorials/notebooks/scarches_scvi_tools`
+    :::
 
 ## Preliminaries
 
@@ -212,6 +213,7 @@ Data can be generated from the model using the posterior predictive distribution
 This is equivalent to feeding a cell through the model, sampling from the posterior
 distributions of the latent variables, retrieving the likelihood parameters, and finally, sampling from this distribution.
 
-[^ref1]: Adam Gayoso\*, Zoë Steier\*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
-    *Joint probabilistic modeling of single-cell multi-omic data with totalVI*,
+[^ref1]:
+    Adam Gayoso\*, Zoë Steier\*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
+    _Joint probabilistic modeling of single-cell multi-omic data with totalVI_,
     [Nature Methods](https://www.nature.com/articles/s41592-020-01050-x).

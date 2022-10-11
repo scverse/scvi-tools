@@ -2,7 +2,7 @@
 
 scvi-tools is composed of models that can perform one or many analysis tasks. In the user guide, we provide an overview of each model with emphasis on the math behind the model, how it connects to the code, and how the code connects to analysis.
 
-:::{figure} /_static/tasks.png
+:::{figure} /\_static/tasks.png
 :align: center
 :alt: Overview of tasks
 :class: img-fluid
@@ -129,8 +129,8 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ## Background
 
-- {doc}`/user_guide/background/variational_inference`
-- {doc}`/user_guide/background/differential_expression`
-- {doc}`/user_guide/background/counterfactual_prediction`
-- {doc}`/user_guide/background/transfer_learning`
-- {doc}`/user_guide/background/codebase_overview`
+-   {doc}`/user_guide/background/variational_inference`
+-   {doc}`/user_guide/background/differential_expression`
+-   {doc}`/user_guide/background/counterfactual_prediction`
+-   {doc}`/user_guide/background/transfer_learning`
+-   {doc}`/user_guide/background/codebase_overview`

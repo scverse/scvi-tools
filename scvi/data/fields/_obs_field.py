@@ -44,19 +44,19 @@ class BaseObsField(BaseAnnDataField):
         self._is_empty = obs_key is None
 
     @property
-    def registry_key(self) -> str:
+    def registry_key(self) -> str:  # noqa: D102
         return self._registry_key
 
     @property
-    def attr_name(self) -> str:
+    def attr_name(self) -> str:  # noqa: D102
         return self._attr_name
 
     @property
-    def attr_key(self) -> str:
+    def attr_key(self) -> str:  # noqa: D102
         return self._attr_key
 
     @property
-    def is_empty(self) -> bool:
+    def is_empty(self) -> bool:  # noqa: D102
         return self._is_empty
 
 
@@ -73,26 +73,28 @@ class NumericalObsField(BaseObsField):
     """
 
     def validate_field(self, adata: AnnData) -> None:
+        """Validate field."""
         super().validate_field(adata)
         if self.attr_key not in adata.obs:
             raise KeyError(f"{self.attr_key} not found in adata.obs.")
 
     def register_field(self, adata: AnnData) -> dict:
+        """Register field."""
         return super().register_field(adata)
 
     def transfer_field(
-        self,
-        state_registry: dict,
-        adata_target: AnnData,
-        **kwargs,
+        self, state_registry: dict, adata_target: AnnData, **kwargs
     ) -> dict:
+        """Transfer field from registry to target AnnData."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         return self.register_field(adata_target)
 
     def get_summary_stats(self, _state_registry: dict) -> dict:
+        """Get summary stats."""
         return {}
 
     def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
+        """View state registry."""
         return None
 
 
@@ -122,18 +124,22 @@ class CategoricalObsField(BaseObsField):
         self.count_stat_key = f"n_{self.registry_key}"
 
     def _setup_default_attr(self, adata: AnnData) -> None:
+        """Setup default attr."""
         self._original_attr_key = self.attr_key
         adata.obs[self.attr_key] = np.zeros(adata.shape[0], dtype=np.int64)
 
     def _get_original_column(self, adata: AnnData) -> np.ndarray:
+        """Get original column from adata."""
         return get_anndata_attribute(adata, self.attr_name, self._original_attr_key)
 
     def validate_field(self, adata: AnnData) -> None:
+        """Validate field."""
         super().validate_field(adata)
         if self._original_attr_key not in adata.obs:
             raise KeyError(f"{self._original_attr_key} not found in adata.obs.")
 
     def register_field(self, adata: AnnData) -> dict:
+        """Register field."""
         if self.is_default:
             self._setup_default_attr(adata)
 
@@ -155,6 +161,7 @@ class CategoricalObsField(BaseObsField):
         extend_categories: bool = False,
         **kwargs,
     ) -> dict:
+        """Transfer field from registry to target AnnData."""
         super().transfer_field(state_registry, adata_target, **kwargs)
 
         if self.is_default:
@@ -187,11 +194,13 @@ class CategoricalObsField(BaseObsField):
         }
 
     def get_summary_stats(self, state_registry: dict) -> dict:
+        """Get summary stats."""
         categorical_mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
         n_categories = len(np.unique(categorical_mapping))
         return {self.count_stat_key: n_categories}
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        """View state registry."""
         source_key = state_registry[self.ORIGINAL_ATTR_KEY]
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
         t = rich.table.Table(title=f"{self.registry_key} State Registry")
@@ -214,7 +223,7 @@ class CategoricalObsField(BaseObsField):
         )
         for i, cat in enumerate(mapping):
             if i == 0:
-                t.add_row("adata.obs['{}']".format(source_key), str(cat), str(i))
+                t.add_row(f"adata.obs['{source_key}']", str(cat), str(i))
             else:
                 t.add_row("", str(cat), str(i))
         return t

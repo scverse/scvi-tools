@@ -6,6 +6,8 @@ from scvi.train import AdversarialTrainingPlan
 
 
 class GIMVITrainingPlan(AdversarialTrainingPlan):
+    """gimVI training plan."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if kwargs["adversarial_classifier"] is True:
@@ -21,6 +23,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             self.adversarial_classifier = kwargs["adversarial_classifier"]
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step."""
         kappa = (
             1 - self.kl_weight
             if self.scale_adversarial_loss == "auto"
@@ -91,6 +94,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
+        """Validation step."""
         self.loss_kwargs.update(dict(kl_weight=self.kl_weight, mode=dataloader_idx))
         inference_kwargs = dict(mode=dataloader_idx)
         generative_kwargs = dict(mode=dataloader_idx)
