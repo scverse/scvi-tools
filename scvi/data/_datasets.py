@@ -421,7 +421,7 @@ def spleen_lymph_cite_seq(
     remove_outliers: bool = True,
 ) -> anndata.AnnData:
     """
-    Immune cells from the murine spleen and lymph nodes :cite:p:`Gayoso21`.
+    Immune cells from the murine spleen and lymph nodes :cite:p:`GayosoSteier21`.
 
     This dataset was used throughout the totalVI manuscript, and named SLN-all.
 

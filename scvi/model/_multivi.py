@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     """
-    Integration of multi-modal and single-modality data :cite:p:`Ashuach21`.
+    Integration of multi-modal and single-modality data :cite:p:`AshuachGabitto21`.
 
     MultiVI is used to integrate multiomic datasets with single-modality (expression
     or accessibility) datasets.

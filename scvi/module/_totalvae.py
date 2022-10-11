@@ -25,7 +25,7 @@ class TOTALVAE(BaseModuleClass):
     """
     Total variational inference for CITE-seq data.
 
-    Implements the totalVI model of :cite:p:`Gayoso21`.
+    Implements the totalVI model of :cite:p:`GayosoSteier21`.
 
     Parameters
     ----------

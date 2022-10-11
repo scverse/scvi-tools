@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
-    total Variational Inference :cite:p:`Gayoso21`.
+    total Variational Inference :cite:p:`GayosoSteier21`.
 
     Parameters
     ----------
