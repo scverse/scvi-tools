@@ -38,6 +38,7 @@ ignore =
 exclude = .git,__pycache__,build,docs/_build,dist,scvi/__init__.py
 per-file-ignores =
     tests/*: D
+    */__init__.py: F401
 extend-immutable-calls =
     # Add functions returning immutable values here to avoid B008
     pathlib.Path
