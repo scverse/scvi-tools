@@ -18,11 +18,19 @@ data, built on top of [PyTorch](https://pytorch.org) and
 
 # Analysis of single-cell omics data
 
-scvi-tools is composed of models that can perform one or many analysis tasks. In the [user guide](https://docs.scvi-tools.org/en/stable/user_guide/index.html), we provide an overview of each model with emphasis on the math behind the model, how it connects to the code, and how the code connects to analysis.
+scvi-tools is composed of models that perform many analysis tasks across many omics:
 
-<img src="https://docs.scvi-tools.org/en/stable/_images/tasks.png" alt="user guide">
+- Dimensionality reduction
+- Data integration
+- Automated annotation
+- Factor analysis
+- Doublet detection
+- Spatial deconvolution
+- and more!
 
-All these implementations have a high-level API that interacts with
+In the [user guide](https://docs.scvi-tools.org/en/stable/user_guide/index.html), we provide an overview of each model with emphasis on the math behind the model, how it connects to the code, and how the code connects to analysis.
+
+All model implementations have a high-level API that interacts with
 [scanpy](http://scanpy.readthedocs.io/), standard save/load functions,
 and support GPU acceleration.
 
