@@ -176,8 +176,6 @@ class VAEMixin:
             else:
                 qz_m, qz_v = outputs["qz_m"], outputs["qz_v"]
                 qz = torch.distributions.Normal(qz_m, qz_v.sqrt())
-            z = outputs["z"]
-
             if give_mean:
                 # does each model need to have this latent distribution param?
                 if self.module.latent_distribution == "ln":
@@ -186,6 +184,8 @@ class VAEMixin:
                     z = z.mean(dim=0)
                 else:
                     z = qz.loc
+            else:
+                z = outputs["z"]
 
             latent += [z.cpu()]
             latent_qzm += [qz.loc.cpu()]
