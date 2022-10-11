@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Ambient RNA removal in scRNA-seq data [Sheng22]_.
+    Ambient RNA removal in scRNA-seq data :cite:p:`Sheng22`.
 
     Original Github: https://github.com/Novartis/scar.
     The models are parameter matched in architecture, activations, dropout, sparsity, and batch normalization.
@@ -199,7 +199,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """
         Calculate ambient profile for relevant features.
 
-        Identify the cell-free droplets through a multinomial distribution. See EmptyDrops [Lun2019]_ for details.
+        Identify the cell-free droplets through a multinomial distribution. See EmptyDrops :cite:p:`Lun2019` for details.
 
         Parameters
         ----------

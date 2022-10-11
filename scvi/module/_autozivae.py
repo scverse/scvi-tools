@@ -19,7 +19,7 @@ torch.backends.cudnn.benchmark = True
 
 class AutoZIVAE(VAE):
     """
-    Implementation of the AutoZI model [Clivio19]_.
+    Implementation of the AutoZI model :cite:p:`Clivio19`.
 
     Parameters
     ----------

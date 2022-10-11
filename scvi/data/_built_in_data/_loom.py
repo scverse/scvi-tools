@@ -52,7 +52,7 @@ def _load_retina(save_path: str = "data/") -> AnnData:
 
 
 def _load_prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
-    """Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex [Wang18]_."""
+    """Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex :cite:p:`Wang18`."""
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/mpfc-starmap.loom"
     save_fn = "mpfc-starmap.loom"

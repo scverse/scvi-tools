@@ -1,10 +1,9 @@
 import importlib.util
 import inspect
 import os
+import re
 import subprocess
 import sys
-import re
-
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +61,7 @@ templates_path = ["_templates"]
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
+bibtex_reference_style = "author_year"
 napoleon_google_docstring = True  # for pytorch lightning
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False

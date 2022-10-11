@@ -190,7 +190,7 @@ class RNASeqMixin:
         A unified method for differential expression analysis.
 
 
-        Implements ``'vanilla'`` DE [Lopez18]_ and ``'change'`` mode DE [Boyeau19]_.
+        Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------

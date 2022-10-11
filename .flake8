@@ -52,10 +52,12 @@ rst-roles =
     py:class,
     method,
     attr,
+    cite:p,
+    cite:t,
 rst-directives =
     envvar,
     exception,
 rst-substitutions =
     version,
 extend-ignore =
-    RST307,RST210,RST201,RST203,RST301,RST306  # TODO(martinkim0): Address 306 in new issue
+    RST307,RST210,RST201,RST203,RST301

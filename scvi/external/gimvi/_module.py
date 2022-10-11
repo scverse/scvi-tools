@@ -20,7 +20,7 @@ class JVAE(BaseModuleClass):
     """
     Joint variational auto-encoder for imputing missing genes in spatial data.
 
-    Implementation of gimVI [Lopez19]_.
+    Implementation of gimVI :cite:p:`Lopez19`.
 
     Parameters
     ----------

@@ -36,7 +36,7 @@ def _unpack_tensors(tensors):
 
 class GIMVI(VAEMixin, BaseModelClass):
     """
-    Joint VAE for imputing missing genes in spatial data [Lopez19]_.
+    Joint VAE for imputing missing genes in spatial data :cite:p:`Lopez19`.
 
     Parameters
     ----------
