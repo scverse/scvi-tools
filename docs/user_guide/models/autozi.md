@@ -3,10 +3,10 @@
 **AUTOZI** [^ref1] (Python class {class}`scvi.model.AUTOZI`)
 is a model for assessing gene-specific levels of zero-inflation in scRNA-seq data.
 
-:::{topic} Tutorials:
+```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/AutoZI_tutorial`
-    :::
+```
 
 ## Generative process
 
