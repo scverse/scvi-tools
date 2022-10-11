@@ -109,9 +109,7 @@ class AnnDataManager:
         self._registry[_constants._SCVI_UUID_KEY] = scvi_uuid
 
     def _assign_most_recent_manager_uuid(self):
-        """
-        Assigns a last manager UUID to the AnnData object for future validation.
-        """
+        """Assigns a last manager UUID to the AnnData object for future validation."""
         self._assert_anndata_registered()
 
         self.adata.uns[_constants._MANAGER_UUID_KEY] = self.id
@@ -304,7 +302,7 @@ class AnnDataManager:
             if field_data_registry:
                 data_registry[registry_key] = field_data_registry
 
-        return attrdict(data_registry, recursive=True)
+        return attrdict(data_registry)
 
     @property
     def summary_stats(self) -> attrdict:

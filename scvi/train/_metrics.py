@@ -48,11 +48,11 @@ class ElboMetric(Metric):
         self.add_state("n_batches", default=default_val)
 
     @property
-    def mode(self):
+    def mode(self):  # noqa: D102
         return self._mode
 
     @property
-    def name(self):
+    def name(self):  # noqa: D102
         return f"{self._name}_{self.mode}"
 
     @name.setter
@@ -60,10 +60,11 @@ class ElboMetric(Metric):
         self._name = new_name
 
     @property
-    def interval(self):
+    def interval(self):  # noqa: D102
         return self._interval
 
     def get_intervals_recorded(self):
+        """Get intervals recorded."""
         if self.interval == "obs":
             return self.n_obs
         elif self.interval == "batch":
@@ -95,4 +96,5 @@ class ElboMetric(Metric):
         self.n_batches += 1
 
     def compute(self):
+        """Compute the metric value."""
         return self.elbo_component / self.get_intervals_recorded()

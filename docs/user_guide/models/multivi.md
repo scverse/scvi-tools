@@ -6,18 +6,19 @@ and also for imputation of a missing modality.
 
 The advantages of multiVI are:
 
-- Comprehensive in capabilities. Able to perform DE gene, DA region analysis.
-- Scalable to very large datasets (>1 million cells).
-- Once trained with sufficient multimodal data, able to accurately input missing modalities.
+-   Comprehensive in capabilities. Able to perform DE gene, DA region analysis.
+-   Scalable to very large datasets (>1 million cells).
+-   Once trained with sufficient multimodal data, able to accurately input missing modalities.
 
 The limitations of MultiVI include:
 
-- Effectively requires a GPU for fast inference.
+-   Effectively requires a GPU for fast inference.
 
-:::{topic} Tutorials:
-- {doc}`/tutorials/notebooks/api_overview`
-- {doc}`/tutorials/notebooks/MultiVI_tutorial`
-:::
+```{topic} Tutorials:
+
+-   {doc}`/tutorials/notebooks/api_overview`
+-   {doc}`/tutorials/notebooks/MultiVI_tutorial`
+```
 
 ## Preliminaries
 
@@ -216,6 +217,7 @@ Differential expression analysis is achieved with {func}`~scvi.model.MULTIVI.dif
 
 Differential accessibility analysis is achieved with {func}`~scvi.model.MULTIVI.differential_accessibility`. MultiVI tests differences in accessibility of $g_z\left( z_n, s_n \right)$.
 
-[^ref1]: Tal Ashuach\*, Mariano I. Gabitto\*, Michael I. Jordan, Nir Yosef (2021),
-    *MultiVI: deep generative model for the integration of multi-modal data*,
+[^ref1]:
+    Tal Ashuach\*, Mariano I. Gabitto\*, Michael I. Jordan, Nir Yosef (2021),
+    _MultiVI: deep generative model for the integration of multi-modal data_,
     `Biorxiv`.

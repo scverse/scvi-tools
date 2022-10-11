@@ -46,9 +46,9 @@ This guide has two objectives.
 First, it aims to provide insight as to how scVI-tools' differential expression module works for transcript expression (`scVI`), surface protein expression (`TOTALVI`), or chromatin accessibility (`PeakVI`).
 More precisely, we explain how it can:
 
-- approximate population-specific normalized expression levels
-- detect biologically relevant features
-- provide easy-to-interpret predictions
+-   approximate population-specific normalized expression levels
+-   detect biologically relevant features
+-   provide easy-to-interpret predictions
 
 More importantly, this guide explains the function of the hyperparameters of the `differential_expression` method.
 
