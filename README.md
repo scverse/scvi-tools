@@ -20,13 +20,13 @@ data, built on top of [PyTorch](https://pytorch.org) and
 
 scvi-tools is composed of models that perform many analysis tasks across single- or multi-omics:
 
-- Dimensionality reduction
-- Data integration
-- Automated annotation
-- Factor analysis
-- Doublet detection
-- Spatial deconvolution
-- and more!
+-   Dimensionality reduction
+-   Data integration
+-   Automated annotation
+-   Factor analysis
+-   Doublet detection
+-   Spatial deconvolution
+-   and more!
 
 In the [user guide](https://docs.scvi-tools.org/en/stable/user_guide/index.html), we provide an overview of each model with emphasis on the math behind the model, how it connects to the code, and how the code connects to analysis.
 
