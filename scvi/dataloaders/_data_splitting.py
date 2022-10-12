@@ -99,7 +99,7 @@ class DataSplitter(pl.LightningDataModule):
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
-        self.data_loader_kwargs = {**defaultKwargs, **kwargs}
+        self.data_loader_kwargs = default_data_loader_kwargs.update(kwargs)
         self.use_gpu = use_gpu
 
         self.n_train, self.n_val = validate_data_split(
