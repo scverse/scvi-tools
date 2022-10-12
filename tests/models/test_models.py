@@ -18,13 +18,6 @@ import scvi
 from scvi.data import _constants, synthetic_iid
 from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
 from scvi.data._download import _download
-from scvi.dataloaders import (
-    AnnDataLoader,
-    DataSplitter,
-    DeviceBackedDataSplitter,
-    SemiSupervisedDataLoader,
-    SemiSupervisedDataSplitter,
-)
 from scvi.model import (
     AUTOZI,
     MULTIVI,
@@ -38,9 +31,7 @@ from scvi.model import (
     LinearSCVI,
 )
 from scvi.model.utils import mde
-from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils import attrdict
-from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
@@ -816,6 +807,7 @@ def test_backed_anndata_scvi(save_path):
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], 5)
     model.get_elbo()
+
 
 def test_scanvi(save_path):
     adata = synthetic_iid()

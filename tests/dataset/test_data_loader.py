@@ -1,16 +1,9 @@
-import os
-import pickle
-import tarfile
-
-import anndata
 import numpy as np
 import pytest
-import torch
 
 import scvi
-from scvi.data import _constants, synthetic_iid
-from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
-from scvi.data._download import _download
+from scvi.data import synthetic_iid
+from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
@@ -18,17 +11,8 @@ from scvi.dataloaders import (
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
-from scvi.model import (
-    AUTOZI,
-    PEAKVI,
-    SCANVI,
-    SCVI,
-    TOTALVI,
-    LinearSCVI,
-)
-from scvi.model.utils import mde
+from scvi.model import SCVI
 from scvi.train import TrainingPlan, TrainRunner
-from scvi.utils import attrdict
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
@@ -75,6 +59,7 @@ LEGACY_SETUP_DICT = {
         "n_continuous_covs": 2,
     },
 }
+
 
 def test_ann_dataloader():
     a = scvi.data.synthetic_iid()
@@ -179,6 +164,7 @@ def test_data_splitter():
         ds.setup()
         ds.train_dataloader()
         ds.val_dataloader()
+
 
 def test_default_data_loader_kwargs():
     a = synthetic_iid()
