@@ -95,7 +95,7 @@ class DataSplitter(pl.LightningDataModule):
     ):
         super().__init__()
 
-        defaultKwargs = {"drop_last": 3}
+        default_data_loader_kwargs = {"drop_last": 3}
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
