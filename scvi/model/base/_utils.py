@@ -266,12 +266,10 @@ def _de_core(
         sort_key = "proba_de" if mode == "change" else "bayes_factor"
         res = res.sort_values(by=sort_key, ascending=False)
         if mode == "change":
-            res["is_de_fdr_{}".format(fdr)] = _fdr_de_prediction(
-                res["proba_de"], fdr=fdr
-            )
+            res[f"is_de_fdr_{fdr}"] = _fdr_de_prediction(res["proba_de"], fdr=fdr)
         if idx1 is None:
             g2 = "Rest" if group2 is None else group2
-            res["comparison"] = "{} vs {}".format(g1, g2)
+            res["comparison"] = f"{g1} vs {g2}"
             res["group1"] = g1
             res["group2"] = g2
         df_results.append(res)

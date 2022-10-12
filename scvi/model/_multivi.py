@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     """
-    Integration of multi-modal and single-modality data [AshuachGabitto21]_.
+    Integration of multi-modal and single-modality data :cite:p:`AshuachGabitto21`.
 
     MultiVI is used to integrate multiomic datasets with single-modality (expression
     or accessibility) datasets.
@@ -724,9 +724,12 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         **kwargs,
     ) -> pd.DataFrame:
         r"""
+        \
+
         A unified method for differential accessibility analysis.
 
-        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+
+        Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
@@ -848,9 +851,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         **kwargs,
     ) -> pd.DataFrame:
         r"""
-        A unified method for differential expression analysis.
+        \
 
-        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+        A unified method for differential expression analysis. Implements `"vanilla"`
+        DE :cite:p:`Lopez18` and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------

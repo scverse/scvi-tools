@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -131,8 +131,8 @@ class VAEMixin:
         mc_samples: int = 5000,
         batch_size: Optional[int] = None,
         return_dist: bool = False,
-    ) -> np.ndarray:
-        r"""
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+        """
         Return the latent representation for each cell.
 
         This is denoted as :math:`z_n` in our manuscripts.
@@ -152,12 +152,12 @@ class VAEMixin:
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_dist
-            Return the distribution parameters of the latent variables rather than their sampled values
+            Return the distribution parameters of the latent variables rather than their sampled values.
+            If `True`, ignores `give_mean` and `mc_samples`.
 
         Returns
         -------
-        latent_representation : Union[np.ndarray, tuple(np.ndarray)]
-            Low-dimensional representation for each cell or a tuple containing its distribution parameters
+        Low-dimensional representation for each cell or a tuple containing its mean and variance.
         """
         self._check_if_trained(warn=False)
 
@@ -176,8 +176,6 @@ class VAEMixin:
             else:
                 qz_m, qz_v = outputs["qz_m"], outputs["qz_v"]
                 qz = torch.distributions.Normal(qz_m, qz_v.sqrt())
-            z = outputs["z"]
-
             if give_mean:
                 # does each model need to have this latent distribution param?
                 if self.module.latent_distribution == "ln":
@@ -186,6 +184,8 @@ class VAEMixin:
                     z = z.mean(dim=0)
                 else:
                     z = qz.loc
+            else:
+                z = outputs["z"]
 
             latent += [z.cpu()]
             latent_qzm += [qz.loc.cpu()]

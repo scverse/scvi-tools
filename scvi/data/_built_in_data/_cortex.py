@@ -23,10 +23,10 @@ def _load_cortex(save_path: str = "data/") -> anndata.AnnData:
 
 
 def _load_cortex_txt(path_to_file: str) -> anndata.AnnData:
-    logger.info("Loading Cortex data from {}".format(path_to_file))
+    logger.info(f"Loading Cortex data from {path_to_file}")
     rows = []
     gene_names = []
-    with open(path_to_file, "r") as csvfile:
+    with open(path_to_file) as csvfile:
         data_reader = csv.reader(csvfile, delimiter="\t")
         for i, row in enumerate(data_reader):
             if i == 1:

@@ -14,6 +14,8 @@ from ._base_module import JaxBaseModuleClass
 
 
 class TrainStateWithState(train_state.TrainState):
+    """TrainState with state attribute."""
+
     state: FrozenDict[str, Any]
 
 
@@ -64,11 +66,11 @@ class JaxModuleWrapper:
         model.history_ = old_history
 
     @property
-    def device(self):
+    def device(self):  # noqa: D102
         return self.seed_rng.device()
 
     @property
-    def module(self):
+    def module(self):  # noqa: D102
         return self._module
 
     @property
@@ -170,11 +172,11 @@ class JaxModuleWrapper:
         self._train_state = train_state
 
     @property
-    def params(self) -> FrozenDict[str, Any]:
+    def params(self) -> FrozenDict[str, Any]:  # noqa: D102
         return self.train_state.params
 
     @property
-    def state(self) -> FrozenDict[str, Any]:
+    def state(self) -> FrozenDict[str, Any]:  # noqa: D102
         return self.train_state.state
 
     def state_dict(self) -> Dict[str, Any]:

@@ -8,17 +8,18 @@ such that CellAssign will scale to very large datasets.
 
 The advantages of CellAssign are:
 
-- Lightweight model that can be fit quickly.
-- Ability to control for nuisance factors.
+-   Lightweight model that can be fit quickly.
+-   Ability to control for nuisance factors.
 
 The limitations of CellAssign include:
 
-- Requirement for a cell types by gene markers binary matrix.
-- The simple linear model may not handle non-linear batch effects.
+-   Requirement for a cell types by gene markers binary matrix.
+-   The simple linear model may not handle non-linear batch effects.
 
-:::{topic} Tutorials:
-- {doc}`/tutorials/notebooks/cellassign_tutorial`
-:::
+```{topic} Tutorials:
+
+-   {doc}`/tutorials/notebooks/cellassign_tutorial`
+```
 
 ## Preliminaries
 
@@ -72,7 +73,7 @@ CellAssign uses expectation maximization (EM) to optimize its parameters and pro
 
 ### Initialization
 
-CellAssign initializes parameters as follows:  $\delta_{gc}$ is initialized with a $\textrm{LogNormal}(0, 1)$
+CellAssign initializes parameters as follows: $\delta_{gc}$ is initialized with a $\textrm{LogNormal}(0, 1)$
 draw, $\bar{\delta}$ is initialized to 0, $\sigma^2$ is initialized to 1, $\pi_i$ is
 initialized to $1/C$, $\beta_{gi}$ is initialized with a $\mathcal{N}(0, 1)$ draw,
 and the inverse dispersion parameter $\log a_i$ is initialized to 0. Additionally, $b$ is fixed a priori to be
@@ -142,16 +143,16 @@ where `predictions` stores $\gamma_{nc}$ for each cell $n$ and cell type $c$.
 The logic implementing CellAssign can be found in {class}`scvi.external.cellassign.CellAssignModule`.
 The implementation uses the same variable names as the math.
 
-> - The core logic is implemented in {func}`scvi.external.cellassign.CellAssignModule.generative`. In this method, the E step is taken
->   and the log likelihood $\log p(X \mid \beta, a, \bar{\delta}, \sigma^2, z_n=c)$ is computed for all cell types.
-> - In {func}`scvi.external.cellassign.CellAssignModule.loss` the full expected log likelihood is computed, as well as
->   the penalities corresponding to the priors on $\pi$ and $\delta$.
-> - CellAssign uses the standard {class}`~scvi.train.TrainingPlan`.
+> -   The core logic is implemented in {func}`scvi.external.cellassign.CellAssignModule.generative`. In this method, the E step is taken
+>     and the log likelihood $\log p(X \mid \beta, a, \bar{\delta}, \sigma^2, z_n=c)$ is computed for all cell types.
+> -   In {func}`scvi.external.cellassign.CellAssignModule.loss` the full expected log likelihood is computed, as well as
+>     the penalities corresponding to the priors on $\pi$ and $\delta$.
+> -   CellAssign uses the standard {class}`~scvi.train.TrainingPlan`.
 
-[^ref1]: Allen W. Zhang, Ciara O’Flanagan, Elizabeth A. Chavez, Jamie LP Lim, Nicholas Ceglia, Andrew McPherson, Matt Wiens et al. (2019),
-    *Probabilistic cell-type assignment of single-cell RNA-seq for tumor microenvironment profiling*,
+[^ref1]:
+    Allen W. Zhang, Ciara O’Flanagan, Elizabeth A. Chavez, Jamie LP Lim, Nicholas Ceglia, Andrew McPherson, Matt Wiens et al. (2019),
+    _Probabilistic cell-type assignment of single-cell RNA-seq for tumor microenvironment profiling_,
     [Nature Methods](https://www.nature.com/articles/s41592-019-0529-1?elqTrackId=12c8cef68e0741ef8422778b61).
 
 [^ref2]: CellAssign original implementation. GitHub. <https://github.com/Irrationone/cellassign>
-
 [^ref3]: Kingma, Diederik P., and Jimmy Ba. "Adam: A method for stochastic optimization." arXiv preprint arXiv:1412.6980 (2014).
