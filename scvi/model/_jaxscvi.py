@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     """
-    EXPERIMENTAL single-cell Variational Inference [Lopez18]_, but with a Jax backend.
+    EXPERIMENTAL single-cell Variational Inference :cite:p:`Lopez18`, but with a Jax backend.
 
     This implementation is in a very experimental state. API is completely subject to change.
 
@@ -157,9 +157,9 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         return np.array(jax.device_get(latent))
 
-    def to_device(self, device):
+    def to_device(self, device):  # noqa: D102
         pass
 
     @property
-    def device(self):
+    def device(self):  # noqa: D102
         return self.module.device

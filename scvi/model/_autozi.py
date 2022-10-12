@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Automatic identification of ZI genes [Clivio19]_.
+    Automatic identification of ZI genes :cite:p:`Clivio19`.
 
     Parameters
     ----------
@@ -40,32 +40,33 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     dropout_rate
         Dropout rate for neural networks
     dispersion
-        One of the following
+        One of the following:
 
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
     latent_distribution
-        One of
+        One of the following:
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     alpha_prior
         Float denoting the alpha parameter of the prior Beta distribution of
         the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-        When set to ``None'', will be set to 1 - beta_prior if beta_prior is not ``None'',
+        When set to ``None``, will be set to 1 - beta_prior if beta_prior is not ``None``,
         otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
     beta_prior
         Float denoting the beta parameter of the prior Beta distribution of
         the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-        When set to ``None'', will be set to 1 - alpha_prior if alpha_prior is not ``None'',
+        When set to ``None``, will be set to 1 - alpha_prior if alpha_prior is not ``None``,
         otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
     minimal_dropout
         Float denoting the lower bound of the cell-gene ZI rate in the ZINB component.
         Must be non-negative. Can be set to 0 but not recommended as this may make
         the mixture problem ill-defined.
-    zero_inflation: One of the following
+    zero_inflation
+        One of the following:
 
         * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across cells
         * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different batches
@@ -78,7 +79,6 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     Examples
     --------
-
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.model.AUTOZI.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.AUTOZI(adata)

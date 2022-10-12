@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Main module."""
 from typing import Dict, Iterable, Optional, Tuple, Union
 
@@ -26,7 +25,7 @@ class TOTALVAE(BaseModuleClass):
     """
     Total variational inference for CITE-seq data.
 
-    Implements the totalVI model of [GayosoSteier21]_.
+    Implements the totalVI model of :cite:p:`GayosoSteier21`.
 
     Parameters
     ----------
@@ -378,6 +377,7 @@ class TOTALVAE(BaseModuleClass):
         size_factor=None,
         transform_batch: Optional[int] = None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
+        """Run the generative step."""
         if cont_covs is None:
             decoder_input = z
         elif z.dim() != cont_covs.dim():
@@ -593,7 +593,7 @@ class TOTALVAE(BaseModuleClass):
             for b in torch.unique(batch_index):
                 b_indices = (batch_index == b).reshape(-1)
                 pro_batch_mask_minibatch[b_indices] = torch.tensor(
-                    self.protein_batch_mask[b.item()].astype(np.float32),
+                    self.protein_batch_mask[str(int(b.item()))].astype(np.float32),
                     device=y.device,
                 )
         else:
@@ -653,6 +653,7 @@ class TOTALVAE(BaseModuleClass):
 
     @torch.inference_mode()
     def sample(self, tensors, n_samples=1):
+        """Sample from the generative model."""
         inference_kwargs = dict(n_samples=n_samples)
         with torch.inference_mode():
             inference_outputs, generative_outputs, = self.forward(
@@ -679,6 +680,7 @@ class TOTALVAE(BaseModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
+        """Computes the marginal log likelihood of the data under the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         to_sum = torch.zeros(x.size()[0], n_mc_samples)

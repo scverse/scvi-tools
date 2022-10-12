@@ -19,7 +19,7 @@ torch.backends.cudnn.benchmark = True
 
 class AutoZIVAE(VAE):
     """
-    Implementation of the AutoZI model [Clivio19]_.
+    Implementation of the AutoZI model :cite:p:`Clivio19`.
 
     Parameters
     ----------
@@ -28,12 +28,12 @@ class AutoZIVAE(VAE):
     alpha_prior
         Float denoting the alpha parameter of the prior Beta distribution of
         the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-        When set to ``None'', will be set to 1 - beta_prior if beta_prior is not ``None'',
+        When set to ``None``, will be set to 1 - beta_prior if beta_prior is not ``None``,
         otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
     beta_prior
         Float denoting the beta parameter of the prior Beta distribution of
         the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-        When set to ``None'', will be set to 1 - alpha_prior if alpha_prior is not ``None'',
+        When set to ``None``, will be set to 1 - alpha_prior if alpha_prior is not ``None``,
         otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
     minimal_dropout
         Float denoting the lower bound of the cell-gene ZI rate in the ZINB component.
@@ -152,6 +152,7 @@ class AutoZIVAE(VAE):
     def get_alphas_betas(
         self, as_numpy: bool = True
     ) -> Dict[str, Union[torch.Tensor, np.ndarray]]:
+        """Get the parameters of the Bernoulli beta prior and posterior distributions."""
         # Return parameters of Bernoulli Beta distributions in a dictionary
         outputs = {}
         outputs["alpha_posterior"] = torch.sigmoid(self.alpha_posterior_logit)
@@ -176,6 +177,7 @@ class AutoZIVAE(VAE):
         eps_gamma: float = 1e-30,
         eps_sample: float = 1e-7,
     ) -> torch.Tensor:
+        """Sample from a beta distribution."""
         # Sample from a Beta distribution using the reparameterization trick.
         # Problem : it is not implemented in CUDA yet
         # Workaround : sample X and Y from Gamma(alpha,1) and Gamma(beta,1), the Beta sample is X/(X+Y)
@@ -203,6 +205,7 @@ class AutoZIVAE(VAE):
         batch_index: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        """Reshape Bernoulli parameters to match the input tensor."""
         if self.zero_inflation == "gene-label":
             one_hot_label = one_hot(y, self.n_labels)
             # If we sampled several random Bernoulli parameters
@@ -236,7 +239,7 @@ class AutoZIVAE(VAE):
         y: Optional[torch.Tensor] = None,
         n_samples: int = 1,
     ) -> torch.Tensor:
-
+        """Sample Bernoulli parameters from the posterior distribution."""
         outputs = self.get_alphas_betas(as_numpy=False)
         alpha_posterior = outputs["alpha_posterior"]
         beta_posterior = outputs["beta_posterior"]
@@ -269,6 +272,7 @@ class AutoZIVAE(VAE):
     def rescale_dropout(
         self, px_dropout: torch.Tensor, eps_log: float = 1e-8
     ) -> torch.Tensor:
+        """Rescale dropout rate."""
         if self.minimal_dropout > 0.0:
             dropout_prob_rescaled = self.minimal_dropout + (
                 1.0 - self.minimal_dropout
@@ -292,6 +296,7 @@ class AutoZIVAE(VAE):
         n_samples: int = 1,
         eps_log: float = 1e-8,
     ) -> Dict[str, torch.Tensor]:
+        """Run the generative model."""
         outputs = super().generative(
             z=z,
             library=library,
@@ -319,6 +324,7 @@ class AutoZIVAE(VAE):
         return outputs
 
     def compute_global_kl_divergence(self) -> torch.Tensor:
+        """Compute global KL divergence."""
         outputs = self.get_alphas_betas(as_numpy=False)
         alpha_posterior = outputs["alpha_posterior"]
         beta_posterior = outputs["beta_posterior"]
@@ -339,7 +345,7 @@ class AutoZIVAE(VAE):
         eps_log: float = 1e-8,
         **kwargs,
     ) -> torch.Tensor:
-
+        """Compute the reconstruction loss."""
         # LLs for NB and ZINB
         ll_zinb = torch.log(
             1.0 - bernoulli_params + eps_log
@@ -370,6 +376,7 @@ class AutoZIVAE(VAE):
         kl_weight: int = 1.0,
         n_obs: int = 1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Compute the loss."""
         # Parameters for z latent distribution
         qz = inference_outputs["qz"]
         px = generative_outputs["px"]

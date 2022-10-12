@@ -1,4 +1,5 @@
 ```{highlight} shell
+
 ```
 
 # Contributing
@@ -10,9 +11,9 @@ helps, and credit will always be given.
 
 Ready to contribute? Here's how to set up `scvi-tools` for local development.
 
-01. Fork the `scvi-tools` repo on GitHub.
+1.  Fork the `scvi-tools` repo on GitHub.
 
-02. Clone your fork locally:
+2.  Clone your fork locally:
 
     ```
     # Clone your fork of the repository (substitute in your username)
@@ -24,7 +25,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     # git branch --set-upstream-to "upstream/master"
     ```
 
-03. Install your local copy into a virtualenv (or conda environment):
+3.  Install your local copy into a virtualenv (or conda environment):
 
     ```
     # If you have pyenv-virtualenv
@@ -46,7 +47,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     pip show scvi-tools
     ```
 
-04. **\[Advanced users\]** Install your local copy into a virtualenv with Poetry. Our preferred local installation method consists of using `pyenv-virtualenv` to create a virtualenv, and using `poetry` to create an editable local installation. If using this approach, please be sure to install `poetry` the [recommended](https://python-poetry.org/docs/#installation) way. Once `poetry` is installed:
+4.  **\[Advanced users\]** Install your local copy into a virtualenv with Poetry. Our preferred local installation method consists of using `pyenv-virtualenv` to create a virtualenv, and using `poetry` to create an editable local installation. If using this approach, please be sure to install `poetry` the [recommended](https://python-poetry.org/docs/#installation) way. Once `poetry` is installed:
 
     ```
     pyenv virtualenv scvi-tools-dev
@@ -57,21 +58,21 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
 
     To confirm that scvi-tools was successfully installed, proceed in the same way as above. This time, `pip show scvi-tools` should show all other metadata as well (Version, Summary, etc.).
 
-05. **\[Optional\]** Install a version of PyTorch that supports your GPU. This will be the case even if you use Poetry.
+5.  **\[Optional\]** Install a version of PyTorch that supports your GPU. This will be the case even if you use Poetry.
 
-06. Create an ipykernel so you can use your environment with a Jupyter notebook. This will make this developement environment available through Jupyter notebook/lab. Inside your virtualenv:
+6.  Create an ipykernel so you can use your environment with a Jupyter notebook. This will make this developement environment available through Jupyter notebook/lab. Inside your virtualenv:
 
     ```
     python -m ipykernel install --user --name=scvi-tools-dev
     ```
 
-07. Install pre-commit, which will enforce the scvi-tools code style (black, flake8) on each of your commits:
+7.  Install pre-commit, which will enforce the scvi-tools code style (black, flake8) on each of your commits:
 
     ```
     $ pre-commit install
     ```
 
-08. Create a branch for local development:
+8.  Create a branch for local development:
 
     ```
     $ git checkout -b {your-branch-name}
@@ -79,7 +80,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
 
     Now you can make your changes locally.
 
-09. Add tests to the `/tests` directory. These files start with `test_` and contain functions that start similarly with `test_`.
+9.  Add tests to the `/tests` directory. These files start with `test_` and contain functions that start similarly with `test_`.
 
 10. When you're done making changes, run the tests using pytest:
 
@@ -180,6 +181,7 @@ For each release, we create a branch \[MAJOR\].\[MINOR\].x where MAJOR and MINOR
 Note: Auto backporting can also be triggered if you associate the PR with a Milestone or Label the description of which contains “on-merge: backport to \[BRANCHNAME\]”.
 
 ```{highlight} none
+
 ```
 
 ```
@@ -203,6 +205,7 @@ my other hotfix
 ```
 
 ```{highlight} shell
+
 ```
 
 ### Manually backporting a patch

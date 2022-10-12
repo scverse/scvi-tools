@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     """
-    Amortized Latent Dirichlet Allocation [Blei03]_.
+    Amortized Latent Dirichlet Allocation :cite:p:`Blei03`.
 
     Parameters
     ----------

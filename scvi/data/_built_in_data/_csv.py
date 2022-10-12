@@ -43,7 +43,7 @@ def _load_csv(
     delimiter: str = ",",
     first_column_names: bool = None,
 ):
-    logger.info("Loading dataset from {}".format(path_to_file))
+    logger.info(f"Loading dataset from {path_to_file}")
     adata = anndata.read_csv(
         path_to_file, delimiter=delimiter, first_column_names=first_column_names
     )
