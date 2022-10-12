@@ -99,7 +99,7 @@ class DataSplitter(pl.LightningDataModule):
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
-        self.data_loader_kwargs = default_data_loader_kwargs.update(kwargs)
+        self.data_loader_kwargs = {**default_data_loader_kwargs, **kwargs}
         self.use_gpu = use_gpu
 
         self.n_train, self.n_val = validate_data_split(
@@ -209,11 +209,11 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         **kwargs,
     ):
         super().__init__()
-        defaultKwargs = {"drop_last": 3}
+        default_data_loader_kwargs = {"drop_last": 3}
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
-        self.data_loader_kwargs = {**defaultKwargs, **kwargs}
+        self.data_loader_kwargs = {**default_data_loader_kwargs, **kwargs}
         self.n_samples_per_label = n_samples_per_label
 
         labels_state_registry = adata_manager.get_state_registry(
