@@ -21,6 +21,98 @@ from scvi.nn import DecoderSCVI, Encoder, FCLayers, one_hot
 from ._utils import masked_softmax
 
 
+class DecoderATACVI(nn.Module):
+    """
+    Decodes data from latent space of ``n_input`` dimensions into ``n_output``dimensions.
+    Uses a fully-connected neural network of ``n_hidden`` layers.
+    Parameters
+    ----------
+    n_input
+        The dimensionality of the input (latent space)
+    n_output
+        The dimensionality of the output (data space)
+    n_cat_list
+        A list containing the number of categories
+        for each category of interest. Each category will be
+        included using a one-hot encoding
+    n_layers
+        The number of fully-connected hidden layers
+    n_hidden
+        The number of nodes per hidden layer
+    dropout_rate
+        Dropout rate to apply to each of the hidden layers
+    inject_covariates
+        Whether to inject covariates in each layer, or just the first (default).
+    use_batch_norm
+        Whether to use batch norm in layers
+    use_layer_norm
+        Whether to use layer norm in layers
+    scale_activation
+        Activation layer to use for px_scale_decoder
+    """
+
+    def __init__(
+        self,
+        n_input: int,
+        n_output: int,
+        n_cat_list: Iterable[int] = None,
+        n_layers: int = 1,
+        n_hidden: int = 128,
+        inject_covariates: bool = True,
+        use_batch_norm: bool = False,
+        use_layer_norm: bool = False,
+        peak_likelihood: Literal["bernoulli", "poisson"] = "bernoulli",
+    ):
+        super().__init__()
+        self.y_decoder = FCLayers(
+            n_in=n_input,
+            n_out=n_hidden,
+            n_cat_list=n_cat_list,
+            n_layers=n_layers,
+            n_hidden=n_hidden,
+            dropout_rate=0,
+            inject_covariates=inject_covariates,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
+            activation_fn=torch.nn.LeakyReLU,  # adding this because PeakVi uses Leaky Relu in decoder
+        )
+
+        if peak_likelihood == "poisson":
+            y_scale_activation = nn.Identity()
+        elif peak_likelihood == "bernoulli":
+            y_scale_activation = nn.Sigmoid()
+
+        self.y_scale_decoder = nn.Sequential(
+            nn.Linear(n_hidden, n_output),
+            y_scale_activation,
+        )
+        self.peak_likelihood = peak_likelihood
+
+    def forward(
+        self,
+        z: torch.Tensor,
+        *cat_list: int,
+    ):
+        """
+        Parameters
+        ----------
+        z :
+            tensor with shape ``(n_input,)``
+        library_size
+            library size
+        cat_list
+            list of category membership(s) for this sample
+        Returns
+        -------
+        4-tuple of :py:class:`torch.Tensor`
+            parameters for the ZINB distribution of expression
+        """
+        y = self.y_decoder(z, *cat_list)
+        y_scale = self.y_scale_decoder(y)
+
+        return y_scale
+
+
 class LibrarySizeEncoder(torch.nn.Module):
     def __init__(
         self,
@@ -210,6 +302,10 @@ class MULTIVAE(BaseModuleClass):
         * ``'zinb'`` - Zero-Inflated Negative Binomial
         * ``'nb'`` - Negative Binomial
         * ``'poisson'`` - Poisson
+    peak_likelihood
+        The distribution to use for gene expression data. One of the following
+        * ``'bernoulli'`` - Bernoulli - PeakVI -
+        * ``'poisson'`` - Poisson
     dispersion
         One of the following:
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
@@ -273,7 +369,9 @@ class MULTIVAE(BaseModuleClass):
         n_obs: int = 0,
         n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        peak_likelihood: Literal["bernoulli", "poisson"] = "bernoulli",
         gene_dispersion: str = "gene",
+        peak_dispersion: str = "peak",
         n_hidden: Optional[int] = None,
         n_latent: Optional[int] = None,
         n_layers_encoder: int = 2,
@@ -307,7 +405,6 @@ class MULTIVAE(BaseModuleClass):
             self.n_hidden = n_hidden
         self.n_batch = n_batch
 
-        self.gene_likelihood = gene_likelihood
         self.latent_distribution = latent_distribution
 
         self.n_latent = int(np.sqrt(self.n_hidden)) if n_latent is None else n_latent
@@ -412,6 +509,7 @@ class MULTIVAE(BaseModuleClass):
             dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
             distribution=self.latent_distribution,
+            inject_covariates=deeply_inject_covariates,
             var_eps=0,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
@@ -419,12 +517,56 @@ class MULTIVAE(BaseModuleClass):
         )
 
         ##      accessibility region-specific factors
+        self.peak_likelihood = peak_likelihood
+        self.peak_dispersion = peak_dispersion
         self.region_factors = None
-        if region_factors:
-            self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
+        # if region_factors:
+        #     self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
+        if region_factors and self.peak_likelihood == "bernoulli":
+            if self.peaks_dispersion == "peak":
+                self.region_factors = torch.nn.Parameter(
+                    torch.zeros(self.n_input_regions)
+                )
+            elif self.peak_dispersion == "peak-batch":
+                self.region_factors = torch.nn.Parameter(
+                    torch.zeros(n_input_genes, n_batch)
+                )
+            elif self.peak_dispersion == "peak-label":
+                self.region_factors = torch.nn.Parameter(
+                    torch.zeros(n_input_genes, n_labels)
+                )
+            elif self.peak_dispersion == "peak-cell":
+                pass
+            else:
+                raise ValueError(
+                    "dispersion must be one of ['peak', 'peak-batch',"
+                    " 'peak-label', 'peak-cell'], but input was "
+                    "{}.format(self.dispersion)"
+                )
+        elif region_factors and self.peak_likelihood == "poisson":
+            if self.peaks_dispersion == "gene":
+                self.region_factors = torch.nn.Parameter(
+                    torch.ones(self.n_input_regions) / n_input_regions
+                )
+            elif self.peak_dispersion == "peak-batch":
+                self.region_factors = torch.nn.Parameter(
+                    torch.ones(n_input_genes, n_batch) / n_input_regions
+                )
+            elif self.peak_dispersion == "peak-label":
+                self.region_factors = torch.nn.Parameter(
+                    torch.ones(n_input_genes, n_labels) / n_input_regions
+                )
+            elif self.peak_dispersion == "peak-cell":
+                pass
+            else:
+                raise ValueError(
+                    "dispersion must be one of ['peak', 'peak-batch',"
+                    " 'peak-label', 'peak-cell'], but input was "
+                    "{}.format(self.dispersion)"
+                )
 
         ##       accessibility decoder
-        self.z_decoder_accessibility = DecoderPeakVI(
+        self.z_decoder_accessibility = DecoderATACVI(
             n_input=self.n_latent + self.n_continuous_cov,
             n_output=n_input_regions,
             n_hidden=self.n_hidden,
@@ -432,9 +574,9 @@ class MULTIVAE(BaseModuleClass):
             n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
-            deep_inject_covariates=self.deeply_inject_covariates,
+            inject_covariates=self.deeply_inject_covariates,
+            peak_likelihood=self.peak_likelihood,
         )
-
         ##      accessibility library size encoder
         self.l_encoder_accessibility = DecoderPeakVI(
             n_input=n_input_encoder_acc,
@@ -494,6 +636,7 @@ class MULTIVAE(BaseModuleClass):
             dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
             distribution=self.latent_distribution,
+            inject_covariates=deeply_inject_covariates,
             var_eps=0,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
@@ -682,6 +825,7 @@ class MULTIVAE(BaseModuleClass):
         z = inference_outputs["z"]
         qz_m = inference_outputs["qz_m"]
         libsize_expr = inference_outputs["libsize_expr"]
+        libsize_acc = inference_outputs["libsize_acc"]
 
         size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
         size_factor = (
@@ -709,6 +853,7 @@ class MULTIVAE(BaseModuleClass):
             cont_covs=cont_covs,
             cat_covs=cat_covs,
             libsize_expr=libsize_expr,
+            libsize_acc=libsize_acc,
             size_factor=size_factor,
             label=label,
         )
@@ -723,6 +868,7 @@ class MULTIVAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
         libsize_expr=None,
+        libsize_acc=None,
         size_factor=None,
         use_z_mean=False,
         label: torch.Tensor = None,
@@ -743,8 +889,18 @@ class MULTIVAE(BaseModuleClass):
         else:
             decoder_input = torch.cat([latent, cont_covs], dim=-1)
 
+        # Accessibility Dispersion
+        if self.peak_dispersion == "peak-label":
+            region_factor = F.linear(one_hot(label, self.n_labels), self.px_r)
+        elif self.peak_dispersion == "peak-batch":
+            region_factor = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+        elif self.peak_dispersion == "peak":
+            region_factor = self.region_factor
+
         # Accessibility Decoder
-        p = self.z_decoder_accessibility(decoder_input, batch_index, *categorical_input)
+        y_scale = self.z_decoder_accessibility(
+            decoder_input, batch_index, *categorical_input
+        )
 
         # Expression Decoder
         if not self.use_size_factor_key:
@@ -784,9 +940,10 @@ class MULTIVAE(BaseModuleClass):
         py_["r"] = py_r
 
         return dict(
-            p=p,
+            y_scale=y_scale,
+            region_factor=region_factor,
             px_scale=px_scale,
-            px_r=torch.exp(self.px_r),
+            px_r=px_r,
             px_rate=px_rate,
             px_dropout=px_dropout,
             py_=py_,
@@ -812,10 +969,14 @@ class MULTIVAE(BaseModuleClass):
         mask_pro = y.sum(dim=1) > 0
 
         # Compute Accessibility loss
-        p = generative_outputs["p"]
+        y_scale = generative_outputs["y_scale"]
         libsize_acc = inference_outputs["libsize_acc"]
+        region_factor = inference_outputs["region_factor"]
         rl_accessibility = self.get_reconstruction_loss_accessibility(
-            x_chr, p, libsize_acc
+            x,
+            region_factor,
+            y_scale,
+            libsize_acc,
         )
 
         # Compute Expression loss
@@ -887,13 +1048,14 @@ class MULTIVAE(BaseModuleClass):
             rl = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return rl
 
-    def get_reconstruction_loss_accessibility(self, x, p, d):
-        reg_factor = (
-            torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
-        )
-        return torch.nn.BCELoss(reduction="none")(
-            p * d * reg_factor, (x > 0).float()
-        ).sum(dim=-1)
+    def get_reconstruction_loss_accessibility(self, x, region_factor, y_scale, library):
+        if self.peak_likelihood == "bernoulli":
+            p = library * torch.sigmoid(region_factor) * y_scale
+            rl = torch.nn.BCELoss(reduction="none")(p, (x > 0).float()).sum(dim=-1)
+        elif self.peak_likelihood == "poisson":
+            p = torch.exp(library) * torch.softmax(y_scale + region_factor, dim=-1)
+            rl = -Poisson(p).log_prob(x).sum(dim=-1)
+        return rl
 
     def _compute_mod_penalty(
         self, mod_params1, mod_params2, mod_params3, mask1, mask2, mask3
