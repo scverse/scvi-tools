@@ -148,6 +148,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         region_factors: bool = True,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
+        peak_likelihood: Literal["bernoulli", "poisson"] = "poisson",
+        peak_dispersion: Literal[
+            "peak", "peak-batch", "peak-label", "peak-cell"
+        ] = "peak",
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
@@ -193,6 +197,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             region_factors=region_factors,
             gene_likelihood=gene_likelihood,
             gene_dispersion=dispersion,
+            peak_likelihood=peak_likelihood,
+            peak_dispersion=peak_dispersion,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
             use_size_factor_key=use_size_factor_key,
@@ -208,7 +214,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             "MultiVI Model with INPUTS: n_genes:{}, n_regions:{}, n_proteins:{}\n"
             "n_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
             "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
-            "gene_likelihood: {}, gene_dispersion:{}, Mod.Weights:{}, Mod.Penalty:{}, protein_dispersion:{}"
+            "gene_likelihood: {}, gene_dispersion:{}, peak_likelihood: {}, peak_dispersion:{},"
+            "Mod.Weights:{}, Mod.Penalty:{}, protein_dispersion:{}"
         ).format(
             n_genes,
             n_regions,
@@ -222,6 +229,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             deeply_inject_covariates,
             gene_likelihood,
             dispersion,
+            peak_likelihood,
+            peak_dispersion,
             modality_weights,
             modality_penalty,
             protein_dispersion,
