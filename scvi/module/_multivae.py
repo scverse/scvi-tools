@@ -523,7 +523,7 @@ class MULTIVAE(BaseModuleClass):
         # if region_factors:
         #     self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
         if region_factors and self.peak_likelihood == "bernoulli":
-            if self.peaks_dispersion == "peak":
+            if self.peak_dispersion == "peak":
                 self.region_factors = torch.nn.Parameter(
                     torch.zeros(self.n_input_regions)
                 )
@@ -541,10 +541,10 @@ class MULTIVAE(BaseModuleClass):
                 raise ValueError(
                     "dispersion must be one of ['peak', 'peak-batch',"
                     " 'peak-label', 'peak-cell'], but input was "
-                    "{}.format(self.dispersion)"
+                    "{}".format(self.peak_dispersion)
                 )
         elif region_factors and self.peak_likelihood == "poisson":
-            if self.peaks_dispersion == "gene":
+            if self.peaks_dispersion == "peak":
                 self.region_factors = torch.nn.Parameter(
                     torch.ones(self.n_input_regions) / n_input_regions
                 )
@@ -895,7 +895,7 @@ class MULTIVAE(BaseModuleClass):
         elif self.peak_dispersion == "peak-batch":
             region_factor = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
         elif self.peak_dispersion == "peak":
-            region_factor = self.region_factor
+            region_factor = self.region_factors
 
         # Accessibility Decoder
         y_scale = self.z_decoder_accessibility(
@@ -971,7 +971,7 @@ class MULTIVAE(BaseModuleClass):
         # Compute Accessibility loss
         y_scale = generative_outputs["y_scale"]
         libsize_acc = inference_outputs["libsize_acc"]
-        region_factor = inference_outputs["region_factor"]
+        region_factor = generative_outputs["region_factor"]
         rl_accessibility = self.get_reconstruction_loss_accessibility(
             x,
             region_factor,
