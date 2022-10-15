@@ -137,7 +137,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         adata: AnnData,
         n_genes: int,
         n_regions: int,
-        n_proteins: int,
+        n_proteins: int = None,
         modality_weights: Literal["equal", "cell", "universal"] = "equal",
         modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
         n_hidden: Optional[int] = None,
@@ -174,6 +174,12 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         use_size_factor_key = (
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
+
+        if n_proteins is None:
+            if n_proteins in self.summary_stats:
+                n_proteins = self.summary_stats.n_proteins
+            else:
+                n_proteins = 0
 
         self.module = MULTIVAE(
             n_input_genes=n_genes,
