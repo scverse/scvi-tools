@@ -137,7 +137,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         adata: AnnData,
         n_genes: int,
         n_regions: int,
-        n_proteins: int = None,
         modality_weights: Literal["equal", "cell", "universal"] = "equal",
         modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
         n_hidden: Optional[int] = None,
