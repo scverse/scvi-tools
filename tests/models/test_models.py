@@ -407,7 +407,7 @@ def test_scvi_get_latent_rep_backwards_compat():
     def old_inference(*args, **kwargs):
         inf_outs = vae.inference(*args, **kwargs)
         qz = inf_outs.pop("qz")
-        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale ** 2
+        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
         return inf_outs
 
     vae_mock.inference.side_effect = old_inference
@@ -433,7 +433,7 @@ def test_scvi_get_feature_corr_backwards_compat():
     def old_forward(*args, **kwargs):
         inf_outs, gen_outs = vae.forward(*args, **kwargs)
         qz = inf_outs.pop("qz")
-        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale ** 2
+        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
         px = gen_outs.pop("px")
         gen_outs["px_scale"], gen_outs["px_r"] = px.scale, px.theta
         return inf_outs, gen_outs
@@ -1589,9 +1589,7 @@ def test_multivi():
     MULTIVI.setup_anndata(data, batch_key="batch")
     vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
     vae.train(3)
-    vae = MULTIVI(
-        data, n_genes=50, n_regions=50, modality_weights="universal"
-    )
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="universal")
     vae.train(3)
     vae = MULTIVI(data, n_genes=50, n_regions=50, modality_penalty="MMD")
     vae.train(3)
