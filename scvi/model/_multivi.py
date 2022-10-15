@@ -153,7 +153,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
         fully_paired: bool = False,
-        empirical_protein_background_prior: bool = True,
         protein_dispersion: Literal[
             "protein", "protein-batch", "protein-label"
         ] = "protein",
