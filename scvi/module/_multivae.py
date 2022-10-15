@@ -544,7 +544,7 @@ class MULTIVAE(BaseModuleClass):
                     "{}".format(self.peak_dispersion)
                 )
         elif region_factors and self.peak_likelihood == "poisson":
-            if self.peaks_dispersion == "peak":
+            if self.peak_dispersion == "peak":
                 self.region_factors = torch.nn.Parameter(
                     torch.ones(self.n_input_regions) / n_input_regions
                 )
@@ -561,8 +561,9 @@ class MULTIVAE(BaseModuleClass):
             else:
                 raise ValueError(
                     "dispersion must be one of ['peak', 'peak-batch',"
-                    " 'peak-label', 'peak-cell'], but input was "
-                    "{}.format(self.dispersion)"
+                    " 'peak-label', 'peak-cell'], but input was {}".format(
+                        self.dispersion
+                    )
                 )
 
         ##       accessibility decoder
