@@ -174,7 +174,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
 
-        if n_proteins in self.summary_stats:
+        if "n_proteins" in self.summary_stats:
             n_proteins = self.summary_stats.n_proteins
         else:
             n_proteins = 0
