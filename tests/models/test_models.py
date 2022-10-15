@@ -407,7 +407,7 @@ def test_scvi_get_latent_rep_backwards_compat():
     def old_inference(*args, **kwargs):
         inf_outs = vae.inference(*args, **kwargs)
         qz = inf_outs.pop("qz")
-        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
+        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale ** 2
         return inf_outs
 
     vae_mock.inference.side_effect = old_inference
@@ -433,7 +433,7 @@ def test_scvi_get_feature_corr_backwards_compat():
     def old_forward(*args, **kwargs):
         inf_outs, gen_outs = vae.forward(*args, **kwargs)
         qz = inf_outs.pop("qz")
-        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
+        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale ** 2
         px = gen_outs.pop("px")
         gen_outs["px_scale"], gen_outs["px_r"] = px.scale, px.theta
         return inf_outs, gen_outs
@@ -1557,7 +1557,6 @@ def test_multivi():
         data,
         n_genes=50,
         n_regions=50,
-        n_proteins=0,
     )
     vae.train(1, save_best=False)
     vae.train(1, adversarial_mixing=False)
@@ -1582,20 +1581,19 @@ def test_multivi():
         data,
         n_genes=50,
         n_regions=50,
-        n_proteins=0,
     )
     vae.train(3)
 
     # Test with modality weights and penalties
     data = synthetic_iid()
     MULTIVI.setup_anndata(data, batch_key="batch")
-    vae = MULTIVI(data, n_genes=50, n_regions=50, n_proteins=0, modality_weights="cell")
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
     vae.train(3)
     vae = MULTIVI(
-        data, n_genes=50, n_regions=50, n_proteins=0, modality_weights="universal"
+        data, n_genes=50, n_regions=50, modality_weights="universal"
     )
     vae.train(3)
-    vae = MULTIVI(data, n_genes=50, n_regions=50, n_proteins=0, modality_penalty="MMD")
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_penalty="MMD")
     vae.train(3)
 
     # Test with non-zero protein data
@@ -1610,9 +1608,9 @@ def test_multivi():
         data,
         n_genes=50,
         n_regions=50,
-        n_proteins=data.obsm["protein_expression"].shape[1],
         modality_weights="cell",
     )
+    assert vae.n_proteins == data.obsm["protein_expression"].shape[1]
     vae.train(3)
 
 
