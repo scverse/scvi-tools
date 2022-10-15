@@ -54,9 +54,7 @@ class LibrarySizeEncoder(torch.nn.Module):
 
 
 class DecoderADT(torch.nn.Module):
-    """
-    Decoder for just surface proteins (ADT)
-    """
+    """Decoder for just surface proteins (ADT)"""
 
     def __init__(
         self,
