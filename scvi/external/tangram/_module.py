@@ -59,7 +59,7 @@ class TangramMapper(JaxBaseModuleClass):
         self.mapper_unconstrained = self.param(
             "mapper_unconstrained",
             lambda rng, shape: jax.random.normal(rng, shape),
-            (self.n_obs_sp, self.n_obs_sc),
+            (self.n_obs_sc, self.n_obs_sp),
         )
 
     @property
@@ -103,18 +103,18 @@ class TangramMapper(JaxBaseModuleClass):
         else:
             density_term = 0
 
-        g_pred = mapper.transpose() @ sp
-        chex.assert_equal_shape([sc, g_pred])
+        g_pred = mapper.transpose() @ sc
+        chex.assert_equal_shape([sp, g_pred])
 
         # TODO(adamgayoso): Use these similarities for dense inputs
         # cosine_similarity_0 = jax.vmap(_cosine_similarity_vectors, in_axes=1)
         # cosine_similarity_1 = jax.vmap(_cosine_similarity_vectors, in_axes=0)
 
         if self.lambda_g1 > 0:
-            gv_term = _unnormalized_cosine_similarity(g_pred, sc, axis=0)
+            gv_term = _unnormalized_cosine_similarity(g_pred, sp, axis=0)
             denom = jnp.maximum(
                 jnp.linalg.norm(g_pred, axis=0)
-                * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SC_0_KEY],
+                * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SP_0_KEY],
                 EPS,
             )
             gv_term /= denom
@@ -122,10 +122,10 @@ class TangramMapper(JaxBaseModuleClass):
         else:
             gv_term = 0
         if self.lambda_g2 > 0:
-            vg_term = _unnormalized_cosine_similarity(g_pred, sc, axis=1)
+            vg_term = _unnormalized_cosine_similarity(g_pred, sp, axis=1)
             denom = (
                 jnp.linalg.norm(g_pred, axis=1)
-                * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SC_1_KEY]
+                * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SP_1_KEY]
                 + EPS
             )
             vg_term /= denom

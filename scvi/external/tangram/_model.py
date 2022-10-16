@@ -262,12 +262,12 @@ class Tangram(BaseModelClass):
                     if scipy.sparse.issparse(tensor_dict[key])
                     else np.linalg.norm
                 )
-                tensor_dict[TANGRAM_REGISTRY_KEYS.L2_NORM_SC_0_KEY] = _asarray(
-                    norm(tensor_dict[TANGRAM_REGISTRY_KEYS.SC_KEY], axis=0),
+                tensor_dict[TANGRAM_REGISTRY_KEYS.L2_NORM_SP_0_KEY] = _asarray(
+                    norm(tensor_dict[TANGRAM_REGISTRY_KEYS.SP_KEY], axis=0),
                     device=device,
                 )
-                tensor_dict[TANGRAM_REGISTRY_KEYS.L2_NORM_SC_1_KEY] = _asarray(
-                    norm(tensor_dict[TANGRAM_REGISTRY_KEYS.SC_KEY], axis=1),
+                tensor_dict[TANGRAM_REGISTRY_KEYS.L2_NORM_SP_1_KEY] = _asarray(
+                    norm(tensor_dict[TANGRAM_REGISTRY_KEYS.SP_KEY], axis=1),
                     device=device,
                 )
             sparse = False
