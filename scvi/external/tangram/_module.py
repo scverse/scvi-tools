@@ -22,14 +22,10 @@ EPS = 1e-8
 def _squared_norm(
     x: Union[jnp.ndarray, jax.experimental.sparse.BCOO], axis: int
 ) -> jnp.ndarray:
-    squared = x * x
-    if axis == 0:
-        summed = jnp.ones((1, squared.shape[0])) @ squared
-    elif axis == 1:
-        summed = (squared @ jnp.ones((squared.shape[1], 1))).ravel()
-    else:
-        raise ValueError("axis must be 0 or 1")
-    return jnp.asarray(summed)
+    squared = jnp.multiply(x, x)
+    res = squared.sum(axis=axis)
+    res = res @ jnp.identity(res.shape[0])
+    return res.ravel()
 
 
 @partial(jax.jit, static_argnums=(2,))
