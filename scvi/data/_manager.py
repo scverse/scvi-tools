@@ -39,6 +39,9 @@ class AnnDataManager:
     setup_method_args
         Dictionary describing the model and arguments passed in by the user
         to setup this AnnDataManager.
+    mudata_fully_paired
+        Whether to check that a registered :class:`mudata.MuData` object has fully paired
+        observations across modalities.
 
     Examples
     --------
@@ -57,6 +60,7 @@ class AnnDataManager:
         self,
         fields: Optional[List[AnnDataField]] = None,
         setup_method_args: Optional[dict] = None,
+        mudata_fully_paired: bool = True,
     ) -> None:
         self.id = str(uuid4())
         self.adata = None
@@ -67,6 +71,7 @@ class AnnDataManager:
             _constants._SETUP_ARGS_KEY: None,
             _constants._FIELD_REGISTRIES_KEY: defaultdict(dict),
         }
+        self._mudata_fully_paired = mudata_fully_paired
         if setup_method_args is not None:
             self._registry.update(setup_method_args)
 
@@ -77,12 +82,11 @@ class AnnDataManager:
                 "AnnData object not registered. Please call register_fields."
             )
 
-    @staticmethod
-    def _validate_anndata_object(adata: AnnOrMuData):
+    def _validate_anndata_object(self, adata: AnnOrMuData):
         """For a given AnnData object, runs general scvi-tools compatibility checks."""
         _check_if_view(adata, copy_if_view=False)
 
-        if isinstance(adata, MuData):
+        if isinstance(adata, MuData) and self._mudata_fully_paired:
             _check_mudata_fully_paired(adata)
 
     def _get_setup_method_args(self) -> dict:
