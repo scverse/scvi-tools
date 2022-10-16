@@ -40,7 +40,7 @@ def _unnormalized_cosine_similarity(
 
 def _density_criterion(log_y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
     # Kl divergence between the predicted and true distributions
-    log_y_true = jnp.log(y_true + EPS)
+    log_y_true = jnp.log(y_true)
     return (y_true * (log_y_true - log_y_pred)).sum()
 
 
@@ -112,10 +112,10 @@ class TangramMapper(JaxBaseModuleClass):
 
         if self.lambda_g1 > 0:
             gv_term = _unnormalized_cosine_similarity(g_pred, sc, axis=0)
-            denom = (
+            denom = jnp.maximum(
                 jnp.linalg.norm(g_pred, axis=0)
-                * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SC_0_KEY]
-                + EPS
+                * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SC_0_KEY],
+                EPS,
             )
             gv_term /= denom
             gv_term = self.lambda_g1 * gv_term.mean()
@@ -135,7 +135,10 @@ class TangramMapper(JaxBaseModuleClass):
 
         expression_term = gv_term + vg_term
 
-        regularizer_term = self.lambda_r * (jnp.log(mapper) * mapper).sum()
+        if self.lambda_r > 0:
+            regularizer_term = self.lambda_r * (jnp.log(mapper) * mapper).sum()
+        else:
+            regularizer_term = 0
 
         total_loss = -expression_term - regularizer_term
         total_loss = total_loss + density_term

@@ -154,9 +154,12 @@ class Tangram(BaseModelClass):
             train_step_fn = jax.experimental.sparse.sparsify(train_step_fn)
         state = self.module.train_state
         pbar = track(range(max_epochs), style="tqdm", description="Training")
+        history = []
         for _ in pbar:
             state, loss, _ = train_step_fn(state, tensor_dict, self.module.rngs)
-            pbar.set_description(f"Training... Loss: {jax.device_get(loss)}")
+            loss = jax.device_get(loss)
+            history.append(loss)
+            pbar.set_description(f"Training... Loss: {loss}")
 
     @classmethod
     @setup_anndata_dsp.dedent
