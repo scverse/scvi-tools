@@ -10,12 +10,11 @@ import torch
 from anndata import AnnData
 from mudata import MuData
 
-import scvi.data.fields as fields
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.data import AnnDataManager
+from scvi.data import AnnDataManager, fields
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
@@ -36,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
-    total Variational Inference [GayosoSteier21]_.
+    total Variational Inference :cite:p:`GayosoSteier21`.
 
     Parameters
     ----------
@@ -715,9 +714,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         **kwargs,
     ) -> pd.DataFrame:
         r"""
+        \
+
         A unified method for differential expression analysis.
 
-        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+
+        Implements `"vanilla"` DE :cite:p:`Lopez18`. and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
@@ -1072,7 +1074,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     def _get_totalvi_protein_priors(self, adata, n_cells=100):
         """Compute an empirical prior for protein background."""
-
         from sklearn.exceptions import ConvergenceWarning
         from sklearn.mixture import GaussianMixture
 
@@ -1110,7 +1111,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
                 # non missing
                 if batch_mask is not None:
-                    batch_pro_exp = batch_pro_exp[:, batch_mask[b]]
+                    batch_pro_exp = batch_pro_exp[:, batch_mask[str(b)]]
                     if batch_pro_exp.shape[1] < 5:
                         logger.debug(
                             f"Batch {b} has too few proteins to set prior, setting randomly."
@@ -1169,6 +1170,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     @torch.inference_mode()
     def get_protein_background_mean(self, adata, indices, batch_size):
+        """Get protein background mean."""
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -1261,6 +1263,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         modalities: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> Optional[AnnData]:
+        """Setup MuData."""
         setup_method_args = cls._get_setup_method_args(**locals())
 
         if modalities is None:

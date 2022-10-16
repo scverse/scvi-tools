@@ -12,6 +12,7 @@ from scvi.nn import FCLayers
 
 
 def identity(x):
+    """Identity function."""
     return x
 
 
@@ -183,6 +184,7 @@ class MRDeconv(BaseModuleClass):
 
     @auto_move_data
     def inference(self):
+        """Run the inference model."""
         return {}
 
     @auto_move_data
@@ -217,7 +219,7 @@ class MRDeconv(BaseModuleClass):
             (-1, self.n_latent)
         )  # minibatch_size * n_labels, n_latent
         enum_label = (
-            torch.arange(0, self.n_labels).repeat((m)).view((-1, 1))
+            torch.arange(0, self.n_labels).repeat(m).view((-1, 1))
         )  # minibatch_size * n_labels, 1
         h = self.decoder(gamma_reshape, enum_label.to(x.device))
         px_rate = self.px_decoder(h).reshape(
@@ -249,6 +251,7 @@ class MRDeconv(BaseModuleClass):
         kl_weight: float = 1.0,
         n_obs: int = 1.0,
     ):
+        """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
@@ -317,6 +320,7 @@ class MRDeconv(BaseModuleClass):
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the posterior."""
         raise NotImplementedError("No sampling method for DestVI")
 
     @torch.inference_mode()

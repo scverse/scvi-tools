@@ -39,6 +39,7 @@ from scvi.model import (
 )
 from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
+from scvi.utils import attrdict
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
@@ -169,8 +170,8 @@ def test_jax_scvi_save_load(save_path):
 
     model = JaxSCVI.load(save_path, adata=adata)
     assert "batch" in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry["batch"] == dict(
-        attr_name="obs", attr_key="_scvi_batch"
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(attr_name="obs", attr_key="_scvi_batch")
     )
     assert model.is_trained is True
 
@@ -570,8 +571,8 @@ def test_saving_and_loading(save_path):
 
         model = cls.load(save_path, adata=adata, prefix=prefix)
         assert "batch" in model.adata_manager.data_registry
-        assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
+        assert model.adata_manager.data_registry.batch == attrdict(
+            dict(attr_name="obs", attr_key="_scvi_batch")
         )
 
         z2 = model.get_latent_representation()
@@ -617,8 +618,8 @@ def test_saving_and_loading(save_path):
         AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
     model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry["batch"] == dict(
-        attr_name="obs", attr_key="_scvi_batch"
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(attr_name="obs", attr_key="_scvi_batch")
     )
 
     ab2 = model.get_alphas_betas()
@@ -654,8 +655,8 @@ def test_saving_and_loading(save_path):
         SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
     model = SCANVI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry["batch"] == dict(
-        attr_name="obs", attr_key="_scvi_batch"
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(attr_name="obs", attr_key="_scvi_batch")
     )
 
     p2 = model.predict()
@@ -827,14 +828,14 @@ def test_ann_dataloader():
     assert a.n_obs == 400
     adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=3)
     assert len(adl) == 2
-    for i, x in enumerate(adl):
+    for _i, _ in enumerate(adl):
         pass
-    assert i == 1
+    assert _i == 1
     adl = AnnDataLoader(adata_manager, batch_size=398, drop_last=3)
     assert len(adl) == 1
-    for i, x in enumerate(adl):
+    for _i, _ in enumerate(adl):
         pass
-    assert i == 0
+    assert _i == 0
     with pytest.raises(ValueError):
         AnnDataLoader(adata_manager, batch_size=1, drop_last=2)
 
@@ -1612,6 +1613,23 @@ def test_multivi():
         n_proteins=data.obsm["protein_expression"].shape[1],
         modality_weights="cell",
     )
+    vae.train(3)
+
+    # Test with non-zero protein data
+    data = synthetic_iid()
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    vae = MULTIVI(
+        data,
+        n_genes=50,
+        n_regions=50,
+        modality_weights="cell",
+    )
+    assert vae.n_proteins == data.obsm["protein_expression"].shape[1]
     vae.train(3)
 
 

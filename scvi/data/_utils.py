@@ -189,7 +189,6 @@ def _check_nonnegative_integers(
     n_to_check: int = 20,
 ):
     """Approximately checks values of data to ensure it is count data."""
-
     # for backed anndata
     if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
         data = data[:100]
@@ -218,28 +217,6 @@ def _is_not_count_val(data: jnp.ndarray):
     non_integer = jnp.any(data % 1 != 0)
 
     return negative, non_integer
-
-
-def _get_batch_mask_protein_data(
-    adata: AnnData, protein_expression_obsm_key: str, batch_key: str
-):
-    """
-    Returns a list with length number of batches where each entry is a mask.
-
-    The mask is over cell measurement columns that are present (observed)
-    in each batch. Absence is defined by all 0 for that protein in that batch.
-    """
-    pro_exp = adata.obsm[protein_expression_obsm_key]
-    pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
-    batches = adata.obs[batch_key].values
-    batch_mask = {}
-    for b in np.unique(batches):
-        b_inds = np.where(batches.ravel() == b)[0]
-        batch_sum = pro_exp[b_inds, :].sum(axis=0)
-        all_zero = batch_sum == 0
-        batch_mask[b] = ~all_zero
-
-    return batch_mask
 
 
 def _check_if_view(adata: AnnOrMuData, copy_if_view: bool = False):

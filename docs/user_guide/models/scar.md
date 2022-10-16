@@ -4,8 +4,8 @@
 
 This model was ported from another [Github](https://github.com/Novartis/scar).
 
-
 ## Ambient RNA removal
+
 ```
 >>> adata = anndata.read_h5ad(path_to_anndata)
 >>> raw_adata = anndata.read_h5ad(path_to_raw_anndata)
@@ -17,10 +17,10 @@ This model was ported from another [Github](https://github.com/Novartis/scar).
 >>> adata.layers['denoised'] = vae.get_denoised_counts()
 ```
 
-
 ## Estimating the ambient profile
 
 ### Option 1: Calculate the ambient profile using the `get_ambient_profile` method
+
 `get_ambient_profile` is inspired by **EmptyDrops** [^ref2], which assumes that cell-free droplets are sampled from a multinomial distribution.
 
 1. It first calculates an initial ambient profile by averaging all droplets in raw_adata
@@ -36,6 +36,7 @@ This model was ported from another [Github](https://github.com/Novartis/scar).
 ```
 
 ### Option 2: Calculate the ambient profile using a kneeplot
+
 This option is based on total counts of droplets.
 
 1. It first plots a kneeplot
@@ -79,11 +80,12 @@ This option is based on total counts of droplets.
 >>> ambient_profile = pd.DataFrame((cell_free.X.sum(axis=0)/cell_free.X.sum()).A1, index=adata.var_names, columns=['ambient profile'])
 ```
 
-
-[^ref1]: Caibin Sheng, Rui Lopes, Gang Li, Sven Schuierer, Annick Waldt, Rachel Cuttat, Slavica Dimitrieva, Audrey Kauffmann, Eric Durand, Giorgio G. Galli, Guglielmo Roma, Antoine de Weck (2022),
-    *Probabilistic machine learning ensures accurate ambient denoising in droplet-based single-cell omics*,
+[^ref1]:
+    Caibin Sheng, Rui Lopes, Gang Li, Sven Schuierer, Annick Waldt, Rachel Cuttat, Slavica Dimitrieva, Audrey Kauffmann, Eric Durand, Giorgio G. Galli, Guglielmo Roma, Antoine de Weck (2022),
+    _Probabilistic machine learning ensures accurate ambient denoising in droplet-based single-cell omics_,
     [bioRxiv](https://www.biorxiv.org/content/10.1101/2022.01.14.476312v4).
 
-[^ref2]: Aaron T. L. Lun, Samantha Riesenfeld, Tallulah Andrews, The Phuong Dao, Tomas Gomes, participants in the 1st Human Cell Atlas Jamboree & John C. Marioni (2019),
-    *EmptyDrops: distinguishing cells from empty droplets in droplet-based single-cell RNA sequencing data*,
+[^ref2]:
+    Aaron T. L. Lun, Samantha Riesenfeld, Tallulah Andrews, The Phuong Dao, Tomas Gomes, participants in the 1st Human Cell Atlas Jamboree & John C. Marioni (2019),
+    _EmptyDrops: distinguishing cells from empty droplets in droplet-based single-cell RNA sequencing data_,
     [biomedcentral](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1662-y)

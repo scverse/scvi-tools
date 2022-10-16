@@ -1,4 +1,4 @@
-from torch import nn as nn
+from torch import nn
 
 from scvi.nn import FCLayers
 
@@ -62,4 +62,5 @@ class Classifier(nn.Module):
         self.classifier = nn.Sequential(*layers)
 
     def forward(self, x):
+        """Forward computation."""
         return self.classifier(x)
