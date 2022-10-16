@@ -38,6 +38,10 @@ def _unnormalized_cosine_similarity(
     return numerator
 
 
+def _cosine_similarity_vectors(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
+    return jnp.dot(x, y) / (jnp.maximum(jnp.linalg.norm(x) * jnp.linalg.norm(y), EPS))
+
+
 def _density_criterion(log_y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
     # Kl divergence between the predicted and true distributions
     log_y_true = jnp.log(y_true)
@@ -49,6 +53,7 @@ class TangramMapper(JaxBaseModuleClass):
 
     n_obs_sc: int
     n_obs_sp: int
+    retain_sparsity: bool
     lambda_g1: float = 1.0
     lambda_d: float = 0
     lambda_g2: float = 0
@@ -106,30 +111,35 @@ class TangramMapper(JaxBaseModuleClass):
         g_pred = mapper.transpose() @ sc
         chex.assert_equal_shape([sp, g_pred])
 
-        # TODO(adamgayoso): Use these similarities for dense inputs
-        # cosine_similarity_0 = jax.vmap(_cosine_similarity_vectors, in_axes=1)
-        # cosine_similarity_1 = jax.vmap(_cosine_similarity_vectors, in_axes=0)
-
         if self.lambda_g1 > 0:
-            gv_term = _unnormalized_cosine_similarity(g_pred, sp, axis=0)
-            denom = jnp.maximum(
-                jnp.linalg.norm(g_pred, axis=0)
-                * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SP_0_KEY],
-                EPS,
-            )
-            gv_term /= denom
-            gv_term = self.lambda_g1 * gv_term.mean()
+            if not self.retain_sparsity:
+                cosine_similarity_0 = jax.vmap(_cosine_similarity_vectors, in_axes=1)
+                gv_term = self.lambda_g1 * cosine_similarity_0(sp, g_pred).mean()
+            else:
+                gv_term = _unnormalized_cosine_similarity(sp, g_pred, axis=0)
+                denom = jnp.maximum(
+                    jnp.linalg.norm(g_pred, axis=0)
+                    * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SP_0_KEY],
+                    EPS,
+                )
+                gv_term /= denom
+                gv_term = self.lambda_g1 * gv_term.mean()
         else:
             gv_term = 0
         if self.lambda_g2 > 0:
-            vg_term = _unnormalized_cosine_similarity(g_pred, sp, axis=1)
-            denom = (
-                jnp.linalg.norm(g_pred, axis=1)
-                * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SP_1_KEY]
-                + EPS
-            )
-            vg_term /= denom
-            vg_term = self.lambda_g2 * vg_term.mean()
+            if not self.retain_sparsity:
+                cosine_similarity_1 = jax.vmap(_cosine_similarity_vectors, in_axes=0)
+                vg_term = self.lambda_g1 * cosine_similarity_1(sp, g_pred).mean()
+                vg_term = self.lambda_g2 * vg_term
+            else:
+                vg_term = _unnormalized_cosine_similarity(sp, g_pred, axis=1)
+                denom = (
+                    jnp.linalg.norm(g_pred, axis=1)
+                    * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SP_1_KEY]
+                    + EPS
+                )
+                vg_term /= denom
+                vg_term = self.lambda_g2 * vg_term.mean()
         else:
             vg_term = 0
 

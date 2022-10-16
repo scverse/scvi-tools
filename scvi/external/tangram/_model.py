@@ -40,6 +40,8 @@ class Tangram(BaseModelClass):
     ----------
     adata
         single-cell AnnData object that has been registered via :meth:`~scvi.external.RNAStereoscope.setup_anndata`.
+    retain_sparsity
+        Whether to retain sparsity in the data. If False, the data will be converted to dense arrays.
     **model_kwargs
         Keyword args for :class:`~scvi.external.stereoscope.RNADeconv`
 
@@ -54,6 +56,7 @@ class Tangram(BaseModelClass):
     def __init__(
         self,
         sc_adata: AnnData,
+        retain_sparsity: bool = False,
         **model_kwargs,
     ):
         super().__init__(sc_adata)
@@ -63,10 +66,12 @@ class Tangram(BaseModelClass):
         self.n_obs_sp = self.adata_manager.get_from_registry(
             TANGRAM_REGISTRY_KEYS.SP_KEY
         ).shape[0]
+        self.retain_sparsity_ = retain_sparsity
         self.module = JaxModuleWrapper(
             TangramMapper,
             n_obs_sc=self.n_obs_sc,
             n_obs_sp=self.n_obs_sp,
+            retain_sparsity=retain_sparsity,
             lambda_d=1.0 if not self.adata_manager.fields[-1].is_empty else 0.0,
             **model_kwargs,
         )
@@ -96,7 +101,6 @@ class Tangram(BaseModelClass):
         use_gpu: Optional[Union[str, int, bool]] = None,
         lr: float = 0.1,
         plan_kwargs: Optional[dict] = None,
-        retain_sparsity: bool = True,
     ):
         """
         Train the model.
@@ -143,23 +147,25 @@ class Tangram(BaseModelClass):
             self.module.to(device)
             logger.info("Jax module moved to CPU.")
         tensor_dict = self._get_tensor_dict(
-            device=device, retain_sparsity=retain_sparsity
+            device=device, retain_sparsity=self.retain_sparsity_
         )
         training_plan = JaxTrainingPlan(self.module, **plan_kwargs)
         module_init = self.module.init(self.module.rngs, tensor_dict)
         state, params = module_init.pop("params")
         training_plan.set_train_state(params, state)
         train_step_fn = JaxTrainingPlan.jit_training_step
-        if retain_sparsity:
+        if self.retain_sparsity_:
             train_step_fn = jax.experimental.sparse.sparsify(train_step_fn)
-        state = self.module.train_state
         pbar = track(range(max_epochs), style="tqdm", description="Training")
         history = []
         for _ in pbar:
-            state, loss, _ = train_step_fn(state, tensor_dict, self.module.rngs)
+            self.module.train_state, loss, _ = train_step_fn(
+                self.module.train_state, tensor_dict, self.module.rngs
+            )
             loss = jax.device_get(loss)
             history.append(loss)
             pbar.set_description(f"Training... Loss: {loss}")
+        self.module.eval()
 
     @classmethod
     @setup_anndata_dsp.dedent
