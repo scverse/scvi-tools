@@ -49,7 +49,7 @@ def _cosine_similarity(
     else:
         raise ValueError("axis must be 0 or 1")
     denom = jnp.sqrt(x_norm * y_norm)
-    return numerator * denom / (denom + EPS)
+    return numerator / (denom + EPS)
 
 
 def _density_criterion(log_y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
