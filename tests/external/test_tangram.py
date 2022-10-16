@@ -19,30 +19,34 @@ def _get_mdata(sparse=False):
     return mdata
 
 
-@pytest.mark.parametrize("density_prior_key", [None, "rna_count_based_density"])
-def test_tangram(density_prior_key):
+@pytest.mark.parametrize(
+    "density_prior_key,constrained",
+    [
+        (None, False),
+        ("rna_count_based_density", False),
+        ("rna_count_based_density", True),
+    ],
+)
+def test_tangram(density_prior_key, constrained):
     mdata = _get_mdata()
     Tangram.setup_mudata(
         mdata,
         density_prior_key=density_prior_key,
         modalities={"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"},
     )
-    model = Tangram(mdata)
+    if constrained:
+        target_count = 2
+    else:
+        target_count = None
+    model = Tangram(mdata, constrained=constrained, target_count=target_count)
     model.train(max_epochs=1)
-    model.get_mapper_matrix()
-
-
-def test_tangram_constrained():
-    mdata = _get_mdata()
-    Tangram.setup_mudata(
-        mdata,
-        density_prior_key="rna_count_based_density",
-        modalities={"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"},
+    mdata.mod["sc"].obsm["mapper"] = model.get_mapper_matrix()
+    model.project_cell_annotations(
+        mdata.mod["sc"],
+        mdata.mod["sp"],
+        mdata.mod["sc"].obsm["mapper"],
+        mdata.mod["sc"].obs.labels,
     )
-    model = Tangram(
-        mdata,
-        constrained=True,
-        target_count=2,
+    model.project_genes(
+        mdata.mod["sc"], mdata.mod["sp"], mdata.mod["sc"].obsm["mapper"]
     )
-    model.train(max_epochs=1)
-    model.get_mapper_matrix()

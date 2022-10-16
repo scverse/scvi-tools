@@ -47,12 +47,14 @@ class Tangram(BaseModelClass):
 
     Examples
     --------
+    >>> from scvi.external import Tangram
     >>> ad_sc = anndata.read_h5ad(path_to_sc_anndata)
     >>> ad_sp = anndata.read_h5ad(path_to_sp_anndata)
     >>> markers = pd.read_csv(path_to_markers, index_col=0) # genes to use for mapping
     >>> mdata = mudata.MuData({"sp_full": ad_sp, "sc_full": ad_sc, "sp": ad_sp[:, markers].copy(), "sc": ad_sc[:, markers].copy()})
-    >>> scvi.external.Tangram.setup_mudata(mdata, density_prior_key="rna_count_based_density", modalities={"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"})
-    >>> tangram = scvi.external.Tangram(sc_adata)
+    >>> modalities = {"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"}
+    >>> Tangram.setup_mudata(mdata, density_prior_key="rna_count_based_density", modalities=modalities)
+    >>> tangram = Tangram(sc_adata)
     >>> tangram.train()
     >>> ad_sc.obsm["tangram_mapper"] = tangram.get_mapper_matrix()
     >>> ad_sp.obsm["tangram_cts"] = tangram.project_cell_annotations(ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"], ad_sc.obs["labels"])
@@ -172,6 +174,7 @@ class Tangram(BaseModelClass):
             loss = jax.device_get(loss)
             history.iloc[i] = loss
             pbar.set_description(f"Training... Loss: {loss}")
+        self.history_ = {}
         self.history_["loss"] = history
         self.module.eval()
 
