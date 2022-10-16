@@ -27,7 +27,7 @@ from .fields import AnnDataField
 
 
 @dataclass
-class ManagerInitValidationCheck:
+class AnnDataManagerValidationCheck:
     """Validation checks for AnnorMudata scvi-tools compat.
 
     Parameters
@@ -77,12 +77,12 @@ class AnnDataManager:
         self,
         fields: Optional[List[AnnDataField]] = None,
         setup_method_args: Optional[dict] = None,
-        validation_checks: Optional[ManagerInitValidationCheck] = None,
+        validation_checks: Optional[AnnDataManagerValidationCheck] = None,
     ) -> None:
         self.id = str(uuid4())
         self.adata = None
         self.fields = fields or []
-        self.validation_checks = validation_checks or ManagerInitValidationCheck()
+        self.validation_checks = validation_checks or AnnDataManagerValidationCheck()
         self._registry = {
             _constants._SCVI_VERSION_KEY: scvi.__version__,
             _constants._MODEL_NAME_KEY: None,

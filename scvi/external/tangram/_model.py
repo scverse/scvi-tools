@@ -11,7 +11,7 @@ from jaxlib.xla_extension import Device
 from mudata import MuData
 
 from scvi._compat import Literal
-from scvi.data import AnnDataManager, ManagerInitValidationCheck, fields
+from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
 from scvi.model.base import BaseModelClass
 from scvi.module.base import JaxModuleWrapper
@@ -248,7 +248,7 @@ class Tangram(BaseModelClass):
         adata_manager = AnnDataManager(
             fields=mudata_fields,
             setup_method_args=setup_method_args,
-            validation_checks=ManagerInitValidationCheck(
+            validation_checks=AnnDataManagerValidationCheck(
                 check_fully_paired_mudata=False
             ),
         )
