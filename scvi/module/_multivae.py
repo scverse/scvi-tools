@@ -61,7 +61,7 @@ class DecoderATACVI(nn.Module):
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
-        peak_likelihood: Literal["bernoulli", "poisson"] = "bernoulli",
+        peak_likelihood: Literal["bernoulli", "poisson"] = "poisson",
     ):
         super().__init__()
         self.y_decoder = FCLayers(
@@ -972,7 +972,7 @@ class MULTIVAE(BaseModuleClass):
         libsize_acc = inference_outputs["libsize_acc"]
         region_factor = generative_outputs["region_factor"]
         rl_accessibility = self.get_reconstruction_loss_accessibility(
-            x,
+            x_chr,
             region_factor,
             p,
             libsize_acc,
@@ -982,9 +982,8 @@ class MULTIVAE(BaseModuleClass):
         px_rate = generative_outputs["px_rate"]
         px_r = generative_outputs["px_r"]
         px_dropout = generative_outputs["px_dropout"]
-        x_expression = x[:, : self.n_input_genes]
         rl_expression = self.get_reconstruction_loss_expression(
-            x_expression, px_rate, px_r, px_dropout
+            x_rna, px_rate, px_r, px_dropout
         )
 
         # Compute Protein loss - No ability to mask minibatch (Param:None)
