@@ -85,7 +85,6 @@ class Tangram(BaseModelClass):
         lr: float = 0.1,
         plan_kwargs: Optional[dict] = None,
         retain_sparsity: bool = True,
-        **trainer_kwargs,
     ):
         """
         Train the model.
@@ -105,8 +104,6 @@ class Tangram(BaseModelClass):
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         retain_sparsity
             Whether to keep the data in a sparse format.
-        **trainer_kwargs
-            Other keyword args for :class:`~scvi.train.Trainer`.
         """
         update_dict = {
             "lr": lr,
