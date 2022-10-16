@@ -20,17 +20,5 @@ def test_tangram():
         modalities={"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"},
     )
     model = Tangram(mdata)
-    model.train(max_epochs=1, retain_sparsity=False)
-    model.get_mapper_matrix()
-
-
-def test_tangram_sparse_input():
-    mdata = _get_mdata(sparse=True)
-    Tangram.setup_mudata(
-        mdata,
-        density_prior_key=None,
-        modalities={"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"},
-    )
-    model = Tangram(mdata)
     model.train(max_epochs=1)
     model.get_mapper_matrix()

@@ -21,9 +21,7 @@ from scvi.utils import setup_anndata_dsp, track
 logger = logging.getLogger(__name__)
 
 
-def _asarray(x: np.ndarray, device: Device, sparse: bool = False) -> jnp.ndarray:
-    if sparse:
-        x = jax.experimental.sparse.BCOO.from_scipy_sparse(x).sort_indices()
+def _asarray(x: np.ndarray, device: Device) -> jnp.ndarray:
     return jax.device_put(x, device=device)
 
 
@@ -40,8 +38,6 @@ class Tangram(BaseModelClass):
     ----------
     adata
         single-cell AnnData object that has been registered via :meth:`~scvi.external.RNAStereoscope.setup_anndata`.
-    retain_sparsity
-        Whether to retain sparsity in the data. If False, the data will be converted to dense arrays.
     **model_kwargs
         Keyword args for :class:`~scvi.external.stereoscope.RNADeconv`
 
@@ -56,7 +52,6 @@ class Tangram(BaseModelClass):
     def __init__(
         self,
         sc_adata: AnnData,
-        retain_sparsity: bool = False,
         **model_kwargs,
     ):
         super().__init__(sc_adata)
@@ -66,12 +61,10 @@ class Tangram(BaseModelClass):
         self.n_obs_sp = self.adata_manager.get_from_registry(
             TANGRAM_REGISTRY_KEYS.SP_KEY
         ).shape[0]
-        self.retain_sparsity_ = retain_sparsity
         self.module = JaxModuleWrapper(
             TangramMapper,
             n_obs_sc=self.n_obs_sc,
             n_obs_sp=self.n_obs_sp,
-            retain_sparsity=retain_sparsity,
             lambda_d=1.0 if not self.adata_manager.fields[-1].is_empty else 0.0,
             **model_kwargs,
         )
@@ -118,8 +111,6 @@ class Tangram(BaseModelClass):
         plan_kwargs
             Keyword args for :class:`~scvi.train.JaxTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        retain_sparsity
-            Whether to keep the data in a sparse format.
         """
         update_dict = {
             "optim_kwargs": {
@@ -146,16 +137,12 @@ class Tangram(BaseModelClass):
         else:
             self.module.to(device)
             logger.info("Jax module moved to CPU.")
-        tensor_dict = self._get_tensor_dict(
-            device=device, retain_sparsity=self.retain_sparsity_
-        )
+        tensor_dict = self._get_tensor_dict(device=device)
         training_plan = JaxTrainingPlan(self.module, **plan_kwargs)
         module_init = self.module.init(self.module.rngs, tensor_dict)
         state, params = module_init.pop("params")
         training_plan.set_train_state(params, state)
         train_step_fn = JaxTrainingPlan.jit_training_step
-        if self.retain_sparsity_:
-            train_step_fn = jax.experimental.sparse.sparsify(train_step_fn)
         pbar = track(range(max_epochs), style="tqdm", description="Training")
         history = []
         for _ in pbar:
@@ -252,7 +239,8 @@ class Tangram(BaseModelClass):
         )
 
     def _get_tensor_dict(
-        self, device: Device, retain_sparsity: bool
+        self,
+        device: Device,
     ) -> Dict[str, jnp.ndarray]:
         tensor_dict = {}
         for key in TANGRAM_REGISTRY_KEYS:
@@ -261,33 +249,12 @@ class Tangram(BaseModelClass):
             # When density is missing
             except KeyError:
                 continue
-            # Cache the norms
-            if key == TANGRAM_REGISTRY_KEYS.SP_KEY:
-                norm = (
-                    scipy.sparse.linalg.norm
-                    if scipy.sparse.issparse(tensor_dict[key])
-                    else np.linalg.norm
-                )
-                tensor_dict[TANGRAM_REGISTRY_KEYS.L2_NORM_SP_0_KEY] = _asarray(
-                    norm(tensor_dict[TANGRAM_REGISTRY_KEYS.SP_KEY], axis=0),
-                    device=device,
-                )
-                tensor_dict[TANGRAM_REGISTRY_KEYS.L2_NORM_SP_1_KEY] = _asarray(
-                    norm(tensor_dict[TANGRAM_REGISTRY_KEYS.SP_KEY], axis=1),
-                    device=device,
-                )
-            sparse = False
             if scipy.sparse.issparse(tensor_dict[key]):
-                tensor_dict[key] = tensor_dict[key]
-                if not retain_sparsity:
-                    tensor_dict[key] = tensor_dict[key].toarray()
-                sparse = True
+                tensor_dict[key] = tensor_dict[key].toarray()
             elif isinstance(tensor_dict[key], pd.DataFrame):
                 tensor_dict[key] = tensor_dict[key].values
             else:
                 tensor_dict[key] = tensor_dict[key]
-            tensor_dict[key] = _asarray(
-                tensor_dict[key], device=device, sparse=sparse and retain_sparsity
-            )
+            tensor_dict[key] = _asarray(tensor_dict[key], device=device)
 
         return tensor_dict
