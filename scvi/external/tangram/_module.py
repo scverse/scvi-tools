@@ -1,4 +1,4 @@
-from typing import Dict, NamedTuple
+from typing import Dict, NamedTuple, Optional
 
 import chex
 import jax
@@ -34,9 +34,13 @@ class TangramMapper(JaxBaseModuleClass):
     n_obs_sc: int
     n_obs_sp: int
     lambda_g1: float = 1.0
-    lambda_d: float = 0
-    lambda_g2: float = 0
-    lambda_r: float = 0
+    lambda_d: float = 0.0
+    lambda_g2: float = 0.0
+    lambda_r: float = 0.0
+    lambda_count: float = 1.0
+    lambda_f_reg: float = 1.0
+    constrained: bool = False
+    target_count: Optional[int] = None
 
     def setup(self):
         """Setup model."""
@@ -45,6 +49,13 @@ class TangramMapper(JaxBaseModuleClass):
             lambda rng, shape: jax.random.normal(rng, shape),
             (self.n_obs_sc, self.n_obs_sp),
         )
+
+        if self.constrained:
+            self.filter_unconstrained = self.param(
+                "filter_unconstrained",
+                lambda rng, shape: jax.random.normal(rng, shape),
+                (self.n_obs_sc,),
+            )
 
     @property
     def required_rngs(self):  # noqa: D102
@@ -80,16 +91,27 @@ class TangramMapper(JaxBaseModuleClass):
         sc = tensors[TANGRAM_REGISTRY_KEYS.SC_KEY]
         mapper = jax.nn.softmax(self.mapper_unconstrained, axis=1)
 
+        if self.constrained:
+            filter = jax.nn.sigmoid(self.filter_unconstrained)
+            mapper_filtered = mapper * filter.reshape(-1, 1)
+
         if self.lambda_d > 0:
             density = tensors[TANGRAM_REGISTRY_KEYS.DENSITY_KEY].ravel()
-            d_pred = jnp.log(mapper.sum(axis=0) / mapper.shape[0])
+            if self.constrained:
+                d_pred = jnp.log(mapper_filtered.sum(axis=0) / (filter.sum()))
+            else:
+                d_pred = jnp.log(mapper.sum(axis=0) / mapper.shape[0])
             density_term = self.lambda_d * _density_criterion(d_pred, density)
         else:
             density_term = 0
 
+        if self.constrained:
+            sc = sc * filter.reshape(-1, 1)
+
         g_pred = mapper.transpose() @ sc
         chex.assert_equal_shape([sp, g_pred])
 
+        # Expression term
         if self.lambda_g1 > 0:
             cosine_similarity_0 = jax.vmap(_cosine_similarity_vectors, in_axes=1)
             gv_term = self.lambda_g1 * cosine_similarity_0(sp, g_pred).mean()
@@ -104,12 +126,27 @@ class TangramMapper(JaxBaseModuleClass):
 
         expression_term = gv_term + vg_term
 
+        # Regularization terms
         if self.lambda_r > 0:
             regularizer_term = self.lambda_r * (jnp.log(mapper) * mapper).sum()
         else:
             regularizer_term = 0
 
-        total_loss = -expression_term - regularizer_term
+        if self.lambda_count > 0 and self.constrained:
+            if self.target_count is None:
+                raise ValueError("target_count must be set if in constrained mode.")
+            count_term = self.lambda_count * jnp.abs(filter.sum() - self.target_count)
+        else:
+            count_term = 0
+
+        if self.lambda_f_reg > 0 and self.constrained:
+            f_reg_t = filter - filter * filter
+            f_reg = self.lambda_f_reg * f_reg_t.sum()
+        else:
+            f_reg = 0
+
+        # Total loss
+        total_loss = -expression_term - regularizer_term + count_term + f_reg
         total_loss = total_loss + density_term
 
         return LossRecorder(total_loss, expression_term, regularizer_term)

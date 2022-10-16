@@ -29,7 +29,7 @@ class Tangram(BaseModelClass):
     """
     Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell transcriptomics to spatial data.
 
-    So far only the "cells" mode is implemented.
+    So far only the "cells" and "constrained" modes are implemented.
 
     Original code:
     https://github.com/broadinstitute/Tangram.
@@ -38,8 +38,12 @@ class Tangram(BaseModelClass):
     ----------
     adata
         single-cell AnnData object that has been registered via :meth:`~scvi.external.RNAStereoscope.setup_anndata`.
+    constrained
+        Whether to use the constrained version of Tangram instead of cells mode.
+    target_count
+        The number of cells to be filtered. Necessary when `constrained` is True.
     **model_kwargs
-        Keyword args for :class:`~scvi.external.stereoscope.RNADeconv`
+        Keyword args for :class:`~scvi.external.tangram.TangramMapper`
 
     Examples
     --------
@@ -52,6 +56,8 @@ class Tangram(BaseModelClass):
     def __init__(
         self,
         sc_adata: AnnData,
+        constrained: bool = False,
+        target_count: Optional[int] = None,
         **model_kwargs,
     ):
         super().__init__(sc_adata)
@@ -61,11 +67,19 @@ class Tangram(BaseModelClass):
         self.n_obs_sp = self.adata_manager.get_from_registry(
             TANGRAM_REGISTRY_KEYS.SP_KEY
         ).shape[0]
+
+        if constrained and target_count is None:
+            raise ValueError(
+                "Please specify `target_count` when using constrained Tangram."
+            )
+
         self.module = JaxModuleWrapper(
             TangramMapper,
             n_obs_sc=self.n_obs_sc,
             n_obs_sp=self.n_obs_sp,
             lambda_d=1.0 if not self.adata_manager.fields[-1].is_empty else 0.0,
+            constrained=constrained,
+            target_count=target_count,
             **model_kwargs,
         )
         self._model_summary_string = (
