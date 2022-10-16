@@ -97,7 +97,7 @@ class TangramMapper(JaxBaseModuleClass):
         mapper = jax.nn.softmax(self.mapper_unconstrained, axis=1)
 
         if self.lambda_d > 0:
-            density = tensors[TANGRAM_REGISTRY_KEYS.DENSITY_KEY]
+            density = tensors[TANGRAM_REGISTRY_KEYS.DENSITY_KEY].ravel()
             d_pred = jnp.log(mapper.sum(axis=0) / mapper.shape[0])
             density_term = self.lambda_d * _density_criterion(d_pred, density)
         else:
