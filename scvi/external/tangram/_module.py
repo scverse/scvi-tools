@@ -24,7 +24,7 @@ def _cosine_similarity_vectors(x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
 
 def _density_criterion(log_y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
     # Kl divergence between the predicted and true distributions
-    log_y_true = jnp.log(y_true)
+    log_y_true = jnp.log(y_true + EPS)
     return (y_true * (log_y_true - log_y_pred)).sum()
 
 
@@ -54,7 +54,7 @@ class TangramMapper(JaxBaseModuleClass):
             self.filter_unconstrained = self.param(
                 "filter_unconstrained",
                 lambda rng, shape: jax.random.normal(rng, shape),
-                (self.n_obs_sc,),
+                (self.n_obs_sc, 1),
             )
 
     @property
@@ -93,7 +93,7 @@ class TangramMapper(JaxBaseModuleClass):
 
         if self.constrained:
             filter = jax.nn.sigmoid(self.filter_unconstrained)
-            mapper_filtered = mapper * filter.reshape(-1, 1)
+            mapper_filtered = mapper * filter
 
         if self.lambda_d > 0:
             density = tensors[TANGRAM_REGISTRY_KEYS.DENSITY_KEY].ravel()
@@ -106,7 +106,7 @@ class TangramMapper(JaxBaseModuleClass):
             density_term = 0
 
         if self.constrained:
-            sc = sc * filter.reshape(-1, 1)
+            sc = sc * filter
 
         g_pred = mapper.transpose() @ sc
         chex.assert_equal_shape([sp, g_pred])
@@ -140,7 +140,7 @@ class TangramMapper(JaxBaseModuleClass):
             count_term = 0
 
         if self.lambda_f_reg > 0 and self.constrained:
-            f_reg_t = filter - filter * filter
+            f_reg_t = filter - jnp.square(filter)
             f_reg = self.lambda_f_reg * f_reg_t.sum()
         else:
             f_reg = 0
