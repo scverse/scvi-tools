@@ -160,6 +160,7 @@ Module classes in the external API with respective generative and inference proc
    external.cellassign.CellAssignModule
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
+   external.tangram.TangramMapper
 
 ```
 
