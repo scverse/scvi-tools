@@ -115,6 +115,7 @@ class Tangram(BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
+        device = jax.devices("cpu")[0]
         if use_gpu is None or use_gpu is True:
             try:
                 device = jax.devices("gpu")[0]
@@ -126,7 +127,6 @@ class Tangram(BaseModelClass):
             except RuntimeError:
                 logger.debug("No GPU available to Jax.")
         else:
-            device = jax.devices("cpu")[0]
             self.module.to(device)
             logger.info("Jax module moved to CPU.")
         tensor_dict = self._get_tensor_dict(
