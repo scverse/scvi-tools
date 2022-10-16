@@ -108,9 +108,9 @@ class DecoderATACVI(nn.Module):
             parameters for the ZINB distribution of expression
         """
         y = self.y_decoder(z, *cat_list)
-        y_scale = self.y_scale_decoder(y)
+        p = self.y_scale_decoder(y)
 
-        return y_scale
+        return p
 
 
 class LibrarySizeEncoder(torch.nn.Module):
@@ -899,9 +899,7 @@ class MULTIVAE(BaseModuleClass):
             region_factor = self.region_factors
 
         # Accessibility Decoder
-        y_scale = self.z_decoder_accessibility(
-            decoder_input, batch_index, *categorical_input
-        )
+        p = self.z_decoder_accessibility(decoder_input, batch_index, *categorical_input)
 
         # Expression Decoder
         if not self.use_size_factor_key:
@@ -941,7 +939,7 @@ class MULTIVAE(BaseModuleClass):
         py_["r"] = py_r
 
         return dict(
-            y_scale=y_scale,
+            p=p,
             region_factor=region_factor,
             px_scale=px_scale,
             px_r=px_r,
@@ -970,13 +968,13 @@ class MULTIVAE(BaseModuleClass):
         mask_pro = y.sum(dim=1) > 0
 
         # Compute Accessibility loss
-        y_scale = generative_outputs["y_scale"]
+        p = generative_outputs["p"]
         libsize_acc = inference_outputs["libsize_acc"]
         region_factor = generative_outputs["region_factor"]
         rl_accessibility = self.get_reconstruction_loss_accessibility(
             x,
             region_factor,
-            y_scale,
+            p,
             libsize_acc,
         )
 
@@ -1058,6 +1056,7 @@ class MULTIVAE(BaseModuleClass):
             rl = -Poisson(p).log_prob(x).sum(dim=-1)
         return rl
 
+    @auto_move_data
     def _compute_mod_penalty(
         self, mod_params1, mod_params2, mod_params3, mask1, mask2, mask3
     ):
