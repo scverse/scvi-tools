@@ -256,7 +256,7 @@ class Tangram(BaseModelClass):
             except KeyError:
                 continue
             # Cache the norms
-            if key == TANGRAM_REGISTRY_KEYS.SC_KEY:
+            if key == TANGRAM_REGISTRY_KEYS.SP_KEY:
                 norm = (
                     scipy.sparse.linalg.norm
                     if scipy.sparse.issparse(tensor_dict[key])
