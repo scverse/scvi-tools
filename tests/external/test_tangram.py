@@ -21,6 +21,7 @@ def test_tangram():
     )
     model = Tangram(mdata)
     model.train(max_epochs=1, retain_sparsity=False)
+    model.get_mapper_matrix()
 
 
 def test_tangram_sparse_input():
@@ -32,3 +33,4 @@ def test_tangram_sparse_input():
     )
     model = Tangram(mdata)
     model.train(max_epochs=1)
+    model.get_mapper_matrix()

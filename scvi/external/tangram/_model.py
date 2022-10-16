@@ -78,6 +78,18 @@ class Tangram(BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
+    def get_mapper_matrix(self) -> np.ndarray:
+        """
+        Return the mapping matrix.
+
+        Returns
+        -------
+        Mapping matrix of shape (n_obs_sp, n_obs_sc)
+        """
+        return jax.device_get(
+            jax.nn.softmax(self.module.params["mapper_unconstrained"], axis=1)
+        )
+
     def train(
         self,
         max_epochs: int = 1000,
