@@ -12,8 +12,8 @@ class _TANGRAM_REGISTRY_KEYS_NT(NamedTuple):
     SC_KEY: str = "X"
     SP_KEY: str = "Y"
     DENSITY_KEY: str = "DENSITY"
-    L2_NORM_SC_0_KEY: str = "L2_NORM_SC_0"
-    L2_NORM_SC_1_KEY: str = "L2_NORM_SP_1"
+    L2_NORM_SP_0_KEY: str = "L2_NORM_SC_0"
+    L2_NORM_SP_1_KEY: str = "L2_NORM_SP_1"
 
 
 TANGRAM_REGISTRY_KEYS = _TANGRAM_REGISTRY_KEYS_NT()
