@@ -11,7 +11,7 @@ from jaxlib.xla_extension import Device
 from mudata import MuData
 
 from scvi._compat import Literal
-from scvi.data import AnnDataManager, fields
+from scvi.data import AnnDataManager, ManagerInitValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
 from scvi.model.base import BaseModelClass
 from scvi.module.base import JaxModuleWrapper
@@ -85,7 +85,7 @@ class Tangram(BaseModelClass):
             prior = self.adata_manager.get_from_registry(
                 TANGRAM_REGISTRY_KEYS.DENSITY_KEY
             )
-            if prior.sum() != 1:
+            if np.abs(prior.ravel().sum() - 1) > 1e-3:
                 raise ValueError(
                     "Density prior must sum to 1. Please normalize the prior."
                 )
@@ -248,7 +248,9 @@ class Tangram(BaseModelClass):
         adata_manager = AnnDataManager(
             fields=mudata_fields,
             setup_method_args=setup_method_args,
-            mudata_fully_paired=False,
+            validation_checks=ManagerInitValidationCheck(
+                check_fully_paired_mudata=False
+            ),
         )
         adata_manager.register_fields(mdata, **kwargs)
         sc_state = adata_manager.get_state_registry(TANGRAM_REGISTRY_KEYS.SC_KEY)

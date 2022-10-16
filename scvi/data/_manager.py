@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from collections import defaultdict
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import List, Optional, Union
 from uuid import uuid4
 
@@ -23,6 +24,22 @@ from ._utils import (
     get_anndata_attribute,
 )
 from .fields import AnnDataField
+
+
+@dataclass
+class ManagerInitValidationCheck:
+    """Validation checks for AnnorMudata scvi-tools compat.
+
+    Parameters
+    ----------
+    check_if_view
+        If True, checks if AnnData is a view.
+    check_fully_paired_mudata
+        If True, checks if MuData is fully paired across mods.
+    """
+
+    check_if_view: bool = True
+    check_fully_paired_mudata: bool = True
 
 
 class AnnDataManager:
@@ -60,18 +77,18 @@ class AnnDataManager:
         self,
         fields: Optional[List[AnnDataField]] = None,
         setup_method_args: Optional[dict] = None,
-        mudata_fully_paired: bool = True,
+        validation_checks: Optional[ManagerInitValidationCheck] = None,
     ) -> None:
         self.id = str(uuid4())
         self.adata = None
         self.fields = fields or []
+        self.validation_checks = validation_checks or ManagerInitValidationCheck()
         self._registry = {
             _constants._SCVI_VERSION_KEY: scvi.__version__,
             _constants._MODEL_NAME_KEY: None,
             _constants._SETUP_ARGS_KEY: None,
             _constants._FIELD_REGISTRIES_KEY: defaultdict(dict),
         }
-        self._mudata_fully_paired = mudata_fully_paired
         if setup_method_args is not None:
             self._registry.update(setup_method_args)
 
@@ -84,9 +101,13 @@ class AnnDataManager:
 
     def _validate_anndata_object(self, adata: AnnOrMuData):
         """For a given AnnData object, runs general scvi-tools compatibility checks."""
-        _check_if_view(adata, copy_if_view=False)
+        if self.validation_checks.check_if_view:
+            _check_if_view(adata, copy_if_view=False)
 
-        if isinstance(adata, MuData) and self._mudata_fully_paired:
+        if (
+            isinstance(adata, MuData)
+            and self.validation_checks.check_fully_paired_mudata
+        ):
             _check_mudata_fully_paired(adata)
 
     def _get_setup_method_args(self) -> dict:
@@ -253,7 +274,9 @@ class AnnDataManager:
 
         fields = self.fields
         new_adata_manager = self.__class__(
-            fields=fields, setup_method_args=self._get_setup_method_args()
+            fields=fields,
+            setup_method_args=self._get_setup_method_args(),
+            validation_checks=self.validation_checks,
         )
         new_adata_manager.register_fields(adata_target, self._registry, **kwargs)
         return new_adata_manager

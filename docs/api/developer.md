@@ -25,6 +25,7 @@ for operating over a collection of AnnDataFields and an AnnData object.
    :nosignatures:
 
    data.AnnDataManager
+   data.ManagerInitValidationCheck
    data.fields.BaseAnnDataField
    data.fields.LayerField
    data.fields.CategoricalObsField
