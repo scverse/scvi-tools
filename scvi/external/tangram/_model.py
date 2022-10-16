@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def _asarray(x: np.ndarray, device: Device, sparse: bool = False) -> jnp.ndarray:
     if sparse:
-        x = jax.experimental.sparse.BCOO.from_scipy_sparse(x)
+        x = jax.experimental.sparse.BCOO.from_scipy_sparse(x).sort_indices()
     return jax.device_put(x, device=device)
 
 
