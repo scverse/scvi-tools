@@ -54,8 +54,9 @@ class Tangram(BaseModelClass):
     >>> scvi.external.Tangram.setup_mudata(mdata, density_prior_key="rna_count_based_density", modalities={"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"})
     >>> tangram = scvi.external.Tangram(sc_adata)
     >>> tangram.train()
-    >>> mdata.mod["sc_full"].obsm["tangram_mapper"] = tangram.get_mapper_matrix()
-    >>> mdata.mod["sp_full"].obsm["tangram_cts"] = tangram.project_cell_annotations(mdata.mod["sc_full"], mdata.mod["sp_full"], mdata.mod["sc_full"].obsm["tangram_mapper"], mdata.mod["sp_full"].obs["labels"])
+    >>> ad_sc.obsm["tangram_mapper"] = tangram.get_mapper_matrix()
+    >>> ad_sp.obsm["tangram_cts"] = tangram.project_cell_annotations(ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"], ad_sc.obs["labels"])
+    >>> projected_ad_sp = tangram.project_genes(ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"])
     """
 
     def __init__(
