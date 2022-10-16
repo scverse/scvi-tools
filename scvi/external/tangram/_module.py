@@ -52,9 +52,7 @@ def _cosine_similarity(
     return numerator * denom / (denom + EPS)
 
 
-def _density_criterion(
-    self, log_y_pred: jnp.ndarray, y_true: jnp.ndarray
-) -> jnp.ndarray:
+def _density_criterion(log_y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
     # Kl divergence between the predicted and true distributions
     log_y_true = jnp.log(y_true + EPS)
     return (y_true * (log_y_true - log_y_pred)).sum()
