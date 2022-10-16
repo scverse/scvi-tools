@@ -80,12 +80,21 @@ class Tangram(BaseModelClass):
             raise ValueError(
                 "Please specify `target_count` when using constrained Tangram."
             )
+        has_density_prior = not self.adata_manager.fields[-1].is_empty
+        if has_density_prior:
+            prior = self.adata_manager.get_from_registry(
+                TANGRAM_REGISTRY_KEYS.DENSITY_KEY
+            )
+            if prior.sum() != 1:
+                raise ValueError(
+                    "Density prior must sum to 1. Please normalize the prior."
+                )
 
         self.module = JaxModuleWrapper(
             TangramMapper,
             n_obs_sc=self.n_obs_sc,
             n_obs_sp=self.n_obs_sp,
-            lambda_d=1.0 if not self.adata_manager.fields[-1].is_empty else 0.0,
+            lambda_d=1.0 if has_density_prior else 0.0,
             constrained=constrained,
             target_count=target_count,
             **model_kwargs,
