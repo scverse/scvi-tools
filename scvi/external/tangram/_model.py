@@ -21,7 +21,9 @@ from scvi.utils import setup_anndata_dsp, track
 logger = logging.getLogger(__name__)
 
 
-def _asarray(x: np.ndarray, device: Device) -> jnp.ndarray:
+def _asarray(x: np.ndarray, device: Device, sparse: bool) -> jnp.ndarray:
+    if sparse:
+        x = jax.experimental.Sparse.from_scipy_sparse(x)
     return jax.device_put(x, device=device)
 
 
@@ -82,6 +84,7 @@ class Tangram(BaseModelClass):
         use_gpu: Optional[Union[str, int, bool]] = None,
         lr: float = 0.1,
         plan_kwargs: Optional[dict] = None,
+        retain_sparsity: bool = True,
         **trainer_kwargs,
     ):
         """
@@ -90,8 +93,7 @@ class Tangram(BaseModelClass):
         Parameters
         ----------
         max_epochs
-            Number of passes through the dataset. If `None`, defaults to
-            `np.min([round((20000 / n_cells) * 400), 400])`
+            Number of passes through the dataset.
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
             or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
@@ -101,6 +103,8 @@ class Tangram(BaseModelClass):
         plan_kwargs
             Keyword args for :class:`~scvi.train.JaxTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        retain_sparsity
+            Whether to keep the data in a sparse format.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -125,12 +129,16 @@ class Tangram(BaseModelClass):
             device = jax.devices("cpu")[0]
             self.module.to(device)
             logger.info("Jax module moved to CPU.")
-        tensor_dict = self._get_tensor_dict(device=device)
+        tensor_dict = self._get_tensor_dict(
+            device=device, retain_sparsity=retain_sparsity
+        )
         training_plan = JaxTrainingPlan(self.module, **plan_kwargs)
         module_init = self.module.init(self.module.rngs, tensor_dict)
         state, params = module_init.pop("params")
         training_plan.set_train_state(params, state)
         train_step_fn = JaxTrainingPlan.jit_training_step
+        if retain_sparsity:
+            train_step_fn = jax.experimental.sparse.sparsify(train_step_fn)
         state = self.module.train_state
         pbar = track(range(max_epochs), style="tqdm", description="Training")
         for _ in pbar:
@@ -220,7 +228,9 @@ class Tangram(BaseModelClass):
             "Use `setup_mudata` to setup a MuData object for training."
         )
 
-    def _get_tensor_dict(self, device: Device) -> Dict[str, jnp.ndarray]:
+    def _get_tensor_dict(
+        self, device: Device, retain_sparsity: bool
+    ) -> Dict[str, jnp.ndarray]:
         tensor_dict = {}
         for key in TANGRAM_REGISTRY_KEYS:
             try:
@@ -228,12 +238,16 @@ class Tangram(BaseModelClass):
             # When density is missing
             except KeyError:
                 continue
+            sparse = False
             if issparse(tensor_dict[key]):
                 tensor_dict[key] = tensor_dict[key].toarray()
+                sparse = True
             elif isinstance(tensor_dict[key], pd.DataFrame):
                 tensor_dict[key] = tensor_dict[key].values
             else:
                 tensor_dict[key] = tensor_dict[key]
-            tensor_dict[key] = _asarray(tensor_dict[key], device=device)
+            tensor_dict[key] = _asarray(
+                tensor_dict[key], device=device, sparse=sparse and retain_sparsity
+            )
 
         return tensor_dict
