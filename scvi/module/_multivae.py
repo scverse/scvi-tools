@@ -23,8 +23,8 @@ from ._utils import masked_softmax
 
 class DecoderATACVI(nn.Module):
     """
-    Decodes data from latent space of ``n_input`` dimensions into ``n_output``dimensions.
-    Uses a fully-connected neural network of ``n_hidden`` layers.
+    Decodes data from latent space of n_input dimensions into n_output dimensions.
+
     Parameters
     ----------
     n_input
@@ -47,8 +47,6 @@ class DecoderATACVI(nn.Module):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
-    scale_activation
-        Activation layer to use for px_scale_decoder
     """
 
     def __init__(
@@ -58,6 +56,7 @@ class DecoderATACVI(nn.Module):
         n_cat_list: Iterable[int] = None,
         n_layers: int = 1,
         n_hidden: int = 128,
+        dropout_rate: float = 0.0,
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
@@ -70,7 +69,7 @@ class DecoderATACVI(nn.Module):
             n_cat_list=n_cat_list,
             n_layers=n_layers,
             n_hidden=n_hidden,
-            dropout_rate=0,
+            dropout_rate=dropout_rate,
             inject_covariates=inject_covariates,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
@@ -93,20 +92,7 @@ class DecoderATACVI(nn.Module):
         z: torch.Tensor,
         *cat_list: int,
     ):
-        """
-        Parameters
-        ----------
-        z :
-            tensor with shape ``(n_input,)``
-        library_size
-            library size
-        cat_list
-            list of category membership(s) for this sample
-        Returns
-        -------
-        4-tuple of :py:class:`torch.Tensor`
-            parameters for the ZINB distribution of expression
-        """
+        """Forward pass."""
         y = self.y_decoder(z, *cat_list)
         p = self.y_scale_decoder(y)
 
@@ -149,9 +135,7 @@ class LibrarySizeEncoder(torch.nn.Module):
 
 
 class DecoderADT(torch.nn.Module):
-    """
-    Decoder for just surface proteins (ADT)
-    """
+    """Decoder for just surface proteins (ADT)"""
 
     def __init__(
         self,
@@ -244,7 +228,7 @@ class DecoderADT(torch.nn.Module):
         )
 
     def forward(self, z: torch.Tensor, *cat_list: int):
-        # z is the latent repr
+        """Forward pass."""
         py_ = {}
 
         py_back = self.py_back_decoder(z, *cat_list)
@@ -430,8 +414,8 @@ class MULTIVAE(BaseModuleClass):
         )
         encoder_cat_list = cat_list if encode_covariates else None
 
-        ### expression
-        ##      expression dispersion parameters
+        # expression
+        #      expression dispersion parameters
         self.gene_likelihood = gene_likelihood
         self.gene_dispersion = gene_dispersion
         if self.gene_dispersion == "gene":
@@ -519,7 +503,7 @@ class MULTIVAE(BaseModuleClass):
             return_dist=False,
         )
 
-        ##      accessibility region-specific factors
+        #      accessibility region-specific factors
         self.peak_likelihood = peak_likelihood
         self.peak_dispersion = peak_dispersion
         self.region_factors = None
@@ -569,7 +553,7 @@ class MULTIVAE(BaseModuleClass):
                     )
                 )
 
-        ##       accessibility decoder
+        #       accessibility decoder
         self.z_decoder_accessibility = DecoderATACVI(
             n_input=self.n_latent + self.n_continuous_cov,
             n_output=n_input_regions,
@@ -581,7 +565,7 @@ class MULTIVAE(BaseModuleClass):
             inject_covariates=self.deeply_inject_covariates,
             peak_likelihood=self.peak_likelihood,
         )
-        ##      accessibility library size encoder
+        #      accessibility library size encoder
         self.l_encoder_accessibility = DecoderPeakVI(
             n_input=n_input_encoder_acc,
             n_output=1,
@@ -594,7 +578,7 @@ class MULTIVAE(BaseModuleClass):
         )
 
         # protein
-        ##      protein encoder
+        #      protein encoder
         self.protein_dispersion = protein_dispersion
         if protein_background_prior_mean is None:
             if n_batch > 0:
@@ -625,7 +609,7 @@ class MULTIVAE(BaseModuleClass):
                 torch.log(torch.from_numpy(init_scale.astype(np.float32)))
             )
 
-        ##      protein encoder
+        #      protein encoder
         if self.n_input_proteins == 0:
             input_pro = 1
         else:
@@ -647,7 +631,7 @@ class MULTIVAE(BaseModuleClass):
             return_dist=False,
         )
 
-        ##      protein decoder
+        #      protein decoder
         self.z_decoder_pro = DecoderADT(
             n_input=n_input_decoder,
             n_output_proteins=n_input_proteins,
@@ -659,7 +643,7 @@ class MULTIVAE(BaseModuleClass):
             deep_inject_covariates=self.deeply_inject_covariates,
         )
 
-        ##      protein dispersion parameters
+        #      protein dispersion parameters
         if self.protein_dispersion == "protein":
             self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins))
         elif self.protein_dispersion == "protein-batch":
@@ -673,7 +657,7 @@ class MULTIVAE(BaseModuleClass):
         else:  # protein-cell
             pass
 
-        ##      modality alignment
+        #      modality alignment
         self.n_obs = n_obs
         self.modality_weights = modality_weights
         self.modality_penalty = modality_penalty
@@ -1054,6 +1038,15 @@ class MULTIVAE(BaseModuleClass):
         return rl
 
     def get_reconstruction_loss_accessibility(self, x, region_factor, y_scale, library):
+        """
+        Computes Accessibility Loss
+
+        :param x: Observations
+        :param region_factor: Region Factors
+        :param y_scale: Probability p
+        :param library: Library Size
+        :return: loss
+        """
         if self.peak_likelihood == "bernoulli":
             p = library * torch.sigmoid(region_factor) * y_scale
             rl = torch.nn.BCELoss(reduction="none")(p, (x > 0).float()).sum(dim=-1)
