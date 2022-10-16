@@ -27,7 +27,7 @@ def _asarray(x: np.ndarray, device: Device) -> jnp.ndarray:
 
 class Tangram(BaseModelClass):
     """
-    Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell transcriptomics to spatial data.
+    Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell RNA-seq data to spatial data.
 
     So far only the "cells" and "constrained" modes are implemented.
 
@@ -36,8 +36,8 @@ class Tangram(BaseModelClass):
 
     Parameters
     ----------
-    adata
-        single-cell AnnData object that has been registered via :meth:`~scvi.external.RNAStereoscope.setup_anndata`.
+    mdata
+        MuData object that has been registered via :meth:`~scvi.external.Tangram.setup_mudata`.
     constrained
         Whether to use the constrained version of Tangram instead of cells mode.
     target_count
@@ -47,10 +47,15 @@ class Tangram(BaseModelClass):
 
     Examples
     --------
-    >>> sc_adata = anndata.read_h5ad(path_to_sc_anndata)
-    >>> scvi.external.Tangram.setup_anndata(sc_adata, labels_key="labels")
-    >>> stereo = scvi.external.Tangram(sc_adata)
-    >>> stereo.train()
+    >>> ad_sc = anndata.read_h5ad(path_to_sc_anndata)
+    >>> ad_sp = anndata.read_h5ad(path_to_sp_anndata)
+    >>> markers = pd.read_csv(path_to_markers, index_col=0) # genes to use for mapping
+    >>> mdata = mudata.MuData({"sp_full": ad_sp, "sc_full": ad_sc, "sp": ad_sp[:, markers].copy(), "sc": ad_sc[:, markers].copy()})
+    >>> scvi.external.Tangram.setup_mudata(mdata, density_prior_key="rna_count_based_density", modalities={"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"})
+    >>> tangram = scvi.external.Tangram(sc_adata)
+    >>> tangram.train()
+    >>> mdata.mod["sc_full"].obsm["tangram_mapper"] = tangram.get_mapper_matrix()
+    >>> mdata.mod["sp_full"].obsm["tangram_cts"] = tangram.project_cell_annotations(mdata.mod["sc_full"], mdata.mod["sp_full"], mdata.mod["sc_full"].obsm["tangram_mapper"], mdata.mod["sp_full"].obs["labels"])
     """
 
     def __init__(
@@ -158,14 +163,15 @@ class Tangram(BaseModelClass):
         training_plan.set_train_state(params, state)
         train_step_fn = JaxTrainingPlan.jit_training_step
         pbar = track(range(max_epochs), style="tqdm", description="Training")
-        history = []
-        for _ in pbar:
+        history = pd.DataFrame(index=np.arange(max_epochs), columns=["loss"])
+        for i in pbar:
             self.module.train_state, loss, _ = train_step_fn(
                 self.module.train_state, tensor_dict, self.module.rngs
             )
             loss = jax.device_get(loss)
-            history.append(loss)
+            history.iloc[i] = loss
             pbar.set_description(f"Training... Loss: {loss}")
+        self.history_["loss"] = history
         self.module.eval()
 
     @classmethod
@@ -256,6 +262,11 @@ class Tangram(BaseModelClass):
         self,
         device: Device,
     ) -> Dict[str, jnp.ndarray]:
+        """Get training data for Tangram model.
+
+        Tangram does not minibatch, so we just make a dictionary of
+        jnp arrays here.
+        """
         tensor_dict = {}
         for key in TANGRAM_REGISTRY_KEYS:
             try:
@@ -272,3 +283,61 @@ class Tangram(BaseModelClass):
             tensor_dict[key] = _asarray(tensor_dict[key], device=device)
 
         return tensor_dict
+
+    @staticmethod
+    def project_cell_annotations(
+        adata_sc: AnnData, adata_sp: AnnData, mapper: np.ndarray, labels: pd.Series
+    ) -> pd.DataFrame:
+        """Project cell annotations to spatial data.
+
+        Parameters
+        ----------
+        adata_sc
+            AnnData object with single-cell data.
+        adata_sp
+            AnnData object with spatial data.
+        mapper
+            Mapping from single-cell to spatial data.
+        labels
+            Cell annotations to project.
+
+        Returns
+        -------
+        Projected annotations as a :class:`pd.DataFrame` with shape (n_sp, n_labels).
+        """
+        if len(labels) != adata_sc.shape[0]:
+            raise ValueError(
+                "The number of labels must match the number of cells in the sc AnnData object."
+            )
+        cell_type_df = pd.get_dummies(labels)
+        projection = mapper.T @ cell_type_df.values
+        return pd.DataFrame(
+            index=adata_sp.obs_names, columns=cell_type_df.columns, data=projection
+        )
+
+    @staticmethod
+    def project_genes(
+        adata_sc: AnnData, adata_sp: AnnData, mapper: np.ndarray
+    ) -> AnnData:
+        """Project gene expression to spatial data.
+
+        Parameters
+        ----------
+        adata_sc
+            AnnData object with single-cell data.
+        adata_sp
+            AnnData object with spatial data.
+        mapper
+            Mapping from single-cell to spatial data.
+
+        Returns
+        -------
+        :class:`anndata.AnnData` object with projected gene expression.
+        """
+        adata_ge = AnnData(
+            X=mapper.T @ adata_sc.X,
+            obs=adata_sp.obs,
+            var=adata_sc.var,
+            uns=adata_sc.uns,
+        )
+        return adata_ge
