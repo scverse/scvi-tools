@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def _asarray(x: np.ndarray, device: Device, sparse: bool) -> jnp.ndarray:
     if sparse:
-        x = jax.experimental.Sparse.from_scipy_sparse(x)
+        x = jax.experimental.sparse.BCOO.from_scipy_sparse(x)
     return jax.device_put(x, device=device)
 
 
@@ -200,6 +200,7 @@ class Tangram(BaseModelClass):
                 density_prior_key,
                 mod_key=modalities.density_prior_key,
                 required=False,
+                mod_required=True,
             ),
         ]
         adata_manager = AnnDataManager(
@@ -240,7 +241,9 @@ class Tangram(BaseModelClass):
                 continue
             sparse = False
             if issparse(tensor_dict[key]):
-                tensor_dict[key] = tensor_dict[key].toarray()
+                tensor_dict[key] = tensor_dict[key]
+                if not retain_sparsity:
+                    tensor_dict[key] = tensor_dict[key].toarray()
                 sparse = True
             elif isinstance(tensor_dict[key], pd.DataFrame):
                 tensor_dict[key] = tensor_dict[key].values
