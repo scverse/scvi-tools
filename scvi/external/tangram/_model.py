@@ -118,7 +118,11 @@ class Tangram(BaseModelClass):
             Whether to keep the data in a sparse format.
         """
         update_dict = {
-            "lr": lr,
+            "optim_kwargs": {
+                "learning_rate": lr,
+                "eps": 1e-8,
+                "weight_decay": 0,
+            }
         }
         if plan_kwargs is not None:
             plan_kwargs.update(update_dict)
