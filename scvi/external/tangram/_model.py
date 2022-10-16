@@ -29,7 +29,7 @@ class Tangram(BaseModelClass):
     """
     Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell RNA-seq data to spatial data.
 
-    So far only the "cells" and "constrained" modes are implemented.
+    Currently the "cells" and "constrained" modes are implemented.
 
     Original code:
     https://github.com/broadinstitute/Tangram.
