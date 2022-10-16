@@ -5,10 +5,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
+import scipy
 from anndata import AnnData
 from jaxlib.xla_extension import Device
 from mudata import MuData
-from scipy.sparse import issparse
 
 from scvi._compat import Literal
 from scvi.data import AnnDataManager, fields
@@ -21,7 +21,7 @@ from scvi.utils import setup_anndata_dsp, track
 logger = logging.getLogger(__name__)
 
 
-def _asarray(x: np.ndarray, device: Device, sparse: bool) -> jnp.ndarray:
+def _asarray(x: np.ndarray, device: Device, sparse: bool = False) -> jnp.ndarray:
     if sparse:
         x = jax.experimental.sparse.BCOO.from_scipy_sparse(x)
     return jax.device_put(x, device=device)
@@ -248,8 +248,23 @@ class Tangram(BaseModelClass):
             # When density is missing
             except KeyError:
                 continue
+            # Cache the norms
+            if key == TANGRAM_REGISTRY_KEYS.SC_KEY:
+                norm = (
+                    scipy.sparse.linalg.norm
+                    if scipy.sparse.issparse(tensor_dict[key])
+                    else np.linalg.norm
+                )
+                tensor_dict[TANGRAM_REGISTRY_KEYS.L2_NORM_SC_0_KEY] = _asarray(
+                    norm(tensor_dict[TANGRAM_REGISTRY_KEYS.SC_KEY], axis=0),
+                    device=device,
+                )
+                tensor_dict[TANGRAM_REGISTRY_KEYS.L2_NORM_SC_1_KEY] = _asarray(
+                    norm(tensor_dict[TANGRAM_REGISTRY_KEYS.SC_KEY], axis=1),
+                    device=device,
+                )
             sparse = False
-            if issparse(tensor_dict[key]):
+            if scipy.sparse.issparse(tensor_dict[key]):
                 tensor_dict[key] = tensor_dict[key]
                 if not retain_sparsity:
                     tensor_dict[key] = tensor_dict[key].toarray()

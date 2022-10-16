@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Dict, NamedTuple, Union
 
+import chex
 import jax
 import jax.numpy as jnp
 
@@ -11,6 +12,8 @@ class _TANGRAM_REGISTRY_KEYS_NT(NamedTuple):
     SC_KEY: str = "X"
     SP_KEY: str = "Y"
     DENSITY_KEY: str = "DENSITY"
+    L2_NORM_SC_0_KEY: str = "L2_NORM_SC_0"
+    L2_NORM_SC_1_KEY: str = "L2_NORM_SP_1"
 
 
 TANGRAM_REGISTRY_KEYS = _TANGRAM_REGISTRY_KEYS_NT()
@@ -18,34 +21,21 @@ TANGRAM_REGISTRY_KEYS = _TANGRAM_REGISTRY_KEYS_NT()
 EPS = 1e-8
 
 
-@partial(jax.jit, static_argnums=(1,))
-def _squared_norm(
-    x: Union[jnp.ndarray, jax.experimental.sparse.BCOO], axis: int
-) -> jnp.ndarray:
-    squared = jnp.multiply(x, x)
-    res = squared.sum(axis=axis)
-    res = res @ jnp.identity(res.shape[0])
-    return res.ravel()
-
-
 @partial(jax.jit, static_argnums=(2,))
-def _cosine_similarity(
+def _unnormalized_cosine_similarity(
     x: Union[jnp.ndarray, jax.experimental.sparse.BCOO], y: jnp.ndarray, axis: int
 ) -> jnp.ndarray:
     """Compute cosine similarity.
 
     Any weirdness here is because of the sparse matrix.
     """
-    x_norm = _squared_norm(x, axis=axis)
-    y_norm = _squared_norm(y, axis=axis)
     if axis == 0:
-        numerator = jnp.diagonal((y.transpose() @ x).transpose())
+        numerator = jnp.diagonal(y.transpose() @ x)
     elif axis == 1:
         numerator = jnp.diagonal(x @ y.tranpose())
     else:
         raise ValueError("axis must be 0 or 1")
-    denom = jnp.sqrt(x_norm * y_norm)
-    return numerator / (denom + EPS)
+    return numerator
 
 
 def _density_criterion(log_y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndarray:
@@ -114,17 +104,32 @@ class TangramMapper(JaxBaseModuleClass):
             density_term = 0
 
         g_pred = mapper.transpose() @ sp
+        chex.assert_equal_shape([sc, g_pred])
 
         # TODO(adamgayoso): Use these similarities for dense inputs
         # cosine_similarity_0 = jax.vmap(_cosine_similarity_vectors, in_axes=1)
         # cosine_similarity_1 = jax.vmap(_cosine_similarity_vectors, in_axes=0)
 
         if self.lambda_g1 > 0:
-            gv_term = self.lambda_g1 * _cosine_similarity(g_pred, sc, axis=0).mean()
+            gv_term = _unnormalized_cosine_similarity(g_pred, sc, axis=0)
+            denom = (
+                jnp.linalg.norm(g_pred, axis=0)
+                * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SC_0_KEY]
+                + EPS
+            )
+            gv_term /= denom
+            gv_term = self.lambda_g1 * gv_term.mean()
         else:
             gv_term = 0
         if self.lambda_g2 > 0:
-            vg_term = self.lambda_g2 * _cosine_similarity(g_pred, sc, axis=1).mean()
+            vg_term = _unnormalized_cosine_similarity(g_pred, sc, axis=1)
+            denom = (
+                jnp.linalg.norm(g_pred, axis=1)
+                * tensors[TANGRAM_REGISTRY_KEYS.L2_NORM_SC_1_KEY]
+                + EPS
+            )
+            vg_term /= denom
+            vg_term = self.lambda_g2 * vg_term.mean()
         else:
             vg_term = 0
 
