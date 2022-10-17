@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from functools import partial
 from inspect import getfullargspec, signature
 from typing import Callable, Dict, Iterable, Optional, Union
@@ -206,8 +207,8 @@ class TrainingPlan(pl.LightningModule):
         n = 1 if n_total is None or n_total < 1 else n_total
         elbo = rec_loss + kl_local + (1 / n) * kl_global
         elbo.name = f"elbo_{mode}"
-        collection = MetricCollection(
-            {metric.name: metric for metric in [elbo, rec_loss, kl_local, kl_global]}
+        collection = OrderedDict(
+            [(metric.name, metric) for metric in [elbo, rec_loss, kl_local, kl_global]]
         )
         return elbo, rec_loss, kl_local, kl_global, collection
 
@@ -309,8 +310,10 @@ class TrainingPlan(pl.LightningModule):
         kl_local = loss_output.kl_local.sum()
         kl_global = loss_output.kl_global
 
-        # use the torchmetric object for the ELBO
-        metrics.update(
+        # Use the torchmetric object for the ELBO
+        # We only need to update the ELBO metric
+        # As it's defined as a sum of the other metrics
+        next(iter(metrics.values()))[0].update(
             reconstruction_loss=rec_loss,
             kl_local=kl_local,
             kl_global=kl_global,

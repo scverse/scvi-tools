@@ -130,8 +130,9 @@ class LossOutput:
 
     @staticmethod
     def _get_dict_sum(dictionary: Union[Dict[str, Tensor], Tensor]):
+        # Nest a dict in case input is just a Tensor
         dictionary = {"root": dictionary}
-        return sum(jax.tree_util.tree_leaves(dictionary))
+        return jax.tree_util.tree_reduce(sum, dictionary)
 
     @property
     def extra_metrics_keys(self) -> Iterable[str]:
