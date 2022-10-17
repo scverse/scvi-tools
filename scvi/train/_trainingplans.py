@@ -19,6 +19,7 @@ from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
     JaxModuleWrapper,
+    LossOutput,
     LossRecorder,
     PyroBaseModuleClass,
     TrainStateWithState,
@@ -281,7 +282,7 @@ class TrainingPlan(pl.LightningModule):
     @torch.inference_mode()
     def compute_and_log_metrics(
         self,
-        loss_recorder: LossRecorder,
+        loss_recorder: Union[LossRecorder, LossOutput],
         metrics: MetricCollection,
         mode: str,
     ):
@@ -298,11 +299,15 @@ class TrainingPlan(pl.LightningModule):
             Postfix string to add to the metric name of
             extra metrics
         """
-        rec_loss = loss_recorder.reconstruction_loss
+        if isinstance(loss_recorder, LossRecorder):
+            loss_output = loss_recorder._loss_output
+        else:
+            loss_output = loss_recorder
+        rec_loss = loss_output.reconstruction_loss
         n_obs_minibatch = rec_loss.shape[0]
         rec_loss = rec_loss.sum()
-        kl_local = loss_recorder.kl_local.sum()
-        kl_global = loss_recorder.kl_global
+        kl_local = loss_output.kl_local.sum()
+        kl_global = loss_output.kl_global
 
         # use the torchmetric object for the ELBO
         metrics.update(
@@ -320,8 +325,8 @@ class TrainingPlan(pl.LightningModule):
         )
 
         # accumlate extra metrics passed to loss recorder
-        for key in loss_recorder.extra_metric_keys:
-            met = loss_recorder.extra_metrics[key]
+        for key in loss_output.extra_metrics_keys:
+            met = loss_output.extra_metrics[key]
             if isinstance(met, torch.Tensor):
                 if met.shape != torch.Size([]):
                     raise ValueError("Extra tracked metrics should be 0-d tensors.")
@@ -1100,30 +1105,31 @@ class JaxTrainingPlan(TrainingPlan):
             outputs, new_model_state = state.apply_fn(
                 vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs
             )
-            loss_recorder = outputs[2]
-            loss = loss_recorder.loss
-            elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
-            return loss, (elbo, new_model_state)
+            loss_output = outputs[2]
+            loss = loss_output.loss
+            return loss, (loss_output, new_model_state)
 
-        (loss, (elbo, new_model_state)), grads = jax.value_and_grad(
+        (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(
             loss_fn, has_aux=True
         )(state.params)
         new_state = state.apply_gradients(grads=grads, state=new_model_state)
-        return new_state, loss, elbo
+        return new_state, loss, loss_output
 
     def training_step(self, batch, batch_idx):
         """Training step for Jax."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.module.train()
-        self.module.train_state, loss, elbo = self.jit_training_step(
+        self.module.train_state, loss, loss_output = self.jit_training_step(
             self.module.train_state,
             batch,
             self.module.rngs,
             loss_kwargs=self.loss_kwargs,
         )
         loss = torch.tensor(jax.device_get(loss))
-        elbo = torch.tensor(jax.device_get(elbo))
+        loss_output = jax.tree_util.tree_map(
+            lambda x: torch.tensor(jax.device_get(x)), loss_output
+        )
         # TODO: Better way to get batch size
         self.log(
             "train_loss",
@@ -1131,12 +1137,7 @@ class JaxTrainingPlan(TrainingPlan):
             on_epoch=True,
             batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
         )
-        self.log(
-            "elbo_train",
-            elbo,
-            on_epoch=True,
-            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
-        )
+        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
 
     @partial(jax.jit, static_argnums=(0,))
     def jit_validation_step(
@@ -1149,35 +1150,31 @@ class JaxTrainingPlan(TrainingPlan):
         """Jit validation step."""
         vars_in = {"params": state.params, **state.state}
         outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
-        loss_recorder = outputs[2]
-        loss = loss_recorder.loss
-        elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
+        loss_output = outputs[2]
+        loss = loss_output.loss
 
-        return loss, elbo
+        return loss, loss_output
 
     def validation_step(self, batch, batch_idx):
         """Validation step for Jax."""
         self.module.eval()
-        loss, elbo = self.jit_validation_step(
+        loss, loss_output = self.jit_validation_step(
             self.module.train_state,
             batch,
             self.module.rngs,
             loss_kwargs=self.loss_kwargs,
         )
         loss = torch.tensor(jax.device_get(loss))
-        elbo = torch.tensor(jax.device_get(elbo))
+        loss_output = jax.tree_util.tree_map(
+            lambda x: torch.tensor(jax.device_get(x)), loss_output
+        )
         self.log(
             "validation_loss",
             loss,
             on_epoch=True,
             batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
         )
-        self.log(
-            "elbo_validation",
-            elbo,
-            on_epoch=True,
-            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
-        )
+        self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
     @staticmethod
     def transfer_batch_to_device(batch, device, dataloader_idx):

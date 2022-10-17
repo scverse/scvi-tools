@@ -10,6 +10,7 @@ import torch
 from flax import linen
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
+from sklearn.utils import deprecated
 from torch import nn
 
 from scvi._types import LatentDataType, LossRecord, Tensor
@@ -18,8 +19,72 @@ from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
 
-@chex.dataclass
 class LossRecorder:
+    """
+    Loss signature for models.
+
+    This class provides an organized way to record the model loss, as well as
+    the components of the ELBO. This may also be used in MLE, MAP, EM methods.
+    The loss is used for backpropagation during inference. The other parameters
+    are used for logging/early stopping during inference.
+    Parameters
+    ----------
+    loss
+        Tensor with loss for minibatch. Should be one dimensional with one value.
+        Note that loss should be a :class:`~torch.Tensor` and not the result of ``.item()``.
+    reconstruction_loss
+        Reconstruction loss for each observation in the minibatch.
+    kl_local
+        KL divergence associated with each observation in the minibatch.
+    kl_global
+        Global kl divergence term. Should be one dimensional with one value.
+    **kwargs
+        Additional metrics can be passed as keyword arguments and will
+        be available as attributes of the object.
+    """
+
+    @deprecated(
+        "LossRecorder is deprecated and will be removed in a future release. Please use LossOutput"
+    )
+    def __init__(
+        self,
+        loss: LossRecord,
+        reconstruction_loss: Optional[LossRecord] = None,
+        kl_local: Optional[LossRecord] = None,
+        kl_global: Optional[LossRecord] = None,
+        **kwargs,
+    ):
+        self._loss_output = LossOutput(
+            loss=loss,
+            reconstruction_loss=reconstruction_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
+            extra_metrics=kwargs,
+        )
+        self.extra_metric_attrs = []
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+            self.extra_metric_attrs.append(key)
+
+    @property
+    def loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
+        return self._loss_output.loss
+
+    @property
+    def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
+        return self._loss_output.reconstruction_loss
+
+    @property
+    def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
+        return self._loss_output.kl_local
+
+    @property
+    def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
+        return self._loss_output.kl_global
+
+
+@chex.dataclass
+class LossOutput:
     """
     Loss signature for models.
 
@@ -62,12 +127,16 @@ class LossRecorder:
         self.reconstruction_loss = self._get_dict_sum(self.reconstruction_loss)
         self.kl_local = self._get_dict_sum(self.kl_local)
         self.kl_global = self._get_dict_sum(self.kl_global)
-        self.extra_metric_keys = self.extra_metrics.keys()
 
     @staticmethod
     def _get_dict_sum(dictionary: Union[Dict[str, Tensor], Tensor]):
         dictionary = {"root": dictionary}
-        return jax.tree_util.tree_reduce(sum, dictionary)
+        return sum(jax.tree_util.tree_leaves(dictionary))
+
+    @property
+    def extra_metrics_keys(self) -> Iterable[str]:
+        """Keys for extra metrics."""
+        return self.extra_metrics.keys()
 
 
 class BaseModuleClass(nn.Module):
@@ -177,14 +246,14 @@ class BaseModuleClass(nn.Module):
         """
 
     @abstractmethod
-    def loss(self, *args, **kwargs) -> LossRecorder:
+    def loss(self, *args, **kwargs) -> LossOutput:
         """
         Compute the loss for a minibatch of data.
 
         This function uses the outputs of the inference and generative functions to compute
         a loss. This many optionally include other penalty terms, which should be computed here.
 
-        This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
+        This function should return an object of type :class:`~scvi.module.base.LossOutput`.
         """
 
     @abstractmethod
@@ -493,14 +562,14 @@ class JaxBaseModuleClass(linen.Module):
         """
 
     @abstractmethod
-    def loss(self, *args, **kwargs) -> LossRecorder:
+    def loss(self, *args, **kwargs) -> LossOutput:
         """
         Compute the loss for a minibatch of data.
 
         This function uses the outputs of the inference and generative functions to compute
         a loss. This many optionally include other penalty terms, which should be computed here.
 
-        This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
+        This function should return an object of type :class:`~scvi.module.base.LossOutput`.
         """
 
     def eval(self):

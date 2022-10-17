@@ -37,18 +37,13 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
     insights on the modeling of the data, and is fast to compute.
     """
     # Iterate once over the data and computes the reconstruction error
-    log_lkl = {}
+    log_lkl = 0
     for tensors in data_loader:
         loss_kwargs = dict(kl_weight=1)
         _, _, losses = vae(tensors, loss_kwargs=loss_kwargs)
-        for key, value in losses._reconstruction_loss.items():
-            if key in log_lkl:
-                log_lkl[key] += torch.sum(value).item()
-            else:
-                log_lkl[key] = 0.0
-
+        value = losses.reconstruction_loss
+        log_lkl += torch.sum(value).item()
     n_samples = len(data_loader.indices)
-    for key, _ in log_lkl.items():
-        log_lkl[key] = log_lkl[key] / n_samples
-        log_lkl[key] = -log_lkl[key]
+    log_lkl = log_lkl / n_samples
+    log_lkl = -log_lkl
     return log_lkl
