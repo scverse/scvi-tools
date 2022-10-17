@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
-from torch.distributions import Normal
+from torch.distributions import Normal, Poisson
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
@@ -147,7 +147,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         region_factors: bool = True,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
-        peak_likelihood: Literal["bernoulli", "poisson"] = "poisson",
+        peak_likelihood: Literal["bernoulli", "poisson"] = "bernoulli",
         peak_dispersion: Literal[
             "peak", "peak-batch", "peak-label", "peak-cell"
         ] = "peak",
@@ -494,6 +494,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         normalize_cells: bool = False,
         normalize_regions: bool = False,
         batch_size: int = 128,
+        binarize: bool = True,
         return_numpy: bool = False,
     ) -> Union[np.ndarray, csr_matrix, pd.DataFrame]:
         """
@@ -534,6 +535,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             default.
         batch_size
             Minibatch size for data loading into model
+        binarize
+            For Poisson Likelihood, if True return the probability of having a fragment in the
+            given region
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
@@ -567,15 +571,34 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
-            p = generative_outputs["p"].cpu()
 
-            if normalize_cells:
-                p *= inference_outputs["libsize_acc"].cpu()
-            if normalize_regions:
-                p *= torch.sigmoid(self.module.region_factors).cpu()
-            if threshold:
-                p[p < threshold] = 0
-                p = csr_matrix(p.numpy())
+            p = generative_outputs["p"].cpu()
+            libsize = inference_outputs["libsize_acc"].cpu()
+            if self.module.peak_likelihood == "bernoulli":
+                if normalize_cells:
+                    p *= libsize
+                if normalize_regions:
+                    p *= torch.sigmoid(self.module.region_factors).cpu()
+                if threshold:
+                    p[p < threshold] = 0
+                    p = csr_matrix(p.numpy())
+
+            elif self.module.peak_likelihood == "poisson":
+                p = generative_outputs["p"].cpu()
+                if normalize_regions:
+                    p = torch.softmax(p + self.module.region_factors, dim=-1)
+                if normalize_cells:
+                    p *= torch.exp(libsize)
+                else:
+                    pass
+                if binarize:
+                    p = 1 - torch.exp(
+                        Poisson(torch.from_numpy(p)).log_prob(torch.Tensor([0]))
+                    )
+                    if threshold:
+                        p[p < threshold] = 0
+                        p = csr_matrix(p.numpy())
+
             if region_mask is not None:
                 p = p[:, region_mask]
             imputed.append(p)

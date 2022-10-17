@@ -1621,6 +1621,9 @@ def test_multivi():
     for peak_likelihood in ["bernoulli", "poisson"]:
         model = MULTIVI(data, n_genes=50, n_regions=50, peak_likelihood=peak_likelihood)
         model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+        model.get_accessibility_estimates(normalize_cells=True)
+        model.get_accessibility_estimates(normalize_regions=True)
+        model.differential_accessibility(groupby="labels", group1="label_1")
 
 
 def test_early_stopping():
