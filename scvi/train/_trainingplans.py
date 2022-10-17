@@ -140,7 +140,7 @@ class TrainingPlan(pl.LightningModule):
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: Optional[
-            Callable[Iterable[torch.Tensor], torch.optim.Optimizer]
+            Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
         ] = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
@@ -469,7 +469,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: Optional[
-            Callable[Iterable[torch.Tensor], torch.optim.Optimizer]
+            Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
         ] = None,
         lr=1e-3,
         weight_decay=1e-6,
