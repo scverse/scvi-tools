@@ -320,14 +320,14 @@ class TrainingPlan(pl.LightningModule):
         )
 
         # accumlate extra metrics passed to loss recorder
-        for extra_metric in loss_recorder.extra_metric_attrs:
-            met = getattr(loss_recorder, extra_metric)
+        for key in loss_recorder.extra_metric_keys:
+            met = loss_recorder.extra_metrics[key]
             if isinstance(met, torch.Tensor):
                 if met.shape != torch.Size([]):
                     raise ValueError("Extra tracked metrics should be 0-d tensors.")
                 met = met.detach()
             self.log(
-                f"{extra_metric}_{mode}",
+                f"{key}_{mode}",
                 met,
                 on_step=False,
                 on_epoch=True,

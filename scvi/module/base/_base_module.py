@@ -1,6 +1,9 @@
 from abc import abstractmethod
+from dataclasses import field
 from typing import Callable, Dict, Iterable, Optional, Tuple, Union
 
+import chex
+import jax
 import jax.numpy as jnp
 import pyro
 import torch
@@ -9,12 +12,13 @@ from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 from torch import nn
 
-from scvi._types import LatentDataType, LossRecord
+from scvi._types import LatentDataType, LossRecord, Tensor
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
 
+@chex.dataclass
 class LossRecorder:
     """
     Loss signature for models.
@@ -28,76 +32,42 @@ class LossRecorder:
     ----------
     loss
         Tensor with loss for minibatch. Should be one dimensional with one value.
-        Note that loss should be a :class:`~torch.Tensor` and not the result of ``.item()``.
+        Note that loss should be in an array/tensory and not a float.
     reconstruction_loss
         Reconstruction loss for each observation in the minibatch.
     kl_local
         KL divergence associated with each observation in the minibatch.
     kl_global
         Global kl divergence term. Should be one dimensional with one value.
-    **kwargs
-        Additional metrics can be passed as keyword arguments and will
-        be available as attributes of the object.
+    extra_metrics
+        Additional metrics can be passed as arrays/tensors or dictionaries of
+        arrays/tensors.
     """
 
-    def __init__(
-        self,
-        loss: LossRecord,
-        reconstruction_loss: Optional[LossRecord] = None,
-        kl_local: Optional[LossRecord] = None,
-        kl_global: Optional[LossRecord] = None,
-        **kwargs,
-    ):
+    loss: LossRecord
+    reconstruction_loss: Optional[LossRecord] = None
+    kl_local: Optional[LossRecord] = None
+    kl_global: Optional[LossRecord] = None
+    extra_metrics: Optional[Dict[str, Tensor]] = field(default_factory=dict)
 
-        default = (
-            torch.tensor(0.0) if isinstance(loss, torch.Tensor) else jnp.array(0.0)
-        )
-        if reconstruction_loss is None:
-            reconstruction_loss = default
-        if kl_local is None:
-            kl_local = default
-        if kl_global is None:
-            kl_global = default
-
-        self._loss = loss if isinstance(loss, dict) else dict(loss=loss)
-        self._reconstruction_loss = (
-            reconstruction_loss
-            if isinstance(reconstruction_loss, dict)
-            else dict(reconstruction_loss=reconstruction_loss)
-        )
-        self._kl_local = (
-            kl_local if isinstance(kl_local, dict) else dict(kl_local=kl_local)
-        )
-        self._kl_global = (
-            kl_global if isinstance(kl_global, dict) else dict(kl_global=kl_global)
-        )
-        self.extra_metric_attrs = []
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-            self.extra_metric_attrs.append(key)
+    def __post_init__(self):
+        self.loss = self._get_dict_sum(self.loss)
+        default = 0 * self.loss
+        if self.reconstruction_loss is None:
+            self.reconstruction_loss = default
+        if self.kl_local is None:
+            self.kl_local = default
+        if self.kl_global is None:
+            self.kl_global = default
+        self.reconstruction_loss = self._get_dict_sum(self.reconstruction_loss)
+        self.kl_local = self._get_dict_sum(self.kl_local)
+        self.kl_global = self._get_dict_sum(self.kl_global)
+        self.extra_metric_keys = self.extra_metrics.keys()
 
     @staticmethod
-    def _get_dict_sum(dictionary):
-        total = 0.0
-        for value in dictionary.values():
-            total += value
-        return total
-
-    @property
-    def loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._get_dict_sum(self._loss)
-
-    @property
-    def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._get_dict_sum(self._reconstruction_loss)
-
-    @property
-    def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._get_dict_sum(self._kl_local)
-
-    @property
-    def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._get_dict_sum(self._kl_global)
+    def _get_dict_sum(dictionary: Union[Dict[str, Tensor], Tensor]):
+        dictionary = {"root": dictionary}
+        return jax.tree_util.tree_reduce(sum, dictionary)
 
 
 class BaseModuleClass(nn.Module):
