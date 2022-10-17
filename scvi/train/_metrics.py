@@ -25,7 +25,7 @@ class ElboMetric(Metric):
     """
 
     # Needs to be explicitly set to avoid TorchMetrics UserWarning.
-    full_state_update = True
+    full_state_update = False
     _N_OBS_MINIBATCH_KEY = "n_obs_minibatch"
 
     def __init__(
@@ -33,10 +33,9 @@ class ElboMetric(Metric):
         name: str,
         mode: Literal["train", "validation"],
         interval: Literal["obs", "batch"],
-        dist_sync_on_step: bool = False,
         **kwargs,
     ):
-        super().__init__(dist_sync_on_step=dist_sync_on_step, **kwargs)
+        super().__init__(**kwargs)
 
         self._name = name
         self._mode = mode
