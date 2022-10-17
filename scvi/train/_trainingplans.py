@@ -471,8 +471,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         optimizer_creator: Optional[
             Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
         ] = None,
-        lr=1e-3,
-        weight_decay=1e-6,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -656,8 +656,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         module: BaseModuleClass,
         *,
         classification_ratio: int = 50,
-        lr=1e-3,
-        weight_decay=1e-6,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
