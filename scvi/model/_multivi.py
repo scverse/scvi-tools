@@ -592,9 +592,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 else:
                     pass
                 if binarize:
-                    p = 1 - torch.exp(
-                        Poisson(torch.from_numpy(p)).log_prob(torch.Tensor([0]))
-                    )
+                    p = 1 - torch.exp(Poisson(p).log_prob(torch.Tensor([0])))
                     if threshold:
                         p[p < threshold] = 0
                         p = csr_matrix(p.numpy())
