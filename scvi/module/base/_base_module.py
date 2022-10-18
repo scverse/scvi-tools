@@ -415,15 +415,17 @@ class TrainStateWithState(train_state.TrainState):
     state: FrozenDict[str, Any]
 
 
-class JaxBaseModuleClass:
+class JaxBaseModuleClass(flax.linen.Module):
     """
     Abstract class for Jax-based scvi-tools modules.
 
     The :class:`~scvi.module.base.JaxBaseModuleClass` provides an interface for Jax-backed
     modules consistent with the :class:`~scvi.module.base.BaseModuleClass`.
-    The initial argument to the constructor is ``training`` which is initialized
-    to be ``True`` in :meth:`~scvi.module.base.JaxModuleWrapper`.
-    Implementations of :class:`~scvi.module.base.JaxBaseModuleClass` should
+
+    Any subclass must has a `training` parameter in its constructor, as well as
+    use the `@flax_configure` decorator.
+
+    Children of :class:`~scvi.module.base.JaxBaseModuleClass` should
     use the instance attribute ``self.training`` to appropriately modify
     the behavior of the model whether it is in training or evaluation mode.
     """

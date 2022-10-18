@@ -113,7 +113,7 @@ class FlaxDecoder(nn.Module):
 
 
 @flax_configure
-class JaxVAE(nn.Module, JaxBaseModuleClass):
+class JaxVAE(JaxBaseModuleClass):
     """Variational autoencoder model."""
 
     n_input: int
