@@ -4,9 +4,12 @@ from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 import flax
 import jax
 import jax.numpy as jnp
+import numpy as np
 import pyro
 import torch
+from flax import linen
 from flax.core import FrozenDict
+from flax.linen import Module as LinenModule
 from flax.training import train_state
 from jax import random
 from jaxlib.xla_extension import Device
@@ -631,34 +634,75 @@ class JaxBaseModuleClass:
         if self.train_state is None:
             raise RuntimeError("Train state is not set. Module has not been trained.")
 
-    @jax.jit
+    @staticmethod
+    def _jit_inference(
+        array_dict: Dict[str, jnp.ndarray],
+        module: LinenModule,
+        params: FrozenDict[str, Any],
+        state: FrozenDict[str, Any],
+        rngs: Dict[str, jnp.ndarray],
+        get_inference_input_kwargs: Optional[Dict[str, Any]],
+        inference_kwargs: Optional[Dict[str, Any]],
+    ):
+        vars_in = {"params": params, **state}
+        inference_input = module._get_inference_input(
+            array_dict, **get_inference_input_kwargs
+        )
+        out = jax.jit(linen.apply(module.inference, module))(
+            vars_in,
+            array_dict,
+            rngs=rngs,
+            **inference_input,
+            **inference_kwargs,
+        )
+        return out
+
     def jit_inference(
         self,
         array_dict: Dict[str, jnp.ndarray],
         get_inference_input_kwargs: Optional[Dict[str, Any]] = None,
-        **inference_kwargs,
+        inference_kwargs: Optional[Dict[str, Any]] = None,
     ):
         """
         Jitted inference method call.
 
         Parameters
         ----------
-        **kwargs
-            Inference kwargs
+        get_inference_input_kwargs
+            Kwargs for :func:`~scvi.module.base.JaxBaseModuleClass._get_inference_input`
+        inference_kwargs
+            Kwargs for :func:`~scvi.module.base.JaxBaseModuleClass.inference`
         """
-        vars_in = {"params": self.params, **self.state}
-        _get_dict_if_none(get_inference_input_kwargs)
-        inference_input = self._get_inference_input(array_dict)
-        out = self.apply(
+        get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
+        inference_kwargs = _get_dict_if_none(inference_kwargs)
+        return self._jit_inference(
+            array_dict,
+            self,
+            self.params,
+            self.state,
+            self.rngs,
+            get_inference_input_kwargs,
+            inference_kwargs,
+        )
+
+    @staticmethod
+    def _jit_forward(
+        array_dict: Dict[str, jnp.ndarray],
+        module: LinenModule,
+        params: FrozenDict[str, Any],
+        state: FrozenDict[str, Any],
+        rngs: Dict[str, jnp.ndarray],
+        kwargs: Dict[str, Any],
+    ):
+        vars_in = {"params": params, **state}
+        out = jax.jit(linen.apply(module.forward, module))(
             vars_in,
-            rngs=self.rngs,
-            method=self.module.inference,
-            **inference_input,
-            **inference_kwargs,
+            array_dict,
+            rngs=rngs,
+            **kwargs,
         )
         return out
 
-    @jax.jit
     def jit_forward(self, array_dict: Dict[str, jnp.ndarray], **kwargs):
         """
         Jitted forward call.
@@ -668,9 +712,9 @@ class JaxBaseModuleClass:
         **kwargs
             Forward kwargs
         """
-        vars_in = {"params": self.params, **self.state}
-        out = self.apply(vars_in, array_dict, rngs=self.rngs, **kwargs)
-        return out
+        return self._jit_forward(
+            array_dict, self, self.params, self.state, self.rngs, kwargs
+        )
 
     @staticmethod
     def on_load(model):
@@ -682,6 +726,11 @@ class JaxBaseModuleClass:
         old_history = model.history_.copy()
         model.train(max_steps=1)
         model.history_ = old_history
+
+    @staticmethod
+    def as_numpy_array(x: jnp.ndarray):
+        """Converts a jax device array to a numpy array."""
+        return np.array(jax.device_get(x))
 
 
 def _generic_forward(
