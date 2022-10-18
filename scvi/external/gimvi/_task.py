@@ -50,8 +50,8 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
 
             loss = sum([scl.loss for scl in scvi_loss_objs])
             loss /= n_obs
-            rec_loss = sum([scl.reconstruction_loss.sum() for scl in scvi_loss_objs])
-            kl = sum([scl.kl_local.sum() for scl in scvi_loss_objs])
+            rec_loss = sum([scl.reconstruction_loss_sum for scl in scvi_loss_objs])
+            kl = sum([scl.kl_local_sum for scl in scvi_loss_objs])
 
             # fool classifier if doing adversarial training
             batch_tensor = [
@@ -104,10 +104,10 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             inference_kwargs=inference_kwargs,
             generative_kwargs=generative_kwargs,
         )
-        reconstruction_loss = scvi_loss.reconstruction_loss
+        reconstruction_loss = scvi_loss.reconstruction_loss_sum
         return {
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_loss.kl_local.sum(),
+            "reconstruction_loss_sum": reconstruction_loss,
+            "kl_local_sum": scvi_loss.kl_local_sum,
             "kl_global": scvi_loss.kl_global,
             "n_obs": reconstruction_loss.shape[0],
         }
