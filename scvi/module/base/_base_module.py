@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import abstractmethod
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
@@ -634,15 +636,20 @@ class JaxBaseModuleClass(flax.linen.Module):
         if self.train_state is None:
             raise RuntimeError("Train state is not set. Module has not been trained.")
 
-    @property
-    def _bound_module(self):
+    def as_bound(self) -> JaxBaseModuleClass:
         """Module bound with parameters learned from training."""
         return self.bind(
             {"params": self.params, **self.state},
             rngs=self.rngs,
         )
 
-    def get_jit_inference_fn(self, **inference_kwargs):
+    def get_jit_inference_fn(
+        self,
+        get_inference_input_kwargs: Optional[Dict[str, Any]] = None,
+        inference_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Callable[
+        [Dict[str, jnp.ndarray], Dict[str, jnp.ndarray]], Dict[str, jnp.ndarray]
+    ]:
         """
         Returns a method to run inference using the bound module.
 
@@ -650,34 +657,30 @@ class JaxBaseModuleClass(flax.linen.Module):
         ----------
         inference_kwargs
             Kwargs for subclass inference method
+
+        Returns
+        -------
+        A callable taking rngs and array_dict as input and returning the output
+        of the inference method. This callable runs `_get_inference_input`.
         """
-        bound_module = self._bound_module
+        vars_in = {"params": self.params, **self.state}
+        get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
+        inference_kwargs = _get_dict_if_none(inference_kwargs)
 
         @jax.jit
-        def _run_inference(array_dict):
-            inference_input = bound_module._get_inference_input(array_dict)
-            out = bound_module.inference(**inference_input, **inference_kwargs)
+        def _run_inference(rngs, array_dict):
+            module = self.clone()
+            inference_input = module._get_inference_input(array_dict)
+            out = module.apply(
+                vars_in,
+                rngs=rngs,
+                method=module.inference,
+                **inference_input,
+                **inference_kwargs,
+            )
             return out
 
         return _run_inference
-
-    def get_jit_forward_fn(self, **kwargs):
-        """
-        Returns a method to run forward using the bound module.
-
-        Parameters
-        ----------
-        inference_kwargs
-            Kwargs for __call__ method
-        """
-        bound_module = self._bound_module
-
-        @jax.jit
-        def _run_forward(array_dict):
-            out = bound_module(array_dict, **kwargs)
-            return out
-
-        return _run_forward
 
     @staticmethod
     def on_load(model):
