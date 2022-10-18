@@ -355,7 +355,8 @@ class TrainingPlan(pl.LightningModule):
     def _optimizer_creator(
         self, optimizer_cls: Union[torch.optim.Adam, torch.optim.AdamW]
     ):
-        """Create optimizer for the model.
+        """
+        Create optimizer for the model.
 
         This type of function can be passed as the `optimizer_creator`
         """
