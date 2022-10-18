@@ -429,7 +429,7 @@ class JaxBaseModuleClass:
 
     def configure(self) -> None:
         """Add necessary attrs."""
-        self.training = True
+        self.training = None
         self.train_state = None
         self.seed = 0
         self.seed_rng = device_selecting_PRNGKey()(self.seed)

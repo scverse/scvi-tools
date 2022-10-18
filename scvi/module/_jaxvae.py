@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import jax
 import jax.numpy as jnp
@@ -31,7 +31,7 @@ class FlaxEncoder(nn.Module):
     n_latent: int
     n_hidden: int
     dropout_rate: int
-    # training: Optional[bool] = None
+    training: Optional[bool] = None
 
     def setup(self):
         """Setup encoder."""
@@ -47,7 +47,7 @@ class FlaxEncoder(nn.Module):
 
     def __call__(self, x: jnp.ndarray, training=False):
         """Forward pass."""
-        # training = nn.merge_param("training", self.training, training)
+        training = nn.merge_param("training", self.training, training)
         is_eval = not training
 
         x_ = jnp.log1p(x)
@@ -73,7 +73,7 @@ class FlaxDecoder(nn.Module):
     n_input: int
     dropout_rate: float
     n_hidden: int
-    # training: Optional[bool] = None
+    training: Optional[bool] = None
 
     def setup(self):
         """Setup decoder."""
@@ -94,7 +94,7 @@ class FlaxDecoder(nn.Module):
 
     def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training=False):
         """Forward pass."""
-        # training = nn.merge_param("training", self.training, training)
+        training = nn.merge_param("training", self.training, training)
         is_eval = not training
 
         h = self.dense1(z)
@@ -125,6 +125,7 @@ class JaxVAE(nn.Module, JaxBaseModuleClass):
     n_layers: int = 1
     gene_likelihood: str = "nb"
     eps: float = 1e-8
+    training: bool = True
 
     def setup(self):
         """Setup model."""

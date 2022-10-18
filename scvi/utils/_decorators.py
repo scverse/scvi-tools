@@ -26,6 +26,8 @@ def flax_configure(cls: nn.Module) -> Callable:
     def init(self, *args, **kwargs):
         self.configure()
         original_init(self, *args, **kwargs)
+        if not isinstance(self.training, bool):
+            raise ValueError("Custom sublclasses must have a training parameter.")
 
     cls.__init__ = init
     return cls
