@@ -610,7 +610,7 @@ class JaxBaseModuleClass(flax.linen.Module):
 
     def state_dict(self) -> Dict[str, Any]:
         """Returns a serialized version of the train state as a dictionary."""
-        self._check_train_state_is_not_none
+        self._check_train_state_is_not_none()
         return flax.serialization.to_state_dict(self.train_state)
 
     def load_state_dict(self, state_dict: Dict[str, Any]):
