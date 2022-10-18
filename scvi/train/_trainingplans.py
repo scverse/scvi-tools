@@ -18,7 +18,7 @@ from scvi._compat import Literal
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
-    JaxModuleWrapper,
+    JaxBaseModuleClass,
     LossRecorder,
     PyroBaseModuleClass,
     TrainStateWithState,
@@ -957,7 +957,7 @@ class JaxTrainingPlan(pl.LightningModule):
 
     def __init__(
         self,
-        module: JaxModuleWrapper,
+        module: JaxBaseModuleClass,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         optim_kwargs: Optional[dict] = None,
