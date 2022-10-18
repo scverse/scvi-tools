@@ -129,8 +129,8 @@ class LossOutput:
         self.reconstruction_loss = self._get_dict_sum(self.reconstruction_loss)
         self.kl_local = self._get_dict_sum(self.kl_local)
         self.kl_global = self._get_dict_sum(self.kl_global)
-        self.reconstruction_loss_sum = self.reconstruction_loss.sum() * 1.0
-        self.kl_local_sum = self.kl_local.sum() * 1.0
+        self.reconstruction_loss_sum = self.reconstruction_loss.sum()
+        self.kl_local_sum = self.kl_local.sum()
         self.kl_global_sum = self.kl_global
 
     @staticmethod
