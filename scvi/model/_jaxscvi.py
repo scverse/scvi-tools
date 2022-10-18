@@ -11,7 +11,6 @@ from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.module import JaxVAE
-from scvi.module.base import JaxModuleWrapper
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, JaxTrainingMixin
@@ -65,8 +64,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         n_batch = self.summary_stats.n_batch
 
-        self.module = JaxModuleWrapper(
-            JaxVAE,
+        self.module = JaxVAE(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,

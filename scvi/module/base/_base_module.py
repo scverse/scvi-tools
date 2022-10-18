@@ -1,15 +1,21 @@
 from abc import abstractmethod
-from typing import Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
+import flax
+import jax
 import jax.numpy as jnp
 import pyro
 import torch
-from flax import linen
+from flax.core import FrozenDict
+from flax.training import train_state
+from jax import random
+from jaxlib.xla_extension import Device
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi._types import LatentDataType, LossRecord
+from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
@@ -402,7 +408,13 @@ class PyroBaseModuleClass(nn.Module):
         return self.model(*args, **kwargs)
 
 
-class JaxBaseModuleClass(linen.Module):
+class TrainStateWithState(train_state.TrainState):
+    """TrainState with state attribute."""
+
+    state: FrozenDict[str, Any]
+
+
+class JaxBaseModuleClass:
     """
     Abstract class for Jax-based scvi-tools modules.
 
@@ -415,7 +427,13 @@ class JaxBaseModuleClass(linen.Module):
     the behavior of the model whether it is in training or evaluation mode.
     """
 
-    training: bool
+    def configure(self) -> None:
+        """Add necessary attrs."""
+        self.training = True
+        self.train_state = None
+        self.seed = 0
+        self.seed_rng = device_selecting_PRNGKey()(self.seed)
+        self._set_rngs()
 
     @abstractmethod
     def setup(self):
@@ -533,8 +551,85 @@ class JaxBaseModuleClass(linen.Module):
         This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
         """
 
+    @property
+    def device(self):  # noqa: D102
+        return self.seed_rng.device()
+
+    def train(self):
+        """Switch to train mode. Emulates Pytorch's interface."""
+        self.training = True
+
     def eval(self):
-        """No-op for PyTorch compatibility."""
+        """Switch to evaluation mode. Emulates Pytorch's interface."""
+        self.training = False
+
+    @property
+    def rngs(self) -> Dict[str, jnp.ndarray]:
+        """
+        Dictionary of RNGs mapping required RNG name to RNG values.
+
+        Calls ``self._split_rngs()`` resulting in newly generated RNGs on
+        every reference to ``self.rngs``.
+        """
+        return self._split_rngs()
+
+    def _set_rngs(self):
+        """Creates RNGs split off of the seed RNG for each RNG required by the module."""
+        required_rngs = self.required_rngs
+        rng_keys = random.split(self.seed_rng, num=len(required_rngs) + 1)
+        self.seed, module_rngs = rng_keys[0], rng_keys[1:]
+        self._rngs = {k: module_rngs[i] for i, k in enumerate(required_rngs)}
+
+    def _split_rngs(self):
+        """
+        Regenerates the current set of RNGs and returns newly split RNGs.
+
+        Importantly, this method does not reuse RNGs in future references to ``self.rngs``.
+        """
+        new_rngs = {}
+        ret_rngs = {}
+        for k, v in self._rngs.items():
+            new_rngs[k], ret_rngs[k] = random.split(v)
+        self._rngs = new_rngs
+        return ret_rngs
+
+    @property
+    def params(self) -> FrozenDict[str, Any]:  # noqa: D102
+        self._check_train_state_is_not_none()
+        return self.train_state.params
+
+    @property
+    def state(self) -> FrozenDict[str, Any]:  # noqa: D102
+        self._check_train_state_is_not_none()
+        return self.train_state.state
+
+    def state_dict(self) -> Dict[str, Any]:
+        """Returns a serialized version of the train state as a dictionary."""
+        self._check_train_state_is_not_none
+        return flax.serialization.to_state_dict(self.train_state)
+
+    def load_state_dict(self, state_dict: Dict[str, Any]):
+        """Load a state dictionary into a train state."""
+        if self.train_state is None:
+            raise RuntimeError(
+                "Train state is not set. Train for one iteration prior to loading state dict."
+            )
+        self.train_state = flax.serialization.from_state_dict(
+            self.train_state, state_dict
+        )
+
+    def to(self, device: Device):
+        """Move module to device."""
+        self._check_train_state_is_not_none()
+        self.train_state = jax.tree_util.tree_map(
+            lambda x: jax.device_put(x, device), self.train_state
+        )
+        self.seed_rng = jax.device_put(self.seed_rng, device)
+        self._rngs = jax.device_put(self._rngs, device)
+
+    def _check_train_state_is_not_none(self):
+        if self.train_state is None:
+            raise RuntimeError("Train state is not set. Module has not been trained.")
 
 
 def _generic_forward(
