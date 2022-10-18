@@ -3,7 +3,6 @@ from dataclasses import field
 from typing import Callable, Dict, Iterable, Optional, Tuple, Union
 
 import chex
-import jax
 import jax.numpy as jnp
 import pyro
 import torch
@@ -114,10 +113,9 @@ class LossOutput:
     kl_local: Optional[LossRecord] = None
     kl_global: Optional[LossRecord] = None
     extra_metrics: Optional[Dict[str, Tensor]] = field(default_factory=dict)
-    reconstruction_loss_sum: Tensor = field(init=False)
-    kl_local_sum: Tensor = field(init=False)
-    kl_global_sum: Tensor = field(init=False)
-    n_obs_minibatch: int = field(init=False)
+    reconstruction_loss_sum: Tensor = field(default=None, init=False)
+    kl_local_sum: Tensor = field(default=None, init=False)
+    kl_global_sum: Tensor = field(default=None, init=False)
 
     def __post_init__(self):
         self.loss = self._get_dict_sum(self.loss)
@@ -131,21 +129,26 @@ class LossOutput:
         self.reconstruction_loss = self._get_dict_sum(self.reconstruction_loss)
         self.kl_local = self._get_dict_sum(self.kl_local)
         self.kl_global = self._get_dict_sum(self.kl_global)
-        self.reconstruction_loss_sum = self.reconstruction_loss.sum()
-        self.kl_local_sum = self.kl_local.sum()
-        self.kl_global_sum = self.kl_global.sum()
-        self.n_obs_minibatch = self.reconstruction_loss.shape[0]
+        self.reconstruction_loss_sum = self.reconstruction_loss.sum() * 1.0
+        self.kl_local_sum = self.kl_local.sum() * 1.0
+        self.kl_global_sum = self.kl_global
 
     @staticmethod
     def _get_dict_sum(dictionary: Union[Dict[str, Tensor], Tensor]):
-        # Nest a dict in case input is just a Tensor
-        dictionary = {"root": dictionary}
-        return sum(jax.tree_util.tree_leaves(dictionary))
+        if isinstance(dictionary, dict):
+            return sum(dictionary.values())
+        else:
+            return dictionary
 
     @property
     def extra_metrics_keys(self) -> Iterable[str]:
         """Keys for extra metrics."""
         return self.extra_metrics.keys()
+
+    @property
+    def n_obs_minibatch(self) -> int:
+        """Number of observations in minibatch."""
+        return self.reconstruction_loss.shape[0]
 
 
 class BaseModuleClass(nn.Module):

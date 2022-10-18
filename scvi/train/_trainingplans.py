@@ -1121,20 +1121,20 @@ class JaxTrainingPlan(TrainingPlan):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.module.train()
-        self.module.train_state, loss, loss_output = self.jit_training_step(
+        self.module.train_state, _, loss_output = self.jit_training_step(
             self.module.train_state,
             batch,
             self.module.rngs,
             loss_kwargs=self.loss_kwargs,
         )
-        loss = torch.tensor(jax.device_get(loss))
         loss_output = jax.tree_util.tree_map(
-            lambda x: torch.tensor(jax.device_get(x)), loss_output
+            lambda x: torch.tensor(jax.device_get(x)),
+            loss_output,
         )
         # TODO: Better way to get batch size
         self.log(
             "train_loss",
-            loss,
+            loss_output.loss,
             on_epoch=True,
             batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
             prog_bar=True,
@@ -1153,26 +1153,25 @@ class JaxTrainingPlan(TrainingPlan):
         vars_in = {"params": state.params, **state.state}
         outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
         loss_output = outputs[2]
-        loss = loss_output.loss
 
-        return loss, loss_output
+        return loss_output
 
     def validation_step(self, batch, batch_idx):
         """Validation step for Jax."""
         self.module.eval()
-        loss, loss_output = self.jit_validation_step(
+        loss_output = self.jit_validation_step(
             self.module.train_state,
             batch,
             self.module.rngs,
             loss_kwargs=self.loss_kwargs,
         )
-        loss = torch.tensor(jax.device_get(loss))
         loss_output = jax.tree_util.tree_map(
-            lambda x: torch.tensor(jax.device_get(x)), loss_output
+            lambda x: torch.tensor(jax.device_get(x)),
+            loss_output,
         )
         self.log(
             "validation_loss",
-            loss,
+            loss_output.loss,
             on_epoch=True,
             batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
         )
