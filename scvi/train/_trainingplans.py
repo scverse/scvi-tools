@@ -304,11 +304,10 @@ class TrainingPlan(pl.LightningModule):
             loss_output = loss_recorder._loss_output
         else:
             loss_output = loss_recorder
-        rec_loss = loss_output.reconstruction_loss
-        n_obs_minibatch = rec_loss.shape[0]
-        rec_loss = rec_loss.sum()
-        kl_local = loss_output.kl_local.sum()
-        kl_global = loss_output.kl_global
+        rec_loss = loss_output.reconstruction_loss_sum
+        n_obs_minibatch = loss_output.n_obs_minibatch
+        kl_local = loss_output.kl_local_sum
+        kl_global = loss_output.kl_global_sum
 
         # Use the torchmetric object for the ELBO
         # We only need to update the ELBO metric

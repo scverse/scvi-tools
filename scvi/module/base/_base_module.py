@@ -19,6 +19,9 @@ from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
 
+@deprecated(
+    "LossRecorder is deprecated and will be removed in a future release. Please use LossOutput"
+)
 class LossRecorder:
     """
     Loss signature for models.
@@ -43,9 +46,6 @@ class LossRecorder:
         be available as attributes of the object.
     """
 
-    @deprecated(
-        "LossRecorder is deprecated and will be removed in a future release. Please use LossOutput"
-    )
     def __init__(
         self,
         loss: LossRecord,
@@ -114,10 +114,14 @@ class LossOutput:
     kl_local: Optional[LossRecord] = None
     kl_global: Optional[LossRecord] = None
     extra_metrics: Optional[Dict[str, Tensor]] = field(default_factory=dict)
+    reconstruction_loss_sum: Tensor = field(init=False)
+    kl_local_sum: Tensor = field(init=False)
+    kl_global_sum: Tensor = field(init=False)
+    n_obs_minibatch: int = field(init=False)
 
     def __post_init__(self):
         self.loss = self._get_dict_sum(self.loss)
-        default = 0 * self.loss
+        default = 0 * self._get_dict_sum(self.loss)
         if self.reconstruction_loss is None:
             self.reconstruction_loss = default
         if self.kl_local is None:
@@ -127,6 +131,10 @@ class LossOutput:
         self.reconstruction_loss = self._get_dict_sum(self.reconstruction_loss)
         self.kl_local = self._get_dict_sum(self.kl_local)
         self.kl_global = self._get_dict_sum(self.kl_global)
+        self.reconstruction_loss_sum = self.reconstruction_loss.sum()
+        self.kl_local_sum = self.kl_local.sum()
+        self.kl_global_sum = self.kl_global.sum()
+        self.n_obs_minibatch = self.reconstruction_loss.shape[0]
 
     @staticmethod
     def _get_dict_sum(dictionary: Union[Dict[str, Tensor], Tensor]):
