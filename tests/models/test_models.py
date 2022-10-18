@@ -119,7 +119,7 @@ def test_jax_scvi_training():
     )
 
     model = JaxSCVI(adata, n_latent=n_latent, dropout_rate=dropout_rate)
-    assert model.module.training
+    assert model.module.module.training
 
     with mock.patch(
         "scvi.module._jaxvae.nn.Dropout", wraps=nn.Dropout
@@ -129,7 +129,7 @@ def test_jax_scvi_training():
         mock_dropout_cls.return_value = mock_dropout
         model.train(1, train_size=0.5, check_val_every_n_epoch=1)
 
-        assert not model.module.training
+        assert not model.module.module.training
         mock_dropout_cls.assert_called()
         mock_dropout.assert_has_calls(
             12 * [mock.call(mock.ANY, deterministic=False)]

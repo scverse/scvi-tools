@@ -185,22 +185,22 @@ class JaxModuleWrapper:
 
     @property
     def params(self) -> FrozenDict[str, Any]:  # noqa: D102
+        self._check_train_state_is_not_none()
         return self.train_state.params
 
     @property
     def state(self) -> FrozenDict[str, Any]:  # noqa: D102
+        self._check_train_state_is_not_none()
         return self.train_state.state
 
     def state_dict(self) -> Dict[str, Any]:
         """Returns a serialized version of the train state as a dictionary."""
+        self._check_train_state_is_not_none()
         return flax.serialization.to_state_dict(self.train_state)
 
     def load_state_dict(self, state_dict: Dict[str, Any]):
         """Load a state dictionary into a train state."""
-        if self.train_state is None:
-            raise RuntimeError(
-                "Train state is not set. Train for one iteration prior to loading state dict."
-            )
+        self._check_train_state_is_not_none()
         self.train_state = flax.serialization.from_state_dict(
             self.train_state, state_dict
         )
@@ -213,3 +213,9 @@ class JaxModuleWrapper:
         )
         self.seed_rng = jax.device_put(self.seed_rng, device)
         self._rngs = jax.device_put(self._rngs, device)
+
+    def _check_train_state_is_not_none(self):
+        if self.train_state is None:
+            raise RuntimeError(
+                "Train state is not set. Module has not been trained. If loading, initialize the model."
+            )

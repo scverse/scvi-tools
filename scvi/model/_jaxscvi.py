@@ -142,11 +142,9 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
-        run_inference = self.module.get_inference_fn(mc_samples=mc_samples)
-
         latent = []
         for array_dict in scdl:
-            out = run_inference(array_dict)
+            out = self.module.jit_inference(array_dict, mc_samples=mc_samples)
             if give_mean:
                 z = out["qz"].mean
             else:
@@ -158,6 +156,8 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         return np.array(jax.device_get(latent))
 
     def to_device(self, device):  # noqa: D102
+        # TODO(adamgayoso): Better jax device management
+        # self.module.to(device)
         pass
 
     @property
