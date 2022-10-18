@@ -126,7 +126,12 @@ class LossOutput:
                 "Must provide either n_obs_minibatch or reconstruction_loss"
             )
         if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
-            self.n_obs_minibatch = self.reconstruction_loss.shape[0]
+            rec_loss = self.reconstruction_loss
+            self.n_obs_minibatch = (
+                rec_loss.values()[0].shape[0]
+                if isinstance(rec_loss, dict)
+                else rec_loss.shape[0]
+            )
 
         default = 0 * self.loss
         if self.reconstruction_loss is None:
@@ -135,12 +140,14 @@ class LossOutput:
             self.kl_local = default
         if self.kl_global is None:
             self.kl_global = default
-        self.reconstruction_loss = self._get_dict_sum(self.reconstruction_loss)
-        self.kl_local = self._get_dict_sum(self.kl_local)
-        self.kl_global = self._get_dict_sum(self.kl_global)
-        self.reconstruction_loss_sum = self.reconstruction_loss.sum()
-        self.kl_local_sum = self.kl_local.sum()
-        self.kl_global_sum = self.kl_global
+        self.reconstruction_loss = self.reconstruction_loss
+        self.kl_local = self.kl_local
+        self.kl_global = self.kl_global
+        self.reconstruction_loss_sum = self._get_dict_sum(
+            self.reconstruction_loss
+        ).sum()
+        self.kl_local_sum = self._get_dict_sum(self.kl_local).sum()
+        self.kl_global_sum = self._get_dict_sum(self.kl_global)
 
     @staticmethod
     def _get_dict_sum(dictionary: Union[Dict[str, Tensor], Tensor]):
