@@ -145,9 +145,10 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         latent = []
         for array_dict in scdl:
-            out = self.module.jit_inference(
-                array_dict, inference_kwargs={"n_samples": n_samples}
-            )
+            # This needs to be in the data loader loop
+            # As it creates a new bound module with new rng keys every time
+            jit_inference_fn = self.module.get_jit_inference_fn(n_samples=n_samples)
+            out = jit_inference_fn(array_dict)
             if give_mean:
                 z = out["qz"].mean
             else:

@@ -7,9 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 import pyro
 import torch
-from flax import linen
 from flax.core import FrozenDict
-from flax.linen import Module as LinenModule
 from flax.training import train_state
 from jax import random
 from jaxlib.xla_extension import Device
@@ -634,87 +632,50 @@ class JaxBaseModuleClass:
         if self.train_state is None:
             raise RuntimeError("Train state is not set. Module has not been trained.")
 
-    @staticmethod
-    def _jit_inference(
-        array_dict: Dict[str, jnp.ndarray],
-        module: LinenModule,
-        params: FrozenDict[str, Any],
-        state: FrozenDict[str, Any],
-        rngs: Dict[str, jnp.ndarray],
-        get_inference_input_kwargs: Optional[Dict[str, Any]],
-        inference_kwargs: Optional[Dict[str, Any]],
-    ):
-        vars_in = {"params": params, **state}
-        inference_input = module._get_inference_input(
-            array_dict, **get_inference_input_kwargs
+    @property
+    def _bound_module(self):
+        """Module bound with parameters learned from training."""
+        return self.bind(
+            {"params": self.params, **self.state},
+            rngs=self.rngs,
         )
-        out = jax.jit(linen.apply(module.inference, module))(
-            vars_in,
-            array_dict,
-            rngs=rngs,
-            **inference_input,
-            **inference_kwargs,
-        )
-        return out
 
-    def jit_inference(
-        self,
-        array_dict: Dict[str, jnp.ndarray],
-        get_inference_input_kwargs: Optional[Dict[str, Any]] = None,
-        inference_kwargs: Optional[Dict[str, Any]] = None,
-    ):
+    def get_jit_inference_fn(self, **inference_kwargs):
         """
-        Jitted inference method call.
+        Returns a method to run inference using the bound module.
 
         Parameters
         ----------
-        get_inference_input_kwargs
-            Kwargs for :func:`~scvi.module.base.JaxBaseModuleClass._get_inference_input`
         inference_kwargs
-            Kwargs for :func:`~scvi.module.base.JaxBaseModuleClass.inference`
+            Kwargs for subclass inference method
         """
-        get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
-        inference_kwargs = _get_dict_if_none(inference_kwargs)
-        return self._jit_inference(
-            array_dict,
-            self,
-            self.params,
-            self.state,
-            self.rngs,
-            get_inference_input_kwargs,
-            inference_kwargs,
-        )
+        bound_module = self._bound_module
 
-    @staticmethod
-    def _jit_forward(
-        array_dict: Dict[str, jnp.ndarray],
-        module: LinenModule,
-        params: FrozenDict[str, Any],
-        state: FrozenDict[str, Any],
-        rngs: Dict[str, jnp.ndarray],
-        kwargs: Dict[str, Any],
-    ):
-        vars_in = {"params": params, **state}
-        out = jax.jit(linen.apply(module.forward, module))(
-            vars_in,
-            array_dict,
-            rngs=rngs,
-            **kwargs,
-        )
-        return out
+        @jax.jit
+        def _run_inference(array_dict):
+            inference_input = bound_module._get_inference_input(array_dict)
+            out = bound_module.inference(**inference_input, **inference_kwargs)
+            return out
 
-    def jit_forward(self, array_dict: Dict[str, jnp.ndarray], **kwargs):
+        return _run_inference
+
+    def get_jit_forward_fn(self, **kwargs):
         """
-        Jitted forward call.
+        Returns a method to run forward using the bound module.
 
         Parameters
         ----------
-        **kwargs
-            Forward kwargs
+        inference_kwargs
+            Kwargs for __call__ method
         """
-        return self._jit_forward(
-            array_dict, self, self.params, self.state, self.rngs, kwargs
-        )
+        bound_module = self._bound_module
+
+        @jax.jit
+        def _run_forward(array_dict):
+            out = bound_module(array_dict, **kwargs)
+            return out
+
+        return _run_forward
 
     @staticmethod
     def on_load(model):
