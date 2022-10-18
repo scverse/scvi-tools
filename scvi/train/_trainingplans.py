@@ -29,6 +29,9 @@ from scvi.nn import one_hot
 
 from ._metrics import ElboMetric
 
+JaxOptimizerCreator = Callable[[], optax.GradientTransformation]
+TorchOptimizerCreator = Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
+
 
 def _compute_kl_weight(
     epoch: int,
@@ -141,9 +144,7 @@ class TrainingPlan(pl.LightningModule):
         module: BaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: Optional[
-            Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
-        ] = None,
+        optimizer_creator: Optional[TorchOptimizerCreator] = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
@@ -475,9 +476,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         module: BaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: Optional[
-            Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
-        ] = None,
+        optimizer_creator: Optional[TorchOptimizerCreator] = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
@@ -1028,7 +1027,7 @@ class JaxTrainingPlan(TrainingPlan):
         module: JaxModuleWrapper,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: Optional[Callable[[], optax.GradientTransformation]] = None,
+        optimizer_creator: Optional[JaxOptimizerCreator] = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
@@ -1052,7 +1051,7 @@ class JaxTrainingPlan(TrainingPlan):
         self.automatic_optimization = False
         self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
 
-    def get_optimizer_creator(self) -> Callable[[], optax.GradientTransformation]:
+    def get_optimizer_creator(self) -> JaxOptimizerCreator:
         """Get optimizer creator for the model."""
         clip_by = (
             optax.clip_by_global_norm(self.max_norm)
@@ -1138,6 +1137,7 @@ class JaxTrainingPlan(TrainingPlan):
             loss,
             on_epoch=True,
             batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+            prog_bar=True,
         )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
 
