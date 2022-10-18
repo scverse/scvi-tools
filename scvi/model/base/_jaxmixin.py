@@ -8,6 +8,8 @@ import numpy as np
 from scvi.dataloaders import DataSplitter
 from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
 
+from ._training_mixin import _check_warmup
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,6 +24,7 @@ class JaxTrainingMixin:
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         lr: float = 1e-3,
+        plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
         """
@@ -43,12 +46,19 @@ class JaxTrainingMixin:
             Minibatch size to use during training.
         lr
             Learning rate to use during training.
+        plan_kwargs
+            Keyword args for :class:`~scvi.train.JaxTrainingPlan`. Keyword arguments passed to
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
+        n_cells = self.adata.n_obs
         if max_epochs is None:
-            n_cells = self.adata.n_obs
             max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+
+        _check_warmup(plan_kwargs, max_epochs, n_cells, batch_size)
 
         if use_gpu is None or use_gpu is True:
             try:
@@ -75,7 +85,7 @@ class JaxTrainingMixin:
         )
 
         self.training_plan = JaxTrainingPlan(
-            self.module, optim_kwargs=dict(learning_rate=lr)
+            self.module, optim_kwargs=dict(learning_rate=lr), **plan_kwargs
         )
         if "callbacks" not in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] = []
