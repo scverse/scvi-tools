@@ -21,7 +21,7 @@ class JaxTrainingMixin:
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        lr: float = 1e-3,
+        plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
         """
@@ -43,6 +43,9 @@ class JaxTrainingMixin:
             Minibatch size to use during training.
         lr
             Learning rate to use during training.
+        plan_kwargs
+            Keyword args for :class:`~scvi.train.JaxTrainingPlan`. Keyword arguments passed to
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -73,10 +76,9 @@ class JaxTrainingMixin:
             use_gpu=False,
             iter_ndarray=True,
         )
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
-        self.training_plan = JaxTrainingPlan(
-            self.module, optim_kwargs=dict(learning_rate=lr)
-        )
+        self.training_plan = JaxTrainingPlan(self.module, **plan_kwargs)
         if "callbacks" not in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] = []
         trainer_kwargs["callbacks"].append(JaxModuleInit())

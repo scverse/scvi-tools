@@ -937,7 +937,7 @@ def test_device_backed_data_splitter():
     assert len(loaded_x) == a.shape[0]
     np.testing.assert_array_equal(loaded_x.cpu().numpy(), a.X)
 
-    training_plan = TrainingPlan(model.module, len(ds.train_idx))
+    training_plan = TrainingPlan(model.module)
     runner = TrainRunner(
         model,
         training_plan=training_plan,
