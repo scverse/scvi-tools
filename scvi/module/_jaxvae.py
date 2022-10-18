@@ -8,8 +8,7 @@ from flax.linen.initializers import variance_scaling
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
-from scvi.module.base import JaxBaseModuleClass, LossRecorder
-from scvi.utils import flax_configure
+from scvi.module.base import JaxBaseModuleClass, LossRecorder, flax_configure
 
 
 class Dense(nn.Dense):

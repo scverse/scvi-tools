@@ -5,16 +5,15 @@ from ._base_module import (
     LossRecorder,
     PyroBaseModuleClass,
 )
-from ._decorators import auto_move_data
-from ._jax_module_wrapper import JaxModuleWrapper, TrainStateWithState
+from ._decorators import auto_move_data, flax_configure
 
 __all__ = [
     "BaseModuleClass",
     "LossRecorder",
     "PyroBaseModuleClass",
     "auto_move_data",
+    "flax_configure",
     "JaxBaseModuleClass",
-    "JaxModuleWrapper",
     "TrainStateWithState",
     "BaseLatentModeModuleClass",
 ]

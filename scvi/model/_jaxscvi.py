@@ -140,7 +140,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
-        run_inference = self.module.get_inference_fn(mc_samples=mc_samples)
+        run_inference = self.module.jit_inference(mc_samples=mc_samples)
 
         latent = []
         for array_dict in scdl:

@@ -631,6 +631,58 @@ class JaxBaseModuleClass:
         if self.train_state is None:
             raise RuntimeError("Train state is not set. Module has not been trained.")
 
+    @jax.jit
+    def jit_inference(
+        self,
+        array_dict: Dict[str, jnp.ndarray],
+        get_inference_input_kwargs: Optional[Dict[str, Any]] = None,
+        **inference_kwargs,
+    ):
+        """
+        Jitted inference method call.
+
+        Parameters
+        ----------
+        **kwargs
+            Inference kwargs
+        """
+        vars_in = {"params": self.params, **self.state}
+        _get_dict_if_none(get_inference_input_kwargs)
+        inference_input = self._get_inference_input(array_dict)
+        out = self.apply(
+            vars_in,
+            rngs=self.rngs,
+            method=self.module.inference,
+            **inference_input,
+            **inference_kwargs,
+        )
+        return out
+
+    @jax.jit
+    def jit_forward(self, array_dict: Dict[str, jnp.ndarray], **kwargs):
+        """
+        Jitted forward call.
+
+        Parameters
+        ----------
+        **kwargs
+            Forward kwargs
+        """
+        vars_in = {"params": self.params, **self.state}
+        out = self.apply(vars_in, array_dict, rngs=self.rngs, **kwargs)
+        return out
+
+    @staticmethod
+    def on_load(model):
+        """
+        Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
+
+        Run one training step prior to loading state dict in order to initialize params.
+        """
+        old_history = model.history_.copy()
+        model.train(max_steps=1)
+        model.history_ = old_history
+
 
 def _generic_forward(
     module,
