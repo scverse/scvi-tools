@@ -73,49 +73,61 @@ class JaxModuleWrapper:
     def module(self):  # noqa: D102
         return self._module
 
-    @property
-    def training(self):
-        """Whether or not the Flax module is in training mode."""
-        return self.module.training
-
-    @training.setter
-    def training(self, training):
-        self.module.training = training
-
     def eval(self):
         """Switch to evaluation mode. Emulates Pytorch's interface."""
-        self.training = False
+        self._module = self.module_cls(training=False, **self.module_kwargs)
 
     def train(self):
         """Switch to train mode. Emulates Pytorch's interface."""
-        self.training = True
+        self._module = self.module_cls(training=True, **self.module_kwargs)
 
-    @property
-    def _bound_module(self):
-        """Module bound with parameters learned from training."""
-        return self.module.bind(
-            {"params": self.params, **self.state},
-            rngs=self.rngs,
-        )
-
-    def get_inference_fn(self, mc_samples: int = 1):
+    @jax.jit
+    def jit_inference(self, array_dict: Dict[str, jnp.ndarray], **kwargs):
         """
-        Returns a method to run inference using the bound module.
+        Returns a method to run base module's inference method
 
         Parameters
         ----------
-        mc_samples
-            Number of Monte Carlo samples to run for each input.
+        **kwargs
+            Inference kwargs
         """
-        bound_module = self._bound_module
+        vars_in = {"params": self.params, **self.state}
+        inference_input = self.module._get_inference_input(array_dict)
+        out = self.module.apply(
+            vars_in, rngs=self.rngs, method=self.module.inference, **inference_input
+        )
+        return out
 
-        @jax.jit
-        def _run_inference(array_dict):
-            inference_input = bound_module._get_inference_input(array_dict)
-            out = bound_module.inference(**inference_input, n_samples=mc_samples)
-            return out
+    @jax.jit
+    def jit_generative(self, array_dict: Dict[str, jnp.ndarray], **kwargs):
+        """
+        Returns a method to run base module's generative method
 
-        return _run_inference
+        Parameters
+        ----------
+        **kwargs
+            generative kwargs
+        """
+        vars_in = {"params": self.params, **self.state}
+        generative_input = self.module._get_generative_input(array_dict)
+        out = self.module.apply(
+            vars_in, rngs=self.rngs, method=self.module.generative, **generative_input
+        )
+        return out
+
+    @jax.jit
+    def jit_forward(self, array_dict: Dict[str, jnp.ndarray], **kwargs):
+        """
+        Returns a method to run base module's forward (__call__) method
+
+        Parameters
+        ----------
+        **kwargs
+            Inference kwargs
+        """
+        vars_in = {"params": self.params, **self.state}
+        out = self.module.apply(vars_in, array_dict, rngs=self.rngs, **kwargs)
+        return out
 
     @property
     def apply(self):
@@ -195,14 +207,9 @@ class JaxModuleWrapper:
 
     def to(self, device: Device):
         """Move module to device."""
-        # TODO: move params and other state as well
-        # TODO: be able to run device_get to get to CPU
-        if device is not self.device:
-            if self.train_state is not None:
-                raise NotImplementedError(
-                    "Currently unable to move module across devices with an "
-                    "existing train state."
-                )
-
-            self.seed_rng = jax.device_put(self.seed_rng, device)
-            self._rngs = jax.device_put(self._rngs, device)
+        self._check_train_state_is_not_none()
+        self.train_state = jax.tree_util.tree_map(
+            lambda x: jax.device_put(x, device), self.train_state
+        )
+        self.seed_rng = jax.device_put(self.seed_rng, device)
+        self._rngs = jax.device_put(self._rngs, device)

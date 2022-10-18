@@ -533,9 +533,6 @@ class JaxBaseModuleClass(linen.Module):
         This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
         """
 
-    def eval(self):
-        """No-op for PyTorch compatibility."""
-
 
 def _generic_forward(
     module,
