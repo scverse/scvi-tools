@@ -113,12 +113,21 @@ class LossOutput:
     kl_local: Optional[LossRecord] = None
     kl_global: Optional[LossRecord] = None
     extra_metrics: Optional[Dict[str, Tensor]] = field(default_factory=dict)
+    n_obs_minibatch: Optional[int] = None
     reconstruction_loss_sum: Tensor = field(default=None, init=False)
     kl_local_sum: Tensor = field(default=None, init=False)
     kl_global_sum: Tensor = field(default=None, init=False)
 
     def __post_init__(self):
         self.loss = self._get_dict_sum(self.loss)
+
+        if self.n_obs_minibatch is None and self.reconstruction_loss is None:
+            raise ValueError(
+                "Must provide either n_obs_minibatch or reconstruction_loss"
+            )
+        if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
+            self.n_obs_minibatch = self.reconstruction_loss.shape[0]
+
         default = 0 * self.loss
         if self.reconstruction_loss is None:
             self.reconstruction_loss = default
@@ -144,11 +153,6 @@ class LossOutput:
     def extra_metrics_keys(self) -> Iterable[str]:
         """Keys for extra metrics."""
         return self.extra_metrics.keys()
-
-    @property
-    def n_obs_minibatch(self) -> int:
-        """Number of observations in minibatch."""
-        return self.reconstruction_loss.shape[0]
 
 
 class BaseModuleClass(nn.Module):

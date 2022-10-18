@@ -1136,7 +1136,7 @@ class JaxTrainingPlan(TrainingPlan):
             "train_loss",
             loss_output.loss,
             on_epoch=True,
-            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+            batch_size=loss_output.n_obs_minibatch,
             prog_bar=True,
         )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
@@ -1173,7 +1173,7 @@ class JaxTrainingPlan(TrainingPlan):
             "validation_loss",
             loss_output.loss,
             on_epoch=True,
-            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+            batch_size=loss_output.n_obs_minibatch,
         )
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
