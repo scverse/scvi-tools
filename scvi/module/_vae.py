@@ -526,7 +526,7 @@ class VAE(BaseLatentModeModuleClass):
             library = inference_outputs["library"]
 
             # Reconstruction Loss
-            reconst_loss = losses.reconstruction_loss
+            reconst_loss = losses.dict_sum(losses.reconstruction_loss)
 
             # Log-probabilities
             p_z = (

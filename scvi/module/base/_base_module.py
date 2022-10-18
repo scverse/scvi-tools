@@ -35,11 +35,14 @@ class LossRecorder:
         Tensor with loss for minibatch. Should be one dimensional with one value.
         Note that loss should be a :class:`~torch.Tensor` and not the result of ``.item()``.
     reconstruction_loss
-        Reconstruction loss for each observation in the minibatch.
+        Reconstruction loss for each observation in the minibatch. If a tensor, converted to
+        a dictionary with key "reconstruction_loss" and value as tensor
     kl_local
-        KL divergence associated with each observation in the minibatch.
+        KL divergence associated with each observation in the minibatch. If a tensor, converted to
+        a dictionary with key "kl_local" and value as tensor
     kl_global
-        Global kl divergence term. Should be one dimensional with one value.
+        Global kl divergence term. Should be one dimensional with one value. If a tensor, converted to
+        a dictionary with key "kl_global" and value as tensor
     **kwargs
         Additional metrics can be passed as keyword arguments and will
         be available as attributes of the object.
@@ -71,15 +74,39 @@ class LossRecorder:
 
     @property
     def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
+        return self._loss_output.dict_sum(self._loss_output.reconstruction_loss)
+
+    @property
+    def _reconstruction_loss(self):
         return self._loss_output.reconstruction_loss
 
     @property
     def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
+        return self._loss_output.dict_sum(self._loss_output.kl_local)
+
+    @property
+    def _kl_local(self):
         return self._loss_output.kl_local
 
     @property
+    def reconstruction_loss_sum(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
+        return self._loss_output.reconstruction_loss_sum
+
+    @property
+    def kl_local_sum(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
+        return self._loss_output.kl_local_sum
+
+    @property
+    def kl_global_sum(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
+        return self._loss_output.kl_global_sum
+
+    @property
     def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.kl_global
+        return self._loss_output.dict_sum(self._loss_output.kl_global)
+
+    def dict_sum(self, x):
+        """Wrapper of LossOutput.dict_sum."""
+        return self._loss_output.dict_sum(x)
 
 
 @chex.dataclass
@@ -98,11 +125,14 @@ class LossOutput:
         Tensor with loss for minibatch. Should be one dimensional with one value.
         Note that loss should be in an array/tensory and not a float.
     reconstruction_loss
-        Reconstruction loss for each observation in the minibatch.
+        Reconstruction loss for each observation in the minibatch. If a tensor, converted to
+        a dictionary with key "reconstruction_loss" and value as tensor
     kl_local
-        KL divergence associated with each observation in the minibatch.
+        KL divergence associated with each observation in the minibatch. If a tensor, converted to
+        a dictionary with key "kl_local" and value as tensor
     kl_global
-        Global kl divergence term. Should be one dimensional with one value.
+        Global kl divergence term. Should be one dimensional with one value. If a tensor, converted to
+        a dictionary with key "kl_global" and value as tensor
     extra_metrics
         Additional metrics can be passed as arrays/tensors or dictionaries of
         arrays/tensors.
@@ -119,18 +149,11 @@ class LossOutput:
     kl_global_sum: Tensor = field(default=None, init=False)
 
     def __post_init__(self):
-        self.loss = self._get_dict_sum(self.loss)
+        self.loss = self.dict_sum(self.loss)
 
         if self.n_obs_minibatch is None and self.reconstruction_loss is None:
             raise ValueError(
                 "Must provide either n_obs_minibatch or reconstruction_loss"
-            )
-        if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
-            rec_loss = self.reconstruction_loss
-            self.n_obs_minibatch = (
-                rec_loss.values()[0].shape[0]
-                if isinstance(rec_loss, dict)
-                else rec_loss.shape[0]
             )
 
         default = 0 * self.loss
@@ -140,17 +163,20 @@ class LossOutput:
             self.kl_local = default
         if self.kl_global is None:
             self.kl_global = default
-        self.reconstruction_loss = self.reconstruction_loss
-        self.kl_local = self.kl_local
-        self.kl_global = self.kl_global
-        self.reconstruction_loss_sum = self._get_dict_sum(
-            self.reconstruction_loss
-        ).sum()
-        self.kl_local_sum = self._get_dict_sum(self.kl_local).sum()
-        self.kl_global_sum = self._get_dict_sum(self.kl_global)
+        self.reconstruction_loss = self._as_dict("reconstruction_loss")
+        self.kl_local = self._as_dict("kl_local")
+        self.kl_global = self._as_dict("kl_global")
+        self.reconstruction_loss_sum = self.dict_sum(self.reconstruction_loss).sum()
+        self.kl_local_sum = self.dict_sum(self.kl_local).sum()
+        self.kl_global_sum = self.dict_sum(self.kl_global)
+
+        if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
+            rec_loss = self.reconstruction_loss
+            self.n_obs_minibatch = list(rec_loss.values())[0].shape[0]
 
     @staticmethod
-    def _get_dict_sum(dictionary: Union[Dict[str, Tensor], Tensor]):
+    def dict_sum(dictionary: Union[Dict[str, Tensor], Tensor]):
+        """Sum over elements of a dictionary."""
         if isinstance(dictionary, dict):
             return sum(dictionary.values())
         else:
@@ -160,6 +186,13 @@ class LossOutput:
     def extra_metrics_keys(self) -> Iterable[str]:
         """Keys for extra metrics."""
         return self.extra_metrics.keys()
+
+    def _as_dict(self, attr_name: str):
+        attr = getattr(self, attr_name)
+        if isinstance(attr, dict):
+            return attr
+        else:
+            return {attr_name: attr}
 
 
 class BaseModuleClass(nn.Module):

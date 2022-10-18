@@ -708,15 +708,15 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             labelled_tensors=labelled_dataset,
         )
         input_kwargs.update(self.loss_kwargs)
-        _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
-        loss = scvi_losses.loss
+        _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
+        loss = loss_output.loss
         self.log(
             "train_loss",
             loss,
             on_epoch=True,
-            batch_size=len(scvi_losses.reconstruction_loss),
+            batch_size=loss_output.n_obs_minibatch,
         )
-        self.compute_and_log_metrics(scvi_losses, self.train_metrics, "train")
+        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
         return loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
@@ -734,15 +734,15 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             labelled_tensors=labelled_dataset,
         )
         input_kwargs.update(self.loss_kwargs)
-        _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
-        loss = scvi_losses.loss
+        _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
+        loss = loss_output.loss
         self.log(
             "validation_loss",
             loss,
             on_epoch=True,
-            batch_size=len(scvi_losses.reconstruction_loss),
+            batch_size=loss_output.n_obs_minibatch,
         )
-        self.compute_and_log_metrics(scvi_losses, self.val_metrics, "validation")
+        self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
 
 class PyroTrainingPlan(pl.LightningModule):
