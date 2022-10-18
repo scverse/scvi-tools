@@ -121,7 +121,7 @@ class LossOutput:
 
     def __post_init__(self):
         self.loss = self._get_dict_sum(self.loss)
-        default = 0 * self._get_dict_sum(self.loss)
+        default = 0 * self.loss
         if self.reconstruction_loss is None:
             self.reconstruction_loss = default
         if self.kl_local is None:
