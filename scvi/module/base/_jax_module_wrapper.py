@@ -57,7 +57,7 @@ class JaxModuleWrapper:
     @staticmethod
     def on_load(model):
         """
-        Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
+        Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
 
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """
