@@ -17,6 +17,7 @@ from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 from torch import nn
 
+from scvi import settings
 from scvi._types import LatentDataType, LossRecord
 from scvi.utils._jax import device_selecting_PRNGKey
 
@@ -436,7 +437,7 @@ class JaxBaseModuleClass(flax.linen.Module):
         """Add necessary attrs."""
         self.training = None
         self.train_state = None
-        self.seed = 0
+        self.seed = settings.seed
         self.seed_rng = device_selecting_PRNGKey()(self.seed)
         self._set_rngs()
 
