@@ -14,7 +14,7 @@ from anndata._core.sparse_dataset import SparseDataset
 from mudata import MuData
 from pandas.api.types import CategoricalDtype
 
-from scvi._types import AnnOrMuData
+from scvi._types import AnnOrMuData, LatentDataType
 
 from . import _constants
 
@@ -189,7 +189,6 @@ def _check_nonnegative_integers(
     n_to_check: int = 20,
 ):
     """Approximately checks values of data to ensure it is count data."""
-
     # for backed anndata
     if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
         data = data[:100]
@@ -203,10 +202,13 @@ def _check_nonnegative_integers(
     else:
         raise TypeError("data type not understood")
 
-    inds = np.random.choice(len(data), size=(n_to_check,))
-    check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
-    negative, non_integer = _is_not_count_val(check)
-    return not (negative or non_integer)
+    ret = True
+    if len(data) != 0:
+        inds = np.random.choice(len(data), size=(n_to_check,))
+        check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
+        negative, non_integer = _is_not_count_val(check)
+        ret = not (negative or non_integer)
+    return ret
 
 
 @jax.jit
@@ -215,28 +217,6 @@ def _is_not_count_val(data: jnp.ndarray):
     non_integer = jnp.any(data % 1 != 0)
 
     return negative, non_integer
-
-
-def _get_batch_mask_protein_data(
-    adata: AnnData, protein_expression_obsm_key: str, batch_key: str
-):
-    """
-    Returns a list with length number of batches where each entry is a mask.
-
-    The mask is over cell measurement columns that are present (observed)
-    in each batch. Absence is defined by all 0 for that protein in that batch.
-    """
-    pro_exp = adata.obsm[protein_expression_obsm_key]
-    pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
-    batches = adata.obs[batch_key].values
-    batch_mask = {}
-    for b in np.unique(batches):
-        b_inds = np.where(batches.ravel() == b)[0]
-        batch_sum = pro_exp[b_inds, :].sum(axis=0)
-        all_zero = batch_sum == 0
-        batch_mask[b] = ~all_zero
-
-    return batch_mask
 
 
 def _check_if_view(adata: AnnOrMuData, copy_if_view: bool = False):
@@ -266,3 +246,7 @@ def _check_mudata_fully_paired(mdata: MuData):
                 "Please make sure that data is fully paired in all MuData inputs. "
                 "Either pad the unpaired modalities or take the intersection with muon.pp.intersect_obs()."
             )
+
+
+def _get_latent_adata_type(adata: AnnData) -> Optional[LatentDataType]:
+    return adata.uns.get(_constants._ADATA_LATENT_UNS_KEY, None)

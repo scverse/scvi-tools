@@ -1,6 +1,6 @@
 from functools import partial
 from inspect import getfullargspec, signature
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, Iterable, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -18,7 +18,7 @@ from scvi._compat import Literal
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
-    JaxModuleWrapper,
+    JaxBaseModuleClass,
     LossRecorder,
     PyroBaseModuleClass,
     TrainStateWithState,
@@ -37,9 +37,9 @@ def _compute_kl_weight(
     min_kl_weight: float = 0.0,
 ) -> float:
     """
-    Computes the kl weight for the current step or epoch depending on
-    `n_epochs_kl_warmup` and `n_steps_kl_warmup`. If both `n_epochs_kl_warmup` and
-    `n_steps_kl_warmup` are None `max_kl_weight` is returned.
+    Computes the kl weight for the current step or epoch.
+
+    If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None `max_kl_weight` is returned.
 
     Parameters
     ----------
@@ -92,15 +92,19 @@ class TrainingPlan(pl.LightningModule):
     ----------
     module
         A module instance from class ``BaseModuleClass``.
-    lr
-
-        Learning rate used for optimization.
-    weight_decay
-        Weight decay used in optimizatoin.
-    eps
-        eps used for optimization.
     optimizer
-        One of "Adam" (:class:`~torch.optim.Adam`), "AdamW" (:class:`~torch.optim.AdamW`).
+        One of "Adam" (:class:`~torch.optim.Adam`), "AdamW" (:class:`~torch.optim.AdamW`),
+        or "Custom", which requires a custom optimizer creator callable to be passed via
+        `optimizer_creator`.
+    optimizer_creator
+        A callable taking in parameters and returning a :class:`~torch.optim.Optimizer`.
+        This allows using any PyTorch optimizer with custom hyperparameters.
+    lr
+        Learning rate used for optimization, when `optimizer_creator` is None.
+    weight_decay
+        Weight decay used in optimization, when `optimizer_creator` is None.
+    eps
+        eps used for optimization, when `optimizer_creator` is None.
     n_steps_kl_warmup
         Number of training steps (minibatches) to scale weight on KL divergences from
         `min_kl_weight` to `max_kl_weight`. Only activated when `n_epochs_kl_warmup` is
@@ -133,10 +137,14 @@ class TrainingPlan(pl.LightningModule):
     def __init__(
         self,
         module: BaseModuleClass,
+        *,
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
+        optimizer_creator: Optional[
+            Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
+        ] = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
-        optimizer: Literal["Adam", "AdamW"] = "Adam",
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -168,6 +176,12 @@ class TrainingPlan(pl.LightningModule):
         self.loss_kwargs = loss_kwargs
         self.min_kl_weight = min_kl_weight
         self.max_kl_weight = max_kl_weight
+        self.optimizer_creator = optimizer_creator
+
+        if self.optimizer_name == "Custom" and self.optimizer_creator is None:
+            raise ValueError(
+                "If optimizer is 'Custom', `optimizer_creator` must be provided."
+            )
 
         self._n_obs_training = None
         self._n_obs_validation = None
@@ -261,7 +275,7 @@ class TrainingPlan(pl.LightningModule):
         self.initialize_val_metrics()
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the module's forward method."""
         return self.module(*args, **kwargs)
 
     @torch.inference_mode()
@@ -321,6 +335,7 @@ class TrainingPlan(pl.LightningModule):
             )
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step for the model."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
@@ -329,6 +344,7 @@ class TrainingPlan(pl.LightningModule):
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
+        """Validation step for the model."""
         # loss kwargs here contains `n_obs` equal to n_training_obs
         # so when relevant, the actual loss value is rescaled to number
         # of training examples
@@ -336,17 +352,35 @@ class TrainingPlan(pl.LightningModule):
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
-    def configure_optimizers(self):
-        params = filter(lambda p: p.requires_grad, self.module.parameters())
-        if self.optimizer_name == "Adam":
-            optim_cls = torch.optim.Adam
-        elif self.optimizer_name == "AdamW":
-            optim_cls = torch.optim.AdamW
-        else:
-            raise ValueError("Optimizer not understood.")
-        optimizer = optim_cls(
+    def _optimizer_creator(
+        self, optimizer_cls: Union[torch.optim.Adam, torch.optim.AdamW]
+    ):
+        """
+        Create optimizer for the model.
+
+        This type of function can be passed as the `optimizer_creator`
+        """
+        return lambda params: optimizer_cls(
             params, lr=self.lr, eps=self.eps, weight_decay=self.weight_decay
         )
+
+    def get_optimizer_creator(self):
+        """Get optimizer creator for the model."""
+        if self.optimizer_name == "Adam":
+            optim_creator = self._optimizer_creator(torch.optim.Adam)
+        elif self.optimizer_name == "AdamW":
+            optim_creator = self._optimizer_creator(torch.optim.AdamW)
+        elif self.optimizer_name == "Custom":
+            optim_creator = self._optimizer_creator
+        else:
+            raise ValueError("Optimizer not understood.")
+
+        return optim_creator
+
+    def configure_optimizers(self):
+        """Configure optimizers for the model."""
+        params = filter(lambda p: p.requires_grad, self.module.parameters())
+        optimizer = self.get_optimizer_creator()(params)
         config = {"optimizer": optimizer}
         if self.reduce_lr_on_plateau:
             scheduler = ReduceLROnPlateau(
@@ -387,10 +421,19 @@ class AdversarialTrainingPlan(TrainingPlan):
     ----------
     module
         A module instance from class ``BaseModuleClass``.
+    optimizer
+        One of "Adam" (:class:`~torch.optim.Adam`), "AdamW" (:class:`~torch.optim.AdamW`),
+        or "Custom", which requires a custom optimizer creator callable to be passed via
+        `optimizer_creator`.
+    optimizer_creator
+        A callable taking in parameters and returning a :class:`~torch.optim.Optimizer`.
+        This allows using any PyTorch optimizer with custom hyperparameters.
     lr
-        Learning rate used for optimization :class:`~torch.optim.Adam`.
+        Learning rate used for optimization, when `optimizer_creator` is None.
     weight_decay
-        Weight decay used in :class:`~torch.optim.Adam`.
+        Weight decay used in optimization, when `optimizer_creator` is None.
+    eps
+        eps used for optimization, when `optimizer_creator` is None.
     n_steps_kl_warmup
         Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
         Only activated when `n_epochs_kl_warmup` is set to None.
@@ -424,8 +467,13 @@ class AdversarialTrainingPlan(TrainingPlan):
     def __init__(
         self,
         module: BaseModuleClass,
-        lr=1e-3,
-        weight_decay=1e-6,
+        *,
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
+        optimizer_creator: Optional[
+            Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
+        ] = None,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -442,6 +490,8 @@ class AdversarialTrainingPlan(TrainingPlan):
     ):
         super().__init__(
             module=module,
+            optimizer=optimizer,
+            optimizer_creator=optimizer_creator,
             lr=lr,
             weight_decay=weight_decay,
             n_steps_kl_warmup=n_steps_kl_warmup,
@@ -468,6 +518,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         self.scale_adversarial_loss = scale_adversarial_loss
 
     def loss_adversarial_classifier(self, z, batch_index, predict_true_class=True):
+        """Loss for adversarial classifier."""
         n_classes = self.n_output_classifier
         cls_logits = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
 
@@ -487,6 +538,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         return loss
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step for adversarial training."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         kappa = (
@@ -522,10 +574,9 @@ class AdversarialTrainingPlan(TrainingPlan):
             return loss
 
     def configure_optimizers(self):
+        """Configure optimizers for adversarial training."""
         params1 = filter(lambda p: p.requires_grad, self.module.parameters())
-        optimizer1 = torch.optim.Adam(
-            params1, lr=self.lr, eps=0.01, weight_decay=self.weight_decay
-        )
+        optimizer1 = self.get_optimizer_creator()(params1)
         config1 = {"optimizer": optimizer1}
         if self.reduce_lr_on_plateau:
             scheduler1 = ReduceLROnPlateau(
@@ -604,9 +655,10 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def __init__(
         self,
         module: BaseModuleClass,
+        *,
         classification_ratio: int = 50,
-        lr=1e-3,
-        weight_decay=1e-6,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -634,6 +686,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step for semi-supervised training."""
         # Potentially dangerous if batch is from a single dataloader with two keys
         if len(batch) == 2:
             full_dataset = batch[0]
@@ -661,6 +714,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         return loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
+        """Validation step for semi-supervised training."""
         # Potentially dangerous if batch is from a single dataloader with two keys
         if len(batch) == 2:
             full_dataset = batch[0]
@@ -780,17 +834,18 @@ class PyroTrainingPlan(pl.LightningModule):
         # important for scaling log prob in Pyro plates
         if n_obs is not None:
             if hasattr(self.module.model, "n_obs"):
-                setattr(self.module.model, "n_obs", n_obs)
+                self.module.model.n_obs = n_obs
             if hasattr(self.module.guide, "n_obs"):
-                setattr(self.module.guide, "n_obs", n_obs)
+                self.module.guide.n_obs = n_obs
 
         self._n_obs_training = n_obs
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the model's forward method."""
         return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
+        """Training step for Pyro training."""
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         # Set KL weight if necessary.
         # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
@@ -805,6 +860,7 @@ class PyroTrainingPlan(pl.LightningModule):
         return {"loss": loss}
 
     def training_epoch_end(self, outputs):
+        """Training epoch end for Pyro training."""
         elbo = 0
         n = 0
         for out in outputs:
@@ -815,7 +871,7 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def configure_optimizers(self):
         """
-        PyTorch Lightning shim optimizer.
+        Shim optimizer for PyTorch Lightning.
 
         PyTorch Lightning wants to take steps on an optimizer
         returned by this function in order to increment the global
@@ -826,10 +882,10 @@ class PyroTrainingPlan(pl.LightningModule):
         """
         return torch.optim.Adam([self._dummy_param])
 
-    def optimizer_step(self, *args, **kwargs):
+    def optimizer_step(self, *args, **kwargs):  # noqa: D102
         pass
 
-    def backward(self, *args, **kwargs):
+    def backward(self, *args, **kwargs):  # noqa: D102
         pass
 
     @property
@@ -855,7 +911,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
     lr
         Learning rate used for optimization.
     weight_decay
-        Weight decay used in optimizatoin.
+        Weight decay used in optimization.
     eps
         eps used for optimization.
     optimizer
@@ -871,6 +927,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
     def __init__(
         self,
         classifier: BaseModuleClass,
+        *,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
@@ -895,17 +952,18 @@ class ClassifierTrainingPlan(pl.LightningModule):
             )
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the module's forward function."""
         return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-
+        """Training step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
         self.log("train_loss", loss, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
+        """Validation step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
         self.log("validation_loss", loss)
@@ -913,6 +971,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
+        """Configure optimizers for classifier training."""
         params = filter(lambda p: p.requires_grad, self.module.parameters())
         if self.optimizer_name == "Adam":
             optim_cls = torch.optim.Adam
@@ -927,7 +986,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
         return optimizer
 
 
-class JaxTrainingPlan(pl.LightningModule):
+class JaxTrainingPlan(TrainingPlan):
     """
     Lightning module task to train Pyro scvi-tools modules.
 
@@ -935,51 +994,90 @@ class JaxTrainingPlan(pl.LightningModule):
     ----------
     module
         An instance of :class:`~scvi.module.base.JaxModuleWraper`.
+    optimizer
+        One of "Adam", "AdamW", or "Custom", which requires a custom
+        optimizer creator callable to be passed via `optimizer_creator`.
+    optimizer_creator
+        A callable returning a :class:`~optax.GradientTransformation`.
+        This allows using any optax optimizer with custom hyperparameters.
+    lr
+        Learning rate used for optimization, when `optimizer_creator` is None.
+    weight_decay
+        Weight decay used in optimization, when `optimizer_creator` is None.
+    eps
+        eps used for optimization, when `optimizer_creator` is None.
+    max_norm
+        Max global norm of gradients for gradient clipping.
     n_steps_kl_warmup
-        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
-        Only activated when `n_epochs_kl_warmup` is set to None.
+        Number of training steps (minibatches) to scale weight on KL divergences from
+        `min_kl_weight` to `max_kl_weight`. Only activated when `n_epochs_kl_warmup` is
+        set to None.
     n_epochs_kl_warmup
-        Number of epochs to scale weight on KL divergences from 0 to 1.
-        Overrides `n_steps_kl_warmup` when both are not `None`.
+        Number of epochs to scale weight on KL divergences from `min_kl_weight` to
+        `max_kl_weight`. Overrides `n_steps_kl_warmup` when both are not `None`.
     """
 
     def __init__(
         self,
-        module: JaxModuleWrapper,
+        module: JaxBaseModuleClass,
+        *,
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
+        optimizer_creator: Optional[Callable[[], optax.GradientTransformation]] = None,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        eps: float = 0.01,
+        max_norm: Optional[float] = None,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
-        optim_kwargs: Optional[dict] = None,
         **loss_kwargs,
     ):
-        super().__init__()
-        self.module = module
-        self._n_obs_training = None
-        self.loss_kwargs = loss_kwargs
-        self.n_steps_kl_warmup = n_steps_kl_warmup
-        self.n_epochs_kl_warmup = n_epochs_kl_warmup
-
+        super().__init__(
+            module=module,
+            lr=lr,
+            weight_decay=weight_decay,
+            eps=eps,
+            optimizer=optimizer,
+            optimizer_creator=optimizer_creator,
+            n_steps_kl_warmup=n_steps_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            **loss_kwargs,
+        )
+        self.max_norm = max_norm
         self.automatic_optimization = False
+        self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
 
-        # automatic handling of kl weight
-        self._loss_args = signature(self.module.loss).parameters
-        if "kl_weight" in self._loss_args:
-            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+    def get_optimizer_creator(self) -> Callable[[], optax.GradientTransformation]:
+        """Get optimizer creator for the model."""
+        clip_by = (
+            optax.clip_by_global_norm(self.max_norm)
+            if self.max_norm
+            else optax.identity()
+        )
+        if self.optimizer_name == "Adam":
+            # Replicates PyTorch Adam defaults
+            optim = optax.chain(
+                clip_by,
+                optax.additive_weight_decay(weight_decay=self.weight_decay),
+                optax.adam(self.lr, eps=self.eps),
+            )
+        elif self.optimizer_name == "AdamW":
+            optim = optax.chain(
+                clip_by,
+                optax.clip_by_global_norm(self.max_norm),
+                optax.adamw(self.lr, eps=self.eps, weight_decay=self.weight_decay),
+            )
+        elif self.optimizer_name == "Custom":
+            optim = self._optimizer_creator
+        else:
+            raise ValueError("Optimizer not understood.")
 
-        # set optim kwargs
-        self.optim_kwargs = dict(learning_rate=1e-3, eps=0.01, weight_decay=1e-6)
-        if optim_kwargs is not None:
-            self.optim_kwargs.update(optim_kwargs)
+        return lambda: optim
 
     def set_train_state(self, params, state=None):
+        """Set the state of the module."""
         if self.module.train_state is not None:
             return
-
-        weight_decay = self.optim_kwargs.pop("weight_decay")
-        # replicates PyTorch Adam
-        optimizer = optax.chain(
-            optax.additive_weight_decay(weight_decay=weight_decay),
-            optax.adam(**self.optim_kwargs),
-        )
+        optimizer = self.get_optimizer_creator()()
         train_state = TrainStateWithState.create(
             apply_fn=self.module.apply,
             params=params,
@@ -996,6 +1094,7 @@ class JaxTrainingPlan(pl.LightningModule):
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
+        """Jit training step."""
         # state can't be passed here
         def loss_fn(params):
             vars_in = {"params": params, **state.state}
@@ -1014,6 +1113,7 @@ class JaxTrainingPlan(pl.LightningModule):
         return new_state, loss, elbo
 
     def training_step(self, batch, batch_idx):
+        """Training step for Jax."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.module.train()
@@ -1047,6 +1147,7 @@ class JaxTrainingPlan(pl.LightningModule):
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
+        """Jit validation step."""
         vars_in = {"params": state.params, **state.state}
         outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
         loss_recorder = outputs[2]
@@ -1056,6 +1157,7 @@ class JaxTrainingPlan(pl.LightningModule):
         return loss, elbo
 
     def validation_step(self, batch, batch_idx):
+        """Validation step for Jax."""
         self.module.eval()
         loss, elbo = self.jit_validation_step(
             self.module.train_state,
@@ -1078,29 +1180,29 @@ class JaxTrainingPlan(pl.LightningModule):
             batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
         )
 
-    @property
-    def kl_weight(self):
-        """Scaling factor on KL divergence during training."""
-        return _compute_kl_weight(
-            self.current_epoch,
-            self.global_step,
-            self.n_epochs_kl_warmup,
-            self.n_steps_kl_warmup,
-        )
-
     @staticmethod
     def transfer_batch_to_device(batch, device, dataloader_idx):
         """Bypass Pytorch Lightning device management."""
         return batch
 
     def configure_optimizers(self):
-        return None
+        """
+        Shim optimizer for PyTorch Lightning.
 
-    def optimizer_step(self, *args, **kwargs):
+        PyTorch Lightning wants to take steps on an optimizer
+        returned by this function in order to increment the global
+        step count. See PyTorch Lighinting optimizer manual loop.
+
+        Here we provide a shim optimizer that we can take steps on
+        at minimal computational cost in order to keep Lightning happy :).
+        """
+        return torch.optim.Adam([self._dummy_param])
+
+    def optimizer_step(self, *args, **kwargs):  # noqa: D102
         pass
 
-    def backward(self, *args, **kwargs):
+    def backward(self, *args, **kwargs):  # noqa: D102
         pass
 
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs):  # noqa: D102
         pass

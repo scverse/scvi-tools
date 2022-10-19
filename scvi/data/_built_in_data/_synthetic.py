@@ -23,7 +23,7 @@ def _generate_synthetic(
 
     batch = []
     for i in range(n_batches):
-        batch += ["batch_{}".format(i)] * batch_size
+        batch += [f"batch_{i}"] * batch_size
 
     adata = AnnData(data)
     adata.obs["batch"] = pd.Categorical(batch)

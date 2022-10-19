@@ -1,7 +1,6 @@
 import logging
 from typing import Optional, Sequence
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 from anndata import AnnData
@@ -11,7 +10,6 @@ from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.module import JaxVAE
-from scvi.module.base import JaxModuleWrapper
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, JaxTrainingMixin
@@ -21,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     """
-    EXPERIMENTAL single-cell Variational Inference [Lopez18]_, but with a Jax backend.
+    EXPERIMENTAL single-cell Variational Inference :cite:p:`Lopez18`, but with a Jax backend.
 
     This implementation is in a very experimental state. API is completely subject to change.
 
@@ -65,8 +63,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         n_batch = self.summary_stats.n_batch
 
-        self.module = JaxModuleWrapper(
-            JaxVAE,
+        self.module = JaxVAE(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,
@@ -112,7 +109,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         give_mean: bool = True,
-        mc_samples: int = 1,
+        n_samples: int = 1,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
         r"""
@@ -127,6 +124,10 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
+        give_mean
+            Whether to return the mean of the posterior distribution or a sample.
+        n_samples
+            Number of samples to use for computing the latent representation.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 
@@ -142,24 +143,25 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
-        run_inference = self.module.get_inference_fn(mc_samples=mc_samples)
-
+        jit_inference_fn = self.module.get_jit_inference_fn(
+            inference_kwargs={"n_samples": n_samples}
+        )
         latent = []
         for array_dict in scdl:
-            out = run_inference(array_dict)
+            out = jit_inference_fn(self.module.rngs, array_dict)
             if give_mean:
                 z = out["qz"].mean
             else:
                 z = out["z"]
             latent.append(z)
-        concat_axis = 0 if ((mc_samples == 1) or give_mean) else 1
+        concat_axis = 0 if ((n_samples == 1) or give_mean) else 1
         latent = jnp.concatenate(latent, axis=concat_axis)
 
-        return np.array(jax.device_get(latent))
+        return self.module.as_numpy_array(latent)
 
-    def to_device(self, device):
+    def to_device(self, device):  # noqa: D102
         pass
 
     @property
-    def device(self):
+    def device(self):  # noqa: D102
         return self.module.device

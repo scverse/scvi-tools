@@ -240,7 +240,7 @@ def _get_batch_code_from_category(
         if cat is None:
             batch_code.append(None)
         elif cat not in batch_mappings:
-            raise ValueError('"{}" not a valid batch category.'.format(cat))
+            raise ValueError(f'"{cat}" not a valid batch category.')
         else:
             batch_loc = np.where(batch_mappings == cat)[0][0]
             batch_code.append(batch_loc)
