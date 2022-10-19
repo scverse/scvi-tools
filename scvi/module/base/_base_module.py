@@ -626,12 +626,14 @@ class JaxBaseModuleClass(flax.linen.Module):
 
     def to(self, device: Device):
         """Move module to device."""
-        self._check_train_state_is_not_none()
-        self.train_state = jax.tree_util.tree_map(
-            lambda x: jax.device_put(x, device), self.train_state
-        )
-        self.seed_rng = jax.device_put(self.seed_rng, device)
-        self._rngs = jax.device_put(self._rngs, device)
+        if device is not self.device:
+            if self.train_state is not None:
+                self.train_state = jax.tree_util.tree_map(
+                    lambda x: jax.device_put(x, device), self.train_state
+                )
+
+            self.seed_rng = jax.device_put(self.seed_rng, device)
+            self._rngs = jax.device_put(self._rngs, device)
 
     def _check_train_state_is_not_none(self):
         if self.train_state is None:

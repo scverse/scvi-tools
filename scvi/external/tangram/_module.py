@@ -4,7 +4,7 @@ import chex
 import jax
 import jax.numpy as jnp
 
-from scvi.module.base import JaxBaseModuleClass, LossRecorder
+from scvi.module.base import JaxBaseModuleClass, LossRecorder, flax_configure
 
 
 class _TANGRAM_REGISTRY_KEYS_NT(NamedTuple):
@@ -28,6 +28,7 @@ def _density_criterion(log_y_pred: jnp.ndarray, y_true: jnp.ndarray) -> jnp.ndar
     return (y_true * (log_y_true - log_y_pred)).sum()
 
 
+@flax_configure
 class TangramMapper(JaxBaseModuleClass):
     """Tangram Mapper Model."""
 
@@ -41,6 +42,7 @@ class TangramMapper(JaxBaseModuleClass):
     lambda_f_reg: float = 1.0
     constrained: bool = False
     target_count: Optional[int] = None
+    training: bool = True
 
     def setup(self):
         """Setup model."""
