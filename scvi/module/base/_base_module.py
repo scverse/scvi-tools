@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from functools import partial
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import flax
@@ -577,7 +578,8 @@ class JaxBaseModuleClass(flax.linen.Module):
         Calls ``self._split_rngs()`` resulting in newly generated RNGs on
         every reference to ``self.rngs``.
         """
-        return self._split_rngs()
+        self._rngs, return_rngs = self._split_rngs(self.device)(self._rngs)
+        return return_rngs
 
     def _set_rngs(self):
         """Creates RNGs split off of the seed RNG for each RNG required by the module."""
@@ -586,18 +588,27 @@ class JaxBaseModuleClass(flax.linen.Module):
         self.seed_rng, module_rngs = rng_keys[0], rng_keys[1:]
         self._rngs = {k: module_rngs[i] for i, k in enumerate(required_rngs)}
 
-    def _split_rngs(self):
+    def _split_rngs(self, device: Device) -> Callable:
         """
         Regenerates the current set of RNGs and returns newly split RNGs.
 
         Importantly, this method does not reuse RNGs in future references to ``self.rngs``.
         """
-        new_rngs = {}
-        ret_rngs = {}
-        for k, v in self._rngs.items():
-            new_rngs[k], ret_rngs[k] = random.split(v)
-        self._rngs = new_rngs
-        return ret_rngs
+        attr_name = "_device_cache_split_rngs"
+        if not hasattr(self, attr_name):
+            self._device_cache_split_rngs = {}
+
+        @partial(jax.jit, device=device)
+        def _jit_split_rng(rngs):
+            new_and_return = jax.tree_util.tree_map(lambda x: random.split(x), rngs)
+            new_rngs = jax.tree_util.tree_map(lambda x: x[0], new_and_return)
+            return_rngs = jax.tree_util.tree_map(lambda x: x[1], new_and_return)
+            return new_rngs, return_rngs
+
+        if device not in self._device_cache_split_rngs:
+            self._device_cache_split_rngs[device] = _jit_split_rng
+
+        return self._device_cache_split_rngs[device]
 
     @property
     def params(self) -> FrozenDict[str, Any]:  # noqa: D102
