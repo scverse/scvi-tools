@@ -55,6 +55,7 @@ notebooks/peakvi_in_R
 notebooks/DestVI_tutorial
 notebooks/DestVI_in_R
 notebooks/gimvi_tutorial
+notebooks/tangram_scvi_tools
 ```
 
 ### Multimodal
@@ -76,7 +77,6 @@ notebooks/MultiVI_tutorial
 
 notebooks/stereoscope_heart_LV_tutorial
 notebooks/cell2location_lymph_node_spatial_tutorial
-notebooks/tangram_scvi_tools
 ```
 
 ## Developer tutorials
