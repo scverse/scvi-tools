@@ -102,9 +102,9 @@ def test_jax_scvi():
 
     model = JaxSCVI(adata, n_latent=n_latent, gene_likelihood="poisson")
     model.train(1, train_size=0.5)
-    z1 = model.get_latent_representation(give_mean=True, mc_samples=1)
+    z1 = model.get_latent_representation(give_mean=True, n_samples=1)
     assert z1.ndim == 2
-    z2 = model.get_latent_representation(give_mean=False, mc_samples=15)
+    z2 = model.get_latent_representation(give_mean=False, n_samples=15)
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
 
 

@@ -1,15 +1,25 @@
-from abc import abstractmethod
-from typing import Callable, Dict, Iterable, Optional, Tuple, Union
+from __future__ import annotations
 
+from abc import abstractmethod
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
+
+import flax
+import jax
 import jax.numpy as jnp
+import numpy as np
 import pyro
 import torch
-from flax import linen
+from flax.core import FrozenDict
+from flax.training import train_state
+from jax import random
+from jaxlib.xla_extension import Device
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 from torch import nn
 
+from scvi import settings
 from scvi._types import LatentDataType, LossRecord
+from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
@@ -402,20 +412,34 @@ class PyroBaseModuleClass(nn.Module):
         return self.model(*args, **kwargs)
 
 
-class JaxBaseModuleClass(linen.Module):
+class TrainStateWithState(train_state.TrainState):
+    """TrainState with state attribute."""
+
+    state: FrozenDict[str, Any]
+
+
+class JaxBaseModuleClass(flax.linen.Module):
     """
     Abstract class for Jax-based scvi-tools modules.
 
     The :class:`~scvi.module.base.JaxBaseModuleClass` provides an interface for Jax-backed
     modules consistent with the :class:`~scvi.module.base.BaseModuleClass`.
-    The initial argument to the constructor is ``training`` which is initialized
-    to be ``True`` in :meth:`~scvi.module.base.JaxModuleWrapper`.
-    Implementations of :class:`~scvi.module.base.JaxBaseModuleClass` should
+
+    Any subclass must has a `training` parameter in its constructor, as well as
+    use the `@flax_configure` decorator.
+
+    Children of :class:`~scvi.module.base.JaxBaseModuleClass` should
     use the instance attribute ``self.training`` to appropriately modify
     the behavior of the model whether it is in training or evaluation mode.
     """
 
-    training: bool
+    def configure(self) -> None:
+        """Add necessary attrs."""
+        self.training = None
+        self.train_state = None
+        self.seed = settings.seed
+        self.seed_rng = device_selecting_PRNGKey()(self.seed)
+        self._set_rngs()
 
     @abstractmethod
     def setup(self):
@@ -533,8 +557,149 @@ class JaxBaseModuleClass(linen.Module):
         This function should return an object of type :class:`~scvi.module.base.LossRecorder`.
         """
 
+    @property
+    def device(self):  # noqa: D102
+        return self.seed_rng.device()
+
+    def train(self):
+        """Switch to train mode. Emulates Pytorch's interface."""
+        self.training = True
+
     def eval(self):
-        """No-op for PyTorch compatibility."""
+        """Switch to evaluation mode. Emulates Pytorch's interface."""
+        self.training = False
+
+    @property
+    def rngs(self) -> Dict[str, jnp.ndarray]:
+        """
+        Dictionary of RNGs mapping required RNG name to RNG values.
+
+        Calls ``self._split_rngs()`` resulting in newly generated RNGs on
+        every reference to ``self.rngs``.
+        """
+        return self._split_rngs()
+
+    def _set_rngs(self):
+        """Creates RNGs split off of the seed RNG for each RNG required by the module."""
+        required_rngs = self.required_rngs
+        rng_keys = random.split(self.seed_rng, num=len(required_rngs) + 1)
+        self.seed_rng, module_rngs = rng_keys[0], rng_keys[1:]
+        self._rngs = {k: module_rngs[i] for i, k in enumerate(required_rngs)}
+
+    def _split_rngs(self):
+        """
+        Regenerates the current set of RNGs and returns newly split RNGs.
+
+        Importantly, this method does not reuse RNGs in future references to ``self.rngs``.
+        """
+        new_rngs = {}
+        ret_rngs = {}
+        for k, v in self._rngs.items():
+            new_rngs[k], ret_rngs[k] = random.split(v)
+        self._rngs = new_rngs
+        return ret_rngs
+
+    @property
+    def params(self) -> FrozenDict[str, Any]:  # noqa: D102
+        self._check_train_state_is_not_none()
+        return self.train_state.params
+
+    @property
+    def state(self) -> FrozenDict[str, Any]:  # noqa: D102
+        self._check_train_state_is_not_none()
+        return self.train_state.state
+
+    def state_dict(self) -> Dict[str, Any]:
+        """Returns a serialized version of the train state as a dictionary."""
+        self._check_train_state_is_not_none()
+        return flax.serialization.to_state_dict(self.train_state)
+
+    def load_state_dict(self, state_dict: Dict[str, Any]):
+        """Load a state dictionary into a train state."""
+        if self.train_state is None:
+            raise RuntimeError(
+                "Train state is not set. Train for one iteration prior to loading state dict."
+            )
+        self.train_state = flax.serialization.from_state_dict(
+            self.train_state, state_dict
+        )
+
+    def to(self, device: Device):
+        """Move module to device."""
+        self._check_train_state_is_not_none()
+        self.train_state = jax.tree_util.tree_map(
+            lambda x: jax.device_put(x, device), self.train_state
+        )
+        self.seed_rng = jax.device_put(self.seed_rng, device)
+        self._rngs = jax.device_put(self._rngs, device)
+
+    def _check_train_state_is_not_none(self):
+        if self.train_state is None:
+            raise RuntimeError("Train state is not set. Module has not been trained.")
+
+    def as_bound(self) -> JaxBaseModuleClass:
+        """Module bound with parameters learned from training."""
+        return self.bind(
+            {"params": self.params, **self.state},
+            rngs=self.rngs,
+        )
+
+    def get_jit_inference_fn(
+        self,
+        get_inference_input_kwargs: Optional[Dict[str, Any]] = None,
+        inference_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Callable[
+        [Dict[str, jnp.ndarray], Dict[str, jnp.ndarray]], Dict[str, jnp.ndarray]
+    ]:
+        """
+        Create a method to run inference using the bound module.
+
+        Parameters
+        ----------
+        get_inference_input_kwargs
+            Keyword arguments to pass to subclass `_get_inference_input`
+        inference_kwargs
+            Keyword arguments  for subclass `inference` method
+
+        Returns
+        -------
+        A callable taking rngs and array_dict as input and returning the output
+        of the `inference` method. This callable runs `_get_inference_input`.
+        """
+        vars_in = {"params": self.params, **self.state}
+        get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
+        inference_kwargs = _get_dict_if_none(inference_kwargs)
+
+        @jax.jit
+        def _run_inference(rngs, array_dict):
+            module = self.clone()
+            inference_input = module._get_inference_input(array_dict)
+            out = module.apply(
+                vars_in,
+                rngs=rngs,
+                method=module.inference,
+                **inference_input,
+                **inference_kwargs,
+            )
+            return out
+
+        return _run_inference
+
+    @staticmethod
+    def on_load(model):
+        """
+        Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
+
+        Run one training step prior to loading state dict in order to initialize params.
+        """
+        old_history = model.history_.copy()
+        model.train(max_steps=1)
+        model.history_ = old_history
+
+    @staticmethod
+    def as_numpy_array(x: jnp.ndarray):
+        """Converts a jax device array to a numpy array."""
+        return np.array(jax.device_get(x))
 
 
 def _generic_forward(
