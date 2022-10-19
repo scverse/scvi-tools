@@ -21,6 +21,7 @@ from scvi.module.base import (
     BaseModuleClass,
     JaxBaseModuleClass,
     LossOutput,
+    LossRecorder,
     PyroBaseModuleClass,
     TrainStateWithState,
 )
