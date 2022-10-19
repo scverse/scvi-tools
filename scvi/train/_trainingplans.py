@@ -187,7 +187,7 @@ class TrainingPlan(pl.LightningModule):
         self._n_obs_validation = None
 
         # automatic handling of kl weight
-        self._loss_args = signature(self.module.loss).parameters
+        self._loss_args = signature(self.module.loss).parameters.keys()
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
 
