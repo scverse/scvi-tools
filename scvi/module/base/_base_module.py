@@ -1,6 +1,6 @@
-import warnings
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from dataclasses import field
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
@@ -20,8 +20,8 @@ from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 from torch import nn
 
-from scvi._types import LatentDataType, LossRecord, Tensor
 from scvi import settings
+from scvi._types import LatentDataType, LossRecord, Tensor
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
