@@ -44,7 +44,7 @@ class FlaxEncoder(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
-    def __call__(self, x: jnp.ndarray, training=False):
+    def __call__(self, x: jnp.ndarray, training: Optional[bool] = None):
         """Forward pass."""
         training = nn.merge_param("training", self.training, training)
         is_eval = not training
@@ -91,8 +91,11 @@ class FlaxDecoder(nn.Module):
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
 
-    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training=False):
+    def __call__(
+        self, z: jnp.ndarray, batch: jnp.ndarray, training: Optional[bool] = None
+    ):
         """Forward pass."""
+        # TODO(adamgayoso): Test this
         training = nn.merge_param("training", self.training, training)
         is_eval = not training
 
