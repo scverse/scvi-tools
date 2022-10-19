@@ -14,7 +14,6 @@ from scvi._compat import Literal
 from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
 from scvi.model.base import BaseModelClass
-from scvi.module.base import JaxModuleWrapper
 from scvi.train import JaxTrainingPlan
 from scvi.utils import setup_anndata_dsp, track
 
@@ -90,8 +89,7 @@ class Tangram(BaseModelClass):
                     "Density prior must sum to 1. Please normalize the prior."
                 )
 
-        self.module = JaxModuleWrapper(
-            TangramMapper,
+        self.module = TangramMapper(
             n_obs_sc=self.n_obs_sc,
             n_obs_sp=self.n_obs_sp,
             lambda_d=1.0 if has_density_prior else 0.0,
