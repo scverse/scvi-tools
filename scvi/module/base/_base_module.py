@@ -1,3 +1,4 @@
+import warnings
 from abc import abstractmethod
 from dataclasses import field
 from typing import Callable, Dict, Iterable, Optional, Tuple, Union
@@ -9,7 +10,6 @@ import torch
 from flax import linen
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
-from sklearn.utils import deprecated
 from torch import nn
 
 from scvi._types import LatentDataType, LossRecord, Tensor
@@ -18,9 +18,6 @@ from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
 
-@deprecated(
-    "LossRecorder is deprecated and will be removed in a future release. Please use LossOutput"
-)
 class LossRecorder:
     """
     Loss signature for models.
@@ -56,6 +53,10 @@ class LossRecorder:
         kl_global: Optional[LossRecord] = None,
         **kwargs,
     ):
+        warnings.warn(
+            "LossRecorder is deprecated and will be removed in a future release. Please use LossOutput",
+            category=DeprecationWarning,
+        )
         self._loss_output = LossOutput(
             loss=loss,
             reconstruction_loss=reconstruction_loss,
