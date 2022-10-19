@@ -58,6 +58,12 @@ class Tangram(BaseModelClass):
     >>> ad_sc.obsm["tangram_mapper"] = tangram.get_mapper_matrix()
     >>> ad_sp.obsm["tangram_cts"] = tangram.project_cell_annotations(ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"], ad_sc.obs["labels"])
     >>> projected_ad_sp = tangram.project_genes(ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"])
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/tangram_scvi_tools`
     """
 
     def __init__(
