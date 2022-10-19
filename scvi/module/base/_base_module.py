@@ -652,17 +652,19 @@ class JaxBaseModuleClass(flax.linen.Module):
         [Dict[str, jnp.ndarray], Dict[str, jnp.ndarray]], Dict[str, jnp.ndarray]
     ]:
         """
-        Returns a method to run inference using the bound module.
+        Create a method to run inference using the bound module.
 
         Parameters
         ----------
+        get_inference_input_kwargs
+            Keyword arguments to pass to subclass `_get_inference_input`
         inference_kwargs
-            Kwargs for subclass inference method
+            Keyword arguments  for subclass `inference` method
 
         Returns
         -------
         A callable taking rngs and array_dict as input and returning the output
-        of the inference method. This callable runs `_get_inference_input`.
+        of the `inference` method. This callable runs `_get_inference_input`.
         """
         vars_in = {"params": self.params, **self.state}
         get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
