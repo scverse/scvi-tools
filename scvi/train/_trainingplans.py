@@ -19,9 +19,8 @@ from scvi._compat import Literal
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
-    JaxModuleWrapper,
+    JaxBaseModuleClass,
     LossOutput,
-    LossRecorder,
     PyroBaseModuleClass,
     TrainStateWithState,
 )
@@ -1025,7 +1024,7 @@ class JaxTrainingPlan(TrainingPlan):
 
     def __init__(
         self,
-        module: JaxModuleWrapper,
+        module: JaxBaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: Optional[JaxOptimizerCreator] = None,

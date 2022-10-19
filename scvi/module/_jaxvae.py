@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import jax
 import jax.numpy as jnp
@@ -8,7 +8,7 @@ from flax.linen.initializers import variance_scaling
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
-from scvi.module.base import JaxBaseModuleClass, LossOutput
+from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
 
 class Dense(nn.Dense):
@@ -30,6 +30,7 @@ class FlaxEncoder(nn.Module):
     n_latent: int
     n_hidden: int
     dropout_rate: int
+    training: Optional[bool] = None
 
     def setup(self):
         """Setup encoder."""
@@ -43,8 +44,9 @@ class FlaxEncoder(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
-    def __call__(self, x: jnp.ndarray, training: bool = False):
+    def __call__(self, x: jnp.ndarray, training: Optional[bool] = None):
         """Forward pass."""
+        training = nn.merge_param("training", self.training, training)
         is_eval = not training
 
         x_ = jnp.log1p(x)
@@ -70,6 +72,7 @@ class FlaxDecoder(nn.Module):
     n_input: int
     dropout_rate: float
     n_hidden: int
+    training: Optional[bool] = None
 
     def setup(self):
         """Setup decoder."""
@@ -88,8 +91,12 @@ class FlaxDecoder(nn.Module):
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
 
-    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training: bool = False):
+    def __call__(
+        self, z: jnp.ndarray, batch: jnp.ndarray, training: Optional[bool] = None
+    ):
         """Forward pass."""
+        # TODO(adamgayoso): Test this
+        training = nn.merge_param("training", self.training, training)
         is_eval = not training
 
         h = self.dense1(z)
@@ -108,6 +115,7 @@ class FlaxDecoder(nn.Module):
         return h, self.disp.ravel()
 
 
+@flax_configure
 class JaxVAE(JaxBaseModuleClass):
     """Variational autoencoder model."""
 
@@ -119,6 +127,7 @@ class JaxVAE(JaxBaseModuleClass):
     n_layers: int = 1
     gene_likelihood: str = "nb"
     eps: float = 1e-8
+    training: bool = True
 
     def setup(self):
         """Setup model."""
