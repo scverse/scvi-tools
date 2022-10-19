@@ -76,6 +76,7 @@ notebooks/MultiVI_tutorial
 
 notebooks/stereoscope_heart_LV_tutorial
 notebooks/cell2location_lymph_node_spatial_tutorial
+notebooks/tangram_scvi_tools
 ```
 
 ## Developer tutorials
