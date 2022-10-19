@@ -582,7 +582,7 @@ class JaxBaseModuleClass(flax.linen.Module):
         """Creates RNGs split off of the seed RNG for each RNG required by the module."""
         required_rngs = self.required_rngs
         rng_keys = random.split(self.seed_rng, num=len(required_rngs) + 1)
-        self.seed, module_rngs = rng_keys[0], rng_keys[1:]
+        self.seed_rng, module_rngs = rng_keys[0], rng_keys[1:]
         self._rngs = {k: module_rngs[i] for i, k in enumerate(required_rngs)}
 
     def _split_rngs(self):
