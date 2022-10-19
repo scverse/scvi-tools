@@ -28,7 +28,8 @@ from .fields import AnnDataField
 
 @dataclass
 class AnnDataManagerValidationCheck:
-    """Validation checks for AnnorMudata scvi-tools compat.
+    """
+    Validation checks for AnnorMudata scvi-tools compat.
 
     Parameters
     ----------
