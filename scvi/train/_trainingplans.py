@@ -1159,7 +1159,6 @@ class JaxTrainingPlan(TrainingPlan):
     def validation_step(self, batch, batch_idx):
         """Validation step for Jax."""
         self.module.eval()
-        assert self.module.training is False
         loss, elbo = self.jit_validation_step(
             self.module.train_state,
             batch,
