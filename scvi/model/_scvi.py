@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
-
+_SCVI_LATENT_MODE = "posterior_parameters"
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +234,7 @@ class SCVI(
 
     @staticmethod
     def _get_latent_fields(mode: LatentDataType):
-        if mode == "dist":
+        if mode == _SCVI_LATENT_MODE:
             latent_fields = [
                 ObsmField(
                     REGISTRY_KEYS.LATENT_QZM_KEY,
@@ -285,7 +285,7 @@ class SCVI(
             in which all count data is set to zeros
         """
         bdata = self._get_reduced_adata(mode)
-        if mode == "posterior_parameters":
+        if mode == _SCVI_LATENT_MODE:
             bdata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
             bdata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
         else:

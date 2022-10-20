@@ -16,8 +16,9 @@ from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
 
+_SCVI_LATENT_MODE = "posterior_parameters"
 
-# VAE model
+
 class VAE(BaseLatentModeModuleClass):
     """
     Variational auto-encoder model.
@@ -226,7 +227,7 @@ class VAE(BaseLatentModeModuleClass):
                 x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
             )
         else:
-            if self.latent_data_type == "dist":
+            if self.latent_data_type == _SCVI_LATENT_MODE:
                 qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
                 qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
                 input_dict = dict(qzm=qzm, qzv=qzv)
@@ -327,7 +328,7 @@ class VAE(BaseLatentModeModuleClass):
 
     @auto_move_data
     def _cached_inference(self, qzm, qzv, n_samples=1):
-        if self.latent_data_type == "dist":
+        if self.latent_data_type == _SCVI_LATENT_MODE:
             dist = Normal(qzm, qzv.sqrt())
             # use dist.sample() rather than rsample because we aren't optimizing
             # the z in latent/cached mode
