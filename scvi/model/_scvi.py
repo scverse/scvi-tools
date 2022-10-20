@@ -149,9 +149,9 @@ class SCVI(
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
-            latent_data_type=self.latent_data_type,
             **model_kwargs,
         )
+        self.module.latent_data_type = self.latent_data_type
         self._model_summary_string = (
             "SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
             "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
@@ -222,7 +222,7 @@ class SCVI(
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ):
-        if mode == "dist":
+        if mode == "posterior_parameters":
             self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
             self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
         else:
@@ -258,7 +258,7 @@ class SCVI(
 
     def to_latent_mode(
         self,
-        mode: LatentDataType = "dist",
+        mode: LatentDataType = "posterior_parameters",
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ):
