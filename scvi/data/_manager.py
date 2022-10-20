@@ -57,9 +57,8 @@ class AnnDataManager:
     setup_method_args
         Dictionary describing the model and arguments passed in by the user
         to setup this AnnDataManager.
-    mudata_fully_paired
-        Whether to check that a registered :class:`mudata.MuData` object has fully paired
-        observations across modalities.
+    validation_checks
+        DataClass specifying which global validation checks to run on the data object.
 
     Examples
     --------
