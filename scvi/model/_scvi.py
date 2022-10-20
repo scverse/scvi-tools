@@ -216,22 +216,21 @@ class SCVI(
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    def _get_latent_adata_from_adata(
+    def _get_reduced_adata(
         self,
         mode: LatentDataType,
-        use_latent_qzm_key: str = "X_latent_qzm",
-        use_latent_qzv_key: str = "X_latent_qzv",
-    ):
-        if mode == "posterior_parameters":
-            self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-            self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-        else:
-            raise ValueError(f"Unknown latent mode: {mode}")
-        self.adata.uns[_ADATA_LATENT_UNS_KEY] = mode
-        del self.adata.raw
+    ) -> AnnData:
         all_zeros = csr_matrix(self.adata.X.shape)
-        self.adata.X = all_zeros.copy()
-        self.adata.layers = {layer: all_zeros.copy() for layer in self.adata.layers}
+        layers = {layer: all_zeros.copy() for layer in self.adata.layers}
+        bdata = AnnData(
+            X=all_zeros,
+            layers=layers,
+            uns=self.adata.uns,
+            obs=self.adata.obs,
+            var=self.adata.var,
+        )
+        bdata.uns[_ADATA_LATENT_UNS_KEY] = mode
+        return bdata
 
     @staticmethod
     def _get_latent_fields(mode: LatentDataType):
@@ -261,6 +260,7 @@ class SCVI(
         mode: LatentDataType = "posterior_parameters",
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
+        attach_reduced_data: bool = True,
     ):
         """
         Put the model into latent mode.
@@ -280,7 +280,18 @@ class SCVI(
             Key to use in `adata.obsm` where the latent qzm params are stored
         use_latent_qzv_key
             Key to use in `adata.obsm` where the latent qzv params are stored
+        attach_reduced_data
+            If `True`, sets `.adata` attribute with a memory-reduced anndata
+            in which all count data is set to zeros
         """
-        self._get_latent_adata_from_adata(mode, use_latent_qzm_key, use_latent_qzv_key)
-        self.adata_manager.register_new_fields(self.__class__._get_latent_fields(mode))
+        bdata = self._get_reduced_adata(mode)
+        if mode == "posterior_parameters":
+            bdata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+            bdata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        new_manager = self.adata_manager.transfer_fields(bdata)
+        new_manager.register_new_fields(self._get_latent_fields(mode))
+        self.adata_manager = new_manager
+        self.adata = bdata
         self.module.latent_data_type = mode
