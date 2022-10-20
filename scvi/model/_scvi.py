@@ -292,6 +292,6 @@ class SCVI(
             raise ValueError(f"Unknown latent mode: {mode}")
         new_manager = self.adata_manager.transfer_fields(bdata)
         new_manager.register_new_fields(self._get_latent_fields(mode))
-        self.adata_manager = new_manager
+        self._adata_manager = new_manager
         self.adata = bdata
         self.module.latent_data_type = mode
