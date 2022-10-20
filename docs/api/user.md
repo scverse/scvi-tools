@@ -55,6 +55,7 @@ import scvi
    external.SpatialStereoscope
    external.SOLO
    external.SCAR
+   external.Tangram
 
 ```
 
