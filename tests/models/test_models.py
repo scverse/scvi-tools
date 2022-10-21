@@ -102,9 +102,9 @@ def test_jax_scvi():
 
     model = JaxSCVI(adata, n_latent=n_latent, gene_likelihood="poisson")
     model.train(1, train_size=0.5)
-    z1 = model.get_latent_representation(give_mean=True, mc_samples=1)
+    z1 = model.get_latent_representation(give_mean=True, n_samples=1)
     assert z1.ndim == 2
-    z2 = model.get_latent_representation(give_mean=False, mc_samples=15)
+    z2 = model.get_latent_representation(give_mean=False, n_samples=15)
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
 
 
@@ -937,7 +937,7 @@ def test_device_backed_data_splitter():
     assert len(loaded_x) == a.shape[0]
     np.testing.assert_array_equal(loaded_x.cpu().numpy(), a.X)
 
-    training_plan = TrainingPlan(model.module, len(ds.train_idx))
+    training_plan = TrainingPlan(model.module)
     runner = TrainRunner(
         model,
         training_plan=training_plan,

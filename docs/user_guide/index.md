@@ -34,7 +34,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - :cite:p:`Zhang19`
      - Marker-based automated annotation
    * - :doc:`/user_guide/models/solo`
-     - :cite:p:`Bernstein19`
+     - :cite:p:`Bernstein20`
      - Doublet detection
    * - :doc:`/user_guide/models/scar`
      - :cite:p:`Sheng22`
@@ -109,6 +109,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/gimvi`
      - :cite:p:`Lopez19`
      - Imputation of missing spatial genes
+   * - :doc:`/user_guide/models/tangram`
+     - :cite:p:`Biancalani21`
+     - Deconvolution, single cell spatial mapping
 ```
 
 ## General purpose analysis

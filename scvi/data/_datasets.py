@@ -532,6 +532,7 @@ def synthetic_iid(
     n_proteins: Optional[int] = 100,
     n_batches: Optional[int] = 2,
     n_labels: Optional[int] = 3,
+    sparse: bool = False,
 ) -> anndata.AnnData:
     """
     Synthetic dataset with ZINB distributed RNA and NB distributed protein.
@@ -551,6 +552,8 @@ def synthetic_iid(
         Number of batches
     n_labels
         Number of cell types
+    sparse
+        Whether to use a sparse matrix
 
     Returns
     -------
@@ -569,6 +572,7 @@ def synthetic_iid(
         n_proteins=n_proteins,
         n_batches=n_batches,
         n_labels=n_labels,
+        sparse=sparse,
     )
 
 
