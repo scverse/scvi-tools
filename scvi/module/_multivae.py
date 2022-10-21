@@ -1040,9 +1040,7 @@ class MULTIVAE(BaseModuleClass):
 
         kl_local = dict(kl_divergence_z=kl_div_z)
         kl_global = torch.tensor(0.0)
-        return LossRecorder(
-            loss, recon_loss, kl_local, kl_global, kld_paired=kld_paired
-        )
+        return LossRecorder(loss, recon_loss, kl_local, kl_global)
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""
