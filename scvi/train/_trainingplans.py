@@ -1015,6 +1015,10 @@ class JaxTrainingPlan(TrainingPlan):
     n_epochs_kl_warmup
         Number of epochs to scale weight on KL divergences from `min_kl_weight` to
         `max_kl_weight`. Overrides `n_steps_kl_warmup` when both are not `None`.
+    jit_training_step
+        Whether to jit the training step function.
+    jit_validation_step
+        Whether to jit the validation step function.
     """
 
     def __init__(
@@ -1029,6 +1033,8 @@ class JaxTrainingPlan(TrainingPlan):
         max_norm: Optional[float] = None,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
+        jit_training_step: bool = True,
+        jit_validation_step: bool = True,
         **loss_kwargs,
     ):
         super().__init__(
@@ -1045,6 +1051,8 @@ class JaxTrainingPlan(TrainingPlan):
         self.max_norm = max_norm
         self.automatic_optimization = False
         self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
+        self.jit_training_step = jit_training_step
+        self.jit_validation_step = jit_validation_step
 
     def get_optimizer_creator(self) -> Callable[[], optax.GradientTransformation]:
         """Get optimizer creator for the model."""
@@ -1086,15 +1094,13 @@ class JaxTrainingPlan(TrainingPlan):
         )
         self.module.train_state = train_state
 
-    @staticmethod
-    @jax.jit
-    def jit_training_step(
+    def _training_step(
+        self,
         state: TrainStateWithState,
         batch: Dict[str, np.ndarray],
         rngs: Dict[str, jnp.ndarray],
         **kwargs,
     ):
-        """Jit training step."""
         # state can't be passed here
         def loss_fn(params):
             vars_in = {"params": params, **state.state}
@@ -1112,12 +1118,26 @@ class JaxTrainingPlan(TrainingPlan):
         new_state = state.apply_gradients(grads=grads, state=new_model_state)
         return new_state, loss, elbo
 
+    @partial(jax.jit, static_argnums=(0,))
+    def jit_training_step(
+        self,
+        state: TrainStateWithState,
+        batch: Dict[str, np.ndarray],
+        rngs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        """Jit training step."""
+        return self._training_step(state, batch, rngs, **kwargs)
+
     def training_step(self, batch, batch_idx):
         """Training step for Jax."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.module.train()
-        self.module.train_state, loss, elbo = self.jit_training_step(
+        train_step_fn = (
+            self.jit_training_step if self.jit_training_step else self._training_step
+        )
+        self.module.train_state, loss, elbo = train_step_fn(
             self.module.train_state,
             batch,
             self.module.rngs,
@@ -1148,6 +1168,16 @@ class JaxTrainingPlan(TrainingPlan):
         **kwargs,
     ):
         """Jit validation step."""
+        return self._validation_step(state, batch, rngs, **kwargs)
+
+    def _validation_step(
+        self,
+        state: TrainStateWithState,
+        batch: Dict[str, np.ndarray],
+        rngs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        """Validation step."""
         vars_in = {"params": state.params, **state.state}
         outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
         loss_recorder = outputs[2]
@@ -1159,7 +1189,12 @@ class JaxTrainingPlan(TrainingPlan):
     def validation_step(self, batch, batch_idx):
         """Validation step for Jax."""
         self.module.eval()
-        loss, elbo = self.jit_validation_step(
+        validation_step_fn = (
+            self.jit_validation_step
+            if self.jit_validation_step
+            else self._validation_step
+        )
+        loss, elbo = validation_step_fn(
             self.module.train_state,
             batch,
             self.module.rngs,
