@@ -360,6 +360,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
         batch_size: int = 128,
+        raw_values: bool = True,
     ) -> Dict[str, np.ndarray]:
         """
         Return library size factors.
@@ -391,20 +392,51 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             lib_exp.append(outputs["libsize_expr"].cpu())
             lib_acc.append(outputs["libsize_acc"].cpu())
 
-        return {
-            "expression": torch.cat(lib_exp).numpy().squeeze(),
-            "accessibility": torch.cat(lib_acc).numpy().squeeze(),
-        }
+        return_lib_exp = torch.cat(lib_exp).numpy().squeeze()
+        if raw_values:
+            return {
+                "expression": return_lib_exp,
+                "accessibility": torch.cat(lib_acc).numpy().squeeze(),
+            }
+        else:
+            return_lib_acc = torch.cat(lib_acc)
+            if self.module.peak_likelihood == "peakvi":
+                if self.module.use_observed_lib_size:
+                    return_lib_acc = (
+                        torch.exp(return_lib_acc) / self.module.n_input_regions
+                    )
+            elif self.module.peak_likelihood == "bernoulli":
+                return_lib_acc = torch.logit(
+                    torch.exp(return_lib_acc) / self.module.n_input_regions, eps=1e-6
+                )
+            elif self.module.peak_likelihood == "poisson":
+                return_lib_acc = torch.exp(return_lib_acc)
+
+            return {
+                "expression": return_lib_exp,
+                "accessibility": return_lib_acc.numpy().squeeze(),
+            }
 
     @torch.inference_mode()
-    def get_region_factors(self) -> np.ndarray:
+    def get_region_factors(self, raw_values: bool = False) -> np.ndarray:
         """Return region-specific factors."""
         if self.n_regions == 0:
             return np.zeros(1)
+
         else:
             if self.module.region_factors is None:
                 raise RuntimeError("region factors were not included in this model")
-            return torch.sigmoid(self.module.region_factors).cpu().numpy()
+            elif raw_values:
+                return self.module.region_factors.cpu().numpy()
+            else:
+                if self.module.peak_likelihood == "peakvi":
+                    return torch.sigmoid(self.module.region_factors).cpu().numpy()
+                elif self.module.peak_likelihood == "bernoulli":
+                    return torch.sigmoid(self.module.region_factors).cpu().numpy()
+                else:
+                    return (
+                        torch.softmax(self.module.region_factors, dim=-1).cpu().numpy()
+                    )
 
     @torch.inference_mode()
     def get_latent_representation(
@@ -574,8 +606,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
 
             p = generative_outputs["p"].cpu()
             libsize = inference_outputs["libsize_acc"].cpu()
-            if self.module.peak_likelihood == "bernoulli":
+            if self.module.peak_likelihood == "peakvi":
                 if normalize_cells:
+                    if self.module.use_observed_lib_size:
+                        torch.exp(libsize) / self.module.n_input_regions
                     p *= libsize
                 if normalize_regions:
                     p *= torch.sigmoid(self.module.region_factors).cpu()
@@ -583,16 +617,29 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                     p[p < threshold] = 0
                     p = csr_matrix(p.numpy())
 
-            elif self.module.peak_likelihood == "poisson":
-                p = generative_outputs["p"].cpu()
+            if self.module.peak_likelihood == "bernoulli":
+                if normalize_cells:
+                    p += torch.logit(
+                        torch.exp(libsize) / self.module.n_input_regions, eps=1e-6
+                    )
                 if normalize_regions:
-                    p = torch.softmax(p + self.module.region_factors, dim=-1)
+                    p += self.module.region_factors.cpu()
+                p = torch.sigmoid(p)
+                if threshold:
+                    p[p < threshold] = 0
+                    p = csr_matrix(p.numpy())
+
+            elif self.module.peak_likelihood == "poisson":
+                if normalize_regions:
+                    p = torch.softmax(p + self.module.region_factors.cpu(), dim=-1)
+                else:
+                    p = torch.softmax(p, dim=-1)
                 if normalize_cells:
                     p *= torch.exp(libsize)
                 else:
                     pass
                 if binarize:
-                    p = 1 - torch.exp(Poisson(p).log_prob(torch.zeros_like(p)))
+                    p = 1.0 - torch.exp(Poisson(p).log_prob(torch.zeros_like(p)))
                     if threshold:
                         p[p < threshold] = 0
                         p = csr_matrix(p.numpy())

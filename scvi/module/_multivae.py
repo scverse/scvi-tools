@@ -356,7 +356,7 @@ class MULTIVAE(BaseModuleClass):
         n_obs: int = 0,
         n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
-        peak_likelihood: Literal["bernoulli", "poisson"] = "bernoulli",
+        peak_likelihood: Literal["peakvi", "bernoulli", "poisson"] = "peakvi",
         gene_dispersion: str = "gene",
         peak_dispersion: str = "peak",
         n_hidden: Optional[int] = None,
@@ -372,10 +372,12 @@ class MULTIVAE(BaseModuleClass):
         latent_distribution: str = "normal",
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
-        use_size_factor_key: bool = False,
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
         protein_dispersion: str = "protein",
+        log_variational: bool = False,
+        use_size_factor_key: bool = False,
+        use_observed_lib_size: bool = True,
     ):
         super().__init__()
 
@@ -407,7 +409,13 @@ class MULTIVAE(BaseModuleClass):
         self.use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
         self.encode_covariates = encode_covariates
         self.deeply_inject_covariates = deeply_inject_covariates
+
+        # handling library Size
+        self.log_variational = log_variational
         self.use_size_factor_key = use_size_factor_key
+        self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
+        if peak_likelihood == "bernoulli" or peak_likelihood == "poisson":
+            self.use_observed_lib_size = True
 
         cat_list = (
             [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
@@ -509,28 +517,7 @@ class MULTIVAE(BaseModuleClass):
         self.region_factors = None
         # if region_factors:
         #     self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
-        if region_factors and self.peak_likelihood == "bernoulli":
-            if self.peak_dispersion == "peak":
-                self.region_factors = torch.nn.Parameter(
-                    torch.zeros(self.n_input_regions)
-                )
-            elif self.peak_dispersion == "peak-batch":
-                self.region_factors = torch.nn.Parameter(
-                    torch.zeros(n_input_genes, n_batch)
-                )
-            elif self.peak_dispersion == "peak-label":
-                self.region_factors = torch.nn.Parameter(
-                    torch.zeros(n_input_genes, n_labels)
-                )
-            elif self.peak_dispersion == "peak-cell":
-                pass
-            else:
-                raise ValueError(
-                    "dispersion must be one of ['peak', 'peak-batch',"
-                    " 'peak-label', 'peak-cell'], but input was "
-                    "{}".format(self.peak_dispersion)
-                )
-        elif region_factors and self.peak_likelihood == "poisson":
+        if region_factors and self.peak_likelihood == "poisson":
             if self.peak_dispersion == "peak":
                 self.region_factors = torch.nn.Parameter(
                     torch.ones(self.n_input_regions) / n_input_regions
@@ -551,6 +538,27 @@ class MULTIVAE(BaseModuleClass):
                     " 'peak-label', 'peak-cell'], but input was {}".format(
                         self.dispersion
                     )
+                )
+        else:
+            if self.peak_dispersion == "peak":
+                self.region_factors = torch.nn.Parameter(
+                    torch.zeros(self.n_input_regions)
+                )
+            elif self.peak_dispersion == "peak-batch":
+                self.region_factors = torch.nn.Parameter(
+                    torch.zeros(n_input_genes, n_batch)
+                )
+            elif self.peak_dispersion == "peak-label":
+                self.region_factors = torch.nn.Parameter(
+                    torch.zeros(n_input_genes, n_labels)
+                )
+            elif self.peak_dispersion == "peak-cell":
+                pass
+            else:
+                raise ValueError(
+                    "dispersion must be one of ['peak', 'peak-batch',"
+                    " 'peak-label', 'peak-cell'], but input was "
+                    "{}".format(self.peak_dispersion)
                 )
 
         #       accessibility decoder
@@ -719,6 +727,9 @@ class MULTIVAE(BaseModuleClass):
                 :, self.n_input_genes : (self.n_input_genes + self.n_input_regions)
             ]
 
+        if self.log_variational:
+            x_rna = torch.log(1 + x_rna)
+
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
         mask_pro = y.sum(dim=1) > 0
@@ -749,12 +760,16 @@ class MULTIVAE(BaseModuleClass):
         )
 
         # L encoders
-        libsize_expr = self.l_encoder_expression(
-            encoder_input_expression, batch_index, *categorical_input
-        )
-        libsize_acc = self.l_encoder_accessibility(
-            encoder_input_accessibility, batch_index, *categorical_input
-        )
+        if self.use_observed_lib_size:
+            libsize_acc = torch.log(x_chr.sum(1)).unsqueeze(1)
+            libsize_expr = torch.log(x_rna.sum(1)).unsqueeze(1)
+        else:
+            libsize_expr = self.l_encoder_expression(
+                encoder_input_expression, batch_index, *categorical_input
+            )
+            libsize_acc = self.l_encoder_accessibility(
+                encoder_input_accessibility, batch_index, *categorical_input
+            )
 
         # mix representations
         if self.modality_weights == "cell":
@@ -785,8 +800,16 @@ class MULTIVAE(BaseModuleClass):
             untran_zp = Normal(qzm_pro, qzv_pro.sqrt()).sample((n_samples,))
             z_pro = self.z_encoder_protein.z_transformation(untran_zp)
 
-            libsize_expr = unsqz(libsize_expr, n_samples)
-            libsize_acc = unsqz(libsize_acc, n_samples)
+            if self.use_observed_lib_size:
+                libsize_acc = libsize_acc.unsqueeze(0).expand(
+                    (n_samples, libsize_acc.size(0), libsize_acc.size(1))
+                )
+                libsize_expr = libsize_expr.unsqueeze(0).expand(
+                    (n_samples, libsize_expr.size(0), libsize_expr.size(1))
+                )
+            else:
+                libsize_expr = unsqz(libsize_expr, n_samples)
+                libsize_acc = unsqz(libsize_acc, n_samples)
 
         # sample from the mixed representation
         untran_z = Normal(qz_m, qz_v.sqrt()).rsample()
@@ -1047,12 +1070,29 @@ class MULTIVAE(BaseModuleClass):
         :param library: Library Size
         :return: loss
         """
-        if self.peak_likelihood == "bernoulli":
+        if self.peak_likelihood == "peakvi":
+            # In PeakVI, the Bernoulli probability is computed by multiplying 3 measures:
+            # sigmoid-ed:y_scale; sigmoid(region_factors); sigmoid-ed: library, if observed, norm by n_input_regions
+            if self.use_observed_lib_size:
+                library = torch.exp(library) / self.n_input_regions
             p = library * torch.sigmoid(region_factor) * y_scale
             rl = torch.nn.BCELoss(reduction="none")(p, (x > 0).float()).sum(dim=-1)
+
+        elif self.peak_likelihood == "bernoulli":
+            # In Bernoulli, the Bernoulli probability is computed by adding 3 numbers and turning them into a measure:
+            # sigmoid-ed:y_scale; region_factors; "observed" library
+            p = y_scale + torch.logit(
+                torch.exp(library) / self.n_input_regions, eps=1e-6
+            )
+            p = torch.sigmoid(p + region_factor)
+            rl = torch.nn.BCELoss(reduction="none")(p, (x > 0).float()).sum(dim=-1)
+
         elif self.peak_likelihood == "poisson":
+            # In Poisson, the rate is computed by adding 3 numbers and turning them into a measure:
+            # softmax of Real:y_scale plus Real:region_factors; "observed" library
             p = torch.exp(library) * torch.softmax(y_scale + region_factor, dim=-1)
             rl = -Poisson(p).log_prob(x).sum(dim=-1)
+
         return rl
 
     def _compute_mod_penalty(
