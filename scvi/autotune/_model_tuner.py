@@ -83,8 +83,7 @@ class ModelTuner:
             resources=resources,
             setup_kwargs=setup_kwargs,
         )
-        results = tuner.fit()
-        return results
+        tuner.fit()
 
     def info(self):
         """View information about the current tuner."""

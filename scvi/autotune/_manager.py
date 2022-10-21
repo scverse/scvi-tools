@@ -39,8 +39,8 @@ class TunerManager:
 
     def __init__(self, model_cls: BaseModelClass):
         self._model_cls: BaseModelClass = self._validate_model(model_cls)
-        self._registry: dict = self._validate_registry(model_cls)
-        self._defaults: dict = self._validate_defaults(model_cls)
+        self._registry: dict = self._validate_registry(self.model_cls)
+        self._defaults: dict = self._validate_defaults(self.model_cls)
 
     @staticmethod
     def _validate_defaults(model_cls: BaseModelClass) -> dict:
@@ -53,7 +53,6 @@ class TunerManager:
 
     @staticmethod
     def _validate_model(model_cls: BaseModelClass) -> BaseModelClass:
-        """Validate input model class."""
         if model_cls not in SUPPORTED:
             raise NotImplementedError(
                 f"{model_cls} is currently unsupported, must be one of {SUPPORTED}."
@@ -87,7 +86,6 @@ class TunerManager:
             for tunable_type, cls_list in TUNABLE_TYPE_TO_CLS.items():
                 if any([issubclass(cls, c) for c in cls_list]):
                     return tunable_type
-            return None
 
         def _get_tunables(
             attr: Any,
@@ -143,14 +141,12 @@ class TunerManager:
 
         return model_kwargs, train_kwargs
 
-    @dependencies("ray.tune")
     def _validate_search_space(
         self,
         search_space: dict,
         use_defaults: bool,
         exclude: dict,
     ) -> dict:
-        """Validate and process a user-provided search space."""
         # validate user search space
         for key in search_space:
             if key not in self._registry["tunables"]:
@@ -240,7 +236,7 @@ class TunerManager:
         searcher: str,
         metrics: OrderedDict,
         searcher_kwargs: dict,
-    ) -> None:
+    ) -> Any:
         from ray import tune
 
         metric = list(metrics.keys())[0]
@@ -337,14 +333,19 @@ class TunerManager:
             setup_kwargs: dict,
             search_space: dict,
         ) -> None:
-            model_cls.setup_anndata(adata, **setup_kwargs)
             model_kwargs, train_kwargs = self._parse_search_space(search_space)
-            model = self._model_cls(adata, **model_kwargs)
+            model_cls.setup_anndata(adata, **setup_kwargs)
+            model = model_cls(adata, **model_kwargs)
             monitor = TuneReportCallback(
                 metric,
                 on="validation_end",
             )
-            model.train(check_val_every_n_epoch=1, callbacks=[monitor], **train_kwargs)
+            model.train(
+                check_val_every_n_epoch=1,
+                callbacks=[monitor],
+                enable_progress_bar=False,
+                **train_kwargs,
+            )
 
         return tune.with_resources(
             partial(
