@@ -16,7 +16,7 @@ from torchmetrics import MetricCollection
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._decorators import classproperty
-from scvi.autotune import Tunable
+from scvi.autotune._types import Tunable
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,

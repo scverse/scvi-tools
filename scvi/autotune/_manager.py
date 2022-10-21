@@ -10,7 +10,13 @@ import rich
 from scvi._decorators import dependencies
 from scvi._settings import settings
 from scvi._types import AnnOrMuData
-from scvi.autotune._defaults import DEFAULTS, SUPPORTED, TUNABLE_TYPE_TO_CLS
+from scvi.autotune._defaults import (
+    COLORS,
+    DEFAULTS,
+    SUPPORTED,
+    TUNABLE_TYPE_TO_CLS,
+    str_to_sample_fn,
+)
 from scvi.autotune._types import TunableMeta
 from scvi.autotune._utils import in_notebook
 from scvi.model.base import BaseModelClass
@@ -110,7 +116,7 @@ class TunerManager:
             return tunables
 
         def _get_metrics(model_cls: BaseModelClass) -> dict:
-            return {}
+            return {"validation_loss": "min"}
 
         registry = {
             "tunables": _get_tunables(model_cls),
@@ -139,12 +145,13 @@ class TunerManager:
 
     @dependencies("ray.tune")
     def _validate_search_space(
-        self, search_space: Optional[dict], use_defaults: bool, exclude: Optional[dict]
+        self,
+        search_space: dict,
+        use_defaults: bool,
+        exclude: dict,
     ) -> dict:
         """Validate and process a user-provided search space."""
         # validate user search space
-        search_space = search_space or {}
-        exclude = exclude or {}
         for key in search_space:
             if key not in self._registry["tunables"]:
                 warnings.warn(
@@ -155,9 +162,17 @@ class TunerManager:
 
         # add defaults if requested
         if use_defaults:
-            defaults = self._defaults.copy()
+            # e.g. convert "loguniform" to tune.loguniform
+            defaults = {
+                k: str_to_sample_fn(v["fn"])(*v["args"])
+                for k, v in self._defaults.items()
+            }
             logger.info(f"Initializing with default search space for {self._model_cls}")
             for param in exclude:
+                if param not in defaults:
+                    raise ValueError(
+                        f"Excluded parameter {param} not in defaults. Ignoring."
+                    )
                 defaults.pop(param, None)
             search_space.update(defaults)
 
@@ -165,47 +180,17 @@ class TunerManager:
 
     def _validate_metrics(
         self,
-        metric: Optional[str],
-        additional_metrics: Optional[List[str]],
+        metric: str,
+        additional_metrics: List[str],
     ) -> OrderedDict:
-        # metrics = additional_metrics or []
-        # primary_metric = metric or None
         return OrderedDict({"validation_loss": "min"})
-
-    def _validate_scheduler_and_searcher(
-        self,
-        scheduler: str,
-        searcher: str,
-        metrics: OrderedDict,
-        scheduler_kwargs: Optional[dict],
-        searcher_kwargs: Optional[dict],
-    ) -> Tuple[Any, Any]:
-        if scheduler not in ["asha", "hyperband", "median", "pbt", "fifo"]:
-            raise ValueError(
-                f"Provided scheduler {scheduler} is not supported. Must be "
-                "one of ['asha', 'hyperband', 'median', 'pbt', 'fifo']."
-            )
-        if searcher not in ["random", "grid", "hyperopt"]:
-            raise ValueError(
-                f"Provided searcher {searcher} is not supported. Must be "
-                "one of ['random', 'grid', 'hyperopt']."
-            )
-        if scheduler not in ["asha", "median", "hyperband"] and searcher not in [
-            "random",
-            "grid",
-        ]:
-            raise ValueError(
-                f"Provided searcher {searcher} is incompatible with the "
-                f"provided scheduler {scheduler}."
-            )
-        return (
-            self._validate_scheduler(scheduler, metrics, scheduler_kwargs or {}),
-            self._validate_searcher(searcher, metrics, searcher_kwargs or {}),
-        )
 
     @dependencies("ray.tune")
     def _validate_scheduler(
-        self, scheduler: str, metrics: OrderedDict, scheduler_kwargs: dict
+        self,
+        scheduler: str,
+        metrics: OrderedDict,
+        scheduler_kwargs: dict,
     ) -> Any:
         from ray import tune
 
@@ -251,7 +236,10 @@ class TunerManager:
 
     @dependencies(["ray.tune", "hyperopt"])
     def _validate_searcher(
-        self, searcher: str, metrics: OrderedDict, searcher_kwargs: dict
+        self,
+        searcher: str,
+        metrics: OrderedDict,
+        searcher_kwargs: dict,
     ) -> None:
         from ray import tune
 
@@ -275,9 +263,43 @@ class TunerManager:
         _default_kwargs.update(searcher_kwargs)
         return _searcher(**_default_kwargs)
 
+    def _validate_scheduler_and_searcher(
+        self,
+        scheduler: str,
+        searcher: str,
+        metrics: OrderedDict,
+        scheduler_kwargs: dict,
+        searcher_kwargs: dict,
+    ) -> Tuple[Any, Any]:
+        if scheduler not in ["asha", "hyperband", "median", "pbt", "fifo"]:
+            raise ValueError(
+                f"Provided scheduler {scheduler} is not supported. Must be "
+                "one of ['asha', 'hyperband', 'median', 'pbt', 'fifo']."
+            )
+        if searcher not in ["random", "grid", "hyperopt"]:
+            raise ValueError(
+                f"Provided searcher {searcher} is not supported. Must be "
+                "one of ['random', 'grid', 'hyperopt']."
+            )
+        if scheduler not in ["asha", "median", "hyperband"] and searcher not in [
+            "random",
+            "grid",
+        ]:
+            raise ValueError(
+                f"Provided searcher {searcher} is incompatible with the "
+                f"provided scheduler {scheduler}."
+            )
+        return (
+            self._validate_scheduler(scheduler, metrics, scheduler_kwargs),
+            self._validate_searcher(searcher, metrics, searcher_kwargs),
+        )
+
     @dependencies("ray.tune")
     def _validate_reporter(
-        self, reporter: bool, search_space: dict, metrics: OrderedDict
+        self,
+        reporter: bool,
+        search_space: dict,
+        metrics: OrderedDict,
     ) -> Any:
         from ray import tune
 
@@ -309,10 +331,11 @@ class TunerManager:
         from ray.tune.integration.pytorch_lightning import TuneReportCallback
 
         def _trainable(
+            model_cls: BaseModelClass,
+            adata: AnnOrMuData,
+            metric: str,
+            setup_kwargs: dict,
             search_space: dict,
-            model_cls: BaseModelClass = None,
-            adata: AnnOrMuData = None,
-            metric: str = None,
         ) -> None:
             model_cls.setup_anndata(adata, **setup_kwargs)
             model_kwargs, train_kwargs = self._parse_search_space(search_space)
@@ -321,14 +344,15 @@ class TunerManager:
                 metric,
                 on="validation_end",
             )
-            model.train(check_val_every_n_epoch=1, callbacks=[monitor] ** train_kwargs)
+            model.train(check_val_every_n_epoch=1, callbacks=[monitor], **train_kwargs)
 
         return tune.with_resources(
             partial(
                 _trainable,
-                model_cls=self._model_cls,
-                adata=adata,
-                metric=list(metrics.keys())[0],
+                self._model_cls,
+                adata,
+                list(metrics.keys())[0],
+                setup_kwargs,
             ),
             resources=resources,
         )
@@ -354,6 +378,14 @@ class TunerManager:
         """Configures a Ray Tuner instance."""
         from ray import air, tune
 
+        additional_metrics = additional_metrics or []
+        search_space = search_space or {}
+        exclude = exclude or {}
+        scheduler_kwargs = scheduler_kwargs or {}
+        searcher_kwargs = searcher_kwargs or {}
+        resources = resources or {}
+        setup_kwargs = setup_kwargs or {}
+
         _search_space = self._validate_search_space(search_space, use_defaults, exclude)
         _metrics = self._validate_metrics(metric, additional_metrics)
         _scheduler, _searcher = self._validate_scheduler_and_searcher(
@@ -367,8 +399,8 @@ class TunerManager:
         _trainable = self._validate_trainable(
             adata,
             _metrics,
-            resources or {},
-            setup_kwargs or {},
+            resources,
+            setup_kwargs,
         )
         tuner = tune.Tuner(
             trainable=_trainable,
@@ -378,57 +410,50 @@ class TunerManager:
                 mode=list(_metrics.values())[0],
                 scheduler=_scheduler,
                 search_alg=_searcher,
-                num_samples=None,
+                num_samples=5,
             ),
             run_config=air.RunConfig(
-                name=None,
+                name="scvi",
                 progress_reporter=_reporter,
             ),
         )
         return tuner
 
-    def view_registry(self) -> None:
-        """Prints a summary of the registry."""
-        console = rich.console.Console(force_jupyter=in_notebook())
-        column_kwargs = {
+    @staticmethod
+    def _add_columns(table: rich.table.Table, columns: List[str], **kwargs):
+        _kwargs = {
             "justify": "center",
             "no_wrap": True,
             "overflow": "fold",
         }
+        for i, column in enumerate(columns):
+            table.add_column(column, style=COLORS[i], **_kwargs)
+        return table
+
+    def view_registry(self) -> None:
+        """Prints a summary of the registry."""
+        console = rich.console.Console(force_jupyter=in_notebook())
 
         # tunables
-        tunables_table = rich.table.Table(title="Tunable hyperparameters")
-        columns = [
-            ("Hyperparameter", "dodger_blue1"),
-            ("Tunable type", "dark_violet"),
-            ("Default", "green"),
-        ]
-        for column, color in columns:
-            tunables_table.add_column(column, style=color, **column_kwargs)
+        tunables_table = self._add_columns(
+            rich.table.Table(title="Tunable hyperparameters"),
+            ["Hyperparameter", "Tunable type", "Default"],
+        )
         for k, v in self._registry["tunables"].items():
             tunables_table.add_row(str(k), str(v["tunable_type"]), str(v["default"]))
 
         # metrics
-        metrics_table = rich.table.Table(title="Available metrics")
-        columns = [
-            ("Metric", "dodger_blue1"),
-            ("Mode", "dark_violet"),
-        ]
-        for column, color in columns:
-            metrics_table.add_column(column, style=color, **column_kwargs)
-        metrics = self._registry["metrics"]
-        for k, v in metrics.items():
+        metrics_table = self._add_columns(
+            rich.table.Table(title="Available metrics"), ["Metric", "Mode"]
+        )
+        for k, v in self._registry["metrics"].items():
             metrics_table.add_row(str(k), str(v))
 
         # defaults
-        defaults_table = rich.table.Table(title="Default search space")
-        columns = [
-            ("Hyperparameter", "dodger_blue1"),
-            ("Sample type", "dark_violet"),
-            ("Arguments", "green"),
-        ]
-        for column, color in columns:
-            defaults_table.add_column(column, style=color, **column_kwargs)
+        defaults_table = self._add_columns(
+            rich.table.Table(title="Default search space"),
+            ["Hyperparameter", "Sample type", "Arguments"],
+        )
         for k, v in self._defaults.items():
             defaults_table.add_row(str(k), str(v["fn"]), str(v["args"]))
 

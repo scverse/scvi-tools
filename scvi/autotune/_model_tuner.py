@@ -61,6 +61,8 @@ class ModelTuner:
         adata
             :class:`~anndata.AnnData` or :class:`~mudata.MuData` object to use for
             training and validation.
+        metric
+
 
         Returns
         -------
