@@ -389,6 +389,7 @@ class TunerManager:
         from ray import air, tune
 
         additional_metrics = additional_metrics or []
+        use_defaults = use_defaults if search_space is not None else True
         search_space = search_space or {}
         exclude = exclude or {}
         scheduler_kwargs = scheduler_kwargs or {}

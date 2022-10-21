@@ -42,7 +42,7 @@ class ModelTuner:
         additional_metrics: Optional[List[str]] = None,
         search_space: Optional[dict] = None,
         use_defaults: bool = True,
-        exclude: Optional[dict] = None,
+        exclude: Optional[List] = None,
         scheduler: Literal["asha", "hyperband", "median", "pbt", "fifo"] = "asha",
         scheduler_kwargs: Optional[dict] = None,
         searcher: Literal["random", "grid", "hyperopt"] = "hyperopt",
@@ -62,7 +62,34 @@ class ModelTuner:
             :class:`~anndata.AnnData` or :class:`~mudata.MuData` object to use for
             training and validation.
         metric
-
+            Primary metric to optimize over. If not provided, defaults to the model's
+            validation loss.
+        additional_metrics
+            Additional metrics to report. If not provided, defaults to no metrics.
+        search_space
+            Dictionary of hyperparameter names and their respective search spaces.
+            If not provided, defaults to the model's default search space. Options can
+            be found in the model's documentation or with :func:`~scvi.autotune.ModelTuner.info`.
+        use_defaults
+            Whether to incorporate the model's default search space into the user-provided
+            search space. Will default to `True` if `search_space` is not provided.
+        exclude
+            List of hyperparameter names in the model's default search space to exclude.
+            Only used if `use_defaults` is `True`.
+        scheduler
+            Ray Tune scheduler to use.
+        scheduler_kwargs
+            Keyword arguments to pass to the scheduler.
+        searcher
+            Ray Tune searcher to use.
+        searcher_kwargs
+            Keyword arguments to pass to the searcher.
+        reporter
+            Whether to report progress using the Ray Tune reporter.
+        resources
+            Dictionary of resources to use for each trial.
+        setup_kwargs
+            Keyword arguments to pass to the model's `setup_anndata` method.
 
         Returns
         -------
