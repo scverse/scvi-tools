@@ -1033,8 +1033,8 @@ class JaxTrainingPlan(TrainingPlan):
         max_norm: Optional[float] = None,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
-        jit_training_step: bool = True,
-        jit_validation_step: bool = True,
+        use_jit_training_step: bool = True,
+        use_jit_validation_step: bool = True,
         **loss_kwargs,
     ):
         super().__init__(
@@ -1051,8 +1051,8 @@ class JaxTrainingPlan(TrainingPlan):
         self.max_norm = max_norm
         self.automatic_optimization = False
         self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
-        self.jit_training_step = jit_training_step
-        self.jit_validation_step = jit_validation_step
+        self.use_jit_training_step = use_jit_training_step
+        self.use_jit_validation_step = use_jit_validation_step
 
     def get_optimizer_creator(self) -> Callable[[], optax.GradientTransformation]:
         """Get optimizer creator for the model."""
@@ -1135,7 +1135,9 @@ class JaxTrainingPlan(TrainingPlan):
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.module.train()
         train_step_fn = (
-            self.jit_training_step if self.jit_training_step else self._training_step
+            self.jit_training_step
+            if self.use_jit_training_step
+            else self._training_step
         )
         self.module.train_state, loss, elbo = train_step_fn(
             self.module.train_state,
@@ -1191,7 +1193,7 @@ class JaxTrainingPlan(TrainingPlan):
         self.module.eval()
         validation_step_fn = (
             self.jit_validation_step
-            if self.jit_validation_step
+            if self.use_jit_validation_step
             else self._validation_step
         )
         loss, elbo = validation_step_fn(
