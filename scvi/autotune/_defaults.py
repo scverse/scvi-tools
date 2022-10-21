@@ -5,20 +5,23 @@ from scvi.model.base import BaseModelClass
 from scvi.module.base import BaseLatentModeModuleClass, BaseModuleClass
 from scvi.train import TrainRunner
 
-TUNABLE_TYPE_TO_CLS = dict(
-    model=[BaseModelClass, BaseModuleClass, BaseLatentModeModuleClass],
-    train=[
+TUNABLE_TYPE_TO_CLS = {
+    "model": [BaseModelClass, BaseModuleClass, BaseLatentModeModuleClass],
+    "train": [
         LightningDataModule,
         Trainer,
         TrainRunner,
     ],
-    train_plan=[
+    "train_plan": [
         LightningModule,
     ],
-)
+}
 
-SUPPORTED = [
-    model.SCVI,
-]
+SUPPORTED = [model.SCVI]
 
-DEFAULTS = {model.SCVI: dict()}
+
+DEFAULTS = {
+    model.SCVI: {
+        "lr": {"fn": "loguniform", "args": [1e-4, 1e-1]},
+    }
+}

@@ -1,3 +1,7 @@
+from functools import wraps
+from typing import Callable, List, Union
+
+
 class classproperty(object):
     """
     Read-only class property decorator.
@@ -10,3 +14,34 @@ class classproperty(object):
 
     def __get__(self, obj, owner):
         return self.f(owner)
+
+
+def dependencies(packages: Union[str, List[str]]) -> Callable:
+    """
+    Decorator to check for dependencies.
+
+    Parameters
+    ----------
+    packages
+        A string or list of strings of packages to check for.
+    """
+    if isinstance(packages, str):
+        packages = [packages]
+
+    def decorator(fn: Callable):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            try:
+                import importlib
+
+                for package in packages:
+                    importlib.import_module(package)
+            except ImportError:
+                raise ImportError(
+                    f"Please install {packages} to use this functionality."
+                )
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
