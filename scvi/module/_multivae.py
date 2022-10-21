@@ -361,8 +361,8 @@ class MULTIVAE(BaseModuleClass):
         peak_dispersion: str = "peak",
         n_hidden: Optional[int] = None,
         n_latent: Optional[int] = None,
-        n_layers_encoder: int = 2,
-        n_layers_decoder: int = 2,
+        n_layers_encoder: int = 1,
+        n_layers_decoder: int = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
@@ -1007,7 +1007,6 @@ class MULTIVAE(BaseModuleClass):
             rl_protein = torch.zeros(x.shape[0], device=x.device, requires_grad=False)
 
         # calling without weights makes this act like a masked sum
-        # TODO : CHECK MIXING HERE
         recon_loss = (
             (rl_expression * mask_expr)
             + (rl_accessibility * mask_acc)
@@ -1041,7 +1040,9 @@ class MULTIVAE(BaseModuleClass):
 
         kl_local = dict(kl_divergence_z=kl_div_z)
         kl_global = torch.tensor(0.0)
-        return LossRecorder(loss, recon_loss, kl_local, kl_global)
+        return LossRecorder(
+            loss, recon_loss, kl_local, kl_global, kld_paired=kld_paired
+        )
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""

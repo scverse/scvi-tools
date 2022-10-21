@@ -609,7 +609,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             if self.module.peak_likelihood == "peakvi":
                 if normalize_cells:
                     if self.module.use_observed_lib_size:
-                        torch.exp(libsize) / self.module.n_input_regions
+                        libsize = torch.exp(libsize) / self.module.n_input_regions
                     p *= libsize
                 if normalize_regions:
                     p *= torch.sigmoid(self.module.region_factors).cpu()
