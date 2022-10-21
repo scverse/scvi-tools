@@ -52,9 +52,7 @@ class ModelTuner:
         setup_kwargs: Optional[dict] = None,
     ) -> None:
         """
-        Run a specified hyperparameter sweep over the model class with the given
-        :class:`~anndata.AnnData` or :class:`~mudata.MuData` object and search
-        space.
+        Run a specified hyperparameter sweep over the model class.
 
         Does not require `adata` to be registered with the model class.
 
@@ -66,7 +64,7 @@ class ModelTuner:
 
         Returns
         -------
-
+        None
         """
         tuner = self._manager.get_tuner(
             adata,
@@ -87,4 +85,5 @@ class ModelTuner:
         return results
 
     def info(self):
+        """View information about the current tuner."""
         self._manager.view_registry()

@@ -155,7 +155,7 @@ class Trainer(pl.Trainer):
         )
 
     def fit(self, *args, **kwargs):
-
+        """Fit the model."""
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 action="ignore", category=UserWarning, message="The dataloader,"

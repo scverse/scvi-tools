@@ -1,4 +1,6 @@
 class TunableMeta(type):
+    """Metaclass for Tunable class."""
+
     def __getitem__(cls, values):
         if not isinstance(values, tuple):
             values = (values,)
@@ -6,4 +8,4 @@ class TunableMeta(type):
 
 
 class Tunable(metaclass=TunableMeta):
-    pass
+    """Base class for tunable parameters."""

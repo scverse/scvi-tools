@@ -217,7 +217,6 @@ class SemiSupervisedTrainingMixin:
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
@@ -225,7 +224,7 @@ class SemiSupervisedTrainingMixin:
             if self.was_pretrained:
                 max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))
 
-        logger.info("Training for {} epochs.".format(max_epochs))
+        logger.info(f"Training for {max_epochs} epochs.")
 
         plan_kwargs = {} if plan_kwargs is None else plan_kwargs
 

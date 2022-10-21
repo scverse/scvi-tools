@@ -10,15 +10,15 @@ scvi-tools can be installed via conda or pip. If you don't know which to choose,
 
 2. Create a new conda environment:
 
-   ```
-   conda create -n scvi-env python=3.9
-   ```
+    ```
+    conda create -n scvi-env python=3.9
+    ```
 
 3. Activate your environment:
 
-   ```
-   conda activate scvi-env
-   ```
+    ```
+    conda activate scvi-env
+    ```
 
 ### pip prerequisites
 
@@ -26,7 +26,7 @@ scvi-tools can be installed via conda or pip. If you don't know which to choose,
 2. Install [PyTorch]. If you have an Nvidia GPU, be sure to install a version of PyTorch that supports it -- scvi-tools runs much faster with a discrete GPU.
 
 :::{note}
-Installing scvi-tools on a Mac with Apple Silicon is only possible using a native version of Python. A native version of Python can be installed with an Apple Silicon version of miniconda (which can be installed from a native version of homebrew). This is due to an scvi-tools dependency on jax, which cannot be run via Rosetta. 
+Installing scvi-tools on a Mac with Apple Silicon is only possible using a native version of Python. A native version of Python can be installed with an Apple Silicon version of miniconda (which can be installed from a native version of homebrew). This is due to an scvi-tools dependency on jax, which cannot be run via Rosetta.
 :::
 
 ## Conda
@@ -73,16 +73,16 @@ The easiest way to install scvi-tools for R is via conda.
 
 2. Install Reticulate:
 
-   ```
-   install.packages("reticulate")
-   ```
+    ```
+    install.packages("reticulate")
+    ```
 
 3. Then in your R code:
 
-   ```
-   library(reticulate)
-   use_condaenv("scvi-env", required=TRUE)
-   ```
+    ```
+    library(reticulate)
+    use_condaenv("scvi-env", required=TRUE)
+    ```
 
 [miniconda]: https://conda.io/miniconda.html
 [python]: https://www.python.org/downloads/

@@ -36,7 +36,7 @@ class SCANVI(
     RNASeqMixin, VAEMixin, ArchesMixin, SemiSupervisedTrainingMixin, BaseModelClass
 ):
     """
-    Single-cell annotation using variational inference [Xu21]_.
+    Single-cell annotation using variational inference :cite:p:`Xu21`.
 
     Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 
@@ -197,8 +197,8 @@ class SCANVI(
         for k, v in {**non_kwargs, **kwargs}.items():
             if k in scanvi_kwargs.keys():
                 warnings.warn(
-                    "Ignoring param '{}' as it was already passed in to ".format(k)
-                    + "pretrained scvi model with value {}.".format(v)
+                    f"Ignoring param '{k}' as it was already passed in to "
+                    + f"pretrained scvi model with value {v}."
                 )
                 del scanvi_kwargs[k]
 
@@ -229,9 +229,7 @@ class SCANVI(
         return scanvi_model
 
     def _set_indices_and_labels(self):
-        """
-        Set indices for labeled and unlabeled cells.
-        """
+        """Set indices for labeled and unlabeled cells."""
         labels_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         )

@@ -27,9 +27,8 @@ def _load_pbmcs_10x_cite_seq(
 
     Returns
     -------
-    `AnnData` with `.obsm["protein_expression"]
-
-    Missing protein values are zero, and are identified during `AnnData` setup.
+    ``AnnData`` with ``.obsm['protein_expression']``
+        Missing protein values are zero, and are identified during `AnnData` setup.
     """
     url = "https://github.com/YosefLab/scVI-data/raw/master/pbmc_10k_protein_v3.h5ad?raw=true"
     save_fn = "pbmc_10k_protein_v3.h5ad"
@@ -71,7 +70,7 @@ def _load_spleen_lymph_cite_seq(
     remove_outliers: bool = True,
 ):
     """
-    Immune cells from the murine spleen and lymph nodes [GayosoSteier21]_.
+    Immune cells from the murine spleen and lymph nodes :cite:p:`GayosoSteier21`.
 
     This dataset was used throughout the totalVI manuscript, and named SLN-all.
 
@@ -86,9 +85,8 @@ def _load_spleen_lymph_cite_seq(
 
     Returns
     -------
-    `AnnData` with `.obsm["protein_expression"]
-
-    Missing protein values are zero, and are identified during `AnnData` setup.
+    ``AnnData`` with ``.obsm['protein_expression']``
+        Missing protein values are zero, and are identified during `AnnData` setup.
     """
     url = "https://github.com/YosefLab/scVI-data/raw/master/sln_111.h5ad?raw=true"
     save_fn = "sln_111.h5ad"

@@ -2,7 +2,7 @@ from functools import wraps
 from typing import Callable, List, Union
 
 
-class classproperty(object):
+class classproperty:
     """
     Read-only class property decorator.
 

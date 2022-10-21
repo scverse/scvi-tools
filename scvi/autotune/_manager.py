@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 class TunerManager:
     """
-    Provides an interface to validate and process a scvi-tools model class for use with
-    :class:`~scvi.autotune.ModelTuner`.
+    Provides an interface to validate and process a scvi-tools model class for autotuning.
 
     Validation of all inputs from :class:`~scvi.autotune.ModelTuner` is handled here.
 
@@ -371,11 +370,6 @@ class TunerManager:
             resources or {},
             setup_kwargs or {},
         )
-        print(_reporter)
-        print(_searcher)
-        print(_scheduler)
-        print(_metrics)
-        print(_search_space)
         tuner = tune.Tuner(
             trainable=_trainable,
             param_space=_search_space,

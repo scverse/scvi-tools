@@ -10,38 +10,32 @@ body {
     --sd-color-shadow: dimgrey;
 }
 
-dt:target, span.highlighted {
-    background-color: #f0f0f0;
-}
-
 dl.citation > dt {
     float: left;
     margin-right: 15px;
     font-weight: bold;
 }
 
-/* Parameters normalize size and captialized, */
-dl .field-list dt {
-    font-size: var(--font-size--normal) !important;
-    text-transform: none !important;
+/* so that api methods are small in sidebar */
+li.toctree-l3 {
+    font-size: 81.25% !important;
 }
 
-/* examples and headings in classes */
-p.rubric {
-    font-size: var(--font-size--normal);
-    text-transform: none;
-    font-weight: 500;
+li.toctree-l4 {
+    font-size: 75% !important;
 }
 
+/* Notebook stuff below */
 
-  /* adapted from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
+/* adapted from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
 
 .nbinput .prompt,
 .nboutput .prompt {
-      display: none;
+    display: none;
 }
-.nboutput .stderr{
-      display: none;
+
+.nboutput .stderr {
+    display: none;
 }
 
 div.nblast.container {
@@ -58,7 +52,7 @@ div.nbinput.container {
 
 div.nbinput.container div.input_area {
     /* Code cell border that works in both dark and light mode */
-    border-color: rgba(127,127,127,.25) !important;
+    border-color: rgba(127, 127, 127, 0.25) !important;
 }
 
 div.nbinput.container div.input_area div[class*="highlight"] > pre {
@@ -67,14 +61,5 @@ div.nbinput.container div.input_area div[class*="highlight"] > pre {
 }
 
 p.topic-title {
-  margin-top: 0;
-}
-
-
-/* so that api methods are small in sidebar */
-li.toctree-l3 {
-    font-size: 81.25% !important;
-}
-li.toctree-l4 {
-    font-size: 75% !important;
+    margin-top: 0;
 }

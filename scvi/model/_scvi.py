@@ -45,7 +45,7 @@ class SCVI(
     BaseLatentModeModelClass,
 ):
     """
-    single-cell Variational Inference [Lopez18]_.
+    single-cell Variational Inference :cite:p:`Lopez18`.
 
     Parameters
     ----------
