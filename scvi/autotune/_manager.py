@@ -2,7 +2,6 @@ import inspect
 import logging
 import warnings
 from collections import OrderedDict
-from functools import partial
 from typing import Any, Callable, List, Literal, Optional, Tuple
 
 import rich
@@ -39,11 +38,12 @@ class TunerManager:
 
     def __init__(self, model_cls: BaseModelClass):
         self._model_cls: BaseModelClass = self._validate_model(model_cls)
-        self._registry: dict = self._validate_registry(self.model_cls)
-        self._defaults: dict = self._validate_defaults(self.model_cls)
+        self._registry: dict = self._validate_registry(model_cls)
+        self._defaults: dict = self._validate_defaults(model_cls)
 
     @staticmethod
     def _validate_defaults(model_cls: BaseModelClass) -> dict:
+        """Check whether the model class has a default search space defined."""
         if model_cls not in DEFAULTS:
             warnings.warn(
                 f"No default search space available for {model_cls}.",
@@ -53,6 +53,7 @@ class TunerManager:
 
     @staticmethod
     def _validate_model(model_cls: BaseModelClass) -> BaseModelClass:
+        """Check whether the model class is supported."""
         if model_cls not in SUPPORTED:
             raise NotImplementedError(
                 f"{model_cls} is currently unsupported, must be one of {SUPPORTED}."
@@ -124,6 +125,7 @@ class TunerManager:
         return registry
 
     def _parse_search_space(self, search_space: dict) -> Tuple[dict, dict]:
+        """Parse a full search space configuration into separate dictionaries consumable by scvi-tools models."""
         model_kwargs = {}
         train_kwargs = {}
         plan_kwargs = {}
@@ -147,6 +149,7 @@ class TunerManager:
         use_defaults: bool,
         exclude: dict,
     ) -> dict:
+        """Validate a user search space against the model class registry."""
         # validate user search space
         for key in search_space:
             if key not in self._registry["tunables"]:
@@ -179,6 +182,7 @@ class TunerManager:
         metric: str,
         additional_metrics: List[str],
     ) -> OrderedDict:
+        """Validate a user metric(s) specification against the model class registry."""
         return OrderedDict({"validation_loss": "min"})
 
     @dependencies("ray.tune")
@@ -188,6 +192,7 @@ class TunerManager:
         metrics: OrderedDict,
         scheduler_kwargs: dict,
     ) -> Any:
+        """Validate a user scheduler specification and apply defaults."""
         from ray import tune
 
         metric = list(metrics.keys())[0]
@@ -237,6 +242,7 @@ class TunerManager:
         metrics: OrderedDict,
         searcher_kwargs: dict,
     ) -> Any:
+        """Validate a user searcher specification and apply defaults."""
         from ray import tune
 
         metric = list(metrics.keys())[0]
@@ -267,6 +273,7 @@ class TunerManager:
         scheduler_kwargs: dict,
         searcher_kwargs: dict,
     ) -> Tuple[Any, Any]:
+        """Validate a user scheduler and searcher specifications for compatibility."""
         if scheduler not in ["asha", "hyperband", "median", "pbt", "fifo"]:
             raise ValueError(
                 f"Provided scheduler {scheduler} is not supported. Must be "
@@ -297,6 +304,7 @@ class TunerManager:
         search_space: dict,
         metrics: OrderedDict,
     ) -> Any:
+        """Validate a reporter depending on the user environment."""
         from ray import tune
 
         _metric_keys = list(metrics.keys())
@@ -323,15 +331,16 @@ class TunerManager:
         resources: dict,
         setup_kwargs: dict,
     ) -> Callable:
+        """Create a trainable function consumable by :class:`~ray.tune.Tuner`."""
         from ray import tune
         from ray.tune.integration.pytorch_lightning import TuneReportCallback
 
         def _trainable(
-            model_cls: BaseModelClass,
-            adata: AnnOrMuData,
-            metric: str,
-            setup_kwargs: dict,
             search_space: dict,
+            model_cls: BaseModelClass = None,
+            adata: AnnOrMuData = None,
+            metric: str = None,
+            setup_kwargs: dict = None,
         ) -> None:
             model_kwargs, train_kwargs = self._parse_search_space(search_space)
             model_cls.setup_anndata(adata, **setup_kwargs)
@@ -348,12 +357,12 @@ class TunerManager:
             )
 
         return tune.with_resources(
-            partial(
+            tune.with_parameters(
                 _trainable,
-                self._model_cls,
-                adata,
-                list(metrics.keys())[0],
-                setup_kwargs,
+                model_cls=self._model_cls,
+                adata=adata,
+                metric=list(metrics.keys())[0],
+                setup_kwargs=setup_kwargs,
             ),
             resources=resources,
         )
@@ -376,7 +385,7 @@ class TunerManager:
         resources: Optional[dict] = None,
         setup_kwargs: Optional[dict] = None,
     ) -> Callable:
-        """Configures a Ray Tuner instance."""
+        """Configure a :class:`~ray.tune.Tuner` instance after validating user input."""
         from ray import air, tune
 
         additional_metrics = additional_metrics or []
@@ -416,12 +425,16 @@ class TunerManager:
             run_config=air.RunConfig(
                 name="scvi",
                 progress_reporter=_reporter,
+                failure_config=air.FailureConfig(
+                    max_failures=2,
+                ),
             ),
         )
         return tuner
 
     @staticmethod
     def _add_columns(table: rich.table.Table, columns: List[str], **kwargs):
+        """Add columns to a :class:`~rich.table.Table` with default formatting."""
         _kwargs = {
             "justify": "center",
             "no_wrap": True,
