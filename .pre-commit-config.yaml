@@ -5,7 +5,7 @@ default_stages:
     - commit
     - push
 minimum_pre_commit_version: 2.16.0
-exclude_types: 
+exclude_types:
     - svg
 repos:
     - repo: https://github.com/psf/black
