@@ -5,8 +5,6 @@ default_stages:
     - commit
     - push
 minimum_pre_commit_version: 2.16.0
-exclude_types:
-    - svg
 repos:
     - repo: https://github.com/psf/black
       rev: 22.10.0
@@ -41,6 +39,7 @@ repos:
           - id: detect-private-key
           - id: check-ast
           - id: end-of-file-fixer
+            exclude_types: [svg]
           - id: mixed-line-ending
             args: [--fix=lf]
           - id: trailing-whitespace
