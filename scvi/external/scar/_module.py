@@ -7,7 +7,7 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module._vae import VAE
-from scvi.module.base import LossRecorder, auto_move_data
+from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import FCLayers
 
 torch.backends.cudnn.benchmark = True
@@ -384,5 +384,6 @@ class SCAR_VAE(VAE):
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        kl_global = torch.tensor(0.0)
-        return LossRecorder(loss, reconst_loss, kl_local, kl_global)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
+        )
