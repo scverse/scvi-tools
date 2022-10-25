@@ -3,6 +3,8 @@ from distutils.dir_util import copy_tree
 
 import pytest
 
+import scvi
+
 
 def pytest_addoption(parser):
     """Docstring for pytest_addoption."""
@@ -40,6 +42,12 @@ def save_path(tmpdir_factory):
     copy_tree("tests/data", path)
     yield path + "/"
     shutil.rmtree(str(tmpdir_factory.getbasetemp()))
+
+
+@pytest.fixture(scope="session")
+def synthetic_adata():
+    """Docstring for model_fit."""
+    return scvi.data.synthetic_iid()
 
 
 @pytest.fixture(scope="session")
