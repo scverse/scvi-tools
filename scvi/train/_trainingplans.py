@@ -12,7 +12,6 @@ import pytorch_lightning as pl
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchmetrics import MetricCollection
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
@@ -285,7 +284,7 @@ class TrainingPlan(pl.LightningModule):
     def compute_and_log_metrics(
         self,
         loss_recorder: Union[LossRecorder, LossOutput],
-        metrics: MetricCollection,
+        metrics: Dict[str, ElboMetric],
         mode: str,
     ):
         """
@@ -313,7 +312,7 @@ class TrainingPlan(pl.LightningModule):
         # Use the torchmetric object for the ELBO
         # We only need to update the ELBO metric
         # As it's defined as a sum of the other metrics
-        next(iter(metrics.values()))[0].update(
+        metrics[f"elbo_{mode}"].update(
             reconstruction_loss=rec_loss,
             kl_local=kl_local,
             kl_global=kl_global,

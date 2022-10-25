@@ -64,7 +64,7 @@ class LossRecorder:
         **kwargs,
     ):
         warnings.warn(
-            "LossRecorder is deprecated and will be removed in a future release. Please use LossOutput",
+            "LossRecorder is deprecated and will be removed in version 0.20.0. Please use LossOutput",
             category=DeprecationWarning,
         )
         self._loss_output = LossOutput(
@@ -85,7 +85,7 @@ class LossRecorder:
 
     @property
     def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.dict_sum(self._loss_output.reconstruction_loss)
+        return self.dict_sum(self._loss_output.reconstruction_loss)
 
     @property
     def _reconstruction_loss(self):
@@ -93,7 +93,7 @@ class LossRecorder:
 
     @property
     def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.dict_sum(self._loss_output.kl_local)
+        return self.dict_sum(self._loss_output.kl_local)
 
     @property
     def _kl_local(self):
@@ -113,7 +113,7 @@ class LossRecorder:
 
     @property
     def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.dict_sum(self._loss_output.kl_global)
+        return self.dict_sum(self._loss_output.kl_global)
 
     def dict_sum(self, x):
         """Wrapper of LossOutput.dict_sum."""
@@ -134,19 +134,30 @@ class LossOutput:
     ----------
     loss
         Tensor with loss for minibatch. Should be one dimensional with one value.
-        Note that loss should be in an array/tensory and not a float.
+        Note that loss should be in an array/tensor and not a float.
     reconstruction_loss
         Reconstruction loss for each observation in the minibatch. If a tensor, converted to
-        a dictionary with key "reconstruction_loss" and value as tensor
+        a dictionary with key "reconstruction_loss" and value as tensor.
     kl_local
         KL divergence associated with each observation in the minibatch. If a tensor, converted to
-        a dictionary with key "kl_local" and value as tensor
+        a dictionary with key "kl_local" and value as tensor.
     kl_global
-        Global kl divergence term. Should be one dimensional with one value. If a tensor, converted to
-        a dictionary with key "kl_global" and value as tensor
+        Global KL divergence term. Should be one dimensional with one value. If a tensor, converted to
+        a dictionary with key "kl_global" and value as tensor.
     extra_metrics
         Additional metrics can be passed as arrays/tensors or dictionaries of
         arrays/tensors.
+    n_obs_minibatch
+        Number of observations in the minibatch. If None, will be inferred from
+        the shape of the reconstruction_loss tensor.
+    reconstruction_loss_sum
+        Sum of the reconstruction loss across the minibatch. Will be computed
+        automatically.
+    kl_loca_sum
+        Sum of the kl_local across the minibatch. Will be computed
+        automatically.
+    kl_global_sum
+        Sum of the kl_global terms. Will be computed automatically.
     """
 
     loss: LossRecord
