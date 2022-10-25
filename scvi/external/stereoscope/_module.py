@@ -6,7 +6,7 @@ from torch.distributions import NegativeBinomial, Normal
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 
 class RNADeconv(BaseModuleClass):
@@ -110,7 +110,7 @@ class RNADeconv(BaseModuleClass):
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
         loss = torch.sum(scaling_factor * reconst_loss)
 
-        return LossRecorder(loss, reconst_loss, torch.zeros((1,)), torch.tensor(0.0))
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss)
 
     @torch.inference_mode()
     def sample(
@@ -239,8 +239,10 @@ class SpatialDeconv(BaseModuleClass):
         else:
             # the original way it is done in Stereoscope; we use this option to show reproducibility of their codebase
             loss = torch.sum(reconst_loss) + neg_log_likelihood_prior
-        return LossRecorder(
-            loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_global=neg_log_likelihood_prior,
         )
 
     @torch.inference_mode()

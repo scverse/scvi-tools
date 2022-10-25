@@ -14,7 +14,7 @@ from scvi._decorators import classproperty
 from scvi._types import LatentDataType
 from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
-from scvi.module.base import BaseLatentModeModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseLatentModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
@@ -448,7 +448,7 @@ class VAE(BaseLatentModeModuleClass):
                 generative_outputs["pl"],
             ).sum(dim=1)
         else:
-            kl_divergence_l = 0.0
+            kl_divergence_l = torch.tensor(0.0, device=x.device)
 
         reconst_loss = -generative_outputs["px"].log_prob(x).sum(-1)
 
@@ -462,8 +462,9 @@ class VAE(BaseLatentModeModuleClass):
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        kl_global = torch.tensor(0.0)
-        return LossRecorder(loss, reconst_loss, kl_local, kl_global)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
+        )
 
     @torch.inference_mode()
     def sample(
@@ -532,7 +533,7 @@ class VAE(BaseLatentModeModuleClass):
             library = inference_outputs["library"]
 
             # Reconstruction Loss
-            reconst_loss = losses.reconstruction_loss
+            reconst_loss = losses.dict_sum(losses.reconstruction_loss)
 
             # Log-probabilities
             p_z = (

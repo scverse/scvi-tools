@@ -10,7 +10,7 @@ from torch.nn import ModuleList
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, MultiDecoder, MultiEncoder, one_hot
 
 torch.backends.cudnn.benchmark = True
@@ -506,8 +506,9 @@ class JVAE(BaseModuleClass):
             kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
         kl_local = kl_divergence_l + kl_divergence_z
-        kl_global = torch.tensor(0.0)
 
         loss = torch.mean(reconstruction_loss + kl_weight * kl_local) * x.size(0)
 
-        return LossRecorder(loss, reconstruction_loss, kl_local, kl_global)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconstruction_loss, kl_local=kl_local
+        )

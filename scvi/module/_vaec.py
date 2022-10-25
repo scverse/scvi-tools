@@ -5,7 +5,7 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
 torch.backends.cudnn.benchmark = True
@@ -177,7 +177,9 @@ class VAEC(BaseModuleClass):
         scaling_factor = self.ct_weight[y.long()[:, 0]]
         loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
 
-        return LossRecorder(loss, reconst_loss, kl_divergence_z, torch.tensor(0.0))
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence_z
+        )
 
     @torch.inference_mode()
     def sample(

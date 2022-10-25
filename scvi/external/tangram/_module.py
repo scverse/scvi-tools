@@ -4,7 +4,7 @@ import chex
 import jax
 import jax.numpy as jnp
 
-from scvi.module.base import JaxBaseModuleClass, LossRecorder, flax_configure
+from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
 
 class _TANGRAM_REGISTRY_KEYS_NT(NamedTuple):
@@ -151,4 +151,11 @@ class TangramMapper(JaxBaseModuleClass):
         total_loss = -expression_term - regularizer_term + count_term + f_reg
         total_loss = total_loss + density_term
 
-        return LossRecorder(total_loss, expression_term, regularizer_term)
+        return LossOutput(
+            loss=total_loss,
+            n_obs_minibatch=sp.shape[0],
+            extra_metrics={
+                "expression_term": expression_term,
+                "regularizer_term": regularizer_term,
+            },
+        )
