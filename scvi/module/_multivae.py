@@ -587,8 +587,8 @@ class MULTIVAE(BaseModuleClass):
             x_chr = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             x_chr = x[
-                    :, self.n_input_genes: (self.n_input_genes + self.n_input_regions)
-                    ]
+                :, self.n_input_genes : (self.n_input_genes + self.n_input_regions)
+            ]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
@@ -645,6 +645,7 @@ class MULTIVAE(BaseModuleClass):
 
         # sample
         if n_samples > 1:
+
             def unsqz(zt, n_s):
                 return zt.unsqueeze(0).expand((n_s, zt.size(0), zt.size(1)))
 
@@ -805,7 +806,7 @@ class MULTIVAE(BaseModuleClass):
 
         # TODO: CHECK IF THIS FAILS IN ONLY RNA DATA
         x_rna = x[:, : self.n_input_genes]
-        x_chr = x[:, self.n_input_genes: (self.n_input_genes + self.n_input_regions)]
+        x_chr = x[:, self.n_input_genes : (self.n_input_genes + self.n_input_regions)]
         if self.n_input_proteins == 0:
             y = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
@@ -820,13 +821,14 @@ class MULTIVAE(BaseModuleClass):
         if mask_acc.sum().gt(0):
             p = generative_outputs["p"]
             libsize_acc = inference_outputs["libsize_acc"]
-            rl_accessibility.masked_scatter_(mask_acc,
-                                             self.get_reconstruction_loss_accessibility(
-                                                 torch.mask_select(x_chr, mask_acc),
-                                                 torch.mask_select(p, mask_acc),
-                                                 torch.mask_select(libsize_acc, mask_acc)
-                                             )
-                                             )
+            rl_accessibility.masked_scatter_(
+                mask_acc,
+                self.get_reconstruction_loss_accessibility(
+                    torch.mask_select(x_chr, mask_acc),
+                    torch.mask_select(p, mask_acc),
+                    torch.mask_select(libsize_acc, mask_acc),
+                ),
+            )
 
         # Compute Expression loss - only for values where mask is nonzero
         rl_expression = torch.zeros(x.shape[0], device=x.device, requires_grad=False)
@@ -834,14 +836,15 @@ class MULTIVAE(BaseModuleClass):
             px_rate = generative_outputs["px_rate"]
             px_r = generative_outputs["px_r"]
             px_dropout = generative_outputs["px_dropout"]
-            rl_expression.masked_scatter_(mask_expr,
-                                          self.get_reconstruction_loss_expression(
-                                              torch.mask_select(x_rna, mask_rna),
-                                              torch.mask_select(px_rate, mask_rna),
-                                              torch.mask_select(px_r, mask_rna),
-                                              torch.mask_select(px_dropout, mask_rna),
-                                          )
-                                          )
+            rl_expression.masked_scatter_(
+                mask_expr,
+                self.get_reconstruction_loss_expression(
+                    torch.mask_select(x_rna, mask_rna),
+                    torch.mask_select(px_rate, mask_rna),
+                    torch.mask_select(px_r, mask_rna),
+                    torch.mask_select(px_dropout, mask_rna),
+                ),
+            )
 
         # Compute Protein loss - No ability to mask minibatch (Param:None)
         rl_protein = torch.zeros(x.shape[0], device=x.device, requires_grad=False)
@@ -882,7 +885,12 @@ class MULTIVAE(BaseModuleClass):
         loss = torch.mean(recon_loss + weighted_kl_local + kld_paired)
 
         kl_local = dict(kl_divergence_z=kl_div_z)
-        return LossOutput(loss=loss, reconstruction_loss=recon_loss, kl_local=kl_local, kld_paired=kld_paired)
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=recon_loss,
+            kl_local=kl_local,
+            kld_paired=kld_paired,
+        )
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""
@@ -892,8 +900,8 @@ class MULTIVAE(BaseModuleClass):
                 -ZeroInflatedNegativeBinomial(
                     mu=px_rate, theta=px_r, zi_logits=px_dropout
                 )
-                    .log_prob(x)
-                    .sum(dim=-1)
+                .log_prob(x)
+                .sum(dim=-1)
             )
         elif self.gene_likelihood == "nb":
             rl = -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
