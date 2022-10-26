@@ -10,12 +10,10 @@ body {
     --sd-color-shadow: dimgrey;
 }
 
-
 dt:target,
 span.highlighted {
     background-color: #f0f0f0;
 }
-
 
 dl.citation > dt {
     float: left;
@@ -32,7 +30,6 @@ li.toctree-l4 {
     font-size: 75% !important;
 }
 
-
 /*********************************************
 * MyST NB and Jupyter Notebooks *
 * ref: https://github.com/executablebooks/myst-nb
@@ -47,8 +44,8 @@ div.cell_output table {
     table-layout: fixed;
 }
 
-body:not([data-theme=light]) div.cell_output tbody tr:nth-child(odd) {
-    background: rgba(255, 255, 255, .1);
+body:not([data-theme="light"]) div.cell_output tbody tr:nth-child(odd) {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 div.cell div.cell_input {
