@@ -151,14 +151,6 @@ class LossOutput:
     n_obs_minibatch
         Number of observations in the minibatch. If None, will be inferred from
         the shape of the reconstruction_loss tensor.
-    reconstruction_loss_sum
-        Sum of the reconstruction loss across the minibatch. Will be computed
-        automatically.
-    kl_local_sum
-        Sum of the kl_local across the minibatch. Will be computed
-        automatically.
-    kl_global_sum
-        Sum of the kl_global terms. Will be computed automatically.
     """
 
     loss: LossRecord
