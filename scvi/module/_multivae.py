@@ -824,9 +824,9 @@ class MULTIVAE(BaseModuleClass):
             rl_accessibility.masked_scatter_(
                 mask_acc,
                 self.get_reconstruction_loss_accessibility(
-                    torch.mask_select(x_chr, mask_acc),
-                    torch.mask_select(p, mask_acc),
-                    torch.mask_select(libsize_acc, mask_acc),
+                    torch.masked_select(x_chr, mask_acc),
+                    torch.masked_select(p, mask_acc),
+                    torch.masked_select(libsize_acc, mask_acc),
                 ),
             )
 
@@ -838,10 +838,10 @@ class MULTIVAE(BaseModuleClass):
             px_dropout = generative_outputs["px_dropout"]
             rl_expression.masked_scatter_(mask_expr,
                                           self.get_reconstruction_loss_expression(
-                                              torch.mask_select(x_rna, mask_expr),
-                                              torch.mask_select(px_rate, mask_expr),
-                                              torch.mask_select(px_r, mask_expr),
-                                              torch.mask_select(px_dropout, mask_expr),
+                                              torch.masked_select(x_rna, mask_expr),
+                                              torch.masked_select(px_rate, mask_expr),
+                                              torch.masked_select(px_r, mask_expr),
+                                              torch.masked_select(px_dropout, mask_expr),
                                           )
                                           )
 
