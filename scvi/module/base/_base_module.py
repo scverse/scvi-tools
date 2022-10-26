@@ -457,7 +457,7 @@ class JaxBaseModuleClass(flax.linen.Module):
     @abstractmethod
     def required_rngs(self):
         """Returns a tuple of rng sequence names required for this Flax module."""
-        return tuple()
+        return ("params",)
 
     def __call__(
         self,
