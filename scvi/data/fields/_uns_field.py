@@ -40,19 +40,19 @@ class BaseUnsField(BaseAnnDataField):
         self._is_empty = uns_key is None
 
     @property
-    def registry_key(self) -> str:
+    def registry_key(self) -> str:  # noqa: D102
         return self._registry_key
 
     @property
-    def attr_name(self) -> str:
+    def attr_name(self) -> str:  # noqa: D102
         return self._attr_name
 
     @property
-    def attr_key(self) -> str:
+    def attr_key(self) -> str:  # noqa: D102
         return self._attr_key
 
     @property
-    def is_empty(self) -> bool:
+    def is_empty(self) -> bool:  # noqa: D102
         return self._is_empty
 
 
@@ -60,11 +60,13 @@ class StringUnsField(BaseUnsField):
     """An AnnDataField for string .uns attributes in the AnnData data structure."""
 
     def validate_field(self, adata: AnnData) -> None:
+        """Validate the field."""
         super().validate_field(adata)
         if self.attr_key not in adata.uns:
             raise KeyError(f"{self.attr_key} not found in adata.uns.")
 
     def register_field(self, adata: AnnData) -> dict:
+        """Register the field."""
         return super().register_field(adata)
 
     def transfer_field(
@@ -73,11 +75,14 @@ class StringUnsField(BaseUnsField):
         adata_target: AnnData,
         **kwargs,
     ) -> dict:
+        """Transfer the field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         return self.register_field(adata_target)
 
     def get_summary_stats(self, _state_registry: dict) -> dict:
+        """Get summary stats."""
         return {}
 
     def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
+        """View the state registry."""
         return None

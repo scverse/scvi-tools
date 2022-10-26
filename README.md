@@ -1,4 +1,4 @@
-<img src="https://github.com/scverse/scvi-tools/blob/master/docs/_static/scvi-tools-horizontal.svg?raw=true" width="400" alt="scvi-tools">
+<img src="https://github.com/scverse/scvi-tools/blob/main/docs/_static/scvi-tools-horizontal.svg?raw=true" width="400" alt="scvi-tools">
 
 [![Stars](https://img.shields.io/github/stars/scverse/scvi-tools?logo=GitHub&color=yellow)](https://github.com/YosefLab/scvi-tools/stargazers)
 [![PyPI](https://img.shields.io/pypi/v/scvi-tools.svg)](https://pypi.org/project/scvi-tools)
@@ -18,38 +18,19 @@ data, built on top of [PyTorch](https://pytorch.org) and
 
 # Analysis of single-cell omics data
 
-scvi-tools is composed of models that can perform one or more tasks in single-cell omics data analysis. scvi-tools currently hosts implementations of:
+scvi-tools is composed of models that perform many analysis tasks across single- or multi-omics:
 
--   [scVI](https://rdcu.be/bdHYQ) for analysis of single-cell RNA-seq
-    data, as well as its improved differential expression
-    [framework](https://www.biorxiv.org/content/10.1101/2022.05.27.493625v1).
--   [scANVI](https://www.embopress.org/doi/full/10.15252/msb.20209620)
-    for cell annotation of scRNA-seq data using semi-labeled examples.
--   [totalVI](https://www.nature.com/articles/s41592-020-01050-x)
-    for analysis of CITE-seq data.
--   [LDVAE](https://www.biorxiv.org/content/10.1101/737601v1.full.pdf)
-    for an interpretable linear factor model version of scVI.
--   [Stereoscope](https://www.nature.com/articles/s42003-020-01247-y)
-    for deconvolution of spatial transcriptomics data.
--   [DestVI](https://www.nature.com/articles/s41587-022-01272-8) for multi-resolution deconvolution
-    of spatial transcriptomics data.
--   [peakVI](https://www.cell.com/cell-reports-methods/pdfExtended/S2667-2375(22)00037-6) for analysis of scATAC-seq data.
--   [scArches](https://www.nature.com/articles/s41587-021-01001-7)
-    for transfer learning from one single-cell atlas to a query dataset
-    (currently supports scVI, scANVI and TotalVI).
--   [CellAssign](https://www.nature.com/articles/s41592-019-0529-1) for
-    reference-based annotation of scRNA-seq data.
--   [Solo](https://www.sciencedirect.com/science/article/pii/S2405471220301952)
-    for doublet detection in scRNA-seq data.
--   [gimVI](https://arxiv.org/pdf/1905.02269.pdf) for imputation of
-    missing genes in spatial transcriptomics from scRNA-seq data.
--   [AutoZI](https://www.biorxiv.org/content/biorxiv/early/2019/10/10/794875.full.pdf)
-    for assessing gene-specific levels of zero-inflation in scRNA-seq
-    data.
+-   Dimensionality reduction
+-   Data integration
+-   Automated annotation
+-   Factor analysis
+-   Doublet detection
+-   Spatial deconvolution
+-   and more!
 
-All these implementations have a high-level API that interacts with
-[scanpy](http://scanpy.readthedocs.io/), standard save/load functions,
-and support GPU acceleration.
+In the [user guide](https://docs.scvi-tools.org/en/stable/user_guide/index.html), we provide an overview of each model.
+All model implementations have a high-level API that interacts with
+[scanpy](http://scanpy.readthedocs.io/) and includes standard save/load functions, GPU acceleration, etc.
 
 # Rapid development of novel probabilistic models
 
@@ -67,13 +48,17 @@ starting point for developing and deploying new models with scvi-tools.
 # Basic installation
 
 For conda,
+
 ```
 conda install scvi-tools -c conda-forge
 ```
+
 and for pip,
+
 ```
 pip install scvi-tools
 ```
+
 Please be sure to install a version of [PyTorch](https://pytorch.org/) that is compatible with your GPU (if applicable).
 
 # Resources
@@ -105,5 +90,5 @@ If you used scvi-tools in your research, please consider citing
          url={https://doi.org/10.1038/s41587-021-01206-w}
 }
 ```
-along with the publicaton describing the model used. 
 
+along with the publicaton describing the model used.

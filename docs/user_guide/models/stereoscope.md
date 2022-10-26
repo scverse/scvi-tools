@@ -5,16 +5,17 @@ method for the deconvoluton of cell type profiles using a single-cell RNA sequen
 
 The advantages of Stereoscope are:
 
-- Can stratify cells into discrete cell types.
-- Scalable to very large datasets (>1 million cells).
+-   Can stratify cells into discrete cell types.
+-   Scalable to very large datasets (>1 million cells).
 
 The limitations of Stereoscope include:
 
-- Effectively requires a GPU for fast inference.
+-   Effectively requires a GPU for fast inference.
 
-:::{topic} Tutorial:
-- {doc}`/tutorials/notebooks/stereoscope_heart_LV_tutorial`
-:::
+```{topic} Tutorial:
+
+-   {doc}`/tutorials/notebooks/stereoscope_heart_LV_tutorial`
+```
 
 ## Preliminaries
 
@@ -179,6 +180,7 @@ Subsequently for a given cell type, users can plot a heatmap of the cell type pr
 >>> sc.p1.embedding(st_adata, basis="location", color="B cells")
 ```
 
-[^ref1]: Alma Andersson, Joseph Bergenstråhle, Michaela Asp, Ludvig Bergenstråhle, Aleksandra Jurek, José Fernández Navarro & Joakim Lundeberg (2020),
-    *Single-cell and spatial transcriptomics enables probabilistic inference of cell type topography*,
+[^ref1]:
+    Alma Andersson, Joseph Bergenstråhle, Michaela Asp, Ludvig Bergenstråhle, Aleksandra Jurek, José Fernández Navarro & Joakim Lundeberg (2020),
+    _Single-cell and spatial transcriptomics enables probabilistic inference of cell type topography_,
     [Communications Biology](https://www.nature.com/articles/s42003-020-01247-y).

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import numpy as np
 import torch
 from torch.distributions import Normal
@@ -6,7 +5,7 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
 torch.backends.cudnn.benchmark = True
@@ -163,6 +162,7 @@ class VAEC(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
+        """Loss computation."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
         qz = inference_outputs["qz"]
@@ -177,7 +177,9 @@ class VAEC(BaseModuleClass):
         scaling_factor = self.ct_weight[y.long()[:, 0]]
         loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
 
-        return LossRecorder(loss, reconst_loss, kl_divergence_z, torch.tensor(0.0))
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence_z
+        )
 
     @torch.inference_mode()
     def sample(

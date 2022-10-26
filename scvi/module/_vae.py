@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Main module."""
 from typing import Callable, Iterable, Optional
 
@@ -13,7 +12,7 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi._types import LatentDataType
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
-from scvi.module.base import BaseLatentModeModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseLatentModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
@@ -24,7 +23,7 @@ class VAE(BaseLatentModeModuleClass):
     """
     Variational auto-encoder model.
 
-    This is an implementation of the scVI model described in [Lopez18]_
+    This is an implementation of the scVI model described in :cite:p:`Lopez18`.
 
     Parameters
     ----------
@@ -431,6 +430,7 @@ class VAE(BaseLatentModeModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
+        """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
             dim=1
@@ -441,7 +441,7 @@ class VAE(BaseLatentModeModuleClass):
                 generative_outputs["pl"],
             ).sum(dim=1)
         else:
-            kl_divergence_l = 0.0
+            kl_divergence_l = torch.tensor(0.0, device=x.device)
 
         reconst_loss = -generative_outputs["px"].log_prob(x).sum(-1)
 
@@ -455,8 +455,9 @@ class VAE(BaseLatentModeModuleClass):
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        kl_global = torch.tensor(0.0)
-        return LossRecorder(loss, reconst_loss, kl_local, kl_global)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
+        )
 
     @torch.inference_mode()
     def sample(
@@ -510,6 +511,7 @@ class VAE(BaseLatentModeModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
+        """Computes the marginal log likelihood of the model."""
         sample_batch = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
@@ -524,7 +526,7 @@ class VAE(BaseLatentModeModuleClass):
             library = inference_outputs["library"]
 
             # Reconstruction Loss
-            reconst_loss = losses.reconstruction_loss
+            reconst_loss = losses.dict_sum(losses.reconstruction_loss)
 
             # Log-probabilities
             p_z = (
@@ -562,7 +564,7 @@ class LDVAE(VAE):
     """
     Linear-decoded Variational auto-encoder model.
 
-    Implementation of [Svensson20]_.
+    Implementation of :cite:p:`Svensson20`.
 
     This model uses a linear decoder, directly mapping the latent representation
     to gene expression levels. It still uses a deep neural network to encode

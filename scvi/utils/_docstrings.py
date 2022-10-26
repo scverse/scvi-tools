@@ -28,7 +28,7 @@ mode
     Method for differential expression. See user guide for full explanation.
 delta
     specific case of region inducing differential expression.
-    In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
+    In this case, we suppose that :math:`R \\setminus [-\\delta, \\delta]` does not induce differential expression
     (change model default case).
 batch_size
     Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.

@@ -17,7 +17,6 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 notebooks/api_overview
 notebooks/data_loading
 notebooks/python_in_R
-
 ```
 
 ## User tutorials
@@ -37,7 +36,6 @@ notebooks/linear_decoder
 notebooks/AutoZI_tutorial
 notebooks/cellassign_tutorial
 notebooks/amortized_lda
-
 ```
 
 ### ATAC-seq
@@ -47,7 +45,6 @@ notebooks/amortized_lda
 
 notebooks/PeakVI
 notebooks/peakvi_in_R
-
 ```
 
 ### Spatial transcriptomics
@@ -58,7 +55,7 @@ notebooks/peakvi_in_R
 notebooks/DestVI_tutorial
 notebooks/DestVI_in_R
 notebooks/gimvi_tutorial
-
+notebooks/tangram_scvi_tools
 ```
 
 ### Multimodal
@@ -71,7 +68,6 @@ notebooks/cite_scrna_integration_w_totalVI
 notebooks/totalVI_reference_mapping
 notebooks/totalvi_in_R
 notebooks/MultiVI_tutorial
-
 ```
 
 ## Contributed tutorials
@@ -81,7 +77,6 @@ notebooks/MultiVI_tutorial
 
 notebooks/stereoscope_heart_LV_tutorial
 notebooks/cell2location_lymph_node_spatial_tutorial
-
 ```
 
 ## Developer tutorials

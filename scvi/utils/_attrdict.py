@@ -1,40 +1,13 @@
-from copy import deepcopy
+from ml_collections.config_dict import FrozenConfigDict
 
 
-class attrdict(dict):
+class attrdict(FrozenConfigDict):
     """
-    A dictionary that allows for attribute notation (e.g. d.element).
+    A dictionary that allows for attribute-style access.
 
-    Parameters
-    ----------
-    recursive
-        If True, recursively converts nested dictionaries into :class:`~scvi.utils.attrdict` objects.
-
-    Notes
-    -----
-    Based off of https://stackoverflow.com/questions/38034377/object-like-attribute-access-for-nested-dictionary.
+    Dummy class that allows for backwards compatibility with the previous custom ``attrdict``.
+    Inherits from :class:`~ml_collections.config_dict.FrozenConfigDict`.
     """
 
-    def __init__(self, *args, recursive: bool = False, **kwargs):
-        def from_nested_dict(data):
-            if not isinstance(data, dict):
-                return data
-            else:
-                return attrdict({key: from_nested_dict(data[key]) for key in data})
-
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        for key in self.keys():
-            if hasattr(self, key):
-                raise ValueError(
-                    f"Cannot create attrdict containing key {key} due to conflict with built-in dict attribute."
-                )
-            if recursive:
-                self[key] = from_nested_dict(self[key])
-            else:
-                self[key] = deepcopy(self[key])
-
-        self.__dict__ = self
-
-    def __repr__(self) -> str:
-        return f"attrdict({super().__repr__()})"

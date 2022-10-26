@@ -6,14 +6,14 @@ from torch.distributions import NegativeBinomial, Normal
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 
 class RNADeconv(BaseModuleClass):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
-    Reimplementation of the ScModel module of Stereoscope [Andersson20]_:
+    Reimplementation of the ScModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
 
     Parameters
@@ -73,6 +73,7 @@ class RNADeconv(BaseModuleClass):
 
     @auto_move_data
     def inference(self):
+        """Inference."""
         return {}
 
     @auto_move_data
@@ -100,6 +101,7 @@ class RNADeconv(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
+        """Loss computation."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
@@ -108,7 +110,7 @@ class RNADeconv(BaseModuleClass):
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
         loss = torch.sum(scaling_factor * reconst_loss)
 
-        return LossRecorder(loss, reconst_loss, torch.zeros((1,)), torch.tensor(0.0))
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss)
 
     @torch.inference_mode()
     def sample(
@@ -117,6 +119,7 @@ class RNADeconv(BaseModuleClass):
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the model."""
         raise NotImplementedError("No sampling method for Stereoscope")
 
 
@@ -124,7 +127,7 @@ class SpatialDeconv(BaseModuleClass):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
-    Reimplementation of the STModel module of Stereoscope [Andersson20]_:
+    Reimplementation of the STModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
 
     Parameters
@@ -188,6 +191,7 @@ class SpatialDeconv(BaseModuleClass):
 
     @auto_move_data
     def inference(self):
+        """Inference."""
         return {}
 
     @auto_move_data
@@ -218,6 +222,7 @@ class SpatialDeconv(BaseModuleClass):
         kl_weight: float = 1.0,
         n_obs: int = 1.0,
     ):
+        """Loss computation."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
@@ -234,8 +239,10 @@ class SpatialDeconv(BaseModuleClass):
         else:
             # the original way it is done in Stereoscope; we use this option to show reproducibility of their codebase
             loss = torch.sum(reconst_loss) + neg_log_likelihood_prior
-        return LossRecorder(
-            loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_global=neg_log_likelihood_prior,
         )
 
     @torch.inference_mode()
@@ -245,6 +252,7 @@ class SpatialDeconv(BaseModuleClass):
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the model."""
         raise NotImplementedError("No sampling method for Stereoscope")
 
     @torch.inference_mode()
