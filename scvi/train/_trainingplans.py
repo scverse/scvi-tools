@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from functools import partial
 from inspect import signature
 from typing import Callable, Dict, Iterable, Optional, Union
@@ -11,7 +12,6 @@ import pytorch_lightning as pl
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchmetrics import MetricCollection
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
@@ -19,6 +19,7 @@ from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
     JaxBaseModuleClass,
+    LossOutput,
     LossRecorder,
     PyroBaseModuleClass,
     TrainStateWithState,
@@ -26,6 +27,9 @@ from scvi.module.base import (
 from scvi.nn import one_hot
 
 from ._metrics import ElboMetric
+
+JaxOptimizerCreator = Callable[[], optax.GradientTransformation]
+TorchOptimizerCreator = Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
 
 
 def _compute_kl_weight(
@@ -139,9 +143,7 @@ class TrainingPlan(pl.LightningModule):
         module: BaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: Optional[
-            Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
-        ] = None,
+        optimizer_creator: Optional[TorchOptimizerCreator] = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
@@ -205,8 +207,8 @@ class TrainingPlan(pl.LightningModule):
         n = 1 if n_total is None or n_total < 1 else n_total
         elbo = rec_loss + kl_local + (1 / n) * kl_global
         elbo.name = f"elbo_{mode}"
-        collection = MetricCollection(
-            {metric.name: metric for metric in [elbo, rec_loss, kl_local, kl_global]}
+        collection = OrderedDict(
+            [(metric.name, metric) for metric in [elbo, rec_loss, kl_local, kl_global]]
         )
         return elbo, rec_loss, kl_local, kl_global, collection
 
@@ -281,8 +283,8 @@ class TrainingPlan(pl.LightningModule):
     @torch.inference_mode()
     def compute_and_log_metrics(
         self,
-        loss_recorder: LossRecorder,
-        metrics: MetricCollection,
+        loss_recorder: Union[LossRecorder, LossOutput],
+        metrics: Dict[str, ElboMetric],
         mode: str,
     ):
         """
@@ -298,14 +300,19 @@ class TrainingPlan(pl.LightningModule):
             Postfix string to add to the metric name of
             extra metrics
         """
-        rec_loss = loss_recorder.reconstruction_loss
-        n_obs_minibatch = rec_loss.shape[0]
-        rec_loss = rec_loss.sum()
-        kl_local = loss_recorder.kl_local.sum()
-        kl_global = loss_recorder.kl_global
+        if isinstance(loss_recorder, LossRecorder):
+            loss_output = loss_recorder._loss_output
+        else:
+            loss_output = loss_recorder
+        rec_loss = loss_output.reconstruction_loss_sum
+        n_obs_minibatch = loss_output.n_obs_minibatch
+        kl_local = loss_output.kl_local_sum
+        kl_global = loss_output.kl_global_sum
 
-        # use the torchmetric object for the ELBO
-        metrics.update(
+        # Use the torchmetric object for the ELBO
+        # We only need to update the ELBO metric
+        # As it's defined as a sum of the other metrics
+        metrics[f"elbo_{mode}"].update(
             reconstruction_loss=rec_loss,
             kl_local=kl_local,
             kl_global=kl_global,
@@ -320,14 +327,14 @@ class TrainingPlan(pl.LightningModule):
         )
 
         # accumlate extra metrics passed to loss recorder
-        for extra_metric in loss_recorder.extra_metric_attrs:
-            met = getattr(loss_recorder, extra_metric)
+        for key in loss_output.extra_metrics_keys:
+            met = loss_output.extra_metrics[key]
             if isinstance(met, torch.Tensor):
                 if met.shape != torch.Size([]):
                     raise ValueError("Extra tracked metrics should be 0-d tensors.")
                 met = met.detach()
             self.log(
-                f"{extra_metric}_{mode}",
+                f"{key}_{mode}",
                 met,
                 on_step=False,
                 on_epoch=True,
@@ -469,9 +476,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         module: BaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: Optional[
-            Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
-        ] = None,
+        optimizer_creator: Optional[TorchOptimizerCreator] = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
@@ -702,15 +707,15 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             labelled_tensors=labelled_dataset,
         )
         input_kwargs.update(self.loss_kwargs)
-        _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
-        loss = scvi_losses.loss
+        _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
+        loss = loss_output.loss
         self.log(
             "train_loss",
             loss,
             on_epoch=True,
-            batch_size=len(scvi_losses.reconstruction_loss),
+            batch_size=loss_output.n_obs_minibatch,
         )
-        self.compute_and_log_metrics(scvi_losses, self.train_metrics, "train")
+        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
         return loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
@@ -728,15 +733,15 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             labelled_tensors=labelled_dataset,
         )
         input_kwargs.update(self.loss_kwargs)
-        _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
-        loss = scvi_losses.loss
+        _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
+        loss = loss_output.loss
         self.log(
             "validation_loss",
             loss,
             on_epoch=True,
-            batch_size=len(scvi_losses.reconstruction_loss),
+            batch_size=loss_output.n_obs_minibatch,
         )
-        self.compute_and_log_metrics(scvi_losses, self.val_metrics, "validation")
+        self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
 
 class PyroTrainingPlan(pl.LightningModule):
@@ -1022,7 +1027,7 @@ class JaxTrainingPlan(TrainingPlan):
         module: JaxBaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: Optional[Callable[[], optax.GradientTransformation]] = None,
+        optimizer_creator: Optional[JaxOptimizerCreator] = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
@@ -1046,7 +1051,7 @@ class JaxTrainingPlan(TrainingPlan):
         self.automatic_optimization = False
         self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
 
-    def get_optimizer_creator(self) -> Callable[[], optax.GradientTransformation]:
+    def get_optimizer_creator(self) -> JaxOptimizerCreator:
         """Get optimizer creator for the model."""
         clip_by = (
             optax.clip_by_global_norm(self.max_norm)
@@ -1101,43 +1106,40 @@ class JaxTrainingPlan(TrainingPlan):
             outputs, new_model_state = state.apply_fn(
                 vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs
             )
-            loss_recorder = outputs[2]
-            loss = loss_recorder.loss
-            elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
-            return loss, (elbo, new_model_state)
+            loss_output = outputs[2]
+            loss = loss_output.loss
+            return loss, (loss_output, new_model_state)
 
-        (loss, (elbo, new_model_state)), grads = jax.value_and_grad(
+        (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(
             loss_fn, has_aux=True
         )(state.params)
         new_state = state.apply_gradients(grads=grads, state=new_model_state)
-        return new_state, loss, elbo
+        return new_state, loss, loss_output
 
     def training_step(self, batch, batch_idx):
         """Training step for Jax."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.module.train()
-        self.module.train_state, loss, elbo = self.jit_training_step(
+        self.module.train_state, _, loss_output = self.jit_training_step(
             self.module.train_state,
             batch,
             self.module.rngs,
             loss_kwargs=self.loss_kwargs,
         )
-        loss = torch.tensor(jax.device_get(loss))
-        elbo = torch.tensor(jax.device_get(elbo))
+        loss_output = jax.tree_util.tree_map(
+            lambda x: torch.tensor(jax.device_get(x)),
+            loss_output,
+        )
         # TODO: Better way to get batch size
         self.log(
             "train_loss",
-            loss,
+            loss_output.loss,
             on_epoch=True,
-            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+            batch_size=loss_output.n_obs_minibatch,
+            prog_bar=True,
         )
-        self.log(
-            "elbo_train",
-            elbo,
-            on_epoch=True,
-            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
-        )
+        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
 
     @partial(jax.jit, static_argnums=(0,))
     def jit_validation_step(
@@ -1150,35 +1152,30 @@ class JaxTrainingPlan(TrainingPlan):
         """Jit validation step."""
         vars_in = {"params": state.params, **state.state}
         outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
-        loss_recorder = outputs[2]
-        loss = loss_recorder.loss
-        elbo = jnp.mean(loss_recorder.reconstruction_loss + loss_recorder.kl_local)
+        loss_output = outputs[2]
 
-        return loss, elbo
+        return loss_output
 
     def validation_step(self, batch, batch_idx):
         """Validation step for Jax."""
         self.module.eval()
-        loss, elbo = self.jit_validation_step(
+        loss_output = self.jit_validation_step(
             self.module.train_state,
             batch,
             self.module.rngs,
             loss_kwargs=self.loss_kwargs,
         )
-        loss = torch.tensor(jax.device_get(loss))
-        elbo = torch.tensor(jax.device_get(elbo))
+        loss_output = jax.tree_util.tree_map(
+            lambda x: torch.tensor(jax.device_get(x)),
+            loss_output,
+        )
         self.log(
             "validation_loss",
-            loss,
+            loss_output.loss,
             on_epoch=True,
-            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
+            batch_size=loss_output.n_obs_minibatch,
         )
-        self.log(
-            "elbo_validation",
-            elbo,
-            on_epoch=True,
-            batch_size=batch[REGISTRY_KEYS.X_KEY].shape[0],
-        )
+        self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
     @staticmethod
     def transfer_batch_to_device(batch, device, dataloader_idx):
