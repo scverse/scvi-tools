@@ -836,14 +836,15 @@ class MULTIVAE(BaseModuleClass):
             px_rate = generative_outputs["px_rate"]
             px_r = generative_outputs["px_r"]
             px_dropout = generative_outputs["px_dropout"]
-            rl_expression.masked_scatter_(mask_expr,
-                                          self.get_reconstruction_loss_expression(
-                                              torch.masked_select(x_rna, mask_expr),
-                                              torch.masked_select(px_rate, mask_expr),
-                                              torch.masked_select(px_r, mask_expr),
-                                              torch.masked_select(px_dropout, mask_expr),
-                                          )
-                                          )
+            rl_expression.masked_scatter_(
+                mask_expr,
+                self.get_reconstruction_loss_expression(
+                    torch.masked_select(x_rna, mask_expr),
+                    torch.masked_select(px_rate, mask_expr),
+                    torch.masked_select(px_r, mask_expr),
+                    torch.masked_select(px_dropout, mask_expr),
+                ),
+            )
 
         # Compute Protein loss - No ability to mask minibatch (Param:None)
         rl_protein = torch.zeros(x.shape[0], device=x.device, requires_grad=False)
