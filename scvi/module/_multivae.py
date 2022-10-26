@@ -836,10 +836,10 @@ class MULTIVAE(BaseModuleClass):
             px_dropout = generative_outputs["px_dropout"]
             rl_expression.masked_scatter_(mask_expr,
                                           self.get_reconstruction_loss_expression(
-                                              torch.mask_select(x_rna, mask_rna),
-                                              torch.mask_select(px_rate, mask_rna),
-                                              torch.mask_select(px_r, mask_rna),
-                                              torch.mask_select(px_dropout, mask_rna),
+                                              torch.mask_select(x_rna, mask_expr),
+                                              torch.mask_select(px_rate, mask_expr),
+                                              torch.mask_select(px_r, mask_expr),
+                                              torch.mask_select(px_dropout, mask_expr),
                                           )
                                           )
 
