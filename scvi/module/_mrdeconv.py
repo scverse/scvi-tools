@@ -7,7 +7,7 @@ from torch.distributions import Normal
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import FCLayers
 
 
@@ -309,8 +309,11 @@ class MRDeconv(BaseModuleClass):
             + glo_neg_log_likelihood_prior
         )
 
-        return LossRecorder(
-            loss, reconst_loss, neg_log_likelihood_prior, glo_neg_log_likelihood_prior
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_local=neg_log_likelihood_prior,
+            kl_global=glo_neg_log_likelihood_prior,
         )
 
     @torch.inference_mode()

@@ -17,15 +17,12 @@ class ElboMetric(Metric):
     interval
         The interval over which the metric is computed. If "obs", the metric value
         per observation is computed. If "batch", the metric value per batch is computed.
-    dist_sync_on_step
-        Synchronize metric state across processes at each ``forward()``
-        before returning the value at the step.
     **kwargs
         Keyword args for :class:`torchmetrics.Metric`
     """
 
     # Needs to be explicitly set to avoid TorchMetrics UserWarning.
-    full_state_update = True
+    full_state_update = False
     _N_OBS_MINIBATCH_KEY = "n_obs_minibatch"
 
     def __init__(
@@ -33,19 +30,19 @@ class ElboMetric(Metric):
         name: str,
         mode: Literal["train", "validation"],
         interval: Literal["obs", "batch"],
-        dist_sync_on_step: bool = False,
         **kwargs,
     ):
-        super().__init__(dist_sync_on_step=dist_sync_on_step, **kwargs)
+        super().__init__(**kwargs)
 
         self._name = name
         self._mode = mode
         self._interval = interval
 
-        default_val = torch.tensor(0.0)
-        self.add_state("elbo_component", default=default_val)
-        self.add_state("n_obs", default=default_val)
-        self.add_state("n_batches", default=default_val)
+        self.add_state(
+            "elbo_component", default=torch.tensor(0.0), dist_reduce_fx="sum"
+        )
+        self.add_state("n_obs", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("n_batches", default=torch.tensor(0.0), dist_reduce_fx="sum")
 
     @property
     def mode(self):  # noqa: D102
@@ -88,7 +85,7 @@ class ElboMetric(Metric):
         if self._name not in kwargs:
             raise ValueError(f"Missing {self._name} value in metrics update.")
 
-        elbo_component = kwargs[self._name].detach()
+        elbo_component = kwargs[self._name]
         self.elbo_component += elbo_component
 
         n_obs_minibatch = kwargs[self._N_OBS_MINIBATCH_KEY]
