@@ -156,7 +156,7 @@ class LossOutput:
     Examples
     --------
     >>> loss_output = LossOutput(
-    ...     loss=1.0,
+    ...     loss=loss,
     ...     reconstruction_loss=reconstruction_loss,
     ...     kl_local=kl_local,
     ...     extra_metrics={"x": scalar_tensor_x, "y": scalar_tensor_y},
