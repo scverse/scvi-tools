@@ -822,7 +822,9 @@ class MULTIVAE(BaseModuleClass):
             libsize_acc = inference_outputs["libsize_acc"]
             rl_accessibility.masked_scatter_(
                 mask_acc,
-                self.get_reconstruction_loss_accessibility(x_chr[mask_acc, :], p[mask_acc, :], libsize_acc[mask_acc])
+                self.get_reconstruction_loss_accessibility(
+                    x_chr[mask_acc, :], p[mask_acc, :], libsize_acc[mask_acc]
+                ),
             )
 
         # Compute Expression loss - only for values where mask is nonzero
@@ -838,7 +840,7 @@ class MULTIVAE(BaseModuleClass):
                     px_rate[mask_expr, :],
                     px_r,
                     px_dropout[mask_expr, :],
-                )
+                ),
             )
 
         # Compute Protein loss - No ability to mask minibatch (Param:None)
