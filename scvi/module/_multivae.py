@@ -823,11 +823,7 @@ class MULTIVAE(BaseModuleClass):
             libsize_acc = inference_outputs["libsize_acc"]
             rl_accessibility.masked_scatter_(
                 mask_acc,
-                self.get_reconstruction_loss_accessibility(
-                    torch.masked_select(x_chr, mask_acc),
-                    torch.masked_select(p, mask_acc),
-                    torch.masked_select(libsize_acc, mask_acc),
-                ),
+                self.get_reconstruction_loss_accessibility(x_chr[mask_acc, :], p[mask_acc, :], libsize_acc[mask_acc])
             )
 
         # Compute Expression loss - only for values where mask is nonzero
@@ -839,11 +835,11 @@ class MULTIVAE(BaseModuleClass):
             rl_expression.masked_scatter_(
                 mask_expr,
                 self.get_reconstruction_loss_expression(
-                    torch.masked_select(x_rna, mask_expr),
-                    torch.masked_select(px_rate, mask_expr),
-                    torch.masked_select(px_r, mask_expr),
-                    torch.masked_select(px_dropout, mask_expr),
-                ),
+                    x_rna[mask_expr, :],
+                    px_rate[mask_expr, :],
+                    px_r,
+                    px_dropout[mask_expr, :],
+                )
             )
 
         # Compute Protein loss - No ability to mask minibatch (Param:None)
@@ -852,12 +848,7 @@ class MULTIVAE(BaseModuleClass):
             py_ = generative_outputs["py_"]
             rl_protein = get_reconstruction_loss_protein(y, py_, None)
 
-        # This acts like a masked sum
-        recon_loss = (
-            (rl_expression * mask_expr)
-            + (rl_accessibility * mask_acc)
-            + (rl_protein * mask_pro)
-        )
+        recon_loss = rl_expression + rl_accessibility + (rl_protein * mask_pro)
 
         # Compute KLD between Z and N(0,I)
         qz_m = inference_outputs["qz_m"]
