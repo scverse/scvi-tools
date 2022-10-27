@@ -587,8 +587,8 @@ class MULTIVAE(BaseModuleClass):
             x_chr = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             x_chr = x[
-                :, self.n_input_genes : (self.n_input_genes + self.n_input_regions)
-            ]
+                    :, self.n_input_genes: (self.n_input_genes + self.n_input_regions)
+                    ]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
@@ -645,7 +645,6 @@ class MULTIVAE(BaseModuleClass):
 
         # sample
         if n_samples > 1:
-
             def unsqz(zt, n_s):
                 return zt.unsqueeze(0).expand((n_s, zt.size(0), zt.size(1)))
 
@@ -806,7 +805,7 @@ class MULTIVAE(BaseModuleClass):
 
         # TODO: CHECK IF THIS FAILS IN ONLY RNA DATA
         x_rna = x[:, : self.n_input_genes]
-        x_chr = x[:, self.n_input_genes : (self.n_input_genes + self.n_input_regions)]
+        x_chr = x[:, self.n_input_genes: (self.n_input_genes + self.n_input_regions)]
         if self.n_input_proteins == 0:
             y = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
@@ -880,7 +879,6 @@ class MULTIVAE(BaseModuleClass):
             loss=loss,
             reconstruction_loss=recon_loss,
             kl_local=kl_local,
-            kld_paired=kld_paired,
         )
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
@@ -891,8 +889,8 @@ class MULTIVAE(BaseModuleClass):
                 -ZeroInflatedNegativeBinomial(
                     mu=px_rate, theta=px_r, zi_logits=px_dropout
                 )
-                .log_prob(x)
-                .sum(dim=-1)
+                    .log_prob(x)
+                    .sum(dim=-1)
             )
         elif self.gene_likelihood == "nb":
             rl = -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
