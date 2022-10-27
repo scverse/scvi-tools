@@ -151,6 +151,16 @@ class LossOutput:
     n_obs_minibatch
         Number of observations in the minibatch. If None, will be inferred from
         the shape of the reconstruction_loss tensor.
+
+
+    Examples
+    --------
+    >>> loss_output = LossOutput(
+    ...     loss=1.0,
+    ...     reconstruction_loss=reconstruction_loss,
+    ...     kl_local=kl_local,
+    ...     extra_metrics={"x": scalar_tensor_x, "y": scalar_tensor_y},
+    ... )
     """
 
     loss: LossRecord
