@@ -238,13 +238,13 @@ class BaseLatentModeModuleClass(BaseModuleClass):
     @property
     def latent_data_type(self) -> Optional[LatentDataType]:
         """The latent data type associated with this module."""
+        if not hasattr(self, "_latent_data_type"):
+            self._latent_data_type = None
         return self._latent_data_type
 
     @latent_data_type.setter
     def latent_data_type(self, latent_data_type):
         """Set latent data type associated with this module."""
-        if not hasattr(self, "_latent_data_type"):
-            self._latent_data_type = None
         self._latent_data_type = latent_data_type
 
     @abstractmethod
