@@ -32,7 +32,7 @@ Installing scvi-tools on a Mac with Apple Silicon is only possible using a nativ
 
 ### Windows prerequisites
 
-After setting up a virtual environment with conda/mamba/pyenv, please install the [community-buit version of jax](https://github.com/cloudhan/jax-windows-builder) before installing scvi-tools.
+After setting up a virtual environment with conda/mamba/pyenv, please install the [community-built version of jax](https://github.com/cloudhan/jax-windows-builder) before installing scvi-tools.
 
 ```
 pip install "jax[cpu]" -f https://whls.blob.core.windows.net/unstable/index.html --use-deprecated legacy-resolver
