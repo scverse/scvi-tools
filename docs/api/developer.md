@@ -25,6 +25,7 @@ for operating over a collection of AnnDataFields and an AnnData object.
    :nosignatures:
 
    data.AnnDataManager
+   data.AnnDataManagerValidationCheck
    data.fields.BaseAnnDataField
    data.fields.LayerField
    data.fields.CategoricalObsField
@@ -160,6 +161,7 @@ Module classes in the external API with respective generative and inference proc
    external.cellassign.CellAssignModule
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
+   external.tangram.TangramMapper
 
 ```
 
@@ -182,6 +184,7 @@ These classes should be used to construct module classes that define generative 
    module.base.PyroBaseModuleClass
    module.base.JaxModuleWrapper
    module.base.LossRecorder
+   module.base.LossOutput
    module.base.auto_move_data
 
 ```

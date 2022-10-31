@@ -55,6 +55,7 @@ notebooks/peakvi_in_R
 notebooks/DestVI_tutorial
 notebooks/DestVI_in_R
 notebooks/gimvi_tutorial
+notebooks/tangram_scvi_tools
 ```
 
 ### Multimodal

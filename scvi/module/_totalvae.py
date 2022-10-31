@@ -14,7 +14,7 @@ from scvi.distributions import (
     NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderTOTALVI, EncoderTOTALVI, one_hot
 
 torch.backends.cudnn.benchmark = True
@@ -649,7 +649,9 @@ class TOTALVAE(BaseModuleClass):
             kl_div_back_pro=kl_div_back_pro,
         )
 
-        return LossRecorder(loss, reconst_losses, kl_local, kl_global=torch.tensor(0.0))
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local
+        )
 
     @torch.inference_mode()
     def sample(self, tensors, n_samples=1):
@@ -698,7 +700,7 @@ class TOTALVAE(BaseModuleClass):
             log_pro_back_mean = generative_outputs["log_pro_back_mean"]
 
             # Reconstruction Loss
-            reconst_loss = losses._reconstruction_loss
+            reconst_loss = losses.reconstruction_loss
             reconst_loss_gene = reconst_loss["reconst_loss_gene"]
             reconst_loss_protein = reconst_loss["reconst_loss_protein"]
 
