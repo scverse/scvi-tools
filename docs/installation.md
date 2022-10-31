@@ -28,7 +28,7 @@ scvi-tools can be installed via conda or pip. If you don't know which to choose,
 
 ### Apple silicon prerequisites
 
-Installing scvi-tools on a Mac with Apple Silicon is only possible using a native version of Python. A native version of Python can be installed with an Apple Silicon version of mambaforge (which can be installed from a native version of homebrew via `brew install --cask mambaforge`). This is due to an scvi-tools dependency on jax, which cannot be run via Rosetta.
+Installing scvi-tools on a Mac with Apple Silicon is only possible using a native version of python. A native version of python can be installed with an Apple Silicon version of mambaforge (which can be installed from a native version of homebrew via `brew install --cask mambaforge`). This is due to an scvi-tools dependency on jax, which cannot be run via Rosetta.
 
 ### Windows prerequisites
 
