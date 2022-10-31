@@ -36,6 +36,7 @@ class LossRecorder:
     the components of the ELBO. This may also be used in MLE, MAP, EM methods.
     The loss is used for backpropagation during inference. The other parameters
     are used for logging/early stopping during inference.
+
     Parameters
     ----------
     loss
@@ -150,14 +151,16 @@ class LossOutput:
     n_obs_minibatch
         Number of observations in the minibatch. If None, will be inferred from
         the shape of the reconstruction_loss tensor.
-    reconstruction_loss_sum
-        Sum of the reconstruction loss across the minibatch. Will be computed
-        automatically.
-    kl_loca_sum
-        Sum of the kl_local across the minibatch. Will be computed
-        automatically.
-    kl_global_sum
-        Sum of the kl_global terms. Will be computed automatically.
+
+
+    Examples
+    --------
+    >>> loss_output = LossOutput(
+    ...     loss=loss,
+    ...     reconstruction_loss=reconstruction_loss,
+    ...     kl_local=kl_local,
+    ...     extra_metrics={"x": scalar_tensor_x, "y": scalar_tensor_y},
+    ... )
     """
 
     loss: LossRecord
