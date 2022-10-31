@@ -40,7 +40,7 @@ pip install "jax[cpu]" -f https://whls.blob.core.windows.net/unstable/index.html
 
 ### GPU prerequisites
 
-All scvi-tools models will be faster when accelerated with a GPU. Before installing scvi-tools, you can install GPU versions of PyTorch and Jax using conda as follows:
+All scvi-tools models will be faster when accelerated with a GPU. Before installing scvi-tools, you can install GPU versions of PyTorch and jax using conda as follows:
 
 ```
 conda install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch -c conda-forge
