@@ -17,7 +17,12 @@ from scvi.model import SCVI
 from scvi.model.base import BaseModelClass
 from scvi.module import Classifier
 from scvi.module.base import auto_move_data
-from scvi.train import ClassifierTrainingPlan, LoudEarlyStopping, TrainRunner
+from scvi.train import (
+    METRIC_KEYS,
+    ClassifierTrainingPlan,
+    LoudEarlyStopping,
+    TrainRunner,
+)
 from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
@@ -307,9 +312,10 @@ class SOLO(BaseModelClass):
             plan_kwargs = update_dict
 
         if early_stopping:
+            mode = METRIC_KEYS.VALIDATION if train_size != 1.0 else METRIC_KEYS.TRAIN
             early_stopping_callback = [
                 LoudEarlyStopping(
-                    monitor="validation_loss" if train_size != 1.0 else "train_loss",
+                    monitor=f"{mode}_{METRIC_KEYS.LOSS}",
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
                     mode="min",

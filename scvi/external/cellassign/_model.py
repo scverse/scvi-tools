@@ -19,7 +19,13 @@ from scvi.data.fields import (
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
-from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
+from scvi.train import (
+    METRIC_KEYS,
+    LoudEarlyStopping,
+    TrainingPlan,
+    TrainRunner,
+    get_metric_key,
+)
 from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
@@ -186,7 +192,9 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         if early_stopping:
             early_stopping_callback = [
                 LoudEarlyStopping(
-                    monitor="elbo_validation",
+                    monitor=get_metric_key(
+                        METRIC_KEYS.ELBO, mode=METRIC_KEYS.VALIDATION
+                    ),
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
                     mode="min",

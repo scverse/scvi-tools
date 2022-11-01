@@ -2,7 +2,7 @@ import torch
 
 from scvi import REGISTRY_KEYS
 from scvi.module import Classifier
-from scvi.train import AdversarialTrainingPlan
+from scvi.train import METRIC_KEYS, AdversarialTrainingPlan, get_metric_key
 
 
 class GIMVITrainingPlan(AdversarialTrainingPlan):
@@ -65,11 +65,13 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
                 loss += fool_loss * kappa
 
             return {
-                "loss": loss,
-                "reconstruction_loss_sum": rec_loss,
-                "kl_local_sum": kl,
-                "kl_global": 0.0,
-                "n_obs": n_obs,
+                METRIC_KEYS.LOSS: loss,
+                get_metric_key(
+                    METRIC_KEYS.REC_LOSS, metric_type=METRIC_KEYS.SUM
+                ): rec_loss,
+                get_metric_key(METRIC_KEYS.KL_LOCAL, metric_type=METRIC_KEYS.SUM): kl,
+                METRIC_KEYS.KL_GLOBAL: 0.0,
+                METRIC_KEYS.N_OBS: n_obs,
             }
 
         # train adversarial classifier
@@ -106,10 +108,14 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
         )
         reconstruction_loss = loss_output.reconstruction_loss_sum
         return {
-            "reconstruction_loss_sum": reconstruction_loss,
-            "kl_local_sum": loss_output.kl_local_sum,
-            "kl_global": loss_output.kl_global,
-            "n_obs": loss_output.n_obs_minibatch,
+            get_metric_key(
+                METRIC_KEYS.REC_LOSS, metric_type=METRIC_KEYS.SUM
+            ): reconstruction_loss,
+            get_metric_key(
+                METRIC_KEYS.KL_LOCAL, metric_type=METRIC_KEYS.SUM
+            ): loss_output.kl_local_sum,
+            METRIC_KEYS.KL_GLOBAL: loss_output.kl_global,
+            METRIC_KEYS.N_OBS: loss_output.n_obs_minibatch,
         }
 
     def validation_epoch_end(self, outputs):
@@ -117,12 +123,37 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
         n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
         for dl_out in outputs:
             for tensors in dl_out:
-                elbo += tensors["reconstruction_loss_sum"] + tensors["kl_local_sum"]
-                rec_loss += tensors["reconstruction_loss_sum"]
-                kl_local += tensors["kl_local_sum"]
-                n_obs += tensors["n_obs"]
+                elbo += (
+                    tensors[
+                        get_metric_key(
+                            METRIC_KEYS.REC_LOSS, metric_type=METRIC_KEYS.SUM
+                        )
+                    ]
+                    + tensors[
+                        get_metric_key(
+                            METRIC_KEYS.KL_LOCAL, metric_type=METRIC_KEYS.SUM
+                        )
+                    ]
+                )
+                rec_loss += tensors[
+                    get_metric_key(METRIC_KEYS.REC_LOSS, metric_type=METRIC_KEYS.SUM)
+                ]
+                kl_local += tensors[
+                    get_metric_key(METRIC_KEYS.KL_LOCAL, metric_type=METRIC_KEYS.SUM)
+                ]
+                n_obs += tensors[METRIC_KEYS.N_OBS]
         # kl global same for each minibatch
-        self.log("elbo_validation", elbo / n_obs)
-        self.log("reconstruction_loss_validation", rec_loss / n_obs)
-        self.log("kl_local_validation", kl_local / n_obs)
-        self.log("kl_global_validation", 0.0)
+        self.log(
+            get_metric_key(METRIC_KEYS.ELBO, mode=METRIC_KEYS.VALIDATION), elbo / n_obs
+        )
+        self.log(
+            get_metric_key(METRIC_KEYS.REC_LOSS, mode=METRIC_KEYS.VALIDATION),
+            rec_loss / n_obs,
+        )
+        self.log(
+            get_metric_key(METRIC_KEYS.KL_LOCAL, mode=METRIC_KEYS.VALIDATION),
+            kl_local / n_obs,
+        )
+        self.log(
+            get_metric_key(METRIC_KEYS.KL_GLOBAL, mode=METRIC_KEYS.VALIDATION), 0.0
+        )

@@ -3,6 +3,8 @@ from torchmetrics import Metric
 
 from scvi._compat import Literal
 
+from ._constants import METRIC_KEYS
+
 
 class ElboMetric(Metric):
     """
@@ -23,7 +25,6 @@ class ElboMetric(Metric):
 
     # Needs to be explicitly set to avoid TorchMetrics UserWarning.
     full_state_update = False
-    _N_OBS_MINIBATCH_KEY = "n_obs_minibatch"
 
     def __init__(
         self,
@@ -78,17 +79,13 @@ class ElboMetric(Metric):
         Takes kwargs associated with all metrics being updated for a given minibatch.
         Filters for the relevant metric's value and updates this metric.
         """
-        if self._N_OBS_MINIBATCH_KEY not in kwargs:
-            raise ValueError(
-                f"Missing {self._N_OBS_MINIBATCH_KEY} value in metrics update."
-            )
         if self._name not in kwargs:
             raise ValueError(f"Missing {self._name} value in metrics update.")
 
         elbo_component = kwargs[self._name]
         self.elbo_component += elbo_component
 
-        n_obs_minibatch = kwargs[self._N_OBS_MINIBATCH_KEY]
+        n_obs_minibatch = kwargs[METRIC_KEYS.N_OBS_MINIBATCH]
         self.n_obs += n_obs_minibatch
         self.n_batches += 1
 

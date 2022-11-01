@@ -226,7 +226,7 @@ class SemiSupervisedTrainingMixin:
 
         logger.info(f"Training for {max_epochs} epochs.")
 
-        plan_kwargs = {} if plan_kwargs is None else plan_kwargs
+        plan_kwargs = plan_kwargs or {}
 
         # if we have labeled cells, we want to subsample labels each epoch
         sampler_callback = (

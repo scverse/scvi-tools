@@ -1,4 +1,5 @@
 from ._callbacks import JaxModuleInit, LoudEarlyStopping, SaveBestState
+from ._constants import METRIC_KEYS, get_metric_key
 from ._trainer import Trainer
 from ._trainingplans import (
     AdversarialTrainingPlan,
@@ -22,4 +23,6 @@ __all__ = [
     "SaveBestState",
     "JaxModuleInit",
     "JaxTrainingPlan",
+    "METRIC_KEYS",
+    "get_metric_key",
 ]

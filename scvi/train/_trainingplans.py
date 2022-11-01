@@ -28,6 +28,7 @@ from scvi.module.base import (
 )
 from scvi.nn import one_hot
 
+from ._constants import METRIC_KEYS, get_metric_key
 from ._metrics import ElboMetric
 
 JaxOptimizerCreator = Callable[[], optax.GradientTransformation]
@@ -128,7 +129,7 @@ class TrainingPlan(pl.LightningModule):
     lr_threshold
         Threshold for measuring the new optimum.
     lr_scheduler_metric
-        Which metric to track for learning rate reduction.
+        Which metric to track for learning rate reduction. Defaults to validation ELBO.
     lr_min
         Minimum learning rate allowed.
     max_kl_weight
@@ -155,9 +156,7 @@ class TrainingPlan(pl.LightningModule):
         lr_factor: float = 0.6,
         lr_patience: int = 30,
         lr_threshold: float = 0.0,
-        lr_scheduler_metric: Literal[
-            "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
-        ] = "elbo_validation",
+        lr_scheduler_metric: Optional[str] = None,
         lr_min: float = 0,
         max_kl_weight: float = 1.0,
         min_kl_weight: float = 0.0,
@@ -174,7 +173,9 @@ class TrainingPlan(pl.LightningModule):
         self.reduce_lr_on_plateau = reduce_lr_on_plateau
         self.lr_factor = lr_factor
         self.lr_patience = lr_patience
-        self.lr_scheduler_metric = lr_scheduler_metric
+        self.lr_scheduler_metric = lr_scheduler_metric or get_metric_key(
+            METRIC_KEYS.ELBO, mode=METRIC_KEYS.VALIDATION
+        )
         self.lr_threshold = lr_threshold
         self.lr_min = lr_min
         self.loss_kwargs = loss_kwargs
@@ -205,14 +206,14 @@ class TrainingPlan(pl.LightningModule):
     @staticmethod
     def _create_elbo_metric_components(mode: str, n_total: Optional[int] = None):
         """Initialize ELBO metric and the metric collection."""
-        rec_loss = ElboMetric("reconstruction_loss", mode, "obs")
-        kl_local = ElboMetric("kl_local", mode, "obs")
-        kl_global = ElboMetric("kl_global", mode, "obs")
+        rec_loss = ElboMetric(METRIC_KEYS.REC_LOSS, mode, "obs")
+        kl_local = ElboMetric(METRIC_KEYS.KL_LOCAL, mode, "obs")
+        kl_global = ElboMetric(METRIC_KEYS.KL_GLOBAL, mode, "obs")
         # n_total can be 0 if there is no validation set, this won't ever be used
         # in that case anyway
         n = 1 if n_total is None or n_total < 1 else n_total
         elbo = rec_loss + kl_local + (1 / n) * kl_global
-        elbo.name = f"elbo_{mode}"
+        elbo.name = get_metric_key(METRIC_KEYS.ELBO, mode=mode)
         collection = OrderedDict(
             [(metric.name, metric) for metric in [elbo, rec_loss, kl_local, kl_global]]
         )
@@ -227,7 +228,7 @@ class TrainingPlan(pl.LightningModule):
             self.kl_global_train,
             self.train_metrics,
         ) = self._create_elbo_metric_components(
-            mode="train", n_total=self.n_obs_training
+            mode=METRIC_KEYS.TRAIN, n_total=self.n_obs_training
         )
         self.elbo_train.reset()
 
@@ -240,7 +241,7 @@ class TrainingPlan(pl.LightningModule):
             self.kl_global_val,
             self.val_metrics,
         ) = self._create_elbo_metric_components(
-            mode="validation", n_total=self.n_obs_validation
+            mode=METRIC_KEYS.VALIDATION, n_total=self.n_obs_validation
         )
         self.elbo_val.reset()
 
@@ -318,11 +319,13 @@ class TrainingPlan(pl.LightningModule):
         # Use the torchmetric object for the ELBO
         # We only need to update the ELBO metric
         # As it's defined as a sum of the other metrics
-        metrics[f"elbo_{mode}"].update(
-            reconstruction_loss=rec_loss,
-            kl_local=kl_local,
-            kl_global=kl_global,
-            n_obs_minibatch=n_obs_minibatch,
+        metrics[get_metric_key(METRIC_KEYS.ELBO, mode=mode)].update(
+            **{
+                METRIC_KEYS.REC_LOSS: rec_loss,
+                METRIC_KEYS.KL_LOCAL: kl_local,
+                METRIC_KEYS.KL_GLOBAL: kl_global,
+                METRIC_KEYS.N_OBS_MINIBATCH: n_obs_minibatch,
+            }
         )
         # pytorch lightning handles everything with the torchmetric object
         self.log_dict(
@@ -340,7 +343,7 @@ class TrainingPlan(pl.LightningModule):
                     raise ValueError("Extra tracked metrics should be 0-d tensors.")
                 met = met.detach()
             self.log(
-                f"{key}_{mode}",
+                get_metric_key(key, mode=mode),
                 met,
                 on_step=False,
                 on_epoch=True,
@@ -349,11 +352,14 @@ class TrainingPlan(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         """Training step for the model."""
+        mode = METRIC_KEYS.TRAIN
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        self.log("train_loss", scvi_loss.loss, on_epoch=True)
-        self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
+        self.log(
+            get_metric_key(METRIC_KEYS.LOSS, mode=mode), scvi_loss.loss, on_epoch=True
+        )
+        self.compute_and_log_metrics(scvi_loss, self.train_metrics, mode)
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
@@ -361,9 +367,12 @@ class TrainingPlan(pl.LightningModule):
         # loss kwargs here contains `n_obs` equal to n_training_obs
         # so when relevant, the actual loss value is rescaled to number
         # of training examples
+        mode = METRIC_KEYS.VALIDATION
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        self.log("validation_loss", scvi_loss.loss, on_epoch=True)
-        self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
+        self.log(
+            get_metric_key(METRIC_KEYS.LOSS, mode=mode), scvi_loss.loss, on_epoch=True
+        )
+        self.compute_and_log_metrics(scvi_loss, self.val_metrics, mode)
 
     def _optimizer_creator(
         self, optimizer_cls: Union[torch.optim.Adam, torch.optim.AdamW]
@@ -463,7 +472,7 @@ class AdversarialTrainingPlan(TrainingPlan):
     lr_threshold
         Threshold for measuring the new optimum.
     lr_scheduler_metric
-        Which metric to track for learning rate reduction.
+        Which metric to track for learning rate reduction. Defaults to validation ELBO.
     lr_min
         Minimum learning rate allowed
     adversarial_classifier
@@ -491,9 +500,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         lr_factor: float = 0.6,
         lr_patience: int = 30,
         lr_threshold: float = 0.0,
-        lr_scheduler_metric: Literal[
-            "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
-        ] = "elbo_validation",
+        lr_scheduler_metric: Optional[str] = None,
         lr_min: float = 0,
         adversarial_classifier: Union[bool, Classifier] = False,
         scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
@@ -550,6 +557,7 @@ class AdversarialTrainingPlan(TrainingPlan):
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         """Training step for adversarial training."""
+        mode = METRIC_KEYS.TRAIN
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         kappa = (
@@ -569,8 +577,8 @@ class AdversarialTrainingPlan(TrainingPlan):
                 fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
                 loss += fool_loss * kappa
 
-            self.log("train_loss", loss, on_epoch=True)
-            self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
+            self.log(get_metric_key(METRIC_KEYS.LOSS, mode=mode), loss, on_epoch=True)
+            self.compute_and_log_metrics(scvi_loss, self.train_metrics, mode)
             return loss
 
         # train adversarial classifier
@@ -657,7 +665,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     lr_threshold
         Threshold for measuring the new optimum.
     lr_scheduler_metric
-        Which metric to track for learning rate reduction.
+        Which metric to track for learning rate reduction. Defaults to validation ELBO.
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -676,9 +684,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         lr_factor: float = 0.6,
         lr_patience: int = 30,
         lr_threshold: float = 0.0,
-        lr_scheduler_metric: Literal[
-            "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
-        ] = "elbo_validation",
+        lr_scheduler_metric: Optional[str] = None,
         **loss_kwargs,
     ):
         super().__init__(
@@ -699,6 +705,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         """Training step for semi-supervised training."""
         # Potentially dangerous if batch is from a single dataloader with two keys
+        mode = METRIC_KEYS.TRAIN
         if len(batch) == 2:
             full_dataset = batch[0]
             labelled_dataset = batch[1]
@@ -716,17 +723,18 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = loss_output.loss
         self.log(
-            "train_loss",
+            get_metric_key(METRIC_KEYS.LOSS, mode=mode),
             loss,
             on_epoch=True,
             batch_size=loss_output.n_obs_minibatch,
         )
-        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+        self.compute_and_log_metrics(loss_output, self.train_metrics, mode)
         return loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
         """Validation step for semi-supervised training."""
         # Potentially dangerous if batch is from a single dataloader with two keys
+        mode = METRIC_KEYS.VALIDATION
         if len(batch) == 2:
             full_dataset = batch[0]
             labelled_dataset = batch[1]
@@ -742,12 +750,12 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = loss_output.loss
         self.log(
-            "validation_loss",
+            get_metric_key(METRIC_KEYS.LOSS, mode=mode),
             loss,
             on_epoch=True,
             batch_size=loss_output.n_obs_minibatch,
         )
-        self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
+        self.compute_and_log_metrics(loss_output, self.val_metrics, mode)
 
 
 class PyroTrainingPlan(pl.LightningModule):
@@ -872,13 +880,9 @@ class PyroTrainingPlan(pl.LightningModule):
 
     def training_epoch_end(self, outputs):
         """Training epoch end for Pyro training."""
-        elbo = 0
-        n = 0
-        for out in outputs:
-            elbo += out["loss"]
-            n += 1
-        elbo /= n
-        self.log("elbo_train", elbo, prog_bar=True)
+        mode = METRIC_KEYS.TRAIN
+        elbo = torch.stack([x["loss"] for x in outputs]).mean()
+        self.log(get_metric_key(METRIC_KEYS.ELBO, mode=mode), elbo, prog_bar=True)
 
     def configure_optimizers(self):
         """
@@ -968,16 +972,18 @@ class ClassifierTrainingPlan(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         """Training step for classifier training."""
+        mode = METRIC_KEYS.TRAIN
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
-        self.log("train_loss", loss, on_epoch=True)
+        self.log(get_metric_key(METRIC_KEYS.LOSS, mode=mode), loss, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         """Validation step for classifier training."""
+        mode = METRIC_KEYS.VALIDATION
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
-        self.log("validation_loss", loss)
+        self.log(get_metric_key(METRIC_KEYS.LOSS, mode=mode), loss)
 
         return loss
 
@@ -1124,6 +1130,7 @@ class JaxTrainingPlan(TrainingPlan):
 
     def training_step(self, batch, batch_idx):
         """Training step for Jax."""
+        mode = METRIC_KEYS.TRAIN
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         self.module.train()
@@ -1139,13 +1146,13 @@ class JaxTrainingPlan(TrainingPlan):
         )
         # TODO: Better way to get batch size
         self.log(
-            "train_loss",
+            get_metric_key(METRIC_KEYS.LOSS, mode=mode),
             loss_output.loss,
             on_epoch=True,
             batch_size=loss_output.n_obs_minibatch,
             prog_bar=True,
         )
-        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+        self.compute_and_log_metrics(loss_output, self.train_metrics, mode)
 
     @partial(jax.jit, static_argnums=(0,))
     def jit_validation_step(
@@ -1164,6 +1171,7 @@ class JaxTrainingPlan(TrainingPlan):
 
     def validation_step(self, batch, batch_idx):
         """Validation step for Jax."""
+        mode = METRIC_KEYS.VALIDATION
         self.module.eval()
         loss_output = self.jit_validation_step(
             self.module.train_state,
@@ -1176,12 +1184,12 @@ class JaxTrainingPlan(TrainingPlan):
             loss_output,
         )
         self.log(
-            "validation_loss",
+            get_metric_key(METRIC_KEYS.LOSS, mode=mode),
             loss_output.loss,
             on_epoch=True,
             batch_size=loss_output.n_obs_minibatch,
         )
-        self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
+        self.compute_and_log_metrics(loss_output, self.val_metrics, mode)
 
     @staticmethod
     def transfer_batch_to_device(batch, device, dataloader_idx):
