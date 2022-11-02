@@ -1,7 +1,3 @@
-```{highlight} shell
-
-```
-
 # Contributing
 
 Contributions are welcome, and they are greatly appreciated! Every little bit
@@ -13,7 +9,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
 
 1.  Fork the `scvi-tools` repo on GitHub.
 
-2.  Clone your fork locally:
+1.  Clone your fork locally:
 
     ```
     # Clone your fork of the repository (substitute in your username)
@@ -21,19 +17,35 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     # Enter the cloned repository
     cd scvi-tools
     # Add our repository as a remote
-    git remote add upstream https://github.com/yoseflab/scvi-tools.git
-    # git branch --set-upstream-to "upstream/master"
+    git remote add upstream https://github.com/scverse/scvi-tools.git
+    # git branch --set-upstream-to "upstream/main"
     ```
 
-3.  Install your local copy into a virtualenv (or conda environment):
+1.  Setup a virtual environment:
 
     ```
     # If you have pyenv-virtualenv
     pyenv virtualenv scvi-tools-dev
     pyenv activate scvi-tools-dev
-    # If you have conda (omit the python parameter if you already have the relevant python version installed)
-    conda create -n scvi-tools-dev python=3.8.8 # or any python >3.7 that is available (conda search python)
-    conda activate scvi-tools-dev
+    # If you have mamba (omit the python parameter if you already have the relevant python version installed)
+    mamba create -n scvi-tools-dev python=3.8.8 # or any python >3.7 that is available (mamba search python)
+    mamba activate scvi-tools-dev
+    ```
+
+1.  (Optional) Install GPU versions of PyTorch and jax:
+
+    Using mamba (recommended):
+
+    ```
+    mamba install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch -c conda-forge
+    mamba install jax jaxlib cuda-nvcc -c conda-forge -c nvidiai
+    ```
+
+    More information can be found on the installation page {doc}`/installation`.
+
+1.  Install your local copy in the environment:
+
+    ```
     # Enter the cloned repository and install the package in editable mode
     cd scvi-tools
     pip install -e ".[dev,docs,tutorials]"
@@ -42,37 +54,22 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     To confirm that scvi-tools was successfully installed:
 
     ```
-    # This should find the package. Note that other metadata (such as Version, Summary, etc.) might be missing. This
-    # is expected because we use poetry instead of setup-tools. On a non-editable install, these would be populated.
     pip show scvi-tools
     ```
 
-4.  **\[Advanced users\]** Install your local copy into a virtualenv with Poetry. Our preferred local installation method consists of using `pyenv-virtualenv` to create a virtualenv, and using `poetry` to create an editable local installation. If using this approach, please be sure to install `poetry` the [recommended](https://python-poetry.org/docs/#installation) way. Once `poetry` is installed:
-
-    ```
-    pyenv virtualenv scvi-tools-dev
-    pyenv activate scvi-tools-dev
-    cd scvi-tools
-    poetry install --extras "dev docs tutorials"
-    ```
-
-    To confirm that scvi-tools was successfully installed, proceed in the same way as above. This time, `pip show scvi-tools` should show all other metadata as well (Version, Summary, etc.).
-
-5.  **\[Optional\]** Install a version of PyTorch that supports your GPU. This will be the case even if you use Poetry.
-
-6.  Create an ipykernel so you can use your environment with a Jupyter notebook. This will make this developement environment available through Jupyter notebook/lab. Inside your virtualenv:
+1.  Create an ipykernel so you can use your environment with a Jupyter notebook. This will make this developement environment available through Jupyter notebook/lab. Inside your virtualenv:
 
     ```
     python -m ipykernel install --user --name=scvi-tools-dev
     ```
 
-7.  Install pre-commit, which will enforce the scvi-tools code style (black, flake8) on each of your commits:
+1.  Install pre-commit, which will enforce the scvi-tools code style (black, flake8) on each of your commits:
 
     ```
     $ pre-commit install
     ```
 
-8.  Create a branch for local development:
+1.  Create a branch for local development:
 
     ```
     $ git checkout -b {your-branch-name}
@@ -80,16 +77,16 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
 
     Now you can make your changes locally.
 
-9.  Add tests to the `/tests` directory. These files start with `test_` and contain functions that start similarly with `test_`.
+1.  Add tests to the `/tests` directory. These files start with `test_` and contain functions that start similarly with `test_`.
 
-10. When you're done making changes, run the tests using pytest:
+1.  When you're done making changes, run the tests using pytest:
 
     ```
     $ pytest tests/models/test_my_new_feature.py
     $ pytest tests/models/test_my_new_feature.py::test_particular_function_in_file
     ```
 
-11. Commit your changes and push your branch to GitHub:
+1.  Commit your changes and push your branch to GitHub:
 
     ```
     $ git add <file> ...
@@ -97,7 +94,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     $ git push origin name-of-your-bugfix-or-feature
     ```
 
-12. Submit a pull request through the GitHub website.
+1.  Submit a pull request through the GitHub website.
 
 ## Coding Standards
 
