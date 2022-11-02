@@ -872,8 +872,19 @@ class MULTIVAE(BaseModuleClass):
         # TOTAL LOSS
         loss = torch.mean(recon_loss + weighted_kl_local + kld_paired)
 
-        kl_local = dict(kl_divergence_z=kl_div_z)
-        return LossOutput(loss=loss, reconstruction_loss=recon_loss, kl_local=kl_local)
+        reconst_losses = dict(
+            reconst_loss_total=recon_loss,
+            reconst_loss_expression=rl_expression,
+            reconst_loss_accessibility=rl_accessibility,
+            reconst_loss_protein=rl_protein,
+        )
+
+        kl_local = dict(
+            kl_div_z=kl_div_z,
+            kl_paired=kld_paired,
+        )
+
+        return LossOutput(loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local)
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""
