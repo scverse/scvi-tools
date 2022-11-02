@@ -884,7 +884,9 @@ class MULTIVAE(BaseModuleClass):
             kl_paired=kld_paired,
         )
 
-        return LossOutput(loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local
+        )
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""
