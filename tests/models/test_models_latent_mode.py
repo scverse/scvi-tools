@@ -198,6 +198,8 @@ def test_scvi_latent_mode_save_load_latent(save_path):
     # load saved latent model with saved latent adata
     loaded_model = SCVI.load(save_path)
 
+    assert model.latent_data_type == "dist"
+
     scvi.settings.seed = 1
     params_latent = loaded_model.get_likelihood_parameters()
     assert params_latent["mean"].shape == adata.shape
