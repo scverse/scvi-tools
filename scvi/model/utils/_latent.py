@@ -1,10 +1,11 @@
+import numpy as np
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS
 from scvi._types import LatentDataType
 from scvi.data._constants import _ADATA_LATENT_UNS_KEY
-from scvi.data.fields import ObsmField, StringUnsField
+from scvi.data.fields import NumericalObsField, ObsmField, StringUnsField
 
 
 def scvi_get_latent_adata_from_adata(
@@ -12,6 +13,7 @@ def scvi_get_latent_adata_from_adata(
     mode: LatentDataType,
     scvi_latent_qzm_key: str,
     scvi_latent_qzv_key: str,
+    scvi_obs_lib_size_key: str,
     use_latent_qzm_key: str = "X_latent_qzm",
     use_latent_qzv_key: str = "X_latent_qzv",
 ):
@@ -19,6 +21,7 @@ def scvi_get_latent_adata_from_adata(
     if mode == "dist":
         adata.obsm[scvi_latent_qzm_key] = adata.obsm[use_latent_qzm_key]
         adata.obsm[scvi_latent_qzv_key] = adata.obsm[use_latent_qzv_key]
+        adata.obs[scvi_obs_lib_size_key] = np.squeeze(np.asarray(adata.X.sum(axis=1)))
     else:
         raise ValueError(f"Unknown latent mode: {mode}")
     adata.uns[_ADATA_LATENT_UNS_KEY] = mode
@@ -32,6 +35,7 @@ def scvi_get_latent_fields(
     mode: LatentDataType,
     scvi_latent_qzm_key: str,
     scvi_latent_qzv_key: str,
+    scvi_observed_library_key: str,
 ):
     """TODO add docstring"""
     if mode == "dist":
@@ -43,6 +47,10 @@ def scvi_get_latent_fields(
             ObsmField(
                 REGISTRY_KEYS.LATENT_QZV_KEY,
                 scvi_latent_qzv_key,
+            ),
+            NumericalObsField(
+                REGISTRY_KEYS.OBSERVED_LIB_SIZE,
+                scvi_observed_library_key,
             ),
         ]
     else:

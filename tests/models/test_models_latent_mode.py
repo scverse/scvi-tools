@@ -47,13 +47,16 @@ def run_test_scvi_latent_mode_dist(
         n_samples=n_samples, give_mean=give_mean
     )
     model_orig = deepcopy(model)
+    adata_lib_size_orig = np.squeeze(np.asarray(adata.X.sum(axis=1)))
 
     model.to_latent_mode(mode="dist")
 
     assert model.latent_data_type == "dist"
 
     assert model_orig.adata.layers.keys() == model.adata.layers.keys()
-    assert model.adata.obs.equals(model_orig.adata.obs)
+    model_orig_obs_df = model_orig.adata.obs
+    model_orig_obs_df["_scvi_observed_lib_size"] = adata_lib_size_orig
+    assert model.adata.obs.equals(model_orig_obs_df)
     assert model.adata.var_names.equals(model_orig.adata.var_names)
     assert model.adata.var.equals(model_orig.adata.var)
     assert model.adata.varm.keys() == model_orig.adata.varm.keys()

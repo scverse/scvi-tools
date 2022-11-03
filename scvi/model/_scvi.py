@@ -25,6 +25,7 @@ from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
+_SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 
 logger = logging.getLogger(__name__)
 
@@ -118,11 +119,6 @@ class SCVI(
         )
         library_log_means, library_log_vars = None, None
         if not use_size_factor_key:
-            if self.latent_data_type is not None:
-                raise ValueError(
-                    "Latent mode not supported when use_size_factor_key is False"
-                )
-
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
             )
@@ -204,7 +200,10 @@ class SCVI(
         latent_mode = _get_latent_adata_type(adata)
         if latent_mode is not None:
             anndata_fields += scvi_get_latent_fields(
-                latent_mode, _SCVI_LATENT_QZM, _SCVI_LATENT_QZV
+                latent_mode,
+                _SCVI_LATENT_QZM,
+                _SCVI_LATENT_QZV,
+                _SCVI_OBSERVED_LIB_SIZE,
             )
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
@@ -237,15 +236,23 @@ class SCVI(
         use_latent_qzv_key
             Key to use in `adata.obsm` where the latent qzv params are stored
         """
+        if self.module.use_observed_lib_size is False:
+            raise ValueError(
+                "Latent mode not supported when use_observed_lib_size is False"
+            )
+
         scvi_get_latent_adata_from_adata(
             self.adata,
             mode,
             _SCVI_LATENT_QZM,
             _SCVI_LATENT_QZV,
+            _SCVI_OBSERVED_LIB_SIZE,
             use_latent_qzm_key,
             use_latent_qzv_key,
         )
         self.adata_manager.register_new_fields(
-            scvi_get_latent_fields(mode, _SCVI_LATENT_QZM, _SCVI_LATENT_QZV)
+            scvi_get_latent_fields(
+                mode, _SCVI_LATENT_QZM, _SCVI_LATENT_QZV, _SCVI_OBSERVED_LIB_SIZE
+            )
         )
         self.module.latent_data_type = mode

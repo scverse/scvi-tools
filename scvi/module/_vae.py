@@ -232,7 +232,8 @@ class VAE(BaseLatentModeModuleClass):
             if self.latent_data_type == "dist":
                 qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
                 qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
-                input_dict = dict(qzm=qzm, qzv=qzv)
+                observed_lib_size = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
+                input_dict = dict(qzm=qzm, qzv=qzv, observed_lib_size=observed_lib_size)
             else:
                 raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
 
@@ -329,16 +330,21 @@ class VAE(BaseLatentModeModuleClass):
         return outputs
 
     @auto_move_data
-    def _cached_inference(self, qzm, qzv, n_samples=1):
+    def _cached_inference(self, qzm, qzv, observed_lib_size, n_samples=1):
         if self.latent_data_type == "dist":
             dist = Normal(qzm, qzv.sqrt())
             # use dist.sample() rather than rsample because we aren't optimizing
             # the z in latent/cached mode
             untran_z = dist.sample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
+            library = torch.log(observed_lib_size)
+            if n_samples > 1:
+                library = library.unsqueeze(0).expand(
+                    (n_samples, library.size(0), library.size(1))
+                )
         else:
             raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
-        outputs = dict(z=z, qz_m=qzm, qz_v=qzv, ql=None, library=None)
+        outputs = dict(z=z, qz_m=qzm, qz_v=qzv, ql=None, library=library)
         return outputs
 
     @auto_move_data
