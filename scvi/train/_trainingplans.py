@@ -92,6 +92,7 @@ class TrainingPlan(pl.LightningModule):
     be used to optimize the model parameters in the Trainer. Overall, custom
     training plans can be used to develop complex inference schemes on top of
     modules.
+
     The following developer tutorial will familiarize you more with training plans
     and how to use them: :doc:`/tutorials/notebooks/model_user_guide`.
 
@@ -354,7 +355,9 @@ class TrainingPlan(pl.LightningModule):
         """Training step for the model."""
         mode = METRIC_KEYS.TRAIN
         if "kl_weight" in self.loss_kwargs:
-            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+            kl_weight = self.kl_weight
+            self.loss_kwargs.update({"kl_weight": kl_weight})
+            self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log(
             get_metric_key(METRIC_KEYS.LOSS, mode=mode), scvi_loss.loss, on_epoch=True

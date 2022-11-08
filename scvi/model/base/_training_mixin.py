@@ -1,7 +1,5 @@
 import logging
-import warnings
-from math import ceil
-from typing import Any, Dict, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 
@@ -12,67 +10,6 @@ from scvi.train import SemiSupervisedTrainingPlan, TrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 
 logger = logging.getLogger(__name__)
-
-
-def _check_warmup(
-    plan_kwargs: Dict[str, Any],
-    max_epochs: int,
-    n_cells: int,
-    batch_size: int,
-    train_size: float = 1.0,
-) -> None:
-    """
-    Raises a warning if the max_kl_weight is not reached by the end of training.
-
-    Parameters
-    ----------
-    plan_kwargs
-        Keyword args for :class:`~scvi.train.TrainingPlan`.
-    max_epochs
-        Number of passes through the dataset.
-    n_cells
-        Number of cells in the whole datasets.
-    batch_size
-        Minibatch size to use during training.
-    train_size
-        Fraction of cells used for training.
-    """
-    _WARNING_MESSAGE = (
-        "max_{mode}={max} is less than n_{mode}_kl_warmup={warm_up}. "
-        "The max_kl_weight will not be reached during training."
-    )
-
-    n_steps_kl_warmup = plan_kwargs.get("n_steps_kl_warmup", None)
-    n_epochs_kl_warmup = plan_kwargs.get("n_epochs_kl_warmup", None)
-
-    # The only time n_steps_kl_warmup is used is when n_epochs_kl_warmup is explicitly
-    # set to None. This also catches the case when both n_epochs_kl_warmup and
-    # n_steps_kl_warmup are set to None and max_kl_weight will always be reached.
-    if (
-        "n_epochs_kl_warmup" in plan_kwargs
-        and plan_kwargs["n_epochs_kl_warmup"] is None
-    ):
-        n_cell_train = ceil(train_size * n_cells)
-        steps_per_epoch = n_cell_train // batch_size + (n_cell_train % batch_size >= 3)
-        max_steps = max_epochs * steps_per_epoch
-        if n_steps_kl_warmup and max_steps < n_steps_kl_warmup:
-            warnings.warn(
-                _WARNING_MESSAGE.format(
-                    mode="steps", max=max_steps, warm_up=n_steps_kl_warmup
-                )
-            )
-    elif n_epochs_kl_warmup:
-        if max_epochs < n_epochs_kl_warmup:
-            warnings.warn(
-                _WARNING_MESSAGE.format(
-                    mode="epochs", max=max_epochs, warm_up=n_epochs_kl_warmup
-                )
-            )
-    else:
-        if max_epochs < 400:
-            warnings.warn(
-                _WARNING_MESSAGE.format(mode="epochs", max=max_epochs, warm_up=400)
-            )
 
 
 class UnsupervisedTrainingMixin:
@@ -133,8 +70,6 @@ class UnsupervisedTrainingMixin:
             max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-
-        _check_warmup(plan_kwargs, max_epochs, n_cells, batch_size)
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
