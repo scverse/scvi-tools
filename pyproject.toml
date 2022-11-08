@@ -70,9 +70,9 @@ python = ">=3.7,<4.0"
 python-igraph = {version = "*", optional = true}
 pytorch-lightning = ">=1.7.0,<1.8"
 rich = ">=9.1.0"
-ray = {extras = ["tune"], version = ">=2.0.0", optional = true}
+ray = {extras = ["tune"], version = ">=2.1.0", optional = true}
 scanpy = {version = ">=1.6", optional = true}
-scib-metrics = {version = "*", optional = true}
+scib-metrics = {version = "0.0.7", optional = true}
 scikit-learn = ">=0.21.2"
 scikit-misc = {version = ">=0.1.3", optional = true}
 sphinx = {version = ">=4.1", optional = true}
