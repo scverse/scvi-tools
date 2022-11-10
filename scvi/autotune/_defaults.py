@@ -1,0 +1,40 @@
+from pytorch_lightning import LightningDataModule, LightningModule, Trainer
+
+from scvi import model
+from scvi.module.base import BaseModuleClass, JaxBaseModuleClass, PyroBaseModuleClass
+from scvi.train import TrainRunner
+
+# colors for rich table columns
+COLORS = [
+    "dodger_blue1",
+    "dark_violet",
+    "green",
+    "dark_orange",
+]
+
+# maps classes to the type of hyperparameters they use
+TUNABLE_TYPE_TO_CLS = {
+    "model": [
+        BaseModuleClass,
+        JaxBaseModuleClass,
+        PyroBaseModuleClass,
+    ],
+    "train": [
+        LightningDataModule,
+        Trainer,
+        TrainRunner,
+    ],
+    "train_plan": [
+        LightningModule,
+    ],
+}
+
+# supported model classes
+SUPPORTED = [model.SCVI]
+
+# default hyperparameter search spaces for each model class
+DEFAULTS = {
+    model.SCVI: {
+        "lr": {"fn": "loguniform", "args": [1e-4, 1e-1]},
+    }
+}
