@@ -223,7 +223,7 @@ def test_scvi(save_path):
     assert model.is_trained is True
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], n_latent)
-    assert len(model.history["elbo_train"]) == 2
+    assert len(model.history["train_elbo"]) == 2
     model.get_elbo()
     model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
@@ -1010,13 +1010,12 @@ def test_scanvi(save_path):
     assert len(model._unlabeled_indices) == sum(adata.obs["labels"] == "label_0")
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
     logged_keys = model.history.keys()
-    assert "elbo_validation" in logged_keys
-    assert "reconstruction_loss_validation" in logged_keys
-    assert "kl_local_validation" in logged_keys
-    assert "elbo_train" in logged_keys
-    assert "reconstruction_loss_train" in logged_keys
-    assert "kl_local_train" in logged_keys
-    assert "classification_loss_validation" in logged_keys
+    assert "validation_elbo" in logged_keys
+    assert "validation_reconstruction_loss" in logged_keys
+    assert "validation_kl_local" in logged_keys
+    assert "train_elbo" in logged_keys
+    assert "train_reconstruction_loss" in logged_keys
+    assert "train_kl_local" in logged_keys
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
@@ -1101,8 +1100,8 @@ def test_linear_scvi(save_path):
     LinearSCVI.setup_anndata(adata)
     model = LinearSCVI(adata, n_latent=10)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
-    assert len(model.history["elbo_train"]) == 1
-    assert len(model.history["elbo_validation"]) == 1
+    assert len(model.history["train_elbo"]) == 1
+    assert len(model.history["validation_elbo"]) == 1
     model.get_loadings()
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
@@ -1125,8 +1124,8 @@ def test_autozi():
             zero_inflation=disp_zi,
         )
         autozivae.train(1, plan_kwargs=dict(lr=1e-2), check_val_every_n_epoch=1)
-        assert len(autozivae.history["elbo_train"]) == 1
-        assert len(autozivae.history["elbo_validation"]) == 1
+        assert len(autozivae.history["train_elbo"]) == 1
+        assert len(autozivae.history["validation_elbo"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)
         autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
         autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
@@ -1144,8 +1143,8 @@ def test_autozi():
         assert hasattr(autozivae.module, "library_log_means") and hasattr(
             autozivae.module, "library_log_vars"
         )
-        assert len(autozivae.history["elbo_train"]) == 1
-        assert len(autozivae.history["elbo_validation"]) == 1
+        assert len(autozivae.history["train_elbo"]) == 1
+        assert len(autozivae.history["validation_elbo"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)
         autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
         autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
@@ -1532,7 +1531,7 @@ def test_destvi(save_path):
         )
         spatial_model.view_anndata_setup()
         spatial_model.train(max_epochs=1)
-        assert not np.isnan(spatial_model.history["elbo_train"].values[0][0])
+        assert not np.isnan(spatial_model.history["train_elbo"].values[0][0])
 
         assert spatial_model.get_proportions().shape == (dataset.n_obs, n_labels)
         assert spatial_model.get_gamma(return_numpy=True).shape == (
@@ -1623,4 +1622,4 @@ def test_early_stopping():
     )
     model = SCVI(adata)
     model.train(n_epochs, early_stopping=True, plan_kwargs=dict(lr=0))
-    assert len(model.history["elbo_train"]) < n_epochs
+    assert len(model.history["train_elbo"]) < n_epochs

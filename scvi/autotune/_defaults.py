@@ -1,11 +1,11 @@
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 
 from scvi import model
-from scvi.model.base import BaseModelClass
 from scvi.module.base import (
     BaseLatentModeModuleClass,
     BaseModuleClass,
     JaxBaseModuleClass,
+    PyroBaseModuleClass,
 )
 from scvi.train import TrainRunner
 
@@ -18,10 +18,10 @@ COLORS = [
 
 TUNABLE_TYPE_TO_CLS = {
     "model": [
-        BaseModelClass,
         BaseModuleClass,
         BaseLatentModeModuleClass,
         JaxBaseModuleClass,
+        PyroBaseModuleClass,
     ],
     "train": [
         LightningDataModule,

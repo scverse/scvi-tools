@@ -11,6 +11,8 @@ from pytorch_lightning.utilities import rank_zero_info
 
 from scvi.dataloaders import AnnDataLoader
 
+from ._constants import METRIC_KEYS, get_metric_key
+
 
 class SubSampleLabels(Callback):
     """Subsample labels."""
@@ -31,7 +33,7 @@ class SaveBestState(Callback):
     Parameters
     ----------
     monitor
-        quantity to monitor.
+        Quantity to monitor, defaults to the validation ELBO.
     verbose
         verbosity, True or False.
     mode
@@ -47,14 +49,16 @@ class SaveBestState(Callback):
 
     def __init__(
         self,
-        monitor: str = "elbo_validation",
+        monitor: Optional[str] = None,
         mode: str = "min",
         verbose=False,
         period=1,
     ):
         super().__init__()
 
-        self.monitor = monitor
+        self.monitor = monitor or get_metric_key(
+            METRIC_KEYS.ELBO, METRIC_KEYS.VALIDATION
+        )
         self.verbose = verbose
         self.period = period
         self.epochs_since_last_check = 0

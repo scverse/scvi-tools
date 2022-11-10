@@ -553,7 +553,7 @@ def test_lda_model_single_step():
         adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5
     )
     mod1.train(max_steps=1, max_epochs=10)
-    assert len(mod1.history["elbo_train"]) == 1
+    assert len(mod1.history["train_elbo"]) == 1
 
 
 def test_lda_model():
@@ -627,7 +627,7 @@ def test_lda_model_save_load(save_path):
         lr=0.01,
         use_gpu=use_gpu,
     )
-    hist_elbo = mod.history_["elbo_train"]
+    hist_elbo = mod.history_["train_elbo"]
 
     feature_by_topic_1 = mod.get_feature_by_topic(n_samples=5000)
     latent_1 = mod.get_latent_representation(n_samples=6000)
@@ -636,7 +636,7 @@ def test_lda_model_save_load(save_path):
     mod.save(save_path, overwrite=True, save_anndata=True)
     mod = AmortizedLDA.load(save_path)
 
-    np.testing.assert_array_equal(mod.history_["elbo_train"], hist_elbo)
+    np.testing.assert_array_equal(mod.history_["train_elbo"], hist_elbo)
 
     feature_by_topic_2 = mod.get_feature_by_topic(n_samples=5000)
     latent_2 = mod.get_latent_representation(n_samples=6000)

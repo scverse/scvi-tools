@@ -149,8 +149,8 @@ class TrainingPlan(pl.LightningModule):
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: Optional[TorchOptimizerCreator] = None,
         lr: Tunable[float] = 1e-3,
-        weight_decay: float = 1e-6,
-        eps: float = 0.01,
+        weight_decay: Tunable[float] = 1e-6,
+        eps: Tunable[float] = 0.01,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -201,7 +201,8 @@ class TrainingPlan(pl.LightningModule):
         self.initialize_val_metrics()
 
     @classproperty
-    def _tunables(cls) -> Tuple[Any]:
+    def tunables(cls) -> Tuple[Any]:
+        """Tunables."""
         return (cls.__init__,)
 
     @staticmethod
@@ -495,8 +496,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: Optional[TorchOptimizerCreator] = None,
-        lr: float = 1e-3,
-        weight_decay: float = 1e-6,
+        lr: Tunable[float] = 1e-3,
+        weight_decay: Tunable[float] = 1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -679,8 +680,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         module: BaseModuleClass,
         *,
         classification_ratio: int = 50,
-        lr: float = 1e-3,
-        weight_decay: float = 1e-6,
+        lr: Tunable[float] = 1e-3,
+        weight_decay: Tunable[float] = 1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -946,8 +947,8 @@ class ClassifierTrainingPlan(pl.LightningModule):
         self,
         classifier: BaseModuleClass,
         *,
-        lr: float = 1e-3,
-        weight_decay: float = 1e-6,
+        lr: Tunable[float] = 1e-3,
+        weight_decay: Tunable[float] = 1e-6,
         eps: float = 0.01,
         optimizer: Literal["Adam", "AdamW"] = "Adam",
         data_key: str = REGISTRY_KEYS.X_KEY,
@@ -1043,8 +1044,8 @@ class JaxTrainingPlan(TrainingPlan):
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: Optional[JaxOptimizerCreator] = None,
-        lr: float = 1e-3,
-        weight_decay: float = 1e-6,
+        lr: Tunable[float] = 1e-3,
+        weight_decay: Tunable[float] = 1e-6,
         eps: float = 0.01,
         max_norm: Optional[float] = None,
         n_steps_kl_warmup: Union[int, None] = None,

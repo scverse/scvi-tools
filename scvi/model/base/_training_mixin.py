@@ -416,7 +416,7 @@ class MULTIVITrainingMixin(BaseTrainingMixin):
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
             kwargs["callbacks"].append(
-                SaveBestState(monitor="reconstruction_loss_validation")
+                SaveBestState(monitor="validation_reconstruction_loss")
             )
 
         data_splitter = self.data_splitter_cls(
@@ -435,7 +435,7 @@ class MULTIVITrainingMixin(BaseTrainingMixin):
             use_gpu=use_gpu,
             early_stopping=early_stopping,
             check_val_every_n_epoch=check_val_every_n_epoch,
-            early_stopping_monitor="reconstruction_loss_validation",
+            early_stopping_monitor="validation_reconstruction_loss",
             early_stopping_patience=50,
             **kwargs,
         )
@@ -526,7 +526,7 @@ class PEAKVITrainingMixin(UnsupervisedTrainingMixin):
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
             kwargs["callbacks"].append(
-                SaveBestState(monitor="reconstruction_loss_validation")
+                SaveBestState(monitor="validation_reconstruction_loss")
             )
 
         super().train(
@@ -535,7 +535,7 @@ class PEAKVITrainingMixin(UnsupervisedTrainingMixin):
             use_gpu=use_gpu,
             validation_size=validation_size,
             early_stopping=early_stopping,
-            early_stopping_monitor="reconstruction_loss_validation",
+            early_stopping_monitor="validation_reconstruction_loss",
             early_stopping_patience=early_stopping_patience,
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,

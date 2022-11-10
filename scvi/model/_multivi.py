@@ -40,7 +40,7 @@ from .base._utils import _de_core
 logger = logging.getLogger(__name__)
 
 
-class MULTIVI(VAEMixin, BaseModelClass, MULTIVITrainingMixin, ArchesMixin):
+class MULTIVI(VAEMixin, ArchesMixin, MULTIVITrainingMixin, BaseModelClass):
     """
     Integration of multi-modal and single-modality data :cite:p:`AshuachGabitto21`.
 

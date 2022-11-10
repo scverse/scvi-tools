@@ -88,7 +88,8 @@ class DataSplitter(pl.LightningDataModule):
     """
 
     @classproperty
-    def _tunables(cls) -> Tuple[Any]:
+    def tunables(cls) -> Tuple[Any]:
+        """Tunables."""
         return (cls.__init__,)
 
     def __init__(
@@ -241,6 +242,11 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
         self.data_loader_kwargs = kwargs
         self.use_gpu = use_gpu
+
+    @classproperty
+    def tunables(cls) -> Tuple[Any]:
+        """Tunables."""
+        return (cls.__init__,)
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
@@ -404,6 +410,11 @@ class DeviceBackedDataSplitter(DataSplitter):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.shuffle_test_val = shuffle_test_val
+
+    @classproperty
+    def tunables(cls) -> Tuple[Any]:
+        """Tunables."""
+        return (cls.__init__,)
 
     def setup(self, stage: Optional[str] = None):
         """Create the train, validation, and test indices."""

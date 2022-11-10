@@ -8,6 +8,7 @@ class _METRIC_KEYS_NT(NamedTuple):
     LOSS: str = "loss"
     ELBO: str = "elbo"
     REC_LOSS: str = "reconstruction_loss"
+    CLASSIFICATION_LOSS: str = "classification_loss"
     KL_LOCAL: str = "kl_local"
     KL_GLOBAL: str = "kl_global"
     SUM: str = "sum"
@@ -31,6 +32,7 @@ def get_metric_key(
         METRIC_KEYS.LOSS,
         METRIC_KEYS.ELBO,
         METRIC_KEYS.REC_LOSS,
+        METRIC_KEYS.CLASSIFICATION_LOSS,
         METRIC_KEYS.KL_LOCAL,
         METRIC_KEYS.KL_GLOBAL,
         METRIC_KEYS.N_OBS,

@@ -233,7 +233,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
             kwargs["callbacks"].append(
-                SaveBestState(monitor="reconstruction_loss_validation")
+                SaveBestState(monitor="validation_reconstruction_loss")
             )
 
         super().train(
@@ -242,7 +242,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_gpu=use_gpu,
             validation_size=validation_size,
             early_stopping=early_stopping,
-            early_stopping_monitor="reconstruction_loss_validation",
+            early_stopping_monitor="validation_reconstruction_loss",
             early_stopping_patience=early_stopping_patience,
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,

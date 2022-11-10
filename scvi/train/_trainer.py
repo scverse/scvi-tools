@@ -10,6 +10,7 @@ from scvi import settings
 from scvi._compat import Literal
 
 from ._callbacks import LoudEarlyStopping
+from ._constants import METRIC_KEYS, get_metric_key
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
@@ -94,9 +95,7 @@ class Trainer(pl.Trainer):
         num_sanity_val_steps: int = 0,
         enable_model_summary: bool = False,
         early_stopping: bool = False,
-        early_stopping_monitor: Literal[
-            "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
-        ] = "elbo_validation",
+        early_stopping_monitor: Optional[str] = None,
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
@@ -115,6 +114,9 @@ class Trainer(pl.Trainer):
             [] if "callbacks" not in kwargs.keys() else kwargs["callbacks"]
         )
         if early_stopping:
+            early_stopping_monitor = early_stopping_monitor or get_metric_key(
+                METRIC_KEYS.ELBO, METRIC_KEYS.VALIDATION
+            )
             early_stopping_callback = LoudEarlyStopping(
                 monitor=early_stopping_monitor,
                 min_delta=early_stopping_min_delta,
