@@ -8,11 +8,13 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
+from scvi._decorators import classproperty
 from scvi.data import AnnDataManager
 from scvi.data.fields import LayerField, NumericalObsField
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
+from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
@@ -94,6 +96,11 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         self.cell_type_mapping = cell_type_mapping
         self._model_summary_string = "DestVI Model"
         self.init_params_ = self._get_init_params(locals())
+
+    @classproperty
+    def module_cls(cls) -> BaseModuleClass:
+        """Module class."""
+        return MRDeconv
 
     @classmethod
     def from_rna_model(

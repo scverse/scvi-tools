@@ -9,11 +9,13 @@ from torch.distributions import Beta
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._decorators import classproperty
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import AutoZIVAE
+from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, VAEMixin
@@ -115,7 +117,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             self.adata_manager, n_batch
         )
 
-        self.module = AutoZIVAE(
+        self.module = self.module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=self.summary_stats.n_labels,
@@ -151,6 +153,11 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             zero_inflation,
         )
         self.init_params_ = self._get_init_params(locals())
+
+    @classproperty
+    def module_cls(cls) -> BaseModuleClass:
+        """Module class."""
+        return AutoZIVAE
 
     def get_alphas_betas(
         self, as_numpy: bool = True

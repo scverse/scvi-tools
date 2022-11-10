@@ -10,6 +10,7 @@ from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 
 from scvi._constants import REGISTRY_KEYS
+from scvi.autotune._types import Tunable
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import Encoder
 
@@ -244,9 +245,9 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
 
     def __init__(
         self,
-        n_input: int,
-        n_topics: int,
-        n_hidden: int,
+        n_input: Tunable[int],
+        n_topics: Tunable[int],
+        n_hidden: Tunable[int],
         cell_topic_prior: Optional[Union[float, Sequence[float]]] = None,
         topic_feature_prior: Optional[Union[float, Sequence[float]]] = None,
     ):

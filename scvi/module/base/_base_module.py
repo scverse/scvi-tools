@@ -21,6 +21,7 @@ from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
+from scvi._decorators import classproperty
 from scvi._types import LatentDataType, LossRecord, Tensor
 from scvi.utils._jax import device_selecting_PRNGKey
 
@@ -238,6 +239,11 @@ class BaseModuleClass(nn.Module):
     def on_load(self, model):
         """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict."""
 
+    @classproperty
+    def tunables(cls) -> Tuple[Any]:
+        """Tunables."""
+        return (cls.__init__,)
+
     @auto_move_data
     def forward(
         self,
@@ -430,6 +436,11 @@ class PyroBaseModuleClass(nn.Module):
         args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
         """
 
+    @classproperty
+    def tunables(cls) -> Tuple[Any]:
+        """Tunables."""
+        return (cls.__init__,)
+
     @property
     @abstractmethod
     def model(self):  # noqa: D102
@@ -562,6 +573,11 @@ class JaxBaseModuleClass(flax.linen.Module):
 
         https://flax.readthedocs.io/en/latest/design_notes/setup_or_nncompact.html
         """
+
+    @classproperty
+    def tunables(cls) -> Tuple[Any]:
+        """Tunables."""
+        return (cls.__init__,)
 
     @property
     @abstractmethod

@@ -3,6 +3,7 @@ from typing import List, Optional
 try:
     from ray import tune  # noqa
 except ImportError:
+    # ray tune dependency raises error in functions that use it
     pass
 
 from scvi._compat import Literal
@@ -16,6 +17,7 @@ class ModelTuner:
     Automated and parallel hyperparameter searches with Ray Tune.
 
     Wraps a :class:`~ray.tune.Tuner` instance attached to a scvi-tools model class.
+    Note: This API is in beta and is subject to change in future releases.
 
     Parameters
     ----------
@@ -48,6 +50,7 @@ class ModelTuner:
         metric: Optional[str] = None,
         additional_metrics: Optional[List[str]] = None,
         search_space: Optional[dict] = None,
+        num_samples: Optional[int] = None,
         use_defaults: bool = True,
         exclude: Optional[List[str]] = None,
         scheduler: Literal["asha", "hyperband", "median", "pbt", "fifo"] = "asha",
@@ -76,6 +79,9 @@ class ModelTuner:
             Dictionary of hyperparameter names and their respective search spaces.
             If not provided, defaults to the model's default search space. Options can
             be found in the model's documentation or with :func:`~scvi.autotune.ModelTuner.info`.
+        num_samples
+            Number of hyperparameter configurations to try. If not provided, defaults to
+            an adaptive number of samples based on the available resources.
         use_defaults
             Whether to incorporate the model's default search space into the user-provided
             search space. Will default to `True` if `search_space` is not provided.
@@ -99,7 +105,8 @@ class ModelTuner:
         reporter
             Whether to report progress using the Ray Tune reporter.
         resources
-            Dictionary of resources to use for each trial.
+            Dictionary of maximum resources to allocate for the experiment. Defaults to
+            using all available cpus and one gpu if available.
         setup_kwargs
             Keyword arguments to pass to the model's `setup_anndata` method.
 
@@ -112,6 +119,7 @@ class ModelTuner:
             metric=metric,
             additional_metrics=additional_metrics,
             search_space=search_space,
+            num_samples=num_samples,
             use_defaults=use_defaults,
             exclude=exclude,
             scheduler=scheduler,
@@ -121,8 +129,9 @@ class ModelTuner:
             reporter=reporter,
             resources=resources,
         )
-        tuner.fit()
+        results = tuner.fit()
+        return results
 
-    def info(self):
+    def info(self, show_resources: bool = False):
         """View information about the current tuner."""
-        self._manager._view_registry()
+        self._manager._view_registry(show_resources=show_resources)

@@ -8,6 +8,7 @@ from anndata import AnnData
 from sklearn.cluster import KMeans
 
 from scvi import REGISTRY_KEYS
+from scvi._decorators import classproperty
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model.base import (
@@ -17,6 +18,7 @@ from scvi.model.base import (
     VAEMixin,
 )
 from scvi.module import VAEC
+from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
@@ -77,7 +79,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             ct_weight = 1.0 / ct_prop
             module_kwargs.update({"ct_weight": ct_weight})
 
-        self.module = VAEC(
+        self.module = self.module_cls(
             n_input=n_vars,
             n_labels=n_labels,
             n_hidden=n_hidden,
@@ -90,6 +92,11 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             "Conditional SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: {}, weight_obs: {}"
         ).format(n_hidden, n_latent, n_layers, dropout_rate, weight_obs)
         self.init_params_ = self._get_init_params(locals())
+
+    @classproperty
+    def module_cls(cls) -> BaseModuleClass:
+        """Module class."""
+        return VAEC
 
     @torch.inference_mode()
     def get_vamp_prior(

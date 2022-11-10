@@ -1,5 +1,5 @@
 """Main module."""
-from typing import Any, Callable, Iterable, Optional, Tuple
+from typing import Callable, Iterable, Optional
 
 import numpy as np
 import torch
@@ -10,7 +10,6 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi._decorators import classproperty
 from scvi._types import LatentDataType
 from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
@@ -213,10 +212,6 @@ class VAE(BaseLatentModeModuleClass):
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
-
-    @classproperty
-    def _tunables(cls) -> Tuple[Any]:
-        return (cls.__init__,)
 
     def _get_inference_input(
         self,
@@ -624,13 +619,13 @@ class LDVAE(VAE):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: int = 128,
-        n_latent: int = 10,
-        n_layers_encoder: int = 1,
-        dropout_rate: float = 0.1,
-        dispersion: str = "gene",
+        n_hidden: Tunable[int] = 128,
+        n_latent: Tunable[int] = 10,
+        n_layers_encoder: Tunable[int] = 1,
+        dropout_rate: Tunable[float] = 0.1,
+        dispersion: Tunable[str] = "gene",
         log_variational: bool = True,
-        gene_likelihood: str = "nb",
+        gene_likelihood: Tunable[str] = "nb",
         use_batch_norm: bool = True,
         bias: bool = False,
         latent_distribution: str = "normal",

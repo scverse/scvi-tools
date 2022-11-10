@@ -7,6 +7,7 @@ from torch.distributions import Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
@@ -133,10 +134,10 @@ class PEAKVAE(BaseModuleClass):
         self,
         n_input_regions: int,
         n_batch: int = 0,
-        n_hidden: Optional[int] = None,
-        n_latent: Optional[int] = None,
-        n_layers_encoder: int = 2,
-        n_layers_decoder: int = 2,
+        n_hidden: Tunable[int] = None,
+        n_latent: Tunable[int] = None,
+        n_layers_encoder: Tunable[int] = 2,
+        n_layers_decoder: Tunable[int] = 2,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,

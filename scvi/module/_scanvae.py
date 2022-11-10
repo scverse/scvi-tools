@@ -8,6 +8,7 @@ from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import Decoder, Encoder
 
@@ -76,8 +77,8 @@ class SCANVAE(VAE):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: int = 128,
-        n_latent: int = 10,
+        n_hidden: Tunable[int] = 128,
+        n_latent: Tunable[int] = 10,
         n_layers: int = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,

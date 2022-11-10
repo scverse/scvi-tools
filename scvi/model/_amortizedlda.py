@@ -9,9 +9,11 @@ import torch
 from anndata import AnnData
 
 from scvi._constants import REGISTRY_KEYS
+from scvi._decorators import classproperty
 from scvi.data import AnnDataManager
 from scvi.data.fields import LayerField
 from scvi.module import AmortizedLDAPyroModule
+from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, PyroSviTrainMixin
@@ -86,7 +88,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
                 f"a float or a Sequence of length n_input."
             )
 
-        self.module = AmortizedLDAPyroModule(
+        self.module = self.module_cls(
             n_input=n_input,
             n_topics=n_topics,
             n_hidden=n_hidden,
@@ -95,6 +97,11 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         )
 
         self.init_params_ = self._get_init_params(locals())
+
+    @classproperty
+    def module_cls(cls) -> BaseModuleClass:
+        """Module class."""
+        return AmortizedLDAPyroModule
 
     @classmethod
     @setup_anndata_dsp.dedent

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional
 
 from anndata import AnnData
 from scipy.sparse import csr_matrix
@@ -135,7 +135,7 @@ class SCVI(
                 self.adata_manager, n_batch
             )
 
-        self.module = self._module_cls(
+        self.module = self.module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=self.summary_stats.n_labels,
@@ -169,17 +169,9 @@ class SCVI(
         self.init_params_ = self._get_init_params(locals())
 
     @classproperty
-    def _module_cls(cls) -> BaseModuleClass:
+    def module_cls(cls) -> BaseModuleClass:
+        """Module class."""
         return VAE
-
-    @classproperty
-    def _tunables(cls) -> Tuple[Any]:
-        return (
-            cls._module_cls,
-            cls._training_plan_cls,
-            cls._train_runner_cls,
-            cls._data_splitter_cls,
-        )
 
     @classmethod
     @setup_anndata_dsp.dedent

@@ -4,7 +4,12 @@ from ._differential import DifferentialComputation
 from ._jaxmixin import JaxTrainingMixin
 from ._pyromixin import PyroJitGuideWarmup, PyroSampleMixin, PyroSviTrainMixin
 from ._rnamixin import RNASeqMixin
-from ._training_mixin import SemiSupervisedTrainingMixin, UnsupervisedTrainingMixin
+from ._training_mixin import (
+    MULTIVITrainingMixin,
+    SemiSupervisedTrainingMixin,
+    TOTALVITrainingMixin,
+    UnsupervisedTrainingMixin,
+)
 from ._vaemixin import VAEMixin
 
 __all__ = [
@@ -14,6 +19,8 @@ __all__ = [
     "VAEMixin",
     "SemiSupervisedTrainingMixin",
     "UnsupervisedTrainingMixin",
+    "MULTIVITrainingMixin",
+    "TOTALVITrainingMixin",
     "PyroSviTrainMixin",
     "PyroSampleMixin",
     "PyroJitGuideWarmup",

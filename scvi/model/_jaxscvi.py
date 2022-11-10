@@ -7,9 +7,11 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._decorators import classproperty
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.module import JaxVAE
+from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, JaxTrainingMixin
@@ -75,6 +77,11 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         self._model_summary_string = ""
         self.init_params_ = self._get_init_params(locals())
+
+    @classproperty
+    def module_cls(cls) -> BaseModuleClass:
+        """Module class."""
+        return JaxVAE
 
     @classmethod
     @setup_anndata_dsp.dedent

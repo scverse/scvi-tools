@@ -10,6 +10,7 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._decorators import classproperty
 from scvi.data import AnnDataManager
 from scvi.data._constants import _SETUP_ARGS_KEY
 from scvi.data._utils import get_anndata_attribute
@@ -24,6 +25,7 @@ from scvi.data.fields import (
 from scvi.model._utils import _init_library_size
 from scvi.model.base import SemiSupervisedTrainingMixin
 from scvi.module import SCANVAE
+from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
 from ._scvi import SCVI
@@ -122,7 +124,7 @@ class SCANVI(
                 self.adata_manager, n_batch
             )
 
-        self.module = SCANVAE(
+        self.module = self.module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=n_labels,
@@ -157,6 +159,11 @@ class SCANVI(
         )
         self.init_params_ = self._get_init_params(locals())
         self.was_pretrained = False
+
+    @classproperty
+    def module_cls(cls) -> BaseModuleClass:
+        """Module class."""
+        return SCANVAE
 
     @classmethod
     def from_scvi_model(

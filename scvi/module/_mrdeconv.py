@@ -6,6 +6,7 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import FCLayers
@@ -70,9 +71,9 @@ class MRDeconv(BaseModuleClass):
         self,
         n_spots: int,
         n_labels: int,
-        n_hidden: int,
-        n_layers: int,
-        n_latent: int,
+        n_hidden: Tunable[int],
+        n_layers: Tunable[int],
+        n_latent: Tunable[int],
         n_genes: int,
         decoder_state_dict: OrderedDict,
         px_decoder_state_dict: OrderedDict,

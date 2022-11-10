@@ -72,7 +72,6 @@ pytorch-lightning = ">=1.7.0,<1.8"
 rich = ">=9.1.0"
 ray = {extras = ["tune"], version = ">=2.1.0", optional = true}
 scanpy = {version = ">=1.6", optional = true}
-scib-metrics = {version = ">=0.0.7", optional = true}
 scikit-learn = ">=0.21.2"
 scikit-misc = {version = ">=0.1.3", optional = true}
 sphinx = {version = ">=4.1", optional = true}
@@ -104,7 +103,7 @@ docs = [
   "myst-parser",
 ]
 pymde = ["pymde"]
-autotune = ["ray", "hyperopt", "scib-metrics"]
+autotune = ["ray", "hyperopt"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde"]
 
 [tool.poetry.dev-dependencies]

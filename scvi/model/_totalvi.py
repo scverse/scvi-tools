@@ -12,6 +12,7 @@ from mudata import MuData
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi._decorators import classproperty
 from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager, fields
@@ -23,8 +24,10 @@ from scvi.model._utils import (
     _init_library_size,
     cite_seq_raw_counts_properties,
 )
+from scvi.model.base import TOTALVITrainingMixin
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE
+from scvi.module.base import BaseModuleClass
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
@@ -33,7 +36,7 @@ from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 logger = logging.getLogger(__name__)
 
 
-class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
+class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, TOTALVITrainingMixin, BaseModelClass):
     """
     total Variational Inference :cite:p:`GayosoSteier21`.
 
@@ -158,7 +161,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 self.adata_manager, n_batch
             )
 
-        self.module = TOTALVAE(
+        self.module = self.module_cls(
             n_input_genes=self.summary_stats.n_vars,
             n_input_proteins=self.summary_stats.n_proteins,
             n_batch=n_batch,
@@ -188,6 +191,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
+
+    @classproperty
+    def module_cls(cls) -> BaseModuleClass:
+        """Module class."""
+        return TOTALVAE
 
     def train(
         self,

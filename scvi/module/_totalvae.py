@@ -9,6 +9,7 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
@@ -100,14 +101,14 @@ class TOTALVAE(BaseModuleClass):
         n_input_proteins: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: int = 256,
-        n_latent: int = 20,
-        n_layers_encoder: int = 2,
-        n_layers_decoder: int = 1,
+        n_hidden: Tunable[int] = 256,
+        n_latent: Tunable[int] = 20,
+        n_layers_encoder: Tunable[int] = 2,
+        n_layers_decoder: Tunable[int] = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate_decoder: float = 0.2,
-        dropout_rate_encoder: float = 0.2,
+        dropout_rate_decoder: Tunable[float] = 0.2,
+        dropout_rate_encoder: Tunable[float] = 0.2,
         gene_dispersion: str = "gene",
         protein_dispersion: str = "protein",
         log_variational: bool = True,

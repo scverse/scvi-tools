@@ -9,6 +9,7 @@ from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
@@ -276,10 +277,10 @@ class MULTIVAE(BaseModuleClass):
         n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         gene_dispersion: str = "gene",
-        n_hidden: Optional[int] = None,
-        n_latent: Optional[int] = None,
-        n_layers_encoder: int = 2,
-        n_layers_decoder: int = 2,
+        n_hidden: Tunable[int] = None,
+        n_latent: Tunable[int] = None,
+        n_layers_encoder: Tunable[int] = 2,
+        n_layers_decoder: Tunable[int] = 2,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,

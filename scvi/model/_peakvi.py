@@ -10,6 +10,7 @@ from scipy.sparse import csr_matrix, vstack
 
 from scvi._compat import Literal
 from scvi._constants import REGISTRY_KEYS
+from scvi._decorators import classproperty
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
@@ -24,6 +25,7 @@ from scvi.model._utils import (
 )
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import PEAKVAE
+from scvi.module.base import BaseModuleClass
 from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
@@ -109,7 +111,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             else []
         )
 
-        self.module = PEAKVAE(
+        self.module = self.module_cls(
             n_input_regions=self.summary_stats.n_vars,
             n_batch=self.summary_stats.n_batch,
             n_hidden=n_hidden,
@@ -144,6 +146,11 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
+
+    @classproperty
+    def module_cls(cls) -> BaseModuleClass:
+        """Module class."""
+        return PEAKVAE
 
     def train(
         self,

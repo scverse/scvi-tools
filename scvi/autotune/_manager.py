@@ -101,9 +101,9 @@ class TunerManager:
                             "func": attr,
                             "tunable_type": tunable_type,
                         }
-            elif inspect.isclass(attr) and hasattr(attr, "_tunables"):
+            elif inspect.isclass(attr) and hasattr(attr, "tunables"):
                 tunable_type = _cls_to_tunable_type(attr)
-                for child in attr._tunables:
+                for child in attr.tunables:
                     tunables.update(
                         _get_tunables(child, parent=attr, tunable_type=tunable_type)
                     )
@@ -170,7 +170,7 @@ class TunerManager:
             logger.info(f"Initializing with default search space for {self._model_cls}")
             for param in exclude:
                 if param not in defaults:
-                    raise ValueError(
+                    warnings.warn(
                         f"Excluded parameter {param} not in defaults. Ignoring."
                     )
                 defaults.pop(param, None)
@@ -184,7 +184,24 @@ class TunerManager:
         additional_metrics: List[str],
     ) -> OrderedDict:
         """Validate a user metric(s) specification against the model class registry."""
-        return OrderedDict({"validation_loss": "min"})
+        registry_metrics = self._registry["metrics"]
+        metrics = OrderedDict()
+
+        if metric not in registry_metrics:
+            raise ValueError(
+                f"Provided metric {metric} is invalid for {self._model_cls}."
+            )
+        metrics[metric] = registry_metrics[metric]
+
+        for m in additional_metrics:
+            if m not in registry_metrics:
+                warnings.warn(
+                    f"Provided additional metric {m} is invalid for {self._model_cls}."
+                )
+            else:
+                metrics[m] = registry_metrics[m]
+
+        return metrics
 
     @dependencies("ray.tune")
     def _validate_scheduler(
@@ -198,11 +215,13 @@ class TunerManager:
 
         metric = list(metrics.keys())[0]
         mode = metrics[metric]
+        _kwargs = {
+            "metric": metric,
+            "mode": mode,
+        }
 
         if scheduler == "asha":
             _default_kwargs = {
-                "metric": metric,
-                "mode": mode,
                 "max_t": 100,
                 "grace_period": 1,
                 "reduction_factor": 2,
@@ -210,31 +229,25 @@ class TunerManager:
             _scheduler = tune.schedulers.ASHAScheduler
         elif scheduler == "hyperband":
             _default_kwargs = {
-                "metric": metric,
-                "mode": mode,
                 "max_t": 100,
                 "reduction_factor": 2,
             }
             _scheduler = tune.schedulers.HyperBandScheduler
         elif scheduler == "median":
             _default_kwargs = {
-                "metric": metric,
-                "mode": mode,
                 "grace_period": 1,
             }
             _scheduler = tune.schedulers.MedianStoppingRule
         elif scheduler == "pbt":
-            _default_kwargs = {
-                "metric": metric,
-                "mode": mode,
-            }
+            _default_kwargs = {}
             _scheduler = tune.schedulers.PopulationBasedTraining
         elif scheduler == "fifo":
             _default_kwargs = {}
             _scheduler = tune.schedulers.FIFOScheduler
 
         _default_kwargs.update(scheduler_kwargs)
-        return _scheduler(**_default_kwargs)
+        _kwargs.update(_default_kwargs)
+        return _scheduler(**_kwargs)
 
     @dependencies(["ray.tune", "hyperopt"])
     def _validate_searcher(
@@ -354,6 +367,7 @@ class TunerManager:
             setup_kwargs: dict = None,
         ) -> None:
             model_kwargs, train_kwargs = self._parse_search_space(search_space)
+            # TODO: need a way to generalize to models with mudata
             model_cls.setup_anndata(adata, **setup_kwargs)
             model = model_cls(adata, **model_kwargs)
             monitor = TuneReportCallback(
@@ -364,20 +378,19 @@ class TunerManager:
                 max_epochs=10,
                 check_val_every_n_epoch=1,
                 callbacks=[monitor],
-                enable_progress_bar=True,
+                enable_progress_bar=False,
                 **train_kwargs,
             )
 
-        return tune.with_resources(
-            tune.with_parameters(
-                _trainable,
-                model_cls=self._model_cls,
-                adata=adata,
-                metric=list(metrics.keys())[0],
-                setup_kwargs=setup_kwargs,
-            ),
-            resources=resources,
+        # allows for passing in arbitrarily large datasets
+        _with_parameters = tune.with_parameters(
+            _trainable,
+            model_cls=self._model_cls,
+            adata=adata,
+            metric=list(metrics.keys())[0],
+            setup_kwargs=setup_kwargs,
         )
+        return tune.with_resources(_with_parameters, resources=resources)
 
     @dependencies(["ray.tune", "ray.air"])
     def get_tuner(
@@ -387,6 +400,7 @@ class TunerManager:
         metric: Optional[str] = None,
         additional_metrics: Optional[List[str]] = None,
         search_space: Optional[dict] = None,
+        num_samples: Optional[int] = None,
         use_defaults: bool = True,
         exclude: Optional[List[str]] = None,
         scheduler: Literal["asha", "hyperband", "median", "pbt", "fifo"] = "asha",
@@ -402,13 +416,14 @@ class TunerManager:
         additional_metrics = additional_metrics or []
         use_defaults = use_defaults if search_space is not None else True
         search_space = search_space or {}
+        num_samples = num_samples or 10
         exclude = exclude or []
         scheduler_kwargs = scheduler_kwargs or {}
         searcher_kwargs = searcher_kwargs or {}
         resources = resources or {}
 
-        _search_space = self._validate_search_space(search_space, use_defaults, exclude)
         _metrics = self._validate_metrics(metric, additional_metrics)
+        _search_space = self._validate_search_space(search_space, use_defaults, exclude)
         _scheduler, _searcher = self._validate_scheduler_and_searcher(
             scheduler,
             searcher,
@@ -431,14 +446,11 @@ class TunerManager:
             tune_config=tune.tune_config.TuneConfig(
                 scheduler=_scheduler,
                 search_alg=_searcher,
-                num_samples=5,
+                num_samples=num_samples,
             ),
             run_config=air.config.RunConfig(
                 name="scvi",
                 progress_reporter=_reporter,
-                failure_config=air.FailureConfig(
-                    max_failures=2,
-                ),
             ),
         )
         return tuner
@@ -455,7 +467,7 @@ class TunerManager:
             table.add_column(column, style=COLORS[i], **_kwargs)
         return table
 
-    def _view_registry(self) -> None:
+    def _view_registry(self, show_resources: bool) -> None:
         """Prints a summary of the registry."""
         console = rich.console.Console(force_jupyter=in_notebook())
 
@@ -477,7 +489,7 @@ class TunerManager:
         # defaults
         defaults_table = self._add_columns(
             rich.table.Table(title="Default search space"),
-            ["Hyperparameter", "Sample type", "Arguments", "Keyword arguments"],
+            ["Hyperparameter", "Sample function", "Arguments", "Keyword arguments"],
         )
         for k, v in self._defaults.items():
             defaults_table.add_row(
@@ -488,3 +500,7 @@ class TunerManager:
         console.print(tunables_table)
         console.print(metrics_table)
         console.print(defaults_table)
+
+        if show_resources:
+            # TODO: Retrieve available resources and display in table
+            pass
