@@ -65,11 +65,13 @@ class UnsupervisedTrainingMixin:
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        n_cells = self.adata.n_obs
-        if max_epochs is None:
-            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        max_epochs = max_epochs or int(
+            np.min([round((20000 / self.adata.n_obs) * 400), 400])
+        )
+        plan_kwargs = plan_kwargs or {}
+        trainer_kwargs["early_stopping"] = trainer_kwargs.get(
+            "early_stopping", early_stopping
+        )
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
@@ -79,11 +81,6 @@ class UnsupervisedTrainingMixin:
             use_gpu=use_gpu,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
-
-        es = "early_stopping"
-        trainer_kwargs[es] = (
-            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
-        )
         runner = self._train_runner_cls(
             self,
             training_plan=training_plan,

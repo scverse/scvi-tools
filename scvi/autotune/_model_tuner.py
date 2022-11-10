@@ -1,5 +1,11 @@
-from typing import List, Literal, Optional
+from typing import List, Optional
 
+try:
+    from ray import tune  # noqa
+except ImportError:
+    pass
+
+from scvi._compat import Literal
 from scvi._types import AnnOrMuData
 from scvi.autotune._manager import TunerManager
 from scvi.model.base import BaseModelClass
@@ -24,6 +30,7 @@ class ModelTuner:
     >>> import scvi
     >>> model_cls = scvi.model.SCVI
     >>> adata = anndata.read_h5ad(path_to_anndata)
+    >>> model_cls.setup_anndata(adata)
     >>> tuner = ModelTuner(model_cls)
     >>> results = tuner.fit(adata, metric="validation_loss")
     """
@@ -42,14 +49,13 @@ class ModelTuner:
         additional_metrics: Optional[List[str]] = None,
         search_space: Optional[dict] = None,
         use_defaults: bool = True,
-        exclude: Optional[List] = None,
+        exclude: Optional[List[str]] = None,
         scheduler: Literal["asha", "hyperband", "median", "pbt", "fifo"] = "asha",
         scheduler_kwargs: Optional[dict] = None,
         searcher: Literal["random", "grid", "hyperopt"] = "hyperopt",
         searcher_kwargs: Optional[dict] = None,
         reporter: bool = True,
         resources: Optional[dict] = None,
-        setup_kwargs: Optional[dict] = None,
     ) -> None:
         """
         Run a specified hyperparameter sweep over the model class.
@@ -77,7 +83,13 @@ class ModelTuner:
             List of hyperparameter names in the model's default search space to exclude.
             Only used if `use_defaults` is `True`.
         scheduler
-            Ray Tune scheduler to use.
+            Ray Tune scheduler to use. Supported options are:
+
+            * ``"asha"``: Asynchronous Successive Halving Algorithm
+            * ``"hyperband"``: Hyperband
+            * ``"median"``: Median Stopping Rule
+            * ``"pbt"``: Population Based Training
+            * ``"fifo"``: First In First Out
         scheduler_kwargs
             Keyword arguments to pass to the scheduler.
         searcher
@@ -108,10 +120,9 @@ class ModelTuner:
             searcher_kwargs=searcher_kwargs,
             reporter=reporter,
             resources=resources,
-            setup_kwargs=setup_kwargs,
         )
         tuner.fit()
 
     def info(self):
         """View information about the current tuner."""
-        self._manager.view_registry()
+        self._manager._view_registry()

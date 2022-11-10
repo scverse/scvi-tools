@@ -2,20 +2,15 @@ import inspect
 import logging
 import warnings
 from collections import OrderedDict
-from typing import Any, Callable, List, Literal, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 import rich
 
+from scvi._compat import Literal
 from scvi._decorators import dependencies
 from scvi._settings import settings
 from scvi._types import AnnOrMuData
-from scvi.autotune._defaults import (
-    COLORS,
-    DEFAULTS,
-    SUPPORTED,
-    TUNABLE_TYPE_TO_CLS,
-    str_to_sample_fn,
-)
+from scvi.autotune._defaults import COLORS, DEFAULTS, SUPPORTED, TUNABLE_TYPE_TO_CLS
 from scvi.autotune._types import TunableMeta
 from scvi.autotune._utils import in_notebook
 from scvi.model.base import BaseModelClass
@@ -143,14 +138,17 @@ class TunerManager:
 
         return model_kwargs, train_kwargs
 
+    @dependencies("ray.tune")
     def _validate_search_space(
         self,
         search_space: dict,
         use_defaults: bool,
-        exclude: dict,
+        exclude: List[str],
     ) -> dict:
         """Validate a user search space against the model class registry."""
         # validate user search space
+        from ray import tune
+
         for key in search_space:
             if key not in self._registry["tunables"]:
                 warnings.warn(
@@ -161,11 +159,14 @@ class TunerManager:
 
         # add defaults if requested
         if use_defaults:
-            # e.g. convert "loguniform" to tune.loguniform
-            defaults = {
-                k: str_to_sample_fn(v["fn"])(*v["args"])
-                for k, v in self._defaults.items()
-            }
+
+            defaults = {}
+            for k, v in self._defaults.items():
+                fn = getattr(tune, v["fn"])
+                args = v.get("args", [])
+                kwargs = v.get("kwargs", {})
+                defaults[k] = fn(*args, **kwargs)
+
             logger.info(f"Initializing with default search space for {self._model_cls}")
             for param in exclude:
                 if param not in defaults:
@@ -323,6 +324,16 @@ class TunerManager:
             _reporter = tune.CLIReporter(**_reporter_kwargs)
         return _reporter
 
+    def _validate_resources(self, resources: dict) -> dict:
+        return resources
+
+    def _validate_setup_kwargs(self, adata: AnnOrMuData) -> dict:
+        return (
+            self._model_cls._get_most_recent_anndata_manager(adata)
+            ._get_setup_method_args()
+            .get("setup_args", {})
+        )
+
     @dependencies("ray.tune")
     def _validate_trainable(
         self,
@@ -350,9 +361,10 @@ class TunerManager:
                 on="validation_end",
             )
             model.train(
+                max_epochs=10,
                 check_val_every_n_epoch=1,
                 callbacks=[monitor],
-                enable_progress_bar=False,
+                enable_progress_bar=True,
                 **train_kwargs,
             )
 
@@ -376,14 +388,13 @@ class TunerManager:
         additional_metrics: Optional[List[str]] = None,
         search_space: Optional[dict] = None,
         use_defaults: bool = True,
-        exclude: Optional[dict] = None,
+        exclude: Optional[List[str]] = None,
         scheduler: Literal["asha", "hyperband", "median", "pbt", "fifo"] = "asha",
         scheduler_kwargs: Optional[dict] = None,
         searcher: Literal["random", "grid", "hyperopt"] = "random",
         searcher_kwargs: Optional[dict] = None,
         reporter: bool = True,
         resources: Optional[dict] = None,
-        setup_kwargs: Optional[dict] = None,
     ) -> Callable:
         """Configure a :class:`~ray.tune.Tuner` instance after validating user input."""
         from ray import air, tune
@@ -391,11 +402,10 @@ class TunerManager:
         additional_metrics = additional_metrics or []
         use_defaults = use_defaults if search_space is not None else True
         search_space = search_space or {}
-        exclude = exclude or {}
+        exclude = exclude or []
         scheduler_kwargs = scheduler_kwargs or {}
         searcher_kwargs = searcher_kwargs or {}
         resources = resources or {}
-        setup_kwargs = setup_kwargs or {}
 
         _search_space = self._validate_search_space(search_space, use_defaults, exclude)
         _metrics = self._validate_metrics(metric, additional_metrics)
@@ -407,23 +417,23 @@ class TunerManager:
             searcher_kwargs,
         )
         _reporter = self._validate_reporter(reporter, _search_space, _metrics)
+        _setup_kwargs = self._validate_setup_kwargs(adata)
+        _resources = self._validate_resources(resources)
         _trainable = self._validate_trainable(
             adata,
             _metrics,
-            resources,
-            setup_kwargs,
+            _resources,
+            _setup_kwargs,
         )
         tuner = tune.Tuner(
             trainable=_trainable,
             param_space=_search_space,
-            tune_config=tune.TuneConfig(
-                metric=list(_metrics.keys())[0],
-                mode=list(_metrics.values())[0],
+            tune_config=tune.tune_config.TuneConfig(
                 scheduler=_scheduler,
                 search_alg=_searcher,
                 num_samples=5,
             ),
-            run_config=air.RunConfig(
+            run_config=air.config.RunConfig(
                 name="scvi",
                 progress_reporter=_reporter,
                 failure_config=air.FailureConfig(
@@ -445,7 +455,7 @@ class TunerManager:
             table.add_column(column, style=COLORS[i], **_kwargs)
         return table
 
-    def view_registry(self) -> None:
+    def _view_registry(self) -> None:
         """Prints a summary of the registry."""
         console = rich.console.Console(force_jupyter=in_notebook())
 
@@ -467,12 +477,13 @@ class TunerManager:
         # defaults
         defaults_table = self._add_columns(
             rich.table.Table(title="Default search space"),
-            ["Hyperparameter", "Sample type", "Arguments"],
+            ["Hyperparameter", "Sample type", "Arguments", "Keyword arguments"],
         )
         for k, v in self._defaults.items():
-            defaults_table.add_row(str(k), str(v["fn"]), str(v["args"]))
+            defaults_table.add_row(
+                str(k), str(v["fn"]), str(v.get("args", [])), str(v.get("kwargs", {}))
+            )
 
-        # print
         console.print(f"Registry for {self._model_cls}")
         console.print(tunables_table)
         console.print(metrics_table)
