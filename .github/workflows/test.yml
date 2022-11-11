@@ -37,7 +37,7 @@ jobs:
               id: dependencies
               run: |
                   pip install pytest-cov
-                  pip install .[autotune,dev,pymde]
+                  pip install .[dev,pymde,autotune]
 
             # Following checks are independent and are run even if one fails
             - name: Lint with flake8
