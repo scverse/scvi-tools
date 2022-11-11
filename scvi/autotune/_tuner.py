@@ -1,5 +1,8 @@
 try:
     # necessary as import scvi before ray causes kernel crash
+    import torch
+
+    torch.multiprocessing.set_start_method("spawn")
     from ray import tune  # noqa
 except ImportError:
     pass

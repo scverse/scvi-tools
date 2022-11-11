@@ -224,7 +224,6 @@ class TunerManager:
         metric = list(metrics.keys())[0]
         mode = metrics[metric]
         _kwargs = {"metric": metric, "mode": mode}
-        print(_kwargs)
 
         if scheduler == "asha":
             _default_kwargs = {
