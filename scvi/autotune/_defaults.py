@@ -12,6 +12,13 @@ COLORS = [
     "dark_orange",
 ]
 
+# default rich table column kwargs
+COLUMN_KWARGS = {
+    "justify": "center",
+    "no_wrap": True,
+    "overflow": "fold",
+}
+
 # maps classes to the type of hyperparameters they use
 TUNABLE_TYPE_TO_CLS = {
     "model": [
