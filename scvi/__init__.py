@@ -7,7 +7,7 @@ from ._constants import REGISTRY_KEYS
 from ._settings import settings
 
 # this import needs to come after prior imports to prevent circular import
-from . import data, model, external, utils
+from . import autotune, data, model, external, utils
 
 # https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094
 # https://github.com/python-poetry/poetry/issues/144#issuecomment-623927302
@@ -25,4 +25,12 @@ test_var = "test"
 scvi_logger = logging.getLogger("scvi")
 scvi_logger.propagate = False
 
-__all__ = ["settings", "REGISTRY_KEYS", "data", "model", "external", "utils"]
+__all__ = [
+    "settings",
+    "REGISTRY_KEYS",
+    "autotune",
+    "data",
+    "model",
+    "external",
+    "utils",
+]

@@ -14,7 +14,7 @@ class ModelTuner:
     ----------
     model_cls
         :class:`~scvi.model.base.BaseModelClass` on which to tune
-        hyperparameters. Currently supported classes are:
+        hyperparameters. Currently supported model classes are:
 
         * :class:`~scvi.model.SCVI`
 
