@@ -107,7 +107,8 @@ class ModelTuner:
             If not provided, defaults to using one CPU thread and one GPU if available.
         """
         tuner = self._manager._get_tuner(adata, **kwargs)
-        tuner.fit()
+        results = tuner.fit()
+        return results
 
     def info(self, show_resources: bool = False) -> None:
         """Display information about the associated model class."""

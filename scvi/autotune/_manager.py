@@ -36,9 +36,9 @@ class TunerManager:
     """
 
     def __init__(self, model_cls: BaseModelClass):
-        self._model_cls = self._validate_model_cls(model_cls)
-        self._defaults = self._get_defaults(self._model_cls)
-        self._registry = self._get_registry(self._model_cls)
+        self._model_cls: BaseModelClass = self._validate_model_cls(model_cls)
+        self._defaults: dict = self._get_defaults(self._model_cls)
+        self._registry: dict = self._get_registry(self._model_cls)
 
     def _validate_model_cls(self, model_cls: BaseModelClass) -> BaseModelClass:
         """Checks if the model class is suppo rted."""
@@ -224,9 +224,14 @@ class TunerManager:
         metric = list(metrics.keys())[0]
         mode = metrics[metric]
         _kwargs = {"metric": metric, "mode": mode}
+        print(_kwargs)
 
         if scheduler == "asha":
-            _default_kwargs = {}
+            _default_kwargs = {
+                "max_t": 100,
+                "grace_period": 1,
+                "reduction_factor": 2,
+            }
             _scheduler = tune.schedulers.ASHAScheduler
         elif scheduler == "hyperband":
             _default_kwargs = {}
@@ -252,7 +257,7 @@ class TunerManager:
     ) -> Any:
         """Validates a hyperparameter search algorithm."""
         metric = list(metrics.keys())[0]
-        metrics[metric]
+        mode = metrics[metric]
 
         if searcher == "random":
             _default_kwargs = {}
@@ -261,7 +266,10 @@ class TunerManager:
             _default_kwargs = {}
             _searcher = tune.search.basic_variant.BasicVariantGenerator
         elif searcher == "hyperopt":
-            _default_kwargs = {}
+            _default_kwargs = {
+                "metric": metric,
+                "mode": mode,
+            }
             tune.search.SEARCH_ALG_IMPORT["hyperopt"]()  # tune not importing hyperopt
             _searcher = tune.search.hyperopt.HyperOptSearch
 
@@ -363,7 +371,6 @@ class TunerManager:
                 max_epochs=10,
                 check_val_every_n_epoch=1,
                 callbacks=[monitor],
-                enable_progress_bar=False,
                 **train_kwargs,
             )
 
@@ -435,7 +442,7 @@ class TunerManager:
         return tuner
 
     def _add_columns(
-        table: rich.table.Table, columns: List[str], **kwargs
+        self, table: rich.table.Table, columns: List[str]
     ) -> rich.table.Table:
         """Adds columns to a :class:`~rich.table.Table` with default formatting."""
         for i, column in enumerate(columns):
@@ -469,7 +476,7 @@ class TunerManager:
             rich.table.Table(title="Default search space"),
             ["Hyperparameter", "Sample function", "Arguments", "Keyword arguments"],
         )
-        for param, metadata in self._defaults.item():
+        for param, metadata in self._defaults.items():
             defaults_table.add_row(
                 str(param),
                 str(metadata["fn"]),

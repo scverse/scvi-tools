@@ -42,6 +42,6 @@ SUPPORTED = [model.SCVI]
 # default hyperparameter search spaces for each model class
 DEFAULTS = {
     model.SCVI: {
-        "lr": {"fn": "loguniform", "args": [1e-4, 1e-1]},
+        "n_hidden": {"fn": "choice", "args": [[64, 128]]},
     }
 }
