@@ -1,3 +1,9 @@
+try:
+    # necessary as import scvi before ray causes kernel crash
+    from ray import tune  # noqa
+except ImportError:
+    pass
+
 from scvi._types import AnnOrMuData
 from scvi.model.base import BaseModelClass
 

@@ -6,6 +6,13 @@ from typing import Any, Callable, List, Optional, Tuple
 
 import rich
 
+try:
+    # necessary as import scvi before ray causes kernel crash
+    from ray import air, tune
+    from ray.tune.integration.pytorch_lightning import TuneReportCallback
+except ImportError:
+    pass
+
 from scvi._decorators import dependencies
 from scvi._types import AnnOrMuData
 from scvi.model.base import BaseModelClass
@@ -140,8 +147,6 @@ class TunerManager:
         self, search_space: dict, use_defaults: bool, exclude: List[str]
     ) -> dict:
         """Validates a search space against the hyperparameter registry."""
-        from ray import tune
-
         # validate user-provided search space
         for param in search_space:
             if param in self._registry["tunables"]:
@@ -216,8 +221,6 @@ class TunerManager:
         self, scheduler: str, metrics: OrderedDict, scheduler_kwargs: dict
     ) -> Any:
         """Validates a trial scheduler."""
-        from ray import tune
-
         metric = list(metrics.keys())[0]
         mode = metrics[metric]
         _kwargs = {"metric": metric, "mode": mode}
@@ -248,8 +251,6 @@ class TunerManager:
         self, searcher: str, metrics: OrderedDict, searcher_kwargs: dict
     ) -> Any:
         """Validates a hyperparameter search algorithm."""
-        from ray import tune
-
         metric = list(metrics.keys())[0]
         metrics[metric]
 
@@ -306,8 +307,6 @@ class TunerManager:
         self, reporter: bool, search_space: dict, metrics: OrderedDict
     ) -> Any:
         """Validates a reporter depending on the execution environment."""
-        from ray import tune
-
         _metric_keys = list(metrics.keys())
         _param_keys = list(search_space.keys())
         _kwargs = {
@@ -345,8 +344,6 @@ class TunerManager:
         setup_kwargs: dict,
     ) -> Callable:
         """Returns a trainable function consumable by :class:`~ray.tune.Tuner`."""
-        from ray import tune
-        from ray.tune.integration.pytorch_lightning import TuneReportCallback
 
         def _trainable(
             search_space: dict,
@@ -398,8 +395,6 @@ class TunerManager:
         resources: Optional[dict] = None,
     ) -> Any:
         """Configures a :class:`~ray.tune.Tuner` instance after validation."""
-        from ray import air, tune
-
         metric = metric or list(self._registry["metrics"].keys())[0]
         additional_metrics = additional_metrics or []
         search_space = search_space or {}

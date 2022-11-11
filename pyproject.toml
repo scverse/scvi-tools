@@ -102,7 +102,7 @@ docs = [
   "sphinxcontrib-bibtex",
   "myst-parser",
 ]
-autotune = ["hyperopt", "ray"]
+autotune = ["hyperopt", "ray", "ipython"]
 pymde = ["pymde"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde"]
 
