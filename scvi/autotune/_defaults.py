@@ -20,7 +20,7 @@ COLUMN_KWARGS = {
 }
 
 # maps classes to the type of hyperparameters they use
-TUNABLE_TYPE_TO_CLS = {
+TUNABLE_TYPES = {
     "model": [
         BaseModuleClass,
         JaxBaseModuleClass,
