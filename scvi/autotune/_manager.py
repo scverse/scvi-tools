@@ -7,7 +7,6 @@ from typing import Any, Callable, List, Optional, Tuple
 import rich
 
 try:
-    # necessary as import scvi before ray causes kernel crash
     from ray import air, tune
     from ray.tune.integration.pytorch_lightning import TuneReportCallback
 except ImportError:
