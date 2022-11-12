@@ -7,7 +7,7 @@ try:
     from ray import tune  # noqa
     import torch
 
-    torch.multiprocessing.set_start_method("spawn")
+    torch.multiprocessing.set_start_method("spawn", force=True)
 except ImportError:
     pass
 
