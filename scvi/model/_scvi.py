@@ -295,13 +295,13 @@ class SCVI(
         """
         if minify_adata:
             bdata = self._get_reduced_adata(mode)
-            if mode == _SCVI_LATENT_MODE:
-                bdata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-                bdata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-            else:
-                raise ValueError(f"Unknown latent mode: {mode}")
         else:
             bdata = self.adata
+        if mode == _SCVI_LATENT_MODE:
+            bdata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+            bdata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
         new_manager = self.adata_manager.transfer_fields(bdata)
         new_manager.register_new_fields(self._get_latent_fields(mode))
         self._adata_manager = new_manager
