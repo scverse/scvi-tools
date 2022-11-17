@@ -26,8 +26,6 @@ from scvi.utils import setup_anndata_dsp
 
 from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
 
-logger = logging.getLogger(__name__)
-
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
 
