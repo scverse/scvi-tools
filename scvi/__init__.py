@@ -5,11 +5,12 @@ import logging
 
 try:
     from ray import tune  # noqa
-    import torch
-
-    torch.multiprocessing.set_start_method("spawn", force=True)
 except ImportError:
     pass
+
+import torch
+
+torch.multiprocessing.set_start_method("forkserver", force=True)
 
 from ._constants import REGISTRY_KEYS
 from ._settings import settings
