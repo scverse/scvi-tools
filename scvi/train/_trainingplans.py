@@ -1143,6 +1143,7 @@ class JaxTrainingPlan(TrainingPlan):
             prog_bar=True,
         )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+        # Update the dummy optimizer to update the global step
         _opt = self.optimizers()
         _opt.step()
 
