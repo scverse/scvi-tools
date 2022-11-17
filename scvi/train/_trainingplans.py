@@ -1143,6 +1143,8 @@ class JaxTrainingPlan(TrainingPlan):
             prog_bar=True,
         )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+        _opt = self.optimizers()
+        _opt.step()
 
     @partial(jax.jit, static_argnums=(0,))
     def jit_validation_step(
