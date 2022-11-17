@@ -99,6 +99,10 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.organize_multiome_anndatas
 ```
 
+```{eval-rst}
+.. currentmodule:: scvi
+```
+
 ## Model hyperparameter autotuning
 
 `scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune].
