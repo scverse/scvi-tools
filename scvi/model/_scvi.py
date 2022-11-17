@@ -265,6 +265,7 @@ class SCVI(
         mode: LatentDataType = "posterior_parameters",
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
+        minify_adata: bool = True,
     ) -> None:
         """
         Put the model into latent mode.
@@ -281,20 +282,26 @@ class SCVI(
             Key to use in `adata.obsm` where the latent qzm params are stored
         use_latent_qzv_key
             Key to use in `adata.obsm` where the latent qzv params are stored
+        minify_adata
+            If True, the anndata object associated with the model is replaced
+            by a new object with only the latent representation and metadata.
 
         Notes
         -----
         A new, minimal adata object is associated as `model.adata` after running
-        this method. This adata does not contain any of the original count data,
-        but instead contains the latent representation of the original data and
-        metadata.
+        this method with `minify_adata=True`. This adata does not contain any of
+        the original count data, but instead contains the latent representation
+        of the original data and metadata.
         """
-        bdata = self._get_reduced_adata(mode)
-        if mode == _SCVI_LATENT_MODE:
-            bdata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-            bdata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+        if minify_adata:
+            bdata = self._get_reduced_adata(mode)
+            if mode == _SCVI_LATENT_MODE:
+                bdata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+                bdata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+            else:
+                raise ValueError(f"Unknown latent mode: {mode}")
         else:
-            raise ValueError(f"Unknown latent mode: {mode}")
+            bdata = self.adata
         new_manager = self.adata_manager.transfer_fields(bdata)
         new_manager.register_new_fields(self._get_latent_fields(mode))
         self._adata_manager = new_manager

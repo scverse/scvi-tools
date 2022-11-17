@@ -862,7 +862,7 @@ class BaseLatentModeModelClass(BaseModelClass):
             The latent data type used
         """
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def _get_latent_fields(mode: LatentDataType):
         """Return the anndata fields required for latent mode support."""

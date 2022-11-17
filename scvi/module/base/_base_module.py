@@ -345,11 +345,13 @@ class BaseModuleClass(nn.Module):
 class BaseLatentModeModuleClass(BaseModuleClass):
     """Abstract base class for scvi-tools modules that support latent mode."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._latent_data_type = None
+
     @property
     def latent_data_type(self) -> Optional[LatentDataType]:
         """The latent data type associated with this module."""
-        if not hasattr(self, "_latent_data_type"):
-            self._latent_data_type = None
         return self._latent_data_type
 
     @latent_data_type.setter
