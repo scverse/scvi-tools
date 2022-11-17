@@ -4,13 +4,10 @@
 import logging
 
 try:
+    # necessary as importing scvi after ray causes kernel crash
     from ray import tune  # noqa
 except ImportError:
     pass
-
-import torch
-
-torch.multiprocessing.set_start_method("forkserver", force=True)
 
 from ._constants import REGISTRY_KEYS
 from ._settings import settings
