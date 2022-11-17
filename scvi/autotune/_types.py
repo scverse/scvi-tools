@@ -8,4 +8,4 @@ class TunableMeta(type):
 
 
 class Tunable(metaclass=TunableMeta):
-    """Base class for tunable parameters."""
+    """Typing class for tagging keyword arguments as tunable."""
