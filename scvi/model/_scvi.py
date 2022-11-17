@@ -118,7 +118,7 @@ class SCVI(
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
+        if not use_size_factor_key and self.latent_data_type is None:
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
             )
