@@ -67,7 +67,7 @@ pyro-ppl = ">=1.6.0"
 pytest = {version = ">=4.4", optional = true}
 python = ">=3.7,<4.0"
 python-igraph = {version = "*", optional = true}
-pytorch-lightning = ">=1.7.0,<1.8"
+pytorch-lightning = ">=1.8.0,<1.9"
 rich = ">=9.1.0"
 scanpy = {version = ">=1.6", optional = true}
 scikit-learn = ">=0.21.2"
