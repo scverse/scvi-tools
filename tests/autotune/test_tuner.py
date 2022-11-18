@@ -18,7 +18,7 @@ def test_model_tuner_fit():
         tuner.fit(adata)
 
     model_cls.setup_anndata(adata)
-    results = tuner.fit(adata)
+    results = tuner.fit(adata, num_samples=1, max_epochs=1)
     assert results is not None
 
 

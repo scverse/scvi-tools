@@ -67,6 +67,8 @@ class ModelTuner:
             `use_defaults` is `False`, this argument is ignored.
         num_samples
             Number of hyperparameter configurations to sample.
+        max_epochs
+            Maximum number of epochs to train each model.
         scheduler
             Ray Tune scheduler to use. Supported options are:
 

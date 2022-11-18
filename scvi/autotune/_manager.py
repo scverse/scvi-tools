@@ -348,6 +348,7 @@ class TunerManager:
         metrics: OrderedDict,
         resources: dict,
         setup_kwargs: dict,
+        max_epochs: int,
     ) -> Callable:
         """Returns a trainable function consumable by :class:`~ray.tune.Tuner`."""
 
@@ -358,6 +359,7 @@ class TunerManager:
             adata: AnnOrMuData = None,
             metric: str = None,
             setup_kwargs: dict = None,
+            max_epochs: int = None,
         ) -> None:
             model_kwargs, train_kwargs = self._get_search_space(search_space)
             # TODO: generalize to models with mudata
@@ -366,7 +368,7 @@ class TunerManager:
             monitor = TuneReportCallback(metric, on="validation_end")
             # TODO: adaptive max_epochs
             model.train(
-                max_epochs=10,
+                max_epochs=max_epochs,
                 check_val_every_n_epoch=1,
                 callbacks=[monitor],
                 **train_kwargs,
@@ -378,6 +380,7 @@ class TunerManager:
             adata=adata,
             metric=list(metrics.keys())[0],
             setup_kwargs=setup_kwargs,
+            max_epochs=max_epochs,
         )
         return tune.with_resources(_wrap_params, resources=resources)
 
@@ -392,6 +395,7 @@ class TunerManager:
         use_defaults: bool = True,
         exclude: Optional[List[str]] = None,
         num_samples: Optional[int] = None,
+        max_epochs: Optional[int] = None,
         scheduler: Optional[str] = None,
         scheduler_kwargs: Optional[dict] = None,
         searcher: Optional[str] = None,
@@ -405,12 +409,14 @@ class TunerManager:
         search_space = search_space or {}
         exclude = exclude or []
         num_samples = num_samples or 10
+        max_epochs = max_epochs or 10
         scheduler = scheduler or "asha"
         scheduler_kwargs = scheduler_kwargs or {}
         searcher = searcher or "hyperopt"
         searcher_kwargs = searcher_kwargs or {}
         resources = resources or {}
 
+        _ = self._model_cls(adata)
         _metrics = self._validate_metrics(metric, additional_metrics)
         _search_space = self._validate_search_space(search_space, use_defaults, exclude)
         _scheduler, _searcher = self._validate_scheduler_and_search_algorithm(
@@ -419,7 +425,13 @@ class TunerManager:
         _reporter = self._validate_reporter(reporter, _search_space, _metrics)
         _resources = self._validate_resources(resources)
         _setup_kwargs = self._get_setup_kwargs(adata)
-        _trainable = self._get_trainable(adata, _metrics, _resources, _setup_kwargs)
+        _trainable = self._get_trainable(
+            adata,
+            _metrics,
+            _resources,
+            _setup_kwargs,
+            max_epochs,
+        )
 
         tune_config = tune.tune_config.TuneConfig(
             scheduler=_scheduler,
