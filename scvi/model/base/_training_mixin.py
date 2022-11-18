@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import Optional, Union
 
 import numpy as np
@@ -23,9 +22,29 @@ class BaseTrainingMixin:
     def _train_runner_cls(cls) -> TrainRunner:
         return TrainRunner
 
-    @abstractmethod
-    def train(self):
+    def train(
+        self,
+        *,
+        data_splitter_kwargs: Optional[dict] = None,
+        training_plan_kwargs: Optional[dict] = None,
+        train_runner_kwargs: Optional[dict] = None,
+    ):
         """Train the model."""
+        data_splitter_kwargs = data_splitter_kwargs or {}
+        training_plan_kwargs = training_plan_kwargs or {}
+        train_runner_kwargs = train_runner_kwargs or {}
+
+        data_splitter = self._data_splitter_cls(
+            self.adata_manager, **data_splitter_kwargs
+        )
+        training_plan = self._training_plan_cls(self.module, **training_plan_kwargs)
+        train_runner = self._train_runner_cls(
+            self,
+            training_plan=training_plan,
+            data_splitter=data_splitter,
+            **train_runner_kwargs,
+        )
+        return train_runner()
 
 
 class UnsupervisedTrainingMixin(BaseTrainingMixin):
@@ -69,31 +88,27 @@ class UnsupervisedTrainingMixin(BaseTrainingMixin):
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        n_cells = self.adata.n_obs
+        plan_kwargs = plan_kwargs or {}
+        trainer_kwargs = trainer_kwargs or {}
+
         if max_epochs is None:
-            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-
-        data_splitter = self._data_splitter_cls(
-            self.adata_manager,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            use_gpu=use_gpu,
+            max_epochs = int(np.min([round((20000 / self.adata.n_obs) * 400), 400]))
+        data_splitter_kwargs = {
+            "train_size": train_size,
+            "validation_size": validation_size,
+            "batch_size": batch_size,
+            "use_gpu": use_gpu,
+        }
+        trainer_kwargs["early_stopping"] = trainer_kwargs.get(
+            "early_stopping", early_stopping
         )
-        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
-
-        es = "early_stopping"
-        trainer_kwargs[es] = (
-            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
+        train_runner_kwargs = {
+            "max_epochs": max_epochs,
+            "use_gpu": use_gpu,
+        }
+        train_runner_kwargs.update(trainer_kwargs)
+        return super().train(
+            data_splitter_kwargs=data_splitter_kwargs,
+            training_plan_kwargs=plan_kwargs,
+            train_runner_kwargs=train_runner_kwargs,
         )
-        runner = self._train_runner_cls(
-            self,
-            training_plan=training_plan,
-            data_splitter=data_splitter,
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
-            **trainer_kwargs,
-        )
-        return runner()

@@ -65,7 +65,7 @@ class TrainingMixin(BaseTrainingMixin):
         n_epochs_kl_warmup: Optional[int] = 50,
         adversarial_mixing: bool = True,
         plan_kwargs: Optional[dict] = None,
-        **kwargs,
+        **trainer_kwargs,
     ):
         """
         Trains the model using amortized variational inference.
@@ -110,52 +110,49 @@ class TrainingMixin(BaseTrainingMixin):
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        **kwargs
+        **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        update_dict = dict(
-            lr=lr,
-            adversarial_classifier=adversarial_mixing,
-            weight_decay=weight_decay,
-            eps=eps,
-            n_epochs_kl_warmup=n_epochs_kl_warmup,
-            n_steps_kl_warmup=n_steps_kl_warmup,
-            optimizer="AdamW",
-            scale_adversarial_loss=1,
-        )
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = plan_kwargs or {}
+        trainer_kwargs = trainer_kwargs or {}
 
+        plan_kwargs.update(
+            {
+                "lr": lr,
+                "adversarial_classifier": adversarial_mixing,
+                "weight_decay": weight_decay,
+                "eps": eps,
+                "n_epochs_kl_warmup": n_epochs_kl_warmup,
+                "n_steps_kl_warmup": n_steps_kl_warmup,
+                "optimizer": "AdamW",
+                "scale_adversarial_loss": 1,
+            }
+        )
         if save_best:
-            if "callbacks" not in kwargs.keys():
-                kwargs["callbacks"] = []
-            kwargs["callbacks"].append(
-                SaveBestState(monitor="reconstruction_loss_validation")
-            )
-
-        data_splitter = self._data_splitter_cls(
-            self.adata_manager,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            use_gpu=use_gpu,
+            callback = SaveBestState(monitor="reconstruction_loss_validation")
+            trainer_kwargs["callbacks"] = trainer_kwargs.get("callbacks", []) + [
+                callback
+            ]
+        data_splitter_kwargs = {
+            "train_size": train_size,
+            "validation_size": validation_size,
+            "batch_size": batch_size,
+            "use_gpu": use_gpu,
+        }
+        train_runner_kwargs = {
+            "max_epochs": max_epochs,
+            "use_gpu": use_gpu,
+            "early_stopping": early_stopping,
+            "check_val_every_n_epoch": check_val_every_n_epoch,
+            "early_stopping_monitor": "reconstruction_loss_validation",
+            "early_stopping_patience": 50,
+        }
+        train_runner_kwargs.update(trainer_kwargs)
+        return super().train(
+            training_plan_kwargs=plan_kwargs,
+            data_splitter_kwargs=data_splitter_kwargs,
+            train_runner_kwargs=train_runner_kwargs,
         )
-        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
-        runner = self._train_runner_cls(
-            self,
-            training_plan=training_plan,
-            data_splitter=data_splitter,
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
-            early_stopping=early_stopping,
-            check_val_every_n_epoch=check_val_every_n_epoch,
-            early_stopping_monitor="reconstruction_loss_validation",
-            early_stopping_patience=50,
-            **kwargs,
-        )
-        return runner()
 
 
 class MULTIVI(VAEMixin, TrainingMixin, BaseModelClass, ArchesMixin):
