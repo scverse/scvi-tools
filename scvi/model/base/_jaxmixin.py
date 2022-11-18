@@ -5,14 +5,19 @@ from typing import Optional
 import jax
 import numpy as np
 
-from scvi.dataloaders import DataSplitter
-from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
+from scvi._decorators import classproperty
+from scvi.model.base._training_mixin import BaseTrainingMixin
+from scvi.train import JaxModuleInit, JaxTrainingPlan
 
 logger = logging.getLogger(__name__)
 
 
-class JaxTrainingMixin:
+class JaxTrainingMixin(BaseTrainingMixin):
     """General purpose train method for Jax-backed modules."""
+
+    @classproperty
+    def _training_plan_cls(cls) -> JaxTrainingPlan:
+        return JaxTrainingPlan
 
     def train(
         self,
@@ -67,7 +72,7 @@ class JaxTrainingMixin:
             self.module.to(cpu_device)
             logger.info("Jax module moved to CPU.")
 
-        data_splitter = DataSplitter(
+        data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
@@ -78,7 +83,7 @@ class JaxTrainingMixin:
         )
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
-        self.training_plan = JaxTrainingPlan(self.module, **plan_kwargs)
+        self.training_plan = self._training_plan_cls(self.module, **plan_kwargs)
         if "callbacks" not in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] = []
         trainer_kwargs["callbacks"].append(JaxModuleInit())
@@ -88,7 +93,7 @@ class JaxTrainingMixin:
             warnings.filterwarnings(
                 "ignore", category=UserWarning, module=r"pytorch_lightning.*"
             )
-            runner = TrainRunner(
+            runner = self._train_runner_cls(
                 self,
                 training_plan=self.training_plan,
                 data_splitter=data_splitter,

@@ -7,8 +7,10 @@ from pyro import poutine
 from pytorch_lightning.callbacks import Callback
 
 from scvi import settings
+from scvi._decorators import classproperty
 from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
 from scvi.model._utils import parse_use_gpu_arg
+from scvi.model.base._training_mixin import BaseTrainingMixin
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
 
@@ -46,12 +48,20 @@ class PyroJitGuideWarmup(Callback):
             break
 
 
-class PyroSviTrainMixin:
+class PyroSviTrainingMixin(BaseTrainingMixin):
     """
     Mixin class for training Pyro models.
 
     Training using minibatches and using full data (copies data to GPU only once).
     """
+
+    @classproperty
+    def _training_plan_cls(cls) -> PyroTrainingPlan:
+        return PyroTrainingPlan
+
+    @classproperty
+    def _data_splitter_cls(cls) -> Union[DataSplitter, DeviceBackedDataSplitter]:
+        return DataSplitter
 
     def train(
         self,
@@ -117,14 +127,14 @@ class PyroSviTrainMixin:
                 use_gpu=use_gpu,
             )
         else:
-            data_splitter = DataSplitter(
+            data_splitter = self._data_splitter_cls(
                 self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
                 use_gpu=use_gpu,
             )
-        training_plan = training_plan(self.module, **plan_kwargs)
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (

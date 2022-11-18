@@ -14,12 +14,12 @@ from scvi.data.fields import LayerField
 from scvi.module import AmortizedLDAPyroModule
 from scvi.utils import setup_anndata_dsp
 
-from .base import BaseModelClass, PyroSviTrainMixin
+from .base import BaseModelClass, PyroSviTrainingMixin
 
 logger = logging.getLogger(__name__)
 
 
-class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
+class AmortizedLDA(PyroSviTrainingMixin, BaseModelClass):
     """
     Amortized Latent Dirichlet Allocation :cite:p:`Blei03`.
 

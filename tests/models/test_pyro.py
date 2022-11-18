@@ -20,7 +20,7 @@ from scvi.model.base import (
     BaseModelClass,
     PyroJitGuideWarmup,
     PyroSampleMixin,
-    PyroSviTrainMixin,
+    PyroSviTrainingMixin,
 )
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
@@ -129,7 +129,7 @@ class BayesianRegressionModule(PyroBaseModuleClass):
         return self.model.list_obs_plate_vars()
 
 
-class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass):
+class BayesianRegressionModel(PyroSviTrainingMixin, PyroSampleMixin, BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
@@ -495,7 +495,7 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
             pyro.sample("latent", dist.Normal(qz.loc, qz.scale).to_event(1))
 
 
-class FunctionBasedPyroModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass):
+class FunctionBasedPyroModel(PyroSviTrainingMixin, PyroSampleMixin, BaseModelClass):
     def __init__(
         self,
         adata: AnnData,

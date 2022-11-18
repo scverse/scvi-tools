@@ -1,12 +1,34 @@
+from abc import abstractmethod
 from typing import Optional, Union
 
 import numpy as np
 
+from scvi._decorators import classproperty
 from scvi.dataloaders import DataSplitter
 from scvi.train import TrainingPlan, TrainRunner
 
 
-class UnsupervisedTrainingMixin:
+class BaseTrainingMixin:
+    """Base training mixin class."""
+
+    @classproperty
+    def _data_splitter_cls(cls) -> DataSplitter:
+        return DataSplitter
+
+    @classproperty
+    def _training_plan_cls(cls) -> TrainingPlan:
+        return TrainingPlan
+
+    @classproperty
+    def _train_runner_cls(cls) -> TrainRunner:
+        return TrainRunner
+
+    @abstractmethod
+    def train(self):
+        """Train the model."""
+
+
+class UnsupervisedTrainingMixin(BaseTrainingMixin):
     """General purpose unsupervised train method."""
 
     def train(
@@ -53,20 +75,20 @@ class UnsupervisedTrainingMixin:
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
-        data_splitter = DataSplitter(
+        data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = TrainingPlan(self.module, **plan_kwargs)
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
             early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         )
-        runner = TrainRunner(
+        runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
             data_splitter=data_splitter,

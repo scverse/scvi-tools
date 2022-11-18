@@ -108,7 +108,7 @@ These classes should be used to construct user-facing model classes.
     model.base.RNASeqMixin
     model.base.ArchesMixin
     model.base.UnsupervisedTrainingMixin
-    model.base.PyroSviTrainMixin
+    model.base.PyroSviTrainingMixin
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
     model.base.DifferentialComputation
