@@ -332,14 +332,16 @@ class TunerManager:
         return _reporter
 
     def _validate_resources(self, resources: dict) -> dict:
-        """Validates a resources-use specification."""
+        """Validates a resource-use specification."""
         # TODO: perform resource checking
         return resources
 
-    def _get_setup_kwargs(self, adata: AnnOrMuData) -> dict:
-        """Retrieves the kwargs used for setting up `adata` with the model class."""
+    def _get_setup_info(self, adata: AnnOrMuData) -> Tuple[str, dict]:
+        """Retrieves the method and kwargs used for setting up `adata` with the model class."""
         manager = self._model_cls._get_most_recent_anndata_manager(adata)
-        return manager._get_setup_method_args().get("setup_args", {})
+        setup_method_name = manager._registry.get("_SETUP_METHOD_NAME", "setup_anndata")
+        setup_args = manager._get_setup_method_args().get("_SETUP_ARGS_KEY", {})
+        return setup_method_name, setup_args
 
     @dependencies("ray.tune")
     def _get_trainable(
@@ -347,6 +349,7 @@ class TunerManager:
         adata: AnnOrMuData,
         metrics: OrderedDict,
         resources: dict,
+        setup_method_name: str,
         setup_kwargs: dict,
         max_epochs: int,
     ) -> Callable:
@@ -355,15 +358,16 @@ class TunerManager:
         def _trainable(
             search_space: dict,
             *,
-            model_cls: BaseModelClass = None,
-            adata: AnnOrMuData = None,
-            metric: str = None,
-            setup_kwargs: dict = None,
-            max_epochs: int = None,
+            model_cls: BaseModelClass,
+            adata: AnnOrMuData,
+            metric: str,
+            setup_method_name: str,
+            setup_kwargs: dict,
+            max_epochs: int,
         ) -> None:
             model_kwargs, train_kwargs = self._get_search_space(search_space)
             # TODO: generalize to models with mudata
-            model_cls.setup_anndata(adata, **setup_kwargs)
+            getattr(model_cls, setup_method_name)(adata, **setup_kwargs)
             model = model_cls(adata, **model_kwargs)
             monitor = TuneReportCallback(metric, on="validation_end")
             # TODO: adaptive max_epochs
@@ -379,6 +383,7 @@ class TunerManager:
             model_cls=self._model_cls,
             adata=adata,
             metric=list(metrics.keys())[0],
+            setup_method_name=setup_method_name,
             setup_kwargs=setup_kwargs,
             max_epochs=max_epochs,
         )
@@ -424,12 +429,13 @@ class TunerManager:
         )
         _reporter = self._validate_reporter(reporter, _search_space, _metrics)
         _resources = self._validate_resources(resources)
-        _setup_kwargs = self._get_setup_kwargs(adata)
+        _setup_method_name, _setup_args = self._get_setup_info(adata)
         _trainable = self._get_trainable(
             adata,
             _metrics,
             _resources,
-            _setup_kwargs,
+            _setup_method_name,
+            _setup_args,
             max_epochs,
         )
 
