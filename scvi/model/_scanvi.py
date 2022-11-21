@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 class TrainingMixin(BaseTrainingMixin):
-    """Training mixin for SCANVI"""
+    """Training mixin for SCANVI."""
 
     @classproperty
     def _data_splitter_cls(cls) -> SemiSupervisedDataSplitter:
@@ -89,6 +89,9 @@ class TrainingMixin(BaseTrainingMixin):
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
+        plan_kwargs = plan_kwargs or {}
+        trainer_kwargs = trainer_kwargs or {}
+
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
@@ -96,39 +99,29 @@ class TrainingMixin(BaseTrainingMixin):
             if self.was_pretrained:
                 max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))
 
-        logger.info(f"Training for {max_epochs} epochs.")
-
-        plan_kwargs = {} if plan_kwargs is None else plan_kwargs
-
+        data_splitter_kwargs = {
+            "train_size": train_size,
+            "validation_size": validation_size,
+            "n_samples_per_label": n_samples_per_label,
+            "batch_size": batch_size,
+            "use_gpu": use_gpu,
+        }
         # if we have labeled cells, we want to subsample labels each epoch
-        sampler_callback = (
-            [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
+        if len(self._labeled_indices) != 0:
+            trainer_kwargs["callbacks"] = trainer_kwargs.get("callbacks", []) + [
+                SubSampleLabels()
+            ]
+        train_runner_kwargs = {
+            "max_epochs": max_epochs,
+            "use_gpu": use_gpu,
+            "check_val_every_n_epoch": check_val_every_n_epoch,
+        }
+        train_runner_kwargs.update(trainer_kwargs)
+        super().train(
+            training_plan_kwargs=plan_kwargs,
+            data_splitter_kwargs=data_splitter_kwargs,
+            train_runner_kwargs=train_runner_kwargs,
         )
-
-        data_splitter = self._data_splitter_cls(
-            adata_manager=self.adata_manager,
-            train_size=train_size,
-            validation_size=validation_size,
-            n_samples_per_label=n_samples_per_label,
-            batch_size=batch_size,
-            use_gpu=use_gpu,
-        )
-        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
-        if "callbacks" in trainer_kwargs.keys():
-            trainer_kwargs["callbacks"].concatenate(sampler_callback)
-        else:
-            trainer_kwargs["callbacks"] = sampler_callback
-
-        runner = self._train_runner_cls(
-            self,
-            training_plan=training_plan,
-            data_splitter=data_splitter,
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
-            check_val_every_n_epoch=check_val_every_n_epoch,
-            **trainer_kwargs,
-        )
-        return runner()
 
 
 class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, TrainingMixin, BaseModelClass):

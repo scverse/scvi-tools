@@ -1,5 +1,4 @@
 import logging
-import warnings
 from typing import Optional
 
 import jax
@@ -54,6 +53,9 @@ class JaxTrainingMixin(BaseTrainingMixin):
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
+        plan_kwargs = plan_kwargs or {}
+        trainer_kwargs = trainer_kwargs or {}
+
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
@@ -71,37 +73,30 @@ class JaxTrainingMixin(BaseTrainingMixin):
             cpu_device = jax.devices("cpu")[0]
             self.module.to(cpu_device)
             logger.info("Jax module moved to CPU.")
+        trainer_kwargs["callbacks"] = trainer_kwargs.get("callbacks", []) + [
+            JaxModuleInit()
+        ]
 
-        data_splitter = self._data_splitter_cls(
-            self.adata_manager,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
+        data_splitter_kwargs = {
+            "train_size": train_size,
+            "validation_size": validation_size,
+            "batch_size": batch_size,
             # for pinning memory only
-            use_gpu=False,
-            iter_ndarray=True,
+            "use_gpu": False,
+            "iter_ndarray": True,
+        }
+        train_runner_kwargs = {
+            "max_epochs": max_epochs,
+            "use_gpu": use_gpu,
+        }
+        train_runner_kwargs.update(trainer_kwargs)
+
+        # ignore Pytorch Lightning warnings for Jax workarounds.
+        super().train(
+            data_splitter_kwargs=data_splitter_kwargs,
+            training_plan_kwargs=plan_kwargs,
+            train_runner_kwargs=train_runner_kwargs,
+            catch_lightning_warnings=True,
         )
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-
-        self.training_plan = self._training_plan_cls(self.module, **plan_kwargs)
-        if "callbacks" not in trainer_kwargs.keys():
-            trainer_kwargs["callbacks"] = []
-        trainer_kwargs["callbacks"].append(JaxModuleInit())
-
-        # Ignore Pytorch Lightning warnings for Jax workarounds.
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", category=UserWarning, module=r"pytorch_lightning.*"
-            )
-            runner = self._train_runner_cls(
-                self,
-                training_plan=self.training_plan,
-                data_splitter=data_splitter,
-                max_epochs=max_epochs,
-                use_gpu=False,
-                **trainer_kwargs,
-            )
-            runner()
-
         self.is_trained_ = True
         self.module.eval()

@@ -1,3 +1,4 @@
+import warnings
 from typing import Optional, Union
 
 import numpy as np
@@ -28,7 +29,8 @@ class BaseTrainingMixin:
         data_splitter_kwargs: Optional[dict] = None,
         training_plan_kwargs: Optional[dict] = None,
         train_runner_kwargs: Optional[dict] = None,
-    ):
+        catch_lightning_warnings: bool = False,
+    ) -> None:
         """Train the model."""
         data_splitter_kwargs = data_splitter_kwargs or {}
         training_plan_kwargs = training_plan_kwargs or {}
@@ -44,7 +46,14 @@ class BaseTrainingMixin:
             data_splitter=data_splitter,
             **train_runner_kwargs,
         )
-        return train_runner()
+        if catch_lightning_warnings:
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", category=UserWarning, module=r"pytorch_lightning.*"
+                )
+                train_runner()
+        else:
+            train_runner()
 
 
 class UnsupervisedTrainingMixin(BaseTrainingMixin):
@@ -60,7 +69,7 @@ class UnsupervisedTrainingMixin(BaseTrainingMixin):
         early_stopping: bool = False,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
-    ):
+    ) -> None:
         """
         Train the model.
 
@@ -93,6 +102,7 @@ class UnsupervisedTrainingMixin(BaseTrainingMixin):
 
         if max_epochs is None:
             max_epochs = int(np.min([round((20000 / self.adata.n_obs) * 400), 400]))
+
         data_splitter_kwargs = {
             "train_size": train_size,
             "validation_size": validation_size,
@@ -107,7 +117,7 @@ class UnsupervisedTrainingMixin(BaseTrainingMixin):
             "use_gpu": use_gpu,
         }
         train_runner_kwargs.update(trainer_kwargs)
-        return super().train(
+        super().train(
             data_splitter_kwargs=data_splitter_kwargs,
             training_plan_kwargs=plan_kwargs,
             train_runner_kwargs=train_runner_kwargs,
