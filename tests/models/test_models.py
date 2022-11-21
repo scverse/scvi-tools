@@ -1,12 +1,15 @@
+import inspect
 import os
 import pickle
 import tarfile
+from unittest import mock
 
 import anndata
 import numpy as np
 import pandas as pd
 import pytest
 import torch
+from flax import linen as nn
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
@@ -36,6 +39,7 @@ from scvi.model import (
 )
 from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
+from scvi.utils import attrdict
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
@@ -87,7 +91,6 @@ LEGACY_SETUP_DICT = {
 def test_jax_scvi():
     n_latent = 5
 
-    # Test with size factor.
     adata = synthetic_iid()
     JaxSCVI.setup_anndata(
         adata,
@@ -99,10 +102,81 @@ def test_jax_scvi():
 
     model = JaxSCVI(adata, n_latent=n_latent, gene_likelihood="poisson")
     model.train(1, train_size=0.5)
-    z1 = model.get_latent_representation(give_mean=True, mc_samples=1)
+    z1 = model.get_latent_representation(give_mean=True, n_samples=1)
     assert z1.ndim == 2
-    z2 = model.get_latent_representation(give_mean=False, mc_samples=15)
+    z2 = model.get_latent_representation(give_mean=False, n_samples=15)
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
+
+
+def test_jax_scvi_training():
+    n_latent = 5
+    dropout_rate = 0.1
+
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+
+    model = JaxSCVI(adata, n_latent=n_latent, dropout_rate=dropout_rate)
+    assert model.module.training
+
+    with mock.patch(
+        "scvi.module._jaxvae.nn.Dropout", wraps=nn.Dropout
+    ) as mock_dropout_cls:
+        mock_dropout = mock.Mock()
+        mock_dropout.side_effect = lambda h, **_kwargs: h
+        mock_dropout_cls.return_value = mock_dropout
+        model.train(1, train_size=0.5, check_val_every_n_epoch=1)
+
+        assert not model.module.training
+        mock_dropout_cls.assert_called()
+        mock_dropout.assert_has_calls(
+            12 * [mock.call(mock.ANY, deterministic=False)]
+            + 8 * [mock.call(mock.ANY, deterministic=True)]
+        )
+
+
+def test_jax_scvi_save_load(save_path):
+    n_latent = 5
+
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+    model = JaxSCVI(adata, n_latent=n_latent)
+    model.train(2, train_size=0.5, check_val_every_n_epoch=1)
+    z1 = model.get_latent_representation(adata)
+    model.save(save_path, overwrite=True, save_anndata=True)
+    model.view_setup_args(save_path)
+    model = JaxSCVI.load(save_path)
+    model.get_latent_representation()
+
+    # Load with mismatched genes.
+    tmp_adata = synthetic_iid(
+        n_genes=200,
+    )
+    with pytest.raises(ValueError):
+        JaxSCVI.load(save_path, adata=tmp_adata)
+
+    # Load with different batches.
+    tmp_adata = synthetic_iid()
+    tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(
+        ["batch_2", "batch_3"]
+    )
+    with pytest.raises(ValueError):
+        JaxSCVI.load(save_path, adata=tmp_adata)
+
+    model = JaxSCVI.load(save_path, adata=adata)
+    assert "batch" in model.adata_manager.data_registry
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(attr_name="obs", attr_key="_scvi_batch")
+    )
+    assert model.is_trained is True
+
+    z2 = model.get_latent_representation()
+    np.testing.assert_array_equal(z1, z2)
 
 
 def test_scvi(save_path):
@@ -154,6 +228,7 @@ def test_scvi(save_path):
     model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
 
     adata2 = synthetic_iid()
     # test view_anndata_setup with different anndata before transfer setup
@@ -284,6 +359,18 @@ def test_scvi(save_path):
     model.get_likelihood_parameters(n_samples=10)
     model.get_likelihood_parameters(n_samples=10, indices=np.arange(10))
 
+    # test get_likelihood_parameters() when gene_likelihood!='zinb'
+    model = SCVI(adata, gene_likelihood="nb")
+    model.get_likelihood_parameters()
+
+    # test different gene_likelihoods
+    for gene_likelihood in ["zinb", "nb", "poisson"]:
+        model = SCVI(adata, gene_likelihood=gene_likelihood)
+        model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+        model.posterior_predictive_sample()
+        model.get_latent_representation()
+        model.get_normalized_expression()
+
     # test train callbacks work
     a = synthetic_iid()
     SCVI.setup_anndata(
@@ -301,6 +388,63 @@ def test_scvi(save_path):
         plan_kwargs={"reduce_lr_on_plateau": True},
     )
     assert "lr-Adam" in m.history.keys()
+
+
+def test_scvi_get_latent_rep_backwards_compat():
+    n_latent = 5
+
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    vae = model.module
+    vae_mock = mock.Mock(wraps=model.module)
+
+    def old_inference(*args, **kwargs):
+        inf_outs = vae.inference(*args, **kwargs)
+        qz = inf_outs.pop("qz")
+        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
+        return inf_outs
+
+    vae_mock.inference.side_effect = old_inference
+    model.module = vae_mock
+
+    model.get_latent_representation()
+
+
+def test_scvi_get_feature_corr_backwards_compat():
+    n_latent = 5
+
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    vae = model.module
+    vae_mock = mock.Mock(wraps=model.module)
+
+    def old_forward(*args, **kwargs):
+        inf_outs, gen_outs = vae.forward(*args, **kwargs)
+        qz = inf_outs.pop("qz")
+        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
+        px = gen_outs.pop("px")
+        gen_outs["px_scale"], gen_outs["px_r"] = px.scale, px.theta
+        return inf_outs, gen_outs
+
+    vae_mock.forward.side_effect = old_forward
+    vae_mock.generative.__signature__ = inspect.signature(
+        vae.generative
+    )  # Necessary to pass transform_batch check.
+    model.module = vae_mock
+
+    model.get_feature_correlation_matrix()
 
 
 def test_scvi_sparse(save_path):
@@ -427,8 +571,8 @@ def test_saving_and_loading(save_path):
 
         model = cls.load(save_path, adata=adata, prefix=prefix)
         assert "batch" in model.adata_manager.data_registry
-        assert model.adata_manager.data_registry["batch"] == dict(
-            attr_name="obs", attr_key="_scvi_batch"
+        assert model.adata_manager.data_registry.batch == attrdict(
+            dict(attr_name="obs", attr_key="_scvi_batch")
         )
 
         z2 = model.get_latent_representation()
@@ -474,8 +618,8 @@ def test_saving_and_loading(save_path):
         AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
     model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry["batch"] == dict(
-        attr_name="obs", attr_key="_scvi_batch"
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(attr_name="obs", attr_key="_scvi_batch")
     )
 
     ab2 = model.get_alphas_betas()
@@ -511,8 +655,8 @@ def test_saving_and_loading(save_path):
         SCANVI.load(save_path, adata=tmp_adata, prefix=prefix)
     model = SCANVI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry["batch"] == dict(
-        attr_name="obs", attr_key="_scvi_batch"
+    assert model.adata_manager.data_registry.batch == attrdict(
+        dict(attr_name="obs", attr_key="_scvi_batch")
     )
 
     p2 = model.predict()
@@ -531,6 +675,24 @@ def test_saving_and_loading(save_path):
     )
     m = SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
     m.train(1)
+
+
+def assert_dict_is_subset(d1, d2):
+    if not isinstance(d1, dict):
+        raise AssertionError(f"{d1} is not a dictionary.")
+    elif not isinstance(d2, dict):
+        raise AssertionError(f"{d2} is not a dictionary.")
+
+    for k, v in d1.items():
+        if k not in d2:
+            raise AssertionError(f"{k} missing from {d2}.")
+        v2 = d2[k]
+        if isinstance(v, dict):
+            assert_dict_is_subset(v, v2)
+        elif isinstance(v, np.ndarray):
+            np.testing.assert_array_equal(v, v2)
+        elif v != v2:
+            raise AssertionError(f"Mismatch between {v} and {v2}.")
 
 
 def test_new_setup_compat():
@@ -563,9 +725,9 @@ def test_new_setup_compat():
 
     # Backwards compatibility test.
     registry = registry_from_setup_dict(SCVI, LEGACY_SETUP_DICT)
-    np.testing.assert_equal(
-        field_registries_legacy_subset,
+    assert_dict_is_subset(
         registry[_constants._FIELD_REGISTRIES_KEY],
+        field_registries_legacy_subset,
     )
 
     # Test transfer.
@@ -666,14 +828,14 @@ def test_ann_dataloader():
     assert a.n_obs == 400
     adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=3)
     assert len(adl) == 2
-    for i, x in enumerate(adl):
+    for _i, _ in enumerate(adl):
         pass
-    assert i == 1
+    assert _i == 1
     adl = AnnDataLoader(adata_manager, batch_size=398, drop_last=3)
     assert len(adl) == 1
-    for i, x in enumerate(adl):
+    for _i, _ in enumerate(adl):
         pass
-    assert i == 0
+    assert _i == 0
     with pytest.raises(ValueError):
         AnnDataLoader(adata_manager, batch_size=1, drop_last=2)
 
@@ -775,7 +937,7 @@ def test_device_backed_data_splitter():
     assert len(loaded_x) == a.shape[0]
     np.testing.assert_array_equal(loaded_x.cpu().numpy(), a.X)
 
-    training_plan = TrainingPlan(model.module, len(ds.train_idx))
+    training_plan = TrainingPlan(model.module)
     runner = TrainRunner(
         model,
         training_plan=training_plan,
@@ -1204,6 +1366,12 @@ def test_multiple_covariates_scvi(save_path):
     )
     m = SCVI(adata)
     m.train(1)
+    m.get_latent_representation()
+    m.get_elbo()
+    m.get_marginal_ll(n_mc_samples=3)
+    m.get_reconstruction_error()
+    m.get_normalized_expression(n_samples=1)
+    m.get_normalized_expression(n_samples=2)
 
     SCANVI.setup_anndata(
         adata,
@@ -1215,6 +1383,12 @@ def test_multiple_covariates_scvi(save_path):
     )
     m = SCANVI(adata)
     m.train(1)
+    m.get_latent_representation()
+    m.get_elbo()
+    m.get_marginal_ll(n_mc_samples=3)
+    m.get_reconstruction_error()
+    m.get_normalized_expression(n_samples=1)
+    m.get_normalized_expression(n_samples=2)
 
     TOTALVI.setup_anndata(
         adata,
@@ -1226,6 +1400,12 @@ def test_multiple_covariates_scvi(save_path):
     )
     m = TOTALVI(adata)
     m.train(1)
+    m.get_latent_representation()
+    m.get_elbo()
+    m.get_marginal_ll(n_mc_samples=3)
+    m.get_reconstruction_error()
+    m.get_normalized_expression(n_samples=1)
+    m.get_normalized_expression(n_samples=2)
 
 
 def test_multiple_encoded_covariates_scvi(save_path):
@@ -1402,6 +1582,33 @@ def test_multivi():
         n_genes=50,
         n_regions=50,
     )
+    vae.train(3)
+
+    # Test with modality weights and penalties
+    data = synthetic_iid()
+    MULTIVI.setup_anndata(data, batch_key="batch")
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
+    vae.train(3)
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="universal")
+    vae.train(3)
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_penalty="MMD")
+    vae.train(3)
+
+    # Test with non-zero protein data
+    data = synthetic_iid()
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    vae = MULTIVI(
+        data,
+        n_genes=50,
+        n_regions=50,
+        modality_weights="cell",
+    )
+    assert vae.n_proteins == data.obsm["protein_expression"].shape[1]
     vae.train(3)
 
 

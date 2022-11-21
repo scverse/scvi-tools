@@ -5,21 +5,20 @@ import anndata
 import numpy as np
 import pandas as pd
 import pytest
-import scipy.sparse as sparse
+from scipy import sparse
 from scipy.sparse.csr import csr_matrix
 
 import scvi
 from scvi import REGISTRY_KEYS
-from scvi.data import synthetic_iid
+from scvi.data import _constants, synthetic_iid
+from scvi.data.fields import ObsmField, ProteinObsmField
 from scvi.dataloaders import AnnTorchDataset
 
 from .utils import generic_setup_adata_manager
 
 
-def test_transfer_fields():
+def test_transfer_fields_basic(adata1, adata2):
     # test transfer_fields function
-    adata1 = synthetic_iid()
-    adata2 = synthetic_iid()
     adata2.X = adata1.X
     adata1_manager = generic_setup_adata_manager(adata1)
     adata1_manager.transfer_fields(adata2)
@@ -27,12 +26,9 @@ def test_transfer_fields():
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
 
+
+def test_transfer_fields_layer_use(adata1, adata2):
     # test if layer was used initially, again used in transfer setup
-    adata1 = synthetic_iid()
-    adata2 = synthetic_iid()
-    raw_counts = adata1.X.copy()
-    adata1.layers["raw"] = raw_counts
-    adata2.layers["raw"] = raw_counts
     zeros = np.zeros_like(adata1.X)
     ones = np.ones_like(adata1.X)
     adata1.X = zeros
@@ -43,70 +39,69 @@ def test_transfer_fields():
         adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
     )
 
+
+def test_transfer_fields_unknown_batch(adata1, adata2):
     # test that an unknown batch throws an error
-    adata1 = synthetic_iid()
-    adata2 = synthetic_iid()
     adata2.obs["batch"] = [2] * adata2.n_obs
     adata1_manager = generic_setup_adata_manager(adata1, batch_key="batch")
     with pytest.raises(ValueError):
         adata1_manager.transfer_fields(adata2)
 
+
+def test_transfer_fields_unknown_label(adata1, adata2):
     # test that an unknown label throws an error
-    adata1 = synthetic_iid()
-    adata2 = synthetic_iid()
     adata2.obs["labels"] = ["label_123"] * adata2.n_obs
     adata1_manager = generic_setup_adata_manager(adata1, labels_key="labels")
     with pytest.raises(ValueError):
         adata1_manager.transfer_fields(adata2)
 
+
+def test_transfer_fields_correct_mapping(adata1, adata2):
     # test that correct mapping was applied
-    adata1 = synthetic_iid()
-    adata2 = synthetic_iid()
     adata2.obs["labels"] = ["label_1"] * adata2.n_obs
     adata1_manager = generic_setup_adata_manager(adata1, labels_key="labels")
     adata1_manager.transfer_fields(adata2)
     labels_mapping = adata1_manager.get_state_registry("labels").categorical_mapping
     correct_label = np.where(labels_mapping == "label_1")[0][0]
-    adata2.obs["_scvi_labels"][0] == correct_label
+    assert adata2.obs["_scvi_labels"][0] == correct_label
 
+
+def test_transfer_fields_correct_batch(adata1, adata2):
     # test that transfer_fields correctly looks for adata.obs['batch']
-    adata1 = synthetic_iid()
-    adata2 = synthetic_iid()
     del adata2.obs["batch"]
     adata1_manager = generic_setup_adata_manager(adata1, batch_key="batch")
     with pytest.raises(KeyError):
         adata1_manager.transfer_fields(adata2)
 
+
+def test_transfer_fields_same_batch_and_label(adata1, adata2):
     # test that transfer_fields assigns same batch and label to cells
     # if the original anndata was also same batch and label
-    adata1 = synthetic_iid()
     adata1_manager = generic_setup_adata_manager(adata1)
-    adata2 = synthetic_iid()
     del adata2.obs["batch"]
     adata1_manager.transfer_fields(adata2)
     assert adata2.obs["_scvi_batch"][0] == 0
     assert adata2.obs["_scvi_labels"][0] == 0
 
+
+def test_transfer_fields_subset(adata1, adata2):
     # test that if a category mapping is a subset, transfer anndata is called
-    a1 = scvi.data.synthetic_iid()
-    scvi.model.SCVI.setup_anndata(a1, batch_key="batch")
-    a2 = scvi.data.synthetic_iid()
-    a2.obs["batch"] = "batch_1"
-    scvi.model.SCVI.setup_anndata(a2, batch_key="batch")
-    m = scvi.model.SCVI(a1)
+    scvi.model.SCVI.setup_anndata(adata1, batch_key="batch")
+    adata2.obs["batch"] = "batch_1"
+    scvi.model.SCVI.setup_anndata(adata2, batch_key="batch")
+    m = scvi.model.SCVI(adata1)
     m.train(1)
-    m.get_latent_representation(a2)
-    assert a2.obs["_scvi_batch"].all() == 1
+    m.get_latent_representation(adata2)
+    assert adata2.obs["_scvi_batch"].all() == 1
 
+
+def test_transfer_fields_wrong_kwarg(adata):
     # test that error is thrown if an arbitrary kwarg is passed into setup_anndata
-    a = scvi.data.synthetic_iid()
     with pytest.raises(TypeError):
-        scvi.model.SCVI.setup_anndata(a, batch="batch")
+        scvi.model.SCVI.setup_anndata(adata, batch="batch")
 
 
-def test_clobber_same_model():
-    adata = scvi.data.synthetic_iid()
-
+def test_clobber_same_model(adata):
     scvi.model.SCVI.setup_anndata(adata)
     m1 = scvi.model.SCVI(adata)
     m1.train(1)
@@ -140,9 +135,7 @@ def test_clobber_same_model():
     )
 
 
-def test_clobber_different_models():
-    adata = scvi.data.synthetic_iid()
-
+def test_clobber_different_models(adata):
     scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
     m1 = scvi.model.SCVI(adata)
     m1.train(1)
@@ -180,10 +173,61 @@ def test_clobber_different_models():
     )
 
 
-def test_data_format():
-    # if data was dense np array, check after setup_anndata, data is C_CONTIGUOUS
-    adata = synthetic_iid()
+def test_register_new_fields(adata):
+    bdata = adata.copy()
+    incremental_adata_manager = generic_setup_adata_manager(bdata)
+    batch_field = None
+    for field in incremental_adata_manager.fields:
+        if field.registry_key == REGISTRY_KEYS.BATCH_KEY:
+            batch_field = field
+    new_fields = [
+        ProteinObsmField(
+            REGISTRY_KEYS.PROTEIN_EXP_KEY,
+            "protein_expression",
+            batch_field=batch_field,
+            use_batch_mask=True,
+            is_count_data=True,
+        )
+    ]
+    incremental_adata_manager.register_new_fields(new_fields)
+    adata_manager = generic_setup_adata_manager(
+        adata, protein_expression_obsm_key="protein_expression"
+    )
+    np.testing.assert_array_equal(
+        incremental_adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
+        adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
+    )
+    assert len(incremental_adata_manager.fields) == len(adata_manager.fields)
 
+
+def test_register_new_fields_with_transferred_manager(adata):
+    bdata = adata.copy()
+    cdata = adata.copy()
+    adata_manager = generic_setup_adata_manager(adata, batch_key="batch")
+    bdata.obs["batch"] = adata.obs["batch"].to_numpy()[0]
+    bdata_manager = adata_manager.transfer_fields(bdata)
+    new_fields = [ObsmField(REGISTRY_KEYS.PROTEIN_EXP_KEY, "protein_expression")]
+    bdata_manager.register_new_fields(new_fields)
+    cdata_manager = bdata_manager.transfer_fields(cdata)
+
+    # Should have protein field
+    cdata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
+    np.testing.assert_array_equal(
+        cdata.obs["_scvi_batch"].values, adata.obs["_scvi_batch"].values
+    )
+
+
+def test_update_setup_args(adata):
+    adata_manager = generic_setup_adata_manager(adata)
+    adata_manager.update_setup_method_args({"test_arg": "test_val"})
+    assert (
+        "test_arg"
+        in adata_manager._get_setup_method_args()[_constants._SETUP_ARGS_KEY].keys()
+    )
+
+
+def test_data_format(adata):
+    # if data was dense np array, check after setup_anndata, data is C_CONTIGUOUS
     old_x = adata.X
     old_pro = adata.obsm["protein_expression"]
     old_obs = adata.obs
@@ -208,8 +252,9 @@ def test_data_format():
         adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
     )
 
+
+def test_data_format_c_contiguous(adata):
     # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
-    adata = synthetic_iid()
     pe = np.asfortranarray(adata.obsm["protein_expression"])
     adata.obsm["protein_expression"] = pd.DataFrame(pe, index=adata.obs_names)
     assert adata.obsm["protein_expression"].to_numpy().flags["C_CONTIGUOUS"] is False
@@ -226,9 +271,8 @@ def test_data_format():
     )
 
 
-def test_setup_anndata():
+def test_setup_anndata(adata):
     # test regular setup
-    adata = synthetic_iid()
     adata_manager = generic_setup_adata_manager(
         adata,
         batch_key="batch",
@@ -256,13 +300,15 @@ def test_setup_anndata():
         adata.uns["protein_names"],
     )
 
+
+def test_setup_anndata_view_error(adata):
     # test that error is thrown if its a view:
-    adata = synthetic_iid()
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata[1])
 
+
+def test_setup_anndata_view_error_df_protein_none(adata):
     # If obsm is a df and protein_names_uns_key is None, protein names should be grabbed from column of df
-    adata = synthetic_iid()
     new_protein_names = np.array(random.sample(range(100), 100)).astype("str")
     df = pd.DataFrame(
         adata.obsm["protein_expression"],
@@ -278,8 +324,9 @@ def test_setup_anndata():
         new_protein_names,
     )
 
+
+def test_setup_anndata_layer(adata):
     # test that layer is working properly
-    adata = synthetic_iid()
     true_x = adata.X
     adata.layers["X"] = true_x
     adata.X = np.ones_like(adata.X)
@@ -288,8 +335,9 @@ def test_setup_anndata():
         adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), true_x
     )
 
-    # test that it creates layers and batch if no layers_key is passed
-    adata = synthetic_iid()
+
+def test_setup_anndata_create_label_batch(adata):
+    # test that it creates labels and batch if no layers_key is passed
     adata_manager = generic_setup_adata_manager(
         adata,
         protein_expression_obsm_key="protein_expression",
@@ -304,22 +352,22 @@ def test_setup_anndata():
         np.zeros((adata.shape[0], 1)),
     )
 
+
+def test_setup_anndata_nan(adata):
     # test error is thrown when categorical obs field contains nans
-    adata = synthetic_iid()
     adata.obs["batch"][:10] = np.nan
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata, batch_key="batch")
 
+
+def test_setup_anndata_cat(adata):
     # test error is thrown when categorical joint obsm field contains nans
-    adata = synthetic_iid()
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat1"][:10] = np.nan
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata, categorical_covariate_keys=["cat1"])
 
 
-def test_save_setup_anndata(save_path):
-    adata = synthetic_iid()
+def test_save_setup_anndata(adata, save_path):
     generic_setup_adata_manager(
         adata,
         batch_key="batch",
@@ -330,12 +378,7 @@ def test_save_setup_anndata(save_path):
     adata.write(os.path.join(save_path, "test.h5ad"))
 
 
-def test_extra_covariates():
-    adata = synthetic_iid()
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+def test_extra_covariates(adata):
     scvi.model.SCVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -350,12 +393,7 @@ def test_extra_covariates():
     pd.testing.assert_frame_equal(df1, df2)
 
 
-def test_extra_covariates_transfer():
-    adata = synthetic_iid()
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+def test_extra_covariates_transfer(adata):
     adata_manager = generic_setup_adata_manager(
         adata,
         batch_key="batch",
@@ -384,8 +422,7 @@ def test_extra_covariates_transfer():
     )
 
 
-def test_anntorchdataset_getitem():
-    adata = synthetic_iid()
+def test_anntorchdataset_getitem(adata):
     adata_manager = generic_setup_adata_manager(
         adata,
         batch_key="batch",
@@ -415,23 +452,26 @@ def test_anntorchdataset_getitem():
     np.testing.assert_array_equal(all_registered_tensors, list(bd[1].keys()))
     assert bd[1][REGISTRY_KEYS.X_KEY].shape[0] == bd.adata_manager.summary_stats.n_vars
 
-    # check that AnnTorchDataset returns numpy array
-    adata1 = synthetic_iid()
-    adata1_manager = generic_setup_adata_manager(adata1)
-    bd = AnnTorchDataset(adata1_manager)
-    for value in bd[1].values():
-        assert type(value) == np.ndarray
 
-    # check AnnTorchDataset returns numpy array counts were sparse
-    adata = synthetic_iid()
-    adata.X = sparse.csr_matrix(adata.X)
-    adata_manager = generic_setup_adata_manager(adata1)
+def test_anntorchdataset_numpy(adata):
+    # check that AnnTorchDataset returns numpy array
+    adata_manager = generic_setup_adata_manager(adata)
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():
         assert type(value) == np.ndarray
 
+
+def test_anntorchdataset_numpy_sparse(adata):
+    # check AnnTorchDataset returns numpy array counts were sparse
+    adata.X = sparse.csr_matrix(adata.X)
+    adata_manager = generic_setup_adata_manager(adata)
+    bd = AnnTorchDataset(adata_manager)
+    for value in bd[1].values():
+        assert type(value) == np.ndarray
+
+
+def test_anntorchdataset_getitem_numpy_sparse(adata):
     # check AnnTorchDataset returns numpy array if pro exp was sparse
-    adata = synthetic_iid()
     adata.obsm["protein_expression"] = sparse.csr_matrix(
         adata.obsm["protein_expression"]
     )
@@ -442,12 +482,13 @@ def test_anntorchdataset_getitem():
     for value in bd[1].values():
         assert type(value) == np.ndarray
 
+
+def test_anntorchdataset_getitem_pro_exp(adata):
     # check pro exp is being returned as numpy array even if its DF
-    adata = synthetic_iid()
     adata.obsm["protein_expression"] = pd.DataFrame(
         adata.obsm["protein_expression"], index=adata.obs_names
     )
-    generic_setup_adata_manager(
+    adata_manager = generic_setup_adata_manager(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )
     bd = AnnTorchDataset(adata_manager)
@@ -455,12 +496,7 @@ def test_anntorchdataset_getitem():
         assert type(value) == np.ndarray
 
 
-def test_view_registry():
-    adata = synthetic_iid()
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+def test_view_registry(adata):
     adata_manager = generic_setup_adata_manager(
         adata,
         batch_key="batch",
@@ -474,11 +510,8 @@ def test_view_registry():
     adata_manager.view_registry(hide_state_registries=True)
 
 
-def test_saving(save_path):
+def test_saving(adata, save_path):
     save_path = os.path.join(save_path, "tmp_adata.h5ad")
-    adata = synthetic_iid()
-    adata.obs["cont1"] = np.random.uniform(5, adata.n_obs)
-    adata.obs["cont2"] = np.random.uniform(5, adata.n_obs)
     adata.obs["cat1"] = np.random.randint(0, 3, adata.n_obs).astype(str)
     adata.obs["cat1"][1] = "asdf"
     adata.obs["cat1"][2] = "f34"
@@ -496,8 +529,7 @@ def test_saving(save_path):
     anndata.read(save_path)
 
 
-def test_backed_anndata(save_path):
-    adata = scvi.data.synthetic_iid()
+def test_backed_anndata(adata, save_path):
     path = os.path.join(save_path, "test_data.h5ad")
     adata.write_h5ad(path)
     adata = anndata.read_h5ad(path, backed="r+")
@@ -507,8 +539,9 @@ def test_backed_anndata(save_path):
     bd = AnnTorchDataset(adata_manager)
     bd[np.arange(adata.n_obs)]
 
+
+def test_backed_anndata_sparse(adata, save_path):
     # sparse
-    adata = scvi.data.synthetic_iid()
     adata.X = csr_matrix(adata.X)
     path = os.path.join(save_path, "test_data2.h5ad")
     adata.write_h5ad(path)

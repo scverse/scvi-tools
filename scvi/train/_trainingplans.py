@@ -1,6 +1,12 @@
-from inspect import getfullargspec, signature
-from typing import Callable, Optional, Union
+from collections import OrderedDict
+from functools import partial
+from inspect import signature
+from typing import Callable, Dict, Iterable, Optional, Union
 
+import jax
+import jax.numpy as jnp
+import numpy as np
+import optax
 import pyro
 import pytorch_lightning as pl
 import torch
@@ -10,10 +16,20 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.module import Classifier
-from scvi.module.base import BaseModuleClass, LossRecorder, PyroBaseModuleClass
+from scvi.module.base import (
+    BaseModuleClass,
+    JaxBaseModuleClass,
+    LossOutput,
+    LossRecorder,
+    PyroBaseModuleClass,
+    TrainStateWithState,
+)
 from scvi.nn import one_hot
 
 from ._metrics import ElboMetric
+
+JaxOptimizerCreator = Callable[[], optax.GradientTransformation]
+TorchOptimizerCreator = Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
 
 
 def _compute_kl_weight(
@@ -21,19 +37,44 @@ def _compute_kl_weight(
     step: int,
     n_epochs_kl_warmup: Optional[int],
     n_steps_kl_warmup: Optional[int],
-    min_weight: Optional[float] = None,
+    max_kl_weight: float = 1.0,
+    min_kl_weight: float = 0.0,
 ) -> float:
-    epoch_criterion = n_epochs_kl_warmup is not None
-    step_criterion = n_steps_kl_warmup is not None
-    if epoch_criterion:
-        kl_weight = min(1.0, epoch / n_epochs_kl_warmup)
-    elif step_criterion:
-        kl_weight = min(1.0, step / n_steps_kl_warmup)
-    else:
-        kl_weight = 1.0
-    if min_weight is not None:
-        kl_weight = max(kl_weight, min_weight)
-    return kl_weight
+    """
+    Computes the kl weight for the current step or epoch.
+
+    If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None `max_kl_weight` is returned.
+
+    Parameters
+    ----------
+    epoch
+        Current epoch.
+    step
+        Current step.
+    n_epochs_kl_warmup
+        Number of training epochs to scale weight on KL divergences from
+        `min_kl_weight` to `max_kl_weight`
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from
+        `min_kl_weight` to `max_kl_weight`
+    max_kl_weight
+        Maximum scaling factor on KL divergence during training.
+    min_kl_weight
+        Minimum scaling factor on KL divergence during training.
+    """
+    if min_kl_weight > max_kl_weight:
+        raise ValueError(
+            f"min_kl_weight={min_kl_weight} is larger than max_kl_weight={max_kl_weight}."
+        )
+
+    slope = max_kl_weight - min_kl_weight
+    if n_epochs_kl_warmup:
+        if epoch < n_epochs_kl_warmup:
+            return slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
+    elif n_steps_kl_warmup:
+        if step < n_steps_kl_warmup:
+            return slope * (step / n_steps_kl_warmup) + min_kl_weight
+    return max_kl_weight
 
 
 class TrainingPlan(pl.LightningModule):
@@ -48,6 +89,7 @@ class TrainingPlan(pl.LightningModule):
     be used to optimize the model parameters in the Trainer. Overall, custom
     training plans can be used to develop complex inference schemes on top of
     modules.
+
     The following developer tutorial will familiarize you more with training plans
     and how to use them: :doc:`/tutorials/notebooks/model_user_guide`.
 
@@ -55,21 +97,26 @@ class TrainingPlan(pl.LightningModule):
     ----------
     module
         A module instance from class ``BaseModuleClass``.
-    lr
-
-        Learning rate used for optimization.
-    weight_decay
-        Weight decay used in optimizatoin.
-    eps
-        eps used for optimization.
     optimizer
-        One of "Adam" (:class:`~torch.optim.Adam`), "AdamW" (:class:`~torch.optim.AdamW`).
+        One of "Adam" (:class:`~torch.optim.Adam`), "AdamW" (:class:`~torch.optim.AdamW`),
+        or "Custom", which requires a custom optimizer creator callable to be passed via
+        `optimizer_creator`.
+    optimizer_creator
+        A callable taking in parameters and returning a :class:`~torch.optim.Optimizer`.
+        This allows using any PyTorch optimizer with custom hyperparameters.
+    lr
+        Learning rate used for optimization, when `optimizer_creator` is None.
+    weight_decay
+        Weight decay used in optimization, when `optimizer_creator` is None.
+    eps
+        eps used for optimization, when `optimizer_creator` is None.
     n_steps_kl_warmup
-        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
-        Only activated when `n_epochs_kl_warmup` is set to None.
+        Number of training steps (minibatches) to scale weight on KL divergences from
+        `min_kl_weight` to `max_kl_weight`. Only activated when `n_epochs_kl_warmup` is
+        set to None.
     n_epochs_kl_warmup
-        Number of epochs to scale weight on KL divergences from 0 to 1.
-        Overrides `n_steps_kl_warmup` when both are not `None`.
+        Number of epochs to scale weight on KL divergences from `min_kl_weight` to
+        `max_kl_weight`. Overrides `n_steps_kl_warmup` when both are not `None`.
     reduce_lr_on_plateau
         Whether to monitor validation loss and reduce learning rate when validation set
         `lr_scheduler_metric` plateaus.
@@ -82,7 +129,11 @@ class TrainingPlan(pl.LightningModule):
     lr_scheduler_metric
         Which metric to track for learning rate reduction.
     lr_min
-        Minimum learning rate allowed
+        Minimum learning rate allowed.
+    max_kl_weight
+        Maximum scaling factor on KL divergence during training.
+    min_kl_weight
+        Minimum scaling factor on KL divergence during training.
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -91,10 +142,12 @@ class TrainingPlan(pl.LightningModule):
     def __init__(
         self,
         module: BaseModuleClass,
+        *,
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
+        optimizer_creator: Optional[TorchOptimizerCreator] = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
-        optimizer: Literal["Adam", "AdamW"] = "Adam",
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -105,9 +158,11 @@ class TrainingPlan(pl.LightningModule):
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
         lr_min: float = 0,
+        max_kl_weight: float = 1.0,
+        min_kl_weight: float = 0.0,
         **loss_kwargs,
     ):
-        super(TrainingPlan, self).__init__()
+        super().__init__()
         self.module = module
         self.lr = lr
         self.weight_decay = weight_decay
@@ -122,26 +177,66 @@ class TrainingPlan(pl.LightningModule):
         self.lr_threshold = lr_threshold
         self.lr_min = lr_min
         self.loss_kwargs = loss_kwargs
+        self.min_kl_weight = min_kl_weight
+        self.max_kl_weight = max_kl_weight
+        self.optimizer_creator = optimizer_creator
+
+        if self.optimizer_name == "Custom" and self.optimizer_creator is None:
+            raise ValueError(
+                "If optimizer is 'Custom', `optimizer_creator` must be provided."
+            )
 
         self._n_obs_training = None
         self._n_obs_validation = None
 
         # automatic handling of kl weight
-        self._loss_args = getfullargspec(self.module.loss)[0]
+        self._loss_args = set(signature(self.module.loss).parameters.keys())
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
 
         self.initialize_train_metrics()
         self.initialize_val_metrics()
 
+    @staticmethod
+    def _create_elbo_metric_components(mode: str, n_total: Optional[int] = None):
+        """Initialize ELBO metric and the metric collection."""
+        rec_loss = ElboMetric("reconstruction_loss", mode, "obs")
+        kl_local = ElboMetric("kl_local", mode, "obs")
+        kl_global = ElboMetric("kl_global", mode, "obs")
+        # n_total can be 0 if there is no validation set, this won't ever be used
+        # in that case anyway
+        n = 1 if n_total is None or n_total < 1 else n_total
+        elbo = rec_loss + kl_local + (1 / n) * kl_global
+        elbo.name = f"elbo_{mode}"
+        collection = OrderedDict(
+            [(metric.name, metric) for metric in [elbo, rec_loss, kl_local, kl_global]]
+        )
+        return elbo, rec_loss, kl_local, kl_global, collection
+
     def initialize_train_metrics(self):
         """Initialize train related metrics."""
-        self.elbo_train = ElboMetric(self.n_obs_training, mode="train")
+        (
+            self.elbo_train,
+            self.rec_loss_train,
+            self.kl_local_train,
+            self.kl_global_train,
+            self.train_metrics,
+        ) = self._create_elbo_metric_components(
+            mode="train", n_total=self.n_obs_training
+        )
         self.elbo_train.reset()
 
     def initialize_val_metrics(self):
-        """Initialize train related metrics."""
-        self.elbo_val = ElboMetric(self.n_obs_validation, mode="validation")
+        """Initialize val related metrics."""
+        (
+            self.elbo_val,
+            self.rec_loss_val,
+            self.kl_local_val,
+            self.kl_global_val,
+            self.val_metrics,
+        ) = self._create_elbo_metric_components(
+            mode="validation", n_total=self.n_obs_validation
+        )
         self.elbo_val.reset()
 
     @property
@@ -183,14 +278,15 @@ class TrainingPlan(pl.LightningModule):
         self.initialize_val_metrics()
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the module's forward method."""
         return self.module(*args, **kwargs)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def compute_and_log_metrics(
         self,
-        loss_recorder: LossRecorder,
-        elbo_metric: ElboMetric,
+        loss_recorder: Union[LossRecorder, LossOutput],
+        metrics: Dict[str, ElboMetric],
+        mode: str,
     ):
         """
         Computes and logs metrics.
@@ -201,66 +297,45 @@ class TrainingPlan(pl.LightningModule):
             LossRecorder object from scvi-tools module
         metric_attr_name
             The name of the torch metric object to use
+        mode
+            Postfix string to add to the metric name of
+            extra metrics
         """
-        rec_loss = loss_recorder.reconstruction_loss
-        n_obs_minibatch = rec_loss.shape[0]
-        rec_loss = rec_loss.sum()
-        kl_local = loss_recorder.kl_local.sum()
-        kl_global = loss_recorder.kl_global
+        if isinstance(loss_recorder, LossRecorder):
+            loss_output = loss_recorder._loss_output
+        else:
+            loss_output = loss_recorder
+        rec_loss = loss_output.reconstruction_loss_sum
+        n_obs_minibatch = loss_output.n_obs_minibatch
+        kl_local = loss_output.kl_local_sum
+        kl_global = loss_output.kl_global_sum
 
-        # use the torchmetric object for the ELBO
-        elbo_metric(
-            rec_loss,
-            kl_local,
-            kl_global,
-            n_obs_minibatch,
+        # Use the torchmetric object for the ELBO
+        # We only need to update the ELBO metric
+        # As it's defined as a sum of the other metrics
+        metrics[f"elbo_{mode}"].update(
+            reconstruction_loss=rec_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
+            n_obs_minibatch=n_obs_minibatch,
         )
-        # e.g., train or val mode
-        mode = elbo_metric.mode
         # pytorch lightning handles everything with the torchmetric object
-        self.log(
-            f"elbo_{mode}",
-            elbo_metric,
-            on_step=False,
-            on_epoch=True,
-            batch_size=n_obs_minibatch,
-        )
-
-        # log elbo components
-        self.log(
-            f"reconstruction_loss_{mode}",
-            rec_loss / elbo_metric.n_obs_total,
-            reduce_fx=torch.sum,
-            on_step=False,
-            on_epoch=True,
-            batch_size=n_obs_minibatch,
-        )
-        self.log(
-            f"kl_local_{mode}",
-            kl_local / elbo_metric.n_obs_total,
-            reduce_fx=torch.sum,
-            on_step=False,
-            on_epoch=True,
-            batch_size=n_obs_minibatch,
-        )
-        # default aggregation is mean
-        self.log(
-            f"kl_global_{mode}",
-            kl_global,
+        self.log_dict(
+            metrics,
             on_step=False,
             on_epoch=True,
             batch_size=n_obs_minibatch,
         )
 
         # accumlate extra metrics passed to loss recorder
-        for extra_metric in loss_recorder.extra_metric_attrs:
-            met = getattr(loss_recorder, extra_metric)
+        for key in loss_output.extra_metrics_keys:
+            met = loss_output.extra_metrics[key]
             if isinstance(met, torch.Tensor):
                 if met.shape != torch.Size([]):
                     raise ValueError("Extra tracked metrics should be 0-d tensors.")
                 met = met.detach()
             self.log(
-                f"{extra_metric}_{mode}",
+                f"{key}_{mode}",
                 met,
                 on_step=False,
                 on_epoch=True,
@@ -268,32 +343,54 @@ class TrainingPlan(pl.LightningModule):
             )
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step for the model."""
         if "kl_weight" in self.loss_kwargs:
-            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+            kl_weight = self.kl_weight
+            self.loss_kwargs.update({"kl_weight": kl_weight})
+            self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
-        self.compute_and_log_metrics(scvi_loss, self.elbo_train)
+        self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
+        """Validation step for the model."""
         # loss kwargs here contains `n_obs` equal to n_training_obs
         # so when relevant, the actual loss value is rescaled to number
         # of training examples
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
-        self.compute_and_log_metrics(scvi_loss, self.elbo_val)
+        self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
-    def configure_optimizers(self):
-        params = filter(lambda p: p.requires_grad, self.module.parameters())
-        if self.optimizer_name == "Adam":
-            optim_cls = torch.optim.Adam
-        elif self.optimizer_name == "AdamW":
-            optim_cls = torch.optim.AdamW
-        else:
-            raise ValueError("Optimizer not understood.")
-        optimizer = optim_cls(
+    def _optimizer_creator(
+        self, optimizer_cls: Union[torch.optim.Adam, torch.optim.AdamW]
+    ):
+        """
+        Create optimizer for the model.
+
+        This type of function can be passed as the `optimizer_creator`
+        """
+        return lambda params: optimizer_cls(
             params, lr=self.lr, eps=self.eps, weight_decay=self.weight_decay
         )
+
+    def get_optimizer_creator(self):
+        """Get optimizer creator for the model."""
+        if self.optimizer_name == "Adam":
+            optim_creator = self._optimizer_creator(torch.optim.Adam)
+        elif self.optimizer_name == "AdamW":
+            optim_creator = self._optimizer_creator(torch.optim.AdamW)
+        elif self.optimizer_name == "Custom":
+            optim_creator = self._optimizer_creator
+        else:
+            raise ValueError("Optimizer not understood.")
+
+        return optim_creator
+
+    def configure_optimizers(self):
+        """Configure optimizers for the model."""
+        params = filter(lambda p: p.requires_grad, self.module.parameters())
+        optimizer = self.get_optimizer_creator()(params)
         config = {"optimizer": optimizer}
         if self.reduce_lr_on_plateau:
             scheduler = ReduceLROnPlateau(
@@ -321,6 +418,8 @@ class TrainingPlan(pl.LightningModule):
             self.global_step,
             self.n_epochs_kl_warmup,
             self.n_steps_kl_warmup,
+            self.max_kl_weight,
+            self.min_kl_weight,
         )
 
 
@@ -332,10 +431,19 @@ class AdversarialTrainingPlan(TrainingPlan):
     ----------
     module
         A module instance from class ``BaseModuleClass``.
+    optimizer
+        One of "Adam" (:class:`~torch.optim.Adam`), "AdamW" (:class:`~torch.optim.AdamW`),
+        or "Custom", which requires a custom optimizer creator callable to be passed via
+        `optimizer_creator`.
+    optimizer_creator
+        A callable taking in parameters and returning a :class:`~torch.optim.Optimizer`.
+        This allows using any PyTorch optimizer with custom hyperparameters.
     lr
-        Learning rate used for optimization :class:`~torch.optim.Adam`.
+        Learning rate used for optimization, when `optimizer_creator` is None.
     weight_decay
-        Weight decay used in :class:`~torch.optim.Adam`.
+        Weight decay used in optimization, when `optimizer_creator` is None.
+    eps
+        eps used for optimization, when `optimizer_creator` is None.
     n_steps_kl_warmup
         Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
         Only activated when `n_epochs_kl_warmup` is set to None.
@@ -369,8 +477,11 @@ class AdversarialTrainingPlan(TrainingPlan):
     def __init__(
         self,
         module: BaseModuleClass,
-        lr=1e-3,
-        weight_decay=1e-6,
+        *,
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
+        optimizer_creator: Optional[TorchOptimizerCreator] = None,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -387,6 +498,8 @@ class AdversarialTrainingPlan(TrainingPlan):
     ):
         super().__init__(
             module=module,
+            optimizer=optimizer,
+            optimizer_creator=optimizer_creator,
             lr=lr,
             weight_decay=weight_decay,
             n_steps_kl_warmup=n_steps_kl_warmup,
@@ -397,6 +510,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
             lr_min=lr_min,
+            **loss_kwargs,
         )
         if adversarial_classifier is True:
             self.n_output_classifier = self.module.n_batch
@@ -412,6 +526,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         self.scale_adversarial_loss = scale_adversarial_loss
 
     def loss_adversarial_classifier(self, z, batch_index, predict_true_class=True):
+        """Loss for adversarial classifier."""
         n_classes = self.n_output_classifier
         cls_logits = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
 
@@ -431,6 +546,9 @@ class AdversarialTrainingPlan(TrainingPlan):
         return loss
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step for adversarial training."""
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
         kappa = (
             1 - self.kl_weight
             if self.scale_adversarial_loss == "auto"
@@ -438,9 +556,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         )
         batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
         if optimizer_idx == 0:
-            loss_kwargs = dict(kl_weight=self.kl_weight)
             inference_outputs, _, scvi_loss = self.forward(
-                batch, loss_kwargs=loss_kwargs
+                batch, loss_kwargs=self.loss_kwargs
             )
             loss = scvi_loss.loss
             # fool classifier if doing adversarial training
@@ -450,7 +567,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 loss += fool_loss * kappa
 
             self.log("train_loss", loss, on_epoch=True)
-            self.compute_and_log_metrics(scvi_loss, self.elbo_train)
+            self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
             return loss
 
         # train adversarial classifier
@@ -465,10 +582,9 @@ class AdversarialTrainingPlan(TrainingPlan):
             return loss
 
     def configure_optimizers(self):
+        """Configure optimizers for adversarial training."""
         params1 = filter(lambda p: p.requires_grad, self.module.parameters())
-        optimizer1 = torch.optim.Adam(
-            params1, lr=self.lr, eps=0.01, weight_decay=self.weight_decay
-        )
+        optimizer1 = self.get_optimizer_creator()(params1)
         config1 = {"optimizer": optimizer1}
         if self.reduce_lr_on_plateau:
             scheduler1 = ReduceLROnPlateau(
@@ -547,9 +663,10 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def __init__(
         self,
         module: BaseModuleClass,
+        *,
         classification_ratio: int = 50,
-        lr=1e-3,
-        weight_decay=1e-6,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 400,
         reduce_lr_on_plateau: bool = False,
@@ -561,7 +678,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         ] = "elbo_validation",
         **loss_kwargs,
     ):
-        super(SemiSupervisedTrainingPlan, self).__init__(
+        super().__init__(
             module=module,
             lr=lr,
             weight_decay=weight_decay,
@@ -577,6 +694,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step for semi-supervised training."""
         # Potentially dangerous if batch is from a single dataloader with two keys
         if len(batch) == 2:
             full_dataset = batch[0]
@@ -592,18 +710,19 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             labelled_tensors=labelled_dataset,
         )
         input_kwargs.update(self.loss_kwargs)
-        _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
-        loss = scvi_losses.loss
+        _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
+        loss = loss_output.loss
         self.log(
             "train_loss",
             loss,
             on_epoch=True,
-            batch_size=len(scvi_losses.reconstruction_loss),
+            batch_size=loss_output.n_obs_minibatch,
         )
-        self.compute_and_log_metrics(scvi_losses, self.elbo_train)
+        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
         return loss
 
     def validation_step(self, batch, batch_idx, optimizer_idx=0):
+        """Validation step for semi-supervised training."""
         # Potentially dangerous if batch is from a single dataloader with two keys
         if len(batch) == 2:
             full_dataset = batch[0]
@@ -617,15 +736,15 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             labelled_tensors=labelled_dataset,
         )
         input_kwargs.update(self.loss_kwargs)
-        _, _, scvi_losses = self.forward(full_dataset, loss_kwargs=input_kwargs)
-        loss = scvi_losses.loss
+        _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
+        loss = loss_output.loss
         self.log(
             "validation_loss",
             loss,
             on_epoch=True,
-            batch_size=len(scvi_losses.reconstruction_loss),
+            batch_size=loss_output.n_obs_minibatch,
         )
-        self.compute_and_log_metrics(scvi_losses, self.elbo_val)
+        self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
 
 class PyroTrainingPlan(pl.LightningModule):
@@ -706,6 +825,8 @@ class PyroTrainingPlan(pl.LightningModule):
             loss=self.loss_fn,
         )
 
+        self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
+
     @property
     def n_obs_training(self):
         """
@@ -721,17 +842,18 @@ class PyroTrainingPlan(pl.LightningModule):
         # important for scaling log prob in Pyro plates
         if n_obs is not None:
             if hasattr(self.module.model, "n_obs"):
-                setattr(self.module.model, "n_obs", n_obs)
+                self.module.model.n_obs = n_obs
             if hasattr(self.module.guide, "n_obs"):
-                setattr(self.module.guide, "n_obs", n_obs)
+                self.module.guide.n_obs = n_obs
 
         self._n_obs_training = n_obs
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the model's forward method."""
         return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
+        """Training step for Pyro training."""
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         # Set KL weight if necessary.
         # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
@@ -740,9 +862,13 @@ class PyroTrainingPlan(pl.LightningModule):
         # pytorch lightning requires a Tensor object for loss
         loss = torch.Tensor([self.svi.step(*args, **kwargs)])
 
+        _opt = self.optimizers()
+        _opt.step()
+
         return {"loss": loss}
 
     def training_epoch_end(self, outputs):
+        """Training epoch end for Pyro training."""
         elbo = 0
         n = 0
         for out in outputs:
@@ -752,12 +878,22 @@ class PyroTrainingPlan(pl.LightningModule):
         self.log("elbo_train", elbo, prog_bar=True)
 
     def configure_optimizers(self):
-        return None
+        """
+        Shim optimizer for PyTorch Lightning.
 
-    def optimizer_step(self, *args, **kwargs):
+        PyTorch Lightning wants to take steps on an optimizer
+        returned by this function in order to increment the global
+        step count. See PyTorch Lighinting optimizer manual loop.
+
+        Here we provide a shim optimizer that we can take steps on
+        at minimal computational cost in order to keep Lightning happy :).
+        """
+        return torch.optim.Adam([self._dummy_param])
+
+    def optimizer_step(self, *args, **kwargs):  # noqa: D102
         pass
 
-    def backward(self, *args, **kwargs):
+    def backward(self, *args, **kwargs):  # noqa: D102
         pass
 
     @property
@@ -768,7 +904,7 @@ class PyroTrainingPlan(pl.LightningModule):
             self.global_step,
             self.n_epochs_kl_warmup,
             self.n_steps_kl_warmup,
-            min_weight=1e-3,
+            min_kl_weight=1e-3,
         )
 
 
@@ -783,7 +919,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
     lr
         Learning rate used for optimization.
     weight_decay
-        Weight decay used in optimizatoin.
+        Weight decay used in optimization.
     eps
         eps used for optimization.
     optimizer
@@ -799,6 +935,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
     def __init__(
         self,
         classifier: BaseModuleClass,
+        *,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
@@ -823,17 +960,18 @@ class ClassifierTrainingPlan(pl.LightningModule):
             )
 
     def forward(self, *args, **kwargs):
-        """Passthrough to `model.forward()`."""
+        """Passthrough to the module's forward function."""
         return self.module(*args, **kwargs)
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
-
+        """Training step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
         self.log("train_loss", loss, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
+        """Validation step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
         self.log("validation_loss", loss)
@@ -841,6 +979,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
+        """Configure optimizers for classifier training."""
         params = filter(lambda p: p.requires_grad, self.module.parameters())
         if self.optimizer_name == "Adam":
             optim_cls = torch.optim.Adam
@@ -853,3 +992,220 @@ class ClassifierTrainingPlan(pl.LightningModule):
         )
 
         return optimizer
+
+
+class JaxTrainingPlan(TrainingPlan):
+    """
+    Lightning module task to train Pyro scvi-tools modules.
+
+    Parameters
+    ----------
+    module
+        An instance of :class:`~scvi.module.base.JaxModuleWraper`.
+    optimizer
+        One of "Adam", "AdamW", or "Custom", which requires a custom
+        optimizer creator callable to be passed via `optimizer_creator`.
+    optimizer_creator
+        A callable returning a :class:`~optax.GradientTransformation`.
+        This allows using any optax optimizer with custom hyperparameters.
+    lr
+        Learning rate used for optimization, when `optimizer_creator` is None.
+    weight_decay
+        Weight decay used in optimization, when `optimizer_creator` is None.
+    eps
+        eps used for optimization, when `optimizer_creator` is None.
+    max_norm
+        Max global norm of gradients for gradient clipping.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from
+        `min_kl_weight` to `max_kl_weight`. Only activated when `n_epochs_kl_warmup` is
+        set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from `min_kl_weight` to
+        `max_kl_weight`. Overrides `n_steps_kl_warmup` when both are not `None`.
+    """
+
+    def __init__(
+        self,
+        module: JaxBaseModuleClass,
+        *,
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
+        optimizer_creator: Optional[JaxOptimizerCreator] = None,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        eps: float = 0.01,
+        max_norm: Optional[float] = None,
+        n_steps_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = 400,
+        **loss_kwargs,
+    ):
+        super().__init__(
+            module=module,
+            lr=lr,
+            weight_decay=weight_decay,
+            eps=eps,
+            optimizer=optimizer,
+            optimizer_creator=optimizer_creator,
+            n_steps_kl_warmup=n_steps_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            **loss_kwargs,
+        )
+        self.max_norm = max_norm
+        self.automatic_optimization = False
+        self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
+
+    def get_optimizer_creator(self) -> JaxOptimizerCreator:
+        """Get optimizer creator for the model."""
+        clip_by = (
+            optax.clip_by_global_norm(self.max_norm)
+            if self.max_norm
+            else optax.identity()
+        )
+        if self.optimizer_name == "Adam":
+            # Replicates PyTorch Adam defaults
+            optim = optax.chain(
+                clip_by,
+                optax.additive_weight_decay(weight_decay=self.weight_decay),
+                optax.adam(self.lr, eps=self.eps),
+            )
+        elif self.optimizer_name == "AdamW":
+            optim = optax.chain(
+                clip_by,
+                optax.clip_by_global_norm(self.max_norm),
+                optax.adamw(self.lr, eps=self.eps, weight_decay=self.weight_decay),
+            )
+        elif self.optimizer_name == "Custom":
+            optim = self._optimizer_creator
+        else:
+            raise ValueError("Optimizer not understood.")
+
+        return lambda: optim
+
+    def set_train_state(self, params, state=None):
+        """Set the state of the module."""
+        if self.module.train_state is not None:
+            return
+        optimizer = self.get_optimizer_creator()()
+        train_state = TrainStateWithState.create(
+            apply_fn=self.module.apply,
+            params=params,
+            tx=optimizer,
+            state=state,
+        )
+        self.module.train_state = train_state
+
+    @staticmethod
+    @jax.jit
+    def jit_training_step(
+        state: TrainStateWithState,
+        batch: Dict[str, np.ndarray],
+        rngs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        """Jit training step."""
+        # state can't be passed here
+        def loss_fn(params):
+            vars_in = {"params": params, **state.state}
+            outputs, new_model_state = state.apply_fn(
+                vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs
+            )
+            loss_output = outputs[2]
+            loss = loss_output.loss
+            return loss, (loss_output, new_model_state)
+
+        (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(
+            loss_fn, has_aux=True
+        )(state.params)
+        new_state = state.apply_gradients(grads=grads, state=new_model_state)
+        return new_state, loss, loss_output
+
+    def training_step(self, batch, batch_idx):
+        """Training step for Jax."""
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        self.module.train()
+        self.module.train_state, _, loss_output = self.jit_training_step(
+            self.module.train_state,
+            batch,
+            self.module.rngs,
+            loss_kwargs=self.loss_kwargs,
+        )
+        loss_output = jax.tree_util.tree_map(
+            lambda x: torch.tensor(jax.device_get(x)),
+            loss_output,
+        )
+        # TODO: Better way to get batch size
+        self.log(
+            "train_loss",
+            loss_output.loss,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+            prog_bar=True,
+        )
+        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+        # Update the dummy optimizer to update the global step
+        _opt = self.optimizers()
+        _opt.step()
+
+    @partial(jax.jit, static_argnums=(0,))
+    def jit_validation_step(
+        self,
+        state: TrainStateWithState,
+        batch: Dict[str, np.ndarray],
+        rngs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        """Jit validation step."""
+        vars_in = {"params": state.params, **state.state}
+        outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
+        loss_output = outputs[2]
+
+        return loss_output
+
+    def validation_step(self, batch, batch_idx):
+        """Validation step for Jax."""
+        self.module.eval()
+        loss_output = self.jit_validation_step(
+            self.module.train_state,
+            batch,
+            self.module.rngs,
+            loss_kwargs=self.loss_kwargs,
+        )
+        loss_output = jax.tree_util.tree_map(
+            lambda x: torch.tensor(jax.device_get(x)),
+            loss_output,
+        )
+        self.log(
+            "validation_loss",
+            loss_output.loss,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
+        self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
+
+    @staticmethod
+    def transfer_batch_to_device(batch, device, dataloader_idx):
+        """Bypass Pytorch Lightning device management."""
+        return batch
+
+    def configure_optimizers(self):
+        """
+        Shim optimizer for PyTorch Lightning.
+
+        PyTorch Lightning wants to take steps on an optimizer
+        returned by this function in order to increment the global
+        step count. See PyTorch Lighinting optimizer manual loop.
+
+        Here we provide a shim optimizer that we can take steps on
+        at minimal computational cost in order to keep Lightning happy :).
+        """
+        return torch.optim.Adam([self._dummy_param])
+
+    def optimizer_step(self, *args, **kwargs):  # noqa: D102
+        pass
+
+    def backward(self, *args, **kwargs):  # noqa: D102
+        pass
+
+    def forward(self, *args, **kwargs):  # noqa: D102
+        pass

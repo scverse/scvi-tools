@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) [Lopez21]_.. Most users will use the alternate constructor (see example).
+    Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez21`. Most users will use the alternate constructor (see example).
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         l1_reg: float,
         **module_kwargs,
     ):
-        super(DestVI, self).__init__(st_adata)
+        super().__init__(st_adata)
         self.module = MRDeconv(
             n_spots=st_adata.n_obs,
             n_labels=cell_type_mapping.shape[0],

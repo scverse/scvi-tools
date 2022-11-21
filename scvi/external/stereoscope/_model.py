@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
 
@@ -43,7 +43,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         sc_adata: AnnData,
         **model_kwargs,
     ):
-        super(RNAStereoscope, self).__init__(sc_adata)
+        super().__init__(sc_adata)
         self.n_genes = self.summary_stats.n_vars
         self.n_labels = self.summary_stats.n_labels
         # first we have the scRNA-seq model
@@ -144,7 +144,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
 
 class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
 

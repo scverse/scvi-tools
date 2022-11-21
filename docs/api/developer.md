@@ -25,6 +25,7 @@ for operating over a collection of AnnDataFields and an AnnData object.
    :nosignatures:
 
    data.AnnDataManager
+   data.AnnDataManagerValidationCheck
    data.fields.BaseAnnDataField
    data.fields.LayerField
    data.fields.CategoricalObsField
@@ -32,7 +33,17 @@ for operating over a collection of AnnDataFields and an AnnData object.
    data.fields.CategoricalJointObsField
    data.fields.ObsmField
    data.fields.ProteinObsmField
+   data.fields.StringUnsField
    data.fields.LabelsWithUnlabeledObsField
+   data.fields.BaseMuDataWrapperClass
+   data.fields.MuDataWrapper
+   data.fields.MuDataLayerField
+   data.fields.MuDataProteinLayerField
+   data.fields.MuDataNumericalObsField
+   data.fields.MuDataCategoricalObsField
+   data.fields.MuDataObsmField
+   data.fields.MuDataNumericalJointObsField
+   data.fields.MuDataCategoricalJointObsField
 
 ```
 
@@ -92,6 +103,7 @@ These classes should be used to construct user-facing model classes.
     :nosignatures:
 
     model.base.BaseModelClass
+    model.base.BaseLatentModeModelClass
     model.base.VAEMixin
     model.base.RNASeqMixin
     model.base.ArchesMixin
@@ -127,6 +139,7 @@ Existing module classes with respective generative and inference procedures.
    module.VAE
    module.VAEC
    module.AmortizedLDAPyroModule
+   module.JaxVAE
 
 ```
 
@@ -148,6 +161,7 @@ Module classes in the external API with respective generative and inference proc
    external.cellassign.CellAssignModule
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
+   external.tangram.TangramMapper
 
 ```
 
@@ -166,8 +180,11 @@ These classes should be used to construct module classes that define generative 
    :nosignatures:
 
    module.base.BaseModuleClass
+   module.base.BaseLatentModeModuleClass
    module.base.PyroBaseModuleClass
+   module.base.JaxBaseModuleClass
    module.base.LossRecorder
+   module.base.LossOutput
    module.base.auto_move_data
 
 ```
@@ -209,14 +226,33 @@ TrainingPlans define train/test/val optimization steps for modules.
    :nosignatures:
 
    train.AdversarialTrainingPlan
-   train.PyroTrainingPlan
    train.SemiSupervisedTrainingPlan
+   train.PyroTrainingPlan
+   train.JaxTrainingPlan
    train.Trainer
    train.TrainingPlan
    train.TrainRunner
    train.SaveBestState
    train.LoudEarlyStopping
 
+```
+
+## Model hyperparameter autotuning
+
+`scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune]. These
+classes allow for new model classes to be easily integrated with the module.
+
+```{eval-rst}
+.. currentmodule:: scvi
+```
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   autotune.TunerManager
+   autotune.Tunable
 ```
 
 ## Utilities
@@ -236,3 +272,5 @@ Utility functions used by scvi-tools.
    utils.setup_anndata_dsp
    utils.attrdict
 ```
+
+[ray tune]: https://docs.ray.io/en/latest/tune/index.html

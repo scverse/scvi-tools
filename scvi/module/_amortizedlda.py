@@ -3,9 +3,9 @@ from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
 
 import pyro
 import pyro.distributions as dist
-import pyro.poutine as poutine
 import torch
 import torch.nn.functional as F
+from pyro import poutine
 from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 
@@ -17,7 +17,10 @@ _AMORTIZED_LDA_PYRO_MODULE_NAME = "amortized_lda"
 
 
 class CategoricalBoW(dist.Multinomial):
+    """Categorical BoW."""
+
     def log_prob(self, value):
+        """Log probability."""
         if self._validate_args:
             self._validate_sample(value)
         logits, value = dist.util.broadcast_all(self.logits, value)
@@ -110,6 +113,7 @@ class AmortizedLDAPyroModel(PyroModule):
         n_obs: Optional[int] = None,
         kl_weight: float = 1.0,
     ):
+        """Forward pass."""
         # Topic feature distributions.
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             log_topic_feature_dist = pyro.sample(
@@ -162,7 +166,7 @@ class AmortizedLDAPyroGuide(PyroModule):
         # Populated by PyroTrainingPlan.
         self.n_obs = None
 
-        self.encoder = Encoder(n_input, n_topics, distribution="ln")
+        self.encoder = Encoder(n_input, n_topics, distribution="ln", return_dist=True)
         (
             topic_feature_posterior_mu,
             topic_feature_posterior_sigma,
@@ -175,7 +179,7 @@ class AmortizedLDAPyroGuide(PyroModule):
         )
 
     @property
-    def topic_feature_posterior_sigma(self):
+    def topic_feature_posterior_sigma(self):  # noqa: D102
         return F.softplus(self.unconstrained_topic_feature_posterior_sigma)
 
     @auto_move_data
@@ -186,6 +190,7 @@ class AmortizedLDAPyroGuide(PyroModule):
         n_obs: Optional[int] = None,
         kl_weight: float = 1.0,
     ):
+        """Forward pass."""
         # Topic feature distributions.
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             pyro.sample(
@@ -200,7 +205,9 @@ class AmortizedLDAPyroGuide(PyroModule):
         with pyro.plate(
             "cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]
         ), poutine.scale(None, kl_weight):
-            cell_topic_posterior_mu, cell_topic_posterior_sigma, _ = self.encoder(x)
+            cell_topic_posterior, _ = self.encoder(x)
+            cell_topic_posterior_mu = cell_topic_posterior.loc
+            cell_topic_posterior_sigma = cell_topic_posterior.scale**2
             pyro.sample(
                 "log_cell_topic_dist",
                 dist.Normal(
@@ -211,7 +218,7 @@ class AmortizedLDAPyroGuide(PyroModule):
 
 class AmortizedLDAPyroModule(PyroBaseModuleClass):
     """
-    An amortized implementation of Latent Dirichlet Allocation [Blei03]_ implemented in Pyro.
+    An amortized implementation of Latent Dirichlet Allocation :cite:p:`Blei03` implemented in Pyro.
 
     This module uses auto encoding variational Bayes to optimize the latent variables in the model.
     In particular, a fully-connected neural network is used as an encoder, which takes in feature counts
@@ -273,11 +280,11 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 
     @property
-    def model(self):
+    def model(self):  # noqa: D102
         return self._model
 
     @property
-    def guide(self):
+    def guide(self):  # noqa: D102
         return self._guide
 
     def topic_by_feature(self, n_samples: int) -> torch.Tensor:
@@ -311,7 +318,7 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         )
 
     @auto_move_data
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_topic_distribution(self, x: torch.Tensor, n_samples: int) -> torch.Tensor:
         """
         Converts `x` to its inferred topic distribution.
@@ -327,12 +334,9 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         -------
         A `x.shape[0] x n_topics` tensor containing the normalized topic distribution.
         """
-        (
-            cell_topic_dist_mu,
-            cell_topic_dist_sigma,
-            _,
-        ) = self.guide.encoder(x)
-        cell_topic_dist_mu = cell_topic_dist_mu.detach().cpu()
+        cell_topic_dist, _ = self.guide.encoder(x)
+        cell_topic_dist_mu = cell_topic_dist.loc.detach().cpu()
+        cell_topic_dist_sigma = 2.0 * cell_topic_dist.scale.log()
         cell_topic_dist_sigma = F.softplus(cell_topic_dist_sigma.detach().cpu())
         return torch.mean(
             F.softmax(
@@ -345,7 +349,7 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         )
 
     @auto_move_data
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_elbo(self, x: torch.Tensor, library: torch.Tensor, n_obs: int) -> float:
         """
         Computes ELBO.

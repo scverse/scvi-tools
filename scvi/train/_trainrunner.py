@@ -60,12 +60,20 @@ class TrainRunner:
         self.training_plan = training_plan
         self.data_splitter = data_splitter
         self.model = model
-        gpus, device = parse_use_gpu_arg(use_gpu)
-        self.gpus = gpus
+        accelerator, lightning_devices, device = parse_use_gpu_arg(use_gpu)
+        self.accelerator = accelerator
+        self.lightning_devices = lightning_devices
         self.device = device
-        self.trainer = Trainer(max_epochs=max_epochs, gpus=gpus, **trainer_kwargs)
+        self.trainer = Trainer(
+            max_epochs=max_epochs,
+            accelerator=accelerator,
+            devices=lightning_devices,
+            gpus=None,
+            **trainer_kwargs,
+        )
 
     def __call__(self):
+        """Run training."""
         if hasattr(self.data_splitter, "n_train"):
             self.training_plan.n_obs_training = self.data_splitter.n_train
         if hasattr(self.data_splitter, "n_val"):

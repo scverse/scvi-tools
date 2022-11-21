@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Linearly-decoded VAE [Svensson20]_.
+    Linearly-decoded VAE :cite:p:`Svensson20`.
 
     Parameters
     ----------
@@ -82,7 +82,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super(LinearSCVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
         library_log_means, library_log_vars = _init_library_size(
@@ -125,7 +125,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         Shape is genes by `n_latent`.
 
         """
-        cols = ["Z_{}".format(i) for i in range(self.n_latent)]
+        cols = [f"Z_{i}" for i in range(self.n_latent)]
         var_names = self.adata.var_names
         loadings = pd.DataFrame(
             self.module.get_loadings(), index=var_names, columns=cols

@@ -123,7 +123,6 @@ def registry_from_setup_dict(
         field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
 
         if attr_name in (_constants._ADATA_ATTRS.X, _constants._ADATA_ATTRS.LAYERS):
-            field_state_registry[LayerField.N_CELLS_KEY] = summary_stats["n_cells"]
             field_state_registry[LayerField.N_VARS_KEY] = summary_stats["n_vars"]
             field_summary_stats.update(field_state_registry)
         elif attr_name == _constants._ADATA_ATTRS.OBS:

@@ -7,11 +7,12 @@ from torch.distributions import Normal
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import FCLayers
 
 
 def identity(x):
+    """Identity function."""
     return x
 
 
@@ -183,6 +184,7 @@ class MRDeconv(BaseModuleClass):
 
     @auto_move_data
     def inference(self):
+        """Run the inference model."""
         return {}
 
     @auto_move_data
@@ -217,7 +219,7 @@ class MRDeconv(BaseModuleClass):
             (-1, self.n_latent)
         )  # minibatch_size * n_labels, n_latent
         enum_label = (
-            torch.arange(0, self.n_labels).repeat((m)).view((-1, 1))
+            torch.arange(0, self.n_labels).repeat(m).view((-1, 1))
         )  # minibatch_size * n_labels, 1
         h = self.decoder(gamma_reshape, enum_label.to(x.device))
         px_rate = self.px_decoder(h).reshape(
@@ -249,6 +251,7 @@ class MRDeconv(BaseModuleClass):
         kl_weight: float = 1.0,
         n_obs: int = 1.0,
     ):
+        """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
@@ -306,20 +309,24 @@ class MRDeconv(BaseModuleClass):
             + glo_neg_log_likelihood_prior
         )
 
-        return LossRecorder(
-            loss, reconst_loss, neg_log_likelihood_prior, glo_neg_log_likelihood_prior
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_local=neg_log_likelihood_prior,
+            kl_global=glo_neg_log_likelihood_prior,
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the posterior."""
         raise NotImplementedError("No sampling method for DestVI")
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @auto_move_data
     def get_proportions(self, x=None, keep_noise=False) -> np.ndarray:
         """Returns the loadings."""
@@ -338,7 +345,7 @@ class MRDeconv(BaseModuleClass):
         res = res / res.sum(axis=1).reshape(-1, 1)
         return res
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @auto_move_data
     def get_gamma(self, x: torch.Tensor = None) -> torch.Tensor:
         """
@@ -359,7 +366,7 @@ class MRDeconv(BaseModuleClass):
         else:
             return self.gamma.cpu().numpy()  # (n_latent, n_labels, n_spots)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     @auto_move_data
     def get_ct_specific_expression(
         self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None

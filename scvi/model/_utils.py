@@ -31,29 +31,50 @@ def parse_use_gpu_arg(
         or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
     return_device
         If True, will return the torch.device of use_gpu.
+
+    Returns
+    -------
+    Arguments for lightning trainer, including the accelerator (str), devices
+    (int or sequence of int), and optionally the torch device.
     """
-    gpu_available = torch.cuda.is_available()
+    # Support Apple silicon
+    cuda_available = torch.cuda.is_available()
+    # If using an older version of torch.
+    try:
+        mps_available = torch.backends.mps.is_available()
+    except AttributeError:
+        mps_available = False
+    gpu_available = cuda_available
+    lightning_devices = None
     if (use_gpu is None and not gpu_available) or (use_gpu is False):
-        gpus = 0
+        accelerator = "cpu"
         device = torch.device("cpu")
     elif (use_gpu is None and gpu_available) or (use_gpu is True):
-        current = torch.cuda.current_device()
+        current = torch.cuda.current_device() if cuda_available else "mps"
+        if current != "mps":
+            lightning_devices = [current]
+            accelerator = "gpu"
+        else:
+            accelerator = "mps"
+            lightning_devices = 1
         device = torch.device(current)
-        gpus = [current]
+    # Also captures bool case
     elif isinstance(use_gpu, int):
-        device = torch.device(use_gpu)
-        gpus = [use_gpu]
+        device = torch.device(use_gpu) if not mps_available else torch.device("mps")
+        accelerator = "gpu" if not mps_available else "mps"
+        lightning_devices = [use_gpu] if not mps_available else 1
     elif isinstance(use_gpu, str):
         device = torch.device(use_gpu)
+        accelerator = "gpu"
         # changes "cuda:0" to "0,"
-        gpus = use_gpu.split(":")[-1] + ","
+        lightning_devices = [int(use_gpu.split(":")[-1])]
     else:
         raise ValueError("use_gpu argument not understood.")
 
     if return_device:
-        return gpus, device
+        return accelerator, lightning_devices, device
     else:
-        return gpus
+        return accelerator, lightning_devices
 
 
 def scrna_raw_counts_properties(
@@ -219,7 +240,7 @@ def _get_batch_code_from_category(
         if cat is None:
             batch_code.append(None)
         elif cat not in batch_mappings:
-            raise ValueError('"{}" not a valid batch category.'.format(cat))
+            raise ValueError(f'"{cat}" not a valid batch category.')
         else:
             batch_loc = np.where(batch_mappings == cat)[0][0]
             batch_code.append(batch_loc)
@@ -273,3 +294,9 @@ def _init_library_size(
         library_log_vars[i_batch] = np.var(log_counts).astype(np.float32)
 
     return library_log_means.reshape(1, -1), library_log_vars.reshape(1, -1)
+
+
+def _get_var_names_from_manager(
+    adata_manager: AnnDataManager, registry_key: str = REGISTRY_KEYS.X_KEY
+) -> np.ndarray:
+    return np.asarray(adata_manager.get_state_registry(registry_key).column_names)

@@ -5,12 +5,15 @@ import warnings
 from collections.abc import Iterable as IterableClass
 from typing import List, Optional, Tuple, Union
 
+import anndata
+import mudata
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData, read
 
 from scvi._compat import Literal
+from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
 from scvi.utils import track
 
@@ -76,10 +79,15 @@ def _load_saved_files(
     attr_dict = model["attr_dict"]
 
     if load_adata:
-        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
+        is_mudata = attr_dict["registry_"].get(_SETUP_METHOD_NAME) == "setup_mudata"
+        file_suffix = "adata.h5ad" if is_mudata is False else "mdata.h5mu"
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
         if os.path.exists(adata_path):
-            adata = read(adata_path)
-        elif not os.path.exists(adata_path):
+            if is_mudata:
+                adata = mudata.read(adata_path)
+            else:
+                adata = anndata.read(adata_path)
+        else:
             raise ValueError(
                 "Save path contains no saved anndata and no adata was passed."
             )
@@ -96,19 +104,19 @@ def _initialize_model(cls, adata, attr_dict):
             "No init_params_ were saved by the model. Check out the "
             "developers guide if creating custom models."
         )
-    # get the parameters for the class init signiture
+    # get the parameters for the class init signature
     init_params = attr_dict.pop("init_params_")
 
     # new saving and loading, enable backwards compatibility
     if "non_kwargs" in init_params.keys():
-        # grab all the parameters execept for kwargs (is a dict)
+        # grab all the parameters except for kwargs (is a dict)
         non_kwargs = init_params["non_kwargs"]
         kwargs = init_params["kwargs"]
 
         # expand out kwargs
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
     else:
-        # grab all the parameters execept for kwargs (is a dict)
+        # grab all the parameters except for kwargs (is a dict)
         non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
         kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
@@ -141,7 +149,7 @@ def _validate_var_names(adata, source_var_names):
 def _prepare_obs(
     idx1: Union[List[bool], np.ndarray, str],
     idx2: Union[List[bool], np.ndarray, str],
-    adata: AnnData,
+    adata: anndata.AnnData,
 ):
     """
     Construct an array used for masking.
@@ -258,12 +266,10 @@ def _de_core(
         sort_key = "proba_de" if mode == "change" else "bayes_factor"
         res = res.sort_values(by=sort_key, ascending=False)
         if mode == "change":
-            res["is_de_fdr_{}".format(fdr)] = _fdr_de_prediction(
-                res["proba_de"], fdr=fdr
-            )
+            res[f"is_de_fdr_{fdr}"] = _fdr_de_prediction(res["proba_de"], fdr=fdr)
         if idx1 is None:
             g2 = "Rest" if group2 is None else group2
-            res["comparison"] = "{} vs {}".format(g1, g2)
+            res["comparison"] = f"{g1} vs {g2}"
             res["group1"] = g1
             res["group2"] = g2
         df_results.append(res)

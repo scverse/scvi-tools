@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data [Lopez21]_.
+    Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez21`.
 
     Parameters
     ----------
@@ -62,7 +62,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         dropout_rate: float = 0.05,
         **module_kwargs,
     ):
-        super(CondSCVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_labels = self.summary_stats.n_labels
         n_vars = self.summary_stats.n_vars
@@ -91,7 +91,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         ).format(n_hidden, n_latent, n_layers, dropout_rate, weight_obs)
         self.init_params_ = self._get_init_params(locals())
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_vamp_prior(
         self, adata: Optional[AnnData] = None, p: int = 10
     ) -> np.ndarray:
@@ -139,7 +139,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             x = tensors[REGISTRY_KEYS.X_KEY]
             y = tensors[REGISTRY_KEYS.LABELS_KEY]
             out = self.module.inference(x, y)
-            mean_, var_ = out["qz_m"], out["qz_v"]
+            mean_, var_ = out["qz"].loc, (out["qz"].scale ** 2)
             mean += [mean_.cpu()]
             var += [var_.cpu()]
 

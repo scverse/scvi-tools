@@ -22,7 +22,7 @@ class DifferentialComputation:
 
     This class takes a function from a model like `SCVI` or `TOTALVI` and takes outputs
     from this function with respect to the adata input and computed Bayes factors as
-    described in [Lopez18]_, [Xu21]_, or [Boyeau19]_.
+    described in :cite:p:`Lopez18`, :cite:p:`Xu21`, or :cite:p:`Boyeau19`.
 
     Parameters
     ----------
@@ -59,8 +59,9 @@ class DifferentialComputation:
 
         Two modes coexist:
 
-        - the `"vanilla"` mode follows protocol described in [Lopez18]_ and [Xu21]_
-        In this case, we perform hypothesis testing based on the hypotheses
+        - The ``'vanilla'`` mode follows protocol described in :cite:p:`Lopez18` and :cite:p:`Xu21`.
+
+            In this case, we perform hypothesis testing based on the hypotheses.
 
         .. math::
             M_1: h_1 > h_2 ~\text{and}~ M_2: h_1 \leq h_2.
@@ -70,11 +71,12 @@ class DifferentialComputation:
         .. math::
             \log p(M_1 | x_1, x_2) / p(M_2 | x_1, x_2).
 
-        - the `"change"` mode (described in [Boyeau19]_)
-        This mode consists of estimating an effect size random variable (e.g., log fold-change) and
-        performing Bayesian hypothesis testing on this variable.
-        The `change_fn` function computes the effect size variable :math:`r` based on two inputs
-        corresponding to the posterior quantities (e.g., normalized expression) in both populations.
+        - The ``'change'`` mode (described in :cite:p:`Boyeau19`).
+
+            This mode consists of estimating an effect size random variable (e.g., log fold-change) and
+            performing Bayesian hypothesis testing on this variable. The `change_fn` function computes
+            the effect size variable :math:`r` based on two inputs corresponding to the posterior quantities
+            (e.g., normalized expression) in both populations.
 
         Hypotheses:
 
@@ -260,7 +262,7 @@ class DifferentialComputation:
                 where_zero_a=where_zero_a,
                 where_zero_b=where_zero_b,
             )
-        logger.debug("Using pseudocounts ~ {}".format(pseudocounts))
+        logger.debug(f"Using pseudocounts ~ {pseudocounts}")
         # Core of function: hypotheses testing based on the posterior samples we obtained above
         if mode == "vanilla":
             logger.debug("Differential expression using vanilla mode")
@@ -295,7 +297,7 @@ class DifferentialComputation:
                         if delta is not None
                         else estimate_delta(lfc_means=samples.mean(0))
                     )
-                    logger.debug("Using delta ~ {:.2f}".format(delta_))
+                    logger.debug(f"Using delta ~ {delta_:.2f}")
                     return np.abs(samples) >= delta_
 
             change_fn_specs = inspect.getfullargspec(change_fn)
@@ -338,11 +340,11 @@ class DifferentialComputation:
                 **change_distribution_props,
             )
         else:
-            raise NotImplementedError("Mode {mode} not recognized".format(mode=mode))
+            raise NotImplementedError(f"Mode {mode} not recognized")
 
         return res
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def scale_sampler(
         self,
         selection: Union[List[bool], np.ndarray],
@@ -667,8 +669,8 @@ def describe_continuous_distrib(
         intervals = credible_intervals(samples, confidence_level=confidence)
         interval_min, interval_max = intervals[:, 0], intervals[:, 1]
         conf_str = str(confidence)[:5]
-        dist_props["confidence_interval_{}_min".format(conf_str)] = interval_min
-        dist_props["confidence_interval_{}_max".format(conf_str)] = interval_max
+        dist_props[f"confidence_interval_{conf_str}_min"] = interval_min
+        dist_props[f"confidence_interval_{conf_str}_max"] = interval_max
 
     return dist_props
 
@@ -696,6 +698,7 @@ def save_cluster_xlsx(
 
 
 def densify(arr):
+    """Densify a sparse array."""
     if issparse(arr):
         return np.asarray(arr.todense()).squeeze()
     return arr

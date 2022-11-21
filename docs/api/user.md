@@ -54,6 +54,8 @@ import scvi
    external.RNAStereoscope
    external.SpatialStereoscope
    external.SOLO
+   external.SCAR
+   external.Tangram
 
 ```
 
@@ -97,6 +99,22 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.organize_multiome_anndatas
 ```
 
+```{eval-rst}
+.. currentmodule:: scvi
+```
+
+## Model hyperparameter autotuning
+
+`scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune].
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   autotune.ModelTuner
+```
+
 ## Utilities
 
 Here we maintain miscellaneous general methods.
@@ -124,3 +142,4 @@ An instance of the {class}`~scvi._settings.ScviConfig` is available as `scvi.set
 [anndata]: https://anndata.readthedocs.io/en/stable/
 [scanpy]: https://scanpy.readthedocs.io/en/stable/index.html
 [utilities]: https://scanpy.readthedocs.io/en/stable/api/index.html#reading
+[ray tune]: https://docs.ray.io/en/latest/tune/index.html

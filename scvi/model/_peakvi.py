@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Peak Variational Inference [Ashuach22]_
+    Peak Variational Inference :cite:p:`Ashuach22`.
 
     Parameters
     ----------
@@ -99,7 +99,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         encode_covariates: bool = False,
         **model_kwargs,
     ):
-        super(PEAKVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
@@ -243,7 +243,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **kwargs,
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_library_size_factors(
         self,
         adata: Optional[AnnData] = None,
@@ -280,14 +280,14 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         return torch.cat(library_sizes).numpy().squeeze()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_region_factors(self):
         """Return region-specific factors."""
         if self.module.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
         return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_accessibility_estimates(
         self,
         adata: Optional[AnnData] = None,
@@ -432,10 +432,11 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
+        r"""\
+
         A unified method for differential accessibility analysis.
 
-        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+        Implements `"vanilla"` DE :cite:p:`Lopez18`. and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
@@ -517,7 +518,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         result = pd.DataFrame(
             {
                 "prob_da": result.proba_de,
-                "is_da_fdr": result.loc[:, "is_de_fdr_{}".format(fdr_target)],
+                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"],
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,

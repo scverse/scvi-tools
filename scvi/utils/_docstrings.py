@@ -28,7 +28,7 @@ mode
     Method for differential expression. See user guide for full explanation.
 delta
     specific case of region inducing differential expression.
-    In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
+    In this case, we suppose that :math:`R \\setminus [-\\delta, \\delta]` does not induce differential expression
     (change model default case).
 batch_size
     Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
@@ -86,11 +86,17 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
 
     param_cat_cov_keys = """\
     categorical_covariate_keys
-        keys in `adata.obs` that correspond to categorical data."""
+        keys in `adata.obs` that correspond to categorical data.
+        These covariates can be added in addition to the batch covariate and are also treated as nuisance factors
+        (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
+        biologically-relevant factors that you do _not_ want to correct for."""
 
     param_cont_cov_keys = """\
     continuous_covariate_keys
-        keys in `adata.obs` that correspond to continuous data."""
+        keys in `adata.obs` that correspond to continuous data.
+        These covariates can be added in addition to the batch covariate and are also treated as nuisance factors
+        (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
+        biologically-relevant factors that you do _not_ want to correct for."""
 
     param_copy = """\
     copy

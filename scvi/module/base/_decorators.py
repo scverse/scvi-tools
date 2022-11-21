@@ -2,6 +2,7 @@ from collections.abc import Mapping, Sequence
 from functools import wraps
 from typing import Any, Callable, Union
 
+import flax.linen as nn
 import torch
 from torch.nn import Module
 
@@ -31,7 +32,7 @@ def auto_move_data(fn: Callable) -> Callable:
         if self.training:
             return fn(self, *args, **kwargs)
 
-        device = list(set(p.device for p in self.parameters()))
+        device = list({p.device for p in self.parameters()})
         if len(device) > 1:
             raise RuntimeError("Module tensors on multiple devices.")
         else:
@@ -53,8 +54,8 @@ def _move_data_to_device(batch: Any, device: torch.device):
     Parameters
     ----------
     batch
-        A tensor or collection of tensors or anything that has a method `.to(...)`.
-        See :func:`apply_to_collection` for a list of supported collection types.
+        A tensor or collection of tensors or anything that has a method ``.to(...)``.
+        See :meth:`apply_to_collection` for a list of supported collection types.
     device
         The device to which the data should be moved
 
@@ -71,7 +72,11 @@ def _move_data_to_device(batch: Any, device: torch.device):
 
 
 def _apply_to_collection(
-    data: Any, dtype: Union[type, tuple], function: Callable, *args, **kwargs
+    data: Any,
+    dtype: Union[type, tuple],
+    function: Callable,
+    *args,
+    **kwargs,
 ) -> Any:
     """
     Recursively applies a function to all elements of a certain dtype.
@@ -79,19 +84,15 @@ def _apply_to_collection(
     Parameters
     ----------
     data
-        The collection to apply the function to
+        The collection to apply the function to.
     dtype
-        The given function will be applied to all elements of this dtype
+        The given function will be applied to all elements of this dtype.
     function
-        The function to apply
-    *args
-        positional arguments (will be forwarded to calls of ``function``)
-    **kwargs
-        keyword arguments (will be forwarded to calls of ``function``)
+        The function to apply.
 
     Returns
     -------
-    The resulting collection
+    The resulting collection.
     """
     elem_type = type(data)
 
@@ -118,3 +119,18 @@ def _apply_to_collection(
 
     # data is neither of dtype, nor a collection
     return data
+
+
+def flax_configure(cls: nn.Module) -> Callable:
+    """Decorator to raise an error if the model is in latent mode."""
+    original_init = cls.__init__
+
+    @wraps(original_init)
+    def init(self, *args, **kwargs):
+        self.configure()
+        original_init(self, *args, **kwargs)
+        if not isinstance(self.training, bool):
+            raise ValueError("Custom sublclasses must have a training parameter.")
+
+    cls.__init__ = init
+    return cls
