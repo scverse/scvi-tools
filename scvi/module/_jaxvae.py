@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import jax
 import jax.numpy as jnp
@@ -8,10 +8,12 @@ from flax.linen.initializers import variance_scaling
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
-from scvi.module.base import JaxBaseModuleClass, LossRecorder
+from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
 
 class Dense(nn.Dense):
+    """Jax dense layer."""
+
     def __init__(self, *args, **kwargs):
         # scale set to reimplement pytorch init
         scale = 1 / 3
@@ -22,12 +24,16 @@ class Dense(nn.Dense):
 
 
 class FlaxEncoder(nn.Module):
+    """Encoder for Jax VAE."""
+
     n_input: int
     n_latent: int
     n_hidden: int
     dropout_rate: int
+    training: Optional[bool] = None
 
     def setup(self):
+        """Setup encoder."""
         self.dense1 = Dense(self.n_hidden)
         self.dense2 = Dense(self.n_hidden)
         self.dense3 = Dense(self.n_latent)
@@ -38,7 +44,9 @@ class FlaxEncoder(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
-    def __call__(self, x: jnp.ndarray, training: bool = False):
+    def __call__(self, x: jnp.ndarray, training: Optional[bool] = None):
+        """Forward pass."""
+        training = nn.merge_param("training", self.training, training)
         is_eval = not training
 
         x_ = jnp.log1p(x)
@@ -59,11 +67,15 @@ class FlaxEncoder(nn.Module):
 
 
 class FlaxDecoder(nn.Module):
+    """Decoder for Jax VAE."""
+
     n_input: int
     dropout_rate: float
     n_hidden: int
+    training: Optional[bool] = None
 
     def setup(self):
+        """Setup decoder."""
         self.dense1 = Dense(self.n_hidden)
         self.dense2 = Dense(self.n_hidden)
         self.dense3 = Dense(self.n_hidden)
@@ -79,7 +91,12 @@ class FlaxDecoder(nn.Module):
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
 
-    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training: bool = False):
+    def __call__(
+        self, z: jnp.ndarray, batch: jnp.ndarray, training: Optional[bool] = None
+    ):
+        """Forward pass."""
+        # TODO(adamgayoso): Test this
+        training = nn.merge_param("training", self.training, training)
         is_eval = not training
 
         h = self.dense1(z)
@@ -98,7 +115,10 @@ class FlaxDecoder(nn.Module):
         return h, self.disp.ravel()
 
 
+@flax_configure
 class JaxVAE(JaxBaseModuleClass):
+    """Variational autoencoder model."""
+
     n_input: int
     n_batch: int
     n_hidden: int = 128
@@ -107,8 +127,10 @@ class JaxVAE(JaxBaseModuleClass):
     n_layers: int = 1
     gene_likelihood: str = "nb"
     eps: float = 1e-8
+    training: bool = True
 
     def setup(self):
+        """Setup model."""
         self.encoder = FlaxEncoder(
             n_input=self.n_input,
             n_latent=self.n_latent,
@@ -123,16 +145,18 @@ class JaxVAE(JaxBaseModuleClass):
         )
 
     @property
-    def required_rngs(self):
+    def required_rngs(self):  # noqa: D102
         return ("params", "dropout", "z")
 
     def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
+        """Get input for inference."""
         x = tensors[REGISTRY_KEYS.X_KEY]
 
         input_dict = dict(x=x)
         return input_dict
 
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
+        """Run inference model."""
         mean, var = self.encoder(x, training=self.training)
         stddev = jnp.sqrt(var) + self.eps
 
@@ -148,6 +172,7 @@ class JaxVAE(JaxBaseModuleClass):
         tensors: Dict[str, jnp.ndarray],
         inference_outputs: Dict[str, jnp.ndarray],
     ):
+        """Get input for generative model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         z = inference_outputs["z"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -160,6 +185,7 @@ class JaxVAE(JaxBaseModuleClass):
         return input_dict
 
     def generative(self, x, z, batch_index) -> dict:
+        """Run generative model."""
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
         rho_unnorm, disp = self.decoder(z, batch, training=self.training)
@@ -183,6 +209,7 @@ class JaxVAE(JaxBaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
+        """Compute loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         px = generative_outputs["px"]
         qz = inference_outputs["qz"]
@@ -195,4 +222,6 @@ class JaxVAE(JaxBaseModuleClass):
         loss = jnp.mean(reconst_loss + weighted_kl_local)
 
         kl_local = kl_divergence_z
-        return LossRecorder(loss, reconst_loss, kl_local)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
+        )

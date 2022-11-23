@@ -2,17 +2,18 @@ from typing import Dict, Iterable, Optional
 
 import numpy as np
 import torch
+from torch import nn
 from torch.distributions import Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
 
-class Decoder(torch.nn.Module):
+class Decoder(nn.Module):
     """
-    Decodes data from latent space of ``n_input`` dimensions ``n_output``dimensions.
+    Decodes data from latent space of ``n_input`` dimensions ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -70,6 +71,7 @@ class Decoder(torch.nn.Module):
         )
 
     def forward(self, z: torch.Tensor, *cat_list: int):
+        """Forward pass."""
         x = self.output(self.px_decoder(z, *cat_list))
         return x
 
@@ -246,6 +248,7 @@ class PEAKVAE(BaseModuleClass):
         return input_dict
 
     def get_reconstruction_loss(self, p, d, f, x):
+        """Compute the reconstruction loss."""
         rl = torch.nn.BCELoss(reduction="none")(p * d * f, (x > 0).float()).sum(dim=-1)
         return rl
 
@@ -294,7 +297,6 @@ class PEAKVAE(BaseModuleClass):
         use_z_mean=False,
     ):
         """Runs the generative model."""
-
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
@@ -317,6 +319,7 @@ class PEAKVAE(BaseModuleClass):
     def loss(
         self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
     ):
+        """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         qz = inference_outputs["qz"]
         d = inference_outputs["d"]
@@ -332,4 +335,4 @@ class PEAKVAE(BaseModuleClass):
 
         loss = (rl.sum() + kld * kl_weight).sum()
 
-        return LossRecorder(loss, rl, kld, kl_global=torch.tensor(0.0))
+        return LossOutput(loss=loss, reconstruction_loss=rl, kl_local=kld)

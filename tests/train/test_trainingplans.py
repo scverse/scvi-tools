@@ -1,5 +1,7 @@
 import pytest
 
+from scvi.model import SCVI, JaxSCVI
+from scvi.train import JaxTrainingPlan, TrainingPlan
 from scvi.train._trainingplans import _compute_kl_weight
 
 
@@ -53,3 +55,25 @@ def test_compute_kl_precedence(
         epoch, step, n_epochs_kl_warmup, n_steps_kl_warmup, 1.0, 0.0
     )
     assert kl_weight == expected
+
+
+def test_loss_args(synthetic_adata):
+    """Test that self._loss_args is set correctly."""
+    SCVI.setup_anndata(synthetic_adata)
+    JaxSCVI.setup_anndata(synthetic_adata)
+    vae = SCVI(synthetic_adata)
+    jax_vae = JaxSCVI(synthetic_adata)
+    tp = TrainingPlan(vae.module)
+    jax_tp = JaxTrainingPlan(jax_vae.module)
+
+    loss_args = [
+        "tensors",
+        "inference_outputs",
+        "generative_outputs",
+        "kl_weight",
+    ]
+    assert len(tp._loss_args) == len(loss_args)
+    assert len(jax_tp._loss_args) == len(loss_args)
+    for arg in loss_args:
+        assert arg in tp._loss_args
+        assert arg in jax_tp._loss_args

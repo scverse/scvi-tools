@@ -64,22 +64,23 @@ class LayerField(BaseAnnDataField):
         )
 
     @property
-    def registry_key(self) -> str:
+    def registry_key(self) -> str:  # noqa: D102
         return self._registry_key
 
     @property
-    def attr_name(self) -> str:
+    def attr_name(self) -> str:  # noqa: D102
         return self._attr_name
 
     @property
-    def attr_key(self) -> Optional[str]:
+    def attr_key(self) -> Optional[str]:  # noqa: D102
         return self._attr_key
 
     @property
-    def is_empty(self) -> bool:
+    def is_empty(self) -> bool:  # noqa: D102
         return False
 
     def validate_field(self, adata: AnnData) -> None:
+        """Validate the field."""
         super().validate_field(adata)
         x = self.get_field_data(adata)
 
@@ -93,6 +94,7 @@ class LayerField(BaseAnnDataField):
             )
 
     def register_field(self, adata: AnnData) -> dict:
+        """Register the field."""
         super().register_field(adata)
         if self.correct_data_format:
             _verify_and_correct_data_format(adata, self.attr_name, self.attr_key)
@@ -105,24 +107,27 @@ class LayerField(BaseAnnDataField):
     def transfer_field(
         self, state_registry: dict, adata_target: AnnData, **kwargs
     ) -> dict:
+        """Transfer the field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         n_vars = state_registry[self.N_VARS_KEY]
         target_n_vars = adata_target.n_vars
         if target_n_vars != n_vars:
             raise ValueError(
                 "Number of vars in adata_target not the same as source. "
-                + "Expected: {} Received: {}".format(target_n_vars, n_vars)
+                + f"Expected: {target_n_vars} Received: {n_vars}"
             )
 
         return self.register_field(adata_target)
 
     def get_summary_stats(self, state_registry: dict) -> dict:
+        """Get summary stats."""
         summary_stats = {self.count_stat_key: state_registry[self.N_VARS_KEY]}
         if self.registry_key == REGISTRY_KEYS.X_KEY:
             summary_stats[self.N_CELLS_KEY] = state_registry[self.N_OBS_KEY]
         return summary_stats
 
     def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
+        """View the state registry."""
         return None
 
 

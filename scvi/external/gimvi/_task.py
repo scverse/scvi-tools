@@ -6,6 +6,8 @@ from scvi.train import AdversarialTrainingPlan
 
 
 class GIMVITrainingPlan(AdversarialTrainingPlan):
+    """gimVI training plan."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if kwargs["adversarial_classifier"] is True:
@@ -21,6 +23,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             self.adversarial_classifier = kwargs["adversarial_classifier"]
 
     def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step."""
         kappa = (
             1 - self.kl_weight
             if self.scale_adversarial_loss == "auto"
@@ -28,7 +31,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
         )
         if optimizer_idx == 0:
             # batch contains both data loader outputs
-            scvi_loss_objs = []
+            loss_output_objs = []
             n_obs = 0
             zs = []
             for (i, tensors) in enumerate(batch):
@@ -36,19 +39,19 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
                 self.loss_kwargs.update(dict(kl_weight=self.kl_weight, mode=i))
                 inference_kwargs = dict(mode=i)
                 generative_kwargs = dict(mode=i)
-                inference_outputs, _, scvi_loss = self.forward(
+                inference_outputs, _, loss_output = self.forward(
                     tensors,
                     loss_kwargs=self.loss_kwargs,
                     inference_kwargs=inference_kwargs,
                     generative_kwargs=generative_kwargs,
                 )
                 zs.append(inference_outputs["z"])
-                scvi_loss_objs.append(scvi_loss)
+                loss_output_objs.append(loss_output)
 
-            loss = sum([scl.loss for scl in scvi_loss_objs])
+            loss = sum([scl.loss for scl in loss_output_objs])
             loss /= n_obs
-            rec_loss = sum([scl.reconstruction_loss.sum() for scl in scvi_loss_objs])
-            kl = sum([scl.kl_local.sum() for scl in scvi_loss_objs])
+            rec_loss = sum([scl.reconstruction_loss_sum for scl in loss_output_objs])
+            kl = sum([scl.kl_local_sum for scl in loss_output_objs])
 
             # fool classifier if doing adversarial training
             batch_tensor = [
@@ -91,21 +94,22 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
+        """Validation step."""
         self.loss_kwargs.update(dict(kl_weight=self.kl_weight, mode=dataloader_idx))
         inference_kwargs = dict(mode=dataloader_idx)
         generative_kwargs = dict(mode=dataloader_idx)
-        _, _, scvi_loss = self.forward(
+        _, _, loss_output = self.forward(
             batch,
             loss_kwargs=self.loss_kwargs,
             inference_kwargs=inference_kwargs,
             generative_kwargs=generative_kwargs,
         )
-        reconstruction_loss = scvi_loss.reconstruction_loss
+        reconstruction_loss = loss_output.reconstruction_loss_sum
         return {
-            "reconstruction_loss_sum": reconstruction_loss.sum(),
-            "kl_local_sum": scvi_loss.kl_local.sum(),
-            "kl_global": scvi_loss.kl_global,
-            "n_obs": reconstruction_loss.shape[0],
+            "reconstruction_loss_sum": reconstruction_loss,
+            "kl_local_sum": loss_output.kl_local_sum,
+            "kl_global": loss_output.kl_global,
+            "n_obs": loss_output.n_obs_minibatch,
         }
 
     def validation_epoch_end(self, outputs):

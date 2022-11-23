@@ -1,5 +1,5 @@
 import torch
-from torch import nn as nn
+from torch import nn
 from torch.distributions import Binomial, Normal
 from torch.distributions import kl_divergence as kl
 
@@ -7,40 +7,49 @@ from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module._vae import VAE
-from scvi.module.base import LossRecorder, auto_move_data
+from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import FCLayers
 
 torch.backends.cudnn.benchmark = True
 
 
 class tanh(nn.Module):
+    """Hyperbolic tangent activation function."""
+
     def __init__(self):
         super().__init__()
 
     def forward(self, input_x):
+        """Forward pass."""
         var_tanh = torch.tanh(input_x)
         output = (1 + var_tanh) / 2
         return output
 
 
 class hnormalization(nn.Module):
+    """Hyperbolic normalization."""
+
     def __init__(self):
         super().__init__()
 
     def forward(self, input_x):
+        """Forward pass."""
         return input_x / (input_x.sum(dim=-1, keepdim=True) + 1e-5)
 
 
 class softplus(nn.Module):
+    """Softplus activation function."""
+
     def __init__(self, sparsity=0.9):
         super().__init__()
         self.sparsity = sparsity
 
     def forward(self, input_x):
+        """Forward pass."""
         return self._softplus(input_x)
 
     def _softplus(self, input_x):
-        """customized softplus activation, output range: [0, inf)"""
+        """Customized softplus activation, output range: [0, inf)"""
         var_sp = nn.functional.softplus(input_x)
         threshold = nn.functional.softplus(
             torch.tensor(-(1 - self.sparsity) * 10.0, device=input_x.device)
@@ -53,7 +62,7 @@ class softplus(nn.Module):
 
 class DecoderSCAR(nn.Module):
     """
-    Decodes data from latent space of ``n_input`` dimensions into ``n_output``dimensions.
+    Decodes data from latent space of ``n_input`` dimensions into ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -325,6 +334,7 @@ class SCAR_VAE(VAE):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
+        """Compute the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
             dim=1
@@ -374,5 +384,6 @@ class SCAR_VAE(VAE):
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        kl_global = torch.tensor(0.0)
-        return LossRecorder(loss, reconst_loss, kl_local, kl_global)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
+        )

@@ -3,9 +3,9 @@ from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
 
 import pyro
 import pyro.distributions as dist
-import pyro.poutine as poutine
 import torch
 import torch.nn.functional as F
+from pyro import poutine
 from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 
@@ -17,7 +17,10 @@ _AMORTIZED_LDA_PYRO_MODULE_NAME = "amortized_lda"
 
 
 class CategoricalBoW(dist.Multinomial):
+    """Categorical BoW."""
+
     def log_prob(self, value):
+        """Log probability."""
         if self._validate_args:
             self._validate_sample(value)
         logits, value = dist.util.broadcast_all(self.logits, value)
@@ -110,6 +113,7 @@ class AmortizedLDAPyroModel(PyroModule):
         n_obs: Optional[int] = None,
         kl_weight: float = 1.0,
     ):
+        """Forward pass."""
         # Topic feature distributions.
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             log_topic_feature_dist = pyro.sample(
@@ -175,7 +179,7 @@ class AmortizedLDAPyroGuide(PyroModule):
         )
 
     @property
-    def topic_feature_posterior_sigma(self):
+    def topic_feature_posterior_sigma(self):  # noqa: D102
         return F.softplus(self.unconstrained_topic_feature_posterior_sigma)
 
     @auto_move_data
@@ -186,6 +190,7 @@ class AmortizedLDAPyroGuide(PyroModule):
         n_obs: Optional[int] = None,
         kl_weight: float = 1.0,
     ):
+        """Forward pass."""
         # Topic feature distributions.
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             pyro.sample(
@@ -213,7 +218,7 @@ class AmortizedLDAPyroGuide(PyroModule):
 
 class AmortizedLDAPyroModule(PyroBaseModuleClass):
     """
-    An amortized implementation of Latent Dirichlet Allocation [Blei03]_ implemented in Pyro.
+    An amortized implementation of Latent Dirichlet Allocation :cite:p:`Blei03` implemented in Pyro.
 
     This module uses auto encoding variational Bayes to optimize the latent variables in the model.
     In particular, a fully-connected neural network is used as an encoder, which takes in feature counts
@@ -275,11 +280,11 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 
     @property
-    def model(self):
+    def model(self):  # noqa: D102
         return self._model
 
     @property
-    def guide(self):
+    def guide(self):  # noqa: D102
         return self._guide
 
     def topic_by_feature(self, n_samples: int) -> torch.Tensor:

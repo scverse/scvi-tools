@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data [Lopez21]_.
+    Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez21`.
 
     Parameters
     ----------

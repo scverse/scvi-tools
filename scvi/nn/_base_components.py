@@ -2,7 +2,7 @@ import collections
 from typing import Callable, Iterable, List, Optional
 
 import torch
-from torch import nn as nn
+from torch import nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
 
@@ -11,11 +11,7 @@ from scvi._compat import Literal
 from ._utils import one_hot
 
 
-def reparameterize_gaussian(mu, var):
-    return Normal(mu, var.sqrt()).rsample()
-
-
-def identity(x):
+def _identity(x):
     return x
 
 
@@ -83,7 +79,7 @@ class FCLayers(nn.Module):
             collections.OrderedDict(
                 [
                     (
-                        "Layer {}".format(i),
+                        f"Layer {i}",
                         nn.Sequential(
                             nn.Linear(
                                 n_in + cat_dim * self.inject_into_layer(i),
@@ -114,6 +110,7 @@ class FCLayers(nn.Module):
         return user_cond
 
     def set_online_update_hooks(self, hook_first_layer=True):
+        """Set online update hooks."""
         self.hooks = []
 
         def _hook_fn_weight(grad):
@@ -149,13 +146,11 @@ class FCLayers(nn.Module):
             tensor of values with shape ``(n_in,)``
         cat_list
             list of category membership(s) for this sample
-        x: torch.Tensor
 
         Returns
         -------
-        py:class:`torch.Tensor`
+        :class:`torch.Tensor`
             tensor of shape ``(n_out,)``
-
         """
         one_hot_cat_list = []  # for generality in this list many indices useless.
 
@@ -201,7 +196,7 @@ class FCLayers(nn.Module):
 # Encoder
 class Encoder(nn.Module):
     """
-    Encodes data of ``n_input`` dimensions into a latent space of ``n_output`` dimensions.
+    Encode data of ``n_input`` dimensions into a latent space of ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -228,11 +223,11 @@ class Encoder(nn.Module):
         used for numerical stability
     var_activation
         Callable used to ensure positivity of the variance.
-        When `None`, defaults to `torch.exp`.
+        Defaults to :meth:`torch.exp`.
     return_dist
-        If `True`, returns directly the distribution of z instead of its parameters.
+        Return directly the distribution of z instead of its parameters.
     **kwargs
-        Keyword args for :class:`~scvi.module._base.FCLayers`
+        Keyword args for :class:`~scvi.nn.FCLayers`
     """
 
     def __init__(
@@ -269,7 +264,7 @@ class Encoder(nn.Module):
         if distribution == "ln":
             self.z_transformation = nn.Softmax(dim=-1)
         else:
-            self.z_transformation = identity
+            self.z_transformation = _identity
         self.var_activation = torch.exp if var_activation is None else var_activation
 
     def forward(self, x: torch.Tensor, *cat_list: int):
@@ -307,7 +302,7 @@ class Encoder(nn.Module):
 # Decoder
 class DecoderSCVI(nn.Module):
     """
-    Decodes data from latent space of ``n_input`` dimensions into ``n_output``dimensions.
+    Decodes data from latent space of ``n_input`` dimensions into ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -425,6 +420,8 @@ class DecoderSCVI(nn.Module):
 
 
 class LinearDecoderSCVI(nn.Module):
+    """Linear decoder for scVI."""
+
     def __init__(
         self,
         n_input: int,
@@ -465,6 +462,7 @@ class LinearDecoderSCVI(nn.Module):
     def forward(
         self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int
     ):
+        """Forward pass."""
         # The decoder returns values for the parameters of the ZINB distribution
         raw_px_scale = self.factor_regressor(z, *cat_list)
         px_scale = torch.softmax(raw_px_scale, dim=-1)
@@ -555,6 +553,8 @@ class Decoder(nn.Module):
 
 
 class MultiEncoder(nn.Module):
+    """MultiEncoder."""
+
     def __init__(
         self,
         n_heads: int,
@@ -598,6 +598,7 @@ class MultiEncoder(nn.Module):
         self.return_dist = return_dist
 
     def forward(self, x: torch.Tensor, head_id: int, *cat_list: int):
+        """Forward pass."""
         q = self.encoders[head_id](x, *cat_list)
         q = self.encoder_shared(q, *cat_list)
 
@@ -611,6 +612,8 @@ class MultiEncoder(nn.Module):
 
 
 class MultiDecoder(nn.Module):
+    """MultiDecoder."""
+
     def __init__(
         self,
         n_input: int,
@@ -668,7 +671,7 @@ class MultiDecoder(nn.Module):
         dispersion: str,
         *cat_list: int,
     ):
-
+        """Forward pass."""
         px = z
         if self.px_decoder_conditioned:
             px = self.px_decoder_conditioned(px, *cat_list)
@@ -983,11 +986,12 @@ class EncoderTOTALVI(nn.Module):
         if distribution == "ln":
             self.z_transformation = nn.Softmax(dim=-1)
         else:
-            self.z_transformation = identity
+            self.z_transformation = _identity
 
         self.l_transformation = torch.exp
 
     def reparameterize_transformation(self, mu, var):
+        """Reparameterization trick to sample from a normal distribution."""
         untran_z = Normal(mu, var.sqrt()).rsample()
         z = self.z_transformation(untran_z)
         return z, untran_z

@@ -26,7 +26,7 @@ is intractable because the denominator, which is defined via integral cannot be 
 ## Approximating the posterior
 
 With variational inference [^ref1], we cast the problem of finding the posterior distribution into an optimization problem by minimizing the KL divergence
-between an approximate posterior distribution $q$ that belongs to some *family* of approximate densities
+between an approximate posterior distribution $q$ that belongs to some _family_ of approximate densities
 $Q$ and the true posterior. As an example, if $Q$ is the family of multivariate Gaussians, then we would like to find the a
 mean and covariance matrix that best approximate the true posterior.
 
@@ -114,18 +114,21 @@ Let's think about our high-dimensional single-cell data. If we have a model wher
 mean and variance parameter associated with each single cell. This scales linearly with the number of cells in our dataset.
 
 To amortize the cost of inference, we can tie together all cells using a neural network. Now suppose that we feed each cell's gene expression $x$ through a neural network that outputs the mean and variance
-of $q(z)$ for that cell. Inference will tend to be more scalable as the variational parameters are global (shared by all cells). On the other hand, we may pay a cost called the *amortization gap* [^ref2] for this sharing.
+of $q(z)$ for that cell. Inference will tend to be more scalable as the variational parameters are global (shared by all cells). On the other hand, we may pay a cost called the _amortization gap_ [^ref2] for this sharing.
 
-Overall, this technique is typically called *amortized variational inference* and in some cases *auto-encoding variational bayes* [^ref3].
+Overall, this technique is typically called _amortized variational inference_ and in some cases _auto-encoding variational bayes_ [^ref3].
 
-[^ref1]: Blei, David M., Alp Kucukelbir, and Jon D. McAuliffe (2017),
-    *Variational inference: A review for statisticians.*,
+[^ref1]:
+    Blei, David M., Alp Kucukelbir, and Jon D. McAuliffe (2017),
+    _Variational inference: A review for statisticians._,
     Journal of the American statistical Association.
 
-[^ref2]: Cremer, Chris, Xuechen Li, and David Duvenaud.
-    *Inference suboptimality in variational autoencoders.*
+[^ref2]:
+    Cremer, Chris, Xuechen Li, and David Duvenaud.
+    _Inference suboptimality in variational autoencoders._
     International Conference on Machine Learning. PMLR, 2018.
 
-[^ref3]: Kingma, Diederik P., and Max Welling (2019),
-    *An introduction to variational autoencoders.*,
+[^ref3]:
+    Kingma, Diederik P., and Max Welling (2019),
+    _An introduction to variational autoencoders._,
     arXiv preprint arXiv:1906.02691.

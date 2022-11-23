@@ -13,12 +13,15 @@ from scvi.dataloaders import AnnDataLoader
 
 
 class SubSampleLabels(Callback):
+    """Subsample labels."""
+
     def __init__(self):
         super().__init__()
 
     def on_train_epoch_start(self, trainer, pl_module):
+        """Subsample labels at the beginning of each epoch."""
         trainer.train_dataloader.loaders.resample_labels()
-        super().on_epoch_start(trainer, pl_module)
+        super().on_train_epoch_start(trainer, pl_module)
 
 
 class SaveBestState(Callback):
@@ -80,10 +83,10 @@ class SaveBestState(Callback):
                 self.best_module_metric_val = np.Inf
                 self.mode = "min"
 
-    def check_monitor_top(self, current):
+    def check_monitor_top(self, current):  # noqa: D102
         return self.monitor_op(current, self.best_module_metric_val)
 
-    def on_epoch_end(self, trainer, pl_module):
+    def on_val_epoch_end(self, trainer, pl_module):  # noqa: D102
         logs = trainer.callback_metrics
         self.epochs_since_last_check += 1
 
@@ -110,10 +113,10 @@ class SaveBestState(Callback):
                             f" Module best state updated."
                         )
 
-    def on_train_start(self, trainer, pl_module):
+    def on_train_start(self, trainer, pl_module):  # noqa: D102
         self.best_module_state = deepcopy(pl_module.module.state_dict())
 
-    def on_train_end(self, trainer, pl_module):
+    def on_train_end(self, trainer, pl_module):  # noqa: D102
         pl_module.module.load_state_dict(self.best_module_state)
 
 
@@ -142,6 +145,7 @@ class LoudEarlyStopping(EarlyStopping):
         _pl_module: pl.LightningModule,
         stage: Optional[str] = None,
     ) -> None:
+        """Print the reason for stopping on teardown."""
         if self.early_stopping_reason is not None:
             print(self.early_stopping_reason)
 
@@ -153,7 +157,7 @@ class JaxModuleInit(Callback):
         super().__init__()
         self.dataloader = dataloader
 
-    def on_train_start(self, trainer, pl_module):
+    def on_train_start(self, trainer, pl_module):  # noqa: D102
         module = pl_module.module
         if self.dataloader is None:
             dl = trainer.datamodule.train_dataloader()
