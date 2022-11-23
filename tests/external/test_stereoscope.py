@@ -27,6 +27,10 @@ def test_stereoscope(save_path):
     st_model = SpatialStereoscope.from_rna_model(
         dataset, sc_model, prior_weight="minibatch"
     )
+    # Two times to test deprecation warning.
+    st_model = SpatialStereoscope.from_rna_model(
+        dataset, sc_model, prior_weight="minibatch"
+    )
     st_model.train(max_epochs=1)
     st_model.get_proportions()
     # test save/load

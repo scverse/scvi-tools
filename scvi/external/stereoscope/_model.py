@@ -231,7 +231,11 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         **model_kwargs
             Keyword args for :class:`~scvi.external.SpatialDeconv`
         """
-        if layer is not None or "_scvi_manager_uuid" not in st_adata.uns:
+        if (
+            layer is not None
+            or st_adata.uns["_scvi_uuid"]
+            not in SpatialStereoscope._setup_adata_manager_store
+        ):
             warnings.warn(
                 """
                     Setting up adata in SpatialStereoscope.from_rna_model is deprecated and
