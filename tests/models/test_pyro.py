@@ -619,6 +619,18 @@ def test_lda_model():
     mod.get_elbo(adata2)
     mod.get_perplexity(adata2)
 
+    # test posterior sampling
+    samples = mod.sample_posterior(
+        num_samples=10, use_gpu=use_gpu, batch_size=adata.n_obs, return_samples=True
+    )
+    assert samples["posterior_samples"]["latent"].shape == (
+        10,
+        adata.n_obs,
+        n_topics
+    )
+    # test that observed variables are excluded
+    assert "obs" not in samples["posterior_samples"].keys()
+
 
 def test_lda_model_save_load(save_path):
     use_gpu = torch.cuda.is_available()
