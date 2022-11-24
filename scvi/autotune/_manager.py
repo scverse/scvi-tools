@@ -14,6 +14,7 @@ except ImportError:
 
 from scvi._decorators import dependencies
 from scvi._types import AnnOrMuData
+from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model.base import BaseModelClass
 
 from ._defaults import COLORS, COLUMN_KWARGS, DEFAULTS, SUPPORTED, TUNABLE_TYPES
@@ -339,8 +340,8 @@ class TunerManager:
     def _get_setup_info(self, adata: AnnOrMuData) -> Tuple[str, dict]:
         """Retrieves the method and kwargs used for setting up `adata` with the model class."""
         manager = self._model_cls._get_most_recent_anndata_manager(adata)
-        setup_method_name = manager._registry.get("_SETUP_METHOD_NAME", "setup_anndata")
-        setup_args = manager._get_setup_method_args().get("_SETUP_ARGS_KEY", {})
+        setup_method_name = manager._registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        setup_args = manager._get_setup_method_args().get(_SETUP_ARGS_KEY, {})
         return setup_method_name, setup_args
 
     @dependencies("ray.tune")
