@@ -100,6 +100,7 @@ class BayesianRegressionPyroModel(PyroModule):
                     "per_cell_weights", dist.Normal(self.zero, self.one)
                 )
                 mean = mean + per_cell_weights.squeeze(-1)
+                pyro.deterministic("weighted_mean", mean)
 
         with obs_plate:
             pyro.sample("obs", dist.Normal(mean, sigma), obs=y)
@@ -396,6 +397,10 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
         adata.n_obs,
         1,
     )
+    # test that observed variables are excluded
+    assert "obs" not in samples["posterior_samples"].keys()
+    # test that deterministic variables are included
+    assert "weighted_mean" in samples["posterior_samples"].keys()
 
 
 def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
