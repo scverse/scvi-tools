@@ -160,6 +160,7 @@ class PyroSampleMixin:
         kwargs,
         return_sites: Optional[list] = None,
         return_observed: bool = False,
+        observed_not_deterministic: Optional[list] = None,
     ):
         """
         Get one sample from posterior distribution.
@@ -174,6 +175,8 @@ class PyroSampleMixin:
             List of variables for which to generate posterior samples, defaults to all variables.
         return_observed
             Record samples of observed variables.
+        observed_not_deterministic
+            List of observed but non-deterministic variables.
 
         Returns
         -------
@@ -202,7 +205,6 @@ class PyroSampleMixin:
             }
 
         if not return_observed:
-            observed_not_deterministic = self._get_observed_sites(*args, **kwargs)
             sample = {
                 k: v for k, v in sample.items() if k not in observed_not_deterministic
             }
@@ -241,8 +243,13 @@ class PyroSampleMixin:
         Dictionary with array of samples for each variable
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
+        observed_not_deterministic = self._get_observed_sites(args, kwargs)
         samples = self._get_one_posterior_sample(
-            args, kwargs, return_sites=return_sites, return_observed=return_observed
+            args,
+            kwargs,
+            return_sites=return_sites,
+            return_observed=return_observed,
+            observed_not_deterministic=observed_not_deterministic,
         )
         samples = {k: [v] for k, v in samples.items()}
 
@@ -255,7 +262,11 @@ class PyroSampleMixin:
 
             # generate new sample
             samples_ = self._get_one_posterior_sample(
-                args, kwargs, return_sites=return_sites, return_observed=return_observed
+                args,
+                kwargs,
+                return_sites=return_sites,
+                return_observed=return_observed,
+                observed_not_deterministic=observed_not_deterministic,
             )
 
             # add new sample
@@ -316,7 +327,7 @@ class PyroSampleMixin:
             if any(f.name == plate_name for f in site["cond_indep_stack"])
         }
         if not return_observed:
-            observed_not_deterministic = self._get_observed_sites(*args, **kwargs)
+            observed_not_deterministic = self._get_observed_sites(args, kwargs)
             obs_plate = {
                 k: v
                 for k, v in obs_plate.items()
