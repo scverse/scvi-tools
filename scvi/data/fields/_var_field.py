@@ -1,16 +1,12 @@
 import logging
 from typing import Optional
 
-import numpy as np
 import rich
 from anndata import AnnData
-from pandas.api.types import CategoricalDtype
 
 from scvi.data import _constants
-from scvi.data._utils import _make_column_categorical, get_anndata_attribute
 
 from ._base_field import BaseAnnDataField
-from ._mudata import MuDataWrapper
 
 logger = logging.getLogger(__name__)
 

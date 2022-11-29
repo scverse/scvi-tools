@@ -1,20 +1,17 @@
 import logging
 import warnings
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
 import rich
 from anndata import AnnData
-from pandas.api.types import CategoricalDtype
 
 from scvi.data import _constants
 from scvi.data._utils import (
     _check_nonnegative_integers,
-    _make_column_categorical,
     _verify_and_correct_data_format,
 )
-from scvi.data.fields import MuDataWrapper
 
 from ._base_field import BaseAnnDataField
 
