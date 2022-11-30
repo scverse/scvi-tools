@@ -9,7 +9,7 @@ from scvi._compat import Literal
 from scvi._decorators import classproperty
 from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
-from scvi.data._constants import _ADATA_LATENT_UNS_KEY
+from scvi.data._constants import _ADATA_LATENT_UNS_KEY, _SCVI_UUID_KEY
 from scvi.data._utils import _get_latent_adata_type
 from scvi.data.fields import (
     BaseAnnDataField,
@@ -244,6 +244,7 @@ class SCVI(
             obsm=self.adata.obsm,
             obsp=self.adata.obsp,
         )
+        del bdata.uns[_SCVI_UUID_KEY]
         bdata.uns[_ADATA_LATENT_UNS_KEY] = mode
         return bdata
 
@@ -276,7 +277,6 @@ class SCVI(
         mode: LatentDataType = "posterior_parameters",
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
-        minify_adata: bool = True,
     ) -> None:
         """
         Put the model into latent mode.
@@ -293,29 +293,22 @@ class SCVI(
             Key to use in `adata.obsm` where the latent qzm params are stored
         use_latent_qzv_key
             Key to use in `adata.obsm` where the latent qzv params are stored
-        minify_adata
-            If True, the anndata object associated with the model is replaced
-            by a new object with only the latent representation and metadata.
 
         Notes
         -----
         A new, minimal adata object is associated as `model.adata` after running
-        this method with `minify_adata=True`. This adata does not contain any of
+        this method. This adata does not contain any of
         the original count data, but instead contains the latent representation
         of the original data and metadata.
         """
-        if minify_adata:
-            bdata = self._get_reduced_adata(mode)
-            new_manager = self.adata_manager.transfer_fields(bdata)
-        else:
-            bdata = self.adata
-            new_manager = self.adata_manager
+        # TODO(adamgayoso): Add support for other latent modes, including a mode
+        # in which no data is minified.
+        # This validates and sets a new adata manager
+        self.adata = self._get_reduced_adata(mode)
         if mode == _SCVI_LATENT_MODE:
-            bdata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-            bdata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+            self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+            self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
         else:
             raise ValueError(f"Unknown latent mode: {mode}")
-        new_manager.register_new_fields(self._get_latent_fields(mode))
-        self._adata_manager = new_manager
-        self.adata = bdata
+        self.adata_manager.register_new_fields(self._get_latent_fields(mode))
         self.module.latent_data_type = mode
