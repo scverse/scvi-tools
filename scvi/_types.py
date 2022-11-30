@@ -12,4 +12,4 @@ AnnOrMuData = Union[anndata.AnnData, mudata.MuData]
 Tensor = Union[torch.Tensor, jnp.ndarray]
 LossRecord = Union[Dict[str, Tensor], Tensor]
 # TODO(adamgayoso): Add constants for latent data types.
-LatentDataType = Union[Literal["posterior_parameters"], None]
+LatentDataType = Literal["posterior_parameters"]

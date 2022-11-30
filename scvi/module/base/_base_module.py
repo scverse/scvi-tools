@@ -350,7 +350,7 @@ class BaseLatentModeModuleClass(BaseModuleClass):
         self._latent_data_type = None
 
     @property
-    def latent_data_type(self) -> Optional[LatentDataType]:
+    def latent_data_type(self) -> Union[LatentDataType, None]:
         """The latent data type associated with this module."""
         return self._latent_data_type
 

@@ -242,6 +242,7 @@ class SCVI(
             var=self.adata.var,
             varm=self.adata.varm,
             obsm=self.adata.obsm,
+            obsp=self.adata.obsp,
         )
         bdata.uns[_ADATA_LATENT_UNS_KEY] = mode
         return bdata
