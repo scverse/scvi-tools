@@ -5,8 +5,11 @@ import jax.numpy as jnp
 import mudata
 import torch
 
+from scvi._compat import Literal
+
 Number = Union[int, float]
 AnnOrMuData = Union[anndata.AnnData, mudata.MuData]
 Tensor = Union[torch.Tensor, jnp.ndarray]
 LossRecord = Union[Dict[str, Tensor], Tensor]
-LatentDataType = str
+# TODO(adamgayoso): Add constants for latent data types.
+LatentDataType = Literal["posterior_parameters"]
