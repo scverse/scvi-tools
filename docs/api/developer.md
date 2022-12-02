@@ -182,8 +182,9 @@ These classes should be used to construct module classes that define generative 
    module.base.BaseModuleClass
    module.base.BaseLatentModeModuleClass
    module.base.PyroBaseModuleClass
-   module.base.JaxModuleWrapper
+   module.base.JaxBaseModuleClass
    module.base.LossRecorder
+   module.base.LossOutput
    module.base.auto_move_data
 
 ```
@@ -236,6 +237,24 @@ TrainingPlans define train/test/val optimization steps for modules.
 
 ```
 
+## Model hyperparameter autotuning
+
+`scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune]. These
+classes allow for new model classes to be easily integrated with the module.
+
+```{eval-rst}
+.. currentmodule:: scvi
+```
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   autotune.TunerManager
+   autotune.Tunable
+```
+
 ## Utilities
 
 ```{eval-rst}
@@ -253,3 +272,5 @@ Utility functions used by scvi-tools.
    utils.setup_anndata_dsp
    utils.attrdict
 ```
+
+[ray tune]: https://docs.ray.io/en/latest/tune/index.html

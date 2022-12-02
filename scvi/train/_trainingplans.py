@@ -89,6 +89,7 @@ class TrainingPlan(pl.LightningModule):
     be used to optimize the model parameters in the Trainer. Overall, custom
     training plans can be used to develop complex inference schemes on top of
     modules.
+
     The following developer tutorial will familiarize you more with training plans
     and how to use them: :doc:`/tutorials/notebooks/model_user_guide`.
 
@@ -344,7 +345,9 @@ class TrainingPlan(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx=0):
         """Training step for the model."""
         if "kl_weight" in self.loss_kwargs:
-            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+            kl_weight = self.kl_weight
+            self.loss_kwargs.update({"kl_weight": kl_weight})
+            self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log("train_loss", scvi_loss.loss, on_epoch=True)
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
@@ -1140,6 +1143,9 @@ class JaxTrainingPlan(TrainingPlan):
             prog_bar=True,
         )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+        # Update the dummy optimizer to update the global step
+        _opt = self.optimizers()
+        _opt.step()
 
     @partial(jax.jit, static_argnums=(0,))
     def jit_validation_step(
