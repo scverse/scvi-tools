@@ -244,6 +244,7 @@ class SCVI(
             obsm=self.adata.obsm,
             obsp=self.adata.obsp,
         )
+        # Remove scvi uuid key to make bdata fresh w.r.t. the model's manager
         del bdata.uns[_SCVI_UUID_KEY]
         bdata.uns[_ADATA_LATENT_UNS_KEY] = mode
         return bdata
