@@ -1,7 +1,8 @@
 from .hub_metadata import HubMetadata
-from .hub_model import HubModel
+from .hub_model import HubModel, list_all_models
 
 __all__ = [
-    "HubMetadata",
     "HubModel",
+    "HubMetadata",
+    "list_all_models",
 ]
