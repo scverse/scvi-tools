@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -60,8 +61,7 @@ class HubMetadata:
         self._anndata_version = anndata_version
         self._description = description
         self._references = references
-
-        # TODO add model criticism metrics under "evaluation metrics" on hugging face
+        # TODO add model criticism metrics
 
         self._model_card = self._to_model_card()
 
@@ -71,12 +71,23 @@ class HubMetadata:
         local_dir: str,
         license_info: str,
         anndata_version: str,
+        data_cell_count: Optional[int] = None,
+        data_gene_count: Optional[int] = None,
         **kwargs,
     ):
         """Placeholder docstring. TODO complete"""
-        adata = anndata.read_h5ad(f"{local_dir}/adata.h5ad", backed=True)
-        data_cell_count = adata.n_obs
-        data_gene_count = adata.n_vars
+        if os.path.isfile(f"{local_dir}/adata.h5ad"):
+            adata = anndata.read_h5ad(f"{local_dir}/adata.h5ad", backed=True)
+            cell_count = adata.n_obs
+            gene_count = adata.n_vars
+        else:
+            if data_cell_count is None or data_gene_count is None:
+                raise ValueError(
+                    "No data found on disk. Please provide `data_cell_count` and `data_gene_count`"
+                )
+            else:
+                cell_count = data_cell_count
+                gene_count = data_gene_count
 
         torch_model = torch.load(f"{local_dir}/model.pt")
         attr_dict = torch_model["attr_dict"]
@@ -87,8 +98,8 @@ class HubMetadata:
 
         return cls(
             license_info,
-            data_cell_count,
-            data_gene_count,
+            cell_count,
+            gene_count,
             model_cls_name,
             model_init_params,
             model_setup_anndata_args,
@@ -135,6 +146,7 @@ class HubMetadata:
         )
 
         # finally create and return the actual card
+        # TODO run card.validate()? is it slow?
         return ModelCard(content)
 
     @classmethod

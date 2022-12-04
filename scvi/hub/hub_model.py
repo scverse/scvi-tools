@@ -56,10 +56,12 @@ class HubModel:
         self, repo_name: str, repo_token_path: str, repo_create: bool
     ):
         """Placeholder docstring. TODO complete"""
-        if os.path.getsize(self._adata_path) >= MAX_HF_UPLOAD_SIZE:
+        if os.path.isfile(self._adata_path) and (
+            os.path.getsize(self._adata_path) >= MAX_HF_UPLOAD_SIZE
+        ):
             raise ValueError(
                 "Dataset is too large to upload to the Model. \
-                Please refer to scvi-tools hub tutorials for how to handle this case."
+                Please refer to scvi-tools tutorials for how to handle this case."
             )
         repo_token = Path(repo_token_path).read_text()
         if repo_create:
@@ -71,21 +73,22 @@ class HubModel:
             repo_id=repo_name,
             token=repo_token,
         )
-        api.upload_file(
-            path_or_fileobj=self._adata_path,
-            path_in_repo=self._adata_path.split("/")[-1],
-            repo_id=repo_name,
-            token=repo_token,
-        )
+        if os.path.isfile(self._adata_path):
+            api.upload_file(
+                path_or_fileobj=self._adata_path,
+                path_in_repo=self._adata_path.split("/")[-1],
+                repo_id=repo_name,
+                token=repo_token,
+            )
         self.model_card.push_to_hub(repo_name, token=repo_token)
 
     @classmethod
-    def pull_from_huggingface_hub(cls, repo_id: str):
+    def pull_from_huggingface_hub(cls, repo_name: str):
         """Placeholder docstring. TODO complete"""
         cache_dir = snapshot_download(
-            repo_id=repo_id, allow_patterns=["model.pt", "adata.h5ad"]
+            repo_id=repo_name, allow_patterns=["model.pt", "adata.h5ad"]
         )
-        model_card = ModelCard.load(repo_id)
+        model_card = ModelCard.load(repo_name)
         return cls(cache_dir, model_card)
 
     def __repr__(self):
@@ -139,14 +142,33 @@ class HubModel:
         cls_name = torch_model["attr_dict"]["registry_"]["model_name"]
         python_module = importlib.import_module("scvi.model")
         model_cls = getattr(python_module, cls_name)
-        self._model = model_cls.load(
-            os.path.dirname(self._model_path), adata=adata, use_gpu=use_gpu
-        )
+        if adata is not None or os.path.isfile(self._adata_path):
+            self._model = model_cls.load(
+                os.path.dirname(self._model_path), adata=adata, use_gpu=use_gpu
+            )
+        else:
+            # in this case, we must download the large adata if it exists in the model card
+            # otherwise, we must error out
+            if self.adata_large is None:
+                raise ValueError(
+                    "Could not find any dataset to load the model with.\
+                    Either provide a dataset on disk or a url to download the data in the model card.\
+                    See scvi-tools tutorials for more details."
+                )
+            else:
+                self._model = model_cls.load(
+                    os.path.dirname(self._model_path),
+                    adata=self.adata_large,
+                    use_gpu=use_gpu,
+                )
 
     def read_adata(self):
         """Placeholder docstring. TODO complete"""
-        logger.info("Reading adata...")
-        self._adata = anndata.read_h5ad(self._adata_path)
+        if os.path.isfile(self._adata_path):
+            logger.info("Reading adata...")
+            self._adata = anndata.read_h5ad(self._adata_path)
+        else:
+            logger.info("No data found on disk. Skipping...")
 
     def read_adata_large(self):
         """Download the full adata, if it exists, then read it into memory."""
