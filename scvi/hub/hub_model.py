@@ -16,9 +16,12 @@ from huggingface_hub import (
 )
 from huggingface_hub.hf_api import ModelInfo
 
+from scvi.data._download import _download
+from scvi.hub import HubMetadata
 from scvi.model.base import BaseModelClass
 
 HF_LIBRARY_NAME = "scvi-tools"
+MAX_HF_UPLOAD_SIZE = 5e9  # 5GB
 logger = logging.getLogger(__name__)
 
 
@@ -34,7 +37,7 @@ class HubModel:
 
         self._model_path = f"{self._local_dir}/model.pt"
         self._adata_path = f"{self._local_dir}/adata.h5ad"
-        self._adata_full_path = f"{self._local_dir}/adata_full.h5ad"
+        self._adata_large_path = f"{self._local_dir}/adata_large.h5ad"
 
         if isinstance(model_card, ModelCard):
             self._model_card = model_card
@@ -42,17 +45,22 @@ class HubModel:
             content = Path(model_card).read_text()
             self._model_card = ModelCard(content)
         else:
-            raise TypeError("`model_card` data type not understood")
+            raise TypeError("Unexpected data type for `model_card`")
 
         # lazy load - these are not loaded until accessed
         self._model = None
         self._adata = None
-        self._adata_full = None
+        self._adata_large = None
 
     def push_to_huggingface_hub(
         self, repo_name: str, repo_token_path: str, repo_create: bool
     ):
         """Placeholder docstring. TODO complete"""
+        if os.path.getsize(self._adata_path) >= MAX_HF_UPLOAD_SIZE:
+            raise ValueError(
+                "Dataset is too large to upload to the Model. \
+                Please refer to scvi-tools hub tutorials for how to handle this case."
+            )
         repo_token = Path(repo_token_path).read_text()
         if repo_create:
             create_repo(repo_name, token=repo_token)
@@ -69,7 +77,7 @@ class HubModel:
             repo_id=repo_name,
             token=repo_token,
         )
-        self._model_card.push_to_hub(repo_name, token=repo_token)
+        self.model_card.push_to_hub(repo_name, token=repo_token)
 
     @classmethod
     def pull_from_huggingface_hub(cls, repo_id: str):
@@ -89,7 +97,7 @@ class HubModel:
             f"local_dir: {self._local_dir}\n"
             f"model loaded? {eval_obj(self._model)}\n"
             f"adata loaded? {eval_obj(self._adata)}\n"
-            f"adata_full loaded? {eval_obj(self._adata_full)}\n"
+            f"adata_large loaded? {eval_obj(self._adata_large)}\n"
             f"model card:\n{self.model_card}"
         )
 
@@ -113,11 +121,11 @@ class HubModel:
         return self._adata
 
     @property
-    def adata_full(self) -> Optional[AnnData]:
+    def adata_large(self) -> Optional[AnnData]:
         """Placeholder docstring. TODO complete"""
-        if self._adata_full is None:
-            self.read_adata_full()
-        return self._adata_full
+        if self._adata_large is None:
+            self.read_adata_large()
+        return self._adata_large
 
     def load_model(
         self,
@@ -140,12 +148,20 @@ class HubModel:
         logger.info("Reading adata...")
         self._adata = anndata.read_h5ad(self._adata_path)
 
-    def read_adata_full(self):
+    def read_adata_large(self):
         """Download the full adata, if it exists, then read it into memory."""
-        # logger.info("Reading adata_full...")
-        # self._adata_full = anndata.read_h5ad(self._adata_full_path)
-        # -> need to download it first
-        raise NotImplementedError()
+        large_data_url = HubMetadata.from_model_card(self.model_card).large_data_url
+        if large_data_url is not None:
+            logger.info(
+                f"Downloading large dataset from this url:\n{large_data_url}..."
+            )
+            dn = Path(self._adata_large_path).parent
+            fn = Path(self._adata_large_path).filename
+            _download(large_data_url, dn, fn)
+            logger.info("Reading large data...")
+            self._adata_large = anndata.read_h5ad(self._adata_large_path)
+        else:
+            logger.info("No large_data_url found in the model card. Skipping...")
 
 
 def list_all_models(
