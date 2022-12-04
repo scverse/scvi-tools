@@ -832,7 +832,7 @@ class BaseLatentModeModelClass(BaseModelClass):
     """Abstract base class for scvi-tools models that support latent mode."""
 
     @property
-    def latent_data_type(self) -> Optional[LatentDataType]:
+    def latent_data_type(self) -> Union[LatentDataType, None]:
         """The latent data type associated with this model."""
         return (
             self.adata_manager.get_from_registry(REGISTRY_KEYS.LATENT_MODE_KEY)
@@ -843,7 +843,7 @@ class BaseLatentModeModelClass(BaseModelClass):
     @abstractmethod
     def to_latent_mode(
         self,
-        mode: LatentDataType = "dist",
+        mode: LatentDataType = "posterior_parameters",
         *args,
         **kwargs,
     ):
@@ -861,3 +861,8 @@ class BaseLatentModeModelClass(BaseModelClass):
         mode
             The latent data type used
         """
+
+    @staticmethod
+    @abstractmethod
+    def _get_latent_fields(mode: LatentDataType):
+        """Return the anndata fields required for latent mode support."""

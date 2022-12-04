@@ -1,5 +1,5 @@
 """Main module."""
-from typing import Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, Tuple
 
 import numpy as np
 import torch
@@ -10,15 +10,17 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi._types import LatentDataType
+from scvi._decorators import classproperty
+from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseLatentModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
 
+_SCVI_LATENT_MODE = "posterior_parameters"
 
-# VAE model
+
 class VAE(BaseLatentModeModuleClass):
     """
     Variational auto-encoder model.
@@ -95,7 +97,7 @@ class VAE(BaseLatentModeModuleClass):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: int = 128,
+        n_hidden: Tunable[int] = 128,
         n_latent: int = 10,
         n_layers: int = 1,
         n_continuous_cov: int = 0,
@@ -114,7 +116,6 @@ class VAE(BaseLatentModeModuleClass):
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
         var_activation: Optional[Callable] = None,
-        latent_data_type: Optional[LatentDataType] = None,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -126,7 +127,6 @@ class VAE(BaseLatentModeModuleClass):
         self.n_labels = n_labels
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
-        self._latent_data_type = latent_data_type
 
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
@@ -211,6 +211,10 @@ class VAE(BaseLatentModeModuleClass):
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
+    @classproperty
+    def _tunables(cls) -> Tuple[Any]:
+        return (cls.__init__,)
+
     def _get_inference_input(
         self,
         tensors,
@@ -229,7 +233,7 @@ class VAE(BaseLatentModeModuleClass):
                 x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
             )
         else:
-            if self.latent_data_type == "dist":
+            if self.latent_data_type == _SCVI_LATENT_MODE:
                 qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
                 qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
                 input_dict = dict(qzm=qzm, qzv=qzv)
@@ -330,7 +334,7 @@ class VAE(BaseLatentModeModuleClass):
 
     @auto_move_data
     def _cached_inference(self, qzm, qzv, n_samples=1):
-        if self.latent_data_type == "dist":
+        if self.latent_data_type == _SCVI_LATENT_MODE:
             dist = Normal(qzm, qzv.sqrt())
             # use dist.sample() rather than rsample because we aren't optimizing
             # the z in latent/cached mode
