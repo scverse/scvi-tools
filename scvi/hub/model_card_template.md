@@ -1,10 +1,11 @@
 ---
+<!-- prettier-ignore -->
 { card_data }
 ---
 
 ### Description
 
-{description}
+{ description }
 
 ### Model properties
 
