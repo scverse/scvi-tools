@@ -1,6 +1,7 @@
 import importlib
 import logging
 import os
+from pathlib import Path
 from typing import List, Optional, Type, Union
 
 import anndata
@@ -27,29 +28,21 @@ class HubModel:
     def __init__(
         self,
         local_dir: str,
-        model_card: Optional[ModelCard] = None,
-        model_card_path: Optional[str] = None,
+        model_card: Union[ModelCard, str],
     ):
-        # Users can either provide their own ModelCard or provide a path to a custom markdown file
-        # (but not both).
-
         self._local_dir = local_dir
 
         self._model_path = f"{self._local_dir}/model.pt"
         self._adata_path = f"{self._local_dir}/adata.h5ad"
         self._adata_full_path = f"{self._local_dir}/adata_full.h5ad"
 
-        if model_card is not None and model_card_path is not None:
-            raise ValueError(
-                "Please do not provide both a `model_card` and a `model_card_path`."
-            )
-
-        if model_card is not None:
+        if isinstance(model_card, ModelCard):
             self._model_card = model_card
-        elif model_card_path is not None:
-            with open(model_card_path) as f:
-                content = f.readlines()[0]
-                self._model_card = ModelCard(content)
+        elif isinstance(model_card, str):
+            content = Path(model_card).read_text()
+            self._model_card = ModelCard(content)
+        else:
+            raise TypeError("`model_card` data type not understood")
 
         # lazy load - these are not loaded until accessed
         self._model = None
@@ -60,9 +53,7 @@ class HubModel:
         self, repo_name: str, repo_token_path: str, repo_create: bool
     ):
         """Placeholder docstring. TODO complete"""
-        repo_token = None
-        with open(repo_token_path) as f:
-            repo_token = f.readlines()[0]
+        repo_token = Path(repo_token_path).read_text()
         if repo_create:
             create_repo(repo_name, token=repo_token)
         api = HfApi()
@@ -115,18 +106,18 @@ class HubModel:
         return self._model
 
     @property
-    def adata_full(self) -> Optional[AnnData]:
-        """Placeholder docstring. TODO complete"""
-        if self._adata_full is None:
-            self.read_adata_full()
-        return self._adata_full
-
-    @property
     def adata(self) -> AnnData:
         """Placeholder docstring. TODO complete"""
         if self._adata is None:
             self.read_adata()
         return self._adata
+
+    @property
+    def adata_full(self) -> Optional[AnnData]:
+        """Placeholder docstring. TODO complete"""
+        if self._adata_full is None:
+            self.read_adata_full()
+        return self._adata_full
 
     def load_model(
         self,

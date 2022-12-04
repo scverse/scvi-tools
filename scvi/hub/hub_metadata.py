@@ -30,7 +30,8 @@ class HubMetadata:
         tissues: Optional[List[str]] = None,
         data_is_annotated: Optional[bool] = None,
         data_url: Optional[str] = None,
-        description: str = "",
+        description: str = "To be added...",
+        references: str = "To be added...",
     ):
         self._data_cell_count = data_cell_count
         self._data_gene_count = data_gene_count
@@ -47,6 +48,7 @@ class HubMetadata:
         self._scvi_version = scvi_version
         self._anndata_version = anndata_version
         self._description = description
+        self._references = references
 
         # TODO add model criticism metrics under "evaluation metrics" on hugging face
 
@@ -62,9 +64,10 @@ class HubMetadata:
         data_modalities: Optional[List[str]] = None,
         data_is_annotated: Optional[bool] = None,
         description: str = "",
+        references: str = "",
     ):
         """Placeholder docstring. TODO complete"""
-        adata = anndata.read_h5ad(f"{local_dir}/adata.h5ad")
+        adata = anndata.read_h5ad(f"{local_dir}/adata.h5ad", backed=True)
         data_cell_count = adata.n_obs
         data_gene_count = adata.n_vars
 
@@ -89,6 +92,7 @@ class HubMetadata:
             data_is_annotated,
             None,
             description,
+            references,
         )
 
     def _to_model_card(self) -> ModelCard:
@@ -124,6 +128,7 @@ class HubMetadata:
             model_setup_anndata_args=json.dumps(
                 self._model_setup_anndata_args, indent=4
             ),
+            references=self._references,
         )
 
         # finally create and return the actual card

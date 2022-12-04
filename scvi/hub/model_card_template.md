@@ -19,7 +19,7 @@ Many model properties are in the model tags. Some more are listed below.
 **gene_count**:
 
 ```
-{cell_count}
+{gene_count}
 ```
 
 **model_init_params**:
@@ -33,3 +33,7 @@ Many model properties are in the model tags. Some more are listed below.
 ```json
 {model_setup_anndata_args}
 ```
+
+### References
+
+{references}
