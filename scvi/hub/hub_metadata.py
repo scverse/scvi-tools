@@ -7,7 +7,7 @@ import anndata
 import torch
 import yaml
 from huggingface_hub import ModelCard, ModelCardData
-from parse import parse, search
+from parse import parse
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,10 @@ HF_LIBRARY_NAME = "scvi-tools"
 MODEL_CARD_TEMPLATE_FILE = "model_card_template.md"
 DEFAULT_MISSING_FIELD = "To be added..."
 DEFAULT_NA_FIELD = "N/A"
+# model card tags
+MODEL_CLS_NAME_TAG = "model_cls_name:{}"
+SCVI_VERSION_TAG = "scvi_version:{}"
+ANNDATA_VERSION_TAG = "anndata_version:{}"
 MODALITY_TAG = "modality:{}"
 TISSUE_TAG = "tissue:{}"
 ANNOTATED_TAG = "annotated:{}"
@@ -29,8 +33,8 @@ class HubMetadata:
         data_cell_count: int,
         data_gene_count: int,
         model_cls_name: str,
-        model_init_params: str,
-        model_setup_anndata_args: str,
+        model_init_params: dict,
+        model_setup_anndata_args: dict,
         scvi_version: str,
         anndata_version: str,
         data_modalities: Optional[List[str]] = None,
@@ -97,9 +101,9 @@ class HubMetadata:
         """Placeholder docstring. TODO complete"""
         # define tags
         tags = [
-            f"model_cls_name:{self._model_cls_name}",
-            f"scvi_version:{self._scvi_version}",
-            f"anndata_version:{self._anndata_version}",
+            MODEL_CLS_NAME_TAG.format(self._model_cls_name),
+            SCVI_VERSION_TAG.format(self._scvi_version),
+            ANNDATA_VERSION_TAG.format(self._anndata_version),
         ]
         for m in self._data_modalities:
             tags.append(MODALITY_TAG.format(m))
@@ -111,7 +115,7 @@ class HubMetadata:
         # define the card data, which is the header
         card_data = ModelCardData(
             license=self._license_info,
-            library_name="scvi-tools",
+            library_name=HF_LIBRARY_NAME,
             tags=tags,
         )
 
@@ -152,8 +156,8 @@ class HubMetadata:
         description = parser["description"]
         data_cell_count = parser["cell_count"]
         data_gene_count = parser["gene_count"]
-        model_init_params = parser["model_init_params"]
-        model_setup_anndata_args = parser["model_setup_anndata_args"]
+        model_init_params = json.loads(parser["model_init_params"])
+        model_setup_anndata_args = json.loads(parser["model_setup_anndata_args"])
         large_data_url = (
             parser["large_data_url"]
             if parser["large_data_url"] != DEFAULT_NA_FIELD
@@ -175,16 +179,26 @@ class HubMetadata:
         # 'tissue:spleen']}
         license_info = card_data["license"]
         tags = card_data["tags"]
-        model_cls_name = tags["model_cls_name"]
-        scvi_version = tags["scvi_version"]
-        anndata_version = tags["anndata_version"]
+        model_cls_name = [
+            parse(MODEL_CLS_NAME_TAG, t)[0]
+            for t in tags
+            if parse(MODEL_CLS_NAME_TAG, t)
+        ][0]
+        scvi_version = [
+            parse(SCVI_VERSION_TAG, t)[0] for t in tags if parse(SCVI_VERSION_TAG, t)
+        ][0]
+        anndata_version = [
+            parse(ANNDATA_VERSION_TAG, t)[0]
+            for t in tags
+            if parse(ANNDATA_VERSION_TAG, t)
+        ][0]
         data_modalities = [
-            search(MODALITY_TAG, t)[0] for t in tags if search(MODALITY_TAG, t)
+            parse(MODALITY_TAG, t)[0] for t in tags if parse(MODALITY_TAG, t)
         ]
-        tissues = [search(TISSUE_TAG, t)[0] for t in tags if search(TISSUE_TAG, t)]
+        tissues = [parse(TISSUE_TAG, t)[0] for t in tags if parse(TISSUE_TAG, t)]
         data_is_annotated = None
         annotated = [
-            search(ANNOTATED_TAG, t)[0] for t in tags if search(ANNOTATED_TAG, t)
+            parse(ANNOTATED_TAG, t)[0] for t in tags if parse(ANNOTATED_TAG, t)
         ]
         if len(annotated) > 0:
             data_is_annotated = annotated[0]

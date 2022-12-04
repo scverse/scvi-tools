@@ -1,10 +1,10 @@
 ---
-{ card_data }
+{card_data}
 ---
 
 ### Description
 
-{ description }
+{description}
 
 ### Model properties
 

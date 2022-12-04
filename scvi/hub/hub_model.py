@@ -155,8 +155,8 @@ class HubModel:
             logger.info(
                 f"Downloading large dataset from this url:\n{large_data_url}..."
             )
-            dn = Path(self._adata_large_path).parent
-            fn = Path(self._adata_large_path).filename
+            dn = Path(self._adata_large_path).parent.as_posix()
+            fn = Path(self._adata_large_path).name
             _download(large_data_url, dn, fn)
             logger.info("Reading large data...")
             self._adata_large = anndata.read_h5ad(self._adata_large_path)
