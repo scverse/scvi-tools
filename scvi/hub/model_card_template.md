@@ -1,6 +1,7 @@
 ---
-<!-- prettier-ignore -->
+<!-- prettier-ignore-start -->
 { card_data }
+<!-- prettier-ignore-end -->
 ---
 
 ### Description
