@@ -30,6 +30,13 @@ from scvi.model import (
     JaxSCVI,
     LinearSCVI,
 )
+from scvi.dataloaders import (
+    AnnDataLoader,
+    DataSplitter,
+    DeviceBackedDataSplitter,
+    SemiSupervisedDataLoader,
+    SemiSupervisedDataSplitter,
+)
 from scvi.model.utils import mde
 from scvi.utils import attrdict
 
