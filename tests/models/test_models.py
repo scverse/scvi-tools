@@ -39,9 +39,8 @@ from scvi.model import (
 )
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 from scvi.model.utils import mde
+from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils import attrdict
-from scvi.train import TrainRunner, TrainingPlan
-
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
