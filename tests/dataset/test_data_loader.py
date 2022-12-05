@@ -7,12 +7,9 @@ from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
-    DeviceBackedDataSplitter,
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
-from scvi.model import SCVI
-from scvi.train import TrainingPlan, TrainRunner
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
@@ -214,6 +211,7 @@ def test_default_data_loader_kwargs():
         )
         ds.setup()
         adl = ds.train_dataloader()
+
 
 def test_semisupervised_data_splitter():
     a = synthetic_iid()
