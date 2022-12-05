@@ -215,32 +215,6 @@ def test_default_data_loader_kwargs():
         ds.setup()
         adl = ds.train_dataloader()
 
-
-def test_device_backed_data_splitter():
-    a = synthetic_iid()
-    SCVI.setup_anndata(a, batch_key="batch", labels_key="labels")
-    model = SCVI(a, n_latent=5)
-    adata_manager = model.adata_manager
-    # test leaving validataion_size empty works
-    ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0, use_gpu=None)
-    ds.setup()
-    train_dl = ds.train_dataloader()
-    ds.val_dataloader()
-    loaded_x = next(iter(train_dl))["X"]
-    assert len(loaded_x) == a.shape[0]
-    np.testing.assert_array_equal(loaded_x.cpu().numpy(), a.X)
-
-    training_plan = TrainingPlan(model.module, len(ds.train_idx))
-    runner = TrainRunner(
-        model,
-        training_plan=training_plan,
-        data_splitter=ds,
-        max_epochs=1,
-        use_gpu=None,
-    )
-    runner()
-
-
 def test_semisupervised_data_splitter():
     a = synthetic_iid()
     adata_manager = scanvi_setup_adata_manager(
