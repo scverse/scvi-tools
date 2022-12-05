@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from collections import defaultdict
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import List, Optional, Union
 from uuid import uuid4
 
@@ -25,6 +26,23 @@ from ._utils import (
 from .fields import AnnDataField
 
 
+@dataclass
+class AnnDataManagerValidationCheck:
+    """
+    Validation checks for AnnorMudata scvi-tools compat.
+
+    Parameters
+    ----------
+    check_if_view
+        If True, checks if AnnData is a view.
+    check_fully_paired_mudata
+        If True, checks if MuData is fully paired across mods.
+    """
+
+    check_if_view: bool = True
+    check_fully_paired_mudata: bool = True
+
+
 class AnnDataManager:
     """
     Provides an interface to validate and process an AnnData object for use in scvi-tools.
@@ -39,6 +57,8 @@ class AnnDataManager:
     setup_method_args
         Dictionary describing the model and arguments passed in by the user
         to setup this AnnDataManager.
+    validation_checks
+        DataClass specifying which global validation checks to run on the data object.
 
     Examples
     --------
@@ -57,10 +77,12 @@ class AnnDataManager:
         self,
         fields: Optional[List[AnnDataField]] = None,
         setup_method_args: Optional[dict] = None,
+        validation_checks: Optional[AnnDataManagerValidationCheck] = None,
     ) -> None:
         self.id = str(uuid4())
         self.adata = None
         self.fields = fields or []
+        self.validation_checks = validation_checks or AnnDataManagerValidationCheck()
         self._registry = {
             _constants._SCVI_VERSION_KEY: scvi.__version__,
             _constants._MODEL_NAME_KEY: None,
@@ -77,12 +99,15 @@ class AnnDataManager:
                 "AnnData object not registered. Please call register_fields."
             )
 
-    @staticmethod
-    def _validate_anndata_object(adata: AnnOrMuData):
+    def _validate_anndata_object(self, adata: AnnOrMuData):
         """For a given AnnData object, runs general scvi-tools compatibility checks."""
-        _check_if_view(adata, copy_if_view=False)
+        if self.validation_checks.check_if_view:
+            _check_if_view(adata, copy_if_view=False)
 
-        if isinstance(adata, MuData):
+        if (
+            isinstance(adata, MuData)
+            and self.validation_checks.check_fully_paired_mudata
+        ):
             _check_mudata_fully_paired(adata)
 
     def _get_setup_method_args(self) -> dict:
@@ -249,7 +274,9 @@ class AnnDataManager:
 
         fields = self.fields
         new_adata_manager = self.__class__(
-            fields=fields, setup_method_args=self._get_setup_method_args()
+            fields=fields,
+            setup_method_args=self._get_setup_method_args(),
+            validation_checks=self.validation_checks,
         )
         new_adata_manager.register_fields(adata_target, self._registry, **kwargs)
         return new_adata_manager

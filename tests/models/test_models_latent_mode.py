@@ -48,16 +48,18 @@ def run_test_scvi_latent_mode_dist(
     )
     model_orig = deepcopy(model)
 
-    model.to_latent_mode(mode="dist")
+    model.to_latent_mode()
 
-    assert model.latent_data_type == "dist"
+    assert model.latent_data_type == "posterior_parameters"
 
     assert model_orig.adata.layers.keys() == model.adata.layers.keys()
     assert model.adata.obs.equals(model_orig.adata.obs)
     assert model.adata.var_names.equals(model_orig.adata.var_names)
     assert model.adata.var.equals(model_orig.adata.var)
     assert model.adata.varm.keys() == model_orig.adata.varm.keys()
-    assert np.array_equal(model.adata.varm["my_varm"], model_orig.adata.varm["my_varm"])
+    np.testing.assert_array_equal(
+        model.adata.varm["my_varm"], model_orig.adata.varm["my_varm"]
+    )
 
     scvi.settings.seed = 1
     keys = ["mean", "dispersions", "dropout"]
@@ -79,7 +81,11 @@ def run_test_scvi_latent_mode_dist(
         assert params_latent[k].shape == adata.shape
 
     for k in keys:
-        assert np.array_equal(params_latent[k], params_orig[k])
+        # Allclose because on GPU, the values are not exactly the same
+        # as latents are moved to cpu in latent mode
+        np.testing.assert_allclose(
+            params_latent[k], params_orig[k], rtol=3e-1, atol=5e-1
+        )
 
 
 def test_scvi_latent_mode_dist_one_sample():
@@ -105,13 +111,13 @@ def test_scvi_latent_mode_get_normalized_expression():
     scvi.settings.seed = 1
     exprs_orig = model.get_normalized_expression()
 
-    model.to_latent_mode(mode="dist")
+    model.to_latent_mode()
 
     scvi.settings.seed = 1
     exprs_latent = model.get_normalized_expression()
     assert exprs_latent.shape == adata.shape
 
-    assert np.array_equal(exprs_latent, exprs_orig)
+    np.testing.assert_array_equal(exprs_latent, exprs_orig)
 
 
 def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
@@ -131,7 +137,7 @@ def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
         gene_list=gl, n_samples=n_samples, library_size="latent"
     )
 
-    model.to_latent_mode(mode="dist")
+    model.to_latent_mode()
 
     scvi.settings.seed = 1
     # do this so that we generate the same sequence of random numbers in the
@@ -144,7 +150,7 @@ def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
     exprs_latent = exprs_latent[1:].mean(0)
 
     assert exprs_latent.shape == (adata.shape[0], 5)
-    assert np.array_equal(exprs_latent, exprs_orig)
+    np.testing.assert_allclose(exprs_latent, exprs_orig, rtol=3e-1, atol=5e-1)
 
 
 def test_latent_mode_validate_unsupported():
@@ -154,7 +160,7 @@ def test_latent_mode_validate_unsupported():
     adata.obsm["X_latent_qzm"] = qzm
     adata.obsm["X_latent_qzv"] = qzv
 
-    model.to_latent_mode(mode="dist")
+    model.to_latent_mode()
 
     common_err_msg = "Latent mode currently not supported for the {} function."
 
@@ -186,7 +192,7 @@ def test_scvi_latent_mode_save_load_latent(save_path):
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters()
 
-    model.to_latent_mode(mode="dist")
+    model.to_latent_mode()
 
     model.save(save_path, overwrite=True, save_anndata=True)
     # load saved latent model with saved latent adata
@@ -195,7 +201,7 @@ def test_scvi_latent_mode_save_load_latent(save_path):
     scvi.settings.seed = 1
     params_latent = loaded_model.get_likelihood_parameters()
     assert params_latent["mean"].shape == adata.shape
-    assert np.array_equal(params_latent["mean"], params_orig["mean"])
+    np.testing.assert_array_equal(params_latent["mean"], params_orig["mean"])
 
 
 def test_scvi_latent_mode_save_load_latent_to_non_latent(save_path):
@@ -210,7 +216,7 @@ def test_scvi_latent_mode_save_load_latent_to_non_latent(save_path):
     params_orig = model.get_likelihood_parameters()
     model_orig = deepcopy(model)
 
-    model.to_latent_mode(mode="dist")
+    model.to_latent_mode()
 
     model.save(save_path, overwrite=True, save_anndata=True)
     # load saved latent model with non-latent adata
@@ -219,7 +225,7 @@ def test_scvi_latent_mode_save_load_latent_to_non_latent(save_path):
     scvi.settings.seed = 1
     params_new = loaded_model.get_likelihood_parameters()
     assert params_new["mean"].shape == adata.shape
-    assert np.array_equal(params_new["mean"], params_orig["mean"])
+    np.testing.assert_array_equal(params_new["mean"], params_orig["mean"])
 
 
 def test_scvi_latent_mode_save_load_non_latent_to_latent(save_path):
@@ -230,7 +236,7 @@ def test_scvi_latent_mode_save_load_non_latent_to_latent(save_path):
     adata.obsm["X_latent_qzv"] = qzv
 
     model_orig = deepcopy(model)
-    model.to_latent_mode(mode="dist")
+    model.to_latent_mode()
 
     model_orig.save(save_path, overwrite=True, save_anndata=True)
 
@@ -252,12 +258,12 @@ def test_scvi_latent_mode_get_latent_representation():
     scvi.settings.seed = 1
     latent_repr_orig = model.get_latent_representation()
 
-    model.to_latent_mode(mode="dist")
+    model.to_latent_mode()
 
     scvi.settings.seed = 1
     latent_repr_latent = model.get_latent_representation()
 
-    assert np.array_equal(latent_repr_latent, latent_repr_orig)
+    np.testing.assert_array_equal(latent_repr_latent, latent_repr_orig)
 
 
 def test_scvi_latent_mode_posterior_predictive_sample():
@@ -273,7 +279,7 @@ def test_scvi_latent_mode_posterior_predictive_sample():
         indices=[1, 2, 3], gene_list=["1", "2"]
     )
 
-    model.to_latent_mode(mode="dist")
+    model.to_latent_mode()
 
     scvi.settings.seed = 1
     sample_latent = model.posterior_predictive_sample(
@@ -281,7 +287,7 @@ def test_scvi_latent_mode_posterior_predictive_sample():
     )
     assert sample_latent.shape == (3, 2)
 
-    assert np.array_equal(sample_latent, sample_orig)
+    np.testing.assert_array_equal(sample_latent, sample_orig)
 
 
 def test_scvi_latent_mode_get_feature_correlation_matrix():
@@ -299,7 +305,7 @@ def test_scvi_latent_mode_get_feature_correlation_matrix():
         transform_batch=["batch_0", "batch_1"],
     )
 
-    model.to_latent_mode(mode="dist")
+    model.to_latent_mode()
 
     scvi.settings.seed = 1
     fcm_latent = model.get_feature_correlation_matrix(
@@ -308,4 +314,4 @@ def test_scvi_latent_mode_get_feature_correlation_matrix():
         transform_batch=["batch_0", "batch_1"],
     )
 
-    assert np.array_equal(fcm_latent, fcm_orig)
+    np.testing.assert_array_equal(fcm_latent, fcm_orig)

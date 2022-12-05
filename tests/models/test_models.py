@@ -93,9 +93,9 @@ def test_jax_scvi():
 
     model = JaxSCVI(adata, n_latent=n_latent, gene_likelihood="poisson")
     model.train(1, train_size=0.5)
-    z1 = model.get_latent_representation(give_mean=True, mc_samples=1)
+    z1 = model.get_latent_representation(give_mean=True, n_samples=1)
     assert z1.ndim == 2
-    z2 = model.get_latent_representation(give_mean=False, mc_samples=15)
+    z2 = model.get_latent_representation(give_mean=False, n_samples=15)
     assert (z2.ndim == 3) and (z2.shape[0] == 15)
 
 
@@ -809,6 +809,185 @@ def test_backed_anndata_scvi(save_path):
     model.get_elbo()
 
 
+def test_ann_dataloader():
+    a = scvi.data.synthetic_iid()
+    adata_manager = generic_setup_adata_manager(
+        a, batch_key="batch", labels_key="labels"
+    )
+
+    # test that batch sampler drops the last batch if it has less than 3 cells
+    assert a.n_obs == 400
+    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=3)
+    assert len(adl) == 2
+    for _i, _ in enumerate(adl):
+        pass
+    assert _i == 1
+    adl = AnnDataLoader(adata_manager, batch_size=398, drop_last=3)
+    assert len(adl) == 1
+    for _i, _ in enumerate(adl):
+        pass
+    assert _i == 0
+    with pytest.raises(ValueError):
+        AnnDataLoader(adata_manager, batch_size=1, drop_last=2)
+
+
+def test_semisupervised_dataloader():
+    # test label resampling
+    n_samples_per_label = 10
+    a = synthetic_iid()
+    adata_manager = scanvi_setup_adata_manager(
+        a, labels_key="labels", unlabeled_category="label_0", batch_key="batch"
+    )
+    dl = SemiSupervisedDataLoader(
+        adata_manager,
+        indices=np.arange(a.n_obs),
+        n_samples_per_label=n_samples_per_label,
+    )
+    labeled_dl_idx = dl.dataloaders[1].indices
+    n_labels = 2
+    assert len(labeled_dl_idx) == n_samples_per_label * n_labels
+    dl.resample_labels()
+    resampled_labeled_dl_idx = dl.dataloaders[1].indices
+    assert len(resampled_labeled_dl_idx) == n_samples_per_label * n_labels
+    # check labeled indices was actually resampled
+    assert np.sum(labeled_dl_idx == resampled_labeled_dl_idx) != len(labeled_dl_idx)
+
+
+def test_data_splitter():
+    a = synthetic_iid()
+    adata_manager = generic_setup_adata_manager(
+        a, batch_key="batch", labels_key="labels"
+    )
+    # test leaving validataion_size empty works
+    ds = DataSplitter(adata_manager, train_size=0.4)
+    ds.setup()
+    # check the number of indices
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
+
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.4)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.6)
+    assert np.isclose(n_test_idx / a.n_obs, 0)
+
+    # test test size
+    ds = DataSplitter(adata_manager, train_size=0.4, validation_size=0.3)
+    ds.setup()
+    # check the number of indices
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
+
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.4)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.3)
+    assert np.isclose(n_test_idx / a.n_obs, 0.3)
+
+    # test that 0 < train_size <= 1
+    with pytest.raises(ValueError):
+        ds = DataSplitter(adata_manager, train_size=2)
+        ds.setup()
+        ds.train_dataloader()
+    with pytest.raises(ValueError):
+        ds = DataSplitter(adata_manager, train_size=-2)
+        ds.setup()
+        ds.train_dataloader()
+
+    # test that 0 <= validation_size < 1
+    with pytest.raises(ValueError):
+        ds = DataSplitter(adata_manager, train_size=0.1, validation_size=1)
+        ds.setup()
+        ds.val_dataloader()
+    with pytest.raises(ValueError):
+        ds = DataSplitter(adata_manager, train_size=0.1, validation_size=-1)
+        ds.setup()
+        ds.val_dataloader()
+
+    # test that train_size + validation_size <= 1
+    with pytest.raises(ValueError):
+        ds = DataSplitter(adata_manager, train_size=1, validation_size=0.1)
+        ds.setup()
+        ds.train_dataloader()
+        ds.val_dataloader()
+
+
+def test_device_backed_data_splitter():
+    a = synthetic_iid()
+    SCVI.setup_anndata(a, batch_key="batch", labels_key="labels")
+    model = SCVI(a, n_latent=5)
+    adata_manager = model.adata_manager
+    # test leaving validataion_size empty works
+    ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0, use_gpu=None)
+    ds.setup()
+    train_dl = ds.train_dataloader()
+    ds.val_dataloader()
+    loaded_x = next(iter(train_dl))["X"]
+    assert len(loaded_x) == a.shape[0]
+    np.testing.assert_array_equal(loaded_x.cpu().numpy(), a.X)
+
+    training_plan = TrainingPlan(model.module)
+    runner = TrainRunner(
+        model,
+        training_plan=training_plan,
+        data_splitter=ds,
+        max_epochs=1,
+        use_gpu=None,
+    )
+    runner()
+
+
+def test_semisupervised_data_splitter():
+    a = synthetic_iid()
+    adata_manager = scanvi_setup_adata_manager(
+        a, labels_key="labels", unlabeled_category="asdf", batch_key="batch"
+    )
+    ds = SemiSupervisedDataSplitter(adata_manager)
+    ds.setup()
+    # check the number of indices
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
+
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.9)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.1)
+    assert np.isclose(n_test_idx / a.n_obs, 0)
+
+    # test mix of labeled and unlabeled data
+    unknown_label = "label_0"
+    ds = SemiSupervisedDataSplitter(adata_manager)
+    ds.setup()
+    _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
+
+    # check the number of indices
+    n_train_idx = len(ds.train_idx)
+    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
+    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
+    assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
+    assert np.isclose(n_train_idx / a.n_obs, 0.9, rtol=0.05)
+    assert np.isclose(n_validation_idx / a.n_obs, 0.1, rtol=0.05)
+    assert np.isclose(n_test_idx / a.n_obs, 0, rtol=0.05)
+
+    # check that training indices have proper mix of labeled and unlabeled data
+    labelled_idx = np.where(a.obs["labels"] != unknown_label)[0]
+    unlabelled_idx = np.where(a.obs["labels"] == unknown_label)[0]
+    # labeled training idx
+    labeled_train_idx = [i for i in ds.train_idx if i in labelled_idx]
+    # unlabeled training idx
+    unlabeled_train_idx = [i for i in ds.train_idx if i in unlabelled_idx]
+    n_labeled_idx = len(labelled_idx)
+    n_unlabeled_idx = len(unlabelled_idx)
+    # labeled vs unlabeled ratio in adata
+    adata_ratio = n_unlabeled_idx / n_labeled_idx
+    # labeled vs unlabeled ratio in train set
+    train_ratio = len(unlabeled_train_idx) / len(labeled_train_idx)
+    assert np.isclose(adata_ratio, train_ratio, atol=0.05)
+
+
 def test_scanvi(save_path):
     adata = synthetic_iid()
     SCANVI.setup_anndata(
@@ -1369,7 +1548,6 @@ def test_multivi():
         data,
         n_genes=50,
         n_regions=50,
-        n_proteins=0,
     )
     vae.train(1, save_best=False)
     vae.train(1, adversarial_mixing=False)
@@ -1394,20 +1572,17 @@ def test_multivi():
         data,
         n_genes=50,
         n_regions=50,
-        n_proteins=0,
     )
     vae.train(3)
 
     # Test with modality weights and penalties
     data = synthetic_iid()
     MULTIVI.setup_anndata(data, batch_key="batch")
-    vae = MULTIVI(data, n_genes=50, n_regions=50, n_proteins=0, modality_weights="cell")
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
     vae.train(3)
-    vae = MULTIVI(
-        data, n_genes=50, n_regions=50, n_proteins=0, modality_weights="universal"
-    )
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="universal")
     vae.train(3)
-    vae = MULTIVI(data, n_genes=50, n_regions=50, n_proteins=0, modality_penalty="MMD")
+    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_penalty="MMD")
     vae.train(3)
 
     # Test with non-zero protein data
@@ -1422,9 +1597,9 @@ def test_multivi():
         data,
         n_genes=50,
         n_regions=50,
-        n_proteins=data.obsm["protein_expression"].shape[1],
         modality_weights="cell",
     )
+    assert vae.n_proteins == data.obsm["protein_expression"].shape[1]
     vae.train(3)
 
 

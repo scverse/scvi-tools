@@ -271,8 +271,8 @@ class ClampCallback(Callback):
     def __init__(self):
         super().__init__()
 
-    def on_batch_end(self, trainer, pl_module):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         """Clamp parameters."""
         with torch.inference_mode():
             pl_module.module.delta_log.clamp_(np.log(pl_module.module.min_delta))
-        super().on_batch_end(trainer, pl_module)
+        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)

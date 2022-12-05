@@ -8,7 +8,7 @@ from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.module.base import LossRecorder, auto_move_data
+from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import Decoder, Encoder
 
 from ._classifier import Classifier
@@ -300,18 +300,21 @@ class SCANVAE(VAE):
             if labelled_tensors is not None:
                 classifier_loss = self.classification_loss(labelled_tensors)
                 loss += classifier_loss * classification_ratio
-                return LossRecorder(
-                    loss,
-                    reconst_loss,
-                    kl_locals,
-                    classification_loss=classifier_loss,
-                    n_labelled_tensors=labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
+                return LossOutput(
+                    loss=loss,
+                    reconstruction_loss=reconst_loss,
+                    kl_local=kl_locals,
+                    extra_metrics={
+                        "classification_loss": classifier_loss,
+                        "n_labelled_tensors": labelled_tensors[
+                            REGISTRY_KEYS.X_KEY
+                        ].shape[0],
+                    },
                 )
-            return LossRecorder(
-                loss,
-                reconst_loss,
-                kl_locals,
-                kl_global=torch.tensor(0.0),
+            return LossOutput(
+                loss=loss,
+                reconstruction_loss=reconst_loss,
+                kl_local=kl_locals,
             )
 
         probs = self.classifier(z1)
@@ -333,10 +336,12 @@ class SCANVAE(VAE):
         if labelled_tensors is not None:
             classifier_loss = self.classification_loss(labelled_tensors)
             loss += classifier_loss * classification_ratio
-            return LossRecorder(
-                loss,
-                reconst_loss,
-                kl_divergence,
-                classification_loss=classifier_loss,
+            return LossOutput(
+                loss=loss,
+                reconstruction_loss=reconst_loss,
+                kl_local=kl_divergence,
+                extra_metrics={"classification_loss": classifier_loss},
             )
-        return LossRecorder(loss, reconst_loss, kl_divergence)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence
+        )

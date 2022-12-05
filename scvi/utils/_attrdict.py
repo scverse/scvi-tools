@@ -5,7 +5,7 @@ class attrdict(FrozenConfigDict):
     """
     A dictionary that allows for attribute-style access.
 
-    Dummy class that allowsfor backwards compatibility with the previous custom ``attrdict``.
+    Dummy class that allows for backwards compatibility with the previous custom ``attrdict``.
     Inherits from :class:`~ml_collections.config_dict.FrozenConfigDict`.
     """
 

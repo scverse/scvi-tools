@@ -7,7 +7,7 @@ from torch.distributions import Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
 
@@ -335,4 +335,4 @@ class PEAKVAE(BaseModuleClass):
 
         loss = (rl.sum() + kld * kl_weight).sum()
 
-        return LossRecorder(loss, rl, kld, kl_global=torch.tensor(0.0))
+        return LossOutput(loss=loss, reconstruction_loss=rl, kl_local=kld)

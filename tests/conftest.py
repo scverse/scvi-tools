@@ -3,6 +3,8 @@ from distutils.dir_util import copy_tree
 
 import pytest
 
+import scvi
+
 
 def pytest_addoption(parser):
     """Docstring for pytest_addoption."""
@@ -19,6 +21,17 @@ def pytest_addoption(parser):
         default=False,
         help="Run tests that retrieve stuff from the internet. This increases test time.",
     )
+    parser.addoption(
+        "--optional",
+        action="store_true",
+        default=False,
+        help="Run tests that are optional.",
+    )
+
+
+def pytest_configure(config):
+    """Docstring for pytest_configure."""
+    config.addinivalue_line("markers", "optional: mark test as optional.")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -31,6 +44,14 @@ def pytest_collection_modifyitems(config, items):
         if not run_internet and ("internet" in item.keywords):
             item.add_marker(skip_internet)
 
+    run_optional = config.getoption("--optional")
+    skip_optional = pytest.mark.skip(reason="need --optional option to run")
+    for item in items:
+        # All tests marked with `pytest.mark.optional` get skipped unless
+        # `--optional` passed
+        if not run_optional and ("optional" in item.keywords):
+            item.add_marker(skip_optional)
+
 
 @pytest.fixture(scope="session")
 def save_path(tmpdir_factory):
@@ -40,6 +61,12 @@ def save_path(tmpdir_factory):
     copy_tree("tests/data", path)
     yield path + "/"
     shutil.rmtree(str(tmpdir_factory.getbasetemp()))
+
+
+@pytest.fixture(scope="session")
+def synthetic_adata():
+    """Docstring for model_fit."""
+    return scvi.data.synthetic_iid()
 
 
 @pytest.fixture(scope="session")
