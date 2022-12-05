@@ -176,7 +176,7 @@ def test_default_data_loader_kwargs():
     ds.setup()
     adl = ds.train_dataloader()
     assert len(adl) == 2
-    for i, x in enumerate(adl):
+    for i, _x in enumerate(adl):
         pass
     assert i == 1
 
@@ -184,7 +184,7 @@ def test_default_data_loader_kwargs():
     ds.setup()
     adl = ds.train_dataloader()
     assert len(adl) == 1
-    for i, x in enumerate(adl):
+    for i, _x in enumerate(adl):
         pass
     assert i == 0
 
@@ -195,7 +195,7 @@ def test_default_data_loader_kwargs():
     ds.setup()
     adl = ds.train_dataloader()
     assert len(adl) == 2
-    for i, x in enumerate(adl):
+    for i, _x in enumerate(adl):
         pass
     assert i == 1
 
@@ -204,7 +204,7 @@ def test_default_data_loader_kwargs():
     ds.setup()
     adl = ds.train_dataloader()
     assert len(adl) == 1
-    for i, x in enumerate(adl):
+    for i, _x in enumerate(adl):
         pass
     assert i == 0
 
