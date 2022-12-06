@@ -17,8 +17,9 @@ from huggingface_hub import (
 from huggingface_hub.hf_api import ModelInfo
 
 from scvi.data._download import _download
-from scvi.hub import HubMetadata
 from scvi.model.base import BaseModelClass
+
+from .hub_metadata import HubMetadata
 
 HF_LIBRARY_NAME = "scvi-tools"
 MAX_HF_UPLOAD_SIZE = 5e9  # 5GB
@@ -31,7 +32,7 @@ class HubModel:
     def __init__(
         self,
         local_dir: str,
-        model_card: Union[ModelCard, str],
+        metadata: Union[HubMetadata, ModelCard, str],
     ):
         self._local_dir = local_dir
 
@@ -39,13 +40,15 @@ class HubModel:
         self._adata_path = f"{self._local_dir}/adata.h5ad"
         self._adata_large_path = f"{self._local_dir}/adata_large.h5ad"
 
-        if isinstance(model_card, ModelCard):
-            self._model_card = model_card
-        elif isinstance(model_card, str):
-            content = Path(model_card).read_text()
-            self._model_card = ModelCard(content)
+        if isinstance(metadata, HubMetadata):
+            self._metadata = metadata
+        elif isinstance(metadata, ModelCard):
+            self._metadata = HubMetadata.from_model_card(metadata)
+        elif isinstance(metadata, str):
+            content = Path(metadata).read_text()
+            self._metadata = HubMetadata.from_model_card(ModelCard(content))
         else:
-            raise TypeError("Unexpected data type for `model_card`")
+            raise TypeError(f"Unexpected data type for `metadata`: {type(metadata)}")
 
         # lazy load - these are not loaded until accessed
         self._model = None
@@ -80,7 +83,7 @@ class HubModel:
                 repo_id=repo_name,
                 token=repo_token,
             )
-        self.model_card.push_to_hub(repo_name, token=repo_token)
+        self.metadata.model_card.push_to_hub(repo_name, token=repo_token)
 
     @classmethod
     def pull_from_huggingface_hub(cls, repo_name: str):
@@ -95,19 +98,20 @@ class HubModel:
         def eval_obj(obj):
             return "No" if obj is None else "Yes"
 
-        return (
+        print(
             "HubModel with:\n"
             f"local_dir: {self._local_dir}\n"
             f"model loaded? {eval_obj(self._model)}\n"
             f"adata loaded? {eval_obj(self._adata)}\n"
-            f"adata_large loaded? {eval_obj(self._adata_large)}\n"
-            f"model card:\n{self.model_card}"
+            f"adata_large loaded? {eval_obj(self._adata_large)}"
         )
+        print(self.metadata)
+        return ""
 
     @property
-    def model_card(self) -> ModelCard:
+    def metadata(self) -> HubMetadata:
         """Placeholder docstring. TODO complete"""
-        return self._model_card
+        return self._metadata
 
     @property
     def model(self) -> Type[BaseModelClass]:
@@ -140,15 +144,15 @@ class HubModel:
         # get the class name for this model (e.g. TOTALVI)
         torch_model = torch.load(self._model_path)
         cls_name = torch_model["attr_dict"]["registry_"]["model_name"]
-        python_module = importlib.import_module("scvi.model")
+        python_module = importlib.import_module(self.metadata.model_parent_module)
         model_cls = getattr(python_module, cls_name)
         if adata is not None or os.path.isfile(self._adata_path):
             self._model = model_cls.load(
                 os.path.dirname(self._model_path), adata=adata, use_gpu=use_gpu
             )
         else:
-            # in this case, we must download the large adata if it exists in the model card
-            # otherwise, we must error out
+            # in this case, we must download the large adata if it exists in the model card; otherwise, we error out
+            # the call below faults in self.adata_large if it is None
             if self.adata_large is None:
                 raise ValueError(
                     "Could not find any dataset to load the model with.\
@@ -172,7 +176,7 @@ class HubModel:
 
     def read_adata_large(self):
         """Download the full adata, if it exists, then read it into memory."""
-        large_data_url = HubMetadata.from_model_card(self.model_card).large_data_url
+        large_data_url = self.metadata.large_data_url
         if large_data_url is not None:
             logger.info(
                 f"Downloading large dataset from this url:\n{large_data_url}..."

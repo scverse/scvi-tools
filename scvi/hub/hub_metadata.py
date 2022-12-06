@@ -5,17 +5,24 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 import anndata
+import rich
 import torch
 import yaml
 from huggingface_hub import ModelCard, ModelCardData
 from parse import parse
+from rich.markdown import Markdown
+
+from .model_card_template import template
 
 logger = logging.getLogger(__name__)
 
 HF_LIBRARY_NAME = "scvi-tools"
-MODEL_CARD_TEMPLATE_FILE = "model_card_template.md"
+
+# defaults
 DEFAULT_MISSING_FIELD = "To be added..."
 DEFAULT_NA_FIELD = "N/A"
+DEFAULT_PARENT_MODULE = "scvi.model"
+
 # model card tags
 MODEL_CLS_NAME_TAG = "model_cls_name:{}"
 SCVI_VERSION_TAG = "scvi_version:{}"
@@ -42,6 +49,7 @@ class HubMetadata:
         tissues: Optional[List[str]] = None,
         data_is_annotated: Optional[bool] = None,
         large_data_url: Optional[str] = None,
+        model_parent_module: str = DEFAULT_PARENT_MODULE,
         description: str = DEFAULT_MISSING_FIELD,
         references: str = DEFAULT_MISSING_FIELD,
     ):
@@ -55,13 +63,13 @@ class HubMetadata:
         self._model_cls_name = model_cls_name
         self._model_init_params = model_init_params
         self._model_setup_anndata_args = model_setup_anndata_args
+        self._model_parent_module = model_parent_module
 
         self._license_info = license_info
         self._scvi_version = scvi_version
         self._anndata_version = anndata_version
         self._description = description
         self._references = references
-        # TODO add model criticism metrics
 
         self._model_card = self._to_model_card()
 
@@ -131,7 +139,6 @@ class HubMetadata:
         )
 
         # create the content from the template
-        template = (Path(__file__).parent / MODEL_CARD_TEMPLATE_FILE).read_text()
         content = template.format(
             card_data=card_data.to_yaml(),
             description=self._description,
@@ -141,6 +148,7 @@ class HubMetadata:
             model_setup_anndata_args=json.dumps(
                 self._model_setup_anndata_args, indent=4
             ),
+            model_parent_module=self._model_parent_module,
             large_data_url=self._large_data_url or DEFAULT_NA_FIELD,
             references=self._references,
         )
@@ -152,9 +160,6 @@ class HubMetadata:
     @classmethod
     def from_model_card(cls, model_card: Union[ModelCard, str]):
         """Placeholder docstring. TODO complete"""
-        # get the template
-        template = (Path(__file__).parent / MODEL_CARD_TEMPLATE_FILE).read_text()
-
         # get the content
         if isinstance(model_card, ModelCard):
             content = model_card.content
@@ -170,6 +175,7 @@ class HubMetadata:
         data_gene_count = parser["gene_count"]
         model_init_params = json.loads(parser["model_init_params"])
         model_setup_anndata_args = json.loads(parser["model_setup_anndata_args"])
+        model_parent_module = parser["model_parent_module"]
         large_data_url = (
             parser["large_data_url"]
             if parser["large_data_url"] != DEFAULT_NA_FIELD
@@ -229,12 +235,15 @@ class HubMetadata:
             tissues,
             data_is_annotated,
             large_data_url,
+            model_parent_module,
             description,
             references,
         )
 
     def __repr__(self):
-        return f"HubMetadata wrapping the following ModelCard:\n{self.model_card}"
+        print("HubMetadata wrapping the following ModelCard 👇")
+        rich.print(Markdown(self.model_card.content))
+        return ""
 
     @property
     def model_card(self) -> ModelCard:
@@ -245,3 +254,8 @@ class HubMetadata:
     def large_data_url(self) -> Optional[str]:
         """Placeholder docstring. TODO complete"""
         return self._large_data_url
+
+    @property
+    def model_parent_module(self) -> Optional[str]:
+        """Placeholder docstring. TODO complete"""
+        return self._model_parent_module

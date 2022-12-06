@@ -1,40 +1,33 @@
+template = """\
 ---
 {card_data}
 ---
 
-### Description
+# Description
 
 {description}
 
-### Model properties
+# Model properties
 
 Many model properties are in the model tags. Some more are listed below.
 
-**cell_count**:
+**cell_count**: {cell_count}
 
-```
-{cell_count}
-```
-
-**gene_count**:
-
-```
-{gene_count}
-```
+**gene_count**: {gene_count}
 
 **model_init_params**:
-
 ```json
 {model_init_params}
 ```
 
 **model_setup_anndata_args**:
-
 ```json
 {model_setup_anndata_args}
 ```
 
-### Large data
+**model_parent_module**: {model_parent_module}
+
+# Large data
 
 This is an optional link to where the training data is stored if it is too large
 to host on the huggingface Model hub.
@@ -44,6 +37,7 @@ mode. See the scvi-tools documentation for more details. -->
 
 Large data url: {large_data_url}
 
-### References
+# References
 
-{references}
+{references}\
+"""

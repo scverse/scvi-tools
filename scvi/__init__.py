@@ -3,11 +3,11 @@
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
 
-try:
-    # necessary as importing scvi after ray causes kernel crash
-    from ray import tune  # noqa
-except ImportError:
-    pass
+# try:
+#     # necessary as importing scvi after ray causes kernel crash
+#     from ray import tune
+# except ImportError:
+#     pass
 
 from ._constants import REGISTRY_KEYS
 from ._settings import settings
