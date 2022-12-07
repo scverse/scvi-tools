@@ -1,28 +1,23 @@
 import json
 import logging
-import os
-from pathlib import Path
-from typing import List, Optional, Union
+from dataclasses import dataclass
+from typing import List, Optional
 
-import anndata
-import rich
 import torch
-import yaml
+from dataclasses_json import dataclass_json
 from huggingface_hub import ModelCard, ModelCardData
-from parse import parse
-from rich.markdown import Markdown
 
+from ._utils import _get_cell_gene_counts
 from .model_card_template import template
 
 logger = logging.getLogger(__name__)
 
+# TODO move to constants.py
 HF_LIBRARY_NAME = "scvi-tools"
-
 # defaults
 DEFAULT_MISSING_FIELD = "To be added..."
 DEFAULT_NA_FIELD = "N/A"
 DEFAULT_PARENT_MODULE = "scvi.model"
-
 # model card tags
 MODEL_CLS_NAME_TAG = "model_cls_name:{}"
 SCVI_VERSION_TAG = "scvi_version:{}"
@@ -32,7 +27,54 @@ TISSUE_TAG = "tissue:{}"
 ANNOTATED_TAG = "annotated:{}"
 
 
+# TODO move to own file
+@dataclass_json
+@dataclass
 class HubMetadata:
+    """
+    Placeholder docstring. TODO complete
+
+    Parameters
+    ----------
+    data_cell_count
+        number of cells in the dataset
+    data_gene_count
+        number of genes in the dataset
+    """
+
+    data_cell_count: int
+    data_gene_count: int
+    scvi_version: str
+    anndata_version: str
+    large_data_url: Optional[str] = None
+    model_parent_module: str = DEFAULT_PARENT_MODULE
+
+    @classmethod
+    def from_dir(
+        cls,
+        local_dir: str,
+        anndata_version: str,
+        data_cell_count: Optional[int] = None,
+        data_gene_count: Optional[int] = None,
+        **kwargs,
+    ):
+        """Placeholder docstring. TODO complete"""
+        cell_count, gene_count = _get_cell_gene_counts(
+            local_dir, data_cell_count, data_gene_count
+        )
+        torch_model = torch.load(f"{local_dir}/model.pt")
+        scvi_version = torch_model["attr_dict"]["registry_"]["scvi_version"]
+
+        return cls(
+            cell_count,
+            gene_count,
+            scvi_version,
+            anndata_version,
+            **kwargs,
+        )
+
+
+class HubModelCardHelper:
     """Placeholder docstring. TODO complete"""
 
     def __init__(
@@ -84,18 +126,9 @@ class HubMetadata:
         **kwargs,
     ):
         """Placeholder docstring. TODO complete"""
-        if os.path.isfile(f"{local_dir}/adata.h5ad"):
-            adata = anndata.read_h5ad(f"{local_dir}/adata.h5ad", backed=True)
-            cell_count = adata.n_obs
-            gene_count = adata.n_vars
-        else:
-            if data_cell_count is None or data_gene_count is None:
-                raise ValueError(
-                    "No data found on disk. Please provide `data_cell_count` and `data_gene_count`"
-                )
-            else:
-                cell_count = data_cell_count
-                gene_count = data_gene_count
+        cell_count, gene_count = _get_cell_gene_counts(
+            local_dir, data_cell_count, data_gene_count
+        )
 
         torch_model = torch.load(f"{local_dir}/model.pt")
         attr_dict = torch_model["attr_dict"]
@@ -157,105 +190,7 @@ class HubMetadata:
         # TODO run card.validate()? is it slow?
         return ModelCard(content)
 
-    @classmethod
-    def from_model_card(cls, model_card: Union[ModelCard, str]):
-        """Placeholder docstring. TODO complete"""
-        # get the content
-        if isinstance(model_card, ModelCard):
-            content = model_card.content
-        elif isinstance(model_card, str):
-            content = Path(model_card).read_text()
-        else:
-            raise TypeError("Unexpected data type for `model_card`")
-
-        # parse the content based on the template
-        parser = parse(template, content)
-        description = parser["description"]
-        data_cell_count = parser["cell_count"]
-        data_gene_count = parser["gene_count"]
-        model_init_params = json.loads(parser["model_init_params"])
-        model_setup_anndata_args = json.loads(parser["model_setup_anndata_args"])
-        model_parent_module = parser["model_parent_module"]
-        large_data_url = (
-            parser["large_data_url"]
-            if parser["large_data_url"] != DEFAULT_NA_FIELD
-            else None
-        )
-        references = parser["references"]
-
-        # parse the card_data using yaml
-        card_data = yaml.safe_load(parser["card_data"])
-        # will look like something like this:
-        # {'license': 'cc-by-4.0',
-        # 'library_name': 'scvi-tools',
-        # 'tags': ['model_cls_name:SCVI',
-        # 'scvi_version:0.17.4',
-        # 'anndata_version:0.8.0',
-        # 'modality:rna',
-        # 'modality:atac-seq',
-        # 'tissue:eye',
-        # 'tissue:spleen']}
-        license_info = card_data["license"]
-        tags = card_data["tags"]
-        model_cls_name = [
-            parse(MODEL_CLS_NAME_TAG, t)[0]
-            for t in tags
-            if parse(MODEL_CLS_NAME_TAG, t)
-        ][0]
-        scvi_version = [
-            parse(SCVI_VERSION_TAG, t)[0] for t in tags if parse(SCVI_VERSION_TAG, t)
-        ][0]
-        anndata_version = [
-            parse(ANNDATA_VERSION_TAG, t)[0]
-            for t in tags
-            if parse(ANNDATA_VERSION_TAG, t)
-        ][0]
-        data_modalities = [
-            parse(MODALITY_TAG, t)[0] for t in tags if parse(MODALITY_TAG, t)
-        ]
-        tissues = [parse(TISSUE_TAG, t)[0] for t in tags if parse(TISSUE_TAG, t)]
-        data_is_annotated = None
-        annotated = [
-            parse(ANNOTATED_TAG, t)[0] for t in tags if parse(ANNOTATED_TAG, t)
-        ]
-        if len(annotated) > 0:
-            data_is_annotated = annotated[0]
-
-        # instantiate the class
-        return cls(
-            license_info,
-            data_cell_count,
-            data_gene_count,
-            model_cls_name,
-            model_init_params,
-            model_setup_anndata_args,
-            scvi_version,
-            anndata_version,
-            data_modalities,
-            tissues,
-            data_is_annotated,
-            large_data_url,
-            model_parent_module,
-            description,
-            references,
-        )
-
-    def __repr__(self):
-        print("HubMetadata wrapping the following ModelCard 👇")
-        rich.print(Markdown(self.model_card.content))
-        return ""
-
     @property
     def model_card(self) -> ModelCard:
         """Placeholder docstring. TODO complete"""
         return self._model_card
-
-    @property
-    def large_data_url(self) -> Optional[str]:
-        """Placeholder docstring. TODO complete"""
-        return self._large_data_url
-
-    @property
-    def model_parent_module(self) -> Optional[str]:
-        """Placeholder docstring. TODO complete"""
-        return self._model_parent_module
