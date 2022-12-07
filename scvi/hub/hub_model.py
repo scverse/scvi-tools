@@ -22,15 +22,18 @@ from scvi.data._download import _download
 from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
 
-HF_LIBRARY_NAME = "scvi-tools"
-METADATA_FILE_NAME = "_scvi_required_metadata.json"
-MODEL_CARD_FILE_NAME = "README.md"
-MAX_HF_UPLOAD_SIZE = 5e9  # 5GB
+from ._constants import (
+    HF_LIBRARY_NAME,
+    MAX_HF_UPLOAD_SIZE,
+    METADATA_FILE_NAME,
+    MODEL_CARD_FILE_NAME,
+)
+
 logger = logging.getLogger(__name__)
 
 
 class HubModel:
-    """Placeholder docstring. TODO complete"""
+    """Placeholder docstring. TODO complete."""
 
     def __init__(
         self,
@@ -76,7 +79,7 @@ class HubModel:
     def push_to_huggingface_hub(
         self, repo_name: str, repo_token_path: str, repo_create: bool
     ):
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= MAX_HF_UPLOAD_SIZE
         ):
@@ -116,7 +119,7 @@ class HubModel:
 
     @classmethod
     def pull_from_huggingface_hub(cls, repo_name: str):
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         cache_dir = snapshot_download(
             repo_id=repo_name,
             allow_patterns=["model.pt", "adata.h5ad", METADATA_FILE_NAME],
@@ -142,31 +145,31 @@ class HubModel:
 
     @property
     def metadata(self) -> HubMetadata:
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         return self._metadata
 
     @property
     def model_card(self) -> ModelCard:
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         return self._model_card
 
     @property
     def model(self) -> Type[BaseModelClass]:
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         if self._model is None:
             self.load_model()
         return self._model
 
     @property
     def adata(self) -> AnnData:
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         if self._adata is None:
             self.read_adata()
         return self._adata
 
     @property
     def adata_large(self) -> Optional[AnnData]:
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         if self._adata_large is None:
             self.read_adata_large()
         return self._adata_large
@@ -176,7 +179,7 @@ class HubModel:
         adata: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
     ):
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         logger.info("Loading model...")
         # get the class name for this model (e.g. TOTALVI)
         torch_model = torch.load(self._model_path)
@@ -204,7 +207,7 @@ class HubModel:
                 )
 
     def read_adata(self):
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         if os.path.isfile(self._adata_path):
             logger.info("Reading adata...")
             self._adata = anndata.read_h5ad(self._adata_path)
@@ -230,7 +233,7 @@ class HubModel:
 def list_all_models(
     do_print: bool = True, print_detailed: bool = False
 ) -> Optional[List[ModelInfo]]:
-    """Placeholder docstring. TODO complete"""
+    """Placeholder docstring. TODO complete."""
     filt = ModelFilter(library=HF_LIBRARY_NAME)
     api = HfApi()
     all_models = api.list_models(filter=filt)

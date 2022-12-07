@@ -27,6 +27,8 @@ Many model properties are in the model tags. Some more are listed below.
 
 **model_parent_module**: {model_parent_module}
 
+**data_is_latent**: {data_is_latent}
+
 # Large data
 
 This is an optional link to where the training data is stored if it is too large

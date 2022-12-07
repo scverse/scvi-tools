@@ -1,5 +1,4 @@
 import json
-import logging
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -7,40 +6,26 @@ import torch
 from dataclasses_json import dataclass_json
 from huggingface_hub import ModelCard, ModelCardData
 
-from ._utils import _get_cell_gene_counts
+from ._constants import (
+    ANNDATA_VERSION_TAG,
+    ANNOTATED_TAG,
+    DEFAULT_MISSING_FIELD,
+    DEFAULT_NA_FIELD,
+    DEFAULT_PARENT_MODULE,
+    HF_LIBRARY_NAME,
+    MODALITY_TAG,
+    MODEL_CLS_NAME_TAG,
+    SCVI_VERSION_TAG,
+    TISSUE_TAG,
+)
+from ._utils import _get_counts_and_latent_info
 from .model_card_template import template
 
-logger = logging.getLogger(__name__)
 
-# TODO move to constants.py
-HF_LIBRARY_NAME = "scvi-tools"
-# defaults
-DEFAULT_MISSING_FIELD = "To be added..."
-DEFAULT_NA_FIELD = "N/A"
-DEFAULT_PARENT_MODULE = "scvi.model"
-# model card tags
-MODEL_CLS_NAME_TAG = "model_cls_name:{}"
-SCVI_VERSION_TAG = "scvi_version:{}"
-ANNDATA_VERSION_TAG = "anndata_version:{}"
-MODALITY_TAG = "modality:{}"
-TISSUE_TAG = "tissue:{}"
-ANNOTATED_TAG = "annotated:{}"
-
-
-# TODO move to own file
 @dataclass_json
 @dataclass
 class HubMetadata:
-    """
-    Placeholder docstring. TODO complete
-
-    Parameters
-    ----------
-    data_cell_count
-        number of cells in the dataset
-    data_gene_count
-        number of genes in the dataset
-    """
+    """Placeholder docstring. TODO complete."""
 
     data_cell_count: int
     data_gene_count: int
@@ -58,8 +43,8 @@ class HubMetadata:
         data_gene_count: Optional[int] = None,
         **kwargs,
     ):
-        """Placeholder docstring. TODO complete"""
-        cell_count, gene_count = _get_cell_gene_counts(
+        """Placeholder docstring. TODO complete."""
+        cell_count, gene_count = _get_counts_and_latent_info(
             local_dir, data_cell_count, data_gene_count
         )
         torch_model = torch.load(f"{local_dir}/model.pt")
@@ -75,7 +60,7 @@ class HubMetadata:
 
 
 class HubModelCardHelper:
-    """Placeholder docstring. TODO complete"""
+    """Placeholder docstring. TODO complete."""
 
     def __init__(
         self,
@@ -90,6 +75,7 @@ class HubModelCardHelper:
         data_modalities: Optional[List[str]] = None,
         tissues: Optional[List[str]] = None,
         data_is_annotated: Optional[bool] = None,
+        data_is_latent: Optional[bool] = None,
         large_data_url: Optional[str] = None,
         model_parent_module: str = DEFAULT_PARENT_MODULE,
         description: str = DEFAULT_MISSING_FIELD,
@@ -100,6 +86,7 @@ class HubModelCardHelper:
         self._data_modalities = data_modalities or []
         self._tissues = tissues or []
         self._data_is_annotated = data_is_annotated
+        self._data_is_latent = data_is_latent
         self._large_data_url = large_data_url
 
         self._model_cls_name = model_cls_name
@@ -123,11 +110,12 @@ class HubModelCardHelper:
         anndata_version: str,
         data_cell_count: Optional[int] = None,
         data_gene_count: Optional[int] = None,
+        data_is_latent: Optional[bool] = None,
         **kwargs,
     ):
-        """Placeholder docstring. TODO complete"""
-        cell_count, gene_count = _get_cell_gene_counts(
-            local_dir, data_cell_count, data_gene_count
+        """Placeholder docstring. TODO complete."""
+        cell_count, gene_count, is_latent = _get_counts_and_latent_info(
+            local_dir, data_cell_count, data_gene_count, data_is_latent
         )
 
         torch_model = torch.load(f"{local_dir}/model.pt")
@@ -146,11 +134,12 @@ class HubModelCardHelper:
             model_setup_anndata_args,
             scvi_version,
             anndata_version,
+            data_is_latent=is_latent,
             **kwargs,
         )
 
     def _to_model_card(self) -> ModelCard:
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         # define tags
         tags = [
             MODEL_CLS_NAME_TAG.format(self._model_cls_name),
@@ -182,6 +171,9 @@ class HubModelCardHelper:
                 self._model_setup_anndata_args, indent=4
             ),
             model_parent_module=self._model_parent_module,
+            data_is_latent=DEFAULT_MISSING_FIELD
+            if self._data_is_latent is None
+            else self._data_is_latent,
             large_data_url=self._large_data_url or DEFAULT_NA_FIELD,
             references=self._references,
         )
@@ -192,5 +184,5 @@ class HubModelCardHelper:
 
     @property
     def model_card(self) -> ModelCard:
-        """Placeholder docstring. TODO complete"""
+        """Placeholder docstring. TODO complete."""
         return self._model_card
