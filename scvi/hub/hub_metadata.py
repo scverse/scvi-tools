@@ -34,6 +34,8 @@ class HubMetadata:
     large_data_url: Optional[str] = None
     model_parent_module: str = DEFAULT_PARENT_MODULE
 
+    # TODO consider checking large_data_url is valid url
+
     @classmethod
     def from_dir(
         cls,
@@ -59,6 +61,7 @@ class HubMetadata:
         )
 
 
+# TODO consider making dataclass
 class HubModelCardHelper:
     """Placeholder docstring. TODO complete."""
 
