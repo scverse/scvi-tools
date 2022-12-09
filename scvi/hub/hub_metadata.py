@@ -86,14 +86,19 @@ class HubModelCardHelper:
         local_dir: str,
         license_info: str,
         anndata_version: str,
+        torch_map_location: str = "cpu",
         data_is_latent: Optional[bool] = None,
         **kwargs,
     ):
         """Placeholder docstring. TODO complete."""
-        torch_model = torch.load(f"{local_dir}/model.pt")
+        torch_model = torch.load(
+            f"{local_dir}/model.pt", map_location=torch_map_location
+        )
         model_init_params = torch_model["attr_dict"]["init_params_"]
         registry = torch_model["attr_dict"]["registry_"]
-        model_anndata_setup_view = AnnDataManager.view_registry_from_dict(registry)
+        model_anndata_setup_view = AnnDataManager.view_registry_from_dict(
+            registry, as_str=True
+        )
         model_cls_name = registry["model_name"]
         scvi_version = registry["scvi_version"]
 
@@ -140,9 +145,8 @@ class HubModelCardHelper:
         content = template.format(
             card_data=card_data.to_yaml(),
             description=self.description,
-            cell_count=self.data_cell_count,
-            gene_count=self.data_gene_count,
             model_init_params=json.dumps(self.model_init_params, indent=4),
+            model_anndata_setup_view=self.model_anndata_setup_view,
             model_parent_module=self.model_parent_module,
             data_is_latent=DEFAULT_MISSING_FIELD
             if self.data_is_latent is None
