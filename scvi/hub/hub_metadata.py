@@ -1,10 +1,15 @@
 import json
+import os
 from dataclasses import dataclass
 from typing import List, Optional
 
+import anndata
 import torch
 from dataclasses_json import dataclass_json
 from huggingface_hub import ModelCard, ModelCardData
+
+from scvi.data import AnnDataManager
+from scvi.data._utils import _is_latent
 
 from ._constants import (
     ANNDATA_VERSION_TAG,
@@ -18,7 +23,6 @@ from ._constants import (
     SCVI_VERSION_TAG,
     TISSUE_TAG,
 )
-from ._utils import _get_counts_and_latent_info
 from .model_card_template import template
 
 
@@ -27,8 +31,6 @@ from .model_card_template import template
 class HubMetadata:
     """Placeholder docstring. TODO complete."""
 
-    data_cell_count: int
-    data_gene_count: int
     scvi_version: str
     anndata_version: str
     large_data_url: Optional[str] = None
@@ -41,20 +43,13 @@ class HubMetadata:
         cls,
         local_dir: str,
         anndata_version: str,
-        data_cell_count: Optional[int] = None,
-        data_gene_count: Optional[int] = None,
         **kwargs,
     ):
         """Placeholder docstring. TODO complete."""
-        cell_count, gene_count = _get_counts_and_latent_info(
-            local_dir, data_cell_count, data_gene_count
-        )
         torch_model = torch.load(f"{local_dir}/model.pt")
         scvi_version = torch_model["attr_dict"]["registry_"]["scvi_version"]
 
         return cls(
-            cell_count,
-            gene_count,
             scvi_version,
             anndata_version,
             **kwargs,
@@ -66,11 +61,9 @@ class HubModelCardHelper:
     """Placeholder docstring. TODO complete."""
 
     license_info: str
-    data_cell_count: int
-    data_gene_count: int
     model_cls_name: str
     model_init_params: dict
-    model_setup_anndata_args: dict
+    model_anndata_setup_view: str
     scvi_version: str
     anndata_version: str
     data_modalities: Optional[List[str]] = None
@@ -93,30 +86,28 @@ class HubModelCardHelper:
         local_dir: str,
         license_info: str,
         anndata_version: str,
-        data_cell_count: Optional[int] = None,
-        data_gene_count: Optional[int] = None,
         data_is_latent: Optional[bool] = None,
         **kwargs,
     ):
         """Placeholder docstring. TODO complete."""
-        cell_count, gene_count, is_latent = _get_counts_and_latent_info(
-            local_dir, data_cell_count, data_gene_count, data_is_latent
-        )
-
         torch_model = torch.load(f"{local_dir}/model.pt")
-        attr_dict = torch_model["attr_dict"]
-        model_init_params = attr_dict["init_params_"]
-        model_cls_name = attr_dict["registry_"]["model_name"]
-        model_setup_anndata_args = attr_dict["registry_"]["setup_args"]
-        scvi_version = attr_dict["registry_"]["scvi_version"]
+        model_init_params = torch_model["attr_dict"]["init_params_"]
+        registry = torch_model["attr_dict"]["registry_"]
+        model_anndata_setup_view = AnnDataManager.view_registry_from_dict(registry)
+        model_cls_name = registry["model_name"]
+        scvi_version = registry["scvi_version"]
+
+        # get `is_latent` from the param if it is given, else from adata if it on disk, else set it to None
+        is_latent = data_is_latent
+        if is_latent is None and os.path.isfile(f"{local_dir}/adata.h5ad"):
+            adata = anndata.read_h5ad(f"{local_dir}/adata.h5ad", backed=True)
+            is_latent = _is_latent(adata)
 
         return cls(
             license_info,
-            cell_count,
-            gene_count,
             model_cls_name,
             model_init_params,
-            model_setup_anndata_args,
+            model_anndata_setup_view,
             scvi_version,
             anndata_version,
             data_is_latent=is_latent,
@@ -152,9 +143,6 @@ class HubModelCardHelper:
             cell_count=self.data_cell_count,
             gene_count=self.data_gene_count,
             model_init_params=json.dumps(self.model_init_params, indent=4),
-            model_setup_anndata_args=json.dumps(
-                self.model_setup_anndata_args, indent=4
-            ),
             model_parent_module=self.model_parent_module,
             data_is_latent=DEFAULT_MISSING_FIELD
             if self.data_is_latent is None

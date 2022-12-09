@@ -320,27 +320,31 @@ class AnnDataManager:
     def data_registry(self) -> attrdict:
         """Returns the data registry for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
+        return self._get_data_registry_from_dict(self._registry)
 
+    @staticmethod
+    def _get_data_registry_from_dict(registry: dict) -> attrdict:
         data_registry = dict()
-        for registry_key, field_registry in self._registry[
+        for registry_key, field_registry in registry[
             _constants._FIELD_REGISTRIES_KEY
         ].items():
             field_data_registry = field_registry[_constants._DATA_REGISTRY_KEY]
             if field_data_registry:
                 data_registry[registry_key] = field_data_registry
-
         return attrdict(data_registry)
 
     @property
     def summary_stats(self) -> attrdict:
         """Returns the summary stats for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
+        return self._get_summary_stats_from_dict(self._registry)
 
+    @staticmethod
+    def _get_summary_stats_from_dict(registry: dict) -> attrdict:
         summary_stats = dict()
-        for field_registry in self._registry[_constants._FIELD_REGISTRIES_KEY].values():
+        for field_registry in registry[_constants._FIELD_REGISTRIES_KEY].values():
             field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
             summary_stats.update(field_summary_stats)
-
         return attrdict(summary_stats)
 
     def get_from_registry(self, registry_key: str) -> Union[np.ndarray, pd.DataFrame]:
@@ -375,7 +379,8 @@ class AnnDataManager:
             ]
         )
 
-    def _view_summary_stats(self) -> rich.table.Table:
+    @staticmethod
+    def _view_summary_stats(summary_stats: attrdict) -> rich.table.Table:
         """Prints summary stats."""
         t = rich.table.Table(title="Summary Statistics")
         t.add_column(
@@ -392,11 +397,12 @@ class AnnDataManager:
             no_wrap=True,
             overflow="fold",
         )
-        for stat_key, count in self.summary_stats.items():
+        for stat_key, count in summary_stats.items():
             t.add_row(stat_key, str(count))
         return t
 
-    def _view_data_registry(self) -> rich.table.Table:
+    @staticmethod
+    def _view_data_registry(data_registry: attrdict) -> rich.table.Table:
         """Prints data registry."""
         t = rich.table.Table(title="Data Registry")
         t.add_column(
@@ -414,7 +420,7 @@ class AnnDataManager:
             overflow="fold",
         )
 
-        for registry_key, data_loc in self.data_registry.items():
+        for registry_key, data_loc in data_registry.items():
             mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
             attr_name = data_loc.attr_name
             attr_key = data_loc.attr_key
@@ -455,16 +461,7 @@ class AnnDataManager:
         hide_state_registries
             If True, prints a shortened summary without details of each state registry.
         """
-        version = self._registry[_constants._SCVI_VERSION_KEY]
-        rich.print(f"Anndata setup with scvi-tools version {version}.")
-        rich.print()
-        self.view_setup_method_args(self._registry)
-
-        in_colab = "google.colab" in sys.modules
-        force_jupyter = None if not in_colab else True
-        console = rich.console.Console(force_jupyter=force_jupyter)
-        console.print(self._view_summary_stats())
-        console.print(self._view_data_registry())
+        console = AnnDataManager.view_registry_from_dict(self._registry)
 
         if not hide_state_registries:
             for field in self.fields:
@@ -472,3 +469,29 @@ class AnnDataManager:
                 t = field.view_state_registry(state_registry)
                 if t is not None:
                     console.print(t)
+
+    @staticmethod
+    def view_registry_from_dict(registry: dict) -> rich.console.Console:
+        """
+        Prints summary of the registry.
+
+        Parameters
+        ----------
+        registry
+            The registry
+        """
+        version = registry[_constants._SCVI_VERSION_KEY]
+        rich.print(f"Anndata setup with scvi-tools version {version}.")
+        rich.print()
+        AnnDataManager.view_setup_method_args(registry)
+
+        ss = AnnDataManager._get_summary_stats_from_dict(registry)
+        dr = AnnDataManager._get_data_registry_from_dict(registry)
+
+        in_colab = "google.colab" in sys.modules
+        force_jupyter = None if not in_colab else True
+        console = rich.console.Console(force_jupyter=force_jupyter)
+        console.print(AnnDataManager._view_summary_stats(ss))
+        console.print(AnnDataManager._view_data_registry(dr))
+
+        return console

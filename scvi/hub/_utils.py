@@ -6,6 +6,7 @@ import anndata
 from scvi.data._utils import _is_latent
 
 
+# TODO remove if unused
 def _get_counts_and_latent_info(
     local_dir: str,
     cell_count: Optional[int] = None,
