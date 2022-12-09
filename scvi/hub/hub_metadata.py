@@ -61,49 +61,31 @@ class HubMetadata:
         )
 
 
-# TODO consider making dataclass
+@dataclass
 class HubModelCardHelper:
     """Placeholder docstring. TODO complete."""
 
-    def __init__(
-        self,
-        license_info: str,
-        data_cell_count: int,
-        data_gene_count: int,
-        model_cls_name: str,
-        model_init_params: dict,
-        model_setup_anndata_args: dict,
-        scvi_version: str,
-        anndata_version: str,
-        data_modalities: Optional[List[str]] = None,
-        tissues: Optional[List[str]] = None,
-        data_is_annotated: Optional[bool] = None,
-        data_is_latent: Optional[bool] = None,
-        large_data_url: Optional[str] = None,
-        model_parent_module: str = DEFAULT_PARENT_MODULE,
-        description: str = DEFAULT_MISSING_FIELD,
-        references: str = DEFAULT_MISSING_FIELD,
-    ):
-        self._data_cell_count = data_cell_count
-        self._data_gene_count = data_gene_count
-        self._data_modalities = data_modalities or []
-        self._tissues = tissues or []
-        self._data_is_annotated = data_is_annotated
-        self._data_is_latent = data_is_latent
-        self._large_data_url = large_data_url
+    license_info: str
+    data_cell_count: int
+    data_gene_count: int
+    model_cls_name: str
+    model_init_params: dict
+    model_setup_anndata_args: dict
+    scvi_version: str
+    anndata_version: str
+    data_modalities: Optional[List[str]] = None
+    tissues: Optional[List[str]] = None
+    data_is_annotated: Optional[bool] = None
+    data_is_latent: Optional[bool] = None
+    large_data_url: Optional[str] = None
+    model_parent_module: str = DEFAULT_PARENT_MODULE
+    description: str = DEFAULT_MISSING_FIELD
+    references: str = DEFAULT_MISSING_FIELD
 
-        self._model_cls_name = model_cls_name
-        self._model_init_params = model_init_params
-        self._model_setup_anndata_args = model_setup_anndata_args
-        self._model_parent_module = model_parent_module
-
-        self._license_info = license_info
-        self._scvi_version = scvi_version
-        self._anndata_version = anndata_version
-        self._description = description
-        self._references = references
-
-        self._model_card = self._to_model_card()
+    def __post_init__(self):
+        self.data_modalities = self.data_modalities or []
+        self.tissues = self.tissues or []
+        self.model_card = self._to_model_card()
 
     @classmethod
     def from_dir(
@@ -145,20 +127,20 @@ class HubModelCardHelper:
         """Placeholder docstring. TODO complete."""
         # define tags
         tags = [
-            MODEL_CLS_NAME_TAG.format(self._model_cls_name),
-            SCVI_VERSION_TAG.format(self._scvi_version),
-            ANNDATA_VERSION_TAG.format(self._anndata_version),
+            MODEL_CLS_NAME_TAG.format(self.model_cls_name),
+            SCVI_VERSION_TAG.format(self.scvi_version),
+            ANNDATA_VERSION_TAG.format(self.anndata_version),
         ]
-        for m in self._data_modalities:
+        for m in self.data_modalities:
             tags.append(MODALITY_TAG.format(m))
-        for t in self._tissues:
+        for t in self.tissues:
             tags.append(TISSUE_TAG.format(t))
-        if self._data_is_annotated is not None:
-            tags.append(ANNOTATED_TAG.format(self._data_is_annotated))
+        if self.data_is_annotated is not None:
+            tags.append(ANNOTATED_TAG.format(self.data_is_annotated))
 
         # define the card data, which is the header
         card_data = ModelCardData(
-            license=self._license_info,
+            license=self.license_info,
             library_name=HF_LIBRARY_NAME,
             tags=tags,
         )
@@ -166,26 +148,21 @@ class HubModelCardHelper:
         # create the content from the template
         content = template.format(
             card_data=card_data.to_yaml(),
-            description=self._description,
-            cell_count=self._data_cell_count,
-            gene_count=self._data_gene_count,
-            model_init_params=json.dumps(self._model_init_params, indent=4),
+            description=self.description,
+            cell_count=self.data_cell_count,
+            gene_count=self.data_gene_count,
+            model_init_params=json.dumps(self.model_init_params, indent=4),
             model_setup_anndata_args=json.dumps(
-                self._model_setup_anndata_args, indent=4
+                self.model_setup_anndata_args, indent=4
             ),
-            model_parent_module=self._model_parent_module,
+            model_parent_module=self.model_parent_module,
             data_is_latent=DEFAULT_MISSING_FIELD
-            if self._data_is_latent is None
-            else self._data_is_latent,
-            large_data_url=self._large_data_url or DEFAULT_NA_FIELD,
-            references=self._references,
+            if self.data_is_latent is None
+            else self.data_is_latent,
+            large_data_url=self.large_data_url or DEFAULT_NA_FIELD,
+            references=self.references,
         )
 
         # finally create and return the actual card
         # TODO run card.validate()? is it slow?
         return ModelCard(content)
-
-    @property
-    def model_card(self) -> ModelCard:
-        """Placeholder docstring. TODO complete."""
-        return self._model_card
