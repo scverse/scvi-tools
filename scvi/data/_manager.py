@@ -495,7 +495,7 @@ class AnnDataManager:
 
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
-        console = Console(force_jupyter=force_jupyter)
+        console = Console(force_jupyter=force_jupyter, quiet=as_str)
 
         def print_all(console):
             console.print(f"Anndata setup with scvi-tools version {version}.")
