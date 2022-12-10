@@ -36,8 +36,6 @@ class HubMetadata:
     large_data_url: Optional[str] = None
     model_parent_module: str = DEFAULT_PARENT_MODULE
 
-    # TODO consider checking large_data_url is valid url
-
     @classmethod
     def from_dir(
         cls,
@@ -63,7 +61,9 @@ class HubModelCardHelper:
     license_info: str
     model_cls_name: str
     model_init_params: dict
-    model_anndata_setup_view: str
+    model_setup_anndata_args: dict
+    model_summary_stats: dict
+    model_data_registry: dict
     scvi_version: str
     anndata_version: str
     data_modalities: Optional[List[str]] = None
@@ -96,11 +96,15 @@ class HubModelCardHelper:
         )
         model_init_params = torch_model["attr_dict"]["init_params_"]
         registry = torch_model["attr_dict"]["registry_"]
-        model_anndata_setup_view = AnnDataManager.view_registry_from_dict(
-            registry, as_str=True
-        )
         model_cls_name = registry["model_name"]
         scvi_version = registry["scvi_version"]
+        model_setup_anndata_args = registry["setup_args"]
+        model_summary_stats = dict(
+            AnnDataManager._get_summary_stats_from_registry(registry)
+        )
+        model_data_registry = dict(
+            AnnDataManager._get_data_registry_from_registry(registry)
+        )
 
         # get `is_latent` from the param if it is given, else from adata if it on disk, else set it to None
         is_latent = data_is_latent
@@ -112,7 +116,9 @@ class HubModelCardHelper:
             license_info,
             model_cls_name,
             model_init_params,
-            model_anndata_setup_view,
+            model_setup_anndata_args,
+            model_summary_stats,
+            model_data_registry,
             scvi_version,
             anndata_version,
             data_is_latent=is_latent,
@@ -146,7 +152,15 @@ class HubModelCardHelper:
             card_data=card_data.to_yaml(),
             description=self.description,
             model_init_params=json.dumps(self.model_init_params, indent=4),
-            model_anndata_setup_view=self.model_anndata_setup_view,
+            model_setup_anndata_args=json.dumps(
+                self.model_setup_anndata_args, indent=4
+            ),
+            model_summary_stats=AnnDataManager._view_summary_stats(
+                self.model_summary_stats, as_markdown=True
+            ),
+            model_data_registry=AnnDataManager._view_data_registry(
+                self.model_data_registry, as_markdown=True
+            ),
             model_parent_module=self.model_parent_module,
             data_is_latent=DEFAULT_MISSING_FIELD
             if self.data_is_latent is None
@@ -156,5 +170,4 @@ class HubModelCardHelper:
         )
 
         # finally create and return the actual card
-        # TODO run card.validate()? is it slow?
         return ModelCard(content)

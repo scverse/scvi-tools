@@ -16,10 +16,16 @@ Many model properties are in the model tags. Some more are listed below.
 {model_init_params}
 ```
 
-**model_anndata_setup_view**:
+**model_setup_anndata_args**:
+```json
+{model_setup_anndata_args}
 ```
-{model_anndata_setup_view}
-```
+
+**model_summary_stats**:
+{model_summary_stats}
+
+**model_data_registry**:
+{model_data_registry}
 
 **model_parent_module**: {model_parent_module}
 
