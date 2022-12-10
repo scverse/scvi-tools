@@ -28,7 +28,7 @@ extensions = [
     "nbsphinx",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "sphinx_autodoc_typehints",  # needs to be after napoleon
+    # "sphinx_autodoc_typehints",  # needs to be after napoleon
     "sphinx.ext.autosummary",
     "sphinxcontrib.bibtex",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
