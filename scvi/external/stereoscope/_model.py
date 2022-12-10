@@ -240,6 +240,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
                 """
                     Setting up adata in SpatialStereoscope.from_rna_model is deprecated and
                     will be removed in version 0.21.0. Please use SpatialStereoscope.setup_anndata
+                    before initializing model.
                 """,
                 category=DeprecationWarning,
             )
