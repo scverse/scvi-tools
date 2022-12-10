@@ -471,7 +471,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         sample_shape = sample_shape or torch.Size()
         samp = super().sample(sample_shape=sample_shape)
         is_zero = torch.rand_like(samp) <= self.zi_probs
-        samp_ = torch.where(is_zero, torch.zeros(samp.shape, device=samp.device), samp)
+        samp_ = torch.where(is_zero, torch.zeros_like(samp), samp)
         return samp_
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
