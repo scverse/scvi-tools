@@ -417,6 +417,51 @@ class AnnDataManager:
         return t
 
     @staticmethod
+    def _view_data_registry(
+        data_registry: attrdict, as_markdown: bool = False
+    ) -> Union[rich.table.Table, str]:
+        """Prints data registry."""
+        if not as_markdown:
+            t = rich.table.Table(title="Data Registry")
+        else:
+            t = rich.table.Table(box=box.MARKDOWN)
+
+        t.add_column(
+            "Registry Key",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
+        )
+        t.add_column(
+            "scvi-tools Location",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
+        )
+
+        for registry_key, data_loc in data_registry.items():
+            mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
+            attr_name = data_loc.attr_name
+            attr_key = data_loc.attr_key
+            scvi_data_str = "adata"
+            if mod_key is not None:
+                scvi_data_str += f".mod['{mod_key}']"
+            if attr_key is None:
+                scvi_data_str += f".{attr_name}"
+            else:
+                scvi_data_str += f".{attr_name}['{attr_key}']"
+            t.add_row(registry_key, scvi_data_str)
+
+        if as_markdown:
+            console = Console(file=StringIO(), force_jupyter=False)
+            console.print(t)
+            return console.file.getvalue()
+
+        return t
+
+    @staticmethod
     def view_setup_method_args(registry: dict) -> None:
         """
         Prints setup kwargs used to produce a given registry.
