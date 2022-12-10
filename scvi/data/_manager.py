@@ -417,52 +417,7 @@ class AnnDataManager:
         return t
 
     @staticmethod
-    def _view_data_registry(
-        data_registry: attrdict, as_markdown: bool = False
-    ) -> Union[rich.table.Table, str]:
-        """Prints data registry."""
-        if not as_markdown:
-            t = rich.table.Table(title="Data Registry")
-        else:
-            t = rich.table.Table(box=box.MARKDOWN)
-
-        t.add_column(
-            "Registry Key",
-            justify="center",
-            style="dodger_blue1",
-            no_wrap=True,
-            overflow="fold",
-        )
-        t.add_column(
-            "scvi-tools Location",
-            justify="center",
-            style="dark_violet",
-            no_wrap=True,
-            overflow="fold",
-        )
-
-        for registry_key, data_loc in data_registry.items():
-            mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
-            attr_name = data_loc.attr_name
-            attr_key = data_loc.attr_key
-            scvi_data_str = "adata"
-            if mod_key is not None:
-                scvi_data_str += f".mod['{mod_key}']"
-            if attr_key is None:
-                scvi_data_str += f".{attr_name}"
-            else:
-                scvi_data_str += f".{attr_name}['{attr_key}']"
-            t.add_row(registry_key, scvi_data_str)
-
-        if as_markdown:
-            console = Console(file=StringIO(), force_jupyter=False)
-            console.print(t)
-            return console.file.getvalue()
-
-        return t
-
-    @staticmethod
-    def view_setup_method_args(registry: dict, console: Console = None) -> None:
+    def view_setup_method_args(registry: dict) -> None:
         """
         Prints setup kwargs used to produce a given registry.
 
@@ -474,13 +429,9 @@ class AnnDataManager:
         model_name = registry[_constants._MODEL_NAME_KEY]
         setup_args = registry[_constants._SETUP_ARGS_KEY]
         if model_name is not None and setup_args is not None:
-            if console is None:
-                rich.print(f"Setup via `{model_name}.setup_anndata` with arguments:")
-                rich.pretty.pprint(setup_args)
-                rich.print()
-            else:
-                console.print(f"Setup via `{model_name}.setup_anndata` with arguments:")
-                rich.pretty.pprint(setup_args, console=console)
+            rich.print(f"Setup via `{model_name}.setup_anndata` with arguments:")
+            rich.pretty.pprint(setup_args)
+            rich.print()
 
     def view_registry(self, hide_state_registries: bool = False) -> None:
         """
@@ -491,7 +442,16 @@ class AnnDataManager:
         hide_state_registries
             If True, prints a shortened summary without details of each state registry.
         """
-        console = AnnDataManager.view_registry_from_dict(self._registry)
+        version = self._registry[_constants._SCVI_VERSION_KEY]
+        rich.print(f"Anndata setup with scvi-tools version {version}.")
+        rich.print()
+        self.view_setup_method_args(self._registry)
+
+        in_colab = "google.colab" in sys.modules
+        force_jupyter = None if not in_colab else True
+        console = rich.console.Console(force_jupyter=force_jupyter)
+        console.print(self._view_summary_stats())
+        console.print(self._view_data_registry())
 
         if not hide_state_registries:
             for field in self.fields:
@@ -499,28 +459,3 @@ class AnnDataManager:
                 t = field.view_state_registry(state_registry)
                 if t is not None:
                     console.print(t)
-
-    @staticmethod
-    def view_registry_from_dict(registry: dict) -> Console:
-        """
-        Prints summary of the registry.
-
-        Parameters
-        ----------
-        registry
-            The registry
-        """
-        version = registry[_constants._SCVI_VERSION_KEY]
-        ss = AnnDataManager._get_summary_stats_from_registry(registry)
-        dr = AnnDataManager._get_data_registry_from_registry(registry)
-
-        in_colab = "google.colab" in sys.modules
-        force_jupyter = None if not in_colab else True
-        console = Console(force_jupyter=force_jupyter)
-
-        console.print(f"Anndata setup with scvi-tools version {version}.")
-        AnnDataManager.view_setup_method_args(registry, console=console)
-        console.print(AnnDataManager._view_summary_stats(ss))
-        console.print(AnnDataManager._view_data_registry(dr))
-
-        return console
