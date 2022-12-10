@@ -490,13 +490,16 @@ class AnnDataManager:
         version = self._registry[_constants._SCVI_VERSION_KEY]
         rich.print(f"Anndata setup with scvi-tools version {version}.")
         rich.print()
-        self.view_setup_method_args(self._registry)
+        AnnDataManager.view_setup_method_args(self._registry)
 
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
         console = rich.console.Console(force_jupyter=force_jupyter)
-        console.print(self._view_summary_stats())
-        console.print(self._view_data_registry())
+
+        ss = AnnDataManager._get_summary_stats_from_registry(self._registry)
+        dr = AnnDataManager._get_data_registry_from_registry(self._registry)
+        console.print(AnnDataManager._view_summary_stats(ss))
+        console.print(AnnDataManager._view_data_registry(dr))
 
         if not hide_state_registries:
             for field in self.fields:
