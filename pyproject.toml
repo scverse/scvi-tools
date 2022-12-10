@@ -38,7 +38,7 @@ codecov = {version = ">=2.0.8", optional = true}
 docrep = ">=0.3.2"
 flake8 = {version = ">=3.7.7", optional = true}
 flax = "*"
-furo = {version = ">=2022.2.14.1", optional = true}
+lutra = {version = "*", optional = true}
 h5py = ">=2.9.0"
 hyperopt = {version = ">=0.2", optional = true}
 importlib-metadata = {version = ">1.0", python = "<3.8"}
@@ -92,7 +92,7 @@ docs = [
   "sphinx",
   "nbsphinx",
   "ipython",
-  "furo",
+  "lutra",
   "typing_extensions",
   "sphinx-autodoc-typehints",
   "sphinx_copybutton",

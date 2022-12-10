@@ -133,21 +133,19 @@ todo_include_todos = False
 # -- Options for HTML output -------------------------------------------
 
 # html_show_sourcelink = True
-html_theme = "furo"
+html_theme = "lutra"
 
 # Set link name generated in the top bar.
 html_title = "scvi-tools"
 html_logo = "_static/logo.png"
 
 html_theme_options = {
-    "sidebar_hide_name": True,
-    "light_css_variables": {
-        "color-brand-primary": "#003262",
-        "color-brand-content": "#003262",
-        "admonition-font-size": "var(--font-size-normal)",
-        "admonition-title-font-size": "var(--font-size-normal)",
-        "code-font-size": "var(--font-size--small)",
-    },
+    # "primary_color": "blue",
+    # "secondary_color": "violet",
+    "source_repository": "https://github.com/scverse/scvi-tools/",
+    "source_branch": "main",
+    "source_directory": "docs/",
+    "navigation_style": "tabs-document",
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
