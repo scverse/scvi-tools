@@ -9,9 +9,10 @@ from scvi._compat import Literal
 from scvi._decorators import classproperty
 from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
-from scvi.data._constants import _ADATA_LATENT_UNS_KEY
+from scvi.data._constants import _ADATA_LATENT_UNS_KEY, _SCVI_UUID_KEY
 from scvi.data._utils import _get_latent_adata_type
 from scvi.data.fields import (
+    BaseAnnDataField,
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
-
+_SCVI_LATENT_MODE = "posterior_parameters"
 
 logger = logging.getLogger(__name__)
 
@@ -151,9 +152,9 @@ class SCVI(
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
-            latent_data_type=self.latent_data_type,
             **model_kwargs,
         )
+        self.module.latent_data_type = self.latent_data_type
         self._model_summary_string = (
             "SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
             "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
@@ -226,26 +227,32 @@ class SCVI(
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    def _get_latent_adata_from_adata(
+    def _get_reduced_adata(
         self,
         mode: LatentDataType,
-        use_latent_qzm_key: str = "X_latent_qzm",
-        use_latent_qzv_key: str = "X_latent_qzv",
-    ):
-        if mode == "dist":
-            self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-            self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-        else:
-            raise ValueError(f"Unknown latent mode: {mode}")
-        self.adata.uns[_ADATA_LATENT_UNS_KEY] = mode
-        del self.adata.raw
+    ) -> AnnData:
+        """Return a minimal anndata object with the latent representation."""
         all_zeros = csr_matrix(self.adata.X.shape)
-        self.adata.X = all_zeros.copy()
-        self.adata.layers = {layer: all_zeros.copy() for layer in self.adata.layers}
+        layers = {layer: all_zeros.copy() for layer in self.adata.layers}
+        bdata = AnnData(
+            X=all_zeros,
+            layers=layers,
+            uns=self.adata.uns,
+            obs=self.adata.obs,
+            var=self.adata.var,
+            varm=self.adata.varm,
+            obsm=self.adata.obsm,
+            obsp=self.adata.obsp,
+        )
+        # Remove scvi uuid key to make bdata fresh w.r.t. the model's manager
+        del bdata.uns[_SCVI_UUID_KEY]
+        bdata.uns[_ADATA_LATENT_UNS_KEY] = mode
+        return bdata
 
     @staticmethod
-    def _get_latent_fields(mode: LatentDataType):
-        if mode == "dist":
+    def _get_latent_fields(mode: LatentDataType) -> List[BaseAnnDataField]:
+        """Latent mode specific manager fields."""
+        if mode == _SCVI_LATENT_MODE:
             latent_fields = [
                 ObsmField(
                     REGISTRY_KEYS.LATENT_QZM_KEY,
@@ -268,19 +275,16 @@ class SCVI(
 
     def to_latent_mode(
         self,
-        mode: LatentDataType = "dist",
+        mode: LatentDataType = "posterior_parameters",
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
-    ):
+    ) -> None:
         """
         Put the model into latent mode.
 
         The model is put into latent mode by registering new anndata fields
         required for latent mode support - latent qzm, latent qzv, and adata uns
-        containing latent mode type - and marking the module as latent. Note that
-        this modifies the anndata (and subsequently the model and module properties)
-        in place. Please make a copy of those objects (before calling this function)
-        if needed.
+        containing latent mode type - and marking the module as latent.
 
         Parameters
         ----------
@@ -290,7 +294,22 @@ class SCVI(
             Key to use in `adata.obsm` where the latent qzm params are stored
         use_latent_qzv_key
             Key to use in `adata.obsm` where the latent qzv params are stored
+
+        Notes
+        -----
+        A new, minimal adata object is associated as `model.adata` after running
+        this method. This adata does not contain any of
+        the original count data, but instead contains the latent representation
+        of the original data and metadata.
         """
-        self._get_latent_adata_from_adata(mode, use_latent_qzm_key, use_latent_qzv_key)
-        self.adata_manager.register_new_fields(self.__class__._get_latent_fields(mode))
+        # TODO(adamgayoso): Add support for other latent modes, including a mode
+        # in which no data is minified.
+        # This validates and sets a new adata manager
+        self.adata = self._get_reduced_adata(mode)
+        if mode == _SCVI_LATENT_MODE:
+            self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+            self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        self.adata_manager.register_new_fields(self._get_latent_fields(mode))
         self.module.latent_data_type = mode
