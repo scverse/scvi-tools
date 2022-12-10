@@ -137,7 +137,7 @@ html_theme = "lutra"
 
 # Set link name generated in the top bar.
 html_title = "scvi-tools"
-html_logo = "_static/logo.png"
+# html_logo = "_static/logo.png"
 
 html_theme_options = {
     # "primary_color": "blue",
