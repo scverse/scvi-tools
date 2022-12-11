@@ -9,7 +9,7 @@ def prep_model():
     scvi.model.SCVI.setup_anndata(adata)
     model = scvi.model.SCVI(adata)
     model.train(1)
-    return model, adata
+    return model
 
 
 def test_hub_metadata(save_path):
@@ -45,7 +45,7 @@ def test_hub_metadata(save_path):
     with pytest.raises(TypeError):
         hm = HubMetadata(**d)
 
-    model, _ = prep_model()
+    model = prep_model()
     model.save(save_path, overwrite=True)
     hm = HubMetadata.from_dir(
         save_path, anndata_version="0.9.0", model_parent_module="foo"
@@ -57,10 +57,10 @@ def test_hub_metadata(save_path):
 
 
 def test_hub_modelcardhelper(save_path):
-    model, _ = prep_model()
+    model = prep_model()
 
     hmch = HubModelCardHelper(
-        license_info="mit",
+        license_info="cc-by-4.0",
         model_cls_name="SCVI",
         model_init_params=model.init_params_,
         model_setup_anndata_args=model.adata_manager._get_setup_method_args()[
@@ -73,7 +73,7 @@ def test_hub_modelcardhelper(save_path):
         tissues=["eye"],
     )
 
-    assert hmch.license_info == "mit"
+    assert hmch.license_info == "cc-by-4.0"
     assert hmch.model_cls_name == "SCVI"
     assert hmch.model_init_params == {
         "kwargs": {"model_kwargs": {}},
@@ -124,7 +124,7 @@ def test_hub_modelcardhelper(save_path):
     assert hmch.description == "To be added..."
     assert hmch.references == "To be added..."
     assert hmch.model_card.data.to_dict() == {
-        "license": "mit",
+        "license": "cc-by-4.0",
         "library_name": "scvi-tools",
         "tags": [
             "model_cls_name:SCVI",
@@ -137,12 +137,12 @@ def test_hub_modelcardhelper(save_path):
     model.save(save_path, overwrite=True, save_anndata=True)
     hmch = HubModelCardHelper.from_dir(
         save_path,
-        license_info="mit",
+        license_info="cc-by-4.0",
         anndata_version="0.8.0",
         model_parent_module="other_module",
     )
 
-    assert hmch.license_info == "mit"
+    assert hmch.license_info == "cc-by-4.0"
     assert hmch.model_cls_name == "SCVI"
     assert hmch.model_init_params == model.init_params_
     assert (
@@ -162,7 +162,7 @@ def test_hub_modelcardhelper(save_path):
     assert hmch.description == "To be added..."
     assert hmch.references == "To be added..."
     assert hmch.model_card.data.to_dict() == {
-        "license": "mit",
+        "license": "cc-by-4.0",
         "library_name": "scvi-tools",
         "tags": [
             "model_cls_name:SCVI",

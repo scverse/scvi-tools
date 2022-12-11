@@ -48,8 +48,6 @@ class HubModel:
         self._model_path = f"{self._local_dir}/model.pt"
         self._adata_path = f"{self._local_dir}/adata.h5ad"
         self._adata_large_path = f"{self._local_dir}/adata_large.h5ad"
-        self._metadata_path = f"{self._local_dir}/{METADATA_FILE_NAME}"
-        self._model_card_path = f"{self._local_dir}/{MODEL_CARD_FILE_NAME}"
 
         # lazy load - these are not loaded until accessed
         self._model = None
@@ -57,10 +55,11 @@ class HubModel:
         self._adata_large = None
 
         # get the metadata from the parameters or from the disk
+        metadata_path = f"{self._local_dir}/{METADATA_FILE_NAME}"
         if isinstance(metadata, HubMetadata):
             self._metadata = metadata
-        elif isinstance(metadata, str) or os.path.isfile(self._metadata_path):
-            path = metadata if isinstance(metadata, str) else self._metadata_path
+        elif isinstance(metadata, str) or os.path.isfile(metadata_path):
+            path = metadata if isinstance(metadata, str) else metadata_path
             content = Path(path).read_text()
             content_dict = json.loads(content)
             self._metadata = HubMetadata(**content_dict)
@@ -68,12 +67,13 @@ class HubModel:
             raise ValueError("No metadata found")
 
         # get the model card from the parameters or from the disk
+        model_card_path = f"{self._local_dir}/{MODEL_CARD_FILE_NAME}"
         if isinstance(model_card, HubModelCardHelper):
             self._model_card = model_card.model_card
         elif isinstance(model_card, ModelCard):
             self._model_card = model_card
-        elif isinstance(model_card, str) or os.path.isfile(self._model_card_path):
-            path = model_card if isinstance(model_card, str) else self._model_card_path
+        elif isinstance(model_card, str) or os.path.isfile(model_card_path):
+            path = model_card if isinstance(model_card, str) else model_card_path
             content = Path(path).read_text()
             self._model_card = ModelCard(content)
         else:
@@ -94,6 +94,8 @@ class HubModel:
         if repo_create:
             create_repo(repo_name, token=repo_token)
         api = HfApi()
+        # upload the model card
+        self.model_card.push_to_hub(repo_name, token=repo_token)
         # upload the model
         api.upload_file(
             path_or_fileobj=self._model_path,
@@ -116,8 +118,6 @@ class HubModel:
             repo_id=repo_name,
             token=repo_token,
         )
-        # upload the model card
-        self.model_card.push_to_hub(repo_name, token=repo_token)
 
     @classmethod
     def pull_from_huggingface_hub(cls, repo_name: str):
@@ -240,3 +240,4 @@ def get_models_df() -> pd.DataFrame:
     )
     for m in all_models:
         df.loc[m.modelId] = [m.lastModified, m.downloads, m.likes, m.author, m.tags]
+    return df
