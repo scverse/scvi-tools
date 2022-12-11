@@ -80,7 +80,7 @@ class HubModel:
             raise ValueError("No model card found")
 
     def push_to_huggingface_hub(
-        self, repo_name: str, repo_token_path: str, repo_create: bool
+        self, repo_name: str, repo_token: str, repo_create: bool
     ):
         """Placeholder docstring. TODO complete."""
         if os.path.isfile(self._adata_path) and (
@@ -90,7 +90,8 @@ class HubModel:
                 "Dataset is too large to upload to the Model. \
                 Please refer to scvi-tools tutorials for how to handle this case."
             )
-        repo_token = Path(repo_token_path).read_text()
+        if os.path.isfile(repo_token):
+            repo_token = Path(repo_token).read_text()
         if repo_create:
             create_repo(repo_name, token=repo_token)
         api = HfApi()

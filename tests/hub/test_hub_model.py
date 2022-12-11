@@ -4,6 +4,7 @@ from dataclasses import asdict
 
 import numpy as np
 import pytest
+from huggingface_hub import delete_repo
 
 import scvi
 from scvi.hub import HubMetadata, HubModel, HubModelCardHelper, get_models_df
@@ -152,42 +153,44 @@ def test_hub_model_pull_from_hf(request, save_path):
     assert hmo.adata_large is None
 
 
-# @pytest.mark.internet
-# def test_hub_model_push_to_hf(request, save_path):
-#     model = prep_model()
-#     test_save_path = os.path.join(save_path, request.node.name)
-#     model.save(test_save_path, overwrite=True, save_anndata=True)
+@pytest.mark.internet
+def test_hub_model_push_to_hf(request, save_path):
+    model = prep_model()
+    test_save_path = os.path.join(save_path, request.node.name)
+    model.save(test_save_path, overwrite=True, save_anndata=True)
 
-#     hm = HubMetadata("0.17.0", "0.8.0")
-#     with open(os.path.join(test_save_path, METADATA_FILE_NAME), "w") as fp:
-#         json.dump(asdict(hm), fp, indent=4)
+    hm = HubMetadata("0.17.0", "0.8.0")
+    with open(os.path.join(test_save_path, METADATA_FILE_NAME), "w") as fp:
+        json.dump(asdict(hm), fp, indent=4)
 
-#     hmch = HubModelCardHelper.from_dir(
-#         test_save_path,
-#         license_info="cc-by-4.0",
-#         anndata_version="0.8.0",
-#     )
+    hmch = HubModelCardHelper.from_dir(
+        test_save_path,
+        license_info="cc-by-4.0",
+        anndata_version="0.8.0",
+    )
 
-#     hmo = HubModel(test_save_path, metadata=hm, model_card=hmch.model_card)
-#     # TODO replace this
-#     token_path = "TBD"
-#     repo_name = "scvi-tools/MODEL-FOR-UNIT-TESTING-2"
-#     hmo.push_to_huggingface_hub(repo_name=repo_name, repo_token_path=token_path, repo_create=True)
+    hmo = HubModel(test_save_path, metadata=hm, model_card=hmch.model_card)
+    repo_name = "scvi-tools/MODEL-FOR-UNIT-TESTING-2"
+    # # use this with path to your local token file if you want to test locally
+    # repo_token = Path(your_token_path).read_text()
+    repo_token = os.environ["HF_API_TOKEN"]
+    hmo.push_to_huggingface_hub(
+        repo_name=repo_name, repo_token=repo_token, repo_create=True
+    )
 
-#     # pull back down and validate
-#     hmo = HubModel.pull_from_huggingface_hub(repo_name=repo_name)
-#     assert hmo.metadata == hm
-#     assert hmo.model_card.content == hmch.model_card.content
-#     assert isinstance(hmo.model, scvi.model.SCVI)
-#     assert isinstance(hmo.model.module, scvi.module.VAE)
-#     assert np.array_equal(hmo.adata.X, model.adata.X)
-#     assert hmo.adata.obs.equals(model.adata.obs)
-#     assert hmo.adata.var.equals(model.adata.var)
-#     assert hmo.adata_large is None
+    # pull back down and validate
+    hmo = HubModel.pull_from_huggingface_hub(repo_name=repo_name)
+    assert hmo.metadata == hm
+    assert hmo.model_card.content == hmch.model_card.content
+    assert isinstance(hmo.model, scvi.model.SCVI)
+    assert isinstance(hmo.model.module, scvi.module.VAE)
+    assert np.array_equal(hmo.adata.X, model.adata.X)
+    assert hmo.adata.obs.equals(model.adata.obs)
+    assert hmo.adata.var.equals(model.adata.var)
+    assert hmo.adata_large is None
 
-#     # delete the HF repo
-#     repo_token = Path(token_path).read_text()
-#     delete_repo(repo_name, token=repo_token)
+    # delete the HF repo
+    delete_repo(repo_name, token=repo_token)
 
 
 @pytest.mark.internet
