@@ -35,11 +35,6 @@ class HubMetadata:
     model_parent_module: str = DEFAULT_PARENT_MODULE
 
     @classmethod
-    def from_dict(cls, d: dict):
-        """Placeholder docstring. TODO complete."""
-        return cls(**d)
-
-    @classmethod
     def from_dir(
         cls,
         local_dir: str,

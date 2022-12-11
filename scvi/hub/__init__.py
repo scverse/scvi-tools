@@ -1,9 +1,9 @@
 from .hub_metadata import HubMetadata, HubModelCardHelper
-from .hub_model import HubModel, list_all_models
+from .hub_model import HubModel, get_models_df
 
 __all__ = [
     "HubModel",
     "HubMetadata",
     "HubModelCardHelper",
-    "list_all_models",
+    "get_models_df",
 ]
