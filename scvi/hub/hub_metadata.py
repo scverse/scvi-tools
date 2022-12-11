@@ -5,7 +5,6 @@ from typing import List, Optional
 
 import anndata
 import torch
-from dataclasses_json import dataclass_json
 from huggingface_hub import ModelCard, ModelCardData
 
 from scvi.data import AnnDataManager
@@ -26,7 +25,6 @@ from ._constants import (
 from .model_card_template import template
 
 
-@dataclass_json
 @dataclass
 class HubMetadata:
     """Placeholder docstring. TODO complete."""
@@ -35,6 +33,11 @@ class HubMetadata:
     anndata_version: str
     large_data_url: Optional[str] = None
     model_parent_module: str = DEFAULT_PARENT_MODULE
+
+    @classmethod
+    def from_dict(cls, d: dict):
+        """Placeholder docstring. TODO complete."""
+        return cls(**d)
 
     @classmethod
     def from_dir(

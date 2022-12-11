@@ -1,6 +1,8 @@
 import importlib
+import json
 import logging
 import os
+from dataclasses import asdict
 from pathlib import Path
 from typing import List, Optional, Type, Union
 
@@ -60,7 +62,8 @@ class HubModel:
         elif isinstance(metadata, str) or os.path.isfile(self._metadata_path):
             path = metadata if isinstance(metadata, str) else self._metadata_path
             content = Path(path).read_text()
-            self._metadata = HubMetadata.from_json(content)
+            content_dict = json.loads(content)
+            self._metadata = HubMetadata(**content_dict)
         else:
             raise ValueError("No metadata found")
 
@@ -108,8 +111,7 @@ class HubModel:
             )
         # upload the metadata and model card
         api.upload_file(
-            # path_or_fileobj=json.dumps(asdict(self.metadata), indent=4).encode(),
-            path_or_fileobj=self.metadata.to_json(indent=4).encode(),
+            path_or_fileobj=json.dumps(asdict(self.metadata), indent=4).encode(),
             path_in_repo=METADATA_FILE_NAME,
             repo_id=repo_name,
             token=repo_token,
@@ -125,7 +127,7 @@ class HubModel:
             allow_patterns=["model.pt", "adata.h5ad", METADATA_FILE_NAME],
         )
         model_card = ModelCard.load(repo_name)
-        return cls(cache_dir, model_card)
+        return cls(cache_dir, model_card=model_card)
 
     def __repr__(self):
         def eval_obj(obj):
