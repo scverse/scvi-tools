@@ -108,7 +108,7 @@ class HubModel:
             )
         # upload the metadata and model card
         api.upload_file(
-            # path_or_fileobj=json.dump(asdict(self.metadata), io),
+            # path_or_fileobj=json.dumps(asdict(self.metadata), indent=4).encode(),
             path_or_fileobj=self.metadata.to_json(indent=4).encode(),
             path_in_repo=METADATA_FILE_NAME,
             repo_id=repo_name,
@@ -177,19 +177,16 @@ class HubModel:
     def load_model(
         self,
         adata: Optional[AnnData] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
     ):
         """Placeholder docstring. TODO complete."""
         logger.info("Loading model...")
         # get the class name for this model (e.g. TOTALVI)
-        torch_model = torch.load(self._model_path)
+        torch_model = torch.load(self._model_path, map_location="cpu")
         cls_name = torch_model["attr_dict"]["registry_"]["model_name"]
         python_module = importlib.import_module(self.metadata.model_parent_module)
         model_cls = getattr(python_module, cls_name)
         if adata is not None or os.path.isfile(self._adata_path):
-            self._model = model_cls.load(
-                os.path.dirname(self._model_path), adata=adata, use_gpu=use_gpu
-            )
+            self._model = model_cls.load(os.path.dirname(self._model_path), adata=adata)
         else:
             # in this case, we must download the large adata if it exists in the model card; otherwise, we error out
             # the call below faults in self.adata_large if it is None
@@ -203,7 +200,6 @@ class HubModel:
                 self._model = model_cls.load(
                     os.path.dirname(self._model_path),
                     adata=self.adata_large,
-                    use_gpu=use_gpu,
                 )
 
     def read_adata(self):

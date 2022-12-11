@@ -1,6 +1,6 @@
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 
 import anndata
@@ -44,8 +44,8 @@ class HubMetadata:
         **kwargs,
     ):
         """Placeholder docstring. TODO complete."""
-        torch_model = torch.load(f"{local_dir}/model.pt")
-        scvi_version = torch_model["attr_dict"]["registry_"]["scvi_version"]
+        model = torch.load(f"{local_dir}/model.pt", map_location="cpu")
+        scvi_version = model["attr_dict"]["registry_"]["scvi_version"]
 
         return cls(
             scvi_version,
@@ -66,8 +66,8 @@ class HubModelCardHelper:
     model_data_registry: dict
     scvi_version: str
     anndata_version: str
-    data_modalities: Optional[List[str]] = None
-    tissues: Optional[List[str]] = None
+    data_modalities: List[str] = field(default_factory=list)
+    tissues: List[str] = field(default_factory=list)
     data_is_annotated: Optional[bool] = None
     data_is_latent: Optional[bool] = None
     large_data_url: Optional[str] = None
@@ -76,8 +76,6 @@ class HubModelCardHelper:
     references: str = DEFAULT_MISSING_FIELD
 
     def __post_init__(self):
-        self.data_modalities = self.data_modalities or []
-        self.tissues = self.tissues or []
         self.model_card = self._to_model_card()
 
     @classmethod
@@ -86,16 +84,13 @@ class HubModelCardHelper:
         local_dir: str,
         license_info: str,
         anndata_version: str,
-        torch_map_location: str = "cpu",
         data_is_latent: Optional[bool] = None,
         **kwargs,
     ):
         """Placeholder docstring. TODO complete."""
-        torch_model = torch.load(
-            f"{local_dir}/model.pt", map_location=torch_map_location
-        )
-        model_init_params = torch_model["attr_dict"]["init_params_"]
-        registry = torch_model["attr_dict"]["registry_"]
+        model = torch.load(f"{local_dir}/model.pt", map_location="cpu")
+        model_init_params = model["attr_dict"]["init_params_"]
+        registry = model["attr_dict"]["registry_"]
         model_cls_name = registry["model_name"]
         scvi_version = registry["scvi_version"]
         model_setup_anndata_args = registry["setup_args"]
