@@ -4,9 +4,10 @@ import logging
 import os
 from dataclasses import asdict
 from pathlib import Path
-from typing import List, Optional, Type, Union
+from typing import Optional, Type, Union
 
 import anndata
+import pandas as pd
 import rich
 import torch
 from anndata import AnnData
@@ -17,7 +18,6 @@ from huggingface_hub import (
     create_repo,
     snapshot_download,
 )
-from huggingface_hub.hf_api import ModelInfo
 from rich.markdown import Markdown
 
 from scvi.data._download import _download
@@ -228,15 +228,15 @@ class HubModel:
             logger.info("No large_data_url found in the model card. Skipping...")
 
 
-def list_all_models(
-    do_print: bool = True, print_detailed: bool = False
-) -> Optional[List[ModelInfo]]:
+def get_models_df() -> pd.DataFrame:
     """Placeholder docstring. TODO complete."""
     filt = ModelFilter(library=HF_LIBRARY_NAME)
     api = HfApi()
     all_models = api.list_models(filter=filt)
-    if do_print:
-        for m in all_models:
-            print("\n")
-            logger.info(m.__repr__() if print_detailed else m)
-    return None if do_print else all_models
+    model_ids = [m.modelId for m in all_models]
+    df = pd.DataFrame(
+        index=model_ids,
+        columns=["lastModified", "downloads", "likes", "author", "tags"],
+    )
+    for m in all_models:
+        df.loc[m.modelId] = [m.lastModified, m.downloads, m.likes, m.author, m.tags]
