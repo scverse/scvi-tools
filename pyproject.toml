@@ -75,7 +75,7 @@ pymde = ["pymde"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde"]
 
 [tool.hatch.build.targets.wheel]
-packages = ['src/scvi']
+packages = ['scvi']
 
 [tool.coverage.run]
 source = ["scvi"]
