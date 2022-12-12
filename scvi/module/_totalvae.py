@@ -1,5 +1,5 @@
 """Main module."""
-from typing import Dict, Iterable, Optional, Tuple, Union
+from typing import Dict, Iterable, Literal, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -8,7 +8,6 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,

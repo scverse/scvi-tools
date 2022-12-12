@@ -1,11 +1,10 @@
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 import pandas as pd
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model._utils import _init_library_size
