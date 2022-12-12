@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 import rich
@@ -15,33 +15,45 @@ from ._mudata import MuDataWrapper
 logger = logging.getLogger(__name__)
 
 
-class BaseObsField(BaseAnnDataField):
+class BaseDataframeField(BaseAnnDataField):
     """
-    An abstract AnnDataField for .obs attributes in the AnnData data structure.
+    An abstract AnnDataField for .obs or .var attributes in the AnnData data structure.
 
     Parameters
     ----------
     registry_key
         Key to register field under in data registry.
-    obs_key
-        Key to access the field in the AnnData obs mapping. If None, defaults to `registry_key`.
+    attr_key
+        Key to access the field in the AnnData obs or var mapping. If None, defaults to
+        `registry_key`.
+    field_type
+        Type of the field. Can be either "obs" or "var".
     required
-        If False, allows for `obs_key is None` and marks the field as `is_empty`.
+        If False, allows for `attr_key is None` and marks the field as `is_empty`.
     """
 
-    _attr_name = _constants._ADATA_ATTRS.OBS
-
     def __init__(
-        self, registry_key: str, obs_key: Optional[str], required: bool = True
+        self,
+        registry_key: str,
+        attr_key: Optional[str],
+        field_type: Literal["obs", "var"] = None,
+        required: bool = True,
     ) -> None:
         super().__init__()
-        if required and obs_key is None:
+        if required and attr_key is None:
             raise ValueError(
-                "`obs_key` cannot be `None` if `required=True`. Please provide an `obs_key`."
+                "`attr_key` cannot be `None` if `required=True`. Please provide an `attr_key`."
             )
+        if field_type == "obs":
+            self._attr_name = _constants._ADATA_ATTRS.OBS
+        elif field_type == "var":
+            self._attr_name = _constants._ADATA_ATTRS.VAR
+        else:
+            raise ValueError(f"Invalid `field_type`: {field_type}.")
+
         self._registry_key = registry_key
-        self._attr_key = obs_key
-        self._is_empty = obs_key is None
+        self._attr_key = attr_key
+        self._is_empty = attr_key is None
 
     @property
     def registry_key(self) -> str:  # noqa: D102
@@ -60,23 +72,28 @@ class BaseObsField(BaseAnnDataField):
         return self._is_empty
 
 
-class NumericalObsField(BaseObsField):
+class NumericalDataframeField(BaseDataframeField):
     """
-    An AnnDataField for numerical .obs attributes in the AnnData data structure.
+    An AnnDataField for numerical .obs and .var attributes in the AnnData data structure.
 
     Parameters
     ----------
     registry_key
         Key to register field under in data registry.
-    obs_key
-        Key to access the field in the AnnData obs mapping. If None, defaults to `registry_key`.
+    attr_key
+        Key to access the field in the AnnData obs or var mapping. If None, defaults to
+        `registry_key`.
+    field_type
+        Type of the field. Can be either "obs" or "var".
+    required
+        If False, allows for `attr_key is None` and marks the field as `is_empty`.
     """
 
     def validate_field(self, adata: AnnData) -> None:
         """Validate field."""
         super().validate_field(adata)
-        if self.attr_key not in adata.obs:
-            raise KeyError(f"{self.attr_key} not found in adata.obs.")
+        if self.attr_key not in get_anndata_attribute(adata, self.attr_name):
+            raise KeyError(f"{self.attr_key} not found in adata.{self.attr_name}.")
 
     def register_field(self, adata: AnnData) -> dict:
         """Register field."""
@@ -85,7 +102,7 @@ class NumericalObsField(BaseObsField):
     def transfer_field(
         self, state_registry: dict, adata_target: AnnData, **kwargs
     ) -> dict:
-        """Transfer field from registry to target AnnData."""
+        """Transfer field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         return self.register_field(adata_target)
 
@@ -98,28 +115,83 @@ class NumericalObsField(BaseObsField):
         return None
 
 
-MuDataNumericalObsField = MuDataWrapper(NumericalObsField)
-
-
-class CategoricalObsField(BaseObsField):
+class NumericalObsField(NumericalDataframeField):
     """
-    An AnnDataField for categorical .obs attributes in the AnnData data structure.
+    An AnnDataField for numerical .obs attributes in the AnnData data structure.
 
     Parameters
     ----------
     registry_key
         Key to register field under in data registry.
     obs_key
-        Key to access the field in the AnnData obs mapping. If None, defaults to `registry_key`.
+        Key to access the field in the AnnData obs mapping. If None, defaults to
+        `registry_key`.
+    required
+        If False, allows for `obs_key is None` and marks the field as `is_empty`.
+    """
+
+    def __init__(self, registry_key: str, obs_key: str, required: bool = True) -> None:
+        super().__init__(registry_key, obs_key, field_type="obs", required=required)
+
+
+class NumericalVarField(NumericalDataframeField):
+    """
+    An AnnDataField for numerical .var attributes in the AnnData data structure.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    var_key
+        Key to access the field in the AnnData var mapping. If None, defaults to
+        `registry_key`.
+    required
+        If False, allows for `var_key is None` and marks the field as `is_empty`.
+    """
+
+    def __init__(self, registry_key: str, var_key: str, required: bool = True) -> None:
+        super().__init__(registry_key, var_key, field_type="var", required=required)
+
+
+MuDataNumericalObsField = MuDataWrapper(NumericalObsField)
+MuDataNumericalVarField = MuDataWrapper(NumericalVarField)
+
+
+class CategoricalDataframField(BaseDataframeField):
+    """
+    An AnnDataField for categorical .obs and .var attributes in the AnnData data structure.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    attr_key
+        Key to access the field in the AnnData obs or var mapping. If None, defaults to
+        `registry_key`.
+    field_type
+        Type of the field. Can be either "obs" or "var".
+    required
+        If False, allows for `attr_key is None` and marks the field as `is_empty`.
     """
 
     CATEGORICAL_MAPPING_KEY = "categorical_mapping"
     ORIGINAL_ATTR_KEY = "original_key"
 
-    def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
-        self.is_default = obs_key is None
-        self._original_attr_key = obs_key or registry_key
-        super().__init__(registry_key, f"_scvi_{registry_key}")
+    def __init__(
+        self,
+        registry_key: str,
+        attr_key: Optional[str],
+        field_type: Literal["obs", "var"] = None,
+        required: bool = True,
+    ) -> None:
+        self.is_default = attr_key is None
+        self._original_attr_key = attr_key or registry_key
+        super().__init__(
+            registry_key,
+            f"_scvi_{registry_key}",
+            field_type=field_type,
+            required=required,
+        )
 
         self.count_stat_key = f"n_{self.registry_key}"
 
@@ -229,4 +301,43 @@ class CategoricalObsField(BaseObsField):
         return t
 
 
+class CategoricalObsField(CategoricalDataframField):
+    """
+    An AnnDataField for categorical .obs attributes in the AnnData data structure.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    obs_key
+        Key to access the field in the AnnData obs mapping. If None, defaults to
+        `registry_key`.
+    required
+        If False, allows for `obs_key is None` and marks the field as `is_empty`.
+    """
+
+    def __init__(self, registry_key: str, obs_key: str, required: bool = True):
+        super().__init__(registry_key, obs_key, field_type="obs", required=required)
+
+
+class CategoricalVarField(CategoricalDataframField):
+    """
+    An AnnDataField for categorical .obs attributes in the AnnData data structure.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    var_key
+        Key to access the field in the AnnData obs mapping. If None, defaults to
+        `registry_key`.
+    required
+        If False, allows for `var_key is None` and marks the field as `is_empty`.
+    """
+
+    def __init__(self, registry_key: str, var_key: str, required: bool = True):
+        super().__init__(registry_key, var_key, field_type="var", required=required)
+
+
 MuDataCategoricalObsField = MuDataWrapper(CategoricalObsField)
+MuDataCategoricalVarField = MuDataWrapper(CategoricalVarField)

@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -13,6 +13,7 @@ from scvi.data._utils import (
     _check_nonnegative_integers,
     _make_column_categorical,
     _verify_and_correct_data_format,
+    get_anndata_attribute,
 )
 from scvi.data.fields import MuDataWrapper
 
@@ -21,17 +22,28 @@ from ._base_field import BaseAnnDataField
 logger = logging.getLogger(__name__)
 
 
-class BaseObsmField(BaseAnnDataField):
-    """An abstract AnnDataField for .obsm attributes in the AnnData data structure."""
+class BaseMatrixField(BaseAnnDataField):
+    """
+    An abstract AnnDataField for .obsm or .varm attributes in the AnnData data structure.
 
-    _attr_name = _constants._ADATA_ATTRS.OBSM
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    attr_key
+        Key to access the field in the AnnData obsm or varm mapping. If None, defaults to
+        `registry_key`.
+    """
 
     def __init__(
         self,
         registry_key: str,
-    ) -> None:
+        attr_key: str,
+    ):
         super().__init__()
+
         self._registry_key = registry_key
+        self._attr_key = attr_key
 
     @property
     def registry_key(self) -> str:  # noqa: D102
@@ -41,8 +53,147 @@ class BaseObsmField(BaseAnnDataField):
     def attr_name(self) -> str:  # noqa: D102
         return self._attr_name
 
+    @property
+    def attr_key(self) -> str:  # noqa: D102
+        return self._attr_key
 
-class ObsmField(BaseObsmField):
+
+class MatrixField(BaseMatrixField):
+    """
+    An AnnDataField for an .obsm or .varm field in the AnnData data structure.
+
+    In addition to creating a reference to the .obsm or .varm field, stores the column
+    keys for the obsm or varm field in a more accessible .uns attribute.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    attr_key
+        Key to access the field in the AnnData .obsm or .varm mapping.
+    field_type
+        Type of the field. Can be either "obsm" or "varm".
+    colnames_uns_key
+        Key to access column names corresponding to each column of the .obsm or .varm
+        field in the AnnData .uns mapping. If None, checks if the field is stored as a
+        dataframe. If so, uses the dataframe's colnames. Otherwise, generates sequential
+        column names(e.g. 1, 2, 3, etc.).
+    is_count_data
+        If True, checks if the data are counts during validation.
+    correct_data_format
+        If True, checks and corrects that the AnnData field is C_CONTIGUOUS and csr
+        if it is dense numpy or sparse respectively.
+    """
+
+    COLUMN_NAMES_KEY = "column_names"
+
+    def __init__(
+        self,
+        registry_key: str,
+        attr_key: str,
+        field_type: Literal["obsm", "varm"] = None,
+        colnames_uns_key: Optional[str] = None,
+        is_count_data: bool = False,
+        correct_data_format: bool = True,
+    ) -> None:
+        super().__init__(registry_key, attr_key)
+        if field_type == "obsm":
+            self._attr_name = _constants._ADATA_ATTRS.OBSM
+        elif field_type == "varm":
+            self._attr_name = _constants._ADATA_ATTRS.VARM
+        else:
+            raise ValueError(f"Invalid `field_type`: {field_type}.")
+        self.colnames_uns_key = colnames_uns_key
+        self.is_count_data = is_count_data
+        self.correct_data_format = correct_data_format
+        self.count_stat_key = f"n_{self.registry_key}"
+
+    @property
+    def is_empty(self) -> bool:  # noqa: D102
+        return False
+
+    def validate_field(self, adata: AnnData) -> None:
+        """Validate the field."""
+        super().validate_field(adata)
+        if self.attr_key not in get_anndata_attribute(adata, self.attr_name):
+            raise KeyError(f"{self.attr_key} not found in {self.attr_name}.")
+
+        m_data = self.get_field_data(adata)
+
+        if self.is_count_data and not _check_nonnegative_integers(m_data):
+            warnings.warn(
+                f"adata.{self.attr_name}['{self.attr_key}'] does not contain "
+                "unnormalized count data. Are you sure this is what you want?"
+            )
+
+    def _setup_column_names(self, adata: AnnData) -> Union[list, np.ndarray]:
+        """
+        Returns a list or NumPy array of column names that will be used for the relevant .obsm data.
+
+        If the ``colnames_uns_key`` was specified, then the columns stored in that
+        field will be returned. Otherwise, if the stored data is a pandas dataframe, then
+        the dataframe's colnames will be returned. In the case the stored data is a NumPy array,
+        sequential column names will be generated (e.g. 1, 2, 3, etc.)
+        """
+        m_data = self.get_field_data(adata)
+        if self.colnames_uns_key is None and isinstance(m_data, pd.DataFrame):
+            logger.info(
+                f"Using column names from columns of adata.obsm['{self.attr_key}']"
+            )
+            column_names = list(m_data.columns)
+        elif self.colnames_uns_key is not None:
+            logger.info(f"Using column names from adata.uns['{self.colnames_uns_key}']")
+            column_names = adata.uns[self.colnames_uns_key]
+        else:
+            logger.info("Generating sequential column names")
+            column_names = np.arange(m_data.shape[1])
+        return column_names
+
+    def register_field(self, adata: AnnData) -> dict:
+        """Register the field."""
+        super().register_field(adata)
+        if self.correct_data_format:
+            _verify_and_correct_data_format(adata, self.attr_name, self.attr_key)
+
+        column_names = self._setup_column_names(adata)
+
+        return {self.COLUMN_NAMES_KEY: column_names}
+
+    def transfer_field(
+        self, state_registry: dict, adata_target: AnnData, **kwargs
+    ) -> dict:
+        """Transfer the field."""
+        super().transfer_field(state_registry, adata_target, **kwargs)
+        self.validate_field(adata_target)
+        source_cols = state_registry[self.COLUMN_NAMES_KEY]
+        target_data = self.get_field_data(adata_target)
+        if len(source_cols) != target_data.shape[1]:
+            raise ValueError(
+                f"Target adata.obsm['{self.attr_key}'] has {target_data.shape[1]} which does not match "
+                f"the source adata.{[self.attr_name]}['{self.attr_key}'] column count of {len(source_cols)}."
+            )
+
+        if isinstance(target_data, pd.DataFrame) and source_cols != list(
+            target_data.columns
+        ):
+            raise ValueError(
+                f"Target adata.{[self.attr_name]}['{self.attr_key}'] column names do not match "
+                f"the source adata.{[self.attr_name]}['{self.attr_key}'] column names."
+            )
+
+        return {self.COLUMN_NAMES_KEY: state_registry[self.COLUMN_NAMES_KEY].copy()}
+
+    def get_summary_stats(self, state_registry: dict) -> dict:
+        """Get summary stats."""
+        n_cols = len(state_registry[self.COLUMN_NAMES_KEY])
+        return {self.count_stat_key: n_cols}
+
+    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+        """View the state registry."""
+        return None
+
+
+class ObsmField(MatrixField):
     """
     An AnnDataField for an .obsm field in the AnnData data structure.
 
@@ -67,22 +218,122 @@ class ObsmField(BaseObsmField):
         if it is dense numpy or sparse respectively.
     """
 
-    COLUMN_NAMES_KEY = "column_names"
-
     def __init__(
         self,
         registry_key: str,
         obsm_key: str,
         colnames_uns_key: Optional[str] = None,
         is_count_data: bool = False,
-        correct_data_format: bool = True,
+        correct_data_format: bool = False,
+    ):
+        super().__init__(
+            registry_key,
+            obsm_key,
+            field_type="obsm",
+            colnames_uns_key=colnames_uns_key,
+            is_count_data=is_count_data,
+            correct_data_format=correct_data_format,
+        )
+
+
+class VarmField(MatrixField):
+    """
+    An AnnDataField for a .varm field in the AnnData data structure.
+
+    In addition to creating a reference to the .varm field, stores the column
+    keys for the obsm field in a more accessible .uns attribute.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    varm_key
+        Key to access the field in the AnnData .varm mapping.
+    colnames_uns_key
+        Key to access column names corresponding to each column of the .varm field in
+        the AnnData .uns mapping. If None, checks if the field is stored as a dataframe.
+        If so, uses the dataframe's colnames. Otherwise, generates sequential column names
+        (e.g. 1, 2, 3, etc.).
+    is_count_data
+        If True, checks if the data are counts during validation.
+    correct_data_format
+        If True, checks and corrects that the AnnData field is C_CONTIGUOUS and csr
+        if it is dense numpy or sparse respectively.
+    """
+
+    def __init__(
+        self,
+        registry_key: str,
+        varm_key: str,
+        colnames_uns_key: Optional[str] = None,
+        is_count_data: bool = False,
+        correct_data_format: bool = False,
+    ):
+        super().__init__(
+            registry_key,
+            varm_key,
+            field_type="varm",
+            colnames_uns_key=colnames_uns_key,
+            is_count_data=is_count_data,
+            correct_data_format=correct_data_format,
+        )
+
+
+MuDataObsmField = MuDataWrapper(ObsmField)
+MuDataVarmField = MuDataWrapper(VarmField)
+
+
+class JointField(BaseMatrixField):
+    """
+    An abstract AnnDataField for a collection of .obs or .var fields in the AnnData data structure.
+
+    Creates an .obsm or .varm field containing each .obs or .var field to be referenced as a whole a model.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    attr_keys
+        Sequence of keys to combine to form the obsm or varm field.
+    field_type
+        Type of the field. Can be either "obsm" or "varm".
+    """
+
+    def __init__(
+        self,
+        registry_key: str,
+        attr_keys: Optional[List[str]],
+        field_type: Literal["obsm", "varm"] = None,
     ) -> None:
-        super().__init__(registry_key)
-        self._attr_key = obsm_key
-        self.colnames_uns_key = colnames_uns_key
-        self.is_count_data = is_count_data
-        self.correct_data_format = correct_data_format
-        self.count_stat_key = f"n_{self.registry_key}"
+        super().__init__(registry_key, f"_scvi_{registry_key}")
+        if field_type == "obsm":
+            self._attr_name = _constants._ADATA_ATTRS.OBSM
+            self._attr_source_name = _constants._ADATA_ATTRS.OBS
+        elif field_type == "varm":
+            self._attr_name = _constants._ADATA_ATTRS.VARM
+            self._attr_source_name = _constants._ADATA_ATTRS.VAR
+        else:
+            raise ValueError(f"Invalid `field_type`: {field_type}.")
+        self._attr_keys = attr_keys or []
+        self._is_empty = len(self.attr_keys) == 0
+
+    def validate_field(self, adata: AnnData) -> None:
+        """Validate the field."""
+        super().validate_field(adata)
+        for obs_key in self._obs_keys:
+            if obs_key not in adata.obs:
+                raise KeyError(f"{obs_key} not found in adata.obs.")
+
+    def _combine_fields(self, adata: AnnData) -> None:
+        """Combine the .obs or .var fields into a single .obsm or .varm field."""
+        attr = get_anndata_attribute(adata, self._attr_name)
+        source = get_anndata_attribute(adata, self._attr_source_name)
+        attr[self.attr_key] = source[self.attr_keys].copy()
+
+    @property
+    def attr_keys(self) -> List[str]:
+        """List of .obs or .var keys that make up this joint field."""
+        return self._attr_keys
 
     @property
     def attr_key(self) -> str:  # noqa: D102
@@ -90,93 +341,10 @@ class ObsmField(BaseObsmField):
 
     @property
     def is_empty(self) -> bool:  # noqa: D102
-        return False
-
-    def validate_field(self, adata: AnnData) -> None:
-        """Validate the field."""
-        super().validate_field(adata)
-        if self.attr_key not in adata.obsm:
-            raise KeyError(f"{self.attr_key} not found in adata.obsm.")
-
-        obsm_data = self.get_field_data(adata)
-
-        if self.is_count_data and not _check_nonnegative_integers(obsm_data):
-            warnings.warn(
-                f"adata.obsm['{self.attr_key}'] does not contain unnormalized count data. "
-                "Are you sure this is what you want?"
-            )
-
-    def _setup_column_names(self, adata: AnnData) -> Union[list, np.ndarray]:
-        """
-        Returns a list or NumPy array of column names that will be used for the relevant .obsm data.
-
-        If the ``colnames_uns_key`` was specified, then the columns stored in that
-        field will be returned. Otherwise, if the stored data is a pandas dataframe, then
-        the dataframe's colnames will be returned. In the case the stored data is a NumPy array,
-        sequential column names will be generated (e.g. 1, 2, 3, etc.)
-        """
-        obsm_data = self.get_field_data(adata)
-        if self.colnames_uns_key is None and isinstance(obsm_data, pd.DataFrame):
-            logger.info(
-                f"Using column names from columns of adata.obsm['{self.attr_key}']"
-            )
-            column_names = list(obsm_data.columns)
-        elif self.colnames_uns_key is not None:
-            logger.info(f"Using column names from adata.uns['{self.colnames_uns_key}']")
-            column_names = adata.uns[self.colnames_uns_key]
-        else:
-            logger.info("Generating sequential column names")
-            column_names = np.arange(obsm_data.shape[1])
-        return column_names
-
-    def register_field(self, adata: AnnData) -> dict:
-        """Register the field."""
-        super().register_field(adata)
-        if self.correct_data_format:
-            _verify_and_correct_data_format(adata, self.attr_name, self.attr_key)
-
-        column_names = self._setup_column_names(adata)
-
-        return {self.COLUMN_NAMES_KEY: column_names}
-
-    def transfer_field(
-        self, state_registry: dict, adata_target: AnnData, **kwargs
-    ) -> dict:
-        """Transfer the field."""
-        super().transfer_field(state_registry, adata_target, **kwargs)
-        self.validate_field(adata_target)
-        source_cols = state_registry[self.COLUMN_NAMES_KEY]
-        target_data = self.get_field_data(adata_target)
-        if len(source_cols) != target_data.shape[1]:
-            raise ValueError(
-                f"Target adata.obsm['{self.attr_key}'] has {target_data.shape[1]} which does not match "
-                f"the source adata.obsm['{self.attr_key}'] column count of {len(source_cols)}."
-            )
-
-        if isinstance(target_data, pd.DataFrame) and source_cols != list(
-            target_data.columns
-        ):
-            raise ValueError(
-                f"Target adata.obsm['{self.attr_key}'] column names do not match "
-                f"the source adata.obsm['{self.attr_key}'] column names."
-            )
-
-        return {self.COLUMN_NAMES_KEY: state_registry[self.COLUMN_NAMES_KEY].copy()}
-
-    def get_summary_stats(self, state_registry: dict) -> dict:
-        """Get summary stats."""
-        n_obsm_cols = len(state_registry[self.COLUMN_NAMES_KEY])
-        return {self.count_stat_key: n_obsm_cols}
-
-    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
-        """View the state registry."""
-        return None
+        return self._is_empty
 
 
-MuDataObsmField = MuDataWrapper(ObsmField)
-
-
-class JointObsField(BaseObsmField):
+class JointObsField(JointField):
     """
     An abstract AnnDataField for a collection of .obs fields in the AnnData data structure.
 
@@ -191,62 +359,61 @@ class JointObsField(BaseObsmField):
     """
 
     def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
-        super().__init__(registry_key)
-        self._attr_key = f"_scvi_{registry_key}"
-        self._obs_keys = obs_keys if obs_keys is not None else []
-        self._is_empty = len(self.obs_keys) == 0
-
-    def validate_field(self, adata: AnnData) -> None:
-        """Validate the field."""
-        super().validate_field(adata)
-        for obs_key in self._obs_keys:
-            if obs_key not in adata.obs:
-                raise KeyError(f"{obs_key} not found in adata.obs.")
-
-    def _combine_obs_fields(self, adata: AnnData) -> None:
-        """Combine the .obs fields into a single .obsm field."""
-        adata.obsm[self.attr_key] = adata.obs[self.obs_keys].copy()
-
-    @property
-    def obs_keys(self) -> List[str]:
-        """List of .obs keys that make up this joint field."""
-        return self._obs_keys
-
-    @property
-    def attr_key(self) -> str:  # noqa: D102
-        return self._attr_key
-
-    @property
-    def is_empty(self) -> bool:  # noqa: D102
-        return self._is_empty
+        super().__init__(registry_key, obs_keys, field_type="obsm")
 
 
-class NumericalJointObsField(JointObsField):
+class JointVarField(JointField):
     """
-    An AnnDataField for a collection of numerical .obs fields in the AnnData data structure.
+    An abstract AnnDataField for a collection of .var fields in the AnnData data structure.
 
-    Creates an .obsm field containing each .obs field to be referenced as a whole a model.
+    Creates a .varm field containing each .var field to be referenced as a whole a model.
 
     Parameters
     ----------
     registry_key
         Key to register field under in data registry.
-    obs_keys
+    var_keys
+        Sequence of keys to combine to form the varm field.
+    """
+
+    def __init__(self, registry_key: str, var_keys: Optional[List[str]]) -> None:
+        super().__init__(registry_key, var_keys, field_type="varm")
+
+
+class NumericalJointField(JointField):
+    """
+    An AnnDataField for a collection of numerical .obs or .var fields in the AnnData data structure.
+
+    Creates an .obsm or .varm field containing each .obs or .var field to be referenced as a whole a model.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    attr_keys
         Sequence of keys to combine to form the obsm field.
+    field_type
+        Type of the field. Can be either "obsm" or "varm".
     """
 
     COLUMNS_KEY = "columns"
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
-        super().__init__(registry_key, obs_keys)
+    def __init__(
+        self,
+        registry_key: str,
+        attr_keys: Optional[List[str]],
+        field_type: Literal["obsm", "varm"] = None,
+    ):
+        super().__init__(registry_key, attr_keys, field_type=field_type)
 
         self.count_stat_key = f"n_{self.registry_key}"
 
     def register_field(self, adata: AnnData) -> dict:
         """Register the field."""
         super().register_field(adata)
-        self._combine_obs_fields(adata)
-        return {self.COLUMNS_KEY: adata.obsm[self.attr_key].columns.to_numpy()}
+        self._combine_fields(adata)
+        field = get_anndata_attribute(adata, self._attr_name)
+        return {self.COLUMNS_KEY: field[self.attr_key].columns.to_numpy()}
 
     def transfer_field(
         self,
@@ -260,8 +427,8 @@ class NumericalJointObsField(JointObsField):
 
     def get_summary_stats(self, _state_registry: dict) -> dict:
         """Get summary stats."""
-        n_obs_keys = len(self.obs_keys)
-        return {self.count_stat_key: n_obs_keys}
+        n_attr_keys = len(self.attr_keys)
+        return {self.count_stat_key: n_attr_keys}
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
         """View the state registry."""
@@ -277,19 +444,16 @@ class NumericalJointObsField(JointObsField):
             overflow="fold",
         )
         for key in state_registry[self.COLUMNS_KEY]:
-            t.add_row(f"adata.obs['{key}']")
+            field_name = self._attr_source_name
+            t.add_row(f"adata.{field_name}['{key}']")
         return t
 
 
-MuDataNumericalJointObsField = MuDataWrapper(NumericalJointObsField)
-
-
-class CategoricalJointObsField(JointObsField):
+class NumericalJointObsField(NumericalJointField):
     """
-    An AnnDataField for a collection of categorical .obs fields in the AnnData data structure.
+    An AnnDataField for a collection of numerical .obs fields in the AnnData data structure.
 
-    Creates an .obsm field compiling the given .obs fields. The model will reference the compiled
-    data as a whole.
+    Creates an .obsm field containing each .obs field to be referenced as a whole a model.
 
     Parameters
     ----------
@@ -299,12 +463,60 @@ class CategoricalJointObsField(JointObsField):
         Sequence of keys to combine to form the obsm field.
     """
 
+    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]):
+        super().__init__(registry_key, obs_keys, field_type="obsm")
+
+
+class NumericalJointVarField(NumericalJointField):
+    """
+    An AnnDataField for a collection of numerical .var fields in the AnnData data structure.
+
+    Creates an .varm field containing each .var field to be referenced as a whole a model.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    var_keys
+        Sequence of keys to combine to form the obsm field.
+    """
+
+    def __init__(self, registry_key: str, var_keys: Optional[List[str]]):
+        super().__init__(registry_key, var_keys, field_type="obsm")
+
+
+MuDataNumericalJointObsField = MuDataWrapper(NumericalJointObsField)
+MuDataNumericalJointVarField = MuDataWrapper(NumericalJointVarField)
+
+
+class CategoricalJointField(JointField):
+    """
+    An AnnDataField for a collection of categorical .obs or .var fields in the AnnData data structure.
+
+    Creates an .obsm or .varm field compiling the given .obs or .var fields. The model will reference the compiled
+    data as a whole.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    attr_keys
+        Sequence of keys to combine to form the obsm or varm field.
+    field_type
+        Type of the field. Can be either "obsm" or "varm".
+    """
+
     MAPPINGS_KEY = "mappings"
     FIELD_KEYS_KEY = "field_keys"
     N_CATS_PER_KEY = "n_cats_per_key"
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
-        super().__init__(registry_key, obs_keys)
+    def __init__(
+        self,
+        registry_key: str,
+        attr_keys: Optional[List[str]],
+        field_type: Literal["obsm", "varm"] = None,
+    ) -> None:
+        super().__init__(registry_key, attr_keys, field_type=field_type)
         self.count_stat_key = f"n_{self.registry_key}"
 
     def _default_mappings_dict(self) -> dict:
@@ -314,25 +526,27 @@ class CategoricalJointObsField(JointObsField):
             self.N_CATS_PER_KEY: [],
         }
 
-    def _make_obsm_categorical(
+    def _make_field_categorical(
         self, adata: AnnData, category_dict: Optional[Dict[str, List[str]]] = None
     ) -> dict:
         """Make the .obsm categorical."""
-        if self.obs_keys != adata.obsm[self.attr_key].columns.tolist():
+        field = get_anndata_attribute(adata, self._attr_name)
+        if self.attr_keys != field[self.attr_key].columns.tolist():
             raise ValueError(
-                "Original .obs keys do not match the columns in the generated .obsm field."
+                f"Original {self._attr_source_name} keys do not match the columns in "
+                f"the generated {self._attr_name} field."
             )
 
         categories = dict()
-        obsm_df = adata.obsm[self.attr_key]
-        for key in self.obs_keys:
+        field_df = field[self.attr_key]
+        for key in self.attr_keys:
             categorical_dtype = (
                 CategoricalDtype(categories=category_dict[key])
                 if category_dict is not None
                 else None
             )
             mapping = _make_column_categorical(
-                obsm_df, key, key, categorical_dtype=categorical_dtype
+                field_df, key, key, categorical_dtype=categorical_dtype
             )
             categories[key] = mapping
 
@@ -340,16 +554,16 @@ class CategoricalJointObsField(JointObsField):
 
         mappings_dict = self._default_mappings_dict()
         mappings_dict[self.MAPPINGS_KEY] = store_cats
-        mappings_dict[self.FIELD_KEYS_KEY] = self.obs_keys
-        for k in self.obs_keys:
+        mappings_dict[self.FIELD_KEYS_KEY] = self.attr_keys
+        for k in self.attr_keys:
             mappings_dict[self.N_CATS_PER_KEY].append(len(store_cats[k]))
         return mappings_dict
 
     def register_field(self, adata: AnnData) -> dict:
         """Register the field."""
         super().register_field(adata)
-        self._combine_obs_fields(adata)
-        return self._make_obsm_categorical(adata)
+        self._combine_fields(adata)
+        return self._make_field_categorical(adata)
 
     def transfer_field(
         self,
@@ -367,21 +581,24 @@ class CategoricalJointObsField(JointObsField):
         source_cat_dict = state_registry[self.MAPPINGS_KEY].copy()
         if extend_categories:
             for key, mapping in source_cat_dict.items():
-                for c in np.unique(adata_target.obs[key]):
+                target_field = get_anndata_attribute(
+                    adata_target, self._attr_source_name
+                )
+                for c in np.unique(target_field[key]):
                     if c not in mapping:
                         mapping = np.concatenate([mapping, [c]])
                 source_cat_dict[key] = mapping
 
         self.validate_field(adata_target)
-        self._combine_obs_fields(adata_target)
-        return self._make_obsm_categorical(adata_target, category_dict=source_cat_dict)
+        self._combine_fields(adata_target)
+        return self._make_field_categorical(adata_target, category_dict=source_cat_dict)
 
     def get_summary_stats(self, _state_registry: dict) -> dict:
         """Get summary stats."""
-        n_obs_keys = len(self.obs_keys)
+        n_attr_keys = len(self.attr_keys)
 
         return {
-            self.count_stat_key: n_obs_keys,
+            self.count_stat_key: n_attr_keys,
         }
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
@@ -410,11 +627,52 @@ class CategoricalJointObsField(JointObsField):
         for key, mappings in state_registry[self.MAPPINGS_KEY].items():
             for i, mapping in enumerate(mappings):
                 if i == 0:
-                    t.add_row(f"adata.obs['{key}']", str(mapping), str(i))
+                    t.add_row(
+                        f"adata.{self._attr_source_name}['{key}']", str(mapping), str(i)
+                    )
                 else:
                     t.add_row("", str(mapping), str(i))
             t.add_row("", "")
         return t
 
 
+class CategoricalJointObsField(CategoricalJointField):
+    """
+    An AnnDataField for a collection of categorical .obs fields in the AnnData data structure.
+
+    Creates an .obsm field compiling the given .obs fields. The model will reference the compiled
+    data as a whole.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    obs_keys
+        Sequence of keys to combine to form the obsm field.
+    """
+
+    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
+        super().__init__(registry_key, obs_keys, field_type="obsm")
+
+
+class CategoricalJointVarField(CategoricalJointField):
+    """
+    An AnnDataField for a collection of categorical .var fields in the AnnData data structure.
+
+    Creates an .varm field compiling the given .var fields. The model will reference the compiled
+    data as a whole.
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    var_keys
+        Sequence of keys to combine to form the varm field.
+    """
+
+    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
+        super().__init__(registry_key, obs_keys, field_type="varm")
+
+
 MuDataCategoricalJointObsField = MuDataWrapper(CategoricalJointObsField)
+MuDataCategoricalJointVarField = MuDataWrapper(CategoricalJointVarField)
