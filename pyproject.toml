@@ -41,7 +41,7 @@ flax = "*"
 furo = {version = ">=2022.2.14.1", optional = true}
 h5py = ">=2.9.0"
 hyperopt = {version = ">=0.2", optional = true}
-ipython = {version = ">=7.20", optional = true, python = ">=3.8"}
+ipython = {version = ">=7.20", optional = true}
 ipywidgets = "*"
 isort = {version = ">=5.7", optional = true}
 jax = ">=0.3"
