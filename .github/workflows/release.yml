@@ -19,7 +19,7 @@ jobs:
               with:
                   python-version: "3.9"
 
-            - name: Install poetry
+            - name: Install hatch
               run: |
                   pip install hatch
 
