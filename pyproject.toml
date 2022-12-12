@@ -42,7 +42,7 @@ dependencies = [
     "numpy>=1.17.0",
     "pandas>=1.0",
     "scipy",
-    "scikit-learn",
+    "scikit-learn>=0.21.2",
     "rich>=9.1.0",
     "h5py>=2.9.0",
     "torch>=1.8.0",
