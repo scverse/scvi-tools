@@ -74,6 +74,9 @@ autotune = ["hyperopt>=0.2", "ray[tune]>=2.1.0", "ipython"]
 pymde = ["pymde"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde"]
 
+[tool.hatch.build.targets.wheel]
+packages = ['src/scvi']
+
 [tool.coverage.run]
 source = ["scvi"]
 omit = [
