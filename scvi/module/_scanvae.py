@@ -90,7 +90,7 @@ class SCANVAE(VAE):
         classifier_parameters: Optional[dict] = None,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        **vae_kwargs
+        **vae_kwargs,
     ):
         super().__init__(
             n_input,
@@ -106,7 +106,7 @@ class SCANVAE(VAE):
             gene_likelihood=gene_likelihood,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
-            **vae_kwargs
+            **vae_kwargs,
         )
 
         classifier_parameters = classifier_parameters or dict()
@@ -128,7 +128,7 @@ class SCANVAE(VAE):
             n_labels=n_labels,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
-            **cls_parameters
+            **cls_parameters,
         )
 
         self.encoder_z2_z1 = Encoder(
