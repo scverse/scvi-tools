@@ -1,14 +1,12 @@
 import logging
 import os
 from pathlib import Path
-from typing import Union
+from typing import Literal, Union
 
 import pytorch_lightning as pl
 import torch
 from rich.console import Console
 from rich.logging import RichHandler
-
-from ._compat import Literal
 
 scvi_logger = logging.getLogger("scvi")
 

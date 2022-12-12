@@ -28,7 +28,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     pyenv virtualenv scvi-tools-dev
     pyenv activate scvi-tools-dev
     # If you have mamba (omit the python parameter if you already have the relevant python version installed)
-    mamba create -n scvi-tools-dev python=3.8.8 # or any python >3.7 that is available (mamba search python)
+    mamba create -n scvi-tools-dev python=3.8.8 # or any python >=3.8 that is available (mamba search python)
     mamba activate scvi-tools-dev
     ```
 
