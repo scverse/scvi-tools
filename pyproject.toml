@@ -46,6 +46,7 @@ dependencies = [
     "rich>=9.1.0",
     "h5py>=2.9.0",
     "torch>=1.8.0",
+    "pytorch-lightning>=1.8.0,<1.9.0",
     "torchmetrics>=0.6.0",
     "pyro-ppl>=1.6.0",
     "tqdm>=4.56.0",
