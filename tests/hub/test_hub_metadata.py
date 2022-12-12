@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 import scvi
@@ -12,23 +14,23 @@ def prep_model():
     return model
 
 
-def test_hub_metadata(save_path):
+def test_hub_metadata(request, save_path):
     hm = HubMetadata("0.17.4", "0.8.0")
     assert hm.scvi_version == "0.17.4"
     assert hm.anndata_version == "0.8.0"
-    assert hm.large_data_url is None
+    assert hm.training_data_url is None
     assert hm.model_parent_module == "scvi.model"
 
     d = {
         "scvi_version": "0.15.4",
         "anndata_version": "0.8.1",
-        "large_data_url": None,
+        "training_data_url": None,
         "model_parent_module": "bar",
     }
     hm = HubMetadata(**d)
     assert hm.scvi_version == "0.15.4"
     assert hm.anndata_version == "0.8.1"
-    assert hm.large_data_url is None
+    assert hm.training_data_url is None
     assert hm.model_parent_module == "bar"
 
     d = {
@@ -46,17 +48,18 @@ def test_hub_metadata(save_path):
         hm = HubMetadata(**d)
 
     model = prep_model()
-    model.save(save_path, overwrite=True)
+    test_save_path = os.path.join(save_path, request.node.name)
+    model.save(test_save_path, overwrite=True)
     hm = HubMetadata.from_dir(
-        save_path, anndata_version="0.9.0", model_parent_module="foo"
+        test_save_path, anndata_version="0.9.0", model_parent_module="foo"
     )
     assert hm.scvi_version == scvi.__version__
     assert hm.anndata_version == "0.9.0"
-    assert hm.large_data_url is None
+    assert hm.training_data_url is None
     assert hm.model_parent_module == "foo"
 
 
-def test_hub_modelcardhelper(save_path):
+def test_hub_modelcardhelper(request, save_path):
     model = prep_model()
 
     hmch = HubModelCardHelper(
@@ -119,7 +122,7 @@ def test_hub_modelcardhelper(save_path):
     assert hmch.tissues == ["eye"]
     assert hmch.data_is_annotated is None
     assert hmch.data_is_latent is None
-    assert hmch.large_data_url is None
+    assert hmch.training_data_url is None
     assert hmch.model_parent_module == "scvi.model"
     assert hmch.description == "To be added..."
     assert hmch.references == "To be added..."
@@ -134,9 +137,10 @@ def test_hub_modelcardhelper(save_path):
         ],
     }
 
-    model.save(save_path, overwrite=True, save_anndata=True)
+    test_save_path = os.path.join(save_path, request.node.name)
+    model.save(test_save_path, overwrite=True, save_anndata=True)
     hmch = HubModelCardHelper.from_dir(
-        save_path,
+        test_save_path,
         license_info="cc-by-4.0",
         anndata_version="0.8.0",
         model_parent_module="other_module",
@@ -157,7 +161,7 @@ def test_hub_modelcardhelper(save_path):
     assert hmch.tissues == []
     assert hmch.data_is_annotated is None
     assert hmch.data_is_latent is False
-    assert hmch.large_data_url is None
+    assert hmch.training_data_url is None
     assert hmch.model_parent_module == "other_module"
     assert hmch.description == "To be added..."
     assert hmch.references == "To be added..."

@@ -65,7 +65,7 @@ def test_hub_model_init(request, save_path):
     assert hmo._local_dir == test_save_path
     assert hmo._model is None
     assert hmo._adata is None
-    assert hmo._adata_large is None
+    assert hmo._large_training_adata is None
 
 
 def test_hub_model_load(request, save_path):
@@ -87,7 +87,7 @@ def test_hub_model_load(request, save_path):
     assert np.array_equal(hmo.adata.X, model.adata.X)
     assert hmo.adata.obs.equals(model.adata.obs)
     assert hmo.adata.var.equals(model.adata.var)
-    assert hmo.adata_large is None
+    assert hmo.large_training_adata is None
 
     # with a custom adata
     test_save_path = os.path.join(save_path, request.node.name + "_2")
@@ -99,7 +99,7 @@ def test_hub_model_load(request, save_path):
     assert isinstance(hmo.model.module, scvi.module.VAE)
     assert np.array_equal(hmo.model.adata.X, adata2.X)
     assert hmo.adata is None
-    assert hmo.adata_large is None
+    assert hmo.large_training_adata is None
 
     # no adata
     hmo = HubModel(test_save_path, metadata=hm, model_card=hmch.model_card)
@@ -108,13 +108,13 @@ def test_hub_model_load(request, save_path):
 
 
 @pytest.mark.internet
-def test_hub_model_adata_large(request, save_path):
-    large_data_url = "https://huggingface.co/datasets/scvi-tools/DATASET-FOR-UNIT-TESTING-1/resolve/main/adata.h5ad"
+def test_hub_model_large_training_adata(request, save_path):
+    training_data_url = "https://huggingface.co/datasets/scvi-tools/DATASET-FOR-UNIT-TESTING-1/resolve/main/adata.h5ad"
     model = prep_model()
     test_save_path = os.path.join(save_path, request.node.name)
     model.save(test_save_path, overwrite=True)
 
-    hm = HubMetadata("0.17.4", "0.8.0", large_data_url=large_data_url)
+    hm = HubMetadata("0.17.4", "0.8.0", training_data_url=training_data_url)
     hmch = HubModelCardHelper.from_dir(
         test_save_path,
         license_info="cc-by-4.0",
@@ -125,7 +125,7 @@ def test_hub_model_adata_large(request, save_path):
     hmo = HubModel(test_save_path, metadata=hm, model_card=hmch.model_card)
     assert isinstance(hmo.model, scvi.model.SCVI)
     assert isinstance(hmo.model.module, scvi.module.VAE)
-    assert hmo.adata_large is hmo.model.adata
+    assert hmo.large_training_adata is hmo.model.adata
     assert hmo.adata is None
 
 
@@ -148,7 +148,7 @@ def test_hub_model_pull_from_hf(request, save_path):
     assert isinstance(hmo.model, scvi.model.SCVI)
     assert isinstance(hmo.model.module, scvi.module.VAE)
     assert hmo.adata.shape == (400, 100)
-    assert hmo.adata_large is None
+    assert hmo.large_training_adata is None
 
 
 @pytest.mark.internet
@@ -185,7 +185,7 @@ def test_hub_model_push_to_hf(request, save_path):
     assert np.array_equal(hmo.adata.X, model.adata.X)
     assert hmo.adata.obs.equals(model.adata.obs)
     assert hmo.adata.var.equals(model.adata.var)
-    assert hmo.adata_large is None
+    assert hmo.large_training_adata is None
 
     # delete the HF repo
     delete_repo(repo_name, token=repo_token)

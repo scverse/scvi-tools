@@ -31,7 +31,7 @@ class HubMetadata:
 
     scvi_version: str
     anndata_version: str
-    large_data_url: Optional[str] = None
+    training_data_url: Optional[str] = None
     model_parent_module: str = DEFAULT_PARENT_MODULE
 
     @classmethod
@@ -68,7 +68,7 @@ class HubModelCardHelper:
     tissues: List[str] = field(default_factory=list)
     data_is_annotated: Optional[bool] = None
     data_is_latent: Optional[bool] = None
-    large_data_url: Optional[str] = None
+    training_data_url: Optional[str] = None
     model_parent_module: str = DEFAULT_PARENT_MODULE
     description: str = DEFAULT_MISSING_FIELD
     references: str = DEFAULT_MISSING_FIELD
@@ -158,7 +158,7 @@ class HubModelCardHelper:
             data_is_latent=DEFAULT_MISSING_FIELD
             if self.data_is_latent is None
             else self.data_is_latent,
-            large_data_url=self.large_data_url or DEFAULT_NA_FIELD,
+            training_data_url=self.training_data_url or DEFAULT_NA_FIELD,
             references=self.references,
         )
 

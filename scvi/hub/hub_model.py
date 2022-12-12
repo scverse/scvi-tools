@@ -47,12 +47,12 @@ class HubModel:
 
         self._model_path = f"{self._local_dir}/model.pt"
         self._adata_path = f"{self._local_dir}/adata.h5ad"
-        self._adata_large_path = f"{self._local_dir}/adata_large.h5ad"
+        self._large_training_adata_path = f"{self._local_dir}/large_training_adata.h5ad"
 
         # lazy load - these are not loaded until accessed
         self._model = None
         self._adata = None
-        self._adata_large = None
+        self._large_training_adata = None
 
         # get the metadata from the parameters or from the disk
         metadata_path = f"{self._local_dir}/{METADATA_FILE_NAME}"
@@ -139,7 +139,7 @@ class HubModel:
             f"local_dir: {self._local_dir}\n"
             f"model loaded? {eval_obj(self._model)}\n"
             f"adata loaded? {eval_obj(self._adata)}\n"
-            f"adata_large loaded? {eval_obj(self._adata_large)}\n"
+            f"large_training_adata loaded? {eval_obj(self._large_training_adata)}\n"
             f"metadata:\n{self.metadata}\n"
             f"model_card:"
         )
@@ -164,18 +164,18 @@ class HubModel:
         return self._model
 
     @property
-    def adata(self) -> AnnData:
+    def adata(self) -> Optional[AnnData]:
         """Placeholder docstring. TODO complete."""
         if self._adata is None:
             self.read_adata()
         return self._adata
 
     @property
-    def adata_large(self) -> Optional[AnnData]:
+    def large_training_adata(self) -> Optional[AnnData]:
         """Placeholder docstring. TODO complete."""
-        if self._adata_large is None:
-            self.read_adata_large()
-        return self._adata_large
+        if self._large_training_adata is None:
+            self.read_large_training_adata()
+        return self._large_training_adata
 
     def load_model(
         self,
@@ -191,9 +191,9 @@ class HubModel:
         if adata is not None or os.path.isfile(self._adata_path):
             self._model = model_cls.load(os.path.dirname(self._model_path), adata=adata)
         else:
-            # in this case, we must download the large adata if it exists in the model card; otherwise, we error out
-            # the call below faults in self.adata_large if it is None
-            if self.adata_large is None:
+            # in this case, we must download the large training adata if it exists in the model card; otherwise, we error out
+            # the call below faults in self.large_training_adata if it is None
+            if self.large_training_adata is None:
                 raise ValueError(
                     "Could not find any dataset to load the model with.\
                     Either provide a dataset on disk or a url to download the data in the model card.\
@@ -202,7 +202,7 @@ class HubModel:
             else:
                 self._model = model_cls.load(
                     os.path.dirname(self._model_path),
-                    adata=self.adata_large,
+                    adata=self.large_training_adata,
                 )
 
     def read_adata(self):
@@ -213,20 +213,22 @@ class HubModel:
         else:
             logger.info("No data found on disk. Skipping...")
 
-    def read_adata_large(self):
-        """Download the full adata, if it exists, then read it into memory."""
-        large_data_url = self.metadata.large_data_url
-        if large_data_url is not None:
+    def read_large_training_adata(self):
+        """Download the large training adata, if it exists, then read it into memory."""
+        training_data_url = self.metadata.training_data_url
+        if training_data_url is not None:
             logger.info(
-                f"Downloading large dataset from this url:\n{large_data_url}..."
+                f"Downloading large training dataset from this url:\n{training_data_url}..."
             )
-            dn = Path(self._adata_large_path).parent.as_posix()
-            fn = Path(self._adata_large_path).name
-            _download(large_data_url, dn, fn)
-            logger.info("Reading large data...")
-            self._adata_large = anndata.read_h5ad(self._adata_large_path)
+            dn = Path(self._large_training_adata_path).parent.as_posix()
+            fn = Path(self._large_training_adata_path).name
+            _download(training_data_url, dn, fn)
+            logger.info("Reading large training data...")
+            self._large_training_adata = anndata.read_h5ad(
+                self._large_training_adata_path
+            )
         else:
-            logger.info("No large_data_url found in the model card. Skipping...")
+            logger.info("No training_data_url found in the model card. Skipping...")
 
 
 def get_models_df() -> pd.DataFrame:
