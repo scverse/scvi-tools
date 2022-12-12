@@ -323,7 +323,7 @@ class AnnDataManager:
     def data_registry(self) -> attrdict:
         """Returns the data registry for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
-        return AnnDataManager._get_data_registry_from_registry(self._registry)
+        return self._get_data_registry_from_registry(self._registry)
 
     @staticmethod
     def _get_data_registry_from_registry(registry: dict) -> attrdict:
@@ -340,7 +340,7 @@ class AnnDataManager:
     def summary_stats(self) -> attrdict:
         """Returns the summary stats for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
-        return AnnDataManager._get_summary_stats_from_registry(self._registry)
+        return self._get_summary_stats_from_registry(self._registry)
 
     @staticmethod
     def _get_summary_stats_from_registry(registry: dict) -> attrdict:
@@ -490,16 +490,16 @@ class AnnDataManager:
         version = self._registry[_constants._SCVI_VERSION_KEY]
         rich.print(f"Anndata setup with scvi-tools version {version}.")
         rich.print()
-        AnnDataManager.view_setup_method_args(self._registry)
+        self.view_setup_method_args(self._registry)
 
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
         console = rich.console.Console(force_jupyter=force_jupyter)
 
-        ss = AnnDataManager._get_summary_stats_from_registry(self._registry)
-        dr = AnnDataManager._get_data_registry_from_registry(self._registry)
-        console.print(AnnDataManager._view_summary_stats(ss))
-        console.print(AnnDataManager._view_data_registry(dr))
+        ss = self._get_summary_stats_from_registry(self._registry)
+        dr = self._get_data_registry_from_registry(self._registry)
+        console.print(self._view_summary_stats(ss))
+        console.print(self._view_data_registry(dr))
 
         if not hide_state_registries:
             for field in self.fields:

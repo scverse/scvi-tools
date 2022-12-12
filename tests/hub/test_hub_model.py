@@ -125,9 +125,7 @@ def test_hub_model_adata_large(request, save_path):
     hmo = HubModel(test_save_path, metadata=hm, model_card=hmch.model_card)
     assert isinstance(hmo.model, scvi.model.SCVI)
     assert isinstance(hmo.model.module, scvi.module.VAE)
-    assert np.array_equal(hmo.adata_large.X, model.adata.X)
-    assert hmo.adata_large.obs.equals(model.adata.obs)
-    assert hmo.adata_large.var.equals(model.adata.var)
+    assert hmo.adata_large is hmo.model.adata
     assert hmo.adata is None
 
 
