@@ -43,6 +43,7 @@ dependencies = [
     "pandas>=1.0",
     "scipy",
     "scikit-learn>=0.21.2",
+    "openpyxl>=3.0",
     "rich>=9.1.0",
     "h5py>=2.9.0",
     "torch>=1.8.0",
