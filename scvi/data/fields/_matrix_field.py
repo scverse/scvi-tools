@@ -245,7 +245,7 @@ class VarmField(MatrixField):
         if it is dense numpy or sparse respectively.
     """
 
-    def __init__(*args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, field_type="varm")
 
 
