@@ -7,7 +7,7 @@ from pandas.api.types import CategoricalDtype
 
 from scvi.data._utils import _make_column_categorical, _set_data_in_registry
 
-from ._obs_field import CategoricalObsField
+from ._df_field import CategoricalObsField
 
 
 class LabelsWithUnlabeledObsField(CategoricalObsField):
