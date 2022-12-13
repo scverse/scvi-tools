@@ -342,7 +342,7 @@ class JointObsField(JointField):
         Sequence of keys to combine to form the obsm field.
     """
 
-    def __init__(*args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, field_type="obsm")
 
 
@@ -360,7 +360,7 @@ class JointVarField(JointField):
         Sequence of keys to combine to form the varm field.
     """
 
-    def __init__(*args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, field_type="varm")
 
 
