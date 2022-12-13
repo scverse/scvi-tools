@@ -13,7 +13,6 @@ from scvi.data._utils import (
     _check_nonnegative_integers,
     _make_column_categorical,
     _verify_and_correct_data_format,
-    get_anndata_attribute,
 )
 from scvi.data.fields import MuDataWrapper
 
@@ -41,7 +40,6 @@ class BaseMatrixField(BaseAnnDataField):
         attr_key: str,
     ):
         super().__init__()
-
         self._registry_key = registry_key
         self._attr_key = attr_key
 
@@ -115,7 +113,7 @@ class MatrixField(BaseMatrixField):
     def validate_field(self, adata: AnnData) -> None:
         """Validate the field."""
         super().validate_field(adata)
-        if self.attr_key not in get_anndata_attribute(adata, self.attr_name):
+        if self.attr_key not in getattr(adata, self.attr_name):
             raise KeyError(f"{self.attr_key} not found in {self.attr_name}.")
 
         m_data = self.get_field_data(adata)
@@ -218,22 +216,8 @@ class ObsmField(MatrixField):
         if it is dense numpy or sparse respectively.
     """
 
-    def __init__(
-        self,
-        registry_key: str,
-        obsm_key: str,
-        colnames_uns_key: Optional[str] = None,
-        is_count_data: bool = False,
-        correct_data_format: bool = False,
-    ):
-        super().__init__(
-            registry_key,
-            obsm_key,
-            field_type="obsm",
-            colnames_uns_key=colnames_uns_key,
-            is_count_data=is_count_data,
-            correct_data_format=correct_data_format,
-        )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs, field_type="obsm")
 
 
 class VarmField(MatrixField):
@@ -261,22 +245,8 @@ class VarmField(MatrixField):
         if it is dense numpy or sparse respectively.
     """
 
-    def __init__(
-        self,
-        registry_key: str,
-        varm_key: str,
-        colnames_uns_key: Optional[str] = None,
-        is_count_data: bool = False,
-        correct_data_format: bool = False,
-    ):
-        super().__init__(
-            registry_key,
-            varm_key,
-            field_type="varm",
-            colnames_uns_key=colnames_uns_key,
-            is_count_data=is_count_data,
-            correct_data_format=correct_data_format,
-        )
+    def __init__(*args, **kwargs):
+        super().__init__(*args, **kwargs, field_type="varm")
 
 
 MuDataObsmField = MuDataWrapper(ObsmField)
@@ -320,14 +290,14 @@ class JointField(BaseMatrixField):
     def validate_field(self, adata: AnnData) -> None:
         """Validate the field."""
         super().validate_field(adata)
-        for obs_key in self._obs_keys:
-            if obs_key not in adata.obs:
-                raise KeyError(f"{obs_key} not found in adata.obs.")
+        for key in self._attr_keys:
+            if key not in getattr(adata, self._attr_source_name).keys():
+                raise KeyError(f"{key} not found in adata.{self._attr_source_name}.")
 
     def _combine_fields(self, adata: AnnData) -> None:
         """Combine the .obs or .var fields into a single .obsm or .varm field."""
-        attr = get_anndata_attribute(adata, self._attr_name)
-        source = get_anndata_attribute(adata, self._attr_source_name)
+        attr = getattr(adata, self._attr_name)
+        source = getattr(adata, self._attr_source_name)
         attr[self.attr_key] = source[self.attr_keys].copy()
 
     @property
@@ -342,6 +312,20 @@ class JointField(BaseMatrixField):
     @property
     def is_empty(self) -> bool:  # noqa: D102
         return self._is_empty
+
+    @property
+    def obs_keys(self) -> List[str]:
+        """List of .obs keys that make up this joint field."""
+        if self._attr_name != _constants._ADATA_ATTRS.OBSM:
+            raise ValueError("This field is not a .obsm field.")
+        return self.attr_keys
+
+    @property
+    def var_keys(self) -> List[str]:
+        """List of .var keys that make up this joint field."""
+        if self._attr_name != _constants._ADATA_ATTRS.VARM:
+            raise ValueError("This field is not a .varm field.")
+        return self.attr_keys
 
 
 class JointObsField(JointField):
@@ -358,8 +342,8 @@ class JointObsField(JointField):
         Sequence of keys to combine to form the obsm field.
     """
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
-        super().__init__(registry_key, obs_keys, field_type="obsm")
+    def __init__(*args, **kwargs):
+        super().__init__(*args, **kwargs, field_type="obsm")
 
 
 class JointVarField(JointField):
@@ -376,8 +360,8 @@ class JointVarField(JointField):
         Sequence of keys to combine to form the varm field.
     """
 
-    def __init__(self, registry_key: str, var_keys: Optional[List[str]]) -> None:
-        super().__init__(registry_key, var_keys, field_type="varm")
+    def __init__(*args, **kwargs):
+        super().__init__(*args, **kwargs, field_type="varm")
 
 
 class NumericalJointField(JointField):
@@ -412,7 +396,7 @@ class NumericalJointField(JointField):
         """Register the field."""
         super().register_field(adata)
         self._combine_fields(adata)
-        field = get_anndata_attribute(adata, self._attr_name)
+        field = getattr(adata, self._attr_name)
         return {self.COLUMNS_KEY: field[self.attr_key].columns.to_numpy()}
 
     def transfer_field(
@@ -463,8 +447,8 @@ class NumericalJointObsField(NumericalJointField):
         Sequence of keys to combine to form the obsm field.
     """
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]):
-        super().__init__(registry_key, obs_keys, field_type="obsm")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs, field_type="obsm")
 
 
 class NumericalJointVarField(NumericalJointField):
@@ -481,8 +465,8 @@ class NumericalJointVarField(NumericalJointField):
         Sequence of keys to combine to form the obsm field.
     """
 
-    def __init__(self, registry_key: str, var_keys: Optional[List[str]]):
-        super().__init__(registry_key, var_keys, field_type="obsm")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs, field_type="varm")
 
 
 MuDataNumericalJointObsField = MuDataWrapper(NumericalJointObsField)
@@ -515,7 +499,7 @@ class CategoricalJointField(JointField):
         registry_key: str,
         attr_keys: Optional[List[str]],
         field_type: Literal["obsm", "varm"] = None,
-    ) -> None:
+    ):
         super().__init__(registry_key, attr_keys, field_type=field_type)
         self.count_stat_key = f"n_{self.registry_key}"
 
@@ -530,7 +514,7 @@ class CategoricalJointField(JointField):
         self, adata: AnnData, category_dict: Optional[Dict[str, List[str]]] = None
     ) -> dict:
         """Make the .obsm categorical."""
-        field = get_anndata_attribute(adata, self._attr_name)
+        field = getattr(adata, self._attr_name)
         if self.attr_keys != field[self.attr_key].columns.tolist():
             raise ValueError(
                 f"Original {self._attr_source_name} keys do not match the columns in "
@@ -581,9 +565,7 @@ class CategoricalJointField(JointField):
         source_cat_dict = state_registry[self.MAPPINGS_KEY].copy()
         if extend_categories:
             for key, mapping in source_cat_dict.items():
-                target_field = get_anndata_attribute(
-                    adata_target, self._attr_source_name
-                )
+                target_field = getattr(adata_target, self._attr_source_name)
                 for c in np.unique(target_field[key]):
                     if c not in mapping:
                         mapping = np.concatenate([mapping, [c]])
@@ -651,8 +633,8 @@ class CategoricalJointObsField(CategoricalJointField):
         Sequence of keys to combine to form the obsm field.
     """
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
-        super().__init__(registry_key, obs_keys, field_type="obsm")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs, field_type="obsm")
 
 
 class CategoricalJointVarField(CategoricalJointField):
@@ -670,8 +652,8 @@ class CategoricalJointVarField(CategoricalJointField):
         Sequence of keys to combine to form the varm field.
     """
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
-        super().__init__(registry_key, obs_keys, field_type="varm")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs, field_type="varm")
 
 
 MuDataCategoricalJointObsField = MuDataWrapper(CategoricalJointObsField)
