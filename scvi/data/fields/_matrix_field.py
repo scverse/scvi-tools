@@ -14,9 +14,9 @@ from scvi.data._utils import (
     _make_column_categorical,
     _verify_and_correct_data_format,
 )
-from scvi.data.fields import MuDataWrapper
 
 from ._base_field import BaseAnnDataField
+from ._mudata import MuDataWrapper
 
 logger = logging.getLogger(__name__)
 
