@@ -13,7 +13,7 @@ def track(
     description: str = "Working...",
     disable: bool = False,
     style: Literal["rich", "tqdm"] = None,
-    **kwargs
+    **kwargs,
 ):
     """
     Progress bar with `'rich'` and `'tqdm'` styles.
