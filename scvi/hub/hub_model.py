@@ -8,7 +8,6 @@ from typing import Optional, Type, Union
 
 import anndata
 import rich
-import torch
 from anndata import AnnData
 from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
 from rich.markdown import Markdown
@@ -16,6 +15,7 @@ from rich.markdown import Markdown
 from scvi.data._download import _download
 from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
+from scvi.model.base._utils import _load_saved_files
 
 from ._constants import MAX_HF_UPLOAD_SIZE, METADATA_FILE_NAME, MODEL_CARD_FILE_NAME
 
@@ -172,8 +172,8 @@ class HubModel:
         """Placeholder docstring. TODO complete."""
         logger.info("Loading model...")
         # get the class name for this model (e.g. TOTALVI)
-        torch_model = torch.load(self._model_path, map_location="cpu")
-        cls_name = torch_model["attr_dict"]["registry_"]["model_name"]
+        attr_dict, _, _, _ = _load_saved_files(self._local_dir, load_adata=False)
+        cls_name = attr_dict["registry_"]["model_name"]
         python_module = importlib.import_module(self.metadata.model_parent_module)
         model_cls = getattr(python_module, cls_name)
         if adata is not None or os.path.isfile(self._adata_path):

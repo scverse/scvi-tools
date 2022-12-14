@@ -4,11 +4,11 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 import anndata
-import torch
 from huggingface_hub import ModelCard, ModelCardData
 
 from scvi.data import AnnDataManager
 from scvi.data._utils import _is_latent
+from scvi.model.base._utils import _load_saved_files
 
 from ._constants import (
     ANNDATA_VERSION_TAG,
@@ -42,8 +42,8 @@ class HubMetadata:
         **kwargs,
     ):
         """Placeholder docstring. TODO complete."""
-        model = torch.load(f"{local_dir}/model.pt", map_location="cpu")
-        scvi_version = model["attr_dict"]["registry_"]["scvi_version"]
+        attr_dict, _, _, _ = _load_saved_files(local_dir, load_adata=False)
+        scvi_version = attr_dict["registry_"]["scvi_version"]
 
         return cls(
             scvi_version,
@@ -86,9 +86,9 @@ class HubModelCardHelper:
         **kwargs,
     ):
         """Placeholder docstring. TODO complete."""
-        model = torch.load(f"{local_dir}/model.pt", map_location="cpu")
-        model_init_params = model["attr_dict"]["init_params_"]
-        registry = model["attr_dict"]["registry_"]
+        attr_dict, _, _, _ = _load_saved_files(local_dir, load_adata=False)
+        model_init_params = attr_dict["init_params_"]
+        registry = attr_dict["registry_"]
         model_cls_name = registry["model_name"]
         scvi_version = registry["scvi_version"]
         model_setup_anndata_args = registry["setup_args"]
