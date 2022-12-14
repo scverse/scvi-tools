@@ -7,29 +7,17 @@ from pathlib import Path
 from typing import Optional, Type, Union
 
 import anndata
-import pandas as pd
 import rich
 import torch
 from anndata import AnnData
-from huggingface_hub import (
-    HfApi,
-    ModelCard,
-    ModelFilter,
-    create_repo,
-    snapshot_download,
-)
+from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
 from rich.markdown import Markdown
 
 from scvi.data._download import _download
 from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
 
-from ._constants import (
-    HF_LIBRARY_NAME,
-    MAX_HF_UPLOAD_SIZE,
-    METADATA_FILE_NAME,
-    MODEL_CARD_FILE_NAME,
-)
+from ._constants import MAX_HF_UPLOAD_SIZE, METADATA_FILE_NAME, MODEL_CARD_FILE_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -229,18 +217,3 @@ class HubModel:
             )
         else:
             logger.info("No training_data_url found in the model card. Skipping...")
-
-
-def get_models_df() -> pd.DataFrame:
-    """Placeholder docstring. TODO complete."""
-    filt = ModelFilter(library=HF_LIBRARY_NAME)
-    api = HfApi()
-    all_models = api.list_models(filter=filt)
-    model_ids = [m.modelId for m in all_models]
-    df = pd.DataFrame(
-        index=model_ids,
-        columns=["lastModified", "downloads", "likes", "author", "tags"],
-    )
-    for m in all_models:
-        df.loc[m.modelId] = [m.lastModified, m.downloads, m.likes, m.author, m.tags]
-    return df

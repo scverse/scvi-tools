@@ -1,13 +1,14 @@
 import json
 import os
 from dataclasses import asdict
+from uuid import uuid4
 
 import numpy as np
 import pytest
 from huggingface_hub import delete_repo
 
 import scvi
-from scvi.hub import HubMetadata, HubModel, HubModelCardHelper, get_models_df
+from scvi.hub import HubMetadata, HubModel, HubModelCardHelper
 from scvi.hub._constants import METADATA_FILE_NAME, MODEL_CARD_FILE_NAME
 
 
@@ -131,8 +132,8 @@ def test_hub_model_large_training_adata(request, save_path):
 
 @pytest.mark.internet
 def test_hub_model_pull_from_hf(request, save_path):
-    # the repo we are pulling from was populated with the contents of
-    # `test_save_path` as below
+    # # the repo we are pulling from was populated with the contents of
+    # # `test_save_path` as below
     # model = prep_model()
     # test_save_path = os.path.join(save_path, request.node.name)
     # model.save(test_save_path, overwrite=True, save_anndata=True)
@@ -168,10 +169,10 @@ def test_hub_model_push_to_hf(request, save_path):
     )
 
     hmo = HubModel(test_save_path, metadata=hm, model_card=hmch.model_card)
-    repo_name = "scvi-tools/MODEL-FOR-UNIT-TESTING-2"
     # # use this with path to your local token file if you want to test locally
     # repo_token = Path(your_token_path).read_text()
     repo_token = os.environ["HF_API_TOKEN"]
+    repo_name = f"scvi-tools/MODEL-FOR-UNIT-TESTING-{str(uuid4())}"
     hmo.push_to_huggingface_hub(
         repo_name=repo_name, repo_token=repo_token, repo_create=True
     )
@@ -189,11 +190,3 @@ def test_hub_model_push_to_hf(request, save_path):
 
     # delete the HF repo
     delete_repo(repo_name, token=repo_token)
-
-
-@pytest.mark.internet
-def test_hub_model_get_models_df():
-    df = get_models_df()
-    repo = "scvi-tools/test_model"
-    assert repo in df.index
-    assert df.loc[repo].author == "scvi-tools"
