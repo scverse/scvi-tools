@@ -13,7 +13,7 @@ from ._constants import REGISTRY_KEYS
 from ._settings import settings
 
 # this import needs to come after prior imports to prevent circular import
-from . import autotune, data, model, external, utils, hub
+from . import autotune, data, model, external, utils
 
 from importlib.metadata import version
 
@@ -35,5 +35,4 @@ __all__ = [
     "model",
     "external",
     "utils",
-    "hub",
 ]

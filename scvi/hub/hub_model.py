@@ -9,15 +9,8 @@ from typing import Optional, Type, Union
 import anndata
 import rich
 from anndata import AnnData
+from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
 from rich.markdown import Markdown
-
-# we have to have this here because we use huggingface_hub constructs
-# for typing function input/outputs, otherwise we can just lazy import
-# huggingface_hub
-try:
-    from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
-except ImportError:
-    pass
 
 from scvi.data._download import _download
 from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper

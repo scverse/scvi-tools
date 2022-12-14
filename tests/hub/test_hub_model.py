@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import numpy as np
 import pytest
+from huggingface_hub import delete_repo
 
 import scvi
 from scvi.hub import HubMetadata, HubModel, HubModelCardHelper
@@ -188,6 +189,4 @@ def test_hub_model_push_to_hf(request, save_path):
     assert hmo.large_training_adata is None
 
     # delete the HF repo
-    from huggingface_hub import delete_repo
-
     delete_repo(repo_name, token=repo_token)

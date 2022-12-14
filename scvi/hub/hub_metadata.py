@@ -1,17 +1,12 @@
+from __future__ import annotations
+
 import json
 import os
 from dataclasses import dataclass, field
 from typing import List, Optional
 
 import anndata
-
-# we have to have this here because we use huggingface_hub constructs
-# for typing function input/outputs, otherwise we can just lazy import
-# huggingface_hub
-try:
-    from huggingface_hub import ModelCard, ModelCardData
-except ImportError:
-    pass
+from huggingface_hub import ModelCard, ModelCardData
 
 from scvi.data import AnnDataManager
 from scvi.data._utils import _is_latent
