@@ -5,7 +5,7 @@ import logging
 
 try:
     # necessary as importing scvi after ray causes kernel crash
-    from ray import tune
+    from ray import tune  # noqa
 except ImportError:
     pass
 
