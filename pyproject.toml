@@ -1,16 +1,28 @@
-[tool.isort]
-include_trailing_comma = true
-multi_line_output = 3
-profile = "black"
-skip_glob = ["docs/*", "scvi/__init__.py"]
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
 
-[tool.poetry]
-authors = ["The scvi-tools development team <adamgayoso@berkeley.edu>"]
+
+[project]
+name = "scvi-tools"
+version = "0.19.0"
+description = "Deep probabilistic analysis of single-cell omics data."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+authors = [
+    {name = "The scvi-tools development team"},
+]
+maintainers = [
+    {name = "The scvi-tools development team", email = "adamgayoso@berkeley.edu"},
+]
+urls.Documentation = "https://scvi-tools.org"
+urls.Source = "https://github.com/scverse/scvi-tools"
+urls.Home-page = "https://scvi-tools.org"
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.7",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
@@ -19,109 +31,90 @@ classifiers = [
   "Operating System :: POSIX :: Linux",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
-description = "Deep probabilistic analysis of single-cell omics data."
-documentation = "https://scvi-tools.org"
-homepage = "https://github.com/scverse/scvi-tools"
-license = "BSD-3-Clause"
-name = "scvi-tools"
-packages = [
-  {include = "scvi"},
+dependencies = [
+    "anndata>=0.7.5",
+    "chex",
+    "docrep>=0.3.2",
+    "flax",
+    "jax>=0.3",
+    "jaxlib",
+    "optax",
+    "numpy>=1.17.0",
+    "pandas>=1.0",
+    "scipy",
+    "scikit-learn>=0.21.2",
+    "openpyxl>=3.0",
+    "rich>=9.1.0",
+    "h5py>=2.9.0",
+    "torch>=1.8.0",
+    "pytorch-lightning>=1.8.0,<1.9.0",
+    "torchmetrics>=0.6.0",
+    "pyro-ppl>=1.6.0",
+    "tqdm>=4.56.0",
+    "scikit-learn>=0.21.2",
+    "numpyro",
+    "ml-collections>=0.1.1",
+    "mudata>=0.1.2",
+    "huggingface_hub",
 ]
-readme = "README.md"
-version = "0.19.0"
 
-[tool.poetry.dependencies]
-anndata = ">=0.7.5"
-black = {version = ">=22.3", optional = true}
-chex = "*"
-codecov = {version = ">=2.0.8", optional = true}
-docrep = ">=0.3.2"
-flake8 = {version = ">=3.7.7", optional = true}
-flax = "*"
-furo = {version = ">=2022.2.14.1", optional = true}
-h5py = ">=2.9.0"
-hyperopt = {version = ">=0.2", optional = true}
-importlib-metadata = {version = ">1.0", python = "<3.8"}
-ipython = {version = ">=7.20", optional = true, python = ">=3.7"}
-ipywidgets = "*"
-isort = {version = ">=5.7", optional = true}
-jax = ">=0.3"
-jaxlib = "*"
-jupyter = {version = ">=1.0", optional = true}
-leidenalg = {version = "*", optional = true}
-loompy = {version = ">=3.0.6", optional = true}
-ml-collections = ">=0.1.1"
-mudata = ">=0.1.2"
-myst-parser = {version = "*", optional = true}
-nbconvert = {version = ">=5.4.0", optional = true}
-nbformat = {version = ">=4.4.0", optional = true}
-nbsphinx = {version = "*", optional = true}
-numpy = ">=1.17.0"
-numpyro = "*"
-openpyxl = ">=3.0"
-optax = "*"
-pandas = ">=1.0"
-pre-commit = {version = ">=2.7.1", optional = true}
-pymde = {version = "*", optional = true}
-pynndescent = {version = "*", optional = true}
-pyro-ppl = ">=1.6.0"
-pytest = {version = ">=4.4", optional = true}
-python = ">=3.7,<4.0"
-python-igraph = {version = "*", optional = true}
-pytorch-lightning = ">=1.8.0,<1.9"
-ray = {extras = ["tune"], version = ">=2.1.0", optional = true}
-rich = ">=9.1.0"
-scanpy = {version = ">=1.6", optional = true}
-scikit-learn = ">=0.21.2"
-scikit-misc = {version = ">=0.1.3", optional = true}
-sphinx = {version = ">=4.1", optional = true}
-sphinx-autodoc-typehints = {version = "*", optional = true}
-sphinx-design = {version = "*", optional = true}
-sphinx-hoverxref = {version = "*", optional = true}
-sphinx_copybutton = {version = "<=0.3.1", optional = true}
-sphinxext-opengraph = {version = "*", optional = true}
-sphinxcontrib-bibtex = {version = ">=1.0.0", optional = true}
-torch = ">=1.8.0"
-torchmetrics = ">=0.6.0"
-tqdm = ">=4.56.0"
-typing_extensions = {version = "*", python = "<3.8", optional = true}
-huggingface_hub = "*"
-
-[tool.poetry.extras]
-dev = ["black", "pytest", "flake8", "codecov", "scanpy", "loompy", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde"]
+[project.optional-dependencies]
+dev = ["black", "pytest", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde"]
 docs = [
-  "sphinx",
+  "sphinx>=4.1",
   "nbsphinx",
   "ipython",
   "furo",
-  "typing_extensions",
   "sphinx-autodoc-typehints",
   "sphinx_copybutton",
   "sphinx-design",
   "sphinxext-opengraph",
   "sphinx-hoverxref",
-  "sphinxcontrib-bibtex",
+  "sphinxcontrib-bibtex>=1.0.0",
   "myst-parser",
 ]
-autotune = ["hyperopt", "ray", "ipython"]
+autotune = ["hyperopt>=0.2", "ray[tune]>=2.1.0", "ipython"]
 pymde = ["pymde"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde"]
 
-[tool.poetry.dev-dependencies]
+[tool.hatch.build.targets.wheel]
+packages = ['scvi']
 
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-envlist = py37
-
-[testenv]
-deps = pytest
-extras =
-    dev
-commands = pytest {posargs}
-"""
-[build-system]
-requires = [
-  "poetry-core>=1.0.0",
+[tool.coverage.run]
+source = ["scvi"]
+omit = [
+    "**/test_*.py",
 ]
-build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+xfail_strict = true
+
+[tool.isort]
+include_trailing_comma = true
+multi_line_output = 3
+profile = "black"
+skip_glob = ["docs/*", "scvi/__init__.py"]
+
+[tool.black]
+target-version = ['py38']
+include = '\.pyi?$'
+exclude = '''
+(
+  /(
+      \.eggs
+    | \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+  )/
+)
+'''
+
+[tool.jupytext]
+formats = "ipynb,md"

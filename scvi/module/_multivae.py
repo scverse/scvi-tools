@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Literal, Optional
 
 import numpy as np
 import torch
@@ -8,7 +8,6 @@ from torch.distributions import kl_divergence as kld
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
