@@ -55,7 +55,6 @@ dependencies = [
     "numpyro",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
-    "huggingface_hub",
 ]
 
 [project.optional-dependencies]
@@ -76,6 +75,7 @@ docs = [
 autotune = ["hyperopt>=0.2", "ray[tune]>=2.1.0", "ipython"]
 pymde = ["pymde"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde"]
+hub = ["huggingface_hub"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['scvi']
