@@ -17,7 +17,7 @@ from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
 from scvi.model.base._utils import _load_saved_files
 
-from ._constants import MAX_HF_UPLOAD_SIZE, METADATA_FILE_NAME, MODEL_CARD_FILE_NAME
+from ._constants import _SCVI_HUB
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class HubModel:
         self._large_training_adata = None
 
         # get the metadata from the parameters or from the disk
-        metadata_path = f"{self._local_dir}/{METADATA_FILE_NAME}"
+        metadata_path = f"{self._local_dir}/{_SCVI_HUB.METADATA_FILE_NAME}"
         if isinstance(metadata, HubMetadata):
             self._metadata = metadata
         elif isinstance(metadata, str) or os.path.isfile(metadata_path):
@@ -55,7 +55,7 @@ class HubModel:
             raise ValueError("No metadata found")
 
         # get the model card from the parameters or from the disk
-        model_card_path = f"{self._local_dir}/{MODEL_CARD_FILE_NAME}"
+        model_card_path = f"{self._local_dir}/{_SCVI_HUB.MODEL_CARD_FILE_NAME}"
         if isinstance(model_card, HubModelCardHelper):
             self._model_card = model_card.model_card
         elif isinstance(model_card, ModelCard):
@@ -72,7 +72,7 @@ class HubModel:
     ):
         """Placeholder docstring. TODO complete."""
         if os.path.isfile(self._adata_path) and (
-            os.path.getsize(self._adata_path) >= MAX_HF_UPLOAD_SIZE
+            os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
         ):
             raise ValueError(
                 "Dataset is too large to upload to the Model. \
@@ -103,7 +103,7 @@ class HubModel:
         # upload the metadata and model card
         api.upload_file(
             path_or_fileobj=json.dumps(asdict(self.metadata), indent=4).encode(),
-            path_in_repo=METADATA_FILE_NAME,
+            path_in_repo=_SCVI_HUB.METADATA_FILE_NAME,
             repo_id=repo_name,
             token=repo_token,
         )
@@ -113,7 +113,7 @@ class HubModel:
         """Placeholder docstring. TODO complete."""
         cache_dir = snapshot_download(
             repo_id=repo_name,
-            allow_patterns=["model.pt", "adata.h5ad", METADATA_FILE_NAME],
+            allow_patterns=["model.pt", "adata.h5ad", _SCVI_HUB.METADATA_FILE_NAME],
         )
         model_card = ModelCard.load(repo_name)
         return cls(cache_dir, model_card=model_card)

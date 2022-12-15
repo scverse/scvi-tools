@@ -9,7 +9,7 @@ from huggingface_hub import delete_repo
 
 import scvi
 from scvi.hub import HubMetadata, HubModel, HubModelCardHelper
-from scvi.hub._constants import METADATA_FILE_NAME, MODEL_CARD_FILE_NAME
+from scvi.hub._constants import _SCVI_HUB
 
 
 def prep_model():
@@ -56,8 +56,8 @@ def test_hub_model_init(request, save_path):
     assert hmo.metadata is hm
     assert hmo.model_card is hmch.model_card
 
-    hmch.model_card.save(os.path.join(test_save_path, MODEL_CARD_FILE_NAME))
-    with open(os.path.join(test_save_path, METADATA_FILE_NAME), "w") as fp:
+    hmch.model_card.save(os.path.join(test_save_path, _SCVI_HUB.MODEL_CARD_FILE_NAME))
+    with open(os.path.join(test_save_path, _SCVI_HUB.METADATA_FILE_NAME), "w") as fp:
         json.dump(asdict(hm), fp, indent=4)
     hmo = HubModel(test_save_path)
     assert hmo.metadata == hm
@@ -138,7 +138,7 @@ def test_hub_model_pull_from_hf(request, save_path):
     # test_save_path = os.path.join(save_path, request.node.name)
     # model.save(test_save_path, overwrite=True, save_anndata=True)
     # hm = HubMetadata("0.17.0", "0.8.0")
-    # with open(os.path.join(test_save_path, METADATA_FILE_NAME), "w") as fp:
+    # with open(os.path.join(test_save_path, _SCVI_HUB.METADATA_FILE_NAME), "w") as fp:
     #     json.dump(asdict(hm), fp, indent=4)
 
     hmo = HubModel.pull_from_huggingface_hub(
@@ -159,7 +159,7 @@ def test_hub_model_push_to_hf(request, save_path):
     model.save(test_save_path, overwrite=True, save_anndata=True)
 
     hm = HubMetadata("0.17.0", "0.8.0")
-    with open(os.path.join(test_save_path, METADATA_FILE_NAME), "w") as fp:
+    with open(os.path.join(test_save_path, _SCVI_HUB.METADATA_FILE_NAME), "w") as fp:
         json.dump(asdict(hm), fp, indent=4)
 
     hmch = HubModelCardHelper.from_dir(

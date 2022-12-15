@@ -11,6 +11,12 @@ import pandas as pd
 import scipy.sparse as sp_sparse
 from anndata import AnnData
 from anndata._core.sparse_dataset import SparseDataset
+
+try:
+    from anndata.experimental import read_elem
+except ImportError:
+    from anndata._io.specs import read_elem
+
 from mudata import MuData
 from pandas.api.types import CategoricalDtype
 
@@ -252,5 +258,12 @@ def _get_latent_adata_type(adata: AnnData) -> Union[LatentDataType, None]:
     return adata.uns.get(_constants._ADATA_LATENT_UNS_KEY, None)
 
 
-def _is_latent(adata: AnnData) -> bool:
-    return adata.uns.get(_constants._ADATA_LATENT_UNS_KEY, None) is not None
+def _is_latent(adata: Union[AnnData, str]) -> bool:
+    uns_key = _constants._ADATA_LATENT_UNS_KEY
+    if isinstance(adata, AnnData):
+        return adata.uns.get(uns_key, None) is not None
+    elif isinstance(adata, str):
+        with h5py.File(adata) as fp:
+            return uns_key in read_elem(fp["uns"]).keys()
+    else:
+        raise TypeError(f"Unsupported type: {type(adata)}")

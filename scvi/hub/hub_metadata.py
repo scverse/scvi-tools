@@ -5,25 +5,13 @@ import os
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-import anndata
 from huggingface_hub import ModelCard, ModelCardData
 
 from scvi.data import AnnDataManager
 from scvi.data._utils import _is_latent
 from scvi.model.base._utils import _load_saved_files
 
-from ._constants import (
-    ANNDATA_VERSION_TAG,
-    ANNOTATED_TAG,
-    DEFAULT_MISSING_FIELD,
-    DEFAULT_NA_FIELD,
-    DEFAULT_PARENT_MODULE,
-    HF_LIBRARY_NAME,
-    MODALITY_TAG,
-    MODEL_CLS_NAME_TAG,
-    SCVI_VERSION_TAG,
-    TISSUE_TAG,
-)
+from ._constants import _SCVI_HUB
 from .model_card_template import template
 
 
@@ -34,7 +22,7 @@ class HubMetadata:
     scvi_version: str
     anndata_version: str
     training_data_url: Optional[str] = None
-    model_parent_module: str = DEFAULT_PARENT_MODULE
+    model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
 
     @classmethod
     def from_dir(
@@ -71,9 +59,9 @@ class HubModelCardHelper:
     data_is_annotated: Optional[bool] = None
     data_is_latent: Optional[bool] = None
     training_data_url: Optional[str] = None
-    model_parent_module: str = DEFAULT_PARENT_MODULE
-    description: str = DEFAULT_MISSING_FIELD
-    references: str = DEFAULT_MISSING_FIELD
+    model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
+    description: str = _SCVI_HUB.DEFAULT_MISSING_FIELD
+    references: str = _SCVI_HUB.DEFAULT_MISSING_FIELD
 
     def __post_init__(self):
         self.model_card = self._to_model_card()
@@ -104,8 +92,7 @@ class HubModelCardHelper:
         # get `is_latent` from the param if it is given, else from adata if it on disk, else set it to None
         is_latent = data_is_latent
         if is_latent is None and os.path.isfile(f"{local_dir}/adata.h5ad"):
-            adata = anndata.read_h5ad(f"{local_dir}/adata.h5ad", backed=True)
-            is_latent = _is_latent(adata)
+            is_latent = _is_latent(f"{local_dir}/adata.h5ad")
 
         return cls(
             license_info,
@@ -124,21 +111,21 @@ class HubModelCardHelper:
         """Placeholder docstring. TODO complete."""
         # define tags
         tags = [
-            MODEL_CLS_NAME_TAG.format(self.model_cls_name),
-            SCVI_VERSION_TAG.format(self.scvi_version),
-            ANNDATA_VERSION_TAG.format(self.anndata_version),
+            _SCVI_HUB.MODEL_CLS_NAME_TAG.format(self.model_cls_name),
+            _SCVI_HUB.SCVI_VERSION_TAG.format(self.scvi_version),
+            _SCVI_HUB.ANNDATA_VERSION_TAG.format(self.anndata_version),
         ]
         for m in self.data_modalities:
-            tags.append(MODALITY_TAG.format(m))
+            tags.append(_SCVI_HUB.MODALITY_TAG.format(m))
         for t in self.tissues:
-            tags.append(TISSUE_TAG.format(t))
+            tags.append(_SCVI_HUB.TISSUE_TAG.format(t))
         if self.data_is_annotated is not None:
-            tags.append(ANNOTATED_TAG.format(self.data_is_annotated))
+            tags.append(_SCVI_HUB.ANNOTATED_TAG.format(self.data_is_annotated))
 
         # define the card data, which is the header
         card_data = ModelCardData(
             license=self.license_info,
-            library_name=HF_LIBRARY_NAME,
+            library_name=_SCVI_HUB.HF_LIBRARY_NAME,
             tags=tags,
         )
 
@@ -157,10 +144,10 @@ class HubModelCardHelper:
                 self.model_data_registry, as_markdown=True
             ),
             model_parent_module=self.model_parent_module,
-            data_is_latent=DEFAULT_MISSING_FIELD
+            data_is_latent=_SCVI_HUB.DEFAULT_MISSING_FIELD
             if self.data_is_latent is None
             else self.data_is_latent,
-            training_data_url=self.training_data_url or DEFAULT_NA_FIELD,
+            training_data_url=self.training_data_url or _SCVI_HUB.DEFAULT_NA_FIELD,
             references=self.references,
         )
 
