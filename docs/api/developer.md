@@ -255,6 +255,25 @@ classes allow for new model classes to be easily integrated with the module.
    autotune.Tunable
 ```
 
+## Model hub
+
+We have a hub for pre-trained `scvi-tools` models that is hosted on [huggingface](https://huggingface.co/models).
+Developers can upload their own pre-trained `scvi-tools` models to this platform using the functionality that
+`scvi-tools` provides.
+
+```{eval-rst}
+.. currentmodule:: scvi
+```
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   scvi.hub.HubMetadata
+   scvi.hub.HubModel
+```
+
 ## Utilities
 
 ```{eval-rst}

@@ -23,7 +23,22 @@ logger = logging.getLogger(__name__)
 
 
 class HubModel:
-    """Placeholder docstring. TODO complete."""
+    """
+    Provides functionality to interact with the scvi-hub backed by [huggingface](https://huggingface.co/models).
+
+    Parameters
+    ----------
+    local_dir
+        Local director where the data and pre-trained model reside.
+    metadata
+        Either an instance of :class:`~scvi.hub.HubMetadata` that contains the required metadata for this model,
+        or a path to a file on disk where this metadata can be read from.
+    model_card
+        The model card for this pre-trained model. Model card is a markdown file that describes the pre-trained
+        model/data and is displayed on huggingface. This can be either an instance of
+        :class:`~huggingface_hub.ModelCard` or an instance of :class:`~scvi.hub.HubModelCardHelper` that wraps
+        the model card or a path to a file on disk where the model card can be read from.
+    """
 
     def __init__(
         self,

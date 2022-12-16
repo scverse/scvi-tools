@@ -115,6 +115,25 @@ Here we maintain a few package specific utilities for feature selection, etc.
    autotune.ModelTuner
 ```
 
+## Model hub
+
+We have a hub for pre-trained `scvi-tools` models that is hosted on [huggingface](https://huggingface.co/models).
+Users can download pre-trained `scvi-tools` models (and datasets) from this platform using the functionality
+that `scvi-tools` provides.
+
+```{eval-rst}
+.. currentmodule:: scvi
+```
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   scvi.hub.HubMetadata
+   scvi.hub.HubModel
+```
+
 ## Utilities
 
 Here we maintain miscellaneous general methods.
