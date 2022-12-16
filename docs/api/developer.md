@@ -271,6 +271,7 @@ Developers can upload their own pre-trained `scvi-tools` models to this platform
    :nosignatures:
 
    scvi.hub.HubMetadata
+   scvi.hub.HubModelCardHelper
    scvi.hub.HubModel
 ```
 

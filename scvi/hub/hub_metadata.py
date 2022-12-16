@@ -15,7 +15,20 @@ from .model_card_template import template
 
 @dataclass
 class HubMetadata:
-    """Placeholder docstring. TODO complete."""
+    """
+    Encapsulates the required metadata for `scvi-tools` hub models.
+
+    Parameters
+    ----------
+    scvi_version
+        The version of `scvi-tools` that the model was trained with.
+    anndata_version
+        The version of anndata used during model training.
+    training_data_url
+        Link to the training data used to train the model, if it is too large to be uploaded to the hub.
+    model_parent_module
+        The parent module of the model class. Defaults to `scvi.model`.
+    """
 
     scvi_version: str
     anndata_version: str
@@ -29,7 +42,18 @@ class HubMetadata:
         anndata_version: str,
         **kwargs,
     ):
-        """Placeholder docstring. TODO complete."""
+        """
+        Create a `HubMetadata` object from a local directory.
+
+        Parameters
+        ----------
+        local_dir
+            The local directory containing the model files.
+        anndata_version
+            The version of anndata used during model training.
+        kwargs
+            Additional keyword arguments to pass to the HubMetadata initializer.
+        """
         attr_dict, _, _, _ = _load_saved_files(local_dir, load_adata=False)
         scvi_version = attr_dict["registry_"]["scvi_version"]
 
@@ -42,7 +66,49 @@ class HubMetadata:
 
 @dataclass
 class HubModelCardHelper:
-    """Placeholder docstring. TODO complete."""
+    """
+    A helper class for creating a `ModelCard` for `scvi-tools` hub models.
+
+    It is not required to use this class to create a `ModelCard`. But this helps you do so in a way that is
+    consistent with most other `scvi-tools` hub models. You can think of this as a template. The actual template
+    string used can be found in ``scvi.template``. The resulting huggingface :class:`~huggingface_hub.ModelCard`
+    can be accessed via the :meth:`~scvi.hub.HubModelCardHelper.model_card` property.
+
+    Parameters
+    ----------
+    license_info
+        The license information for the model.
+    model_cls_name
+        The name of the model class.
+    model_init_params
+        The model initialization parameters.
+    model_setup_anndata_args
+        The arguments used to call ``setup_anndata`` during model training.
+    model_summary_stats
+        The model summary statistics.
+    model_data_registry
+        The model data registry.
+    scvi_version
+        The version of `scvi-tools` that the model was trained with.
+    anndata_version
+        The version of anndata used during model training.
+    data_modalities
+        The modalities of the training data.
+    tissues
+        The tissues of the training data.
+    data_is_annotated
+        Whether the training data is annotated.
+    data_is_latent
+        Whether the training data is latent.
+    training_data_url
+        Link to the training data used to train the model, if it is too large to be uploaded to the hub.
+    model_parent_module
+        The parent module of the model class. Defaults to `scvi.model`.
+    description
+        A description of the model.
+    references
+        A list of references for the model.
+    """
 
     license_info: str
     model_cls_name: str
@@ -73,7 +139,22 @@ class HubModelCardHelper:
         data_is_latent: Optional[bool] = None,
         **kwargs,
     ):
-        """Placeholder docstring. TODO complete."""
+        """
+        Create a `HubModelCardHelper` object from a local directory.
+
+        Parameters
+        ----------
+        local_dir
+            The local directory containing the model files.
+        license_info
+            The license information for the model.
+        anndata_version
+            The version of anndata used during model training.
+        data_is_latent
+            Whether the training data is latent.
+        kwargs
+            Additional keyword arguments to pass to the HubModelCardHelper initializer.
+        """
         attr_dict, _, _, _ = _load_saved_files(local_dir, load_adata=False)
         model_init_params = attr_dict["init_params_"]
         registry = attr_dict["registry_"]
@@ -106,7 +187,6 @@ class HubModelCardHelper:
         )
 
     def _to_model_card(self) -> ModelCard:
-        """Placeholder docstring. TODO complete."""
         # define tags
         tags = [
             _SCVI_HUB.MODEL_CLS_NAME_TAG.format(self.model_cls_name),

@@ -24,12 +24,12 @@ logger = logging.getLogger(__name__)
 
 class HubModel:
     """
-    Provides functionality to interact with the scvi-hub backed by [huggingface](https://huggingface.co/models).
+    Provides functionality to interact with the scvi-hub backed by `huggingface <https://huggingface.co/models>`_.
 
     Parameters
     ----------
     local_dir
-        Local director where the data and pre-trained model reside.
+        Local directory where the data and pre-trained model reside.
     metadata
         Either an instance of :class:`~scvi.hub.HubMetadata` that contains the required metadata for this model,
         or a path to a file on disk where this metadata can be read from.
@@ -85,7 +85,22 @@ class HubModel:
     def push_to_huggingface_hub(
         self, repo_name: str, repo_token: str, repo_create: bool
     ):
-        """Placeholder docstring. TODO complete."""
+        """
+        Push this model to huggingface.
+
+        If the dataset is too large to upload to huggingface, this will raise an
+        exception prompting the user to upload the data elsewhere. Otherwise, the
+        data, model card, and metadata are all uploaded to the given model repo.
+
+        Parameters
+        ----------
+        repo_name
+            ID of the huggingface repo where this model needs to be uploaded
+        repo_name
+            huggingface API token with write permissions
+        repo_create
+            Whether to create a repo if one does not exist
+        """
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
         ):
@@ -125,7 +140,18 @@ class HubModel:
 
     @classmethod
     def pull_from_huggingface_hub(cls, repo_name: str):
-        """Placeholder docstring. TODO complete."""
+        """
+        Download the given model repo from huggingface.
+
+        The model, its card, data, metadata are downloaded to a cached location on disk
+        selected by huggingface and an instance of this class is created with that info
+        and returned.
+
+        Parameters
+        ----------
+        repo_name
+            ID of the huggingface repo where this model needs to be uploaded
+        """
         cache_dir = snapshot_download(
             repo_id=repo_name,
             allow_patterns=["model.pt", "adata.h5ad", _SCVI_HUB.METADATA_FILE_NAME],
@@ -151,31 +177,46 @@ class HubModel:
 
     @property
     def metadata(self) -> HubMetadata:
-        """Placeholder docstring. TODO complete."""
+        """The metadata for this model."""
         return self._metadata
 
     @property
     def model_card(self) -> ModelCard:
-        """Placeholder docstring. TODO complete."""
+        """The model card for this model."""
         return self._model_card
 
     @property
     def model(self) -> Type[BaseModelClass]:
-        """Placeholder docstring. TODO complete."""
+        """
+        Returns the model object for this hub model.
+
+        If the model has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.load_model`.
+        Otherwise, it will simply return the loaded model.
+        """
         if self._model is None:
             self.load_model()
         return self._model
 
     @property
     def adata(self) -> Optional[AnnData]:
-        """Placeholder docstring. TODO complete."""
+        """
+        Returns the data for this model.
+
+        If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_adata`.
+        Otherwise, it will simply return the loaded data.
+        """
         if self._adata is None:
             self.read_adata()
         return self._adata
 
     @property
     def large_training_adata(self) -> Optional[AnnData]:
-        """Placeholder docstring. TODO complete."""
+        """
+        Returns the training data for this model, which might be too large to reside within the hub model.
+
+        If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_large_training_adata`.
+        Otherwise, it will simply return the loaded data.
+        """
         if self._large_training_adata is None:
             self.read_large_training_adata()
         return self._large_training_adata
@@ -184,7 +225,16 @@ class HubModel:
         self,
         adata: Optional[AnnData] = None,
     ):
-        """Placeholder docstring. TODO complete."""
+        """
+        Loads the model.
+
+        Parameters
+        ----------
+        adata
+            The data to  load the model with, if not None. If None, we'll try to load the model using the data
+            at ``self._adata_path``. If that file does not exist, we'll try to load the model using
+            :meth:`~scvi.hub.HubModel.large_training_adata`. If that does not exist either, we'll error out.
+        """
         logger.info("Loading model...")
         # get the class name for this model (e.g. TOTALVI)
         attr_dict, _, _, _ = _load_saved_files(self._local_dir, load_adata=False)
@@ -194,8 +244,8 @@ class HubModel:
         if adata is not None or os.path.isfile(self._adata_path):
             self._model = model_cls.load(os.path.dirname(self._model_path), adata=adata)
         else:
-            # in this case, we must download the large training adata if it exists in the model card; otherwise, we error out
-            # the call below faults in self.large_training_adata if it is None
+            # in this case, we must download the large training adata if it exists in the model card; otherwise,
+            # we error out. Note that the call below faults in self.large_training_adata if it is None
             if self.large_training_adata is None:
                 raise ValueError(
                     "Could not find any dataset to load the model with.\
@@ -209,7 +259,7 @@ class HubModel:
                 )
 
     def read_adata(self):
-        """Placeholder docstring. TODO complete."""
+        """Reads the data from disk (``self._adata_path``) if it exists. Otherwise, this is a no-op."""
         if os.path.isfile(self._adata_path):
             logger.info("Reading adata...")
             self._adata = anndata.read_h5ad(self._adata_path)
@@ -217,7 +267,7 @@ class HubModel:
             logger.info("No data found on disk. Skipping...")
 
     def read_large_training_adata(self):
-        """Download the large training adata, if it exists, then read it into memory."""
+        """Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op."""
         training_data_url = self.metadata.training_data_url
         if training_data_url is not None:
             logger.info(

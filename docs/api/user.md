@@ -130,7 +130,6 @@ that `scvi-tools` provides.
    :toctree: reference/
    :nosignatures:
 
-   scvi.hub.HubMetadata
    scvi.hub.HubModel
 ```
 
