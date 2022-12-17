@@ -1,7 +1,7 @@
 import inspect
 import logging
 import warnings
-from typing import Callable, Dict, List, Optional, Sequence, Union
+from typing import Callable, Dict, List, Literal, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,6 @@ from scipy.sparse import issparse
 from sklearn.mixture import GaussianMixture
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi._types import Number
 
 logger = logging.getLogger(__name__)

@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Literal, Optional, Sequence
 
 import numpy as np
 import torch
@@ -7,7 +7,6 @@ from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import Decoder, Encoder
 
@@ -91,7 +90,7 @@ class SCANVAE(VAE):
         classifier_parameters: Optional[dict] = None,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        **vae_kwargs
+        **vae_kwargs,
     ):
         super().__init__(
             n_input,
@@ -107,7 +106,7 @@ class SCANVAE(VAE):
             gene_likelihood=gene_likelihood,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
-            **vae_kwargs
+            **vae_kwargs,
         )
 
         classifier_parameters = classifier_parameters or dict()
@@ -129,7 +128,7 @@ class SCANVAE(VAE):
             n_labels=n_labels,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
-            **cls_parameters
+            **cls_parameters,
         )
 
         self.encoder_z2_z1 = Encoder(

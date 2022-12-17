@@ -1,5 +1,5 @@
 """Main module."""
-from typing import Any, Callable, Iterable, Optional, Tuple
+from typing import Any, Callable, Iterable, Literal, Optional, Tuple
 
 import numpy as np
 import torch
@@ -9,7 +9,6 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi._decorators import classproperty
 from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
