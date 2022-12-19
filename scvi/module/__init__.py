@@ -5,6 +5,7 @@ from ._jaxvae import JaxVAE
 from ._mrdeconv import MRDeconv
 from ._multivae import MULTIVAE
 from ._peakvae import PEAKVAE
+from ._poissonvae import POISSONVAE
 from ._scanvae import SCANVAE
 from ._totalvae import TOTALVAE
 from ._vae import LDVAE, VAE
@@ -18,6 +19,7 @@ __all__ = [
     "SCANVAE",
     "Classifier",
     "PEAKVAE",
+    "POISSONVAE",
     "VAEC",
     "MRDeconv",
     "MULTIVAE",
