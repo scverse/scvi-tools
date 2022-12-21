@@ -535,19 +535,19 @@ class GIMVI(VAEMixin, BaseModelClass):
                 adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
             )
 
-        # get the parameters for the class init signiture
+        # get the parameters for the class init signature
         init_params = attr_dict.pop("init_params_")
 
         # new saving and loading, enable backwards compatibility
         if "non_kwargs" in init_params.keys():
-            # grab all the parameters execept for kwargs (is a dict)
+            # grab all the parameters except for kwargs (is a dict)
             non_kwargs = init_params["non_kwargs"]
             kwargs = init_params["kwargs"]
 
             # expand out kwargs
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         else:
-            # grab all the parameters execept for kwargs (is a dict)
+            # grab all the parameters except for kwargs (is a dict)
             non_kwargs = {
                 k: v for k, v in init_params.items() if not isinstance(v, dict)
             }

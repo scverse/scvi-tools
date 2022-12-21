@@ -509,7 +509,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             if not isinstance(v, AnnData) and not isinstance(v, MuData)
         }
         # not very efficient but is explicit
-        # seperates variable params (**kwargs) from non variable params into two dicts
+        # separates variable params (**kwargs) from non variable params into two dicts
         non_var_params = [p.name for p in parameters if p.kind != p.VAR_KEYWORD]
         non_var_params = {k: v for (k, v) in all_params.items() if k in non_var_params}
         var_params = [p.name for p in parameters if p.kind == p.VAR_KEYWORD]

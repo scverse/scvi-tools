@@ -4,6 +4,7 @@ import sys
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
+from io import StringIO
 from typing import List, Optional, Union
 from uuid import uuid4
 
@@ -11,6 +12,8 @@ import numpy as np
 import pandas as pd
 import rich
 from mudata import MuData
+from rich import box
+from rich.console import Console
 
 import scvi
 from scvi._types import AnnOrMuData
@@ -320,27 +323,31 @@ class AnnDataManager:
     def data_registry(self) -> attrdict:
         """Returns the data registry for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
+        return self._get_data_registry_from_registry(self._registry)
 
+    @staticmethod
+    def _get_data_registry_from_registry(registry: dict) -> attrdict:
         data_registry = dict()
-        for registry_key, field_registry in self._registry[
+        for registry_key, field_registry in registry[
             _constants._FIELD_REGISTRIES_KEY
         ].items():
             field_data_registry = field_registry[_constants._DATA_REGISTRY_KEY]
             if field_data_registry:
                 data_registry[registry_key] = field_data_registry
-
         return attrdict(data_registry)
 
     @property
     def summary_stats(self) -> attrdict:
         """Returns the summary stats for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
+        return self._get_summary_stats_from_registry(self._registry)
 
+    @staticmethod
+    def _get_summary_stats_from_registry(registry: dict) -> attrdict:
         summary_stats = dict()
-        for field_registry in self._registry[_constants._FIELD_REGISTRIES_KEY].values():
+        for field_registry in registry[_constants._FIELD_REGISTRIES_KEY].values():
             field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
             summary_stats.update(field_summary_stats)
-
         return attrdict(summary_stats)
 
     def get_from_registry(self, registry_key: str) -> Union[np.ndarray, pd.DataFrame]:
@@ -375,9 +382,16 @@ class AnnDataManager:
             ]
         )
 
-    def _view_summary_stats(self) -> rich.table.Table:
+    @staticmethod
+    def _view_summary_stats(
+        summary_stats: attrdict, as_markdown: bool = False
+    ) -> Union[rich.table.Table, str]:
         """Prints summary stats."""
-        t = rich.table.Table(title="Summary Statistics")
+        if not as_markdown:
+            t = rich.table.Table(title="Summary Statistics")
+        else:
+            t = rich.table.Table(box=box.MARKDOWN)
+
         t.add_column(
             "Summary Stat Key",
             justify="center",
@@ -392,13 +406,26 @@ class AnnDataManager:
             no_wrap=True,
             overflow="fold",
         )
-        for stat_key, count in self.summary_stats.items():
+        for stat_key, count in summary_stats.items():
             t.add_row(stat_key, str(count))
+
+        if as_markdown:
+            console = Console(file=StringIO(), force_jupyter=False)
+            console.print(t)
+            return console.file.getvalue()
+
         return t
 
-    def _view_data_registry(self) -> rich.table.Table:
+    @staticmethod
+    def _view_data_registry(
+        data_registry: attrdict, as_markdown: bool = False
+    ) -> Union[rich.table.Table, str]:
         """Prints data registry."""
-        t = rich.table.Table(title="Data Registry")
+        if not as_markdown:
+            t = rich.table.Table(title="Data Registry")
+        else:
+            t = rich.table.Table(box=box.MARKDOWN)
+
         t.add_column(
             "Registry Key",
             justify="center",
@@ -414,7 +441,7 @@ class AnnDataManager:
             overflow="fold",
         )
 
-        for registry_key, data_loc in self.data_registry.items():
+        for registry_key, data_loc in data_registry.items():
             mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
             attr_name = data_loc.attr_name
             attr_key = data_loc.attr_key
@@ -426,6 +453,11 @@ class AnnDataManager:
             else:
                 scvi_data_str += f".{attr_name}['{attr_key}']"
             t.add_row(registry_key, scvi_data_str)
+
+        if as_markdown:
+            console = Console(file=StringIO(), force_jupyter=False)
+            console.print(t)
+            return console.file.getvalue()
 
         return t
 
@@ -463,8 +495,11 @@ class AnnDataManager:
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
         console = rich.console.Console(force_jupyter=force_jupyter)
-        console.print(self._view_summary_stats())
-        console.print(self._view_data_registry())
+
+        ss = self._get_summary_stats_from_registry(self._registry)
+        dr = self._get_data_registry_from_registry(self._registry)
+        console.print(self._view_summary_stats(ss))
+        console.print(self._view_data_registry(dr))
 
         if not hide_state_registries:
             for field in self.fields:
