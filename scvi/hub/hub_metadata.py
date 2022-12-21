@@ -212,11 +212,33 @@ class HubModelCardHelper:
             tags=tags,
         )
 
+        # flatten the model_init_params into a single dict
+        # for example {'kwargs': {'model_kwargs': {'foo': 'bar'}}, 'non_kwargs': {'n_hidden': 128, 'n_latent': 10}}
+        # becomes {'n_hidden': 128, 'n_latent': 10, 'foo': 'bar'}
+        if "non_kwargs" in self.model_init_params.keys():
+            non_kwargs = self.model_init_params["non_kwargs"]
+            kwargs = self.model_init_params["kwargs"]
+        else:
+            non_kwargs = {
+                k: v
+                for k, v in self.model_init_params.items()
+                if not isinstance(v, dict)
+            }
+            kwargs = {
+                k: v for k, v in self.model_init_params.items() if isinstance(v, dict)
+            }
+        kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        # kwargs and non_kwargs keys should be disjoint but if not, we'll just use the original model_init_params
+        if len(set(kwargs.keys()).intersection(set(non_kwargs.keys()))) == 0:
+            flattened_model_init_params = {**non_kwargs, **kwargs}
+        else:
+            flattened_model_init_params = self.model_init_params
+
         # create the content from the template
         content = template.format(
             card_data=card_data.to_yaml(),
             description=self.description,
-            model_init_params=json.dumps(self.model_init_params, indent=4),
+            model_init_params=json.dumps(flattened_model_init_params, indent=4),
             model_setup_anndata_args=json.dumps(
                 self.model_setup_anndata_args, indent=4
             ),

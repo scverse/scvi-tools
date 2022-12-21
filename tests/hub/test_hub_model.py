@@ -105,7 +105,7 @@ def test_hub_model_load(request, save_path):
     # no adata
     hmo = HubModel(test_save_path, metadata=hm, model_card=hmch.model_card)
     with pytest.raises(ValueError):
-        hmo.model  #  noqa
+        print(hmo.model)
 
 
 @pytest.mark.internet
