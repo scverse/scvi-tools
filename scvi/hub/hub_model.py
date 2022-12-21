@@ -214,8 +214,8 @@ class HubModel:
         """
         Returns the training data for this model, which might be too large to reside within the hub model.
 
-        If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_large_training_adata`.
-        Otherwise, it will simply return the loaded data.
+        If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_large_training_adata`,
+        which will attempt to download from the source url. Otherwise, it will simply return the loaded data.
         """
         if self._large_training_adata is None:
             self.read_large_training_adata()
