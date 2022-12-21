@@ -107,7 +107,7 @@ class AnnTorchDataset(Dataset):
                 cur_data, SparseDataset
             ):
                 sliced_data = cur_data[idx]
-                if issparse(cur_data):
+                if issparse(sliced_data):
                     sliced_data = sliced_data.toarray()
                 sliced_data = sliced_data.astype(dtype)
             elif isinstance(cur_data, np.ndarray):
