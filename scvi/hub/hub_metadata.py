@@ -68,7 +68,7 @@ class HubMetadata:
 @dataclass
 class HubModelCardHelper:
     """
-    A helper class for creating a `ModelCard` for `scvi-tools` hub models.
+    A helper for creating a `ModelCard` for `scvi-tools` hub models.
 
     It is not required to use this class to create a `ModelCard`. But this helps you do so in a way that is
     consistent with most other `scvi-tools` hub models. You can think of this as a template. The actual template

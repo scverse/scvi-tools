@@ -96,7 +96,7 @@ class HubModel:
         ----------
         repo_name
             ID of the huggingface repo where this model needs to be uploaded
-        repo_name
+        repo_token
             huggingface API token with write permissions
         repo_create
             Whether to create a repo if one does not exist
