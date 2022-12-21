@@ -41,6 +41,12 @@ mode. See the scvi-tools documentation for more details. -->
 
 Training data url: {training_data_url}
 
+# Training code
+
+This is an optional link to the code used to train the model.
+
+Training code url: {training_code_url}
+
 # References
 
 {references}\

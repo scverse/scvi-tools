@@ -6,6 +6,12 @@ from typing import Any, Callable, List, Optional, Tuple
 
 import rich
 
+try:
+    from ray import air, tune
+    from ray.tune.integration.pytorch_lightning import TuneReportCallback
+except ImportError:
+    pass
+
 from scvi._decorators import dependencies
 from scvi._types import AnnOrMuData
 from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
@@ -14,13 +20,6 @@ from scvi.model.base import BaseModelClass
 from ._defaults import COLORS, COLUMN_KWARGS, DEFAULTS, SUPPORTED, TUNABLE_TYPES
 from ._types import TunableMeta
 from ._utils import in_notebook
-
-try:
-    from ray import air, tune
-    from ray.tune.integration.pytorch_lightning import TuneReportCallback
-except ImportError:
-    pass
-
 
 logger = logging.getLogger(__name__)
 

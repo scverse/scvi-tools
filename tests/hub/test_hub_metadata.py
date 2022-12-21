@@ -123,6 +123,7 @@ def test_hub_modelcardhelper(request, save_path):
     assert hmch.data_is_annotated is None
     assert hmch.data_is_latent is None
     assert hmch.training_data_url is None
+    assert hmch.training_code_url is None
     assert hmch.model_parent_module == "scvi.model"
     assert hmch.description == "To be added..."
     assert hmch.references == "To be added..."
@@ -162,6 +163,7 @@ def test_hub_modelcardhelper(request, save_path):
     assert hmch.data_is_annotated is None
     assert hmch.data_is_latent is False
     assert hmch.training_data_url is None
+    assert hmch.training_code_url is None
     assert hmch.model_parent_module == "other_module"
     assert hmch.description == "To be added..."
     assert hmch.references == "To be added..."

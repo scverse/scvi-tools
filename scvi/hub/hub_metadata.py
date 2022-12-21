@@ -27,7 +27,8 @@ class HubMetadata:
     training_data_url
         Link to the training data used to train the model, if it is too large to be uploaded to the hub.
     model_parent_module
-        The parent module of the model class. Defaults to `scvi.model`.
+        The parent module of the model class. Defaults to `scvi.model`. Change this if you are using a model
+        class that is not in the `scvi.model` module, for example, if you are using a model class from a custom module.
     """
 
     scvi_version: str
@@ -102,8 +103,11 @@ class HubModelCardHelper:
         Whether the training data is latent.
     training_data_url
         Link to the training data used to train the model, if it is too large to be uploaded to the hub.
+    training_code_url
+        Link to the code used to train the model.
     model_parent_module
-        The parent module of the model class. Defaults to `scvi.model`.
+        The parent module of the model class. Defaults to `scvi.model`. Change this if you are using a model
+        class that is not in the `scvi.model` module, for example, if you are using a model class from a custom module.
     description
         A description of the model.
     references
@@ -123,6 +127,7 @@ class HubModelCardHelper:
     data_is_annotated: Optional[bool] = None
     data_is_latent: Optional[bool] = None
     training_data_url: Optional[str] = None
+    training_code_url: Optional[str] = None
     model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
     description: str = _SCVI_HUB.DEFAULT_MISSING_FIELD
     references: str = _SCVI_HUB.DEFAULT_MISSING_FIELD
@@ -226,6 +231,7 @@ class HubModelCardHelper:
             if self.data_is_latent is None
             else self.data_is_latent,
             training_data_url=self.training_data_url or _SCVI_HUB.DEFAULT_NA_FIELD,
+            training_code_url=self.training_code_url or _SCVI_HUB.DEFAULT_NA_FIELD,
             references=self.references,
         )
 
