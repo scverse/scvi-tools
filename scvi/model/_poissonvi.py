@@ -1,44 +1,60 @@
 import logging
-import warnings
 from functools import partial
 from typing import Dict, Iterable, List, Optional, Sequence, Union
-from xmlrpc.client import Boolean
 
+import torch
 import numpy as np
 import pandas as pd
-import torch
-from anndata import AnnData
-from scipy.sparse import csr_matrix, vstack
+from torch.distributions import Poisson
 
+from anndata import AnnData
+from scipy.sparse import csr_matrix
+
+from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi._constants import REGISTRY_KEYS
-from scvi._utils import _doc_params
+from scvi._decorators import classproperty
+from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
+from scvi.data._constants import _ADATA_LATENT_UNS_KEY, _SCVI_UUID_KEY
+from scvi.data._utils import _get_latent_adata_type
 from scvi.data.fields import (
+    BaseAnnDataField,
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
-    NumericalObsField,
     NumericalJointObsField,
+    NumericalObsField,
+    ObsmField,
+    StringUnsField,
 )
 from scvi.model._utils import (
+    _init_library_size,
     _get_batch_code_from_category,
-    scatac_raw_counts_properties,
+    scrna_raw_counts_properties,
 )
-from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.module import POISSONVAE
+from scvi.module.base import BaseModuleClass
+from scvi.utils import setup_anndata_dsp
 from scvi.train._callbacks import SaveBestState
-from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
-from scvi.model.base import ArchesMixin, BaseModelClass, VAEMixin, RNASeqMixin
-from scvi.model.base._utils import _de_core
+import warnings
+from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
+from .base._utils import _de_core
 
-from scvi.module import PoissonVAE
-from torch.distributions import Poisson
+logger = logging.getLogger(__name__)
+
+_SCVI_LATENT_QZM = "_scvi_latent_qzm"
+_SCVI_LATENT_QZV = "_scvi_latent_qzv"
+_SCVI_LATENT_MODE = "posterior_parameters"
 
 
 class POISSONVI(
-    ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass
+    ArchesMixin,
+    RNASeqMixin,
+    VAEMixin,
+    UnsupervisedTrainingMixin,
+    BaseLatentModeModelClass,
 ):
     """
     Variational inference on peaks using count data.
@@ -91,7 +107,7 @@ class POISSONVI(
                 REGISTRY_KEYS.CAT_COVS_KEY
             ).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else []
+            else None
         )
         n_batch = self.summary_stats.n_batch
 
@@ -105,7 +121,7 @@ class POISSONVI(
                 self.adata_manager, n_batch
             )
 
-        self.module = PoissonVAE(
+        self.module = POISSONVAE(
             n_input_regions=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,
@@ -126,6 +142,7 @@ class POISSONVI(
             **model_kwargs,
         )
 
+        self.module.latent_data_type = self.latent_data_type
         self._model_summary_string = (
             "PoissonVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
             "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
@@ -154,8 +171,6 @@ class POISSONVI(
         weight_decay: float = 1e-3,
         eps: float = 1e-08,
         early_stopping: bool = True,
-        early_stopping_patience: int = 50,
-        save_best: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
         n_steps_kl_warmup: Union[int, None] = None,
         n_epochs_kl_warmup: Union[int, None] = 50,
@@ -219,12 +234,6 @@ class POISSONVI(
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
-        if save_best:
-            if "callbacks" not in kwargs.keys():
-                kwargs["callbacks"] = []
-            kwargs["callbacks"].append(
-                SaveBestState(monitor="reconstruction_loss_validation")
-            )
 
         super().train(
             max_epochs=max_epochs,
@@ -233,68 +242,18 @@ class POISSONVI(
             validation_size=validation_size,
             early_stopping=early_stopping,
             early_stopping_monitor="reconstruction_loss_validation",
-            early_stopping_patience=early_stopping_patience,
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
             batch_size=batch_size,
             **kwargs,
         )
 
-    @torch.no_grad()
-    def get_latent_library_size(
-        self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        give_mean: bool = True,
-        batch_size: Optional[int] = None,
-    ) -> np.ndarray:
-        r"""
-        Returns the latent library size for each cell.
-        This is denoted as :math:`\ell_n` in the scVI paper.
-        Parameters
-        ----------
-        adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
-        indices
-            Indices of cells in adata to use. If `None`, all cells are used.
-        give_mean
-            Return the mean or a sample from the posterior distribution.
-        batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        """
-        self._check_if_trained(warn=False)
-
-        adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
-        libraries = []
-        for tensors in scdl:
-            inference_inputs = self.module._get_inference_input(tensors)
-            outputs = self.module.inference(**inference_inputs)
-
-            library = outputs["library"]
-            if not give_mean:
-                library = torch.exp(library)
-            else:
-                ql_m = outputs["ql_m"]
-                ql_v = outputs["ql_v"]
-                if ql_m is None or ql_v is None:
-                    raise RuntimeError(
-                        "The module for this model does not compute the posterior distribution "
-                        "for the library size. Set `give_mean` to False to use the observed library size instead."
-                    )
-                library = torch.distributions.LogNormal(ql_m, ql_v.sqrt()).mean
-            libraries += [library.cpu()]
-        return torch.cat(libraries).numpy()
-
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_region_factors(self):
         """Return region-specific factors."""
         raise NotImplementedError("This function is not yet implemented")
 
-    @torch.no_grad()
+    @torch.inference_mode()
     # This is adapted from scvi
     def get_accessibility_estimates(
         self,
@@ -427,6 +386,82 @@ class POISSONVI(
         else:
             return accs
 
+    def differential_accessibility(
+        self,
+        adata: Optional[AnnData] = None,
+        groupby: Optional[str] = None,
+        group1: Optional[Iterable[str]] = None,
+        group2: Optional[str] = None,
+        idx1: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        idx2: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        mode: Literal["vanilla", "change"] = "change",
+        delta: float = 0.25,
+        batch_size: Optional[int] = None,
+        all_stats: bool = True,
+        batch_correction: bool = False,
+        batchid1: Optional[Iterable[str]] = None,
+        batchid2: Optional[Iterable[str]] = None,
+        fdr_target: float = 0.05,
+        silent: bool = False,
+        two_sided=True,
+        **kwargs,
+    ) -> pd.DataFrame:
+        r"""
+        \
+        A unified method for differential expression analysis.
+        Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
+        Parameters
+        ----------
+        {doc_differential_expression}
+        **kwargs
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
+        Returns
+        -------
+        Differential expression DataFrame.
+        """
+        adata = self._validate_anndata(adata)
+
+        col_names = adata.var_names
+        model_fn = partial(
+            self.get_accessibility_estimates,
+            return_numpy=True,
+            n_samples=1,
+            batch_size=batch_size,
+        )
+        if two_sided:
+
+            def m1_domain_fn(samples):
+                return np.abs(samples) >= delta
+
+        else:
+
+            def m1_domain_fn(samples):
+                return samples >= delta
+
+        result = _de_core(
+            self.get_anndata_manager(adata, required=True),
+            model_fn,
+            groupby,
+            group1,
+            group2,
+            idx1,
+            idx2,
+            all_stats,
+            scrna_raw_counts_properties,
+            col_names,
+            mode,
+            batchid1,
+            batchid2,
+            delta,
+            batch_correction,
+            fdr_target,
+            silent,
+            m1_domain_fn=m1_domain_fn,
+            **kwargs,
+        )
+
+        return result
+
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
@@ -452,6 +487,8 @@ class POISSONVI(
         %(param_cont_cov_keys)s
         """
 
+        cls._validate_fragment_counts(adata, layer=layer)
+
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
@@ -472,3 +509,133 @@ class POISSONVI(
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+
+    def _get_reduced_adata(
+        self,
+        mode: LatentDataType,
+    ) -> AnnData:
+        """Return a minimal anndata object with the latent representation."""
+        all_zeros = csr_matrix(self.adata.X.shape)
+        layers = {layer: all_zeros.copy() for layer in self.adata.layers}
+        bdata = AnnData(
+            X=all_zeros,
+            layers=layers,
+            uns=self.adata.uns,
+            obs=self.adata.obs,
+            var=self.adata.var,
+            varm=self.adata.varm,
+            obsm=self.adata.obsm,
+            obsp=self.adata.obsp,
+        )
+        # Remove scvi uuid key to make bdata fresh w.r.t. the model's manager
+        del bdata.uns[_SCVI_UUID_KEY]
+        bdata.uns[_ADATA_LATENT_UNS_KEY] = mode
+        return bdata
+
+    @staticmethod
+    def _get_latent_fields(mode: LatentDataType) -> List[BaseAnnDataField]:
+        """Latent mode specific manager fields."""
+        if mode == _SCVI_LATENT_MODE:
+            latent_fields = [
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZM_KEY,
+                    _SCVI_LATENT_QZM,
+                ),
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZV_KEY,
+                    _SCVI_LATENT_QZV,
+                ),
+            ]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        latent_fields.append(
+            StringUnsField(
+                REGISTRY_KEYS.LATENT_MODE_KEY,
+                _ADATA_LATENT_UNS_KEY,
+            ),
+        )
+        return latent_fields
+
+    def to_latent_mode(
+        self,
+        mode: LatentDataType = "posterior_parameters",
+        use_latent_qzm_key: str = "X_latent_qzm",
+        use_latent_qzv_key: str = "X_latent_qzv",
+    ) -> None:
+        """
+        Put the model into latent mode.
+
+        The model is put into latent mode by registering new anndata fields
+        required for latent mode support - latent qzm, latent qzv, and adata uns
+        containing latent mode type - and marking the module as latent.
+
+        Parameters
+        ----------
+        mode
+            The latent data type used
+        use_latent_qzm_key
+            Key to use in `adata.obsm` where the latent qzm params are stored
+        use_latent_qzv_key
+            Key to use in `adata.obsm` where the latent qzv params are stored
+
+        Notes
+        -----
+        A new, minimal adata object is associated as `model.adata` after running
+        this method. This adata does not contain any of
+        the original count data, but instead contains the latent representation
+        of the original data and metadata.
+        """
+        # TODO(adamgayoso): Add support for other latent modes, including a mode
+        # in which no data is minified.
+        # This validates and sets a new adata manager
+        self.adata = self._get_reduced_adata(mode)
+        if mode == _SCVI_LATENT_MODE:
+            self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+            self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        self.adata_manager.register_new_fields(self._get_latent_fields(mode))
+        self.module.latent_data_type = mode
+
+    @staticmethod
+    def reads_to_fragments(
+        adata: AnnData,
+        layer: Optional[str] = None,
+    ):
+        """
+        Function to convert read counts to appoximate fragment counts
+
+        Parameters
+        ----------
+        adata
+            AnnData object that contains read counts.
+        layer
+            Layer that the read counts are stored in.
+        """
+
+        if layer:
+            data = np.ceil(adata.layers[layer].data / 2)
+        else:
+            data = np.ceil(adata.X.data / 2)
+
+        adata.layers["counts"] = adata.X.copy()
+        adata.layers["counts"].data = data
+
+    def _validate_fragment_counts(adata, layer=None):
+        if layer:
+            data = adata.layers[layer].data
+        else:
+            data = adata.X.data
+
+        non_zero_counts = pd.Series(data).value_counts().to_frame()
+        non_zero_counts.index = non_zero_counts.index.astype(int)
+
+        # check if data is binary
+        if len(non_zero_counts) < 2:
+            message = "Only counts of 0 and 1 detected. Make sure that you provide the fragment counts."
+            raise RuntimeError(message)
+
+        # check if data is fragment counts
+        if non_zero_counts.loc[1, 0] < non_zero_counts.loc[2, 0]:
+            message = "You have provided read counts not fragment counts. You can convert them by running scvi.model.POISSONVI.reads_to_fragment"
+            raise RuntimeError(message)
