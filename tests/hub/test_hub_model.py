@@ -131,7 +131,7 @@ def test_hub_model_large_training_adata(request, save_path):
 
 
 @pytest.mark.internet
-def test_hub_model_pull_from_hf(request, save_path):
+def test_hub_model_pull_from_hf(save_path):
     # # the repo we are pulling from was populated with the contents of
     # # `test_save_path` as below
     # model = prep_model()
@@ -150,6 +150,12 @@ def test_hub_model_pull_from_hf(request, save_path):
     assert isinstance(hmo.model.module, scvi.module.VAE)
     assert hmo.adata.shape == (400, 100)
     assert hmo.large_training_adata is None
+
+    # pull to a custom directory
+    hmo = HubModel.pull_from_huggingface_hub(
+        repo_name="scvi-tools/MODEL-FOR-UNIT-TESTING-1", cache_dir=save_path
+    )
+    assert hmo._local_dir.startswith(save_path)
 
 
 @pytest.mark.internet
