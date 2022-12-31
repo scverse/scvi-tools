@@ -139,7 +139,7 @@ class HubModel:
         )
 
     @classmethod
-    def pull_from_huggingface_hub(cls, repo_name: str):
+    def pull_from_huggingface_hub(cls, repo_name: str, cache_dir: Optional[str] = None):
         """
         Download the given model repo from huggingface.
 
@@ -151,13 +151,16 @@ class HubModel:
         ----------
         repo_name
             ID of the huggingface repo where this model needs to be uploaded
+        cache_dir
+            The directory where the downloaded model artifacts will be cached
         """
-        cache_dir = snapshot_download(
+        snapshot_folder = snapshot_download(
             repo_id=repo_name,
             allow_patterns=["model.pt", "adata.h5ad", _SCVI_HUB.METADATA_FILE_NAME],
+            cache_dir=cache_dir,
         )
         model_card = ModelCard.load(repo_name)
-        return cls(cache_dir, model_card=model_card)
+        return cls(snapshot_folder, model_card=model_card)
 
     def __repr__(self):
         def eval_obj(obj):
