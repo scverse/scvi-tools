@@ -26,7 +26,7 @@ class BaseDataFrameField(BaseAnnDataField):
     attr_key
         Key to access the field in the AnnData obs or var mapping. If None, defaults to `registry_key`.
     field_type
-        Type of the field. Can be either "obs" or "var".
+        Type of field. Can be either "obs" or "var".
     required
         If False, allows for `attr_key is None` and marks the field as `is_empty`.
     """
@@ -137,6 +137,8 @@ class CategoricalDataFrameField(BaseDataFrameField):
         Key to register field under in data registry.
     attr_key
         Key to access the field in the AnnData obs or var mapping. If None, defaults to `registry_key`.
+    field_type
+        Type of field. Can be either "obs" or "var".
     """
 
     CATEGORICAL_MAPPING_KEY = "categorical_mapping"
