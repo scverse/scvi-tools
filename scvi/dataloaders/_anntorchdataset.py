@@ -67,7 +67,7 @@ class AnnTorchDataset(Dataset):
         >>> sd = AnnTorchDataset(adata_manager)
 
         # following will only return the X and batch both by default as np.float32
-        >>> sd.setup_getitem(getitem_tensors  = ['X,'batch'])
+        >>> sd.setup_getitem(getitem_tensors  = ['X', 'batch'])
 
         # This will return X as an integer and batch as np.float32
         >>> sd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch':np.float32])
