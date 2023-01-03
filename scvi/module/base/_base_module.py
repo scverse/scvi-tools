@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from abc import abstractmethod
 from dataclasses import field
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 import chex
 import flax
@@ -21,6 +21,7 @@ from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
+from scvi._decorators import classproperty
 from scvi._types import LatentDataType, LossRecord, Tensor
 from scvi.utils._jax import device_selecting_PRNGKey
 
@@ -237,6 +238,10 @@ class BaseModuleClass(nn.Module):
 
     def on_load(self, model):
         """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict."""
+
+    @classproperty
+    def _tunables(cls) -> List[Callable]:
+        return [cls.__init__]
 
     @auto_move_data
     def forward(

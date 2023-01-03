@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Literal, Optional, Tuple
+from typing import List, Literal, Optional
 
 from anndata import AnnData
 from scipy.sparse import csr_matrix
@@ -171,10 +171,6 @@ class SCVI(
     @classproperty
     def _module_cls(cls) -> BaseModuleClass:
         return VAE
-
-    @classproperty
-    def _tunables(cls) -> Tuple[Any]:
-        return (cls._module_cls,)
 
     @classmethod
     @setup_anndata_dsp.dedent

@@ -3,7 +3,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Optional, Sequence, Type, Union
+from typing import Any, Dict, List, Optional, Sequence, Type, Union
 from uuid import uuid4
 
 import numpy as np
@@ -13,6 +13,7 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
+from scvi._decorators import classproperty
 from scvi._types import AnnOrMuData, LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
@@ -26,6 +27,7 @@ from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_latent_ada
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
+from scvi.module.base._base_module import BaseModuleClass
 from scvi.utils import attrdict, setup_anndata_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
@@ -518,6 +520,44 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         user_params = {"kwargs": var_params, "non_kwargs": non_var_params}
 
         return user_params
+
+    @classproperty
+    def _module_cls(cls) -> BaseModuleClass:
+        """Returns the model class's module class."""
+        raise NotImplementedError(
+            "`_module_cls` must be implemented in `BaseModelClass` subclasses."
+        )
+
+    @classproperty
+    def _data_splitter_cls(cls) -> Any:
+        """Returns the model class's data splitter class."""
+        raise NotImplementedError(
+            "`_data_splitter_cls` must be implemented in `BaseModelClass` subclasses."
+        )
+
+    @classproperty
+    def _training_plan_cls(cls) -> Any:
+        """Returns the model class's training plan class."""
+        raise NotImplementedError(
+            "`_training_plan_cls` must be implemented in `BaseModelClass` subclasses."
+        )
+
+    @classproperty
+    def _train_runner_cls(cls) -> Any:
+        """Returns the model class's train runner class."""
+        raise NotImplementedError(
+            "`_train_runner_cls` must be implemented in `BaseModelClass` subclasses."
+        )
+
+    @classproperty
+    def _tunables(cls) -> List[Any]:
+        """Returns the tunable attributes of the model class."""
+        return [
+            cls._module_cls,
+            cls._data_splitter_cls,
+            cls._training_plan_cls,
+            cls._train_runner_cls,
+        ]
 
     @abstractmethod
     def train(self):
