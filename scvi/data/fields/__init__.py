@@ -1,13 +1,4 @@
-from ._base_field import AnnDataField, BaseAnnDataField
-from ._layer_field import LayerField, MuDataLayerField
-from ._mudata import BaseMuDataWrapperClass, MuDataWrapper
-from ._obs_field import (
-    CategoricalObsField,
-    MuDataCategoricalObsField,
-    MuDataNumericalObsField,
-    NumericalObsField,
-)
-from ._obsm_field import (
+from ._arraylike_field import (
     CategoricalJointObsField,
     MuDataCategoricalJointObsField,
     MuDataNumericalJointObsField,
@@ -15,6 +6,19 @@ from ._obsm_field import (
     NumericalJointObsField,
     ObsmField,
 )
+from ._base_field import AnnDataField, BaseAnnDataField
+from ._dataframe_field import (
+    CategoricalObsField,
+    CategoricalVarField,
+    MuDataCategoricalObsField,
+    MuDataCategoricalVarField,
+    MuDataNumericalObsField,
+    MuDataNumericalVarField,
+    NumericalObsField,
+    NumericalVarField,
+)
+from ._layer_field import LayerField, MuDataLayerField
+from ._mudata import BaseMuDataWrapperClass, MuDataWrapper
 from ._protein import MuDataProteinLayerField, ProteinObsmField
 from ._scanvi import LabelsWithUnlabeledObsField
 from ._uns_field import StringUnsField
