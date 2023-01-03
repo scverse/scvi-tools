@@ -1,35 +1,17 @@
-from abc import abstractmethod
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 
-from scvi._decorators import classproperty
 from scvi.dataloaders import DataSplitter
 from scvi.train import TrainingPlan, TrainRunner
 
 
-class BaseTrainingMixin:
-    """Base training mixin for models."""
-
-    @classproperty
-    def _data_splitter_cls(cls) -> Any:
-        return DataSplitter
-
-    @classproperty
-    def _training_plan_cls(cls) -> Any:
-        return TrainingPlan
-
-    @classproperty
-    def _train_runner_cls(cls) -> Any:
-        return TrainRunner
-
-    @abstractmethod
-    def train(*args, **kwargs):
-        """Train the model."""
-
-
-class UnsupervisedTrainingMixin(BaseTrainingMixin):
+class UnsupervisedTrainingMixin:
     """General purpose unsupervised train method."""
+
+    _data_splitter_cls = DataSplitter
+    _training_plan_cls = TrainingPlan
+    _train_runner_cls = TrainRunner
 
     def train(
         self,
@@ -82,7 +64,7 @@ class UnsupervisedTrainingMixin(BaseTrainingMixin):
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = self._training_plan_clsTrainingPlan(self.module, **plan_kwargs)
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (

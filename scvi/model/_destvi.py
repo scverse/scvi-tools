@@ -62,6 +62,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     1. :doc:`/tutorials/notebooks/DestVI_tutorial`
     """
 
+    _module_cls = MRDeconv
+
     def __init__(
         self,
         st_adata: AnnData,
@@ -77,7 +79,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         **module_kwargs,
     ):
         super().__init__(st_adata)
-        self.module = MRDeconv(
+        self.module = self._module_cls(
             n_spots=st_adata.n_obs,
             n_labels=cell_type_mapping.shape[0],
             decoder_state_dict=decoder_state_dict,

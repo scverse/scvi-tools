@@ -421,6 +421,10 @@ class PyroBaseModuleClass(nn.Module):
         super().__init__()
         self.on_load_kwargs = on_load_kwargs or {}
 
+    @classproperty
+    def _tunables(cls) -> List[Callable]:
+        return [cls.__init__]
+
     @staticmethod
     @abstractmethod
     def _get_fn_args_from_batch(
@@ -551,6 +555,10 @@ class JaxBaseModuleClass(flax.linen.Module):
     use the instance attribute ``self.training`` to appropriately modify
     the behavior of the model whether it is in training or evaluation mode.
     """
+
+    @classproperty
+    def _tunables(cls) -> List[Callable]:
+        return [cls.__init__]
 
     def configure(self) -> None:
         """Add necessary attrs."""

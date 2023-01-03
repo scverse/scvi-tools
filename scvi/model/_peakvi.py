@@ -81,6 +81,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     1. :doc:`/tutorials/notebooks/PeakVI`
     """
 
+    _module_cls = PEAKVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -108,7 +110,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             else []
         )
 
-        self.module = PEAKVAE(
+        self.module = self._module_cls(
             n_input_regions=self.summary_stats.n_vars,
             n_batch=self.summary_stats.n_batch,
             n_hidden=n_hidden,

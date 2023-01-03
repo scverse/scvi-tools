@@ -5,7 +5,6 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS
-from scvi._decorators import classproperty
 from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import _ADATA_LATENT_UNS_KEY, _SCVI_UUID_KEY
@@ -23,7 +22,6 @@ from scvi.data.fields import (
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import VAE
-from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
 from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
@@ -99,6 +97,8 @@ class SCVI(
     4. :doc:`/tutorials/notebooks/scvi_in_R`
     """
 
+    _module_cls = VAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -167,10 +167,6 @@ class SCVI(
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    @classproperty
-    def _module_cls(cls) -> BaseModuleClass:
-        return VAE
 
     @classmethod
     @setup_anndata_dsp.dedent

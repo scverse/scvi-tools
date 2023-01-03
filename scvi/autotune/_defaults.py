@@ -37,7 +37,7 @@ TUNABLE_TYPES = {
 }
 
 # supported model classes
-SUPPORTED = [model.SCVI]
+SUPPORTED = [model.SCVI, model.TOTALVI]
 
 # default hyperparameter search spaces for each model class
 DEFAULTS = {
