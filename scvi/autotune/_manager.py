@@ -4,10 +4,10 @@ import warnings
 from collections import OrderedDict
 from typing import Any, Callable, List, Optional, Tuple
 
-import docstring_parser
 import rich
 
 try:
+    import docstring_parser
     from ray import air, tune
     from ray.tune.integration.pytorch_lightning import TuneReportCallback
 except ImportError:
