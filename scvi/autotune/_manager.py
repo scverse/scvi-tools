@@ -4,8 +4,8 @@ import warnings
 from collections import OrderedDict
 from typing import Any, Callable, List, Optional, Tuple
 
+import docstring_parser
 import rich
-from docstring_parser import parse
 
 try:
     from ray import air, tune
@@ -97,9 +97,9 @@ class TunerManager:
                 docstring = None
 
                 if attr.__name__ == "__init__":
-                    docstring = parse(parent.__doc__)
+                    docstring = docstring_parser.parse(parent.__doc__)
                 elif hasattr(attr, "__doc__"):
-                    docstring = parse(attr.__doc__)
+                    docstring = docstring_parser.parse(attr.__doc__)
 
                 if docstring is not None:
                     for param in docstring.params:
