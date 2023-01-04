@@ -2,8 +2,7 @@ from typing import Any, Dict, Optional, Union
 
 import pandas as pd
 import torch
-from pytorch_lightning.loggers.base import rank_zero_experiment
-from pytorch_lightning.loggers.logger import Logger
+from pytorch_lightning.loggers.logger import Logger, rank_zero_experiment
 from pytorch_lightning.utilities import rank_zero_only
 
 
