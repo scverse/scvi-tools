@@ -6,7 +6,7 @@ from ._manager import TunerManager
 
 class ModelTuner:
     """
-    Automated and parallel hyperparameter tuning with Ray Tune.
+    Automated and scalable hyperparameter tuning for scvi-tools models.
 
     Wraps a :class:`~ray.tune.Tuner` instance attached to a scvi-tools model class.
     Note: this API is in beta and is subject to change in future releases.
