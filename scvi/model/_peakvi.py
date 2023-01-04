@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Iterable, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Literal, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -8,17 +8,23 @@ import torch
 from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 
-from scvi._compat import Literal
-from scvi._docs import doc_differential_expression
+from scvi._constants import REGISTRY_KEYS
 from scvi._utils import _doc_params
+from scvi.data import AnnDataManager
+from scvi.data.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+)
 from scvi.model._utils import (
     _get_batch_code_from_category,
-    _get_var_names_from_setup_anndata,
     scatac_raw_counts_properties,
 )
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import PEAKVAE
 from scvi.train._callbacks import SaveBestState
+from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin
 from .base._utils import _de_core
@@ -28,12 +34,12 @@ logger = logging.getLogger(__name__)
 
 class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    PeakVI.
+    Peak Variational Inference :cite:p:`Ashuach22`.
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.PEAKVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer. If `None`, defaults to square root
         of number of regions.
@@ -57,16 +63,22 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     deeply_inject_covariates
         Whether to deeply inject covariates into all layers of the decoder. If False (default),
-        covairates will only be included in the input layer.
+        covariates will only be included in the input layer.
     **model_kwargs
         Keyword args for :class:`~scvi.module.PEAKVAE`
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.dataset.setup_anndata(adata, batch_key="batch")
+    >>> scvi.model.PEAKVI.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.PEAKVI(adata)
     >>> vae.train()
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/PeakVI`
     """
 
     def __init__(
@@ -83,24 +95,27 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
         deeply_inject_covariates: bool = False,
+        encode_covariates: bool = False,
         **model_kwargs,
     ):
-        super(PEAKVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_cats_per_cov = (
-            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
-            if "extra_categoricals" in self.scvi_setup_dict_
+            self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).n_cats_per_key
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else []
         )
 
         self.module = PEAKVAE(
-            n_input_regions=self.summary_stats["n_vars"],
-            n_batch=self.summary_stats["n_batch"],
+            n_input_regions=self.summary_stats.n_vars,
+            n_batch=self.summary_stats.n_batch,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers_encoder=n_layers_encoder,
             n_layers_decoder=n_layers_decoder,
-            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             n_cats_per_cov=n_cats_per_cov,
             dropout_rate=dropout_rate,
             model_depth=model_depth,
@@ -109,11 +124,13 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_layer_norm=use_layer_norm,
             latent_distribution=latent_distribution,
             deeply_inject_covariates=deeply_inject_covariates,
+            encode_covariates=encode_covariates,
             **model_kwargs,
         )
         self._model_summary_string = (
             "PeakVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
-            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}"
+            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
+            "encode_covariates: {}"
         ).format(
             self.module.n_hidden,
             self.module.n_latent,
@@ -122,6 +139,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             dropout_rate,
             latent_distribution,
             deeply_inject_covariates,
+            encode_covariates,
         )
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
@@ -137,6 +155,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         weight_decay: float = 1e-3,
         eps: float = 1e-08,
         early_stopping: bool = True,
+        early_stopping_patience: int = 50,
         save_best: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
         n_steps_kl_warmup: Union[int, None] = None,
@@ -155,7 +174,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Learning rate for optimization.
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str), or use CPU (if False).
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -169,6 +188,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Optimizer eps
         early_stopping
             Whether to perform early stopping with respect to the validation set.
+        early_stopping_patience
+            How many epochs to wait for improvement before early stopping
         save_best
             Save the best model state with respect to the validation loss (default), or use the final
             state in the training procedure
@@ -214,20 +235,37 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             validation_size=validation_size,
             early_stopping=early_stopping,
             early_stopping_monitor="reconstruction_loss_validation",
-            early_stopping_patience=50,
+            early_stopping_patience=early_stopping_patience,
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
             batch_size=batch_size,
             **kwargs,
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_library_size_factors(
         self,
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
         batch_size: int = 128,
-    ):
+    ) -> Dict[str, np.ndarray]:
+        """
+        Return library size factors.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+
+        Returns
+        -------
+        Library size factor for expression and accessibility
+        """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
@@ -241,24 +279,28 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         return torch.cat(library_sizes).numpy().squeeze()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_region_factors(self):
+        """Return region-specific factors."""
         if self.module.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
         return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_accessibility_estimates(
         self,
         adata: Optional[AnnData] = None,
         indices: Sequence[int] = None,
+        n_samples_overall: Optional[int] = None,
+        region_list: Optional[Sequence[str]] = None,
         transform_batch: Optional[Union[str, int]] = None,
         use_z_mean: bool = True,
         threshold: Optional[float] = None,
         normalize_cells: bool = False,
         normalize_regions: bool = False,
         batch_size: int = 128,
-    ) -> Union[np.ndarray, csr_matrix]:
+        return_numpy: bool = False,
+    ) -> Union[pd.DataFrame, np.ndarray, csr_matrix]:
         """
         Impute the full accessibility matrix.
 
@@ -272,6 +314,11 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
+        n_samples_overall
+            Number of samples to return in total
+        region_list
+            Return accessibility estimates for this subset of regions. if `None`, all regions are used.
+            This can save memory when dealing with large datasets.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -293,13 +340,27 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             default.
         batch_size
             Minibatch size for data loading into model
-
+        return_numpy
+            If `True` and `threshold=None`, return :class:`~numpy.ndarray`. If `True` and `threshold` is
+            given, return :class:`~scipy.sparse.csr_matrix`. If `False`, return :class:`~pandas.DataFrame`.
+            DataFrame includes regions names as columns.
         """
         adata = self._validate_anndata(adata)
+        adata_manager = self.get_anndata_manager(adata, required=True)
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+        if n_samples_overall is not None:
+            indices = np.random.choice(indices, n_samples_overall)
         post = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
-        transform_batch = _get_batch_code_from_category(adata, transform_batch)
+        transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
+
+        if region_list is None:
+            region_mask = slice(None)
+        else:
+            all_regions = adata.var_names
+            region_mask = [region in region_list for region in all_regions]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -323,6 +384,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if threshold:
                 p[p < threshold] = 0
                 p = csr_matrix(p.numpy())
+            if region_list is not None:
+                p = p[:, region_mask]
             imputed.append(p)
 
         if threshold:  # imputed is a list of csr_matrix objects
@@ -330,7 +393,20 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
 
-        return imputed
+        if return_numpy:
+            return imputed
+        elif threshold:
+            return pd.DataFrame.sparse.from_spmatrix(
+                imputed,
+                index=adata.obs_names[indices],
+                columns=adata.var_names[region_mask],
+            )
+        else:
+            return pd.DataFrame(
+                imputed,
+                index=adata.obs_names[indices],
+                columns=adata.var_names[region_mask],
+            )
 
     @_doc_params(
         doc_differential_expression=doc_differential_expression,
@@ -341,22 +417,25 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         groupby: Optional[str] = None,
         group1: Optional[Iterable[str]] = None,
         group2: Optional[str] = None,
-        idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
-        idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        idx1: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        idx2: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
         mode: Literal["vanilla", "change"] = "change",
-        delta: float = 0.1,
+        delta: float = 0.05,
         batch_size: Optional[int] = None,
+        all_stats: bool = True,
         batch_correction: bool = False,
         batchid1: Optional[Iterable[str]] = None,
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
+        silent: bool = False,
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
+        r"""\
+
         A unified method for differential accessibility analysis.
 
-        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+        Implements `"vanilla"` DE :cite:p:`Lopez18`. and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
@@ -364,7 +443,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         two_sided
             Whether to perform a two-sided test, or a one-sided test.
         **kwargs
-            Keyword args for :func:`scvi.utils.DifferentialComputation.get_bayes_factors`
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------
@@ -392,7 +471,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         """
         adata = self._validate_anndata(adata)
-        col_names = _get_var_names_from_setup_anndata(adata)
+        col_names = adata.var_names
         model_fn = partial(
             self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
         )
@@ -412,14 +491,14 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 return samples >= delta
 
         result = _de_core(
-            adata=adata,
+            adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
             groupby=groupby,
             group1=group1,
             group2=group2,
             idx1=idx1,
             idx2=idx2,
-            all_stats=True,
+            all_stats=all_stats,
             all_stats_fn=scatac_raw_counts_properties,
             col_names=col_names,
             mode=mode,
@@ -430,6 +509,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             fdr=fdr_target,
             change_fn=change_fn,
             m1_domain_fn=m1_domain_fn,
+            silent=silent,
             **kwargs,
         )
 
@@ -437,9 +517,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         result = pd.DataFrame(
             {
                 "prob_da": result.proba_de,
-                "is_da_fdr_{}".format(fdr_target): result.loc[
-                    :, "is_de_fdr_{}".format(fdr_target)
-                ],
+                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"],
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,
@@ -449,6 +527,45 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 "emp_prob2": result.emp_mean2,
             },
         )
-        result.index = result.index.astype(int)
-        result.sort_index(inplace=True)
         return result
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        cls,
+        adata: AnnData,
+        batch_key: Optional[str] = None,
+        labels_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        layer: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            CategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)

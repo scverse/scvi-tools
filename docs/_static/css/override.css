@@ -5,27 +5,9 @@
 https://github.com/streamlink/streamlink/blob/17a4088c38709123c0bcab4a150549bd16d19e07/docs/_static/styles/custom.css
 */
 
-dt:target, span.highlighted {
-    background-color: #f0f0f0;
-}
-
-code.docutils.literal.notranslate.xref, a code {
-    background: transparent;
-    font-weight: bold;
-    color: inherit;
-}
-
-a > code {
-    color: inherit;
-}
-
-code.docutils.literal.notranslate {
-    background: #f8f9fb;
-    font-size: 87.5%;
-    border-radius: .2em;
-    color: #000000;
-    word-wrap: break-word;
-    padding: .1em .2em;
+/* for the sphinx design cards */
+body {
+    --sd-color-shadow: dimgrey;
 }
 
 dl.citation > dt {
@@ -34,54 +16,50 @@ dl.citation > dt {
     font-weight: bold;
 }
 
-/* Parameters normalize size and captialized, */
-dl.c .field-list dt, dl.cpp .field-list dt, dl.js .field-list dt, dl.py .field-list dt {
-    font-size: var(--font-size--normal);
-    text-transform: none;
+/* so that api methods are small in sidebar */
+li.toctree-l3 {
+    font-size: 81.25% !important;
 }
 
-/* examples and headings in classes */
-p.rubric {
-    font-size: var(--font-size--normal);
-    text-transform: none;
-    font-weight: 500;
+li.toctree-l4 {
+    font-size: 75% !important;
 }
 
+/* Notebook stuff below */
 
-/* Getting started index page */
+/* adapted from https://github.com/dask/dask-sphinx-theme/blob/main/dask_sphinx_theme/static/css/nbsphinx.css */
 
-.intro-card {
-    background: #fff;
-    border-radius: 0;
-    padding: 30px 10px 10px 10px;
-    margin: 10px 0px;
-  }
+.nbinput .prompt,
+.nboutput .prompt {
+    display: none;
+}
 
-  .intro-card .card-text {
-    margin: 20px 0px;
-    /*min-height: 150px; */
-  }
+.nboutput .stderr {
+    display: none;
+}
 
-  .custom-button {
-    background-color: #dcdcdc;
-    border: none;
-    color: #484848;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 0.9rem;
-    border-radius: 0.5rem;
-    max-width: 220px;
-    padding: 0.5rem 0rem;
-  }
+div.nblast.container {
+    padding-bottom: 10px !important;
+    padding-right: 0px;
+    padding-left: 0px;
+}
 
-  .custom-button a {
-    color: #484848;
-    display: block;
-  }
+div.nbinput.container {
+    padding-top: 10px !important;
+    padding-right: 0px;
+    padding-left: 0px;
+}
 
-  .custom-button p {
+div.nbinput.container div.input_area {
+    /* Code cell border that works in both dark and light mode */
+    border-color: rgba(127, 127, 127, 0.25) !important;
+}
+
+div.nbinput.container div.input_area div[class*="highlight"] > pre {
+    padding: 10px !important;
+    margin: 0;
+}
+
+p.topic-title {
     margin-top: 0;
-    margin-bottom: 0rem;
-    color: #484848;
-  }
+}

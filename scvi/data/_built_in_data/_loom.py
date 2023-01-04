@@ -1,24 +1,23 @@
 import logging
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
 from anndata import AnnData
 
-from scvi.data import setup_anndata
-from scvi.data._built_in_data._download import _download
+from scvi.data._download import _download
 
 logger = logging.getLogger(__name__)
 
 
-def _load_retina(save_path: str = "data/", run_setup_anndata: bool = True) -> AnnData:
-    """\
-    Loads retina dataset
+def _load_retina(save_path: str = "data/") -> AnnData:
+    """
+    Loads retina dataset.
 
     The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
     13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author.
     We also extract their normalized data with Combat and use it for benchmarking.
-
     """
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/retina.loom"
@@ -48,18 +47,12 @@ def _load_retina(save_path: str = "data/", run_setup_anndata: bool = True) -> An
     del adata.obs["ClusterID"]
     adata.obs["batch"] = pd.Categorical(adata.obs["BatchID"].values.copy())
     del adata.obs["BatchID"]
-    if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
 
-def _load_prefrontalcortex_starmap(
-    save_path: str = "data/", run_setup_anndata: bool = True
-) -> AnnData:
-    """\
-    Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex (Wang et al., 2018)
-    """
+def _load_prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
+    """Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex :cite:p:`Wang18`."""
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/mpfc-starmap.loom"
     save_fn = "mpfc-starmap.loom"
@@ -73,14 +66,11 @@ def _load_prefrontalcortex_starmap(
     del adata.obs["BatchID"]
     adata.obs["x_coord"] = adata.obsm["Spatial_coordinates"][:, 0]
     adata.obs["y_coord"] = adata.obsm["Spatial_coordinates"][:, 1]
-    if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
+
     return adata
 
 
-def _load_frontalcortex_dropseq(
-    save_path: str = "data/", run_setup_anndata: bool = True
-) -> AnnData:
+def _load_frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/fc-dropseq.loom"
     save_fn = "fc-dropseq.loom"
@@ -94,27 +84,28 @@ def _load_frontalcortex_dropseq(
     # order_labels = [5, 6, 3, 2, 4, 0, 1, 8, 7, 9, 10, 11, 12, 13]
     # self.reorder_cell_types(self.cell_types[order_labels])
 
-    if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
-
     return adata
 
 
-def _load_annotation_simulation(
-    name: str, save_path: str = "data/", run_setup_anndata: bool = True
-) -> AnnData:
-    """\
-    Simulated datasets for scANVI tutorials
-
-    name
-        One of "1", "2", or "3"
+def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
     """
+    Simulated datasets for scANVI tutorials.
 
+    Parameters
+    ----------
+    name
+        One of the following:
+        * ``'1'``
+        * ``'2'``
+        * ``'3'``
+    save_path
+        Location for saving the dataset.
+    """
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/simulation/simulation_{}.loom".format(
         name
     )
-    save_fn = "simulation_{}.loom".format(name)
+    save_fn = f"simulation_{name}.loom"
     _download(url, save_path, save_fn)
     adata = _load_loom(os.path.join(save_path, save_fn))
 
@@ -123,9 +114,6 @@ def _load_annotation_simulation(
 
     adata.obs["batch"] = adata.obs.BatchID.values
     del adata.obs["BatchID"]
-
-    if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     return adata
 
@@ -136,7 +124,7 @@ def _load_loom(path_to_file: str, gene_names_attribute_name: str = "Gene") -> An
     dataset = loompy.connect(path_to_file)
     select = dataset[:, :].sum(axis=0) > 0  # Take out cells that don't express any gene
     if not all(select):
-        logger.warning("Removing empty cells")
+        warnings.warn("Removing empty cells")
 
     var_dict, obs_dict, uns_dict, obsm_dict = {}, {}, {}, {}
     for row_key in dataset.ra:

@@ -2,11 +2,12 @@ import logging
 import os
 import shutil
 import tarfile
+import warnings
 from typing import Tuple
 
 import numpy as np
 
-from scvi.data._built_in_data._download import _download
+from scvi.data._download import _download
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +51,11 @@ available_datasets = {
     "3.1.0": ["5k_pbmc_protein_v3", "5k_pbmc_protein_v3_nextgem"],
 }
 
-dataset_to_group = dict(
-    [
-        (dataset_name, group)
-        for group, list_datasets in available_datasets.items()
-        for dataset_name in list_datasets
-    ]
-)
+dataset_to_group = {
+    dataset_name: group
+    for group, list_datasets in available_datasets.items()
+    for dataset_name in list_datasets
+}
 
 group_to_url_skeleton = {
     "1.1.0": "http://cf.10xgenomics.com/samples/cell-exp/{}/{}/{}_{}_gene_bc_matrices.tar.gz",
@@ -92,9 +91,9 @@ def _load_dataset_10x(
     # form data url and filename unless manual override
     if dataset_name is not None:
         if url is not None:
-            logger.warning("dataset_name provided, manual url is disregarded.")
+            warnings.warn("dataset_name provided, manual url is disregarded.")
         if filename is not None:
-            logger.warning("dataset_name provided, manual filename is disregarded.")
+            warnings.warn("dataset_name provided, manual filename is disregarded.")
         group = dataset_to_group[dataset_name]
         url_skeleton = group_to_url_skeleton[group]
 
@@ -128,7 +127,7 @@ def _load_dataset_10x(
         if was_extracted and remove_extracted_data:
             folders_in_save_path = path_to_data_folder[len(save_path) + 1 :].split("/")
             extracted_folder_path = save_path + "/" + folders_in_save_path[0]
-            logger.info("Removing extracted data at {}".format(extracted_folder_path))
+            logger.info(f"Removing extracted data at {extracted_folder_path}")
             shutil.rmtree(extracted_folder_path)
     else:
         adata = scanpy.read_10x_h5(file_path, **scanpy_read_10x_kwargs)
@@ -152,7 +151,7 @@ def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
     path in which files are contains and their suffix if compressed.
 
     """
-    for root, subdirs, files in os.walk(save_path):
+    for root, _, files in os.walk(save_path):
         # do not consider hidden files
         files = [f for f in files if not f[0] == "."]
         contains_mat = [

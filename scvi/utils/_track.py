@@ -1,12 +1,11 @@
 import sys
-from typing import Iterable
+from typing import Iterable, Literal
 
 from rich.console import Console
 from rich.progress import track as track_base
 from tqdm import tqdm as tqdm_base
 
 from scvi import settings
-from scvi._compat import Literal
 
 
 def track(
@@ -14,7 +13,7 @@ def track(
     description: str = "Working...",
     disable: bool = False,
     style: Literal["rich", "tqdm"] = None,
-    **kwargs
+    **kwargs,
 ):
     """
     Progress bar with `'rich'` and `'tqdm'` styles.
@@ -53,7 +52,7 @@ def track(
                 tqdm_base._decr_instances(instance)
         return tqdm_base(sequence, desc=description, file=sys.stdout, **kwargs)
     else:
-        in_colab = "google.colab" in sys.module
+        in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
         console = Console(force_jupyter=force_jupyter)
         return track_base(sequence, description=description, console=console, **kwargs)

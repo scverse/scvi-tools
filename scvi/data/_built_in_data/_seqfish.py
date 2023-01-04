@@ -6,8 +6,7 @@ import anndata
 import numpy as np
 import pandas as pd
 
-from scvi.data import setup_anndata
-from scvi.data._built_in_data._download import _download
+from scvi.data._download import _download
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,6 @@ logger = logging.getLogger(__name__)
 def _load_seqfishplus(
     save_path: str = "data/",
     tissue_region: str = "subventricular cortex",
-    run_setup_anndata: bool = True,
 ) -> anndata.AnnData:
 
     if tissue_region == "subventricular cortex":
@@ -40,16 +38,14 @@ def _load_seqfishplus(
     adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
     adata.obs["labels"] = np.zeros(adata.shape[0], dtype=np.int64)
 
-    if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 
 def _load_seqfishplus_data(
     path_to_file: str, file_prefix: str, save_path: str, gene_by_cell: bool = False
 ) -> anndata.AnnData:
-    counts_filename = "sourcedata/{}_counts.csv".format(file_prefix)
-    coordinates_filename = "sourcedata/{}_cellcentroids.csv".format(file_prefix)
+    counts_filename = f"sourcedata/{file_prefix}_counts.csv"
+    coordinates_filename = f"sourcedata/{file_prefix}_cellcentroids.csv"
     extract_location = os.path.join(save_path, "seqfishplus")
     if not os.path.exists(extract_location):
         os.makedirs(extract_location)
@@ -70,9 +66,7 @@ def _load_seqfishplus_data(
     return adata
 
 
-def _load_seqfish(
-    save_path: str = "data/", run_setup_anndata: bool = True
-) -> anndata.AnnData:
+def _load_seqfish(save_path: str = "data/") -> anndata.AnnData:
     save_path = os.path.abspath(save_path)
     url = "https://www.cell.com/cms/attachment/2080562255/2072099886/mmc6.xlsx"
     save_fn = "SeqFISH.xlsx"
@@ -80,13 +74,11 @@ def _load_seqfish(
     adata = _load_seqfish_data(os.path.join(save_path, save_fn))
     adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
     adata.obs["labels"] = np.zeros(adata.shape[0], dtype=np.int64)
-    if run_setup_anndata:
-        setup_anndata(adata, batch_key="batch", labels_key="labels")
     return adata
 
 
 def _load_seqfish_data(path_to_file: str) -> anndata.AnnData:
-    logger.info("Loading seqfish dataset from {}".format(path_to_file))
+    logger.info(f"Loading seqfish dataset from {path_to_file}")
     counts = pd.read_excel(
         path_to_file, sheet_name="Hippocampus Counts", engine="openpyxl"
     )

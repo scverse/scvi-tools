@@ -2,7 +2,6 @@ import logging
 
 from pytorch_lightning.callbacks import ProgressBarBase
 
-from scvi import settings
 from scvi.utils import track
 
 logger = logging.getLogger(__name__)
@@ -35,21 +34,21 @@ class ProgressBar(ProgressBarBase):
         return state
 
     @property
-    def is_enabled(self) -> bool:
+    def is_enabled(self) -> bool:  # noqa: D102
         return self._enabled and self.refresh_rate > 0
 
     @property
-    def refresh_rate(self) -> int:
+    def refresh_rate(self) -> int:  # noqa: D102
         return self._refresh_rate
 
     @property
-    def is_disabled(self) -> bool:
+    def is_disabled(self) -> bool:  # noqa: D102
         return not self.is_enabled
 
-    def disable(self) -> None:
+    def disable(self) -> None:  # noqa: D102
         self._enabled = False
 
-    def enable(self) -> None:
+    def enable(self) -> None:  # noqa: D102
         self._enabled = True
 
     def init_train_tqdm(self, trainer):
@@ -58,22 +57,21 @@ class ProgressBar(ProgressBarBase):
             None,
             total=trainer.max_epochs,
             description="Training",
-            style=settings.progress_bar_style,
-            initial=self.train_batch_idx,
+            style="tqdm",
             disable=self.is_disabled,
         )
         return bar
 
-    def on_sanity_check_start(self, trainer, pl_module):
+    def on_sanity_check_start(self, trainer, pl_module):  # noqa: D102
         super().on_sanity_check_start(trainer, pl_module)
         logger.info("Running sanity check on val set...")
 
-    def on_train_start(self, trainer, pl_module):
+    def on_train_start(self, trainer, pl_module):  # noqa: D102
         super().on_train_start(trainer, pl_module)
         self.main_progress_bar = self.init_train_tqdm(trainer)
 
-    def on_epoch_start(self, trainer, pl_module):
-        super().on_epoch_start(trainer, pl_module)
+    def on_train_epoch_start(self, trainer, pl_module):  # noqa: D102
+        super().on_train_epoch_start(trainer, pl_module)
         if self._should_update(self.trainer.current_epoch, self.trainer.max_epochs):
             epoch = trainer.current_epoch + 1
             self.main_progress_bar.set_description(
@@ -85,13 +83,13 @@ class ProgressBar(ProgressBarBase):
             current % self.refresh_rate == 0 or current == total
         )
 
-    def on_train_epoch_end(self, trainer, pl_module, outputs):
-        super().on_train_epoch_end(trainer, pl_module, outputs)
+    def on_train_epoch_end(self, trainer, pl_module):  # noqa: D102
+        super().on_train_epoch_end(trainer, pl_module)
         if self._should_update(self.trainer.current_epoch, self.trainer.max_epochs):
             self.main_progress_bar.update()
-            self.main_progress_bar.set_postfix(trainer.progress_bar_dict)
+            self.main_progress_bar.set_postfix(self.get_metrics(trainer, pl_module))
 
-    def on_train_end(self, trainer, pl_module):
+    def on_train_end(self, trainer, pl_module):  # noqa: D102
         super().on_train_end(trainer, pl_module)
         if self.is_enabled:
             self.main_progress_bar.close()

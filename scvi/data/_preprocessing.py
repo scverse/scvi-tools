@@ -13,7 +13,7 @@ from ._utils import _check_nonnegative_integers
 logger = logging.getLogger(__name__)
 
 
-@torch.no_grad()
+@torch.inference_mode()
 def poisson_gene_selection(
     adata,
     layer: Optional[str] = None,
@@ -26,7 +26,7 @@ def poisson_gene_selection(
     silent: bool = False,
     minibatch_size: int = 5000,
     **kwargs,
-):
+) -> Optional[pd.DataFrame]:
     """
     Rank and select genes based on the enrichment of zero counts.
 
@@ -105,7 +105,8 @@ def poisson_gene_selection(
         data = ad.layers[layer] if layer is not None else ad.X
 
         # Calculate empirical statistics.
-        scaled_means = torch.from_numpy(np.asarray(data.sum(0) / data.sum()).ravel())
+        sum_0 = np.asarray(data.sum(0)).ravel()
+        scaled_means = torch.from_numpy(sum_0 / sum_0.sum())
         if use_gpu is True:
             scaled_means = scaled_means.cuda()
         dev = scaled_means.device
@@ -120,7 +121,7 @@ def poisson_gene_selection(
         minibatch_size = min(total_counts.shape[0], minibatch_size)
         n_batches = total_counts.shape[0] // minibatch_size
 
-        expected_fraction_zeros = torch.zeros(scaled_means.shape).to(dev)
+        expected_fraction_zeros = torch.zeros(scaled_means.shape, device=dev)
 
         for i in range(n_batches):
             total_counts_batch = total_counts[
@@ -141,8 +142,8 @@ def poisson_gene_selection(
         observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
         expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
-        extra_zeros = torch.zeros(expected_fraction_zeros.shape).to(dev)
-        for i in track(
+        extra_zeros = torch.zeros(expected_fraction_zeros.shape, device=dev)
+        for _ in track(
             range(n_samples),
             description="Sampling from binomial...",
             disable=silent,
@@ -230,7 +231,9 @@ def poisson_gene_selection(
         return df
 
 
-def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False):
+def organize_cite_seq_10x(
+    adata: anndata.AnnData, copy: bool = False
+) -> Optional[anndata.AnnData]:
     """
     Organize anndata object loaded from 10x for scvi models.
 
@@ -275,3 +278,76 @@ def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False):
 
     if copy:
         return adata
+
+
+def organize_multiome_anndatas(
+    multi_anndata: anndata.AnnData,
+    rna_anndata: Optional[anndata.AnnData] = None,
+    atac_anndata: Optional[anndata.AnnData] = None,
+    modality_key: str = "modality",
+) -> anndata.AnnData:
+    """
+    Concatenate multiome and single-modality input anndata objects.
+
+    These anndata objects should already have been preprocessed so that both single-modality
+    objects use a subset of the features used in the multiome object. The feature names (index of
+    `.var`) should match between the objects.
+
+    Parameters
+    ----------
+    multi_anndata
+        AnnData object with Multiome data (Gene Expression and Chromatin Accessibility)
+    rna_anndata
+        AnnData object with gene expression data
+    atac_anndata
+        AnnData object with chromatin accessibility data
+    modality_key
+        The key to add to the resulting AnnData `.obs`, indicating the modality each cell originated
+        from. Default is "modality".
+
+    Notes
+    -----
+    Features that exist in either rna_anndata or atac_anndata but do not exist in multi_anndata will
+    be discarded.
+
+    Returns
+    -------
+    An AnnData object with all cells in the input objects
+    """
+    res_anndata = multi_anndata.copy()
+
+    modality_ann = ["paired"] * multi_anndata.shape[0]
+    obs_names = list(multi_anndata.obs.index.values)
+
+    def _concat_anndata(multi_anndata, other):
+        shared_features = np.intersect1d(
+            other.var.index.values, multi_anndata.var.index.values
+        )
+        if not len(shared_features) > 0:
+            raise ValueError("No shared features between Multiome and other AnnData.")
+
+        other = other[:, shared_features]
+        return multi_anndata.concatenate(other, join="outer", batch_key=modality_key)
+
+    if rna_anndata is not None:
+        res_anndata = _concat_anndata(res_anndata, rna_anndata)
+
+        modality_ann += ["expression"] * rna_anndata.shape[0]
+        obs_names += list(rna_anndata.obs.index.values)
+
+    if atac_anndata is not None:
+        res_anndata = _concat_anndata(res_anndata, atac_anndata)
+
+        modality_ann += ["accessibility"] * atac_anndata.shape[0]
+        obs_names += list(atac_anndata.obs.index.values)
+
+    # set .obs stuff
+    res_anndata.obs[modality_key] = modality_ann
+    res_anndata.obs.index = (
+        pd.Series(obs_names) + "_" + res_anndata.obs[modality_key].values
+    )
+
+    # keep the feature order as the original order in the multiomic anndata
+    res_anndata = res_anndata[:, multi_anndata.var.index.values]
+    res_anndata.var = multi_anndata.var.copy()
+    return res_anndata.copy()

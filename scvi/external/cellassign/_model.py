@@ -1,20 +1,26 @@
 import logging
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
-import scvi
-from scvi import _CONSTANTS
-from scvi.data import register_tensor_from_anndata
+from scvi import REGISTRY_KEYS
+from scvi.data import AnnDataManager
+from scvi.data.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+    NumericalObsField,
+)
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
-from scvi.train import TrainingPlan, TrainRunner
+from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
+from scvi.utils import setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -23,37 +29,41 @@ B = 10
 
 class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Reimplementation of CellAssign for reference-based annotation [Zhang19]_.
+    Reimplementation of CellAssign for reference-based annotation :cite:p:`Zhang19`.
 
     Parameters
     ----------
     adata
-        single-cell AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        single-cell AnnData object that has been registered via :meth:`~scvi.external.CellAssign.setup_anndata`.
         The object should be subset to contain the same genes as the cell type marker dataframe.
     cell_type_markers
         Binary marker gene DataFrame of genes by cell types. Gene names corresponding to `adata.var_names`
         should be in DataFrame index, and cell type labels should be the columns.
-    size_factor_key
-        Key in `adata.obs` with continuous valued size factors.
     **model_kwargs
         Keyword args for :class:`~scvi.external.cellassign.CellAssignModule`
 
     Examples
     --------
     >>> adata = scvi.data.read_h5ad(path_to_anndata)
+    >>> library_size = adata.X.sum(1)
+    >>> adata.obs["size_factor"] = library_size / np.mean(library_size)
     >>> marker_gene_mat = pd.read_csv(path_to_marker_gene_csv)
     >>> bdata = adata[:, adata.var.index.isin(marker_gene_mat.index)].copy()
-    >>> scvi.data.setup_anndata(bdata)
-    >>> model = CellAssign(bdata, marker_gene_mat, size_factor_key='S')
+    >>> CellAssign.setup_anndata(bdata, size_factor_key="size_factor")
+    >>> model = CellAssign(bdata, marker_gene_mat)
     >>> model.train()
     >>> predictions = model.predict(bdata)
+
+    Notes
+    -----
+    Size factors in the R implementation of CellAssign are computed using scran. An approximate approach
+    computes the sum of UMI counts (library size) over all genes and divides by the mean library size.
     """
 
     def __init__(
         self,
         adata: AnnData,
         cell_type_markers: pd.DataFrame,
-        size_factor_key: str,
         **model_kwargs,
     ):
         try:
@@ -64,18 +74,19 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             )
         super().__init__(adata)
 
-        register_tensor_from_anndata(adata, "_size_factor", "obs", size_factor_key)
-
-        self.n_genes = self.summary_stats["n_vars"]
+        self.n_genes = self.summary_stats.n_vars
         self.cell_type_markers = cell_type_markers
         rho = torch.Tensor(cell_type_markers.to_numpy())
         n_cats_per_cov = (
-            self.scvi_setup_dict_["extra_categoricals"]["n_cats_per_key"]
-            if "extra_categoricals" in self.scvi_setup_dict_
+            self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).n_cats_per_key
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
 
-        x = scvi.data.get_from_registry(adata, _CONSTANTS.X_KEY)
+        adata = self._validate_anndata(adata)
+        x = self.get_from_registry(adata, REGISTRY_KEYS.X_KEY)
         col_means = np.asarray(np.mean(x, 0)).ravel()  # (g)
         col_means_mu, col_means_std = np.mean(col_means), np.std(col_means)
         col_means_normalized = torch.Tensor((col_means - col_means_mu) / col_means_std)
@@ -88,9 +99,9 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             rho=rho,
             basis_means=basis_means,
             b_g_0=col_means_normalized,
-            n_batch=self.summary_stats["n_batch"],
+            n_batch=self.summary_stats.n_batch,
             n_cats_per_cov=n_cats_per_cov,
-            n_continuous_cov=self.summary_stats["n_continuous_covs"],
+            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -101,7 +112,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def predict(self) -> pd.DataFrame:
         """Predict soft cell type assignment probability for each cell."""
         adata = self._validate_anndata(None)
@@ -113,7 +124,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             gamma = outputs["gamma"]
             predictions += [gamma.cpu()]
         return pd.DataFrame(
-            np.array(torch.cat(predictions)), columns=self.cell_type_markers.columns
+            torch.cat(predictions).numpy(), columns=self.cell_type_markers.columns
         )
 
     def train(
@@ -141,7 +152,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             Learning rate for optimization.
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str), or use CPU (if False).
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -174,7 +185,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
 
         if early_stopping:
             early_stopping_callback = [
-                EarlyStopping(
+                LoudEarlyStopping(
                     monitor="elbo_validation",
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
@@ -189,20 +200,18 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
 
         if max_epochs is None:
             n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
         data_splitter = DataSplitter(
-            self.adata,
+            self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = TrainingPlan(
-            self.module, len(data_splitter.train_idx), **plan_kwargs
-        )
+        training_plan = TrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
             self,
             training_plan=training_plan,
@@ -213,12 +222,57 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         )
         return runner()
 
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        cls,
+        adata: AnnData,
+        size_factor_key: str,
+        batch_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        layer: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        size_factor_key
+            key in `adata.obs` with continuous valued size factors.
+        %(param_batch_key)s
+        %(param_layer)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
+
 
 class ClampCallback(Callback):
+    """Clamp callback."""
+
     def __init__(self):
         super().__init__()
 
-    def on_batch_end(self, trainer, pl_module):
-        with torch.no_grad():
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        """Clamp parameters."""
+        with torch.inference_mode():
             pl_module.module.delta_log.clamp_(np.log(pl_module.module.min_delta))
-        super().on_batch_end(trainer, pl_module)
+        super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)

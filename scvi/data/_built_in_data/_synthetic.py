@@ -2,9 +2,8 @@ import logging
 
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp_sparse
 from anndata import AnnData
-
-from scvi.data import setup_anndata
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ def _generate_synthetic(
     n_proteins: int = 100,
     n_batches: int = 2,
     n_labels: int = 3,
-    run_setup_anndata: bool = True,
+    sparse: bool = False,
 ) -> AnnData:
 
     data = np.random.negative_binomial(5, 0.3, size=(batch_size * n_batches, n_genes))
@@ -26,8 +25,10 @@ def _generate_synthetic(
 
     batch = []
     for i in range(n_batches):
-        batch += ["batch_{}".format(i)] * batch_size
+        batch += [f"batch_{i}"] * batch_size
 
+    if sparse:
+        data = sp_sparse.csr_matrix(data)
     adata = AnnData(data)
     adata.obs["batch"] = pd.Categorical(batch)
     adata.obs["labels"] = pd.Categorical(labels)
@@ -36,13 +37,5 @@ def _generate_synthetic(
     p_data = np.random.negative_binomial(5, 0.3, size=(adata.shape[0], n_proteins))
     adata.obsm["protein_expression"] = p_data
     adata.uns["protein_names"] = np.arange(n_proteins).astype(str)
-    if run_setup_anndata:
-        setup_anndata(
-            adata,
-            batch_key="batch",
-            labels_key="labels",
-            protein_expression_obsm_key="protein_expression",
-            protein_names_uns_key="protein_names",
-        )
 
     return adata

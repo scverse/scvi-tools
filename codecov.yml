@@ -1,12 +1,12 @@
 # Run to check if valid
 # curl --data-binary @codecov.yml https://codecov.io/validate
 coverage:
-  status:
-    project:
-      default:
-        target: 85%
-        threshold: 1%
-    patch: off
+    status:
+        project:
+            default:
+                target: 85%
+                threshold: 1%
+        patch: off
 
 ignore:
-  - "scvi/_compat.py"
+    - "scvi/_compat.py"

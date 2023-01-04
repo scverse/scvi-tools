@@ -1,13 +1,15 @@
 import logging
 from typing import Dict, List, Union
 
-import anndata
+import h5py
 import numpy as np
 import pandas as pd
-import torch
+from anndata._core.sparse_dataset import SparseDataset
+from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
-from scvi.data._anndata import get_from_registry
+from scvi._constants import REGISTRY_KEYS
+from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +19,11 @@ class AnnTorchDataset(Dataset):
 
     def __init__(
         self,
-        adata: anndata.AnnData,
+        adata_manager: AnnDataManager,
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
     ):
-        self.adata = adata
+        self.adata_manager = adata_manager
+        self.is_backed = adata_manager.adata.isbacked
         self.attributes_and_types = None
         self.getitem_tensors = getitem_tensors
         self.setup_getitem()
@@ -29,7 +32,7 @@ class AnnTorchDataset(Dataset):
     @property
     def registered_keys(self):
         """Returns the keys of the mappings in scvi data registry."""
-        return self.adata.uns["_scvi"]["data_registry"].keys()
+        return self.adata_manager.data_registry.keys()
 
     def setup_data_attr(self):
         """
@@ -38,7 +41,7 @@ class AnnTorchDataset(Dataset):
         Reduces number of times anndata needs to be accessed
         """
         self.data = {
-            key: get_from_registry(self.adata, key)
+            key: self.adata_manager.get_from_registry(key)
             for key, _ in self.attributes_and_types.items()
         }
 
@@ -57,17 +60,17 @@ class AnnTorchDataset(Dataset):
         ----------
         getitem_tensors:
             Either a list of keys in the scvi data registry to return when getitem is called
-            or
+            or a dictionary mapping keys to numpy types.
 
         Examples
         --------
-        >>> sd = AnnTorchDataset(adata)
+        >>> sd = AnnTorchDataset(adata_manager)
 
-        # following will only return the X and batch_indices both by defualt as np.float32
-        >>> sd.setup_getitem(getitem_tensors  = ['X,'batch_indices'])
+        # following will only return the X and batch both by default as np.float32
+        >>> sd.setup_getitem(getitem_tensors  = ['X,'batch'])
 
-        # This will return X as an integer and batch_indices as np.float32
-        >>> sd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch_indices':np.float32])
+        # This will return X as an integer and batch as np.float32
+        >>> sd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch':np.float32])
         """
         registered_keys = self.registered_keys
         getitem_tensors = self.getitem_tensors
@@ -85,29 +88,49 @@ class AnnTorchDataset(Dataset):
                 "getitem_tensors invalid type. Expected: List[str] or Dict[str, type] or None"
             )
         for key in keys:
-            assert (
-                key in registered_keys
-            ), "{} not in anndata.uns['_scvi']['data_registry']".format(key)
+            if key not in registered_keys:
+                raise KeyError(f"{key} not in data_registry")
 
         self.attributes_and_types = keys_to_type
 
-    def __getitem__(self, idx: List[int]) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, idx: List[int]) -> Dict[str, np.ndarray]:
         """Get tensors in dictionary from anndata at idx."""
         data_numpy = {}
+
+        if self.is_backed and hasattr(idx, "shape"):
+            # need to sort idxs for h5py datasets
+            idx = idx[np.argsort(idx)]
         for key, dtype in self.attributes_and_types.items():
-            data = self.data[key]
-            if isinstance(data, np.ndarray):
-                data_numpy[key] = data[idx].astype(dtype)
-            elif isinstance(data, pd.DataFrame):
-                data_numpy[key] = data.iloc[idx, :].to_numpy().astype(dtype)
+            cur_data = self.data[key]
+            # for backed anndata
+            if isinstance(cur_data, h5py.Dataset) or isinstance(
+                cur_data, SparseDataset
+            ):
+                sliced_data = cur_data[idx]
+                if issparse(sliced_data):
+                    sliced_data = sliced_data.toarray()
+                sliced_data = sliced_data.astype(dtype)
+            elif isinstance(cur_data, np.ndarray):
+                sliced_data = cur_data[idx].astype(dtype)
+            elif isinstance(cur_data, pd.DataFrame):
+                sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
+            elif issparse(cur_data):
+                sliced_data = cur_data[idx].toarray().astype(dtype)
+            # for latent mode anndata, we need this because we can have a string
+            # cur_data, which is the value of the LATENT_MODE_KEY in adata.uns,
+            # used to record the latent data type in latent mode
+            # TODO: Adata manager should have a list of which fields it will load
+            elif isinstance(cur_data, str) and key == REGISTRY_KEYS.LATENT_MODE_KEY:
+                continue
             else:
-                data_numpy[key] = data[idx].toarray().astype(dtype)
+                raise TypeError(f"{key} is not a supported type")
+            data_numpy[key] = sliced_data
 
         return data_numpy
 
-    def get_data(self, scvi_data_key):
-        tensors = self.__getitem__(idx=[i for i in range(self.__len__())])
+    def get_data(self, scvi_data_key):  # noqa: D102
+        tensors = self.__getitem__(idx=list(range(self.__len__())))
         return tensors[scvi_data_key]
 
     def __len__(self):
-        return self.adata.shape[0]
+        return self.adata_manager.adata.shape[0]

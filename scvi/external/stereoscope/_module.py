@@ -1,19 +1,18 @@
-from typing import Tuple
+from typing import Literal, Tuple
 
 import numpy as np
 import torch
 from torch.distributions import NegativeBinomial, Normal
 
-from scvi import _CONSTANTS
-from scvi._compat import Literal
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi import REGISTRY_KEYS
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 
 class RNADeconv(BaseModuleClass):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
-    Reimplementation of the ScModel module of Stereoscope [Andersson20]_:
+    Reimplementation of the ScModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
 
     Parameters
@@ -48,7 +47,7 @@ class RNADeconv(BaseModuleClass):
             ct_weight = torch.ones((self.n_labels,), dtype=torch.float32)
         self.register_buffer("ct_weight", ct_weight)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_params(self) -> Tuple[np.ndarray]:
         """
         Returns the parameters for feeding into the spatial data.
@@ -65,25 +64,26 @@ class RNADeconv(BaseModuleClass):
         return {}
 
     def _get_generative_input(self, tensors, inference_outputs):
-        x = tensors[_CONSTANTS.X_KEY]
-        y = tensors[_CONSTANTS.LABELS_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        y = tensors[REGISTRY_KEYS.LABELS_KEY]
 
         input_dict = dict(x=x, y=y)
         return input_dict
 
     @auto_move_data
     def inference(self):
+        """Inference."""
         return {}
 
     @auto_move_data
     def generative(self, x, y):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
         px_scale = torch.nn.functional.softplus(self.W)[
-            :, y.long()[:, 0]
+            :, y.long().ravel()
         ].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
         px_rate = library * px_scale
-        scaling_factor = self.ct_weight[y.long()[:, 0]]
+        scaling_factor = self.ct_weight[y.long().ravel()]
 
         return dict(
             px_scale=px_scale,
@@ -100,23 +100,25 @@ class RNADeconv(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
+        """Loss computation."""
+        x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
         scaling_factor = generative_outputs["scaling_factor"]
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-        loss = torch.mean(scaling_factor * reconst_loss)
+        loss = torch.sum(scaling_factor * reconst_loss)
 
-        return LossRecorder(loss, reconst_loss, torch.zeros((1,)), 0.0)
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the model."""
         raise NotImplementedError("No sampling method for Stereoscope")
 
 
@@ -124,7 +126,7 @@ class SpatialDeconv(BaseModuleClass):
     """
     Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
-    Reimplementation of the STModel module of Stereoscope [Andersson20]_:
+    Reimplementation of the STModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
 
     Parameters
@@ -161,7 +163,7 @@ class SpatialDeconv(BaseModuleClass):
         # additive gene bias
         self.beta = torch.nn.Parameter(0.01 * torch.randn(self.n_genes))
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_proportions(self, keep_noise=False) -> np.ndarray:
         """Returns the loadings."""
         # get estimated unadjusted proportions
@@ -180,14 +182,15 @@ class SpatialDeconv(BaseModuleClass):
         return {}
 
     def _get_generative_input(self, tensors, inference_outputs):
-        x = tensors[_CONSTANTS.X_KEY]
-        ind_x = tensors["ind_x"]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
 
         input_dict = dict(x=x, ind_x=ind_x)
         return input_dict
 
     @auto_move_data
     def inference(self):
+        """Inference."""
         return {}
 
     @auto_move_data
@@ -203,7 +206,7 @@ class SpatialDeconv(BaseModuleClass):
             [beta.unsqueeze(1) * w, eps.unsqueeze(1)], dim=1
         )  # n_genes, n_labels + 1
         # subsample observations
-        v_ind = v[:, ind_x.long()[:, 0]]  # labels + 1, batch_size
+        v_ind = v[:, ind_x]  # labels + 1, batch_size
         px_rate = torch.transpose(
             torch.matmul(r_hat, v_ind), 0, 1
         )  # batch_size, n_genes
@@ -218,7 +221,8 @@ class SpatialDeconv(BaseModuleClass):
         kl_weight: float = 1.0,
         n_obs: int = 1.0,
     ):
-        x = tensors[_CONSTANTS.X_KEY]
+        """Loss computation."""
+        x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
 
@@ -234,15 +238,36 @@ class SpatialDeconv(BaseModuleClass):
         else:
             # the original way it is done in Stereoscope; we use this option to show reproducibility of their codebase
             loss = torch.sum(reconst_loss) + neg_log_likelihood_prior
-        return LossRecorder(
-            loss, reconst_loss, torch.zeros((1,)), neg_log_likelihood_prior
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_global=neg_log_likelihood_prior,
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the model."""
         raise NotImplementedError("No sampling method for Stereoscope")
+
+    @torch.inference_mode()
+    @auto_move_data
+    def get_ct_specific_expression(self, y):
+        """
+        Returns cell type specific gene expression at the queried spots.
+
+        Parameters
+        ----------
+        y
+            cell types
+        """
+        # cell-type specific gene expression. Conceptually of shape (minibatch, celltype, gene).
+        # But in this case, it's the same for all spots with the same cell type
+        beta = torch.nn.functional.softplus(self.beta)  # n_genes
+        w = torch.nn.functional.softplus(self.W)  # n_genes, n_cell_types
+        px_ct = torch.exp(self.px_o).unsqueeze(1) * beta.unsqueeze(1) * w
+        return px_ct[:, y.long().ravel()].T  # shape (minibatch, genes)

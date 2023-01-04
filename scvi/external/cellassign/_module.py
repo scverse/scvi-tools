@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Dirichlet, Normal
 
-from scvi import _CONSTANTS
+from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
 from scvi.module._utils import one_hot
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
@@ -97,7 +97,6 @@ class CellAssignModule(BaseModuleClass):
 
         self.log_a = torch.nn.Parameter(torch.zeros(B))
 
-        design_matrix_col_dim += 0 if n_cats_per_cov is None else sum(n_cats_per_cov)
         if design_matrix_col_dim == 0:
             self.beta = None
         else:
@@ -110,35 +109,36 @@ class CellAssignModule(BaseModuleClass):
         return {}
 
     def _get_generative_input(self, tensors, inference_outputs):
-        x = tensors[_CONSTANTS.X_KEY]
-        size_factor = tensors["_size_factor"]
+        x = tensors[REGISTRY_KEYS.X_KEY]
+        size_factor = tensors[REGISTRY_KEYS.SIZE_FACTOR_KEY]
 
         to_cat = []
         if self.n_batch > 0:
-            to_cat.append(one_hot(tensors[_CONSTANTS.BATCH_KEY], self.n_batch))
+            to_cat.append(one_hot(tensors[REGISTRY_KEYS.BATCH_KEY], self.n_batch))
 
-        cont_key = _CONSTANTS.CONT_COVS_KEY
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         if cont_key in tensors.keys():
             to_cat.append(tensors[cont_key])
 
-        cat_key = _CONSTANTS.CAT_COVS_KEY
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         if cat_key in tensors.keys():
             for cat_input, n_cat in zip(
                 torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov
             ):
                 to_cat.append(one_hot(cat_input, n_cat))
 
-        design_matrix = torch.cat(to_cat) if len(to_cat) > 0 else None
+        design_matrix = torch.cat(to_cat, dim=1) if len(to_cat) > 0 else None
 
         input_dict = dict(x=x, size_factor=size_factor, design_matrix=design_matrix)
         return input_dict
 
     @auto_move_data
-    def inference(self):
+    def inference(self):  # noqa: D102
         return {}
 
     @auto_move_data
     def generative(self, x, size_factor, design_matrix=None):
+        """Run the generative model."""
         # x has shape (n, g)
         delta = torch.exp(self.delta_log)  # (g, c)
         theta_log = F.log_softmax(self.theta_logit, dim=-1)  # (c)
@@ -209,6 +209,7 @@ class CellAssignModule(BaseModuleClass):
         generative_outputs,
         n_obs: int = 1.0,
     ):
+        """Compute the loss."""
         # generative_outputs is a dict of the return value from `generative(...)`
         # assume that `n_obs` is the number of training data points
         p_x_c = generative_outputs["p_x_c"]
@@ -239,11 +240,12 @@ class CellAssignModule(BaseModuleClass):
             loss, q_per_cell, torch.zeros_like(q_per_cell), prior_log_prob
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
         n_samples=1,
         library_size=1,
     ):
+        """Sample from the posterior distribution."""
         raise NotImplementedError("No sampling method for CellAssign")

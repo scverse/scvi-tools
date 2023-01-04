@@ -1,12 +1,16 @@
 import logging
+from typing import Literal, Optional
 
 import pandas as pd
 from anndata import AnnData
 
-from scvi._compat import Literal
-from scvi.model._utils import _get_var_names_from_setup_anndata
+from scvi import REGISTRY_KEYS
+from scvi.data import AnnDataManager
+from scvi.data.fields import CategoricalObsField, LayerField
+from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import LDVAE
+from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -15,12 +19,12 @@ logger = logging.getLogger(__name__)
 
 class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Linearly-decoded VAE [Svensson20]_.
+    Linearly-decoded VAE :cite:p:`Svensson20`.
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~scvi.data.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.LinearSCVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -53,7 +57,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.data.setup_anndata(adata, batch_key="batch")
+    >>> scvi.model.LinearSCVI.setup_anndata(adata, batch_key="batch")
     >>> vae = scvi.model.LinearSCVI(adata)
     >>> vae.train()
     >>> adata.var["loadings"] = vae.get_loadings()
@@ -62,7 +66,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/linear_decoder`
+    1. :doc:`/tutorials/notebooks/linear_decoder`
     """
 
     def __init__(
@@ -77,10 +81,16 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super(LinearSCVI, self).__init__(adata)
+        super().__init__(adata)
+
+        n_batch = self.summary_stats.n_batch
+        library_log_means, library_log_vars = _init_library_size(
+            self.adata_manager, n_batch
+        )
+
         self.module = LDVAE(
-            n_input=self.summary_stats["n_vars"],
-            n_batch=self.summary_stats["n_batch"],
+            n_input=self.summary_stats.n_vars,
+            n_batch=n_batch,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers_encoder=n_layers,
@@ -88,6 +98,8 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -112,10 +124,41 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         Shape is genes by `n_latent`.
 
         """
-        cols = ["Z_{}".format(i) for i in range(self.n_latent)]
-        var_names = _get_var_names_from_setup_anndata(self.adata)
+        cols = [f"Z_{i}" for i in range(self.n_latent)]
+        var_names = self.adata.var_names
         loadings = pd.DataFrame(
             self.module.get_loadings(), index=var_names, columns=cols
         )
 
         return loadings
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        cls,
+        adata: AnnData,
+        batch_key: Optional[str] = None,
+        labels_key: Optional[str] = None,
+        layer: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        %(summary)s.
+
+        Parameters
+        ----------
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_layer)s
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)

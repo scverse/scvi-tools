@@ -1,13 +1,12 @@
 import logging
+import os
 from pathlib import Path
-from typing import Union
+from typing import Literal, Union
 
-import numpy as np
+import pytorch_lightning as pl
 import torch
 from rich.console import Console
 from rich.logging import RichHandler
-
-from ._compat import Literal
 
 scvi_logger = logging.getLogger("scvi")
 
@@ -34,6 +33,18 @@ class ScviConfig:
 
     >>> import logging
     >>> scvi.settings.verbosity = logging.INFO
+
+    To set pin memory for GPU training
+
+    >>> scvi.settings.dl_pin_memory_gpu_training = True
+
+    To set the number of threads PyTorch will use
+
+    >>> scvi.settings.num_threads = 2
+
+    To prevent Jax from preallocating GPU memory on start (default)
+
+    >>> scvi.settings.jax_preallocate_gpu_memory = False
     """
 
     def __init__(
@@ -44,10 +55,10 @@ class ScviConfig:
         seed: int = 0,
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
-        dl_pin_memory_gpu_training: bool = True,
+        dl_pin_memory_gpu_training: bool = False,
+        jax_preallocate_gpu_memory: bool = False,
     ):
 
-        self.verbosity = verbosity
         self.seed = seed
         self.batch_size = batch_size
         if progress_bar_style not in ["rich", "tqdm"]:
@@ -56,6 +67,9 @@ class ScviConfig:
         self.logging_dir = logging_dir
         self.dl_num_workers = dl_num_workers
         self.dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
+        self._num_threads = None
+        self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
+        self.verbosity = verbosity
 
     @property
     def batch_size(self) -> int:
@@ -107,6 +121,17 @@ class ScviConfig:
         self._logging_dir = Path(logging_dir).resolve()
 
     @property
+    def num_threads(self) -> None:
+        """Number of threads PyTorch will use."""
+        return self._num_threads
+
+    @num_threads.setter
+    def num_threads(self, num: int):
+        """Number of threads PyTorch will use."""
+        self._num_threads = num
+        torch.set_num_threads(num)
+
+    @property
     def progress_bar_style(self) -> str:
         """Library to use for progress bar."""
         return self._pbar_style
@@ -124,10 +149,9 @@ class ScviConfig:
     @seed.setter
     def seed(self, seed: int):
         """Random seed for torch and numpy."""
-        torch.manual_seed(seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        np.random.seed(seed)
+        pl.utilities.seed.seed_everything(seed)
         self._seed = seed
 
     @property
@@ -156,7 +180,9 @@ class ScviConfig:
             console = Console(force_terminal=True)
             if console.is_jupyter is True:
                 console.is_jupyter = False
-            ch = RichHandler(show_path=False, console=console, show_time=False)
+            ch = RichHandler(
+                level=level, show_path=False, console=console, show_time=False
+            )
             formatter = logging.Formatter("%(message)s")
             ch.setFormatter(formatter)
             scvi_logger.addHandler(ch)
@@ -170,10 +196,35 @@ class ScviConfig:
         This is useful if piping outputs to a file.
         """
         scvi_logger.removeHandler(scvi_logger.handlers[0])
-        ch = RichHandler(show_path=False, show_time=False)
+        ch = RichHandler(level=self._verbosity, show_path=False, show_time=False)
         formatter = logging.Formatter("%(message)s")
         ch.setFormatter(formatter)
         scvi_logger.addHandler(ch)
+
+    @property
+    def jax_preallocate_gpu_memory(self):
+        """
+        Jax GPU memory allocation settings.
+
+        If False, Jax will ony preallocate GPU memory it needs.
+        If float in (0, 1), Jax will preallocate GPU memory to that
+        fraction of the GPU memory.
+        """
+        return self._jax_gpu
+
+    @jax_preallocate_gpu_memory.setter
+    def jax_preallocate_gpu_memory(self, value: Union[float, bool]):
+        # see https://jax.readthedocs.io/en/latest/gpu_memory_allocation.html#gpu-memory-allocation
+        if value is False:
+            os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+        elif isinstance(value, float):
+            if value >= 1 or value <= 0:
+                raise ValueError("Need to use a value between 0 and 1")
+            # format is ".XX"
+            os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = str(value)[1:4]
+        else:
+            raise ValueError("value not understood, need bool or float in (0, 1)")
+        self._jax_gpu = value
 
 
 settings = ScviConfig()

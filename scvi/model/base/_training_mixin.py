@@ -7,6 +7,8 @@ from scvi.train import TrainingPlan, TrainRunner
 
 
 class UnsupervisedTrainingMixin:
+    """General purpose unsupervised train method."""
+
     def train(
         self,
         max_epochs: Optional[int] = None,
@@ -28,7 +30,7 @@ class UnsupervisedTrainingMixin:
             `np.min([round((20000 / n_cells) * 400), 400])`
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str), or use CPU (if False).
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -45,22 +47,20 @@ class UnsupervisedTrainingMixin:
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
+        n_cells = self.adata.n_obs
         if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
+            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
         data_splitter = DataSplitter(
-            self.adata,
+            self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = TrainingPlan(
-            self.module, len(data_splitter.train_idx), **plan_kwargs
-        )
+        training_plan = TrainingPlan(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
