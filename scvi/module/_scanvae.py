@@ -7,6 +7,7 @@ from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
+from scvi.autotune._types import Tunable
 from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import Decoder, Encoder
 
@@ -52,7 +53,7 @@ class SCANVAE(VAE):
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
     gene_likelihood
-        One of
+        One of:
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
@@ -75,21 +76,23 @@ class SCANVAE(VAE):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: int = 128,
-        n_latent: int = 10,
-        n_layers: int = 1,
+        n_hidden: Tunable[int] = 128,
+        n_latent: Tunable[int] = 10,
+        n_layers: Tunable[int] = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: float = 0.1,
-        dispersion: str = "gene",
-        log_variational: bool = True,
-        gene_likelihood: str = "zinb",
+        dropout_rate: Tunable[float] = 0.1,
+        dispersion: Tunable[
+            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
+        ] = "gene",
+        log_variational: Tunable[bool] = True,
+        gene_likelihood: Tunable[Literal["zinb", "nb"]] = "zinb",
         y_prior=None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
         classifier_parameters: Optional[dict] = None,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
+        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
         **vae_kwargs,
     ):
         super().__init__(

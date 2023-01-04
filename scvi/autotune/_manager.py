@@ -5,6 +5,7 @@ from collections import OrderedDict
 from typing import Any, Callable, List, Optional, Tuple
 
 import rich
+from docstring_parser import parse
 
 try:
     from ray import air, tune
@@ -92,17 +93,40 @@ class TunerManager:
             tunables = {}
             if inspect.isfunction(attr):
                 # check if function kwargs are tunable
+                descriptions = {}
+                docstring = None
+
+                if attr.__name__ == "__init__":
+                    docstring = parse(parent.__doc__)
+                elif hasattr(attr, "__doc__"):
+                    docstring = parse(attr.__doc__)
+
+                if docstring is not None:
+                    for param in docstring.params:
+                        descriptions[param.arg_name] = param.description
+
                 for kwarg, metadata in inspect.signature(attr).parameters.items():
                     if not isinstance(metadata.annotation, TunableMeta):
                         continue
+
                     default_val = metadata.default
                     if default_val is inspect.Parameter.empty:
                         default_val = None
+
+                    annotation = metadata.annotation.__args__[0]
+                    if hasattr(annotation, "__args__"):
+                        # e.g. if type is Literal, get its arguments
+                        annotation = annotation.__args__
+                    else:
+                        annotation = annotation.__name__
+
                     tunables[kwarg] = {
-                        "parent_class": parent,
+                        "parent_class": parent.__name__,
                         "default_value": default_val,
                         "function": attr,
                         "tunable_type": tunable_type,
+                        "annotation": annotation,
+                        "description": descriptions.get(kwarg, None),
                     }
             elif inspect.isclass(attr) and hasattr(attr, "_tunables"):
                 # recursively check if `_tunables` is implemented
@@ -466,9 +490,21 @@ class TunerManager:
             table.add_column(column, style=COLORS[i], **COLUMN_KWARGS)
         return table
 
-    def _view_registry(self, show_resources: bool) -> None:
-        """Displays a summary of the model class's registry and available resources."""
+    def _view_registry(
+        self, show_additional_info: bool = False, show_resources: bool = False
+    ) -> None:
+        """
+        Displays a summary of the model class's registry and available resources.
+
+        Parameters
+        ----------
+        show_additional_info
+            Whether to show additional information about the model class's registry.
+        show_resources
+            Whether to show available resources.
+        """
         console = rich.console.Console(force_jupyter=in_notebook())
+        console.print(f"Registry for {self._model_cls.__name__}")
 
         tunables_table = self._add_columns(
             rich.table.Table(title="Tunable hyperparameters"),
@@ -481,6 +517,23 @@ class TunerManager:
                 str(metadata["default_value"]),
                 str(metadata["parent_class"]),
             )
+        console.print(tunables_table)
+
+        if show_additional_info:
+            additional_info_table = self._add_columns(
+                rich.table.Table(title="Additional information", width=100),
+                ["Hyperparameter", "Annotation", "Description"],
+            )
+            for param, metadata in self._registry["tunables"].items():
+                desc = metadata["description"]
+                if desc:
+                    desc = desc.replace("\n", " ")
+                additional_info_table.add_row(
+                    str(param),
+                    str(metadata["annotation"]),
+                    desc,
+                )
+            console.print(additional_info_table)
 
         metrics_table = self._add_columns(
             rich.table.Table(title="Available metrics"),
@@ -488,6 +541,7 @@ class TunerManager:
         )
         for metric, mode in self._registry["metrics"].items():
             metrics_table.add_row(str(metric), str(mode))
+        console.print(metrics_table)
 
         defaults_table = self._add_columns(
             rich.table.Table(title="Default search space"),
@@ -500,10 +554,6 @@ class TunerManager:
                 str(metadata.get("args", [])),
                 str(metadata.get("kwargs", {})),
             )
-
-        console.print(f"Registry for {self._model_cls.__name__}")
-        console.print(tunables_table)
-        console.print(metrics_table)
         console.print(defaults_table)
 
         if show_resources:

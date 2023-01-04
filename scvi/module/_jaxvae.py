@@ -7,6 +7,7 @@ from flax import linen as nn
 from flax.linen.initializers import variance_scaling
 
 from scvi import REGISTRY_KEYS
+from scvi.autotune._types import Tunable
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
@@ -121,12 +122,12 @@ class JaxVAE(JaxBaseModuleClass):
 
     n_input: int
     n_batch: int
-    n_hidden: int = 128
-    n_latent: int = 30
-    dropout_rate: float = 0.0
-    n_layers: int = 1
-    gene_likelihood: str = "nb"
-    eps: float = 1e-8
+    n_hidden: Tunable[int] = 128
+    n_latent: Tunable[int] = 30
+    dropout_rate: Tunable[float] = 0.0
+    n_layers: Tunable[int] = 1
+    gene_likelihood: Tunable[str] = "nb"
+    eps: Tunable[float] = 1e-8
     training: bool = True
 
     def setup(self):

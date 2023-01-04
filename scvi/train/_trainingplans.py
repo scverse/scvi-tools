@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from functools import partial
 from inspect import signature
-from typing import Callable, Dict, Iterable, Literal, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -14,6 +14,8 @@ from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import REGISTRY_KEYS
+from scvi._decorators import classproperty
+from scvi.autotune._types import Tunable
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -142,23 +144,23 @@ class TrainingPlan(pl.LightningModule):
         self,
         module: BaseModuleClass,
         *,
-        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
+        optimizer: Tunable[Literal["Adam", "AdamW", "Custom"]] = "Adam",
         optimizer_creator: Optional[TorchOptimizerCreator] = None,
-        lr: float = 1e-3,
-        weight_decay: float = 1e-6,
-        eps: float = 0.01,
-        n_steps_kl_warmup: Union[int, None] = None,
-        n_epochs_kl_warmup: Union[int, None] = 400,
-        reduce_lr_on_plateau: bool = False,
-        lr_factor: float = 0.6,
-        lr_patience: int = 30,
-        lr_threshold: float = 0.0,
+        lr: Tunable[float] = 1e-3,
+        weight_decay: Tunable[float] = 1e-6,
+        eps: Tunable[float] = 0.01,
+        n_steps_kl_warmup: Tunable[int] = None,
+        n_epochs_kl_warmup: Tunable[int] = 400,
+        reduce_lr_on_plateau: Tunable[bool] = False,
+        lr_factor: Tunable[float] = 0.6,
+        lr_patience: Tunable[int] = 30,
+        lr_threshold: Tunable[float] = 0.0,
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
-        lr_min: float = 0,
-        max_kl_weight: float = 1.0,
-        min_kl_weight: float = 0.0,
+        lr_min: Tunable[float] = 0,
+        max_kl_weight: Tunable[float] = 1.0,
+        min_kl_weight: Tunable[float] = 0.0,
         **loss_kwargs,
     ):
         super().__init__()
@@ -195,6 +197,10 @@ class TrainingPlan(pl.LightningModule):
 
         self.initialize_train_metrics()
         self.initialize_val_metrics()
+
+    @classproperty
+    def _tunables(cls) -> List[Any]:
+        return [cls.__init__]
 
     @staticmethod
     def _create_elbo_metric_components(mode: str, n_total: Optional[int] = None):
@@ -826,6 +832,10 @@ class PyroTrainingPlan(pl.LightningModule):
 
         self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
 
+    @classproperty
+    def _tunables(cls) -> List[Any]:
+        return [cls.__init__]
+
     @property
     def n_obs_training(self):
         """
@@ -958,6 +968,10 @@ class ClassifierTrainingPlan(pl.LightningModule):
                 "classifier should return logits when using CrossEntropyLoss."
             )
 
+    @classproperty
+    def _tunables(cls) -> List[Any]:
+        return [cls.__init__]
+
     def forward(self, *args, **kwargs):
         """Passthrough to the module's forward function."""
         return self.module(*args, **kwargs)
@@ -1052,6 +1066,10 @@ class JaxTrainingPlan(TrainingPlan):
         self.max_norm = max_norm
         self.automatic_optimization = False
         self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
+
+    @classproperty
+    def _tunables(cls) -> List[Any]:
+        return [cls.__init__]
 
     def get_optimizer_creator(self) -> JaxOptimizerCreator:
         """Get optimizer creator for the model."""

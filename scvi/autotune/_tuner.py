@@ -106,6 +106,8 @@ class ModelTuner:
         results = tuner.fit()
         return results
 
-    def info(self, show_resources: bool = False) -> None:
+    def info(self, **kwargs) -> None:
         """Display information about the associated model class."""
-        self._manager._view_registry(show_resources=show_resources)
+        self._manager._view_registry(**kwargs)
+
+    info.__doc__ = TunerManager._view_registry.__doc__

@@ -1,12 +1,14 @@
 import sys
 import warnings
-from typing import Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import LightningLoggerBase
 
 from scvi import settings
+from scvi._decorators import classproperty
+from scvi.autotune._types import Tunable
 
 from ._callbacks import LoudEarlyStopping
 from ._logger import SimpleLogger
@@ -87,7 +89,7 @@ class Trainer(pl.Trainer):
         benchmark: bool = True,
         flush_logs_every_n_steps=np.inf,
         check_val_every_n_epoch: Optional[int] = None,
-        max_epochs: int = 400,
+        max_epochs: Tunable[int] = 400,
         default_root_dir: Optional[str] = None,
         enable_checkpointing: bool = False,
         num_sanity_val_steps: int = 0,
@@ -152,6 +154,10 @@ class Trainer(pl.Trainer):
             enable_progress_bar=enable_progress_bar,
             **kwargs,
         )
+
+    @classproperty
+    def _tunables(cls) -> List[Any]:
+        return [cls.__init__]
 
     def fit(self, *args, **kwargs):
         """Fit the model."""

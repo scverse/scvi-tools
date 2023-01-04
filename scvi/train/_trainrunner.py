@@ -1,11 +1,12 @@
 import logging
 import warnings
-from typing import Optional, Union
+from typing import Any, List, Optional, Type, Union
 
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 
+from scvi._decorators import classproperty
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base import BaseModelClass
@@ -64,13 +65,21 @@ class TrainRunner:
         self.accelerator = accelerator
         self.lightning_devices = lightning_devices
         self.device = device
-        self.trainer = Trainer(
+        self.trainer = self._trainer_cls(
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=lightning_devices,
             gpus=None,
             **trainer_kwargs,
         )
+
+    @classproperty
+    def _trainer_cls(cls) -> Type[Trainer]:
+        return Trainer
+
+    @classproperty
+    def _tunables(cls) -> List[Any]:
+        return [cls.__init__, cls._trainer_cls]
 
     def __call__(self):
         """Run training."""
