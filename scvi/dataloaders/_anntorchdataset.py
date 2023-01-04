@@ -64,7 +64,7 @@ class AnnTorchDataset(Dataset):
 
         Examples
         --------
-        >>> sd = AnnTorchDataset(adata_manager)
+        >>> sd = AnnTorchDataset(adata_manager, getitem_tensors =['X', 'batch'])
 
         # following will only return the X and batch both by default as np.float32
         >>> sd.setup_getitem()
