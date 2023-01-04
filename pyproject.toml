@@ -76,7 +76,7 @@ autotune = [
   "hyperopt>=0.2",
   "ray[tune]>=2.1.0",
   "ipython",
-  "docstring_parser",
+  "docstring-parser",
 ]
 pymde = ["pymde"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "hub"]
