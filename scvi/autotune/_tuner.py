@@ -6,7 +6,7 @@ from ._manager import TunerManager
 
 class ModelTuner:
     """
-    Automated and parallel hyperparameter tuning with :ref:`~ray.tune`.
+    Automated and parallel hyperparameter tuning with Ray Tune.
 
     Wraps a :class:`~ray.tune.Tuner` instance attached to a scvi-tools model class.
     Note: this API is in beta and is subject to change in future releases.
@@ -14,8 +14,8 @@ class ModelTuner:
     Parameters
     ----------
     model_cls
-        :class:`~scvi.model.base.BaseModelClass` on which to tune hyperparameters.
-        Currently supported model classes are:
+        The model class on which to tune hyperparameters. Currently supported model
+        classes are:
 
         * :class:`~scvi.model.SCVI`
 
@@ -33,11 +33,7 @@ class ModelTuner:
     def __init__(self, model_cls: BaseModelClass):
         self._manager = TunerManager(model_cls)
 
-    def fit(
-        self,
-        adata: AnnOrMuData,
-        **kwargs,
-    ) -> None:
+    def fit(self, adata: AnnOrMuData, **kwargs) -> None:
         """
         Run a specified hyperparameter sweep for the associated model class.
 
@@ -101,13 +97,16 @@ class ModelTuner:
             * ``"gpu"``: maximum number of GPUs to use
 
             If not provided, defaults to using one CPU thread and one GPU if available.
+
+        Returns
+        -------
+        results
         """
         tuner = self._manager._get_tuner(adata, **kwargs)
         results = tuner.fit()
         return results
 
-    def info(self, **kwargs) -> None:
-        """Display information about the associated model class."""
+    def info(self, **kwargs) -> None:  # noqa: D102
         self._manager._view_registry(**kwargs)
 
     info.__doc__ = TunerManager._view_registry.__doc__

@@ -7,7 +7,7 @@ from typing import Any, Callable, List, Optional, Tuple
 import rich
 
 try:
-    import docstring_parser
+    from docstring_parser import parse
     from ray import air, tune
     from ray.tune.integration.pytorch_lightning import TuneReportCallback
 except ImportError:
@@ -59,6 +59,7 @@ class TunerManager:
             )
         return DEFAULTS.get(model_cls, {})
 
+    @dependencies("docstring_parser")
     def _get_registry(self, model_cls: BaseModelClass) -> dict:
         """
         Returns the model class's registry of tunable hyperparameters and metrics.
@@ -87,54 +88,58 @@ class TunerManager:
                     return tunable_type
             return "unknown"
 
+        def _parse_func_params(func: Callable, parent: Any, tunable_type: str) -> dict:
+            # parse function docstring for parameter descriptions
+            docstring = None
+            if func.__name__ == "__init__":
+                # __init__ func docstrings are the class's docstring
+                docstring = parse(parent.__doc__)
+            elif hasattr(func, "__doc__"):
+                docstring = parse(func.__doc__)
+
+            descriptions = {}
+            if docstring:
+                for param in docstring.params:
+                    descriptions[param.arg_name] = param.description
+
+            # get function kwargs that are tunable
+            tunables = {}
+            for param, metadata in inspect.signature(func).parameters.items():
+                if not isinstance(metadata.annotation, TunableMeta):
+                    continue
+
+                default_val = None
+                if metadata.default is not inspect.Parameter.empty:
+                    default_val = metadata.default
+
+                annotation = metadata.annotation.__args__[0]
+                if hasattr(annotation, "__args__"):
+                    # e.g. if type is Literal, get its arguments
+                    annotation = annotation.__args__
+                else:
+                    annotation = annotation.__name__
+
+                tunables[param] = {
+                    "tunable_type": tunable_type,
+                    "default_value": default_val,
+                    "source": parent.__name__,
+                    "annotation": annotation,
+                    "description": descriptions.get(param, None),
+                }
+            return tunables
+
         def _get_tunables(
             attr: Any, parent: Any = None, tunable_type: Optional[str] = None
         ) -> dict:
             tunables = {}
             if inspect.isfunction(attr):
-                # check if function kwargs are tunable
-                descriptions = {}
-                docstring = None
-
-                if attr.__name__ == "__init__":
-                    docstring = docstring_parser.parse(parent.__doc__)
-                elif hasattr(attr, "__doc__"):
-                    docstring = docstring_parser.parse(attr.__doc__)
-
-                if docstring is not None:
-                    for param in docstring.params:
-                        descriptions[param.arg_name] = param.description
-
-                for kwarg, metadata in inspect.signature(attr).parameters.items():
-                    if not isinstance(metadata.annotation, TunableMeta):
-                        continue
-
-                    default_val = metadata.default
-                    if default_val is inspect.Parameter.empty:
-                        default_val = None
-
-                    annotation = metadata.annotation.__args__[0]
-                    if hasattr(annotation, "__args__"):
-                        # e.g. if type is Literal, get its arguments
-                        annotation = annotation.__args__
-                    else:
-                        annotation = annotation.__name__
-
-                    tunables[kwarg] = {
-                        "parent_class": parent.__name__,
-                        "default_value": default_val,
-                        "function": attr,
-                        "tunable_type": tunable_type,
-                        "annotation": annotation,
-                        "description": descriptions.get(kwarg, None),
-                    }
-            elif inspect.isclass(attr) and hasattr(attr, "_tunables"):
-                # recursively check if `_tunables` is implemented
-                tunable_type = _cls_to_tunable_type(attr)
-                for child in attr._tunables:
-                    tunables.update(
-                        _get_tunables(child, parent=attr, tunable_type=tunable_type)
+                return _parse_func_params(attr, parent, tunable_type)
+            for child in getattr(attr, "_tunables", []):
+                tunables.update(
+                    _get_tunables(
+                        child, parent=attr, tunable_type=_cls_to_tunable_type(attr)
                     )
+                )
             return tunables
 
         def _get_metrics(model_cls: BaseModelClass) -> OrderedDict:
@@ -433,7 +438,6 @@ class TunerManager:
         reporter: bool = True,
         resources: Optional[dict] = None,
     ) -> Any:
-        """Configures a :class:`~ray.tune.Tuner` instance after validation."""
         metric = metric or list(self._registry["metrics"].keys())[0]
         additional_metrics = additional_metrics or []
         search_space = search_space or {}
@@ -515,7 +519,7 @@ class TunerManager:
                 str(param),
                 str(metadata["tunable_type"]),
                 str(metadata["default_value"]),
-                str(metadata["parent_class"]),
+                str(metadata["source"]),
             )
         console.print(tunables_table)
 
