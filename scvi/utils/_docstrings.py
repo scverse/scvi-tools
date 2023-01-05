@@ -57,8 +57,8 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
 
     summary = """\
     Sets up the :class:`~anndata.AnnData` object for this model.
-    A mapping will be created between data fields used by this model to their respective locations in adata.
 
+    A mapping will be created between data fields used by this model to their respective locations in adata.
     None of the data in adata are modified. Only adds fields to adata"""
 
     summary_mdata = """\
@@ -138,6 +138,7 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
             param_cat_cov_keys=self.param_cat_cov_keys,
             param_cont_cov_keys=self.param_cont_cov_keys,
             param_size_factor_key=self.param_size_factor_key,
+            param_modalities=self.param_modalities,
             param_copy=self.param_copy,
             returns=self.returns,
         )
