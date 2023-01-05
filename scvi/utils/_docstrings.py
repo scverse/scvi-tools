@@ -61,9 +61,19 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
 
     None of the data in adata are modified. Only adds fields to adata"""
 
+    summary_mdata = """\
+    Sets up the :class:`~mudata.MuData` object for this model.
+    A mapping will be created between data fields used by this model to their respective locations in adata.
+
+    None of the data in adata are modified. Only adds fields to adata"""
+
+    param_mdata = """\
+    mdata
+        MuData object. Rows represent cells, columns represent features."""
+
     param_adata = """\
     adata
-        AnnData object containing raw counts. Rows represent cells, columns represent features."""
+        AnnData object. Rows represent cells, columns represent features."""
 
     param_batch_key = """\
     batch_key
@@ -98,13 +108,16 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
         (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
         biologically-relevant factors that you do _not_ want to correct for."""
 
+    param_modalities = """\
+    modalities
+        Dictionary mapping parameters to modalities."""
+
     param_copy = """\
     copy
         if `True`, a copy of adata is returned."""
 
     returns = """\
-    If ``copy``,  will return :class:`~anndata.AnnData`.
-    Adds the following fields to adata:
+    None. Adds the following fields:
 
     .uns['_scvi']
         `scvi` setup dictionary
@@ -116,6 +129,8 @@ class SetupAnnDataDocstringProcessor(DocstringProcessor):
     def __init__(self):
         super().__init__(
             summary=self.summary,
+            summary_mdata=self.summary_mdata,
+            param_mdata=self.param_mdata,
             param_adata=self.param_adata,
             param_batch_key=self.param_batch_key,
             param_labels_key=self.param_labels_key,
