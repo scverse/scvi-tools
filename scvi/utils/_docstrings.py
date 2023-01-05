@@ -52,96 +52,90 @@ silent
 """
 
 
-class SetupAnnDataDocstringProcessor(DocstringProcessor):
-    """A derived class of the ``DocstringProcessor`` class which provides useful parameters for the documentation of ``setup_anndata`` methods."""
+summary = """\
+Sets up the :class:`~anndata.AnnData` object for this model.
 
-    summary = """\
-    Sets up the :class:`~anndata.AnnData` object for this model.
+A mapping will be created between data fields used by this model to their respective locations in adata.
+None of the data in adata are modified. Only adds fields to adata"""
 
-    A mapping will be created between data fields used by this model to their respective locations in adata.
-    None of the data in adata are modified. Only adds fields to adata"""
+summary_mdata = """\
+Sets up the :class:`~mudata.MuData` object for this model.
 
-    summary_mdata = """\
-    Sets up the :class:`~mudata.MuData` object for this model.
+A mapping will be created between data fields used by this model to their respective locations in adata.
+None of the data in adata are modified. Only adds fields to adata"""
 
-    A mapping will be created between data fields used by this model to their respective locations in adata.
-    None of the data in adata are modified. Only adds fields to adata"""
+param_mdata = """\
+mdata
+    MuData object. Rows represent cells, columns represent features."""
 
-    param_mdata = """\
-    mdata
-        MuData object. Rows represent cells, columns represent features."""
+param_adata = """\
+adata
+    AnnData object. Rows represent cells, columns represent features."""
 
-    param_adata = """\
-    adata
-        AnnData object. Rows represent cells, columns represent features."""
+param_batch_key = """\
+batch_key
+    key in `adata.obs` for batch information. Categories will automatically be converted into integer
+    categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data."""
 
-    param_batch_key = """\
-    batch_key
-        key in `adata.obs` for batch information. Categories will automatically be converted into integer
-        categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data."""
+param_labels_key = """\
+labels_key
+    key in `adata.obs` for label information. Categories will automatically be converted into integer
+    categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data."""
 
-    param_labels_key = """\
-    labels_key
-        key in `adata.obs` for label information. Categories will automatically be converted into integer
-        categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data."""
+param_size_factor_key = """\
+size_factor_key
+    key in `adata.obs` for size factor information. Instead of using library size as a size factor, the provided
+    size factor column will be used as offset in the mean of the likelihood. Assumed to be on linear scale."""
 
-    param_size_factor_key = """\
-    size_factor_key
-        key in `adata.obs` for size factor information. Instead of using library size as a size factor, the provided
-        size factor column will be used as offset in the mean of the likelihood. Assumed to be on linear scale."""
+param_layer = """\
+layer
+    if not `None`, uses this as the key in `adata.layers` for raw count data."""
 
-    param_layer = """\
-    layer
-        if not `None`, uses this as the key in `adata.layers` for raw count data."""
+param_cat_cov_keys = """\
+categorical_covariate_keys
+    keys in `adata.obs` that correspond to categorical data.
+    These covariates can be added in addition to the batch covariate and are also treated as nuisance factors
+    (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
+    biologically-relevant factors that you do _not_ want to correct for."""
 
-    param_cat_cov_keys = """\
-    categorical_covariate_keys
-        keys in `adata.obs` that correspond to categorical data.
-        These covariates can be added in addition to the batch covariate and are also treated as nuisance factors
-        (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
-        biologically-relevant factors that you do _not_ want to correct for."""
+param_cont_cov_keys = """\
+continuous_covariate_keys
+    keys in `adata.obs` that correspond to continuous data.
+    These covariates can be added in addition to the batch covariate and are also treated as nuisance factors
+    (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
+    biologically-relevant factors that you do _not_ want to correct for."""
 
-    param_cont_cov_keys = """\
-    continuous_covariate_keys
-        keys in `adata.obs` that correspond to continuous data.
-        These covariates can be added in addition to the batch covariate and are also treated as nuisance factors
-        (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
-        biologically-relevant factors that you do _not_ want to correct for."""
+param_modalities = """\
+modalities
+    Dictionary mapping parameters to modalities."""
 
-    param_modalities = """\
-    modalities
-        Dictionary mapping parameters to modalities."""
+param_copy = """\
+copy
+    if `True`, a copy of adata is returned."""
 
-    param_copy = """\
-    copy
-        if `True`, a copy of adata is returned."""
+returns = """\
+None. Adds the following fields:
 
-    returns = """\
-    None. Adds the following fields:
-
-    .uns['_scvi']
-        `scvi` setup dictionary
-    .obs['_scvi_labels']
-        labels encoded as integers
-    .obs['_scvi_batch']
-        batch encoded as integers"""
-
-    def __init__(self):
-        super().__init__(
-            summary=self.summary,
-            summary_mdata=self.summary_mdata,
-            param_mdata=self.param_mdata,
-            param_adata=self.param_adata,
-            param_batch_key=self.param_batch_key,
-            param_labels_key=self.param_labels_key,
-            param_layer=self.param_layer,
-            param_cat_cov_keys=self.param_cat_cov_keys,
-            param_cont_cov_keys=self.param_cont_cov_keys,
-            param_size_factor_key=self.param_size_factor_key,
-            param_modalities=self.param_modalities,
-            param_copy=self.param_copy,
-            returns=self.returns,
-        )
+.uns['_scvi']
+    `scvi` setup dictionary
+.obs['_scvi_labels']
+    labels encoded as integers
+.obs['_scvi_batch']
+    batch encoded as integers"""
 
 
-setup_anndata_dsp = SetupAnnDataDocstringProcessor()
+setup_anndata_dsp = DocstringProcessor(
+    summary=summary,
+    summary_mdata=summary_mdata,
+    param_mdata=param_mdata,
+    param_adata=param_adata,
+    param_batch_key=param_batch_key,
+    param_labels_key=param_labels_key,
+    param_layer=param_layer,
+    param_cat_cov_keys=param_cat_cov_keys,
+    param_cont_cov_keys=param_cont_cov_keys,
+    param_size_factor_key=param_size_factor_key,
+    param_modalities=param_modalities,
+    param_copy=param_copy,
+    returns=returns,
+)
