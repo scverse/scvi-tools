@@ -4,6 +4,8 @@
     "name": "Python 3",
     // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
     "image": "mcr.microsoft.com/devcontainers/python:0-3.8",
+
+    // Features to add to the dev container. More info: https://containers.dev/features.
     "features": {
         "ghcr.io/devcontainers-contrib/features/black:2": {},
         "ghcr.io/devcontainers-contrib/features/flake8:2": {},
@@ -15,13 +17,7 @@
         "ghcr.io/mamba-org/devcontainer-features/micromamba:1": {}
     },
 
-    // Features to add to the dev container. More info: https://containers.dev/features.
-    // "features": {},
-
-    // Use 'forwardPorts' to make a list of ports inside the container available locally.
-    // "forwardPorts": [],
-
-    "postCreateCommand": "pipx install --no-cache-dir -e .[dev,docs,tutorials]"
+    "postCreateCommand": "pre-commit install && pip install --disable-pip-version-check --no-cache-dir -e .[dev,docs,tutorials]"
 
     // Configure tool-specific properties.
     // "customizations": {},
