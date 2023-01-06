@@ -78,9 +78,8 @@ class _DenseLayer(nn.Module):
 
 class ScBassetModule(BaseModuleClass):
     """
-    PyTorch implementation of scBasset model (Yuan and Kelley, 2022)
+    PyTorch implementation of ScBasset :cite:p:`Yuan2022`
 
-    Article link: https://www.nature.com/articles/s41592-022-01562-8
     Original implementation in Keras: https://github.com/calico/scBasset
 
     Parameters
@@ -160,7 +159,7 @@ class ScBassetModule(BaseModuleClass):
         )
 
     def _get_inference_input(self, tensors: Dict[str, torch.Tensor]):
-        dna_code = tensors[REGISTRY_KEYS.CODE_KEY]
+        dna_code = tensors[REGISTRY_KEYS.DNA_CODE_KEY]
 
         input_dict = dict(dna_code=dna_code)
         return input_dict

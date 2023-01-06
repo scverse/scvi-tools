@@ -8,7 +8,7 @@ _DNA_CODE_KEY = "code"
 
 def _get_adata(sparse=False):
     dataset1 = synthetic_iid(batch_size=100, sparse=sparse)
-    dataset1.obsm[_DNA_CODE_KEY] = np.random.randint(0, 3, size=(dataset1.n_obs, 134))
+    dataset1.obsm[_DNA_CODE_KEY] = np.random.randint(0, 3, size=(dataset1.n_obs, 1334))
     return dataset1
 
 

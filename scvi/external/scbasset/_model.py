@@ -119,7 +119,7 @@ class SCBASSET(BaseModelClass):
             # We don't want to dataload the batch ids into the module
             data_and_attributes={
                 REGISTRY_KEYS.X_KEY: np.float32,
-                REGISTRY_KEYS.DNA_CODE_KEY: np.int32,
+                REGISTRY_KEYS.DNA_CODE_KEY: np.int64,
             },
         )
         training_plan = TrainingPlan(self.module, **custom_plan_kwargs)
