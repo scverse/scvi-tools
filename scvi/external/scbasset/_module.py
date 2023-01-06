@@ -235,18 +235,21 @@ class ScBassetModule(BaseModuleClass):
 
         tower_layers = []
         curr_n_filters = n_filters_init
-        for _ in range(n_repeat_blocks_tower):
+        for i in range(n_repeat_blocks_tower):
+            new_n_filters = (
+                _round(curr_n_filters * filters_mult) if i > 0 else curr_n_filters
+            )
             tower_layers.append(
                 _ConvLayer(
                     in_channels=curr_n_filters,
-                    out_channels=_round(curr_n_filters * filters_mult),
+                    out_channels=new_n_filters,
                     kernel_size=5,
                     pool_size=2,
                     dropout=dropout,
                     batch_norm=batch_norm,
                 )
             )
-            curr_n_filters = _round(curr_n_filters * filters_mult)
+            curr_n_filters = new_n_filters
         self.tower = nn.Sequential(*tower_layers)
 
         self.pre_bottleneck = _ConvLayer(
