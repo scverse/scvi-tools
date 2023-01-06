@@ -41,7 +41,7 @@ class _ConvLayer(nn.Module):
         )
         self.batch_norm = nn.BatchNorm1d(out_channels) if batch_norm else nn.Identity()
         self.pool = (
-            nn.MaxPool1d(pool_size, padding=(pool_size - 1) // 2)
+            nn.MaxPool1d(pool_size, padding=(pool_size - 1) // 2, ceil_mode=True)
             if pool_size is not None
             else nn.Identity()
         )
@@ -168,7 +168,7 @@ class ScBassetModule(BaseModuleClass):
             pool_size=2,
         )
         self.bottleneck = _DenseLayer(
-            in_features=n_filters_pre_bottleneck * 6,
+            in_features=n_filters_pre_bottleneck * 7,
             out_features=n_bottleneck_layer,
             use_bias=True,
             batch_norm=True,
