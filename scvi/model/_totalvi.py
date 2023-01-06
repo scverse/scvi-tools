@@ -1263,7 +1263,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         **kwargs,
     ):
         """
-        %(summary)s.
+        %(summary_mdata)s.
 
         Parameters
         ----------
