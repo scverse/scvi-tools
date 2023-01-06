@@ -164,9 +164,12 @@ class CategoricalDataFrameField(BaseDataFrameField):
     def _setup_default_attr(self, adata: AnnData) -> None:
         """Setup default attr."""
         self._original_attr_key = self.attr_key
-        getattr(adata, self.attr_name)[self.attr_key] = np.zeros(
-            adata.shape[0], dtype=np.int64
+        length = (
+            adata.shape[0]
+            if self._attr_name == _constants._ADATA_ATTRS.OBS
+            else adata.shape[1]
         )
+        getattr(adata, self.attr_name)[self.attr_key] = np.zeros(length, dtype=np.int64)
 
     def _get_original_column(self, adata: AnnData) -> np.ndarray:
         """Get original column from adata."""

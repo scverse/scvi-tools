@@ -40,12 +40,12 @@ class SCBASSET(BaseModelClass):
 
     def __init__(
         self,
-        sc_adata: AnnData,
+        adata: AnnData,
         **model_kwargs,
     ):
-        super().__init__(sc_adata)
+        super().__init__(adata)
         self.n_cells = self.summary_stats.n_vars
-        self.n_regions = self.summary_stats.n_obs
+        self.n_regions = adata.n_obs
         self.n_batch = self.summary_stats.n_batch
         # TODO: pass batch id 1d tensor to module here
         self.module = ScBassetModule(
@@ -107,7 +107,8 @@ class SCBASSET(BaseModelClass):
                 p, lr=lr, betas=(0.95, 0.9995)
             ),
         )
-        custom_plan_kwargs.update(plan_kwargs)
+        if plan_kwargs is not None:
+            custom_plan_kwargs.update(plan_kwargs)
 
         data_splitter = DataSplitter(
             self.adata_manager,
