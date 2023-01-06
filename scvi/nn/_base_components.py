@@ -6,7 +6,7 @@ from torch import nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
 
-from ._utils import one_hot
+from .torch._utils import one_hot
 
 
 def _identity(x):

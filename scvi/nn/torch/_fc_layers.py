@@ -99,7 +99,7 @@ class TorchFCLayers(Module):
         one_hot_cat_list = []
 
         if len(self.n_cat_list) > len(cat_list):
-            raise ValueError("Categorical argumentsa provided don't match init params.")
+            raise ValueError("Categorical arguments provided don't match init params.")
         for n_cat, cat in zip(self.n_cat_list, cat_list):
             if n_cat and cat is None:
                 raise ValueError("`cat` not provided while `n_cat` is not 0.")

@@ -9,7 +9,7 @@ from ._base_components import (
     MultiDecoder,
     MultiEncoder,
 )
-from ._utils import one_hot
+from .torch._utils import one_hot
 
 __all__ = [
     "FCLayers",
