@@ -56,6 +56,7 @@ import scvi
    external.SOLO
    external.SCAR
    external.Tangram
+   external.SCBASSET
 
 ```
 
