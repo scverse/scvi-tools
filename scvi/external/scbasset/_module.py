@@ -91,6 +91,8 @@ class ScBassetModule(BaseModuleClass):
     ----------
     n_cells
         Number of cells to predict region accessibility
+    batch_ids
+        Array of (n_cells,) with batch ids for each cell
     n_filters_init
         Number of filters for the initial conv layer
     n_repeat_blocks_tower
@@ -110,6 +112,7 @@ class ScBassetModule(BaseModuleClass):
     def __init__(
         self,
         n_cells: int,
+        batch_ids: Optional[np.ndarray] = None,
         n_filters_init: int = 288,
         n_repeat_blocks_tower: int = 5,
         filters_mult: float = 1.122,
@@ -121,6 +124,8 @@ class ScBassetModule(BaseModuleClass):
         super().__init__()
 
         self.cell_embedding = nn.Parameter(torch.randn(n_cells, n_bottleneck_layer))
+        if batch_ids is not None:
+            self.register_buffer("batch_ids", torch.as_tensor(batch_ids))
         self.stem = _ConvLayer(
             in_channels=4,
             out_channels=n_filters_init,

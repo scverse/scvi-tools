@@ -47,9 +47,10 @@ class SCBASSET(BaseModelClass):
         self.n_cells = self.summary_stats.n_vars
         self.n_regions = adata.n_obs
         self.n_batch = self.summary_stats.n_batch
-        # TODO: pass batch id 1d tensor to module here
+        batch_ids = self.adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY)
         self.module = ScBassetModule(
             n_cells=self.n_cells,
+            batch_ids=torch.tensor(batch_ids) if batch_ids.sum() > 0 else None,
             **model_kwargs,
         )
         self._model_summary_string = (
