@@ -146,9 +146,9 @@ class SCBASSET(BaseModelClass):
 
         Returns
         -------
-        latent representation
+        latent representation (n_cells, n_latent)
         """
-        return self.module.cell_embedding.cpu().numpy()
+        return self.module.cell_embedding.cpu().numpy().T
 
     @classmethod
     @setup_anndata_dsp.dedent

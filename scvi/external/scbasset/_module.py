@@ -123,16 +123,19 @@ class ScBassetModule(BaseModuleClass):
     ):
         super().__init__()
 
-        self.cell_embedding = nn.Parameter(torch.randn(n_cells, n_bottleneck_layer))
+        self.cell_embedding = nn.Parameter(torch.randn(n_bottleneck_layer, n_cells))
         if batch_ids is not None:
             self.register_buffer("batch_ids", torch.as_tensor(batch_ids).long())
             self.n_batch = len(torch.unique(batch_ids))
             self.register_buffer(
                 "batch_ids_one_hot",
-                torch.nn.functional.one_hot(batch_ids, self.n_batch).squeeze(1).float(),
+                torch.nn.functional.one_hot(batch_ids, self.n_batch)
+                .squeeze(1)
+                .float()
+                .T,
             )
             self.batch_emdedding = nn.Parameter(
-                torch.randn(self.n_batch, n_bottleneck_layer)
+                torch.randn(n_bottleneck_layer, self.n_batch)
             )
         self.stem = _ConvLayer(
             in_channels=4,
@@ -212,11 +215,11 @@ class ScBassetModule(BaseModuleClass):
 
     def generative(self, region_embedding: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Generative method for the model."""
-        accessibility = region_embedding @ self.cell_embedding.T
+        accessibility = region_embedding @ self.cell_embedding
         if hasattr(self, "batch_ids_one_hot"):
             accessibility += (
-                region_embedding @ self.batch_emdedding.T
-            ) @ self.batch_ids_one_hot.T
+                region_embedding @ self.batch_emdedding
+            ) @ self.batch_ids_one_hot
         return {"reconstruction": nn.functional.sigmoid(accessibility)}
 
     def loss(self, tensors, inference_outputs, generative_outputs) -> LossOutput:
