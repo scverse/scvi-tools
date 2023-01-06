@@ -165,6 +165,7 @@ class FCLayers(nn.Module):
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
+
         for i, layers in enumerate(self.fc_layers):
             for layer in layers:
                 if layer is not None:
