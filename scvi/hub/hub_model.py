@@ -130,7 +130,7 @@ class HubModel:
                 repo_id=repo_name,
                 token=repo_token,
             )
-        # upload the metadata and model card
+        # upload the metadata
         api.upload_file(
             path_or_fileobj=json.dumps(asdict(self.metadata), indent=4).encode(),
             path_in_repo=_SCVI_HUB.METADATA_FILE_NAME,
