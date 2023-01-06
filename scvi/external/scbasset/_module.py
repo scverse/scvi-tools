@@ -201,7 +201,7 @@ class ScBassetModule(BaseModuleClass):
         n_cells: int,
         batch_ids: Optional[np.ndarray] = None,
         n_filters_init: int = 288,
-        n_repeat_blocks_tower: int = 5,
+        n_repeat_blocks_tower: int = 6,
         filters_mult: float = 1.122,
         n_filters_pre_bottleneck: int = 256,
         n_bottleneck_layer: int = 32,
@@ -255,7 +255,7 @@ class ScBassetModule(BaseModuleClass):
             kernel_size=1,
             dropout=dropout,
             batch_norm=batch_norm,
-            pool_size=2,
+            pool_size=1,
         )
         self.bottleneck = _DenseLayer(
             in_features=n_filters_pre_bottleneck * 7,
