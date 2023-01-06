@@ -81,6 +81,94 @@ class _DenseLayer(nn.Module):
         return x
 
 
+class _StochasticReverseComplement(nn.Module):
+    """Stochastically reverse complement a one hot encoded DNA sequence."""
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, seq_1hot: torch.Tensor):
+        """Stochastically reverse complement a one hot encoded DNA sequence.
+
+        Parameters
+        ----------
+        seq_1hot
+            [batch_size, seq_depth, seq_length] sequence
+        """
+        if self.training:
+            reverse_bool = torch.rand(1).item() > 0.5
+            if reverse_bool:
+                # Reverse on the 4dim DNA dimension (A->T, C->G, G->C, T->A)
+                # Equivalent to reversing based on our encoding
+                src_seq_1hot = torch.flip(seq_1hot, [-2])
+                # Reverse the sequence
+                src_seq_1hot = torch.flip(src_seq_1hot, [-1])
+            else:
+                src_seq_1hot = seq_1hot
+            return src_seq_1hot, reverse_bool
+        else:
+            return seq_1hot, False
+
+
+class _StochasticShift(nn.Module):
+    """Stochastically shift a one hot encoded DNA sequence."""
+
+    def __init__(self, shift_max=0, pad="uniform", **kwargs):
+        super().__init__()
+        self.shift_max = shift_max
+        self.register_buffer(
+            "augment_shifts", torch.arange(-self.shift_max, self.shift_max + 1)
+        )
+        self.pad = pad
+
+    def forward(self, seq_1hot: torch.tensor):
+        if self.training:
+            shift_i = torch.randint(0, len(self.augment_shifts), size=(1,))
+            shift = self.augment_shifts[shift_i]
+            sseq_1hot = torch.where(
+                shift != 0,
+                self.shift_sequence(seq_1hot, shift),
+                seq_1hot,
+            )
+            return sseq_1hot
+        else:
+            return seq_1hot
+
+    @staticmethod
+    def shift_sequence(seq: torch.tensor, shift: torch.tensor, pad_value: float = 0.25):
+        """Shift a sequence left or right by shift_amount.
+
+        Parameters
+        ----------
+        seq
+            [batch_size, seq_depth, seq_length] sequence
+        shift
+            signed shift value (torch.int32 or int)
+        pad_value
+            value to fill the padding (primitive or scalar tensor)
+        """
+        if len(seq.shape) != 3:
+            raise ValueError("input sequence should be rank 3")
+        input_shape = seq.shape
+
+        pad = pad_value * torch.ones_like(seq[..., 0 : torch.abs(shift)])
+
+        def _shift_right(_seq):
+            # shift is positive
+            sliced_seq = _seq[..., :-shift:]
+            return torch.concat([pad, sliced_seq], dim=-1)
+
+        def _shift_left(_seq):
+            # shift is negative
+            sliced_seq = _seq[..., -shift:]
+            return torch.concat([sliced_seq, pad], dim=-1)
+
+        sseq = _shift_right(seq) if shift > 0 else _shift_left(seq)
+        sseq.reshape(input_shape)
+
+        return sseq
+
+
 class ScBassetModule(BaseModuleClass):
     """
     PyTorch implementation of ScBasset :cite:p:`Yuan2022`
@@ -178,6 +266,8 @@ class ScBassetModule(BaseModuleClass):
             dropout=0.2,
             activation_fn=nn.Identity(),
         )
+        self.stochastic_rc = _StochasticReverseComplement()
+        self.stochastic_shift = _StochasticShift(3)
 
     def _get_inference_input(self, tensors: Dict[str, torch.Tensor]):
         dna_code = tensors[REGISTRY_KEYS.DNA_CODE_KEY]
@@ -191,6 +281,8 @@ class ScBassetModule(BaseModuleClass):
         # input shape: (batch_size, seq_length)
         # output shape: (batch_size, 4, seq_length)
         h = nn.functional.one_hot(dna_code, num_classes=4).permute(0, 2, 1).float()
+        h, _ = self.stochastic_rc(h)
+        h = self.stochastic_shift(h)
 
         # TODO: add random shift to act as a regularizer on the dataset level
         # TODO: add use reverse complement randomly on the dataset level
