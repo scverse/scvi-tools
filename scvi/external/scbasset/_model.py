@@ -20,6 +20,9 @@ class SCBASSET(BaseModelClass):
     """
     Reimplementation of ScBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
 
+    This implementation is EXPERIMENTAL. We are working to mesaure the performance of this model
+    compared to the original.
+
     Parameters
     ----------
     adata
