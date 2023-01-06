@@ -23,5 +23,6 @@ def _one_hot_jax(indexes: jnp.ndarray, n_classes: Optional[int] = None) -> jnp.n
         A :class:`~jax.numpy.ndarray` of shape `(n_samples, n_classes)` containing the
         one-hot encoding of `indexes`.
     """
+    indexes = jnp.reshape(indexes, (-1,))
     n_classes = n_classes or jnp.max(indexes) + 1
-    return jax.nn.one_hot(jnp.ravel(indexes), n_classes, dtype=jnp.float32)
+    return jax.nn.one_hot(indexes, n_classes, dtype=jnp.float32)

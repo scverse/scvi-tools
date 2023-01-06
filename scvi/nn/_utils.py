@@ -26,13 +26,14 @@ def one_hot(indexes: Tensor, n_classes: Optional[int] = None) -> Tensor:
 
     Returns
     -------
-    one_hot
+    oh
         A :class:`~scvi._types.Tensor` of shape `(n_samples, n_classes)` containing the
         one-hot encoding of `indexes`.
     """
     if isinstance(indexes, torch.Tensor):
-        return _one_hot_torch(indexes, n_classes=n_classes)
+        oh = _one_hot_torch(indexes, n_classes=n_classes)
     elif isinstance(indexes, jnp.ndarray):
-        return _one_hot_jax(indexes, n_classes=n_classes)
+        oh = _one_hot_jax(indexes, n_classes=n_classes)
     else:
         raise TypeError("`indexes` must be a `torch.Tensor` or `jax.numpy.ndarray`")
+    return oh

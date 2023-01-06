@@ -28,6 +28,7 @@ class Dense(nn.Dense):
 class JaxFCLayers(nn.Module):
     """Fully-connected layers with a Jax backend."""
 
+    n_input: int
     layers_dim: List[int]
     bias: bool
     dropout_rate: float

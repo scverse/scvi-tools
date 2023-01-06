@@ -26,13 +26,14 @@ class FCLayers:
         n_hidden: Optional[int] = None,
         layers_dim: Optional[List[int]] = None,
         bias: bool = True,
-        dropout_rate: Optional[float] = 0.1,
-        norm: Optional[Literal["batch", "layer", "group"]] = "batch",
+        dropout_rate: Optional[float] = None,
+        norm: Literal["batch", "layer", "group", None] = None,
         norm_kwargs: Optional[dict] = None,
-        activation: Optional[str] = "relu",
+        activation: Optional[str] = None,
         activation_kwargs: Optional[dict] = None,
         residual: bool = False,
-        n_cat_list: Optional[List[int]] = None,
+        n_classes_list: Optional[List[int]] = None,
+        embedding_dim: Optional[int] = None,
         inject_covariates: bool = True,
         training: Optional[bool] = None,
     ):
@@ -49,7 +50,7 @@ class FCLayers:
             * ``'torch'``: :class:`~scvi.nn.TorchFCLayers`
             * ``'jax'``: :class:`~scvi.nn.JaxFCLayers`
         n_input
-            The number of input features. Ignored if `backend` is `'jax'`.
+            The number of input features. Must be provided.
         n_output
             The number of output features. Must be provided if `layers_dim` is not.
         n_layers
@@ -82,9 +83,12 @@ class FCLayers:
         residual
             Whether to include residual connections between hidden layers. Cannot be used if
             `layers_dim` is provided since uniform hidden dimensions cannot be guaranteed.
-        n_cat_list
-            A list of integers specifying the number of categories for each covariate. Each
-            category will be included using a one-hot encoding.
+        n_classes_list
+            A list of integers specifying the number of classes for each covariate. Each
+            class will be included using a one-hot encoding.
+        embedding_dim
+            The dimension of embeddings to use for encoding covariates. If `None`, a
+            one-hot encoding is used.
         inject_covariates
             Whether to inject covariates into each hidden layer in addition to the input
             layer.
@@ -93,7 +97,8 @@ class FCLayers:
 
         Returns
         -------
-        :class:`~scvi.nn.TorchFCLayers` or :class:`~scvi.nn.JaxFCLayers`
+        module
+            A :class:`~scvi.nn.TorchFCLayers` or :class:`~scvi.nn.JaxFCLayers`
         """
         valid_backends = ["torch", "jax"]
         if backend not in valid_backends:
@@ -102,9 +107,11 @@ class FCLayers:
             )
 
         # validate layer arguments
-        if not all([n_input, n_output, n_layers, n_hidden]) and not layers_dim:
+        if not n_input:
+            raise ValueError("Must specify `n_input`.")
+        if not all([n_output, n_layers, n_hidden]) and not layers_dim:
             raise ValueError(
-                "Must specify either (`n_input`, `n_output`, `n_layers`, `n_hidden`) "
+                "Must specify either (`n_output`, `n_layers`, `n_hidden`) "
                 "or `layers_dim`."
             )
         if layers_dim and residual:
@@ -140,11 +147,14 @@ class FCLayers:
             )
         activation_kwargs = activation_kwargs or {}
 
-        # ignore covariates with only one category
-        n_cat_list = n_cat_list or []
-        n_cat_list = [n_cat if n_cat > 1 else 0 for n_cat in n_cat_list]
+        # ignore covariates with only one class
+        n_classes_list = n_classes_list or []
+        n_classes_list = [
+            n_classes if n_classes > 1 else 0 for n_classes in n_classes_list
+        ]
 
         kwargs = {
+            "n_input": n_input,
             "layers_dim": layers_dim,
             "bias": bias,
             "dropout_rate": dropout_rate,
@@ -153,8 +163,13 @@ class FCLayers:
             "activation": activation,
             "activation_kwargs": activation_kwargs,
             "residual": residual,
-            "n_cat_list": n_cat_list,
+            "n_cat_list": n_classes_list,
+            "embedding_dim": embedding_dim,
             "inject_covariates": inject_covariates,
             "training": training,
         }
-        return TorchFCLayers(**kwargs) if backend == "torch" else JaxFCLayers(**kwargs)
+        if backend == "torch":
+            module = TorchFCLayers(**kwargs)
+        else:
+            module = JaxFCLayers(**kwargs)
+        return module

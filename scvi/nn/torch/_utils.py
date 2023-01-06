@@ -24,7 +24,7 @@ def _one_hot_torch(
         A :class:`~torch.Tensor` of shape `(n_samples, n_classes)` containing the one-hot
         encoding of `indexes`.
     """
-    indexes = torch.squeeze(indexes).type(torch.long)
+    indexes = indexes.view(-1).type(torch.long)
     n_classes = n_classes or -1
     one_hot = torch.nn.functional.one_hot(indexes, num_classes=n_classes)
     one_hot = one_hot.type(torch.float32).to(indexes.device)
