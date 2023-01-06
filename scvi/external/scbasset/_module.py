@@ -125,11 +125,10 @@ class _StochasticShift(nn.Module):
         if self.training:
             shift_i = torch.randint(0, len(self.augment_shifts), size=(1,))
             shift = self.augment_shifts[shift_i]
-            sseq_1hot = torch.where(
-                shift != 0,
-                self.shift_sequence(seq_1hot, shift),
-                seq_1hot,
-            )
+            if shift != 0:
+                sseq_1hot = self.shift_sequence(seq_1hot, shift)
+            else:
+                sseq_1hot = seq_1hot
             return sseq_1hot
         else:
             return seq_1hot
@@ -283,9 +282,6 @@ class ScBassetModule(BaseModuleClass):
         h = nn.functional.one_hot(dna_code, num_classes=4).permute(0, 2, 1).float()
         h, _ = self.stochastic_rc(h)
         h = self.stochastic_shift(h)
-
-        # TODO: add random shift to act as a regularizer on the dataset level
-        # TODO: add use reverse complement randomly on the dataset level
         h = self.stem(h)
         h = self.tower(h)
         h = self.pre_bottleneck(h)
