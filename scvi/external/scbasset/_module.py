@@ -158,7 +158,6 @@ class ScBassetModule(BaseModuleClass):
             dropout=0.2,
             activation_fn=nn.Identity(),
         )
-        self.final = nn.Linear(n_bottleneck_layer, n_cells)
 
     def _get_inference_input(self, tensors: Dict[str, torch.Tensor]):
         dna_code = tensors[REGISTRY_KEYS.CODE_KEY]
@@ -180,8 +179,8 @@ class ScBassetModule(BaseModuleClass):
         h = self.pre_bottleneck(h)
         # flatten the input
         h = h.view(h.shape[0], -1)
+        # Regions by bottleneck layer dim
         h = self.bottleneck(h)
-        h = self.final(h)
         return {"region_embedding": h}
 
     def _get_generative_input(

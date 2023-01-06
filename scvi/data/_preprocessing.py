@@ -368,6 +368,7 @@ def _dna_to_code(nt: str) -> int:
     elif nt == "T":
         return 3
     else:
+        # scBasset does this
         return random.randint(0, 3)
 
 
@@ -449,4 +450,4 @@ def add_dna_sequence(
 
     output_df = pd.concat(output_dfs, axis=0).loc[adata.var_names]
     adata.varm[sequence_varm_key] = output_df
-    adata.varm[code_varm_key] = output_df.applymap(lambda x: _dna_to_code(x))
+    adata.varm[code_varm_key] = output_df.applymap(_dna_to_code)
