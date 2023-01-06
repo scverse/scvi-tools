@@ -138,6 +138,7 @@ class SCBASSET(BaseModelClass):
         )
         return runner()
 
+    @torch.inference_mode()
     def get_latent_representation(self) -> np.ndarray:
         """
         Returns the latent representation of the cells.

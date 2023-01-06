@@ -36,10 +36,15 @@ class _ConvLayer(nn.Module):
             in_channels=in_channels,
             out_channels=out_channels,
             kernel_size=kernel_size,
-            padding=kernel_size // 2,
+            padding="same",
+            bias=False,
         )
         self.batch_norm = nn.BatchNorm1d(out_channels) if batch_norm else nn.Identity()
-        self.pool = nn.MaxPool1d(pool_size) if pool_size is not None else nn.Identity()
+        self.pool = (
+            nn.MaxPool1d(pool_size, padding=(pool_size - 1) // 2)
+            if pool_size is not None
+            else nn.Identity()
+        )
         self.activation_fn = activation_fn if activation_fn is not None else nn.GELU()
         self.dropout = nn.Dropout(dropout)
 
@@ -150,7 +155,7 @@ class ScBassetModule(BaseModuleClass):
             pool_size=2,
         )
         self.bottleneck = _DenseLayer(
-            in_features=n_filters_pre_bottleneck * 7,
+            in_features=n_filters_pre_bottleneck * 6,
             out_features=n_bottleneck_layer,
             use_bias=True,
             batch_norm=True,
@@ -205,4 +210,4 @@ class ScBassetModule(BaseModuleClass):
         reconstruction = generative_outputs["reconstruction"]
         target = tensors[REGISTRY_KEYS.X_KEY]
         loss = nn.functional.binary_cross_entropy(reconstruction, target)
-        return LossOutput(loss=loss)
+        return LossOutput(loss=loss, n_obs_minibatch=target.shape[0])
