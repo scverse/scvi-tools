@@ -50,7 +50,7 @@ class SCBASSET(BaseModelClass):
         batch_ids = self.adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY)
         self.module = ScBassetModule(
             n_cells=self.n_cells,
-            batch_ids=torch.tensor(batch_ids) if batch_ids.sum() > 0 else None,
+            batch_ids=torch.tensor(batch_ids).long() if batch_ids.sum() > 0 else None,
             **model_kwargs,
         )
         self._model_summary_string = (
