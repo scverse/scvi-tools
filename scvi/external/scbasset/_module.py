@@ -2,6 +2,7 @@ from typing import Callable, Dict, NamedTuple, Optional
 
 import numpy as np
 import torch
+import torchmetrics
 from torch import nn
 
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
@@ -323,4 +324,11 @@ class ScBassetModule(BaseModuleClass):
         loss = reconstruction_loss.sum() / (
             reconstruction_logits.shape[0] * reconstruction_logits.shape[1]
         )
-        return LossOutput(loss=loss, reconstruction_loss=reconstruction_loss)
+        auroc = torchmetrics.functional.auroc(
+            torch.sigmoid(reconstruction_logits).ravel(), target.ravel(), task="binary"
+        )
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconstruction_loss,
+            extra_metrics={"auroc": auroc},
+        )

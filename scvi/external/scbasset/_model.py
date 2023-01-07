@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import torch
@@ -74,6 +74,9 @@ class SCBASSET(BaseModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         early_stopping: bool = False,
+        early_stopping_monitor: str = "auroc_train",
+        early_stopping_mode: Literal["min", "max"] = "max",
+        early_stopping_min_delta: float = 1e-6,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -99,6 +102,15 @@ class SCBASSET(BaseModelClass):
         early_stopping
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
+        early_stopping_monitor
+            Metric logged during validation set epoch. The available metrics will depend on
+            the training plan class used. We list the most common options here in the typing.
+        early_stopping_mode
+            In 'min' mode, training will stop when the quantity monitored has stopped decreasing
+            and in 'max' mode it will stop when the quantity monitored has stopped increasing.
+        early_stopping_min_delta
+            Minimum change in the monitored quantity to qualify as an improvement,
+            i.e. an absolute change of less than min_delta, will count as no improvement.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -128,10 +140,16 @@ class SCBASSET(BaseModelClass):
         )
         training_plan = TrainingPlan(self.module, **custom_plan_kwargs)
 
-        es = "early_stopping"
-        trainer_kwargs[es] = (
-            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
-        )
+        es = {
+            "early_stopping": early_stopping,
+            "early_stopping_monitor": early_stopping_monitor,
+            "early_stopping_mode": early_stopping_mode,
+            "early_stopping_min_delta": early_stopping_min_delta,
+        }
+        for k, v in es.items():
+            trainer_kwargs[k] = (
+                v if k not in trainer_kwargs.keys() else trainer_kwargs[k]
+            )
         runner = TrainRunner(
             self,
             training_plan=training_plan,
