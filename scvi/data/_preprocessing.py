@@ -375,7 +375,7 @@ def _dna_to_code(nt: str) -> int:
 @dependencies("genomepy")
 def add_dna_sequence(
     adata: anndata.AnnData,
-    seq_len: int = 1344,
+    seq_len: int = 1334,
     genome_name: str = "hg38",
     genome_dir: Optional[Path] = None,
     genome_provider: str = "UCSC",
@@ -441,7 +441,9 @@ def add_dna_sequence(
         ).astype(int)
         block_ends = block_starts + seq_len
 
-        concat_seq = str(g.get_seq(chrom, zip(block_starts, block_ends - 1))).upper()
+        concat_seq = str(
+            g.get_spliced_seq(chrom, zip(block_starts, block_ends - 1))
+        ).upper()
         concat_seq = [iter(concat_seq)] * seq_len
         concat_seq = list(zip(*concat_seq))
         assert len(concat_seq) == len(chrom_df)

@@ -311,11 +311,12 @@ class ScBassetModule(BaseModuleClass):
             accessibility += (
                 region_embedding @ self.batch_emdedding
             ) @ self.batch_ids_one_hot
-        return {"reconstruction": nn.functional.sigmoid(accessibility)}
+        return {"reconstruction": torch.sigmoid(accessibility)}
 
     def loss(self, tensors, inference_outputs, generative_outputs) -> LossOutput:
         """Loss function for the model."""
         reconstruction = generative_outputs["reconstruction"]
         target = tensors[REGISTRY_KEYS.X_KEY]
-        loss = nn.functional.binary_cross_entropy(reconstruction, target)
+        loss_fn = nn.BCELoss()
+        loss = loss_fn(reconstruction, target)
         return LossOutput(loss=loss, n_obs_minibatch=target.shape[0])
