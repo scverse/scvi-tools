@@ -317,6 +317,10 @@ class ScBassetModule(BaseModuleClass):
         """Loss function for the model."""
         reconstruction = generative_outputs["reconstruction"]
         target = tensors[REGISTRY_KEYS.X_KEY]
-        loss_fn = nn.BCELoss()
-        loss = loss_fn(reconstruction, target)
-        return LossOutput(loss=loss, n_obs_minibatch=target.shape[0])
+        loss_fn = nn.BCELoss(reduction="none")
+        full_loss = loss_fn(reconstruction, target)
+        reconstruction_loss = full_loss.sum(dim=-1)
+        loss = reconstruction.sum() / (
+            reconstruction.shape[0] * reconstruction.shape[1]
+        )
+        return LossOutput(loss=loss, reconstruction_loss=reconstruction_loss)
