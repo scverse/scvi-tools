@@ -20,7 +20,7 @@ def _round(x):
     return int(np.round(x))
 
 
-class _ConvLayer(nn.Module):
+class _ConvBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -57,18 +57,17 @@ class _ConvLayer(nn.Module):
         return x
 
 
-class _DenseLayer(nn.Module):
+class _DenseBlock(nn.Module):
     def __init__(
         self,
         in_features: int,
         out_features: int,
-        use_bias: bool = True,
         batch_norm: bool = True,
         dropout: float = 0.2,
         activation_fn: Optional[Callable] = None,
     ):
         super().__init__()
-        self.dense = nn.Linear(in_features, out_features, bias=use_bias)
+        self.dense = nn.Linear(in_features, out_features, bias=not batch_norm)
         self.batch_norm = nn.BatchNorm1d(out_features) if batch_norm else nn.Identity()
         self.activation_fn = activation_fn if activation_fn is not None else nn.GELU()
         self.dropout = nn.Dropout(dropout)
@@ -211,6 +210,7 @@ class ScBassetModule(BaseModuleClass):
         super().__init__()
 
         self.cell_embedding = nn.Parameter(torch.randn(n_bottleneck_layer, n_cells))
+        self.cell_bias = nn.Parameter(torch.randn(n_cells))
         if batch_ids is not None:
             self.register_buffer("batch_ids", torch.as_tensor(batch_ids).long())
             self.n_batch = len(torch.unique(batch_ids))
@@ -224,7 +224,7 @@ class ScBassetModule(BaseModuleClass):
             self.batch_emdedding = nn.Parameter(
                 torch.randn(n_bottleneck_layer, self.n_batch)
             )
-        self.stem = _ConvLayer(
+        self.stem = _ConvBlock(
             in_channels=4,
             out_channels=n_filters_init,
             kernel_size=17,
@@ -240,7 +240,7 @@ class ScBassetModule(BaseModuleClass):
                 _round(curr_n_filters * filters_mult) if i > 0 else curr_n_filters
             )
             tower_layers.append(
-                _ConvLayer(
+                _ConvBlock(
                     in_channels=curr_n_filters,
                     out_channels=new_n_filters,
                     kernel_size=5,
@@ -252,7 +252,7 @@ class ScBassetModule(BaseModuleClass):
             curr_n_filters = new_n_filters
         self.tower = nn.Sequential(*tower_layers)
 
-        self.pre_bottleneck = _ConvLayer(
+        self.pre_bottleneck = _ConvBlock(
             in_channels=curr_n_filters,
             out_channels=n_filters_pre_bottleneck,
             kernel_size=1,
@@ -260,10 +260,9 @@ class ScBassetModule(BaseModuleClass):
             batch_norm=batch_norm,
             pool_size=1,
         )
-        self.bottleneck = _DenseLayer(
+        self.bottleneck = _DenseBlock(
             in_features=n_filters_pre_bottleneck * 7,
             out_features=n_bottleneck_layer,
-            use_bias=True,
             batch_norm=True,
             dropout=0.2,
             activation_fn=nn.Identity(),
@@ -307,6 +306,7 @@ class ScBassetModule(BaseModuleClass):
     def generative(self, region_embedding: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Generative method for the model."""
         accessibility = region_embedding @ self.cell_embedding
+        accessibility += self.cell_bias
         if hasattr(self, "batch_ids_one_hot"):
             accessibility += (
                 region_embedding @ self.batch_emdedding
