@@ -1,5 +1,6 @@
 from typing import List, Literal, Optional
 
+import jax
 import jax.numpy as jnp
 from flax import linen as nn
 from flax.linen.initializers import variance_scaling
@@ -25,6 +26,56 @@ class Dense(nn.Dense):
         super().__init__(*args, **kwargs)
 
 
+class BatchNorm(nn.BatchNorm):
+    """Batch normalization layer."""
+
+    def __call__(self, x: jnp.ndarray, **kwargs) -> jnp.ndarray:
+        """
+        Forward pass through the module.
+
+        Parameters
+        ----------
+        x
+            Input :class:`~jax.numpy.ndarray` of shape `(n_samples, n_input)` or
+            `(n_layers, n_samples, n_input)`. If 3-dimensional, the operation
+            is broadcasted to each layer separately.
+        **kwargs
+            Keyword arguments to pass to :class:`~flax.linen.BatchNorm`.
+
+        Returns
+        -------
+        out
+            Output :class:`~jax.numpy.ndarray` of shape `(n_samples, n_input)` or
+            `(n_layers, n_samples, n_input)`.
+        """
+        _forward = super().__call__
+
+        if x.ndim == 3:
+            out = jax.vmap(_forward, in_axes=0)(x)
+        else:
+            out = _forward(x)
+        return out
+
+
+class Linear(Dense):
+    """
+    Linear layer that allows embeddings to be injected.
+
+    Parameters
+    ----------
+    args
+        Arguments for :class:`~flax.linen.Dense`.
+    inject_embedding
+        Whether to inject embeddings.
+    **kwargs
+        Keyword arguments for :class:`~flax.linen.Dense`.
+    """
+
+    def __init__(self, *args, inject_embedding: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.inject_embedding = inject_embedding
+
+
 class JaxFCLayers(nn.Module):
     """Fully-connected layers with a Jax backend."""
 
@@ -39,6 +90,7 @@ class JaxFCLayers(nn.Module):
     residual: bool
     n_cat_list: List[int]
     inject_covariates: bool
+    embedding_dim: Optional[int]
     training: Optional[bool]
 
     def setup(self):
@@ -64,7 +116,7 @@ class JaxFCLayers(nn.Module):
     ) -> jnp.ndarray:
         """Forward pass through a single fully-connected block."""
         # TODO: inject covariates
-        x = Dense(self.layers_dim[block_num], use_bias=self.bias)(x)
+        x = Linear(self.layers_dim[block_num], use_bias=self.bias)(x)
         x = (
             self._norm(**self._norm_kwargs)(x, deterministic=is_eval)
             if self.norm
