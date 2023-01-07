@@ -95,7 +95,7 @@ class _StochasticReverseComplement(nn.Module):
             [batch_size, seq_depth, seq_length] sequence
         """
         if self.training:
-            reverse_bool = torch.rand(1).item() > 0.5
+            reverse_bool = np.random.uniform() > 0.5
             if reverse_bool:
                 # Reverse on the 4dim DNA dimension (A->T, C->G, G->C, T->A)
                 # Equivalent to reversing based on our encoding
@@ -122,7 +122,7 @@ class _StochasticShift(nn.Module):
 
     def forward(self, seq_1hot: torch.tensor):
         if self.training:
-            shift_i = torch.randint(0, len(self.augment_shifts), size=(1,))
+            shift_i = np.random.randint(0, len(self.augment_shifts))
             shift = self.augment_shifts[shift_i]
             if shift != 0:
                 sseq_1hot = self.shift_sequence(seq_1hot, shift)
