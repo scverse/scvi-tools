@@ -1,5 +1,4 @@
 import logging
-import random
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -369,7 +368,7 @@ def _dna_to_code(nt: str) -> int:
         return 3
     else:
         # scBasset does this
-        return random.randint(0, 3)
+        return np.random.randint(0, 3)
 
 
 @dependencies("genomepy")
