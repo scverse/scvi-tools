@@ -73,7 +73,7 @@ class SCBASSET(BaseModelClass):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        early_stopping: bool = False,
+        early_stopping: bool = True,
         early_stopping_monitor: str = "auroc_train",
         early_stopping_mode: Literal["min", "max"] = "max",
         early_stopping_min_delta: float = 1e-6,
@@ -170,6 +170,17 @@ class SCBASSET(BaseModelClass):
         latent representation (n_cells, n_latent)
         """
         return self.module.cell_embedding.cpu().numpy().T
+
+    @torch.inference_mode()
+    def get_cell_bias(self) -> np.ndarray:
+        """
+        Returns the cell-specific bias term.
+
+        Returns
+        -------
+        bias (n_cells,)
+        """
+        return self.module.cell_bias.cpu().numpy()
 
     @classmethod
     @setup_anndata_dsp.dedent
