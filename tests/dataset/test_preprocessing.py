@@ -34,7 +34,7 @@ def test_add_dna_sequence(save_path):
     adata.var["start"] = [629395, 633578]
     adata.var["end"] = [630394, 634591]
 
-    add_dna_sequence(adata, seq_len=100, genome="hg38", genome_dir=save_path)
+    add_dna_sequence(adata, seq_len=100, genome_name="hg38", genome_dir=save_path)
     assert "dna_sequence" in adata.varm.keys()
     assert "dna_code" in adata.varm.keys()
     assert adata.varm["dna_code"].values.shape[1] == 100
