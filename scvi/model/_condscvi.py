@@ -260,6 +260,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_labels_key)s
         %(param_layer)s
         """
