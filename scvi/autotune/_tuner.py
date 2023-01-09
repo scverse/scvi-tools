@@ -27,7 +27,7 @@ class ModelTuner:
     >>> model_cls = scvi.model.SCVI
     >>> model_cls.setup_anndata(adata)
     >>> tuner = scvi.autotune.ModelTuner(model_cls)
-    >>> results = tuner.fit(adata, metric="validation_loss)
+    >>> results = tuner.fit(adata, metric="validation_loss")
     """
 
     def __init__(self, model_cls: BaseModelClass):
