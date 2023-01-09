@@ -381,8 +381,8 @@ def add_dna_sequence(
     chr_var_key: str = "chr",
     start_var_key: str = "start",
     end_var_key: str = "end",
-    sequence_varm_key="dna_sequence",
-    code_varm_key="dna_code",
+    sequence_varm_key: str = "dna_sequence",
+    code_varm_key: str = "dna_code",
 ) -> None:
     """
     Add DNA sequence to AnnData object.
