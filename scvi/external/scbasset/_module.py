@@ -121,7 +121,7 @@ class _StochasticShift(nn.Module):
         )
         self.pad = pad
 
-    def forward(self, seq_1hot: torch.tensor):
+    def forward(self, seq_1hot: torch.Tensor):
         if self.training:
             shift_i = np.random.randint(0, len(self.augment_shifts))
             shift = self.augment_shifts[shift_i]
