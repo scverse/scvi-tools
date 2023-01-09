@@ -548,11 +548,12 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
-        %(param_layer)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        %(param_layer)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [

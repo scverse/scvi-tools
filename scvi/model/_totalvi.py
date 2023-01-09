@@ -1199,7 +1199,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         **kwargs,
-    ) -> Optional[AnnData]:
+    ):
         """
         %(summary)s.
 
@@ -1216,7 +1216,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
-        %(param_copy)s
 
         Returns
         -------
@@ -1255,6 +1254,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         cls.register_manager(adata_manager)
 
     @classmethod
+    @setup_anndata_dsp.dedent
     def setup_mudata(
         cls,
         mdata: MuData,
@@ -1266,8 +1266,29 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         continuous_covariate_keys: Optional[List[str]] = None,
         modalities: Optional[Dict[str, str]] = None,
         **kwargs,
-    ) -> Optional[AnnData]:
-        """Setup MuData."""
+    ):
+        """
+        %(summary_mdata)s.
+
+        Parameters
+        ----------
+        %(param_mdata)s
+        rna_layer
+            RNA layer key. If `None`, will use `.X` of specified modality key.
+        protein_layer
+            Protein layer key. If `None`, will use `.X` of specified modality key.
+        %(param_batch_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        %(param_modalities)s
+
+        Examples
+        --------
+        >>> mdata = muon.read_10x_h5("pbmc_10k_protein_v3_filtered_feature_bc_matrix.h5")
+        >>> scvi.model.TOTALVI.setup_mudata(mdata, modalities={"rna_layer": "rna": "protein_layer": "prot"})
+        >>> vae = scvi.model.TOTALVI(mdata)
+        """
         setup_method_args = cls._get_setup_method_args(**locals())
 
         if modalities is None:

@@ -380,6 +380,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_layer)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
