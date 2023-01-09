@@ -99,7 +99,7 @@ class HubModel:
         repo_token
             huggingface API token with write permissions
         repo_create
-            Whether to create a repo if one does not exist
+            Whether to create the repo
         """
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
@@ -175,7 +175,8 @@ class HubModel:
             f"metadata:\n{self.metadata}\n"
             f"model_card:"
         )
-        rich.print(Markdown(self.model_card.content))
+        # TODO figure out how to print tables in rich Markdown without the replace trick
+        rich.print(Markdown(self.model_card.content.replace("\n", "\n\n")))
         return ""
 
     @property
