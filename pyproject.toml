@@ -75,7 +75,6 @@ scanpy = {version = ">=1.6", optional = true}
 scikit-learn = ">=0.21.2"
 scikit-misc = {version = ">=0.1.3", optional = true}
 sphinx = {version = "==4.1", optional = true}
-docutils = ">=0.18.1"
 sphinx-design = {version = "*", optional = true}
 sphinx-hoverxref = {version = "*", optional = true}
 sphinx_copybutton = {version = "*", optional = true}
