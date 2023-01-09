@@ -116,9 +116,7 @@ class _StochasticShift(nn.Module):
     def __init__(self, shift_max=0, pad="uniform", **kwargs):
         super().__init__()
         self.shift_max = shift_max
-        self.register_buffer(
-            "augment_shifts", torch.arange(-self.shift_max, self.shift_max + 1)
-        )
+        self.augment_shifts = np.arange(-self.shift_max, self.shift_max + 1)
         self.pad = pad
 
     def forward(self, seq_1hot: torch.Tensor):
@@ -148,22 +146,12 @@ class _StochasticShift(nn.Module):
         """
         if len(seq.shape) != 3:
             raise ValueError("input sequence should be rank 3")
-        input_shape = seq.shape
 
-        pad = pad_value * torch.ones_like(seq[..., 0 : torch.abs(shift)])
-
-        def _shift_right(_seq):
-            # shift is positive
-            sliced_seq = _seq[..., :-shift:]
-            return torch.concat([pad, sliced_seq], dim=-1)
-
-        def _shift_left(_seq):
-            # shift is negative
-            sliced_seq = _seq[..., -shift:]
-            return torch.concat([sliced_seq, pad], dim=-1)
-
-        sseq = _shift_right(seq) if shift > 0 else _shift_left(seq)
-        sseq.reshape(input_shape)
+        sseq = torch.roll(seq, shift, dims=-1)
+        if shift > 0:
+            sseq[:, :shift] = pad_value
+        else:
+            sseq[:, shift:] = pad_value
 
         return sseq
 
