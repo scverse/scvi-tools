@@ -2,6 +2,7 @@ import importlib
 import json
 import logging
 import os
+import warnings
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Type, Union
@@ -139,7 +140,13 @@ class HubModel:
         )
 
     @classmethod
-    def pull_from_huggingface_hub(cls, repo_name: str, cache_dir: Optional[str] = None):
+    def pull_from_huggingface_hub(
+        cls,
+        repo_name: str,
+        cache_dir: Optional[str] = None,
+        revision: Optional[str] = None,
+        **kwargs,
+    ):
         """
         Download the given model repo from huggingface.
 
@@ -153,11 +160,22 @@ class HubModel:
             ID of the huggingface repo where this model needs to be uploaded
         cache_dir
             The directory where the downloaded model artifacts will be cached
+        revision
+            The revision to pull from the repo. This can be a branch name, a tag, or a full-length commit hash.
+            If None, the default (latest) revision is pulled.
+        kwargs
+            Additional keyword arguments to pass to :meth:`~huggingface_hub.snapshot_download`.
         """
+        if revision is None:
+            warnings.warn(
+                "No revision was passed, so the default (latest) revision will be used."
+            )
         snapshot_folder = snapshot_download(
             repo_id=repo_name,
             allow_patterns=["model.pt", "adata.h5ad", _SCVI_HUB.METADATA_FILE_NAME],
             cache_dir=cache_dir,
+            revision=revision,
+            **kwargs,
         )
         model_card = ModelCard.load(repo_name)
         return cls(snapshot_folder, model_card=model_card)
@@ -253,7 +271,8 @@ class HubModel:
             if self.large_training_adata is None:
                 raise ValueError(
                     "Could not find any dataset to load the model with.\
-                    Either provide a dataset on disk or a url to download the data in the model card.\
+                    Either provide a dataset on disk or a url to download the data in the model card,\
+                    or pass an adata to this method.\
                     See scvi-tools tutorials for more details."
                 )
             else:
