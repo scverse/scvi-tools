@@ -91,6 +91,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_layer)s
         %(param_batch_key)s
         """
