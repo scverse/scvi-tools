@@ -134,7 +134,7 @@ class _StochasticShift(nn.Module):
             return seq_1hot
 
     @staticmethod
-    def shift_sequence(seq: torch.tensor, shift: torch.tensor, pad_value: float = 0.25):
+    def shift_sequence(seq: torch.Tensor, shift: torch.Tensor, pad_value: float = 0.25):
         """Shift a sequence left or right by shift_amount.
 
         Parameters
