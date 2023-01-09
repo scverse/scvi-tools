@@ -32,7 +32,7 @@ def test_add_dna_sequence(save_path):
     adata = adata[:, :2].copy()
     adata.var["chr"] = "chr1"
     adata.var["start"] = [629395, 633578]
-    adata.var["start"] = [630394, 634591]
+    adata.var["end"] = [630394, 634591]
 
     add_dna_sequence(adata, seq_len=100, genome="hg38", genome_dir=save_path)
     assert "dna_sequence" in adata.varm.keys()
