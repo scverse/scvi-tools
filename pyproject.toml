@@ -58,7 +58,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde"]
+dev = ["black", "pytest", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde", "genomepy"]
 docs = [
   "sphinx>=4.1",
   "nbsphinx",
@@ -74,7 +74,7 @@ docs = [
 ]
 autotune = ["hyperopt>=0.2", "ray[tune]>=2.1.0", "ipython"]
 pymde = ["pymde"]
-tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub"]
+tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub", "genomepy"]
 hub = ["huggingface_hub"]
 
 [tool.hatch.build.targets.wheel]

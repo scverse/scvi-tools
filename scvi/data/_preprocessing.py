@@ -1,4 +1,6 @@
 import logging
+import tempfile
+from pathlib import Path
 from typing import Optional
 
 import anndata
@@ -6,6 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from scvi._decorators import dependencies
 from scvi.utils import track
 
 from ._utils import _check_nonnegative_integers
@@ -351,3 +354,101 @@ def organize_multiome_anndatas(
     res_anndata = res_anndata[:, multi_anndata.var.index.values]
     res_anndata.var = multi_anndata.var.copy()
     return res_anndata.copy()
+
+
+def _dna_to_code(nt: str) -> int:
+    nt = nt.upper()
+    if nt == "A":
+        return 0
+    elif nt == "C":
+        return 1
+    elif nt == "G":
+        return 2
+    elif nt == "T":
+        return 3
+    else:
+        # scBasset does this
+        return np.random.randint(0, 3)
+
+
+@dependencies("genomepy")
+def add_dna_sequence(
+    adata: anndata.AnnData,
+    seq_len: int = 1334,
+    genome_name: str = "hg38",
+    genome_dir: Optional[Path] = None,
+    genome_provider: str = "UCSC",
+    chr_var_key: str = "chr",
+    start_var_key: str = "start",
+    end_var_key: str = "end",
+    sequence_varm_key: str = "dna_sequence",
+    code_varm_key: str = "dna_code",
+) -> None:
+    """
+    Add DNA sequence to AnnData object.
+
+    Parameters
+    ----------
+    adata
+        AnnData object with chromatin accessiblity data
+    seq_len
+        Length of DNA sequence to extract around peak center.
+        Defaults to value used in scBasset.
+    genome_name
+        Name of genome to use, installed with genomepy
+    genome_dir
+        Directory to install genome to, if not already installed
+    genome_provider
+        Provider of genome, passed to genomepy
+    chr_var_key
+        Key in `.var` for chromosome
+    start_var_key
+        Key in `.var` for start position
+    end_var_key
+        Key in `.var` for end position
+    sequence_varm_key
+        Key in `.varm` for added DNA sequence
+    code_varm_key
+        Key in `.varm` for added DNA sequence, encoded as integers
+
+    Returns
+    -------
+    None
+
+    Adds fields to `.varm`:
+        sequence_varm_key: DNA sequence
+        code_varm_key: DNA sequence, encoded as integers
+    """
+    import genomepy
+
+    if genome_dir is None:
+        tempdir = tempfile.TemporaryDirectory()
+        genome_dir = tempdir.name
+
+    genomepy.install_genome(genome_name, genome_provider, genomes_dir=genome_dir)
+    g = genomepy.Genome(genome_name, genomes_dir=genome_dir)
+
+    output_dfs = []
+    chroms = adata.var[chr_var_key].unique()
+    df = adata.var[[chr_var_key, start_var_key, end_var_key]]
+    for chrom in track(chroms):
+        chrom_df = df[df[chr_var_key] == chrom]
+        lengths = chrom_df[end_var_key] - chrom_df[start_var_key]
+
+        block_starts = (
+            chrom_df[start_var_key] + (lengths // 2.0) - (seq_len // 2.0)
+        ).astype(int)
+        block_ends = block_starts + seq_len
+
+        concat_seq = str(
+            g.get_spliced_seq(chrom, zip(block_starts, block_ends - 1))
+        ).upper()
+        concat_seq = [iter(concat_seq)] * seq_len
+        concat_seq = list(zip(*concat_seq))
+        assert len(concat_seq) == len(chrom_df)
+
+        output_dfs.append(pd.DataFrame(np.array(concat_seq), index=chrom_df.index))
+
+    output_df = pd.concat(output_dfs, axis=0).loc[adata.var_names]
+    adata.varm[sequence_varm_key] = output_df
+    adata.varm[code_varm_key] = output_df.applymap(_dna_to_code)

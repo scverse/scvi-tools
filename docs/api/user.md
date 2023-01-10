@@ -56,6 +56,7 @@ import scvi
    external.SOLO
    external.SCAR
    external.Tangram
+   external.SCBASSET
 
 ```
 
@@ -97,6 +98,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.poisson_gene_selection
    data.organize_cite_seq_10x
    data.organize_multiome_anndatas
+   data.add_dna_sequence
 ```
 
 ```{eval-rst}

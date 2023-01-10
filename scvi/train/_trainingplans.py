@@ -361,7 +361,7 @@ class TrainingPlan(pl.LightningModule):
         self.log("validation_loss", scvi_loss.loss, on_epoch=True)
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
-    def _optimizer_creator(
+    def _optimizer_creator_fn(
         self, optimizer_cls: Union[torch.optim.Adam, torch.optim.AdamW]
     ):
         """
@@ -376,11 +376,11 @@ class TrainingPlan(pl.LightningModule):
     def get_optimizer_creator(self):
         """Get optimizer creator for the model."""
         if self.optimizer_name == "Adam":
-            optim_creator = self._optimizer_creator(torch.optim.Adam)
+            optim_creator = self._optimizer_creator_fn(torch.optim.Adam)
         elif self.optimizer_name == "AdamW":
-            optim_creator = self._optimizer_creator(torch.optim.AdamW)
+            optim_creator = self._optimizer_creator_fn(torch.optim.AdamW)
         elif self.optimizer_name == "Custom":
-            optim_creator = self._optimizer_creator
+            optim_creator = self.optimizer_creator
         else:
             raise ValueError("Optimizer not understood.")
 
