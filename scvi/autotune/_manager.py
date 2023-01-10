@@ -7,6 +7,7 @@ from typing import Any, Callable, List, Optional, Tuple
 import rich
 
 try:
+    import ray
     from docstring_parser import parse
     from ray import air, tune
     from ray.tune.integration.pytorch_lightning import TuneReportCallback
@@ -18,7 +19,7 @@ from scvi._types import AnnOrMuData
 from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model.base import BaseModelClass
 
-from ._defaults import COLORS, COLUMN_KWARGS, DEFAULTS, SUPPORTED, TUNABLE_TYPES
+from ._defaults import COLORS, COLUMN_KWARGS, DEFAULTS, TUNABLE_TYPES
 from ._types import TunableMeta
 from ._utils import in_notebook
 
@@ -42,8 +43,8 @@ class TunerManager:
         self._registry: dict = self._get_registry(self._model_cls)
 
     def _validate_model_cls(self, model_cls: BaseModelClass) -> BaseModelClass:
-        """Checks if the model class is suppo rted."""
-        if model_cls not in SUPPORTED:
+        """Checks if the model class is supported."""
+        if not hasattr(model_cls, "_tunables"):
             raise NotImplementedError(
                 f"{model_cls} is currently unsupported. Please see ModelTuner for a "
                 "list of supported model classes."
@@ -54,7 +55,7 @@ class TunerManager:
         """Returns the model class's default search space if available."""
         if model_cls not in DEFAULTS:
             warnings.warn(
-                f"No default search space available for {model_cls}.",
+                f"No default search space available for {model_cls.__name__}.",
                 UserWarning,
             )
         return DEFAULTS.get(model_cls, {})
@@ -396,7 +397,6 @@ class TunerManager:
             max_epochs: int,
         ) -> None:
             model_kwargs, train_kwargs = self._get_search_space(search_space)
-            # TODO: generalize to models with mudata
             getattr(model_cls, setup_method_name)(adata, **setup_kwargs)
             model = model_cls(adata, **model_kwargs)
             monitor = TuneReportCallback(metric, on="validation_end")
@@ -494,6 +494,16 @@ class TunerManager:
             table.add_column(column, style=COLORS[i], **COLUMN_KWARGS)
         return table
 
+    @dependencies("ray")
+    def _get_resources(available: bool = False) -> dict:
+        ray.init()
+        if available:
+            resources = ray.available_resources()
+        else:
+            resources = ray.cluster_resources()
+        ray.shutdown()
+        return resources
+
     def _view_registry(
         self, show_additional_info: bool = False, show_resources: bool = False
     ) -> None:
@@ -561,5 +571,12 @@ class TunerManager:
         console.print(defaults_table)
 
         if show_resources:
-            # TODO: retrieve available resources
-            pass
+            logging.getLogger("ray").setLevel(logging.WARNING)
+            resources = self._get_resources()
+            resources_table = self._add_columns(
+                rich.table.Table(title="Available resources"),
+                ["Resource", "Quantity"],
+            )
+            resources_table.add_row("CPU cores", str(resources.get("CPU", "N/A")))
+            resources_table.add_row("GPUs", str(resources.get("GPU", "N/A")))
+            console.print(resources_table)

@@ -61,7 +61,7 @@ class ModelTuner:
         exclude
             List of hyperparameters to exclude from the default search space. If
             `use_defaults` is `False`, this argument is ignored.
-        num_samples
+        n_samples
             Number of hyperparameter configurations to sample.
         max_epochs
             Maximum number of epochs to train each model.
