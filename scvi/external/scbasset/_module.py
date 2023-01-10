@@ -44,6 +44,13 @@ class _GELU(nn.GELU):
         return torch.nn.functional.sigmoid(1.702 * x) * x
 
 
+class _BatchNorm(nn.BatchNorm1d):
+    """Batch normalization with Keras default initializations."""
+
+    def __init__(self, *args, eps: int = 1e-3, **kwargs):
+        super().__init__(*args, eps=eps, **kwargs)
+
+
 class _ConvBlock(nn.Module):
     def __init__(
         self,
@@ -63,7 +70,7 @@ class _ConvBlock(nn.Module):
             padding="same",
             bias=False,
         )
-        self.batch_norm = nn.BatchNorm1d(out_channels) if batch_norm else nn.Identity()
+        self.batch_norm = _BatchNorm(out_channels) if batch_norm else nn.Identity()
         self.pool = (
             nn.MaxPool1d(pool_size, padding=(pool_size - 1) // 2, ceil_mode=True)
             if pool_size is not None
@@ -93,9 +100,7 @@ class _DenseBlock(nn.Module):
         super().__init__()
         self.dense = _Linear(in_features, out_features, bias=not batch_norm)
         # batch norm with Keras default epsilon
-        self.batch_norm = (
-            nn.BatchNorm1d(out_features, eps=0.001) if batch_norm else nn.Identity()
-        )
+        self.batch_norm = _BatchNorm(out_features) if batch_norm else nn.Identity()
         self.activation_fn = activation_fn if activation_fn is not None else _GELU()
         self.dropout = nn.Dropout(dropout)
 
