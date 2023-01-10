@@ -378,6 +378,7 @@ def add_dna_sequence(
     genome_name: str = "hg38",
     genome_dir: Optional[Path] = None,
     genome_provider: str = "UCSC",
+    install_genome: bool = True,
     chr_var_key: str = "chr",
     start_var_key: str = "start",
     end_var_key: str = "end",
@@ -386,6 +387,8 @@ def add_dna_sequence(
 ) -> None:
     """
     Add DNA sequence to AnnData object.
+
+    Uses genomepy under the hood to download the genome.
 
     Parameters
     ----------
@@ -400,6 +403,9 @@ def add_dna_sequence(
         Directory to install genome to, if not already installed
     genome_provider
         Provider of genome, passed to genomepy
+    install_genome
+        Install the genome with genomepy. If False, `genome_provider` is not used,
+        and a genome is loaded with `genomepy.Genome(genome_name, genomes_dir=genome_dir)`
     chr_var_key
         Key in `.var` for chromosome
     start_var_key
@@ -425,8 +431,12 @@ def add_dna_sequence(
         tempdir = tempfile.TemporaryDirectory()
         genome_dir = tempdir.name
 
-    genomepy.install_genome(genome_name, genome_provider, genomes_dir=genome_dir)
-    g = genomepy.Genome(genome_name, genomes_dir=genome_dir)
+    if install_genome:
+        g = genomepy.install_genome(
+            genome_name, genome_provider, genomes_dir=genome_dir
+        )
+    else:
+        g = genomepy.Genome(genome_name, genomes_dir=genome_dir)
 
     output_dfs = []
     chroms = adata.var[chr_var_key].unique()

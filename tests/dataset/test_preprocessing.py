@@ -1,5 +1,6 @@
+import os
+
 import numpy as np
-import pytest
 from scipy import sparse
 
 from scvi.data import add_dna_sequence, poisson_gene_selection, synthetic_iid
@@ -26,15 +27,20 @@ def test_poisson_gene_selection():
     assert np.sum(adata.var["highly_variable"]) == n_top_genes
 
 
-@pytest.mark.internet
-def test_add_dna_sequence(save_path):
+def test_add_dna_sequence():
     adata = synthetic_iid()
     adata = adata[:, :2].copy()
     adata.var["chr"] = "chr1"
-    adata.var["start"] = [629395, 633578]
-    adata.var["end"] = [630394, 634591]
-
-    add_dna_sequence(adata, seq_len=100, genome_name="hg38", genome_dir=save_path)
+    adata.var["start"] = [2, 20]
+    adata.var["end"] = [30, 80]
+    seq_len = 6
+    add_dna_sequence(
+        adata,
+        seq_len=seq_len,
+        genome_name="test_genome",
+        genome_dir=os.path.abspath("tests/data/"),
+        install_genome=False,
+    )
     assert "dna_sequence" in adata.varm.keys()
     assert "dna_code" in adata.varm.keys()
-    assert adata.varm["dna_code"].values.shape[1] == 100
+    assert adata.varm["dna_code"].values.shape[1] == seq_len
