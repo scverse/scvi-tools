@@ -45,6 +45,7 @@ notebooks/amortized_lda
 
 notebooks/PeakVI
 notebooks/peakvi_in_R
+notebooks/scbasset
 ```
 
 ### Spatial transcriptomics

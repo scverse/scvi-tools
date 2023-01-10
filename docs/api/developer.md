@@ -171,6 +171,7 @@ Module classes in the external API with respective generative and inference proc
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
    external.tangram.TangramMapper
+   external.scbasset.ScBassetModule
 
 ```
 

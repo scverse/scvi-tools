@@ -5,7 +5,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "0.19.0"
+version = "0.20.0a0"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -58,7 +58,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde"]
+dev = ["black", "pytest", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde", "genomepy"]
 docs = [
   "sphinx>=4.1",
   "nbsphinx",
@@ -79,7 +79,7 @@ autotune = [
   "docstring-parser",
 ]
 pymde = ["pymde"]
-tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "hub"]
+tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub", "genomepy"]
 hub = ["huggingface_hub"]
 
 [tool.hatch.build.targets.wheel]

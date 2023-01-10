@@ -749,7 +749,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         summary_string += "\nTraining status: {}".format(
             "Trained" if self.is_trained_ else "Not Trained"
         )
-        summary_string += "\nLatent model? {}".format(hasattr(self, "latent_data_type"))
+        summary_string += "\nLatent model? {}".format(
+            hasattr(self, "latent_data_type") and self.latent_data_type is not None
+        )
         rich.print(summary_string)
 
         return ""
