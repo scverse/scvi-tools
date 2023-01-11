@@ -199,6 +199,15 @@ def test_pyro_bayesian_regression_low_level():
         callbacks=[PyroModelGuideWarmup(train_dl)],
     )
     trainer.fit(plan, train_dl)
+    # 100 features
+    assert list(model.guide.state_dict()["locs.linear.weight_unconstrained"].shape) == [
+        1,
+        100,
+    ]
+    # 1 bias
+    assert list(model.guide.state_dict()["locs.linear.bias_unconstrained"].shape) == [
+        1,
+    ]
 
 
 def test_pyro_bayesian_regression(save_path):
