@@ -42,6 +42,11 @@ class BayesianRegressionPyroModel(PyroModule):
         self.register_buffer("ten", torch.tensor(10.0))
 
         self.linear = PyroModule[nn.Linear](in_features, out_features)
+        # Using the lambda here means that Pyro recreates the prior every time
+        # it retrieves it. In this case this is first when the model is called, which is
+        # also when the auto guide params are created.
+        # This effectively allows these priors to move with the model's device with the
+        # expense of dynamic recreation.
         self.linear.weight = PyroSample(
             lambda prior: dist.Normal(self.zero, self.one)
             .expand([self.out_features, self.in_features])
