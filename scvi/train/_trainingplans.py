@@ -1004,6 +1004,27 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
             min_kl_weight=1e-3,
         )
 
+    @property
+    def n_obs_training(self):
+        """
+        Number of training examples.
+
+        If not `None`, updates the `n_obs` attr
+        of the Pyro module's `model` and `guide`, if they exist.
+        """
+        return self._n_obs_training
+
+    @n_obs_training.setter
+    def n_obs_training(self, n_obs: int):
+        # important for scaling log prob in Pyro plates
+        if n_obs is not None:
+            if hasattr(self.module.model, "n_obs"):
+                self.module.model.n_obs = n_obs
+            if hasattr(self.module.guide, "n_obs"):
+                self.module.guide.n_obs = n_obs
+
+        self._n_obs_training = n_obs
+
 
 class ClassifierTrainingPlan(pl.LightningModule):
     """
