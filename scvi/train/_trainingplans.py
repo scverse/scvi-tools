@@ -746,167 +746,6 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
 
-class PyroTrainingPlan(pl.LightningModule):
-    """
-    Lightning module task to train Pyro scvi-tools modules.
-
-    Parameters
-    ----------
-    pyro_module
-        An instance of :class:`~scvi.module.base.PyroBaseModuleClass`. This object
-        should have callable `model` and `guide` attributes or methods.
-    loss_fn
-        A Pyro loss. Should be a subclass of :class:`~pyro.infer.ELBO`.
-        If `None`, defaults to :class:`~pyro.infer.Trace_ELBO`.
-    optim
-        A Pyro optimizer instance, e.g., :class:`~pyro.optim.Adam`. If `None`,
-        defaults to :class:`pyro.optim.Adam` optimizer with a learning rate of `1e-3`.
-    optim_kwargs
-        Keyword arguments for **default** optimiser :class:`pyro.optim.Adam`.
-    n_steps_kl_warmup
-        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
-        Only activated when `n_epochs_kl_warmup` is set to None.
-    n_epochs_kl_warmup
-        Number of epochs to scale weight on KL divergences from 0 to 1.
-        Overrides `n_steps_kl_warmup` when both are not `None`.
-    scale_elbo
-        Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding
-        numerical inaccuracy when working with very large ELBO.
-    """
-
-    def __init__(
-        self,
-        pyro_module: PyroBaseModuleClass,
-        loss_fn: Optional[pyro.infer.ELBO] = None,
-        optim: Optional[pyro.optim.PyroOptim] = None,
-        optim_kwargs: Optional[dict] = None,
-        n_steps_kl_warmup: Union[int, None] = None,
-        n_epochs_kl_warmup: Union[int, None] = 400,
-        scale_elbo: float = 1.0,
-    ):
-        super().__init__()
-        self.module = pyro_module
-        self._n_obs_training = None
-
-        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
-        if "lr" not in optim_kwargs.keys():
-            optim_kwargs.update({"lr": 1e-3})
-
-        self.loss_fn = pyro.infer.Trace_ELBO() if loss_fn is None else loss_fn
-        self.optim = (
-            pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
-        )
-
-        self.n_steps_kl_warmup = n_steps_kl_warmup
-        self.n_epochs_kl_warmup = n_epochs_kl_warmup
-
-        self.automatic_optimization = False
-
-        self.use_kl_weight = False
-        if isinstance(self.module.model, PyroModule):
-            self.use_kl_weight = (
-                "kl_weight" in signature(self.module.model.forward).parameters
-            )
-
-        elif callable(self.module.model):
-            self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
-
-        def scale(pyro_obj):
-            if scale_elbo == 1:
-                return pyro_obj
-            else:
-                return pyro.poutine.scale(pyro_obj, scale_elbo)
-
-        self.svi = pyro.infer.SVI(
-            model=scale(self.module.model),
-            guide=scale(self.module.guide),
-            optim=self.optim,
-            loss=self.loss_fn,
-        )
-
-        self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
-
-    @property
-    def n_obs_training(self):
-        """
-        Number of training examples.
-
-        If not `None`, updates the `n_obs` attr
-        of the Pyro module's `model` and `guide`, if they exist.
-        """
-        return self._n_obs_training
-
-    @n_obs_training.setter
-    def n_obs_training(self, n_obs: int):
-        # important for scaling log prob in Pyro plates
-        if n_obs is not None:
-            if hasattr(self.module.model, "n_obs"):
-                self.module.model.n_obs = n_obs
-            if hasattr(self.module.guide, "n_obs"):
-                self.module.guide.n_obs = n_obs
-
-        self._n_obs_training = n_obs
-
-    def forward(self, *args, **kwargs):
-        """Passthrough to the model's forward method."""
-        return self.module(*args, **kwargs)
-
-    def training_step(self, batch, batch_idx):
-        """Training step for Pyro training."""
-        args, kwargs = self.module._get_fn_args_from_batch(batch)
-        # Set KL weight if necessary.
-        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
-        if self.use_kl_weight:
-            kwargs.update({"kl_weight": self.kl_weight})
-        # pytorch lightning requires a Tensor object for loss
-        loss = torch.Tensor([self.svi.step(*args, **kwargs)])
-
-        _opt = self.optimizers()
-        _opt.step()
-
-        return {"loss": loss}
-
-    def training_epoch_end(self, outputs):
-        """Training epoch end for Pyro training."""
-        elbo = 0
-        n = 0
-        for out in outputs:
-            elbo += out["loss"]
-            n += 1
-        elbo /= n
-        self.log("elbo_train", elbo, prog_bar=True)
-
-    def configure_optimizers(self):
-        """
-        Shim optimizer for PyTorch Lightning.
-
-        PyTorch Lightning wants to take steps on an optimizer
-        returned by this function in order to increment the global
-        step count. See PyTorch Lighinting optimizer manual loop.
-
-        Here we provide a shim optimizer that we can take steps on
-        at minimal computational cost in order to keep Lightning happy :).
-        """
-        return torch.optim.Adam([self._dummy_param])
-
-    def optimizer_step(self, *args, **kwargs):  # noqa: D102
-        pass
-
-    def backward(self, *args, **kwargs):  # noqa: D102
-        pass
-
-    @property
-    def kl_weight(self):
-        """Scaling factor on KL divergence during training."""
-        return _compute_kl_weight(
-            self.current_epoch,
-            self.global_step,
-            self.n_epochs_kl_warmup,
-            self.n_steps_kl_warmup,
-            min_kl_weight=1e-3,
-        )
-
-
 class LowLevelPyroTrainingPlan(pl.LightningModule):
     """
     Lightning module task to train Pyro scvi-tools modules.
@@ -989,9 +828,23 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         )
         return {"loss": loss}
 
+    def training_epoch_end(self, outputs):
+        """Training epoch end for Pyro training."""
+        elbo = 0
+        n = 0
+        for out in outputs:
+            elbo += out["loss"]
+            n += 1
+        elbo /= n
+        self.log("elbo_train", elbo, prog_bar=True)
+
     def configure_optimizers(self):
         """Configure optimizers for the model."""
         return self.optim(self.module.parameters(), **self.optim_kwargs)
+
+    def forward(self, *args, **kwargs):
+        """Passthrough to the model's forward method."""
+        return self.module(*args, **kwargs)
 
     @property
     def kl_weight(self):
@@ -1024,6 +877,104 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
                 self.module.guide.n_obs = n_obs
 
         self._n_obs_training = n_obs
+
+
+class PyroTrainingPlan(LowLevelPyroTrainingPlan):
+    """
+    Lightning module task to train Pyro scvi-tools modules.
+
+    Parameters
+    ----------
+    pyro_module
+        An instance of :class:`~scvi.module.base.PyroBaseModuleClass`. This object
+        should have callable `model` and `guide` attributes or methods.
+    loss_fn
+        A Pyro loss. Should be a subclass of :class:`~pyro.infer.ELBO`.
+        If `None`, defaults to :class:`~pyro.infer.Trace_ELBO`.
+    optim
+        A Pyro optimizer instance, e.g., :class:`~pyro.optim.Adam`. If `None`,
+        defaults to :class:`pyro.optim.Adam` optimizer with a learning rate of `1e-3`.
+    optim_kwargs
+        Keyword arguments for **default** optimiser :class:`pyro.optim.Adam`.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+        Only activated when `n_epochs_kl_warmup` is set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from 0 to 1.
+        Overrides `n_steps_kl_warmup` when both are not `None`.
+    scale_elbo
+        Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding
+        numerical inaccuracy when working with very large ELBO.
+    """
+
+    def __init__(
+        self,
+        pyro_module: PyroBaseModuleClass,
+        loss_fn: Optional[pyro.infer.ELBO] = None,
+        optim: Optional[pyro.optim.PyroOptim] = None,
+        optim_kwargs: Optional[dict] = None,
+        n_steps_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = 400,
+        scale_elbo: float = 1.0,
+    ):
+        super().__init__(
+            pyro_module=pyro_module,
+            loss_fn=loss_fn,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            n_steps_kl_warmup=n_steps_kl_warmup,
+            scale_elbo=scale_elbo,
+        )
+        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
+        if "lr" not in optim_kwargs.keys():
+            optim_kwargs.update({"lr": 1e-3})
+        self.optim = (
+            pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
+        )
+
+        self.automatic_optimization = False
+
+        self.svi = pyro.infer.SVI(
+            model=self.scale_fn(self.module.model),
+            guide=self.scale_fn(self.module.guide),
+            optim=self.optim,
+            loss=self.loss_fn,
+        )
+
+        self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
+
+    def training_step(self, batch, batch_idx):
+        """Training step for Pyro training."""
+        args, kwargs = self.module._get_fn_args_from_batch(batch)
+        # Set KL weight if necessary.
+        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
+        if self.use_kl_weight:
+            kwargs.update({"kl_weight": self.kl_weight})
+        # pytorch lightning requires a Tensor object for loss
+        loss = torch.Tensor([self.svi.step(*args, **kwargs)])
+
+        _opt = self.optimizers()
+        _opt.step()
+
+        return {"loss": loss}
+
+    def configure_optimizers(self):
+        """
+        Shim optimizer for PyTorch Lightning.
+
+        PyTorch Lightning wants to take steps on an optimizer
+        returned by this function in order to increment the global
+        step count. See PyTorch Lighinting optimizer manual loop.
+
+        Here we provide a shim optimizer that we can take steps on
+        at minimal computational cost in order to keep Lightning happy :).
+        """
+        return torch.optim.Adam([self._dummy_param])
+
+    def optimizer_step(self, *args, **kwargs):  # noqa: D102
+        pass
+
+    def backward(self, *args, **kwargs):  # noqa: D102
+        pass
 
 
 class ClassifierTrainingPlan(pl.LightningModule):

@@ -48,7 +48,7 @@ class PyroJitGuideWarmup(Callback):
 
 class PyroModelGuideWarmup(Callback):
     """
-    A callback to warmup a Pyro guide.
+    A callback to warmup a Pyro guide and model.
 
     This helps initialize all the relevant parameters by running
     one minibatch through the Pyro model.
