@@ -19,12 +19,13 @@ from scvi.model import AmortizedLDA
 from scvi.model.base import (
     BaseModelClass,
     PyroJitGuideWarmup,
+    PyroModelGuideWarmup,
     PyroSampleMixin,
     PyroSviTrainMixin,
 )
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
-from scvi.train import PyroTrainingPlan, Trainer
+from scvi.train import LowLevelPyroTrainingPlan, PyroTrainingPlan, Trainer
 
 
 class BayesianRegressionPyroModel(PyroModule):
@@ -181,6 +182,32 @@ def _create_indices_adata_manager(adata: AnnData) -> AnnDataManager:
     adata_manager = AnnDataManager(fields=anndata_fields)
     adata_manager.register_fields(adata)
     return adata_manager
+
+
+def test_pyro_bayesian_regression_low_level():
+    use_gpu = int(torch.cuda.is_available())
+    adata = synthetic_iid()
+    adata_manager = _create_indices_adata_manager(adata)
+    train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
+    pyro.clear_param_store()
+    model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
+    plan = LowLevelPyroTrainingPlan(model)
+    plan.n_obs_training = len(train_dl.indices)
+    trainer = Trainer(
+        gpus=use_gpu,
+        max_epochs=2,
+        callbacks=[PyroModelGuideWarmup(train_dl)],
+    )
+    trainer.fit(plan, train_dl)
+    # 100 features
+    assert list(model.guide.state_dict()["locs.linear.weight_unconstrained"].shape) == [
+        1,
+        100,
+    ]
+    # 1 bias
+    assert list(model.guide.state_dict()["locs.linear.bias_unconstrained"].shape) == [
+        1,
+    ]
 
 
 def test_pyro_bayesian_regression(save_path):

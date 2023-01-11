@@ -46,6 +46,38 @@ class PyroJitGuideWarmup(Callback):
             break
 
 
+class PyroModelGuideWarmup(Callback):
+    """
+    A callback to warmup a Pyro guide and model.
+
+    This helps initialize all the relevant parameters by running
+    one minibatch through the Pyro model.
+    """
+
+    def __init__(self, dataloader: AnnDataLoader) -> None:
+        super().__init__()
+        self.dataloader = dataloader
+
+    def setup(self, trainer, pl_module, stage=None):
+        """
+        Way to warmup Pyro Guide in an automated way.
+
+        Also device agnostic.
+        """
+        if stage == "fit":
+            # warmup guide for JIT
+            pyro_guide = pl_module.module.guide
+            pyro_model = pl_module.module.model
+            dl = self.dataloader
+            for tensors in dl:
+                tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
+                args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
+                pl_module.differentiable_loss_fn(
+                    pyro_model, pyro_guide, *args, **kwargs
+                )
+                break
+
+
 class PyroSviTrainMixin:
     """
     Mixin class for training Pyro models.
