@@ -945,12 +945,14 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         n_epochs_kl_warmup: Union[int, None] = 400,
         scale_elbo: float = 1.0,
     ):
+        super().__init__()
         self.module = pyro_module
         self._n_obs_training = None
 
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
         if "lr" not in optim_kwargs.keys():
             optim_kwargs.update({"lr": 1e-3})
+        self.optim_kwargs = optim_kwargs
 
         self.loss_fn = pyro.infer.Trace_ELBO() if loss_fn is None else loss_fn
         self.optim = torch.optim.Adam if optim is None else optim
