@@ -54,7 +54,7 @@ class PyroModelGuideWarmup(Callback):
     one minibatch through the Pyro model.
     """
 
-    def __init__(self, dataloader: AnnDataLoader = None) -> None:
+    def __init__(self, dataloader: AnnDataLoader) -> None:
         super().__init__()
         self.dataloader = dataloader
 
@@ -68,10 +68,7 @@ class PyroModelGuideWarmup(Callback):
             # warmup guide for JIT
             pyro_guide = pl_module.module.guide
             pyro_model = pl_module.module.model
-            if self.dataloader is None:
-                dl = trainer.datamodule.train_dataloader()
-            else:
-                dl = self.dataloader
+            dl = self.dataloader
             for tensors in dl:
                 tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
                 args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
