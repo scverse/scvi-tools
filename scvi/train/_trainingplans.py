@@ -965,7 +965,9 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
             self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
         self.scale_elbo = scale_elbo
         self.scale_fn = (
-            lambda obj: pyro.poutine.scale(obj) if self.scale_elbo != 1 else obj
+            lambda obj: pyro.poutine.scale(obj, self.scale_elbo)
+            if self.scale_elbo != 1
+            else obj
         )
         self.differentiable_loss_fn = self.loss_fn.differentiable_loss
 
