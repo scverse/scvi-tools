@@ -75,13 +75,6 @@ class PyroModelGuideWarmup(Callback):
             for tensors in dl:
                 tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
                 args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
-                # pyro_guide(*args, **kwargs)
-                # # run the guide and trace its execution
-                # guide_trace = poutine.trace(pyro_guide).get_trace(*args, **kwargs)
-                # # run the model and replay it against the samples from the guide
-                # _ = poutine.trace(
-                #     poutine.replay(pyro_model, trace=guide_trace)
-                # ).get_trace(*args, **kwargs)
                 pl_module.differentiable_loss_fn(
                     pyro_model, pyro_guide, *args, **kwargs
                 )
