@@ -930,7 +930,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         self.optim = (
             pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         )
-
+        # We let SVI take care of all optimization
         self.automatic_optimization = False
 
         self.svi = pyro.infer.SVI(
@@ -939,7 +939,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
             optim=self.optim,
             loss=self.loss_fn,
         )
-
+        # See configure_optimizers for what this does
         self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
 
     def training_step(self, batch, batch_idx):
