@@ -410,7 +410,7 @@ def test_pyro_bayesian_save_load(save_path, guide_class, per_cell_weight):
 
     # Test setting `on_load_kwargs`
     mod.module.on_load_kwargs = {"batch_size": 8}
-    mod = BayesianRegressionModel.load(model_save_path, adata=adata)
+    mod = BayesianRegressionModel.load(model_save_path, adata=adata, use_gpu=False)
 
     if issubclass(guide_class, AutoMessenger):
         adata_manager = _create_indices_adata_manager(adata)
