@@ -7,7 +7,7 @@ import pyro.distributions as dist
 import torch
 from anndata import AnnData
 from pyro import clear_param_store
-from pyro.infer.autoguide import AutoNormal, init_to_mean
+from pyro.infer.autoguide import AutoNormal, AutoHierarchicalNormalMessenger, AutoMessenger, init_to_mean
 from pyro.nn import PyroModule, PyroSample
 from torch import nn
 
@@ -113,13 +113,18 @@ class BayesianRegressionPyroModel(PyroModule):
 
 
 class BayesianRegressionModule(PyroBaseModuleClass):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs, guide_class=AutoNormal):
 
         super().__init__()
         self._model = BayesianRegressionPyroModel(**kwargs)
-        self._guide = AutoNormal(
-            self.model, init_loc_fn=init_to_mean, create_plates=self.model.create_plates
-        )
+        if is(guide_class, AutoMessenger):
+            self._guide = guide_class(
+                self.model, init_loc_fn=init_to_mean,
+            )
+        else:
+            self._guide = guide_class(
+                self.model, init_loc_fn=init_to_mean, create_plates=self.model.create_plates
+            )
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 
     @property
@@ -140,6 +145,7 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         self,
         adata: AnnData,
         per_cell_weight=False,
+        guide_class=AutoNormal,
     ):
         # in case any other model was created before that shares the same parameter names.
         clear_param_store()
@@ -150,6 +156,7 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
             in_features=adata.shape[1],
             out_features=1,
             per_cell_weight=per_cell_weight,
+            guide_class=guide_class,
         )
         self._model_summary_string = "BayesianRegressionModel"
         self.init_params_ = self._get_init_params(locals())
@@ -189,13 +196,24 @@ def _create_indices_adata_manager(adata: AnnData) -> AnnDataManager:
     return adata_manager
 
 
-def test_pyro_bayesian_regression_low_level():
+@pytest.mark.parametrize(
+    "guide_class",
+    [
+        AutoNormal,
+        AutoHierarchicalNormalMessenger,
+    ],
+)
+@pytest.mark.parametrize("per_cell_weight", [False, True])
+def test_pyro_bayesian_regression_low_level(guide_class, per_cell_weight):
     use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
     pyro.clear_param_store()
-    model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
+    model = BayesianRegressionModule(
+        in_features=adata.shape[1], out_features=1, 
+        guide_class=guide_class, per_cell_weight=per_cell_weight,
+    )
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
@@ -215,13 +233,22 @@ def test_pyro_bayesian_regression_low_level():
     ]
 
 
-def test_pyro_bayesian_regression(save_path):
+@pytest.mark.parametrize(
+    "guide_class",
+    [
+        AutoNormal,
+        AutoHierarchicalNormalMessenger,
+    ],
+)
+def test_pyro_bayesian_regression(save_path, guide_class):
     use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
     pyro.clear_param_store()
-    model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
+    model = BayesianRegressionModule(
+        in_features=adata.shape[1], out_features=1, guide_class=guide_class
+    )
     plan = PyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
@@ -399,11 +426,18 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
     assert len(samples["posterior_samples"]["sigma"]) == 10
 
 
-def test_pyro_bayesian_train_sample_mixin_with_local():
+@pytest.mark.parametrize(
+    "guide_class",
+    [
+        AutoNormal,
+        AutoHierarchicalNormalMessenger,
+    ],
+)
+def test_pyro_bayesian_train_sample_mixin_with_local(guide_class):
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     BayesianRegressionModel.setup_anndata(adata)
-    mod = BayesianRegressionModel(adata, per_cell_weight=True)
+    mod = BayesianRegressionModel(adata, per_cell_weight=True, guide_class=guide_class)
     mod.train(
         max_epochs=2,
         batch_size=128,
