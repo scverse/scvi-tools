@@ -7,7 +7,12 @@ import pyro.distributions as dist
 import torch
 from anndata import AnnData
 from pyro import clear_param_store
-from pyro.infer.autoguide import AutoNormal, AutoHierarchicalNormalMessenger, AutoMessenger, init_to_mean
+from pyro.infer.autoguide import (
+    AutoHierarchicalNormalMessenger,
+    AutoMessenger,
+    AutoNormal,
+    init_to_mean,
+)
 from pyro.nn import PyroModule, PyroSample
 from torch import nn
 
@@ -211,7 +216,7 @@ def test_pyro_bayesian_regression_low_level(guide_class, per_cell_weight):
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
     pyro.clear_param_store()
     model = BayesianRegressionModule(
-        in_features=adata.shape[1], out_features=1, 
+        in_features=adata.shape[1], out_features=1,
         guide_class=guide_class, per_cell_weight=per_cell_weight,
     )
     plan = LowLevelPyroTrainingPlan(model)
