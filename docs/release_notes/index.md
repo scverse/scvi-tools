@@ -6,7 +6,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 ## Version 0.20
 
 ```{toctree}
-:maxdepth:2
+:maxdepth: 2
 
 v0.20.0
 ```
