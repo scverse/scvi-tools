@@ -29,6 +29,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",  # needs to be after napoleon
+    "sphinx.ext.extlinks",
     "sphinx.ext.autosummary",
     "sphinxcontrib.bibtex",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
@@ -275,3 +276,11 @@ hoverxref_intersphinx = [
 # use proxied API endpoint on rtd to avoid CORS issues
 if os.environ.get("READTHEDOCS"):
     hoverxref_api_host = "/_"
+
+
+# extlinks config
+extlinks = {
+    "issue": ("https://github.com/scverse/scvi-tools/issues/%s", "issue%s"),
+    "pr": ("https://github.com/scverse/scvi-tools/pull/%s", "pr%s"),
+    "ghuser": ("https://github.com/%s", "@%s"),
+}
