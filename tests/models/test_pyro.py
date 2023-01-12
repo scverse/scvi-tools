@@ -119,9 +119,9 @@ class BayesianRegressionPyroModel(PyroModule):
 
 
 class BayesianRegressionModule(PyroBaseModuleClass):
-    def __init__(self, guide_class=AutoNormal, **kwargs):
+    def __init__(self, guide_class=AutoNormal, on_load_kwargs=None, **kwargs):
 
-        super().__init__()
+        super().__init__(on_load_kwargs=on_load_kwargs)
         self._model = BayesianRegressionPyroModel(**kwargs)
         if issubclass(guide_class, AutoMessenger):
             self._guide = guide_class(
@@ -166,6 +166,9 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
             out_features=1,
             per_cell_weight=per_cell_weight,
             guide_class=guide_class,
+            on_load_kwargs={
+                "train_size": 1.0 if per_cell_weight else 0.9,
+            },
         )
         self._model_summary_string = "BayesianRegressionModel"
         self.init_params_ = self._get_init_params(locals())
@@ -355,33 +358,75 @@ def test_pyro_bayesian_regression_jit():
         }
 
 
-def test_pyro_bayesian_save_load(save_path):
+@pytest.mark.parametrize(
+    "guide_class",
+    [
+        AutoNormal,
+        AutoHierarchicalNormalMessenger,
+    ],
+)
+@pytest.mark.parametrize("per_cell_weight", [False, True])
+def test_pyro_bayesian_save_load(save_path, guide_class, per_cell_weight):
     use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     BayesianRegressionModel.setup_anndata(adata)
-    mod = BayesianRegressionModel(adata)
+    mod = BayesianRegressionModel(
+        adata, guide_class=guide_class, per_cell_weight=per_cell_weight
+    )
+    train_size = 0.9
+    if per_cell_weight:
+        train_size = 1.0
     mod.train(
         max_epochs=2,
         batch_size=128,
+        train_size=train_size,
         lr=0.01,
         use_gpu=use_gpu,
     )
 
     mod.module.cpu()
-    quants = mod.module.guide.quantiles([0.5])
-    sigma_median = quants["sigma"][0].detach().cpu().numpy()
-    linear_median = quants["linear.weight"][0].detach().cpu().numpy()
+    if issubclass(guide_class, AutoMessenger):
+        adata_manager = _create_indices_adata_manager(adata)
+        train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
+        for tensor_dict in train_dl:
+            args, kwargs = mod.module._get_fn_args_from_batch(tensor_dict)
+            quants = mod.module.guide.median(*args, **kwargs)
+            break
+        sigma_median = quants["sigma"]
+        linear_median = quants["linear.weight"]
+        file_suff = "messenger"
+    else:
+        quants = mod.module.guide.quantiles([0.5])
+        sigma_median = quants["sigma"][0]
+        linear_median = quants["linear.weight"][0]
+        file_suff = ""
+    sigma_median = sigma_median.detach().cpu().numpy()
+    linear_median = linear_median.detach().cpu().numpy()
 
-    model_save_path = os.path.join(save_path, "test_pyro_bayesian/")
+    model_save_path = os.path.join(
+        save_path, f"test_pyro_bayesian_{per_cell_weight}_{file_suff}/"
+    )
     mod.save(model_save_path)
 
     # Test setting `on_load_kwargs`
     mod.module.on_load_kwargs = {"batch_size": 8}
     mod = BayesianRegressionModel.load(model_save_path, adata=adata)
 
-    quants = mod.module.guide.quantiles([0.5])
-    sigma_median_new = quants["sigma"][0].detach().cpu().numpy()
-    linear_median_new = quants["linear.weight"][0].detach().cpu().numpy()
+    if issubclass(guide_class, AutoMessenger):
+        adata_manager = _create_indices_adata_manager(adata)
+        train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
+        for tensor_dict in train_dl:
+            args, kwargs = mod.module._get_fn_args_from_batch(tensor_dict)
+            quants = mod.module.guide.median(*args, **kwargs)
+            break
+        sigma_median_new = quants["sigma"]
+        linear_median_new = quants["linear.weight"]
+    else:
+        quants = mod.module.guide.quantiles([0.5])
+        sigma_median_new = quants["sigma"][0]
+        linear_median_new = quants["linear.weight"][0]
+    sigma_median_new = sigma_median_new.detach().cpu().numpy()
+    linear_median_new = linear_median_new.detach().cpu().numpy()
 
     np.testing.assert_array_equal(sigma_median_new, sigma_median)
     np.testing.assert_array_equal(linear_median_new, linear_median)
