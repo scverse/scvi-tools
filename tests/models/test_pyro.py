@@ -4,6 +4,7 @@ from typing import Optional
 import numpy as np
 import pyro
 import pyro.distributions as dist
+import pytest
 import torch
 from anndata import AnnData
 from pyro import clear_param_store
@@ -118,17 +119,20 @@ class BayesianRegressionPyroModel(PyroModule):
 
 
 class BayesianRegressionModule(PyroBaseModuleClass):
-    def __init__(self, **kwargs, guide_class=AutoNormal):
+    def __init__(self, guide_class=AutoNormal, **kwargs):
 
         super().__init__()
         self._model = BayesianRegressionPyroModel(**kwargs)
-        if is(guide_class, AutoMessenger):
+        if issubclass(guide_class, AutoMessenger):
             self._guide = guide_class(
-                self.model, init_loc_fn=init_to_mean,
+                self.model,
+                init_loc_fn=init_to_mean,
             )
         else:
             self._guide = guide_class(
-                self.model, init_loc_fn=init_to_mean, create_plates=self.model.create_plates
+                self.model,
+                init_loc_fn=init_to_mean,
+                create_plates=self.model.create_plates,
             )
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 
@@ -216,8 +220,10 @@ def test_pyro_bayesian_regression_low_level(guide_class, per_cell_weight):
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
     pyro.clear_param_store()
     model = BayesianRegressionModule(
-        in_features=adata.shape[1], out_features=1,
-        guide_class=guide_class, per_cell_weight=per_cell_weight,
+        in_features=adata.shape[1],
+        out_features=1,
+        guide_class=guide_class,
+        per_cell_weight=per_cell_weight,
     )
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
