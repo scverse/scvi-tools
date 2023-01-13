@@ -280,7 +280,7 @@ if os.environ.get("READTHEDOCS"):
 
 # extlinks config
 extlinks = {
-    "issue": ("https://github.com/scverse/scvi-tools/issues/%s", "issue%s"),
-    "pr": ("https://github.com/scverse/scvi-tools/pull/%s", "pr%s"),
+    "issue": ("https://github.com/scverse/scvi-tools/issues/%s", "#%s"),
+    "pr": ("https://github.com/scverse/scvi-tools/pull/%s", "#%s"),
     "ghuser": ("https://github.com/%s", "@%s"),
 }

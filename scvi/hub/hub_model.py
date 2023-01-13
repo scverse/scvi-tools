@@ -39,6 +39,13 @@ class HubModel:
         model/data and is displayed on huggingface. This can be either an instance of
         :class:`~huggingface_hub.ModelCard` or an instance of :class:`~scvi.hub.HubModelCardHelper` that wraps
         the model card or a path to a file on disk where the model card can be read from.
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/scvi_hub_intro_and_download`
+    2. :doc:`/tutorials/notebooks/scvi_hub_upload_and_large_files`
     """
 
     def __init__(
