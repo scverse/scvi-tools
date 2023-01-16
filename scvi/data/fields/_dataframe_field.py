@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 import rich
@@ -15,7 +15,7 @@ from ._mudata import MuDataWrapper
 logger = logging.getLogger(__name__)
 
 
-class BaseObsField(BaseAnnDataField):
+class BaseDataFrameField(BaseAnnDataField):
     """
     An abstract AnnDataField for .obs attributes in the AnnData data structure.
 
@@ -23,25 +23,36 @@ class BaseObsField(BaseAnnDataField):
     ----------
     registry_key
         Key to register field under in data registry.
-    obs_key
-        Key to access the field in the AnnData obs mapping. If None, defaults to `registry_key`.
+    attr_key
+        Key to access the field in the AnnData obs or var mapping. If None, defaults to `registry_key`.
+    field_type
+        Type of field. Can be either "obs" or "var".
     required
-        If False, allows for `obs_key is None` and marks the field as `is_empty`.
+        If False, allows for `attr_key is None` and marks the field as `is_empty`.
     """
 
-    _attr_name = _constants._ADATA_ATTRS.OBS
-
     def __init__(
-        self, registry_key: str, obs_key: Optional[str], required: bool = True
+        self,
+        registry_key: str,
+        attr_key: Optional[str],
+        field_type: Literal["obs", "var"] = None,
+        required: bool = True,
     ) -> None:
         super().__init__()
-        if required and obs_key is None:
+        if required and attr_key is None:
             raise ValueError(
-                "`obs_key` cannot be `None` if `required=True`. Please provide an `obs_key`."
+                "`attr_key` cannot be `None` if `required=True`. Please provide an `attr_key`."
             )
+        if field_type == "obs":
+            self._attr_name = _constants._ADATA_ATTRS.OBS
+        elif field_type == "var":
+            self._attr_name = _constants._ADATA_ATTRS.VAR
+        else:
+            raise ValueError("`field_type` must be either 'obs' or 'var'.")
+
         self._registry_key = registry_key
-        self._attr_key = obs_key
-        self._is_empty = obs_key is None
+        self._attr_key = attr_key
+        self._is_empty = attr_key is None
 
     @property
     def registry_key(self) -> str:  # noqa: D102
@@ -60,23 +71,23 @@ class BaseObsField(BaseAnnDataField):
         return self._is_empty
 
 
-class NumericalObsField(BaseObsField):
+class NumericalDataFrameField(BaseDataFrameField):
     """
-    An AnnDataField for numerical .obs attributes in the AnnData data structure.
+    An AnnDataField for numerical .obs or .var attributes in the AnnData data structure.
 
     Parameters
     ----------
     registry_key
         Key to register field under in data registry.
-    obs_key
-        Key to access the field in the AnnData obs mapping. If None, defaults to `registry_key`.
+    attr_key
+        Key to access the field in the AnnData obs or var mapping. If None, defaults to `registry_key`.
     """
 
     def validate_field(self, adata: AnnData) -> None:
         """Validate field."""
         super().validate_field(adata)
-        if self.attr_key not in adata.obs:
-            raise KeyError(f"{self.attr_key} not found in adata.obs.")
+        if self.attr_key not in getattr(adata, self.attr_name):
+            raise KeyError(f"{self.attr_key} not found in adata.{self.attr_name}.")
 
     def register_field(self, adata: AnnData) -> dict:
         """Register field."""
@@ -98,35 +109,67 @@ class NumericalObsField(BaseObsField):
         return None
 
 
+class NumericalObsField(NumericalDataFrameField):
+    """An AnnDataField for numerical .obs attributes in the AnnData data structure."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, field_type="obs", **kwargs)
+
+
+class NumericalVarField(NumericalDataFrameField):
+    """An AnnDataField for numerical .var attributes in the AnnData data structure."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, field_type="var", **kwargs)
+
+
 MuDataNumericalObsField = MuDataWrapper(NumericalObsField)
+MuDataNumericalVarField = MuDataWrapper(NumericalVarField)
 
 
-class CategoricalObsField(BaseObsField):
+class CategoricalDataFrameField(BaseDataFrameField):
     """
-    An AnnDataField for categorical .obs attributes in the AnnData data structure.
+    An AnnDataField for categorical .obs or .var attributes in the AnnData data structure.
 
     Parameters
     ----------
     registry_key
         Key to register field under in data registry.
-    obs_key
-        Key to access the field in the AnnData obs mapping. If None, defaults to `registry_key`.
+    attr_key
+        Key to access the field in the AnnData obs or var mapping. If None, defaults to `registry_key`.
+    field_type
+        Type of field. Can be either "obs" or "var".
     """
 
     CATEGORICAL_MAPPING_KEY = "categorical_mapping"
     ORIGINAL_ATTR_KEY = "original_key"
 
-    def __init__(self, registry_key: str, obs_key: Optional[str]) -> None:
-        self.is_default = obs_key is None
-        self._original_attr_key = obs_key or registry_key
-        super().__init__(registry_key, f"_scvi_{registry_key}")
+    def __init__(
+        self,
+        registry_key: str,
+        attr_key: Optional[str],
+        field_type: Literal["obs", "var"] = None,
+    ) -> None:
+        self.is_default = attr_key is None
+        self._original_attr_key = attr_key or registry_key
+
+        super().__init__(
+            registry_key,
+            f"_scvi_{registry_key}",
+            field_type=field_type,
+        )
 
         self.count_stat_key = f"n_{self.registry_key}"
 
     def _setup_default_attr(self, adata: AnnData) -> None:
         """Setup default attr."""
         self._original_attr_key = self.attr_key
-        adata.obs[self.attr_key] = np.zeros(adata.shape[0], dtype=np.int64)
+        length = (
+            adata.shape[0]
+            if self._attr_name == _constants._ADATA_ATTRS.OBS
+            else adata.shape[1]
+        )
+        getattr(adata, self.attr_name)[self.attr_key] = np.zeros(length, dtype=np.int64)
 
     def _get_original_column(self, adata: AnnData) -> np.ndarray:
         """Get original column from adata."""
@@ -135,8 +178,10 @@ class CategoricalObsField(BaseObsField):
     def validate_field(self, adata: AnnData) -> None:
         """Validate field."""
         super().validate_field(adata)
-        if self._original_attr_key not in adata.obs:
-            raise KeyError(f"{self._original_attr_key} not found in adata.obs.")
+        if self._original_attr_key not in getattr(adata, self.attr_name):
+            raise KeyError(
+                f"{self._original_attr_key} not found in adata.{self.attr_name}."
+            )
 
     def register_field(self, adata: AnnData) -> dict:
         """Register field."""
@@ -145,7 +190,7 @@ class CategoricalObsField(BaseObsField):
 
         super().register_field(adata)
         categorical_mapping = _make_column_categorical(
-            adata.obs,
+            getattr(adata, self.attr_name),
             self._original_attr_key,
             self.attr_key,
         )
@@ -183,7 +228,7 @@ class CategoricalObsField(BaseObsField):
                     )
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
         new_mapping = _make_column_categorical(
-            adata_target.obs,
+            getattr(adata_target, self.attr_name),
             self._original_attr_key,
             self.attr_key,
             categorical_dtype=cat_dtype,
@@ -223,10 +268,25 @@ class CategoricalObsField(BaseObsField):
         )
         for i, cat in enumerate(mapping):
             if i == 0:
-                t.add_row(f"adata.obs['{source_key}']", str(cat), str(i))
+                t.add_row(f"adata.{self.attr_name}['{source_key}']", str(cat), str(i))
             else:
                 t.add_row("", str(cat), str(i))
         return t
 
 
+class CategoricalObsField(CategoricalDataFrameField):
+    """An AnnDataField for categorical .obs attributes in the AnnData data structure."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, field_type="obs", **kwargs)
+
+
+class CategoricalVarField(CategoricalDataFrameField):
+    """An AnnDataField for categorical .var attributes in the AnnData data structure."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, field_type="var", **kwargs)
+
+
 MuDataCategoricalObsField = MuDataWrapper(CategoricalObsField)
+MuDataCategoricalVarField = MuDataWrapper(CategoricalVarField)

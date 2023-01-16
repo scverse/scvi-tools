@@ -45,6 +45,7 @@ notebooks/amortized_lda
 
 notebooks/PeakVI
 notebooks/peakvi_in_R
+notebooks/scbasset
 ```
 
 ### Spatial transcriptomics
@@ -70,7 +71,16 @@ notebooks/totalvi_in_R
 notebooks/MultiVI_tutorial
 ```
 
-## Contributed tutorials
+### scvi-hub
+
+```{toctree}
+:maxdepth: 1
+
+notebooks/scvi_hub_intro_and_download.ipynb
+notebooks/scvi_hub_upload_and_large_files.ipynb
+```
+
+### Contributed tutorials
 
 ```{toctree}
 :maxdepth: 1

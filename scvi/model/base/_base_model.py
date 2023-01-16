@@ -509,7 +509,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             if not isinstance(v, AnnData) and not isinstance(v, MuData)
         }
         # not very efficient but is explicit
-        # seperates variable params (**kwargs) from non variable params into two dicts
+        # separates variable params (**kwargs) from non variable params into two dicts
         non_var_params = [p.name for p in parameters if p.kind != p.VAR_KEYWORD]
         non_var_params = {k: v for (k, v) in all_params.items() if k in non_var_params}
         var_params = [p.name for p in parameters if p.kind == p.VAR_KEYWORD]
@@ -737,6 +737,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         summary_string = self._model_summary_string
         summary_string += "\nTraining status: {}".format(
             "Trained" if self.is_trained_ else "Not Trained"
+        )
+        summary_string += "\nLatent model? {}".format(
+            hasattr(self, "latent_data_type") and self.latent_data_type is not None
         )
         rich.print(summary_string)
 

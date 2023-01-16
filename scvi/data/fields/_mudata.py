@@ -5,7 +5,8 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi._types import AnnOrMuData
-from scvi.data.fields import AnnDataField, BaseAnnDataField
+
+from ._base_field import AnnDataField, BaseAnnDataField
 
 
 class BaseMuDataWrapperClass(BaseAnnDataField):

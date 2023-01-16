@@ -55,6 +55,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/peakvi`
      - :cite:p:`Ashuach22`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
+   * - :doc:`/user_guide/models/scbasset`
+     - :cite:p:`Yuan2022`
+     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, imputation
 ```
 
 ## Multimodal analysis

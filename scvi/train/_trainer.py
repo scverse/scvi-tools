@@ -1,13 +1,12 @@
 import sys
 import warnings
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import LightningLoggerBase
 
 from scvi import settings
-from scvi._compat import Literal
 
 from ._callbacks import LoudEarlyStopping
 from ._logger import SimpleLogger
