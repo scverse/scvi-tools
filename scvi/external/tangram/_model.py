@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional, Union
+from typing import Dict, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -10,7 +10,6 @@ from anndata import AnnData
 from jaxlib.xla_extension import Device
 from mudata import MuData
 
-from scvi._compat import Literal
 from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
 from scvi.model.base import BaseModelClass

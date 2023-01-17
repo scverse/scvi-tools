@@ -1,4 +1,4 @@
-from ._latent import scvi_get_latent_adata_from_adata, scvi_get_latent_fields
+from ._latent import get_reduced_adata
 from ._mde import mde
 
-__all__ = ["mde", "scvi_get_latent_adata_from_adata", "scvi_get_latent_fields"]
+__all__ = ["mde", "get_reduced_adata"]

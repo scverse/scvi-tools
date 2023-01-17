@@ -92,6 +92,8 @@ intersphinx_mapping = {
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "ml_collections": ("https://ml-collections.readthedocs.io/en/latest/", None),
     "mudata": ("https://mudata.readthedocs.io/en/latest/", None),
+    "ray": ("https://docs.ray.io/en/latest/", None),
+    "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
 }
 
 

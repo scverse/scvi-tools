@@ -1,14 +1,12 @@
 import logging
 import os
 from pathlib import Path
-from typing import Union
+from typing import Literal, Union
 
-import pytorch_lightning as pl
 import torch
+from lightning_lite import seed_everything
 from rich.console import Console
 from rich.logging import RichHandler
-
-from ._compat import Literal
 
 scvi_logger = logging.getLogger("scvi")
 
@@ -153,7 +151,7 @@ class ScviConfig:
         """Random seed for torch and numpy."""
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        pl.utilities.seed.seed_everything(seed)
+        seed_everything(seed)
         self._seed = seed
 
     @property

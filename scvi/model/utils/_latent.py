@@ -1,64 +1,28 @@
-import numpy as np
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 
-from scvi import REGISTRY_KEYS
 from scvi._types import LatentDataType
-from scvi.data._constants import _ADATA_LATENT_UNS_KEY
-from scvi.data.fields import NumericalObsField, ObsmField, StringUnsField
+from scvi.data._constants import _ADATA_LATENT_UNS_KEY, _SCVI_UUID_KEY
 
 
-def scvi_get_latent_adata_from_adata(
+def get_reduced_adata(
     adata: AnnData,
     mode: LatentDataType,
-    scvi_latent_qzm_key: str,
-    scvi_latent_qzv_key: str,
-    scvi_obs_lib_size_key: str,
-    use_latent_qzm_key: str = "X_latent_qzm",
-    use_latent_qzv_key: str = "X_latent_qzv",
-):
-    """TODO add docstring"""
-    if mode == "dist":
-        adata.obsm[scvi_latent_qzm_key] = adata.obsm[use_latent_qzm_key]
-        adata.obsm[scvi_latent_qzv_key] = adata.obsm[use_latent_qzv_key]
-        adata.obs[scvi_obs_lib_size_key] = np.squeeze(np.asarray(adata.X.sum(axis=1)))
-    else:
-        raise ValueError(f"Unknown latent mode: {mode}")
-    adata.uns[_ADATA_LATENT_UNS_KEY] = mode
-    del adata.raw
+) -> AnnData:
+    """Return a minimal anndata object with the latent representation."""
     all_zeros = csr_matrix(adata.X.shape)
-    adata.X = all_zeros.copy()
-    adata.layers = {layer: all_zeros.copy() for layer in adata.layers}
-
-
-def scvi_get_latent_fields(
-    mode: LatentDataType,
-    scvi_latent_qzm_key: str,
-    scvi_latent_qzv_key: str,
-    scvi_observed_library_key: str,
-):
-    """TODO add docstring"""
-    if mode == "dist":
-        latent_fields = [
-            ObsmField(
-                REGISTRY_KEYS.LATENT_QZM_KEY,
-                scvi_latent_qzm_key,
-            ),
-            ObsmField(
-                REGISTRY_KEYS.LATENT_QZV_KEY,
-                scvi_latent_qzv_key,
-            ),
-            NumericalObsField(
-                REGISTRY_KEYS.OBSERVED_LIB_SIZE,
-                scvi_observed_library_key,
-            ),
-        ]
-    else:
-        raise ValueError(f"Unknown latent mode: {mode}")
-    latent_fields.append(
-        StringUnsField(
-            REGISTRY_KEYS.LATENT_MODE_KEY,
-            _ADATA_LATENT_UNS_KEY,
-        ),
+    layers = {layer: all_zeros.copy() for layer in adata.layers}
+    bdata = AnnData(
+        X=all_zeros,
+        layers=layers,
+        uns=adata.uns,
+        obs=adata.obs,
+        var=adata.var,
+        varm=adata.varm,
+        obsm=adata.obsm,
+        obsp=adata.obsp,
     )
-    return latent_fields
+    # Remove scvi uuid key to make bdata fresh w.r.t. the model's manager
+    del bdata.uns[_SCVI_UUID_KEY]
+    bdata.uns[_ADATA_LATENT_UNS_KEY] = mode
+    return bdata
