@@ -9,9 +9,10 @@ from scvi.model import SCANVI, SCVI
 
 _SCVI_LATENT_MODE = "posterior_parameters"
 _SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
+_SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 
-def prep_model(layer=None):
+def prep_model(cls=SCVI, layer=None):
     adata = synthetic_iid()
     adata_counts = adata.X
     adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
@@ -23,15 +24,24 @@ def prep_model(layer=None):
         5, 0.3, size=(adata.shape[1], 3)
     )
     adata.layers["my_layer"] = np.ones_like(adata.X)
-    SCANVI if layer is not None else SCVI
-    SCVI.setup_anndata(
-        adata,
-        layer=layer,
-        batch_key="batch",
-        labels_key="labels",
-        size_factor_key="size_factor",
-    )
-    model = SCVI(adata, n_latent=5)
+    if cls == SCANVI:
+        cls.setup_anndata(
+            adata,
+            layer=layer,
+            unlabeled_category="unknown",
+            batch_key="batch",
+            labels_key="labels",
+            size_factor_key="size_factor",
+        )
+    else:
+        cls.setup_anndata(
+            adata,
+            layer=layer,
+            batch_key="batch",
+            labels_key="labels",
+            size_factor_key="size_factor",
+        )
+    model = cls(adata, n_latent=5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     adata_lib_size = np.squeeze(np.asarray(adata_counts.sum(axis=1)))
@@ -43,9 +53,12 @@ def prep_model(layer=None):
 
 
 def run_test_scvi_latent_mode(
-    n_samples: int = 1, give_mean: bool = False, layer: str = None
+    cls=SCVI,
+    n_samples: int = 1,
+    give_mean: bool = False,
+    layer: str = None,
 ):
-    model, adata, adata_lib_size = prep_model(layer)
+    model, adata, adata_lib_size = prep_model(cls, layer)
 
     scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
@@ -64,7 +77,8 @@ def run_test_scvi_latent_mode(
 
     assert model_orig.adata.layers.keys() == model.adata.layers.keys()
     model_orig_obs_df = model_orig.adata.obs
-    model_orig_obs_df[_SCVI_OBSERVED_LIB_SIZE] = adata_lib_size
+    obs_keys = _SCANVI_OBSERVED_LIB_SIZE if cls == SCANVI else _SCVI_OBSERVED_LIB_SIZE
+    model_orig_obs_df[obs_keys] = adata_lib_size
     assert model.adata.obs.equals(model_orig_obs_df)
     assert model.adata.var_names.equals(model_orig.adata.var_names)
     assert model.adata.var.equals(model_orig.adata.var)
@@ -108,18 +122,20 @@ def test_scvi_latent_mode_one_sample_with_layer():
     run_test_scvi_latent_mode(layer="data_layer")
 
 
+def test_scvi_latent_mode_n_samples():
+    run_test_scvi_latent_mode(n_samples=10, give_mean=True)
+
+
 def test_scanvi_latent_mode_one_sample():
-    # TODO
-    pass
+    run_test_scvi_latent_mode(SCANVI)
 
 
 def test_scanvi_latent_mode_one_sample_with_layer():
-    # TODO
-    pass
+    run_test_scvi_latent_mode(SCANVI, layer="data_layer")
 
 
-def test_scvi_latent_mode_n_samples():
-    run_test_scvi_latent_mode(n_samples=10, give_mean=True)
+def test_scanvi_latent_mode_n_samples():
+    run_test_scvi_latent_mode(SCANVI, n_samples=10, give_mean=True)
 
 
 def test_scvi_latent_mode_get_normalized_expression():
