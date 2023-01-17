@@ -21,6 +21,36 @@ def _round(x):
     return int(np.round(x))
 
 
+class _Linear(nn.Linear):
+    """Linear layer with Keras default initalizations."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def reset_parameters(self):
+        """Reset parameters."""
+        torch.nn.init.kaiming_normal_(self.weight)
+        if self.bias is not None:
+            torch.nn.init.zeros_(self.bias)
+
+
+class _GELU(nn.GELU):
+    """GELU unit approximated by a sigmoid, same as original."""
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: torch.Tensor):
+        return torch.nn.functional.sigmoid(1.702 * x) * x
+
+
+class _BatchNorm(nn.BatchNorm1d):
+    """Batch normalization with Keras default initializations."""
+
+    def __init__(self, *args, eps: int = 1e-3, **kwargs):
+        super().__init__(*args, eps=eps, **kwargs)
+
+
 class _ConvBlock(nn.Module):
     def __init__(
         self,
@@ -40,13 +70,13 @@ class _ConvBlock(nn.Module):
             padding="same",
             bias=False,
         )
-        self.batch_norm = nn.BatchNorm1d(out_channels) if batch_norm else nn.Identity()
+        self.batch_norm = _BatchNorm(out_channels) if batch_norm else nn.Identity()
         self.pool = (
             nn.MaxPool1d(pool_size, padding=(pool_size - 1) // 2, ceil_mode=True)
             if pool_size is not None
             else nn.Identity()
         )
-        self.activation_fn = activation_fn if activation_fn is not None else nn.GELU()
+        self.activation_fn = activation_fn if activation_fn is not None else _GELU()
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor):
@@ -68,9 +98,10 @@ class _DenseBlock(nn.Module):
         activation_fn: Optional[Callable] = None,
     ):
         super().__init__()
-        self.dense = nn.Linear(in_features, out_features, bias=not batch_norm)
-        self.batch_norm = nn.BatchNorm1d(out_features) if batch_norm else nn.Identity()
-        self.activation_fn = activation_fn if activation_fn is not None else nn.GELU()
+        self.dense = _Linear(in_features, out_features, bias=not batch_norm)
+        # batch norm with Keras default epsilon
+        self.batch_norm = _BatchNorm(out_features) if batch_norm else nn.Identity()
+        self.activation_fn = activation_fn if activation_fn is not None else _GELU()
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor):
