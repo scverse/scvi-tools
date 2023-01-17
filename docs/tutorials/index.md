@@ -152,4 +152,4 @@ notebooks/model_user_guide
 [ecosystem]: https://scvi-tools.org/ecosystem
 [forum]: https://discourse.scvi-tools.org/
 [zulip]: https://scverse.zulipchat.com/
-[template]: https://github.com/YosefLab/scvi-tools-skeleton
+[template]: https://github.com/scverse/simple-scvi
