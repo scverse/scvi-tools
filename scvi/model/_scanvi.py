@@ -493,6 +493,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseLatentModeModelClass):
     def to_latent_mode(
         self,
         mode: LatentDataType = _SCANVI_LATENT_MODE,
+        layer: Optional[str] = None,
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ):
@@ -507,6 +508,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseLatentModeModelClass):
         ----------
         mode
             The latent data type used
+        layer
+            Layer in adata where the counts reside or None if not applicable
         use_latent_qzm_key
             Key to use in `adata.obsm` where the latent qzm params are stored
         use_latent_qzv_key
@@ -523,14 +526,16 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseLatentModeModelClass):
             raise ValueError(
                 "Latent mode not supported when use_observed_lib_size is False"
             )
-        self.adata = get_reduced_adata(self.adata, mode)
+        reduced_adata = get_reduced_adata(self.adata, mode)
         if mode == _SCANVI_LATENT_MODE:
-            self.adata.obsm[_SCANVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-            self.adata.obsm[_SCANVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-            self.adata.obs[_SCANVI_OBSERVED_LIB_SIZE] = np.squeeze(
-                np.asarray(self.adata.X.sum(axis=1))
+            reduced_adata.obsm[_SCANVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+            reduced_adata.obsm[_SCANVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+            counts = self.adata.X if layer is None else self.adata.layers[layer]
+            reduced_adata.obs[_SCANVI_OBSERVED_LIB_SIZE] = np.squeeze(
+                np.asarray(counts.sum(axis=1))
             )
         else:
             raise ValueError(f"Unknown latent mode: {mode}")
+        self.adata = reduced_adata
         self.adata_manager.register_new_fields(self._get_latent_fields(mode))
         self.module.latent_data_type = mode
