@@ -23,6 +23,7 @@ from ._datasets import (
 )
 from ._manager import AnnDataManager, AnnDataManagerValidationCheck
 from ._preprocessing import (
+    add_dna_sequence,
     organize_cite_seq_10x,
     organize_multiome_anndatas,
     poisson_gene_selection,
@@ -60,4 +61,5 @@ __all__ = [
     "heart_cell_atlas_subsampled",
     "organize_multiome_anndatas",
     "pbmc_seurat_v4_cite_seq",
+    "add_dna_sequence",
 ]

@@ -412,7 +412,7 @@ class AnnDataManager:
         if as_markdown:
             console = Console(file=StringIO(), force_jupyter=False)
             console.print(t)
-            return console.file.getvalue()
+            return console.file.getvalue().strip()
 
         return t
 
@@ -457,7 +457,7 @@ class AnnDataManager:
         if as_markdown:
             console = Console(file=StringIO(), force_jupyter=False)
             console.print(t)
-            return console.file.getvalue()
+            return console.file.getvalue().strip()
 
         return t
 
