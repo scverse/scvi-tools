@@ -20,7 +20,7 @@ def test_tuner_manager_basic_validation():
     manager = scvi.autotune.TunerManager(model_cls)
 
     # invalid params should raise an exception
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         manager._validate_search_space({"not_a_param": None}, False, [])
 
     # search space does not change with `use_defaults == False
@@ -32,5 +32,5 @@ def test_tuner_manager_basic_validation():
     assert "n_hidden" not in search_space
 
     # invalid metrics should raise an exception
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         manager._validate_metrics("not_a_metric", [])
