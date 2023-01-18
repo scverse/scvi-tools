@@ -1,11 +1,11 @@
-from typing import Callable, Iterable, Optional, Dict
+from typing import Callable, Iterable, Optional
 
 import numpy as np
 import torch
+import torch.nn.functional as F
+from torch import nn as nn
 from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
-from torch import nn as nn
-import torch.nn.functional as F
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal

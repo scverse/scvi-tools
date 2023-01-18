@@ -1,22 +1,20 @@
 import logging
+import warnings
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import Iterable, List, Optional, Sequence, Union
 
-import torch
 import numpy as np
 import pandas as pd
-from torch.distributions import Poisson
-
+import torch
 from anndata import AnnData
 from scipy.sparse import csr_matrix
+from torch.distributions import Poisson
 
 from scvi import REGISTRY_KEYS
 from scvi._compat import Literal
-from scvi._decorators import classproperty
 from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import _ADATA_LATENT_UNS_KEY, _SCVI_UUID_KEY
-from scvi.data._utils import _get_latent_adata_type
 from scvi.data.fields import (
     BaseAnnDataField,
     CategoricalJointObsField,
@@ -28,17 +26,14 @@ from scvi.data.fields import (
     StringUnsField,
 )
 from scvi.model._utils import (
-    _init_library_size,
     _get_batch_code_from_category,
+    _init_library_size,
     scrna_raw_counts_properties,
 )
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import POISSONVAE
-from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
-from scvi.train._callbacks import SaveBestState
 
-import warnings
 from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
 from .base._utils import _de_core
 
