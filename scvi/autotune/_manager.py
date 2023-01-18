@@ -40,6 +40,9 @@ class TuneAnalysis:
     search_space: dict
     results: Any
 
+    def _dummmy_method(self):
+        pass
+
 
 class TunerManager:
     """
