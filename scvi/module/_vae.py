@@ -1,5 +1,5 @@
 """Main module."""
-from typing import Any, Callable, Iterable, Literal, Optional, Tuple
+from typing import Callable, Iterable, Literal, Optional
 
 import numpy as np
 import torch
@@ -9,7 +9,6 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._decorators import classproperty
 from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseLatentModeModuleClass, LossOutput, auto_move_data
@@ -213,10 +212,6 @@ class VAE(BaseLatentModeModuleClass):
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
-
-    @classproperty
-    def _tunables(cls) -> Tuple[Any]:
-        return (cls.__init__,)
 
     def _get_inference_input(
         self,

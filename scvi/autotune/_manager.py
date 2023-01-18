@@ -8,7 +8,6 @@ import rich
 
 try:
     import ray
-    from docstring_parser import parse
     from ray import air, tune
     from ray.tune.integration.pytorch_lightning import TuneReportCallback
 except ImportError:
@@ -33,21 +32,21 @@ class TunerManager:
     Parameters
     ----------
     model_cls
-        :class:`~scvi.model.base.BaseModelClass` on which to tune hyperparameters. See
-        :class:`~scvi.autotune.ModelTuner` forsupported model classes.
+        A model class on which to tune hyperparameters. Must have a class property
+        `_tunables` that defines tunable elements.
     """
 
     def __init__(self, model_cls: BaseModelClass):
-        self._model_cls: BaseModelClass = self._validate_model_cls(model_cls)
-        self._defaults: dict = self._get_defaults(self._model_cls)
-        self._registry: dict = self._get_registry(self._model_cls)
+        self._model_cls = self._validate_model_cls(model_cls)
+        self._defaults = self._get_defaults(self._model_cls)
+        self._registry = self._get_registry(self._model_cls)
 
     def _validate_model_cls(self, model_cls: BaseModelClass) -> BaseModelClass:
         """Checks if the model class is supported."""
         if not hasattr(model_cls, "_tunables"):
             raise NotImplementedError(
-                f"{model_cls} is currently unsupported. Please see ModelTuner for a "
-                "list of supported model classes."
+                f"{model_cls} is unsupported. Please implement a `_tunables` class "
+                "property to define tunable hyperparameters."
             )
         return model_cls
 
@@ -60,7 +59,6 @@ class TunerManager:
             )
         return DEFAULTS.get(model_cls, {})
 
-    @dependencies("docstring_parser")
     def _get_registry(self, model_cls: BaseModelClass) -> dict:
         """
         Returns the model class's registry of tunable hyperparameters and metrics.
@@ -87,22 +85,9 @@ class TunerManager:
             for tunable_type, cls_list in TUNABLE_TYPES.items():
                 if any([issubclass(cls, c) for c in cls_list]):
                     return tunable_type
-            return "unknown"
+            return None
 
         def _parse_func_params(func: Callable, parent: Any, tunable_type: str) -> dict:
-            # parse function docstring for parameter descriptions
-            docstring = None
-            if func.__name__ == "__init__":
-                # __init__ func docstrings are the class's docstring
-                docstring = parse(parent.__doc__)
-            elif hasattr(func, "__doc__"):
-                docstring = parse(func.__doc__)
-
-            descriptions = {}
-            if docstring:
-                for param in docstring.params:
-                    descriptions[param.arg_name] = param.description
-
             # get function kwargs that are tunable
             tunables = {}
             for param, metadata in inspect.signature(func).parameters.items():
@@ -125,7 +110,6 @@ class TunerManager:
                     "default_value": default_val,
                     "source": parent.__name__,
                     "annotation": annotation,
-                    "description": descriptions.get(param, None),
                 }
             return tunables
 
@@ -515,16 +499,15 @@ class TunerManager:
             Whether to show available resources.
         """
         console = rich.console.Console(force_jupyter=in_notebook())
-        console.print(f"Registry for {self._model_cls.__name__}")
+        console.print(f"ModelTuner registry for {self._model_cls.__name__}")
 
         tunables_table = self._add_columns(
             rich.table.Table(title="Tunable hyperparameters"),
-            ["Hyperparameter", "Tunable type", "Default value", "Source"],
+            ["Hyperparameter", "Default value", "Source"],
         )
         for param, metadata in self._registry["tunables"].items():
             tunables_table.add_row(
                 str(param),
-                str(metadata["tunable_type"]),
                 str(metadata["default_value"]),
                 str(metadata["source"]),
             )
@@ -533,16 +516,13 @@ class TunerManager:
         if show_additional_info:
             additional_info_table = self._add_columns(
                 rich.table.Table(title="Additional information", width=100),
-                ["Hyperparameter", "Annotation", "Description"],
+                ["Hyperparameter", "Annotation", "Tunable type"],
             )
             for param, metadata in self._registry["tunables"].items():
-                desc = metadata["description"]
-                if desc:
-                    desc = desc.replace("\n", " ")
                 additional_info_table.add_row(
                     str(param),
                     str(metadata["annotation"]),
-                    desc,
+                    str(metadata["tunable_type"]),
                 )
             console.print(additional_info_table)
 

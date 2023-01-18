@@ -15,7 +15,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import REGISTRY_KEYS
 from scvi._decorators import classproperty
-from scvi.autotune._types import Tunable
+from scvi.autotune._types import Tunable, TunableMixin
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -78,7 +78,7 @@ def _compute_kl_weight(
     return max_kl_weight
 
 
-class TrainingPlan(pl.LightningModule):
+class TrainingPlan(pl.LightningModule, TunableMixin):
     """
     Lightning module task to train scvi-tools modules.
 
@@ -197,10 +197,6 @@ class TrainingPlan(pl.LightningModule):
 
         self.initialize_train_metrics()
         self.initialize_val_metrics()
-
-    @classproperty
-    def _tunables(cls) -> List[Any]:
-        return [cls.__init__]
 
     @staticmethod
     def _create_elbo_metric_components(mode: str, n_total: Optional[int] = None):

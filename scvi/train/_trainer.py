@@ -1,14 +1,13 @@
 import sys
 import warnings
-from typing import Any, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import LightningLoggerBase
 
 from scvi import settings
-from scvi._decorators import classproperty
-from scvi.autotune._types import Tunable
+from scvi.autotune._types import Tunable, TunableMixin
 
 from ._callbacks import LoudEarlyStopping
 from ._logger import SimpleLogger
@@ -16,7 +15,7 @@ from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
 
 
-class Trainer(pl.Trainer):
+class Trainer(pl.Trainer, TunableMixin):
     """
     Lightweight wrapper of Pytorch Lightning Trainer.
 
@@ -154,10 +153,6 @@ class Trainer(pl.Trainer):
             enable_progress_bar=enable_progress_bar,
             **kwargs,
         )
-
-    @classproperty
-    def _tunables(cls) -> List[Any]:
-        return [cls.__init__]
 
     def fit(self, *args, **kwargs):
         """Fit the model."""

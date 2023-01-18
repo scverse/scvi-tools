@@ -23,6 +23,7 @@ from torch import nn
 from scvi import settings
 from scvi._decorators import classproperty
 from scvi._types import LatentDataType, LossRecord, Tensor
+from scvi.autotune._types import TunableMixin
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
@@ -221,7 +222,7 @@ class LossOutput:
             return {attr_name: attr}
 
 
-class BaseModuleClass(nn.Module):
+class BaseModuleClass(nn.Module, TunableMixin):
     """Abstract class for scvi-tools modules."""
 
     def __init__(
@@ -541,7 +542,7 @@ class TrainStateWithState(train_state.TrainState):
     state: FrozenDict[str, Any]
 
 
-class JaxBaseModuleClass(flax.linen.Module):
+class JaxBaseModuleClass(flax.linen.Module, TunableMixin):
     """
     Abstract class for Jax-based scvi-tools modules.
 
@@ -555,10 +556,6 @@ class JaxBaseModuleClass(flax.linen.Module):
     use the instance attribute ``self.training`` to appropriately modify
     the behavior of the model whether it is in training or evaluation mode.
     """
-
-    @classproperty
-    def _tunables(cls) -> List[Callable]:
-        return [cls.__init__]
 
     def configure(self) -> None:
         """Add necessary attrs."""

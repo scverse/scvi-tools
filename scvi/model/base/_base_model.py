@@ -3,7 +3,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, List, Optional, Sequence, Type, Union
+from typing import Dict, Optional, Sequence, Type, Union
 from uuid import uuid4
 
 import numpy as np
@@ -13,8 +13,8 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._decorators import classproperty
 from scvi._types import AnnOrMuData, LatentDataType
+from scvi.autotune._types import TunableMixin
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
@@ -62,7 +62,7 @@ class BaseModelMetaClass(ABCMeta):
         super().__init__(name, bases, dct)
 
 
-class BaseModelClass(metaclass=BaseModelMetaClass):
+class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
@@ -519,16 +519,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         user_params = {"kwargs": var_params, "non_kwargs": non_var_params}
 
         return user_params
-
-    @classproperty
-    def _tunables(cls) -> List[Any]:
-        """Returns the tunable attributes of the model class."""
-        return [
-            cls._module_cls,
-            cls._data_splitter_cls,
-            cls._training_plan_cls,
-            cls._train_runner_cls,
-        ]
 
     @abstractmethod
     def train(self):

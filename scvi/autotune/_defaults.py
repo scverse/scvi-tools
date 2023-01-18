@@ -17,8 +17,8 @@ COLORS = [
 COLUMN_KWARGS = {
     "justify": "center",
     "no_wrap": True,
-    "min_width": 10,
-    "max_width": 50,
+    "min_width": 5,
+    "max_width": 100,
 }
 
 # maps classes to the type of hyperparameters they use
