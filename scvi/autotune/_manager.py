@@ -5,6 +5,7 @@ from collections import OrderedDict
 from typing import Any, Callable, List, Optional, Tuple
 
 import rich
+from chex import dataclass
 
 try:
     import ray
@@ -23,6 +24,11 @@ from ._types import TunableMeta
 from ._utils import in_notebook
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TuneAnalysis:
+    """Dataclass for storing results from a tuning experiment."""
 
 
 class TunerManager:
@@ -421,7 +427,7 @@ class TunerManager:
         max_epochs = max_epochs or 100
         scheduler = scheduler or "asha"
         scheduler_kwargs = scheduler_kwargs or {}
-        searcher = searcher or "hyperopt"
+        searcher = searcher or "random"
         searcher_kwargs = searcher_kwargs or {}
         resources = resources or {}
 
@@ -460,6 +466,10 @@ class TunerManager:
             run_config=run_config,
         )
         return tuner
+
+    def _parse_results(results: Any) -> TuneAnalysis:
+        # TODO: create TuneAnalysis instance
+        return results
 
     @staticmethod
     def _add_columns(table: rich.table.Table, columns: List[str]) -> rich.table.Table:

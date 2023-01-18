@@ -44,8 +44,7 @@ class ModelTuner:
             The primary metric to optimize. If not provided, defaults to the model
             class's validation loss.
         additional_metrics
-            Additional metrics to track during the experiment. If not provided, defaults
-            to no other metrics.
+            Additional metrics to track during the experiment. Defaults to `None`.
         search_space
             Dictionary of hyperparameter names and their respective search spaces
             provided as instantiated Ray Tune sample functions. Available
@@ -61,28 +60,32 @@ class ModelTuner:
         max_epochs
             Maximum number of epochs to train each model configuration. Defaults to 100.
         scheduler
-            Ray Tune scheduler to use. Supported options are:
+            Ray Tune scheduler to use. One of the following:
 
-            * ``"asha"``: :class:`~ray.tune.schedulers.AsyncHyperBandScheduler`
+            * ``"asha"``: :class:`~ray.tune.schedulers.AsyncHyperBandScheduler` (default)
             * ``"hyperband"``: :class:`~ray.tune.schedulers.HyperBandScheduler`
             * ``"median"``: :class:`~ray.tune.schedulers.MedianStoppingRule`
             * ``"pbt"``: :class:`~ray.tune.schedulers.PopulationBasedTraining`
             * ``"fifo"``: :class:`~ray.tune.schedulers.FIFOScheduler`
+
+            Note that that not all schedulers are compatible with all search algorithms.
+            See Ray Tune `documentation <https://docs.ray.io/en/latest/tune/key-concepts.html#schedulers>`_
+            for more details.
         scheduler_kwargs
             Keyword arguments to pass to the scheduler.
         searcher
-            Ray Tune search algorithm to use. Supported options are:
+            Ray Tune search algorithm to use. One of the following:
 
-            * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
+            * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator` (default)
             * ``"grid"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
             * ``"hyperopt"``: :class:`~ray.tune.hyperopt.HyperOptSearch`
         searcher_kwargs
             Keyword arguments to pass to the search algorithm.
         reporter
-            Whether to display progress with a Ray Tune reporter. Depending on the
-            execution environment, will use one of the following reporters:
+            Whether to display progress with a Ray Tune reporter. Defaults to `True`.
+            Depending on the execution environment, one of the following:
 
-            * :class:`~ray.tune.CLIReporter` if running in a script
+            * :class:`~ray.tune.CLIReporter` if running non-interactively
             * :class:`~ray.tune.JupyterNotebookReporter` if running in a notebook
         resources
             Dictionary of maximum resources to allocate for the experiment. Available
@@ -95,11 +98,12 @@ class ModelTuner:
 
         Returns
         -------
-        results
+        :class:`~scvi.autotune.TuneAnalysis`
+            A dataclass containing the results of the tuning experiment.
         """
         tuner = self._manager._get_tuner(adata, **kwargs)
         results = tuner.fit()
-        return results
+        return self._manager._parse_results(results)
 
     def info(self, **kwargs) -> None:  # noqa: D102
         self._manager._view_registry(**kwargs)
