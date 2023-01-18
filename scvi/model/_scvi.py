@@ -253,7 +253,6 @@ class SCVI(
     def to_latent_mode(
         self,
         mode: LatentDataType = _SCVI_LATENT_MODE,
-        layer: Optional[str] = None,
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ) -> None:
@@ -269,8 +268,6 @@ class SCVI(
         ----------
         mode
             The latent data type used
-        layer
-            Layer in adata where the counts reside or None if not applicable
         use_latent_qzm_key
             Key to use in `adata.obsm` where the latent qzm params are stored
         use_latent_qzv_key
@@ -293,7 +290,7 @@ class SCVI(
         if mode == _SCVI_LATENT_MODE:
             reduced_adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
             reduced_adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-            counts = self.adata.X if layer is None else self.adata.layers[layer]
+            counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
             reduced_adata.obs[_SCVI_OBSERVED_LIB_SIZE] = np.squeeze(
                 np.asarray(counts.sum(axis=1))
             )

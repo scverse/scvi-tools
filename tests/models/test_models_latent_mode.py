@@ -76,7 +76,7 @@ def run_test_scvi_latent_mode(
     )
     adata_orig = adata.copy()
 
-    model.to_latent_mode(layer=layer)
+    model.to_latent_mode()
     assert model.latent_data_type == _SCVI_LATENT_MODE
 
     # make sure the original adata we set up the model with was not changed
