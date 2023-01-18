@@ -76,6 +76,7 @@ autotune = [
   "hyperopt>=0.2",
   "ray[tune]>=2.2.0",
   "ipython",
+  "scib-metrics>0.1.1",
 ]
 pymde = ["pymde"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub", "genomepy"]

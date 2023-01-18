@@ -37,7 +37,7 @@ ignore =
     D401
     # Consider using !r [shouldn't be used for f-strings]
     B028
-exclude = .git,__pycache__,build,docs/_build,dist,scvi/__init__.py
+exclude = .git,__pycache__,build,docs/_build,dist,scvi/__init__.py,tests/data
 per-file-ignores =
     tests/*: D
     */__init__.py: F401

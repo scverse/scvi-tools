@@ -1,7 +1,9 @@
 import inspect
 import logging
+import os
 import warnings
 from collections import OrderedDict
+from datetime import datetime
 from typing import Any, Callable, List, Optional, Tuple
 
 import rich
@@ -230,13 +232,17 @@ class TunerManager:
         return _metrics
 
     @staticmethod
-    @dependencies("ray.tune")
-    def _validate_scheduler(
-        scheduler: str, metrics: OrderedDict, scheduler_kwargs: dict
-    ) -> Any:
-        """Validates a trial scheduler."""
+    def _get_primary_metric_and_mode(metrics: OrderedDict) -> Tuple[str, str]:
         metric = list(metrics.keys())[0]
         mode = metrics[metric]
+        return metric, mode
+
+    @dependencies("ray.tune")
+    def _validate_scheduler(
+        self, scheduler: str, metrics: OrderedDict, scheduler_kwargs: dict
+    ) -> Any:
+        """Validates a trial scheduler."""
+        metric, mode = self._get_primary_metric_and_mode(metrics)
         _kwargs = {"metric": metric, "mode": mode}
 
         if scheduler == "asha":
@@ -264,14 +270,12 @@ class TunerManager:
         _kwargs.update(_default_kwargs)
         return _scheduler(**_kwargs)
 
-    @staticmethod
     @dependencies(["ray.tune", "hyperopt"])
     def _validate_search_algorithm(
-        searcher: str, metrics: OrderedDict, searcher_kwargs: dict
+        self, searcher: str, metrics: OrderedDict, searcher_kwargs: dict
     ) -> Any:
         """Validates a hyperparameter search algorithm."""
-        metric = list(metrics.keys())[0]
-        mode = metrics[metric]
+        metric, mode = self._get_primary_metric_and_mode(metrics)
 
         if searcher == "random":
             _default_kwargs = {}
@@ -387,6 +391,7 @@ class TunerManager:
                 max_epochs=max_epochs,
                 check_val_every_n_epoch=1,
                 callbacks=[monitor],
+                enable_progress_bar=False,
                 **train_kwargs,
             )
 
@@ -400,6 +405,17 @@ class TunerManager:
             max_epochs=max_epochs,
         )
         return tune.with_resources(_wrap_params, resources=resources)
+
+    def _validate_experiment_name_and_logging_dir(
+        self, experiment_name: Optional[str], logging_dir: Optional[str]
+    ) -> Tuple[str, str]:
+        if experiment_name is None:
+            experiment_name = "tune_"
+            experiment_name += self._model_cls.__name__.lower() + "_"
+            experiment_name += datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+        if logging_dir is None:
+            logging_dir = os.path.join(os.getcwd(), "ray")
+        return experiment_name, logging_dir
 
     @dependencies(["ray.tune", "ray.air"])
     def _get_tuner(
@@ -418,6 +434,8 @@ class TunerManager:
         searcher_kwargs: Optional[dict] = None,
         reporter: bool = True,
         resources: Optional[dict] = None,
+        experiment_name: Optional[str] = None,
+        logging_dir: Optional[str] = None,
     ) -> Any:
         metric = metric or list(self._registry["metrics"].keys())[0]
         additional_metrics = additional_metrics or []
@@ -447,6 +465,9 @@ class TunerManager:
             _setup_args,
             max_epochs,
         )
+        _experiment_name, _logging_dir = self._validate_experiment_name_and_logging_dir(
+            experiment_name, logging_dir
+        )
 
         tune_config = tune.tune_config.TuneConfig(
             scheduler=_scheduler,
@@ -455,8 +476,10 @@ class TunerManager:
         )
         # TODO: add kwarg for name or auto-generate name?
         run_config = air.config.RunConfig(
-            name="scvi-tune",
+            name=_experiment_name,
+            local_dir=_logging_dir,
             progress_reporter=_reporter,
+            verbose=1,
         )
         tuner = tune.Tuner(
             trainable=_trainable,
@@ -467,7 +490,7 @@ class TunerManager:
         return tuner
 
     @staticmethod
-    def _parse_results(results: Any) -> TuneAnalysis:
+    def _parse_results(results: tune.ResultGrid) -> TuneAnalysis:
         # TODO: create TuneAnalysis instance
         return results
 

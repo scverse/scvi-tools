@@ -131,7 +131,7 @@ class Trainer(TunableMixin, pl.Trainer):
                 else sys.maxsize
             )
 
-        if simple_progress_bar:
+        if simple_progress_bar and enable_progress_bar:
             bar = ProgressBar(refresh_rate=progress_bar_refresh_rate)
             kwargs["callbacks"] += [bar]
 

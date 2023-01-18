@@ -94,6 +94,12 @@ class ModelTuner:
             * ``"gpu"``: maximum number of GPUs to use
 
             If not provided, defaults to using one CPU thread and one GPU if available.
+        experiment_name
+            Name of the experiment, used for logging purposes. Defaults to a unique
+            string with the format `"tune_{model_cls}_{timestamp}"`.
+        logging_dir
+            Directory to store experiment logs. Defaults to a directory named `ray` in
+            the current working directory.
 
         Returns
         -------
