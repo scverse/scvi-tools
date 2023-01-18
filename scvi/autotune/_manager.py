@@ -246,7 +246,7 @@ class TunerManager:
                 "grace_period": 1,
                 "reduction_factor": 2,
             }
-            _scheduler = tune.schedulers.ASHAScheduler
+            _scheduler = tune.schedulers.AsyncHyperBandScheduler
         elif scheduler == "hyperband":
             _default_kwargs = {}
             _scheduler = tune.schedulers.HyperBandScheduler

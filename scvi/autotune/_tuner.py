@@ -59,14 +59,14 @@ class ModelTuner:
         exclude
             List of hyperparameters to exclude from the default search space. If
             `use_defaults` is `False`, this argument is ignored.
-        n_samples
+        num_samples
             Number of hyperparameter configurations to sample.
         max_epochs
-            Maximum number of epochs to train each model.
+            Maximum number of epochs to train each model configuration.
         scheduler
             Ray Tune scheduler to use. Supported options are:
 
-            * ``"asha"``: :class:`~ray.tune.schedulers.ASHAScheduler`
+            * ``"asha"``: :class:`~ray.tune.schedulers.AsyncHyperBandScheduler`
             * ``"hyperband"``: :class:`~ray.tune.schedulers.HyperBandScheduler`
             * ``"median"``: :class:`~ray.tune.schedulers.MedianStoppingRule`
             * ``"pbt"``: :class:`~ray.tune.schedulers.PopulationBasedTraining`
