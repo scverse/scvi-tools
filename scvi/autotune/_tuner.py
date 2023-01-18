@@ -55,14 +55,11 @@ class ModelTuner:
             Whether to use the model class's default search space, which can be viewed
             with :meth:`~scvi.autotune.ModelTuner.info`. If `True` and `search_space` is
             provided, the two will be merged, giving priority to user-provided values.
-            Defaults to `True`.
-        exclude
-            List of hyperparameters to exclude from the default search space. If
-            `use_defaults` is `False`, this argument is ignored.
+            Defaults to `False`.
         num_samples
-            Number of hyperparameter configurations to sample.
+            Number of hyperparameter configurations to sample. Defaults to 10.
         max_epochs
-            Maximum number of epochs to train each model configuration.
+            Maximum number of epochs to train each model configuration. Defaults to 100.
         scheduler
             Ray Tune scheduler to use. Supported options are:
 

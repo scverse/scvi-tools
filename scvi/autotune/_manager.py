@@ -160,9 +160,7 @@ class TunerManager:
         return model_kwargs, train_kwargs
 
     @dependencies("ray.tune")
-    def _validate_search_space(
-        self, search_space: dict, use_defaults: bool, exclude: List[str]
-    ) -> dict:
+    def _validate_search_space(self, search_space: dict, use_defaults: bool) -> dict:
         """Validates a search space against the hyperparameter registry."""
         # validate user-provided search space
         for param in search_space:
@@ -188,14 +186,6 @@ class TunerManager:
             logger.info(
                 f"Merging search space with defaults for {self._model_cls.__name__}."
             )
-            for param in exclude:
-                if param not in _search_space:
-                    warnings.warn(
-                        f"Excluded parameter {param} not in defaults search space. "
-                        "Ignoring parameter.",
-                        UserWarning,
-                    )
-                _search_space.pop(param, None)
 
         # priority given to user-provided search space
         _search_space.update(search_space)
@@ -414,8 +404,7 @@ class TunerManager:
         metric: Optional[str] = None,
         additional_metrics: Optional[List[str]] = None,
         search_space: Optional[dict] = None,
-        use_defaults: bool = True,
-        exclude: Optional[List[str]] = None,
+        use_defaults: bool = False,
         num_samples: Optional[int] = None,
         max_epochs: Optional[int] = None,
         scheduler: Optional[str] = None,
@@ -428,9 +417,8 @@ class TunerManager:
         metric = metric or list(self._registry["metrics"].keys())[0]
         additional_metrics = additional_metrics or []
         search_space = search_space or {}
-        exclude = exclude or []
         num_samples = num_samples or 10
-        max_epochs = max_epochs or 10
+        max_epochs = max_epochs or 100
         scheduler = scheduler or "asha"
         scheduler_kwargs = scheduler_kwargs or {}
         searcher = searcher or "hyperopt"
@@ -439,7 +427,7 @@ class TunerManager:
 
         _ = self._model_cls(adata)
         _metrics = self._validate_metrics(metric, additional_metrics)
-        _search_space = self._validate_search_space(search_space, use_defaults, exclude)
+        _search_space = self._validate_search_space(search_space, use_defaults)
         _scheduler, _searcher = self._validate_scheduler_and_search_algorithm(
             scheduler, searcher, _metrics, scheduler_kwargs, searcher_kwargs
         )
