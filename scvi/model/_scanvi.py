@@ -26,7 +26,7 @@ from scvi.data.fields import (
 )
 from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model._utils import _init_library_size
-from scvi.model.utils import get_reduced_adata
+from scvi.model.utils import get_reduced_adata_scrna
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
@@ -536,7 +536,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseLatentModeModelClass):
             raise ValueError(
                 "Latent mode not supported when use_observed_lib_size is False"
             )
-        reduced_adata = get_reduced_adata(self.adata, mode)
+        reduced_adata = get_reduced_adata_scrna(self.adata, mode)
         if mode == _SCANVI_LATENT_MODE:
             reduced_adata.obsm[_SCANVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
             reduced_adata.obsm[_SCANVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]

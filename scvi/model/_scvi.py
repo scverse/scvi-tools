@@ -22,7 +22,7 @@ from scvi.data.fields import (
 )
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
-from scvi.model.utils import get_reduced_adata
+from scvi.model.utils import get_reduced_adata_scrna
 from scvi.module import VAE
 from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
@@ -289,7 +289,7 @@ class SCVI(
             raise ValueError(
                 "Latent mode not supported when use_observed_lib_size is False"
             )
-        reduced_adata = get_reduced_adata(self.adata, mode)
+        reduced_adata = get_reduced_adata_scrna(self.adata, mode)
         if mode == _SCVI_LATENT_MODE:
             reduced_adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
             reduced_adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
