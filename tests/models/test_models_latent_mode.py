@@ -12,10 +12,12 @@ _SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 _SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 
-def prep_model(cls=SCVI, layer=None):
+def prep_model(cls=SCVI, layer=None, use_size_factor=False):
+    # create a synthetic dataset
     adata = synthetic_iid()
     adata_counts = adata.X
-    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    if use_size_factor:
+        adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
     if layer is not None:
         adata.layers[layer] = adata.X.copy()
         adata.X = np.zeros_like(adata.X)
@@ -25,26 +27,27 @@ def prep_model(cls=SCVI, layer=None):
     )
     adata.layers["my_layer"] = np.ones_like(adata.X)
     adata_before_setup = adata.copy()
+
+    # run setup_anndata
+    setup_kwargs = {
+        "layer": layer,
+        "batch_key": "batch",
+        "labels_key": "labels",
+    }
     if cls == SCANVI:
-        cls.setup_anndata(
-            adata,
-            layer=layer,
-            unlabeled_category="unknown",
-            batch_key="batch",
-            labels_key="labels",
-            size_factor_key="size_factor",
-        )
-    else:
-        cls.setup_anndata(
-            adata,
-            layer=layer,
-            batch_key="batch",
-            labels_key="labels",
-            size_factor_key="size_factor",
-        )
+        setup_kwargs["unlabeled_category"] = "unknown"
+    if use_size_factor:
+        setup_kwargs["size_factor_key"] = "size_factor"
+    cls.setup_anndata(
+        adata,
+        **setup_kwargs,
+    )
+
+    # create and train the model
     model = cls(adata, n_latent=5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
+    # get the adata lib size
     adata_lib_size = np.squeeze(np.asarray(adata_counts.sum(axis=1)))
     assert (
         np.min(adata_lib_size) > 0
@@ -58,8 +61,9 @@ def run_test_scvi_latent_mode(
     n_samples: int = 1,
     give_mean: bool = False,
     layer: str = None,
+    use_size_factor=False,
 ):
-    model, adata, adata_lib_size, _ = prep_model(cls, layer)
+    model, adata, adata_lib_size, _ = prep_model(cls, layer, use_size_factor)
 
     scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
@@ -120,26 +124,34 @@ def run_test_scvi_latent_mode(
 
 def test_scvi_latent_mode_one_sample():
     run_test_scvi_latent_mode()
+    run_test_scvi_latent_mode(layer="data_layer", use_size_factor=True)
 
 
 def test_scvi_latent_mode_one_sample_with_layer():
     run_test_scvi_latent_mode(layer="data_layer")
+    run_test_scvi_latent_mode(layer="data_layer", use_size_factor=True)
 
 
 def test_scvi_latent_mode_n_samples():
     run_test_scvi_latent_mode(n_samples=10, give_mean=True)
+    run_test_scvi_latent_mode(n_samples=10, give_mean=True, use_size_factor=True)
 
 
 def test_scanvi_latent_mode_one_sample():
     run_test_scvi_latent_mode(SCANVI)
+    run_test_scvi_latent_mode(SCANVI, use_size_factor=True)
 
 
 def test_scanvi_latent_mode_one_sample_with_layer():
     run_test_scvi_latent_mode(SCANVI, layer="data_layer")
+    run_test_scvi_latent_mode(SCANVI, layer="data_layer", use_size_factor=True)
 
 
 def test_scanvi_latent_mode_n_samples():
     run_test_scvi_latent_mode(SCANVI, n_samples=10, give_mean=True)
+    run_test_scvi_latent_mode(
+        SCANVI, n_samples=10, give_mean=True, use_size_factor=True
+    )
 
 
 def test_scanvi_from_scvi_latent(save_path):

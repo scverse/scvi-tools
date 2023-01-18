@@ -261,8 +261,9 @@ class SCVI(
         Put the model into latent mode.
 
         The model is put into latent mode by registering new anndata fields
-        required for latent mode support - latent qzm, latent qzv, and adata uns
-        containing latent mode type - and marking the module as latent.
+        required for latent mode support - latent qzm, latent qzv, adata uns
+        containing latent mode type, and library size - and marking the module
+        as latent.
 
         Parameters
         ----------
