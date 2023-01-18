@@ -14,10 +14,8 @@ class ModelTuner:
     Parameters
     ----------
     model_cls
-        The model class on which to tune hyperparameters. Currently supported model
-        classes are:
-
-        * :class:`~scvi.model.SCVI`
+        A model class on which to tune hyperparameters. Must have a class property
+        `_tunables` that defines tunable elements.
 
     Examples
     --------

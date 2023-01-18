@@ -78,7 +78,7 @@ def _compute_kl_weight(
     return max_kl_weight
 
 
-class TrainingPlan(pl.LightningModule, TunableMixin):
+class TrainingPlan(TunableMixin, pl.LightningModule):
     """
     Lightning module task to train scvi-tools modules.
 

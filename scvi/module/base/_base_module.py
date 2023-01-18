@@ -222,7 +222,7 @@ class LossOutput:
             return {attr_name: attr}
 
 
-class BaseModuleClass(nn.Module, TunableMixin):
+class BaseModuleClass(TunableMixin, nn.Module):
     """Abstract class for scvi-tools modules."""
 
     def __init__(
@@ -542,7 +542,7 @@ class TrainStateWithState(train_state.TrainState):
     state: FrozenDict[str, Any]
 
 
-class JaxBaseModuleClass(flax.linen.Module, TunableMixin):
+class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
     """
     Abstract class for Jax-based scvi-tools modules.
 

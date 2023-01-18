@@ -477,6 +477,7 @@ class TunerManager:
 
     @dependencies("ray")
     def _get_resources(available: bool = False) -> dict:
+        # TODO: need a cleaner way to do this as it starts a ray instance
         ray.init()
         if available:
             resources = ray.available_resources()

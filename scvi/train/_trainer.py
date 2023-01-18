@@ -15,7 +15,7 @@ from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
 
 
-class Trainer(pl.Trainer, TunableMixin):
+class Trainer(TunableMixin, pl.Trainer):
     """
     Lightweight wrapper of Pytorch Lightning Trainer.
 
