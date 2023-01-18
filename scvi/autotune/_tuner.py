@@ -85,15 +85,16 @@ class ModelTuner:
             Depending on the execution environment, one of the following:
 
             * :class:`~ray.tune.CLIReporter` if running non-interactively
-            * :class:`~ray.tune.JupyterNotebookReporter` if running in a notebook
+            * :class:`~ray.tune.JupyterNotebookReporter` if running interatively
         resources
             Dictionary of maximum resources to allocate for the experiment. Available
             keys include:
 
-            * ``"cpu"``: maximum number of CPU threads to use
-            * ``"gpu"``: maximum number of GPUs to use
+            * ``"cpu"``: number of CPU threads
+            * ``"gpu"``: number of GPUs
 
-            If not provided, defaults to using one CPU thread and one GPU if available.
+            If not provided, defaults to using all available resources. Note that
+            fractional allocations are supported.
         experiment_name
             Name of the experiment, used for logging purposes. Defaults to a unique
             string with the format `"tune_{model_cls}_{timestamp}"`.
@@ -106,9 +107,9 @@ class ModelTuner:
         :class:`~scvi.autotune.TuneAnalysis`
             A dataclass containing the results of the tuning experiment.
         """
-        tuner = self._manager._get_tuner(adata, **kwargs)
+        tuner, config = self._manager._get_tuner(adata, **kwargs)
         results = tuner.fit()
-        return self._manager._parse_results(results)
+        return self._manager._get_analysis(results, config)
 
     def info(self, **kwargs) -> None:  # noqa: D102
         self._manager._view_registry(**kwargs)

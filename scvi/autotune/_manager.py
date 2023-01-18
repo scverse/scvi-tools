@@ -33,7 +33,12 @@ logger = logging.getLogger(__name__)
 class TuneAnalysis:
     """Dataclass for storing results from a tuning experiment."""
 
-    # TODO: add fields
+    model_kwargs: dict
+    train_kwargs: dict
+    metric: float
+    additional_metrics: dict
+    search_space: dict
+    results: Any
 
 
 class TunerManager:
@@ -436,8 +441,10 @@ class TunerManager:
         resources: Optional[dict] = None,
         experiment_name: Optional[str] = None,
         logging_dir: Optional[str] = None,
-    ) -> Any:
-        metric = metric or list(self._registry["metrics"].keys())[0]
+    ) -> Tuple[Any, dict]:
+        metric = (
+            metric or self._get_primary_metric_and_mode(self._registry["metrics"])[0]
+        )
         additional_metrics = additional_metrics or []
         search_space = search_space or {}
         num_samples = num_samples or 10
@@ -448,7 +455,6 @@ class TunerManager:
         searcher_kwargs = searcher_kwargs or {}
         resources = resources or {}
 
-        _ = self._model_cls(adata)
         _metrics = self._validate_metrics(metric, additional_metrics)
         _search_space = self._validate_search_space(search_space, use_defaults)
         _scheduler, _searcher = self._validate_scheduler_and_search_algorithm(
@@ -474,11 +480,11 @@ class TunerManager:
             search_alg=_searcher,
             num_samples=num_samples,
         )
-        # TODO: add kwarg for name or auto-generate name?
         run_config = air.config.RunConfig(
             name=_experiment_name,
             local_dir=_logging_dir,
             progress_reporter=_reporter,
+            log_to_file=True,
             verbose=1,
         )
         tuner = tune.Tuner(
@@ -487,12 +493,33 @@ class TunerManager:
             tune_config=tune_config,
             run_config=run_config,
         )
-        return tuner
+        config = {
+            "metrics": _metrics,
+            "search_space": _search_space,
+        }
+        return tuner, config
 
-    @staticmethod
-    def _parse_results(results: tune.ResultGrid) -> TuneAnalysis:
-        # TODO: create TuneAnalysis instance
-        return results
+    def _get_analysis(self, results: Any, config: dict) -> TuneAnalysis:
+        metrics = config["metrics"]
+        search_space = config["search_space"]
+        metric, mode = self._get_primary_metric_and_mode(metrics)
+
+        result = results.get_best_result(metric=metric, mode=mode)
+        model_kwargs, train_kwargs = self._get_search_space(result.config)
+        metric_values = {}
+        for m in metrics:
+            if m == metric:
+                continue
+            metric_values[m] = result.metrics[m]
+
+        return TuneAnalysis(
+            model_kwargs=model_kwargs,
+            train_kwargs=train_kwargs,
+            metric={"metric": metric, "mode": mode, "value": result.metrics[metric]},
+            additional_metrics=metric_values,
+            search_space=search_space,
+            results=results,
+        )
 
     @staticmethod
     def _add_columns(table: rich.table.Table, columns: List[str]) -> rich.table.Table:
@@ -505,7 +532,7 @@ class TunerManager:
     @dependencies("ray")
     def _get_resources(available: bool = False) -> dict:
         # TODO: need a cleaner way to do this as it starts a ray instance
-        ray.init()
+        ray.init(logging_level=logging.ERROR)
         if available:
             resources = ray.available_resources()
         else:
@@ -576,12 +603,12 @@ class TunerManager:
         console.print(defaults_table)
 
         if show_resources:
-            logging.getLogger("ray").setLevel(logging.WARNING)
-            resources = self._get_resources()
+            resources = self._get_resources(available=True)
             resources_table = self._add_columns(
                 rich.table.Table(title="Available resources"),
                 ["Resource", "Quantity"],
             )
             resources_table.add_row("CPU cores", str(resources.get("CPU", "N/A")))
             resources_table.add_row("GPUs", str(resources.get("GPU", "N/A")))
+            resources_table.add_row("Memory", str(resources.get("memory", "N/A")))
             console.print(resources_table)
