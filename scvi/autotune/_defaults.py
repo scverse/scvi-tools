@@ -38,20 +38,6 @@ TUNABLE_TYPES = {
     ],
 }
 
-# supported model classes
-SUPPORTED = [
-    model.SCVI,
-    model.TOTALVI,
-    model.SCANVI,
-    model.MULTIVI,
-    model.LinearSCVI,
-    model.AUTOZI,
-    model.DestVI,
-    model.AmortizedLDA,
-    model.PEAKVI,
-    model.JaxSCVI,
-]
-
 # default hyperparameter search spaces for each model class
 DEFAULTS = {
     model.SCVI: {
