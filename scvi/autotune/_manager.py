@@ -275,7 +275,7 @@ class TunerManager:
                 "metric": metric,
                 "mode": mode,
             }
-            tune.search.SEARCH_ALG_IMPORT["hyperopt"]()  # tune not importing hyperopt
+            tune.search.SEARCH_ALG_IMPORT[searcher]()  # tune not importing hyperopt
             _searcher = tune.search.hyperopt.HyperOptSearch
 
         # prority given to user-provided searcher kwargs
