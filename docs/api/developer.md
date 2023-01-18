@@ -120,6 +120,7 @@ These classes should be used to construct user-facing model classes.
     model.base.PyroSviTrainMixin
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
+    model.base.PyroModelGuideWarmup
     model.base.DifferentialComputation
 ```
 
@@ -171,6 +172,7 @@ Module classes in the external API with respective generative and inference proc
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
    external.tangram.TangramMapper
+   external.scbasset.ScBassetModule
 
 ```
 
@@ -236,6 +238,7 @@ TrainingPlans define train/test/val optimization steps for modules.
 
    train.AdversarialTrainingPlan
    train.SemiSupervisedTrainingPlan
+   train.LowLevelPyroTrainingPlan
    train.PyroTrainingPlan
    train.JaxTrainingPlan
    train.Trainer

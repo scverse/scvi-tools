@@ -151,13 +151,10 @@ class TunerManager:
         for param in search_space:
             if param in self._registry["tunables"]:
                 continue
-            warnings.warn(
+            raise ValueError(
                 f"Provided parameter {param} is invalid for {self._model_cls.__name__}."
                 " Please see available parameters with `ModelTuner.info()`. "
-                "Ignoring parameter.",
-                UserWarning,
             )
-            search_space.pop(param)
 
         # add defaults if requested
         _search_space = {}
