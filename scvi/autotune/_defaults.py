@@ -21,7 +21,8 @@ COLUMN_KWARGS = {
     "max_width": 50,
 }
 
-# maps classes to the type of hyperparameters they use
+# maps classes to the tunable type
+# TODO: better way to do this?
 TUNABLE_TYPES = {
     "model": [
         BaseModuleClass,

@@ -77,7 +77,6 @@ class ModelTuner:
             Ray Tune search algorithm to use. One of the following:
 
             * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator` (default)
-            * ``"grid"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
             * ``"hyperopt"``: :class:`~ray.tune.hyperopt.HyperOptSearch`
         searcher_kwargs
             Keyword arguments to pass to the search algorithm.

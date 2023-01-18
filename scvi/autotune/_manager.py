@@ -18,6 +18,7 @@ from scvi._decorators import dependencies
 from scvi._types import AnnOrMuData
 from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model.base import BaseModelClass
+from scvi.utils import InvalidParameterError
 
 from ._defaults import COLORS, COLUMN_KWARGS, DEFAULTS, TUNABLE_TYPES
 from ._types import TunableMeta
@@ -29,6 +30,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TuneAnalysis:
     """Dataclass for storing results from a tuning experiment."""
+
+    # TODO: add fields
 
 
 class TunerManager:
@@ -173,7 +176,7 @@ class TunerManager:
             if param in self._registry["tunables"]:
                 continue
             raise ValueError(
-                f"Provided parameter {param} is invalid for {self._model_cls.__name__}."
+                f"Provided parameter `{param}` is invalid for {self._model_cls.__name__}."
                 " Please see available parameters with `ModelTuner.info()`. "
             )
 
@@ -207,7 +210,7 @@ class TunerManager:
         # validate primary metric
         if metric not in registry_metrics:
             raise ValueError(
-                f"Provided metric {metric} is invalid for {self._model_cls.__name__}. "
+                f"Provided metric `{metric}` is invalid for {self._model_cls.__name__}. "
                 "Please see available metrics with `ModelTuner.info()`. ",
             )
         _metrics[metric] = registry_metrics[metric]
@@ -273,15 +276,13 @@ class TunerManager:
         if searcher == "random":
             _default_kwargs = {}
             _searcher = tune.search.basic_variant.BasicVariantGenerator
-        elif searcher == "grid":
-            _default_kwargs = {}
-            _searcher = tune.search.basic_variant.BasicVariantGenerator
         elif searcher == "hyperopt":
             _default_kwargs = {
                 "metric": metric,
                 "mode": mode,
             }
-            tune.search.SEARCH_ALG_IMPORT[searcher]()  # tune not importing hyperopt
+            # tune does not import hyperopt by default
+            tune.search.SEARCH_ALG_IMPORT[searcher]()
             _searcher = tune.search.hyperopt.HyperOptSearch
 
         # prority given to user-provided searcher kwargs
@@ -297,16 +298,14 @@ class TunerManager:
         searcher_kwargs: dict,
     ) -> Tuple[Any, Any]:
         """Validates a scheduler and search algorithm pair for compatibility."""
-        if scheduler not in ["asha", "hyperband", "median", "pbt", "fifo"]:
-            raise ValueError(
-                f"Provided scheduler {scheduler} is unsupported. Must be one of  "
-                "['asha', 'hyperband', 'median', 'pbt', 'fifo']. ",
-            )
-        if searcher not in ["random", "grid", "hyperopt"]:
-            raise ValueError(
-                f"Provided searcher {searcher} is unsupported. Must be one of "
-                "['random', 'grid', 'hyperopt']. ",
-            )
+        supported = ["asha", "hyperband", "median", "pbt", "fifo"]
+        if scheduler not in supported:
+            raise InvalidParameterError("scheduler", scheduler, supported)
+
+        supported = ["random", "hyperopt"]
+        if searcher not in supported:
+            raise InvalidParameterError("searcher", searcher, supported)
+
         if scheduler not in ["asha", "median", "hyperband"] and searcher not in [
             "random",
             "grid",
@@ -314,7 +313,7 @@ class TunerManager:
             raise ValueError(
                 f"Provided scheduler {scheduler} is incompatible with the provided "
                 f"searcher {searcher}. Please see "
-                "https://docs.ray.io/en/latest/tune/key-concepts.html for more info."
+                "https://docs.ray.io/en/latest/tune/key-concepts.html#schedulers for more info."
             )
 
         _scheduler = self._validate_scheduler(scheduler, metrics, scheduler_kwargs)
@@ -467,6 +466,7 @@ class TunerManager:
         )
         return tuner
 
+    @staticmethod
     def _parse_results(results: Any) -> TuneAnalysis:
         # TODO: create TuneAnalysis instance
         return results
