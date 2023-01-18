@@ -12,7 +12,7 @@ from scvi import REGISTRY_KEYS
 from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import _ADATA_LATENT_UNS_KEY, _SETUP_ARGS_KEY
-from scvi.data._utils import _get_latent_adata_type, get_anndata_attribute
+from scvi.data._utils import _get_latent_adata_type, _is_latent, get_anndata_attribute
 from scvi.data.fields import (
     BaseAnnDataField,
     CategoricalJointObsField,
@@ -212,9 +212,18 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseLatentModeModelClass):
                 )
                 del scanvi_kwargs[k]
 
+        if scvi_model.latent_data_type is not None:
+            raise ValueError(
+                "Please provide a non-latent scvi model to initialize scanvi."
+            )
+
         if adata is None:
             adata = scvi_model.adata
         else:
+            if _is_latent(adata):
+                raise ValueError(
+                    "Please provide a non-latent `adata` to initialize scanvi."
+                )
             # validate new anndata against old model
             scvi_model._validate_anndata(adata)
 
