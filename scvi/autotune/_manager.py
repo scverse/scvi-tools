@@ -41,7 +41,8 @@ class TunerManager:
         self._defaults = self._get_defaults(self._model_cls)
         self._registry = self._get_registry(self._model_cls)
 
-    def _validate_model_cls(self, model_cls: BaseModelClass) -> BaseModelClass:
+    @staticmethod
+    def _validate_model_cls(model_cls: BaseModelClass) -> BaseModelClass:
         """Checks if the model class is supported."""
         if not hasattr(model_cls, "_tunables"):
             raise NotImplementedError(
@@ -50,7 +51,8 @@ class TunerManager:
             )
         return model_cls
 
-    def _get_defaults(self, model_cls: BaseModelClass) -> dict:
+    @staticmethod
+    def _get_defaults(model_cls: BaseModelClass) -> dict:
         """Returns the model class's default search space if available."""
         if model_cls not in DEFAULTS:
             warnings.warn(
@@ -59,7 +61,8 @@ class TunerManager:
             )
         return DEFAULTS.get(model_cls, {})
 
-    def _get_registry(self, model_cls: BaseModelClass) -> dict:
+    @staticmethod
+    def _get_registry(model_cls: BaseModelClass) -> dict:
         """
         Returns the model class's registry of tunable hyperparameters and metrics.
 
@@ -227,9 +230,10 @@ class TunerManager:
 
         return _metrics
 
+    @staticmethod
     @dependencies("ray.tune")
     def _validate_scheduler(
-        self, scheduler: str, metrics: OrderedDict, scheduler_kwargs: dict
+        scheduler: str, metrics: OrderedDict, scheduler_kwargs: dict
     ) -> Any:
         """Validates a trial scheduler."""
         metric = list(metrics.keys())[0]
@@ -261,9 +265,10 @@ class TunerManager:
         _kwargs.update(_default_kwargs)
         return _scheduler(**_kwargs)
 
+    @staticmethod
     @dependencies(["ray.tune", "hyperopt"])
     def _validate_search_algorithm(
-        self, searcher: str, metrics: OrderedDict, searcher_kwargs: dict
+        searcher: str, metrics: OrderedDict, searcher_kwargs: dict
     ) -> Any:
         """Validates a hyperparameter search algorithm."""
         metric = list(metrics.keys())[0]
@@ -320,9 +325,10 @@ class TunerManager:
         _searcher = self._validate_search_algorithm(searcher, metrics, searcher_kwargs)
         return _scheduler, _searcher
 
+    @staticmethod
     @dependencies("ray.tune")
     def _validate_reporter(
-        self, reporter: bool, search_space: dict, metrics: OrderedDict
+        reporter: bool, search_space: dict, metrics: OrderedDict
     ) -> Any:
         """Validates a reporter depending on the execution environment."""
         _metric_keys = list(metrics.keys())
@@ -467,14 +473,14 @@ class TunerManager:
         )
         return tuner
 
-    def _add_columns(
-        self, table: rich.table.Table, columns: List[str]
-    ) -> rich.table.Table:
+    @staticmethod
+    def _add_columns(table: rich.table.Table, columns: List[str]) -> rich.table.Table:
         """Adds columns to a :class:`~rich.table.Table` with default formatting."""
         for i, column in enumerate(columns):
             table.add_column(column, style=COLORS[i], **COLUMN_KWARGS)
         return table
 
+    @staticmethod
     @dependencies("ray")
     def _get_resources(available: bool = False) -> dict:
         # TODO: need a cleaner way to do this as it starts a ray instance
