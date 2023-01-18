@@ -92,6 +92,7 @@ class ModelTuner:
 
             * ``"cpu"``: number of CPU threads
             * ``"gpu"``: number of GPUs
+            * ``"memory"``: amount of memory
 
             If not provided, defaults to using all available resources. Note that
             fractional allocations are supported.

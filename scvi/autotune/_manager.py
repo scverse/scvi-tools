@@ -386,6 +386,7 @@ class TunerManager:
             setup_method_name: str,
             setup_kwargs: dict,
             max_epochs: int,
+            use_gpu: bool,
         ) -> None:
             model_kwargs, train_kwargs = self._get_search_space(search_space)
             getattr(model_cls, setup_method_name)(adata, **setup_kwargs)
@@ -394,6 +395,7 @@ class TunerManager:
             # TODO: adaptive max_epochs
             model.train(
                 max_epochs=max_epochs,
+                use_gpu=use_gpu,
                 check_val_every_n_epoch=1,
                 callbacks=[monitor],
                 enable_progress_bar=False,
@@ -408,6 +410,7 @@ class TunerManager:
             setup_method_name=setup_method_name,
             setup_kwargs=setup_kwargs,
             max_epochs=max_epochs,
+            use_gpu=resources.get("gpu", 0) > 0,
         )
         return tune.with_resources(_wrap_params, resources=resources)
 
