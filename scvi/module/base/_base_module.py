@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from abc import abstractmethod
 from dataclasses import field
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
 
 import chex
 import flax
@@ -21,7 +21,6 @@ from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._decorators import classproperty
 from scvi._types import LatentDataType, LossRecord, Tensor
 from scvi.autotune._types import TunableMixin
 from scvi.utils._jax import device_selecting_PRNGKey
@@ -240,10 +239,6 @@ class BaseModuleClass(TunableMixin, nn.Module):
     def on_load(self, model):
         """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict."""
 
-    @classproperty
-    def _tunables(cls) -> List[Callable]:
-        return [cls.__init__]
-
     @auto_move_data
     def forward(
         self,
@@ -393,7 +388,7 @@ def _get_dict_if_none(param):
     return param
 
 
-class PyroBaseModuleClass(nn.Module):
+class PyroBaseModuleClass(TunableMixin, nn.Module):
     """
     Base module class for Pyro models.
 
@@ -421,10 +416,6 @@ class PyroBaseModuleClass(nn.Module):
     def __init__(self, on_load_kwargs: Optional[dict] = None):
         super().__init__()
         self.on_load_kwargs = on_load_kwargs or {}
-
-    @classproperty
-    def _tunables(cls) -> List[Callable]:
-        return [cls.__init__]
 
     @staticmethod
     @abstractmethod

@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from functools import partial
 from inspect import signature
-from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Union
+from typing import Callable, Dict, Iterable, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -14,7 +14,6 @@ from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import REGISTRY_KEYS
-from scvi._decorators import classproperty
 from scvi.autotune._types import Tunable, TunableMixin
 from scvi.module import Classifier
 from scvi.module.base import (
@@ -748,7 +747,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
 
-class LowLevelPyroTrainingPlan(pl.LightningModule):
+class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
     """
     Lightning module task to train Pyro scvi-tools modules.
 
@@ -858,10 +857,6 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
             self.n_steps_kl_warmup,
             min_kl_weight=1e-3,
         )
-
-    @classproperty
-    def _tunables(cls) -> List[Any]:
-        return [cls.__init__]
 
     @property
     def n_obs_training(self):
@@ -983,7 +978,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         pass
 
 
-class ClassifierTrainingPlan(pl.LightningModule):
+class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
     """
     Lightning module task to train a simple MLP classifier.
 
@@ -1033,10 +1028,6 @@ class ClassifierTrainingPlan(pl.LightningModule):
             raise UserWarning(
                 "classifier should return logits when using CrossEntropyLoss."
             )
-
-    @classproperty
-    def _tunables(cls) -> List[Any]:
-        return [cls.__init__]
 
     def forward(self, *args, **kwargs):
         """Passthrough to the module's forward function."""
@@ -1132,10 +1123,6 @@ class JaxTrainingPlan(TrainingPlan):
         self.max_norm = max_norm
         self.automatic_optimization = False
         self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
-
-    @classproperty
-    def _tunables(cls) -> List[Any]:
-        return [cls.__init__]
 
     def get_optimizer_creator(self) -> JaxOptimizerCreator:
         """Get optimizer creator for the model."""

@@ -1,12 +1,11 @@
 import logging
 import warnings
-from typing import Any, List, Optional, Type, Union
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 
-from scvi._decorators import classproperty
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base import BaseModelClass
@@ -49,6 +48,8 @@ class TrainRunner:
     >>> runner()
     """
 
+    _trainer_cls = Trainer
+
     def __init__(
         self,
         model: BaseModelClass,
@@ -72,14 +73,6 @@ class TrainRunner:
             gpus=None,
             **trainer_kwargs,
         )
-
-    @classproperty
-    def _trainer_cls(cls) -> Type[Trainer]:
-        return Trainer
-
-    @classproperty
-    def _tunables(cls) -> List[Any]:
-        return [cls.__init__, cls._trainer_cls]
 
     def __call__(self):
         """Run training."""
