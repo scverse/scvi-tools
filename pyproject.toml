@@ -64,7 +64,7 @@ docs = [
   "nbsphinx",
   "ipython",
   "furo",
-  "sphinx-autodoc-typehints",
+  "sphinx-autodoc-typehints!=1.21.4",
   "sphinx_copybutton",
   "sphinx-design",
   "sphinxext-opengraph",
