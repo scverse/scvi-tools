@@ -29,6 +29,7 @@ class TuneMetricCallback(TuneCallback):
         return self._model
 
     def _handle(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        # TODO: this is still a work in progress
         if trainer.sanity_checking:
             return
 
