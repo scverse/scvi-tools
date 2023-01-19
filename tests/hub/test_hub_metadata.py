@@ -131,6 +131,9 @@ def test_hub_modelcardhelper(request, save_path):
         "license": "cc-by-4.0",
         "library_name": "scvi-tools",
         "tags": [
+            "biology",
+            "genomics",
+            "single-cell",
             "model_cls_name:SCVI",
             "scvi_version:0.17.8",
             "anndata_version:0.8.0",
@@ -171,6 +174,9 @@ def test_hub_modelcardhelper(request, save_path):
         "license": "cc-by-4.0",
         "library_name": "scvi-tools",
         "tags": [
+            "biology",
+            "genomics",
+            "single-cell",
             "model_cls_name:SCVI",
             f"scvi_version:{scvi.__version__}",
             "anndata_version:0.8.0",
