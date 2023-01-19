@@ -272,6 +272,7 @@ hoverxref_intersphinx = [
     "scipy",
     "pandas",
     "ml_collections",
+    "ray",
 ]
 # use proxied API endpoint on rtd to avoid CORS issues
 if os.environ.get("READTHEDOCS"):
