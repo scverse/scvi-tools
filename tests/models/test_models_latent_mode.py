@@ -1,64 +1,98 @@
-from copy import deepcopy
-
 import numpy as np
 import pytest
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.model import SCVI
+from scvi.data._constants import _ADATA_LATENT_UNS_KEY
+from scvi.data._utils import _is_latent
+from scvi.model import SCANVI, SCVI
+
+_SCVI_LATENT_MODE = "posterior_parameters"
+_SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
+_SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 
-def prep_model(layer=None):
+def prep_model(cls=SCVI, layer=None, use_size_factor=False):
+    # create a synthetic dataset
     adata = synthetic_iid()
-    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    adata_counts = adata.X
+    if use_size_factor:
+        adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
     if layer is not None:
         adata.layers[layer] = adata.X.copy()
         adata.X = np.zeros_like(adata.X)
-    adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata.X, axis=0)))
+    adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata_counts, axis=0)))
     adata.varm["my_varm"] = np.random.negative_binomial(
         5, 0.3, size=(adata.shape[1], 3)
     )
     adata.layers["my_layer"] = np.ones_like(adata.X)
-    SCVI.setup_anndata(
+    adata_before_setup = adata.copy()
+
+    # run setup_anndata
+    setup_kwargs = {
+        "layer": layer,
+        "batch_key": "batch",
+        "labels_key": "labels",
+    }
+    if cls == SCANVI:
+        setup_kwargs["unlabeled_category"] = "unknown"
+    if use_size_factor:
+        setup_kwargs["size_factor_key"] = "size_factor"
+    cls.setup_anndata(
         adata,
-        layer=layer,
-        batch_key="batch",
-        labels_key="labels",
-        size_factor_key="size_factor",
+        **setup_kwargs,
     )
-    model = SCVI(adata, n_latent=5)
+
+    # create and train the model
+    model = cls(adata, n_latent=5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
-    return model, adata
+    # get the adata lib size
+    adata_lib_size = np.squeeze(np.asarray(adata_counts.sum(axis=1)))
+    assert (
+        np.min(adata_lib_size) > 0
+    )  # make sure it's not all zeros and there are no negative values
+
+    return model, adata, adata_lib_size, adata_before_setup
 
 
-def run_test_scvi_latent_mode_dist(
-    n_samples: int = 1, give_mean: bool = False, layer: str = None
+def run_test_scvi_latent_mode(
+    cls=SCVI,
+    n_samples: int = 1,
+    give_mean: bool = False,
+    layer: str = None,
+    use_size_factor=False,
 ):
-    model, adata = prep_model(layer)
+    model, adata, adata_lib_size, _ = prep_model(cls, layer, use_size_factor)
 
     scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
-    adata.obsm["X_latent_qzm"] = qzm
-    adata.obsm["X_latent_qzv"] = qzv
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters(
         n_samples=n_samples, give_mean=give_mean
     )
-    model_orig = deepcopy(model)
+    adata_orig = adata.copy()
 
     model.to_latent_mode()
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
-    assert model.latent_data_type == "posterior_parameters"
+    # make sure the original adata we set up the model with was not changed
+    assert adata is not model.adata
+    assert _is_latent(adata) is False
 
-    assert model_orig.adata.layers.keys() == model.adata.layers.keys()
-    assert model.adata.obs.equals(model_orig.adata.obs)
-    assert model.adata.var_names.equals(model_orig.adata.var_names)
-    assert model.adata.var.equals(model_orig.adata.var)
-    assert model.adata.varm.keys() == model_orig.adata.varm.keys()
+    assert adata_orig.layers.keys() == model.adata.layers.keys()
+    orig_obs_df = adata_orig.obs
+    obs_keys = _SCANVI_OBSERVED_LIB_SIZE if cls == SCANVI else _SCVI_OBSERVED_LIB_SIZE
+    orig_obs_df[obs_keys] = adata_lib_size
+    assert model.adata.obs.equals(orig_obs_df)
+    assert model.adata.var_names.equals(adata_orig.var_names)
+    assert model.adata.var.equals(adata_orig.var)
+    assert model.adata.varm.keys() == adata_orig.varm.keys()
     np.testing.assert_array_equal(
-        model.adata.varm["my_varm"], model_orig.adata.varm["my_varm"]
+        model.adata.varm["my_varm"], adata_orig.varm["my_varm"]
     )
 
     scvi.settings.seed = 1
@@ -78,7 +112,7 @@ def run_test_scvi_latent_mode_dist(
         for k in keys:
             params_latent[k] = params_latent[k][1:].mean(0)
     for k in keys:
-        assert params_latent[k].shape == adata.shape
+        assert params_latent[k].shape == adata_orig.shape
 
     for k in keys:
         # Allclose because on GPU, the values are not exactly the same
@@ -88,30 +122,84 @@ def run_test_scvi_latent_mode_dist(
         )
 
 
-def test_scvi_latent_mode_dist_one_sample():
-    run_test_scvi_latent_mode_dist()
+def test_scvi_latent_mode_one_sample():
+    run_test_scvi_latent_mode()
+    run_test_scvi_latent_mode(layer="data_layer", use_size_factor=True)
 
 
-def test_scvi_latent_mode_dist_one_sample_with_layer():
-    run_test_scvi_latent_mode_dist(layer="data_layer")
+def test_scvi_latent_mode_one_sample_with_layer():
+    run_test_scvi_latent_mode(layer="data_layer")
+    run_test_scvi_latent_mode(layer="data_layer", use_size_factor=True)
 
 
-def test_scvi_latent_mode_dist_n_samples():
-    run_test_scvi_latent_mode_dist(n_samples=10, give_mean=True)
+def test_scvi_latent_mode_n_samples():
+    run_test_scvi_latent_mode(n_samples=10, give_mean=True)
+    run_test_scvi_latent_mode(n_samples=10, give_mean=True, use_size_factor=True)
 
 
-def test_scvi_latent_mode_get_normalized_expression():
-    model, adata = prep_model()
+def test_scanvi_latent_mode_one_sample():
+    run_test_scvi_latent_mode(SCANVI)
+    run_test_scvi_latent_mode(SCANVI, use_size_factor=True)
 
-    scvi.settings.seed = 1
+
+def test_scanvi_latent_mode_one_sample_with_layer():
+    run_test_scvi_latent_mode(SCANVI, layer="data_layer")
+    run_test_scvi_latent_mode(SCANVI, layer="data_layer", use_size_factor=True)
+
+
+def test_scanvi_latent_mode_n_samples():
+    run_test_scvi_latent_mode(SCANVI, n_samples=10, give_mean=True)
+    run_test_scvi_latent_mode(
+        SCANVI, n_samples=10, give_mean=True, use_size_factor=True
+    )
+
+
+def test_scanvi_from_scvi_latent(save_path):
+    model, adata, _, adata_before_setup = prep_model(SCVI)
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     adata.obsm["X_latent_qzm"] = qzm
     adata.obsm["X_latent_qzv"] = qzv
+    model.to_latent_mode()
+    assert model.latent_data_type == _SCVI_LATENT_MODE
+
+    # for from_scvi_model to succeed:
+    # 1. scvi_model must not be in latent mode, and
+    # 2. adata (if different from scvi_model.adata) must not be in latent mode
+
+    with pytest.raises(ValueError) as e:
+        scvi.model.SCANVI.from_scvi_model(model, "label_0")
+    assert (
+        str(e.value) == "Please provide a non-latent scvi model to initialize scanvi."
+    )
+
+    # let's load scvi_model with a non_latent adata. Then, scvi_model will no longer be in latent mode
+    model.save(save_path, overwrite=True)
+    loaded_model = SCVI.load(save_path, adata=adata_before_setup)
+
+    with pytest.raises(ValueError) as e:
+        adata2 = synthetic_iid()
+        # just add this to pretend the data is latent
+        adata2.uns[_ADATA_LATENT_UNS_KEY] = _SCVI_LATENT_MODE
+        scvi.model.SCANVI.from_scvi_model(loaded_model, "label_0", adata=adata2)
+    assert str(e.value) == "Please provide a non-latent `adata` to initialize scanvi."
+
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(loaded_model, "label_0")
+    scanvi_model.train(1)
+
+
+def test_scvi_latent_mode_get_normalized_expression():
+    model, adata, _, _ = prep_model()
+
+    scvi.settings.seed = 1
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     exprs_orig = model.get_normalized_expression()
 
     model.to_latent_mode()
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
     scvi.settings.seed = 1
     exprs_latent = model.get_normalized_expression()
@@ -121,7 +209,7 @@ def test_scvi_latent_mode_get_normalized_expression():
 
 
 def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
-    model, adata = prep_model()
+    model, adata, _, _ = prep_model()
 
     # non-default gene list and n_samples > 1
     gl = adata.var_names[:5].to_list()
@@ -138,6 +226,7 @@ def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
     )
 
     model.to_latent_mode()
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
     scvi.settings.seed = 1
     # do this so that we generate the same sequence of random numbers in the
@@ -154,13 +243,14 @@ def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
 
 
 def test_latent_mode_validate_unsupported():
-    model, adata = prep_model()
+    model, _, _, _ = prep_model()
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
-    adata.obsm["X_latent_qzm"] = qzm
-    adata.obsm["X_latent_qzv"] = qzv
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
 
     model.to_latent_mode()
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
     common_err_msg = "Latent mode currently not supported for the {} function."
 
@@ -182,21 +272,24 @@ def test_latent_mode_validate_unsupported():
 
 
 def test_scvi_latent_mode_save_load_latent(save_path):
-    model, adata = prep_model()
+    model, adata, _, _ = prep_model()
 
     scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
-    adata.obsm["X_latent_qzm"] = qzm
-    adata.obsm["X_latent_qzv"] = qzv
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters()
 
     model.to_latent_mode()
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
     model.save(save_path, overwrite=True, save_anndata=True)
     # load saved latent model with saved latent adata
     loaded_model = SCVI.load(save_path)
+
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
     scvi.settings.seed = 1
     params_latent = loaded_model.get_likelihood_parameters()
@@ -205,22 +298,22 @@ def test_scvi_latent_mode_save_load_latent(save_path):
 
 
 def test_scvi_latent_mode_save_load_latent_to_non_latent(save_path):
-    model, adata = prep_model()
+    model, adata, _, adata_before_setup = prep_model()
 
     scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
-    adata.obsm["X_latent_qzm"] = qzm
-    adata.obsm["X_latent_qzv"] = qzv
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters()
-    model_orig = deepcopy(model)
 
     model.to_latent_mode()
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
     model.save(save_path, overwrite=True, save_anndata=True)
     # load saved latent model with non-latent adata
-    loaded_model = SCVI.load(save_path, adata=model_orig.adata)
+    loaded_model = SCVI.load(save_path, adata=adata_before_setup)
 
     scvi.settings.seed = 1
     params_new = loaded_model.get_likelihood_parameters()
@@ -229,16 +322,16 @@ def test_scvi_latent_mode_save_load_latent_to_non_latent(save_path):
 
 
 def test_scvi_latent_mode_save_load_non_latent_to_latent(save_path):
-    model, adata = prep_model()
+    model, _, _, _ = prep_model()
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
-    adata.obsm["X_latent_qzm"] = qzm
-    adata.obsm["X_latent_qzv"] = qzv
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
 
-    model_orig = deepcopy(model)
+    model.save(save_path, overwrite=True, save_anndata=True)
+
     model.to_latent_mode()
-
-    model_orig.save(save_path, overwrite=True, save_anndata=True)
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
     # loading saved non-latent model with latent adata is not allowed
     # because we don't have a way to validate the correctness of the
@@ -248,17 +341,18 @@ def test_scvi_latent_mode_save_load_non_latent_to_latent(save_path):
 
 
 def test_scvi_latent_mode_get_latent_representation():
-    model, adata = prep_model()
+    model, _, _, _ = prep_model()
 
     scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
-    adata.obsm["X_latent_qzm"] = qzm
-    adata.obsm["X_latent_qzv"] = qzv
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     latent_repr_orig = model.get_latent_representation()
 
     model.to_latent_mode()
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
     scvi.settings.seed = 1
     latent_repr_latent = model.get_latent_representation()
@@ -267,12 +361,12 @@ def test_scvi_latent_mode_get_latent_representation():
 
 
 def test_scvi_latent_mode_posterior_predictive_sample():
-    model, adata = prep_model()
+    model, _, _, _ = prep_model()
 
     scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
-    adata.obsm["X_latent_qzm"] = qzm
-    adata.obsm["X_latent_qzv"] = qzv
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     sample_orig = model.posterior_predictive_sample(
@@ -280,6 +374,7 @@ def test_scvi_latent_mode_posterior_predictive_sample():
     )
 
     model.to_latent_mode()
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
     scvi.settings.seed = 1
     sample_latent = model.posterior_predictive_sample(
@@ -291,12 +386,12 @@ def test_scvi_latent_mode_posterior_predictive_sample():
 
 
 def test_scvi_latent_mode_get_feature_correlation_matrix():
-    model, adata = prep_model()
+    model, _, _, _ = prep_model()
 
     scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
-    adata.obsm["X_latent_qzm"] = qzm
-    adata.obsm["X_latent_qzv"] = qzv
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
     fcm_orig = model.get_feature_correlation_matrix(
@@ -306,6 +401,7 @@ def test_scvi_latent_mode_get_feature_correlation_matrix():
     )
 
     model.to_latent_mode()
+    assert model.latent_data_type == _SCVI_LATENT_MODE
 
     scvi.settings.seed = 1
     fcm_latent = model.get_feature_correlation_matrix(
