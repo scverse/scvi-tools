@@ -71,7 +71,7 @@ class RNASeqMixin:
         library_size
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent libary size.
+            magnitude. If set to `"latent"`, use the latent library size.
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
