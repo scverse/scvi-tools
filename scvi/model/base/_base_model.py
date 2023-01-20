@@ -847,7 +847,6 @@ class BaseLatentModeModelClass(BaseModelClass):
     @abstractmethod
     def to_latent_mode(
         self,
-        mode: LatentDataType = "posterior_parameters",
         *args,
         **kwargs,
     ):
@@ -859,11 +858,6 @@ class BaseLatentModeModelClass(BaseModelClass):
         the module as latent. Note that this modifies the anndata (and subsequently
         the model and module properties) in place. Please make a copy of those objects
         (before calling this function) if needed.
-
-        Parameters
-        ----------
-        mode
-            The latent data type used
         """
 
     @staticmethod

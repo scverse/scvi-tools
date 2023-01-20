@@ -194,6 +194,9 @@ class HubModelCardHelper:
     def _to_model_card(self) -> ModelCard:
         # define tags
         tags = [
+            "biology",
+            "genomics",
+            "single-cell",
             _SCVI_HUB.MODEL_CLS_NAME_TAG.format(self.model_cls_name),
             _SCVI_HUB.SCVI_VERSION_TAG.format(self.scvi_version),
             _SCVI_HUB.ANNDATA_VERSION_TAG.format(self.anndata_version),
