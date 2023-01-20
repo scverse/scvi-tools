@@ -23,7 +23,6 @@ from scvi.data.fields import (
     NumericalObsField,
     ProteinObsmField,
 )
-from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
     scatac_raw_counts_properties,
@@ -36,7 +35,7 @@ from scvi.model.base import (
     VAEMixin,
 )
 from scvi.module import MULTIVAE
-from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.train import AdversarialTrainingPlan
 from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
@@ -131,6 +130,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
        the `categorical_covariate_keys` argument.
     """
 
+    _module_cls = MULTIVAE
+    _training_plan_cls = AdversarialTrainingPlan
+
     def __init__(
         self,
         adata: AnnData,
@@ -177,7 +179,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         else:
             n_proteins = 0
 
-        self.module = MULTIVAE(
+        self.module = self._module_cls(
             n_input_genes=n_genes,
             n_input_regions=n_regions,
             n_input_proteins=n_proteins,
@@ -322,15 +324,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 SaveBestState(monitor="reconstruction_loss_validation")
             )
 
-        data_splitter = DataSplitter(
+        data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = AdversarialTrainingPlan(self.module, **plan_kwargs)
-        runner = TrainRunner(
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
+        runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
             data_splitter=data_splitter,

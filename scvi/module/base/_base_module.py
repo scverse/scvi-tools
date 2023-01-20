@@ -22,6 +22,7 @@ from torch import nn
 
 from scvi import settings
 from scvi._types import LatentDataType, LossRecord, Tensor
+from scvi.autotune._types import TunableMixin
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
@@ -220,7 +221,7 @@ class LossOutput:
             return {attr_name: attr}
 
 
-class BaseModuleClass(nn.Module):
+class BaseModuleClass(TunableMixin, nn.Module):
     """Abstract class for scvi-tools modules."""
 
     def __init__(
@@ -387,7 +388,7 @@ def _get_dict_if_none(param):
     return param
 
 
-class PyroBaseModuleClass(nn.Module):
+class PyroBaseModuleClass(TunableMixin, nn.Module):
     """
     Base module class for Pyro models.
 
@@ -532,7 +533,7 @@ class TrainStateWithState(train_state.TrainState):
     state: FrozenDict[str, Any]
 
 
-class JaxBaseModuleClass(flax.linen.Module):
+class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
     """
     Abstract class for Jax-based scvi-tools modules.
 

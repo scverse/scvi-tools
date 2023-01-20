@@ -46,6 +46,8 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     >>> adata.obsm["X_LDA"] = model.get_latent_representation()
     """
 
+    _module_cls = AmortizedLDAPyroModule
+
     def __init__(
         self,
         adata: AnnData,
@@ -86,7 +88,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
                 f"a float or a Sequence of length n_input."
             )
 
-        self.module = AmortizedLDAPyroModule(
+        self.module = self._module_cls(
             n_input=n_input,
             n_topics=n_topics,
             n_hidden=n_hidden,

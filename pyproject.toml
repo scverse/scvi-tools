@@ -64,7 +64,7 @@ docs = [
   "nbsphinx",
   "ipython",
   "furo",
-  "sphinx-autodoc-typehints!=1.21.4",
+  "sphinx-autodoc-typehints<1.21.4",
   "sphinx_copybutton",
   "sphinx-design",
   "sphinxext-opengraph",
@@ -72,7 +72,12 @@ docs = [
   "sphinxcontrib-bibtex>=1.0.0",
   "myst-parser",
 ]
-autotune = ["hyperopt>=0.2", "ray[tune]>=2.1.0", "ipython"]
+autotune = [
+  "hyperopt>=0.2",
+  "ray[tune]>=2.2.0",
+  "ipython",
+  "scib-metrics>=0.1.1",
+]
 pymde = ["pymde"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub", "genomepy"]
 hub = ["huggingface_hub"]

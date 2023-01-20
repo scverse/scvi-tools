@@ -1,11 +1,10 @@
 import logging
-from typing import Any, List, Literal, Optional, Tuple
+from typing import List, Literal, Optional
 
 import numpy as np
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._decorators import classproperty
 from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import _ADATA_LATENT_UNS_KEY
@@ -24,7 +23,6 @@ from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.model.utils import get_reduced_adata_scrna
 from scvi.module import VAE
-from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
 from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
@@ -99,6 +97,8 @@ class SCVI(
     4. :doc:`/tutorials/notebooks/scvi_in_R`
     """
 
+    _module_cls = VAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -162,14 +162,6 @@ class SCVI(
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    @classproperty
-    def _module_cls(cls) -> BaseModuleClass:
-        return VAE
-
-    @classproperty
-    def _tunables(cls) -> Tuple[Any]:
-        return (cls._module_cls,)
 
     @classmethod
     @setup_anndata_dsp.dedent

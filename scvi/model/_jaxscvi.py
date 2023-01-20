@@ -49,6 +49,8 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     """
 
+    _module_cls = JaxVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -62,7 +64,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         n_batch = self.summary_stats.n_batch
 
-        self.module = JaxVAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,

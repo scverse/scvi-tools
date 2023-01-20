@@ -81,6 +81,10 @@ class PyroSviTrainMixin:
     Training using minibatches and using full data (copies data to GPU only once).
     """
 
+    _data_splitter_cls = DataSplitter
+    _training_plan_cls = PyroTrainingPlan
+    _train_runner_cls = TrainRunner
+
     def train(
         self,
         max_epochs: Optional[int] = None,
@@ -145,14 +149,14 @@ class PyroSviTrainMixin:
                 use_gpu=use_gpu,
             )
         else:
-            data_splitter = DataSplitter(
+            data_splitter = self._data_splitter_cls(
                 self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
                 use_gpu=use_gpu,
             )
-        training_plan = training_plan(self.module, **plan_kwargs)
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
@@ -163,7 +167,7 @@ class PyroSviTrainMixin:
             trainer_kwargs["callbacks"] = []
         trainer_kwargs["callbacks"].append(PyroJitGuideWarmup())
 
-        runner = TrainRunner(
+        runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
             data_splitter=data_splitter,

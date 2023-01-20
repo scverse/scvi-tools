@@ -265,6 +265,7 @@ classes allow for new model classes to be easily integrated with the module.
 
    autotune.TunerManager
    autotune.Tunable
+   autotune.TunableMixin
 ```
 
 ## Utilities

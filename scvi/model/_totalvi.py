@@ -91,6 +91,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
     """
 
+    _module_cls = TOTALVAE
+    _data_splitter_cls = DataSplitter
+    _training_plan_cls = AdversarialTrainingPlan
+    _train_runner_cls = TrainRunner
+
     def __init__(
         self,
         adata: AnnData,
@@ -157,7 +162,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 self.adata_manager, n_batch
             )
 
-        self.module = TOTALVAE(
+        self.module = self._module_cls(
             n_input_genes=self.summary_stats.n_vars,
             n_input_proteins=self.summary_stats.n_proteins,
             n_batch=n_batch,
@@ -277,15 +282,15 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
-        data_splitter = DataSplitter(
+        data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = AdversarialTrainingPlan(self.module, **plan_kwargs)
-        runner = TrainRunner(
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
+        runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
             data_splitter=data_splitter,

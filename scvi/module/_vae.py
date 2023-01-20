@@ -1,5 +1,5 @@
 """Main module."""
-from typing import Any, Callable, Iterable, Literal, Optional, Tuple
+from typing import Callable, Iterable, Literal, Optional
 
 import numpy as np
 import torch
@@ -9,7 +9,6 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._decorators import classproperty
 from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseLatentModeModuleClass, LossOutput, auto_move_data
@@ -71,8 +70,10 @@ class VAE(BaseLatentModeModuleClass):
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
+    use_batch_norm
+        Whether to use batch norm in layers.
     use_layer_norm
-        Whether to use layer norm in layers
+        Whether to use layer norm in layers.
     use_size_factor_key
         Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
         Takes priority over `use_observed_lib_size`.
@@ -97,19 +98,21 @@ class VAE(BaseLatentModeModuleClass):
         n_batch: int = 0,
         n_labels: int = 0,
         n_hidden: Tunable[int] = 128,
-        n_latent: int = 10,
-        n_layers: int = 1,
+        n_latent: Tunable[int] = 10,
+        n_layers: Tunable[int] = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: float = 0.1,
-        dispersion: str = "gene",
+        dropout_rate: Tunable[float] = 0.1,
+        dispersion: Tunable[
+            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
+        ] = "gene",
         log_variational: bool = True,
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
-        latent_distribution: str = "normal",
-        encode_covariates: bool = False,
-        deeply_inject_covariates: bool = True,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        gene_likelihood: Tunable[Literal["zinb", "nb", "poisson"]] = "zinb",
+        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
+        encode_covariates: Tunable[bool] = False,
+        deeply_inject_covariates: Tunable[bool] = True,
+        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
+        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
         use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
@@ -209,10 +212,6 @@ class VAE(BaseLatentModeModuleClass):
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
-
-    @classproperty
-    def _tunables(cls) -> Tuple[Any]:
-        return (cls.__init__,)
 
     def _get_inference_input(
         self,

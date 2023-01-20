@@ -14,6 +14,7 @@ from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import AnnOrMuData, LatentDataType
+from scvi.autotune._types import TunableMixin
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
@@ -61,7 +62,7 @@ class BaseModelMetaClass(ABCMeta):
         super().__init__(name, bases, dct)
 
 
-class BaseModelClass(metaclass=BaseModelMetaClass):
+class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
