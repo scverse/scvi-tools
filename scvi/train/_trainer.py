@@ -4,7 +4,7 @@ from typing import Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.loggers import Logger
 
 from scvi import settings
 from scvi.autotune._types import Tunable, TunableMixin
@@ -103,7 +103,7 @@ class Trainer(TunableMixin, pl.Trainer):
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
-        logger: Union[Optional[LightningLoggerBase], bool] = None,
+        logger: Union[Optional[Logger], bool] = None,
         log_every_n_steps: int = 10,
         replace_sampler_ddp: bool = False,
         **kwargs,
