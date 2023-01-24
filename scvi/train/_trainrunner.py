@@ -70,7 +70,6 @@ class TrainRunner:
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=lightning_devices,
-            gpus=None,
             **trainer_kwargs,
         )
 
