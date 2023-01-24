@@ -199,7 +199,8 @@ def test_pyro_bayesian_regression_low_level():
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        gpus=use_gpu,
+        accelerator="gpu" if use_gpu else "cpu",
+        devices="auto",
         max_epochs=2,
         callbacks=[PyroModelGuideWarmup(train_dl)],
     )
@@ -225,7 +226,8 @@ def test_pyro_bayesian_regression(save_path):
     plan = PyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        gpus=use_gpu,
+        accelerator="gpu" if use_gpu else "cpu",
+        devices="auto",
         max_epochs=2,
     )
     trainer.fit(plan, train_dl)

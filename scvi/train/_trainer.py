@@ -1,9 +1,9 @@
 import sys
 import warnings
-from typing import Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 
-import numpy as np
 import pytorch_lightning as pl
+from pytorch_lightning.accelerators import Accelerator
 from pytorch_lightning.loggers import Logger
 
 from scvi import settings
@@ -24,8 +24,13 @@ class Trainer(TunableMixin, pl.Trainer):
 
     Parameters
     ----------
-    gpus
-        Number of gpus to train on (int) or which GPUs to train on (list or str) applied per node
+    accelerator
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
+        as well as custom accelerator instances.
+    devices
+        The devices to use. Can be set to a positive number (int or str), a sequence of device indices
+        (list or str), the value ``-1`` to indicate all available devices should be used, or ``"auto"`` for
+        automatic selection based on the chosen accelerator. Default: ``"auto"``.
     benchmark
         If true enables cudnn.benchmark, which improves speed when inputs are fixed size
     check_val_every_n_epoch
@@ -84,9 +89,9 @@ class Trainer(TunableMixin, pl.Trainer):
 
     def __init__(
         self,
-        gpus: Union[int, str] = 1,
+        accelerator: Optional[Union[str, Accelerator]] = None,
+        devices: Optional[Union[List[int], str, int]] = None,
         benchmark: bool = True,
-        flush_logs_every_n_steps=np.inf,
         check_val_every_n_epoch: Optional[int] = None,
         max_epochs: Tunable[int] = 400,
         default_root_dir: Optional[str] = None,
@@ -105,7 +110,7 @@ class Trainer(TunableMixin, pl.Trainer):
         simple_progress_bar: bool = True,
         logger: Union[Optional[Logger], bool] = None,
         log_every_n_steps: int = 10,
-        replace_sampler_ddp: bool = False,
+        replace_sampler_ddp: bool = True,
         **kwargs,
     ):
         if default_root_dir is None:
@@ -139,7 +144,8 @@ class Trainer(TunableMixin, pl.Trainer):
             logger = SimpleLogger()
 
         super().__init__(
-            gpus=gpus,
+            accelerator=accelerator,
+            devices=devices,
             benchmark=benchmark,
             check_val_every_n_epoch=check_val_every_n_epoch,
             max_epochs=max_epochs,
