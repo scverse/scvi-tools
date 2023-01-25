@@ -292,7 +292,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
 
         Parameters
         ----------
-        loss_recorder
+        loss_output
             LossOutput object from scvi-tools module
         metric_attr_name
             The name of the torch metric object to use
