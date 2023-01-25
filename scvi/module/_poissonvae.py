@@ -8,7 +8,7 @@ from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
 from scvi.nn import Encoder, FCLayers, one_hot
 
@@ -53,7 +53,7 @@ class DecoderPoissonVI(nn.Module):
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
-        scale_activation: Literal["softmax", "softplus"] = "softmax",
+        scale_activation: Tunable["softmax", "softplus"] = "softmax",
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -181,8 +181,8 @@ class POISSONVAE(BaseModuleClass):
         n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
         log_variational=True,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_batch_norm: Tunable["encoder", "decoder", "none", "both"] = "none",
+        use_layer_norm: Tunable["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: str = "normal",
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,

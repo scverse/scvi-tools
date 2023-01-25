@@ -1,7 +1,7 @@
 import logging
 import warnings
 from functools import partial
-from typing import Iterable, List, Optional, Sequence, Union
+from typing import Iterable, List, Optional, Sequence, Union, Literal
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,6 @@ from scipy.sparse import csr_matrix
 from torch.distributions import Poisson
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import _ADATA_LATENT_UNS_KEY, _SCVI_UUID_KEY
