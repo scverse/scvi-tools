@@ -357,7 +357,6 @@ def organize_multiome_anndatas(
 
 
 def _dna_to_code(nt: str) -> int:
-    nt = nt.upper()
     if nt == "A":
         return 0
     elif nt == "C":
@@ -438,27 +437,23 @@ def add_dna_sequence(
     else:
         g = genomepy.Genome(genome_name, genomes_dir=genome_dir)
 
-    output_dfs = []
     chroms = adata.var[chr_var_key].unique()
     df = adata.var[[chr_var_key, start_var_key, end_var_key]]
+    seq_dfs = []
+
     for chrom in track(chroms):
         chrom_df = df[df[chr_var_key] == chrom]
-        lengths = chrom_df[end_var_key] - chrom_df[start_var_key]
-
-        block_starts = (
-            chrom_df[start_var_key] + (lengths // 2.0) - (seq_len // 2.0)
-        ).astype(int)
+        block_mid = (chrom_df[start_var_key] + chrom_df[end_var_key]) // 2
+        block_starts = block_mid - (seq_len // 2)
         block_ends = block_starts + seq_len
+        seqs = []
 
-        concat_seq = str(
-            g.get_spliced_seq(chrom, zip(block_starts, block_ends - 1))
-        ).upper()
-        concat_seq = [iter(concat_seq)] * seq_len
-        concat_seq = list(zip(*concat_seq))
-        assert len(concat_seq) == len(chrom_df)
+        for start, end in zip(block_starts, block_ends - 1):
+            seq = str(g.get_seq(chrom, start, end)).upper()
+            seqs.append(list(seq))
 
-        output_dfs.append(pd.DataFrame(np.array(concat_seq), index=chrom_df.index))
+        seq_dfs.append(pd.DataFrame(seqs, index=chrom_df.index))
 
-    output_df = pd.concat(output_dfs, axis=0).loc[adata.var_names]
-    adata.varm[sequence_varm_key] = output_df
-    adata.varm[code_varm_key] = output_df.applymap(_dna_to_code)
+    sequence_df = pd.concat(seq_dfs, axis=0).loc[adata.var_names]
+    adata.varm[sequence_varm_key] = sequence_df
+    adata.varm[code_varm_key] = sequence_df.applymap(_dna_to_code)

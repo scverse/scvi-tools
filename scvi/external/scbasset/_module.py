@@ -34,14 +34,14 @@ class _Linear(nn.Linear):
             torch.nn.init.zeros_(self.bias)
 
 
-class _GELU(nn.GELU):
+class _GELU(nn.Module):
     """GELU unit approximated by a sigmoid, same as original."""
 
     def __init__(self):
         super().__init__()
 
     def forward(self, x: torch.Tensor):
-        return torch.nn.functional.sigmoid(1.702 * x) * x
+        return torch.sigmoid(1.702 * x) * x
 
 
 class _BatchNorm(nn.BatchNorm1d):
