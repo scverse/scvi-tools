@@ -52,6 +52,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     >>> adata.obsm["X_CondSCVI"] = vae.get_latent_representation()
     """
 
+    _module_cls = VAEC
+
     def __init__(
         self,
         adata: AnnData,
@@ -77,7 +79,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             ct_weight = 1.0 / ct_prop
             module_kwargs.update({"ct_weight": ct_weight})
 
-        self.module = VAEC(
+        self.module = self._module_cls(
             n_input=n_vars,
             n_labels=n_labels,
             n_hidden=n_hidden,
@@ -260,6 +262,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_labels_key)s
         %(param_layer)s
         """

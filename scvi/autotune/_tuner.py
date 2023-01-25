@@ -6,7 +6,7 @@ from ._manager import TunerManager
 
 class ModelTuner:
     """
-    Automated and parallel hyperparameter tuning with :ref:`~ray.tune`.
+    Automated and scalable hyperparameter tuning for scvi-tools models.
 
     Wraps a :class:`~ray.tune.Tuner` instance attached to a scvi-tools model class.
     Note: this API is in beta and is subject to change in future releases.
@@ -14,10 +14,8 @@ class ModelTuner:
     Parameters
     ----------
     model_cls
-        :class:`~scvi.model.base.BaseModelClass` on which to tune hyperparameters.
-        Currently supported model classes are:
-
-        * :class:`~scvi.model.SCVI`
+        A model class on which to tune hyperparameters. Must have a class property
+        `_tunables` that defines tunable elements.
 
     Examples
     --------
@@ -27,17 +25,13 @@ class ModelTuner:
     >>> model_cls = scvi.model.SCVI
     >>> model_cls.setup_anndata(adata)
     >>> tuner = scvi.autotune.ModelTuner(model_cls)
-    >>> results = tuner.fit(adata, metric="validation_loss)
+    >>> results = tuner.fit(adata, metric="validation_loss")
     """
 
     def __init__(self, model_cls: BaseModelClass):
         self._manager = TunerManager(model_cls)
 
-    def fit(
-        self,
-        adata: AnnOrMuData,
-        **kwargs,
-    ) -> None:
+    def fit(self, adata: AnnOrMuData, **kwargs) -> None:
         """
         Run a specified hyperparameter sweep for the associated model class.
 
@@ -50,8 +44,7 @@ class ModelTuner:
             The primary metric to optimize. If not provided, defaults to the model
             class's validation loss.
         additional_metrics
-            Additional metrics to track during the experiment. If not provided, defaults
-            to no other metrics.
+            Additional metrics to track during the experiment. Defaults to `None`.
         search_space
             Dictionary of hyperparameter names and their respective search spaces
             provided as instantiated Ray Tune sample functions. Available
@@ -61,51 +54,65 @@ class ModelTuner:
             Whether to use the model class's default search space, which can be viewed
             with :meth:`~scvi.autotune.ModelTuner.info`. If `True` and `search_space` is
             provided, the two will be merged, giving priority to user-provided values.
-            Defaults to `True`.
-        exclude
-            List of hyperparameters to exclude from the default search space. If
-            `use_defaults` is `False`, this argument is ignored.
+            Defaults to `False`.
         num_samples
-            Number of hyperparameter configurations to sample.
+            Number of hyperparameter configurations to sample. Defaults to 10.
         max_epochs
-            Maximum number of epochs to train each model.
+            Maximum number of epochs to train each model configuration. Defaults to 100.
         scheduler
-            Ray Tune scheduler to use. Supported options are:
+            Ray Tune scheduler to use. One of the following:
 
-            * ``"asha"``: :class:`~ray.tune.schedulers.ASHAScheduler`
+            * ``"asha"``: :class:`~ray.tune.schedulers.AsyncHyperBandScheduler` (default)
             * ``"hyperband"``: :class:`~ray.tune.schedulers.HyperBandScheduler`
             * ``"median"``: :class:`~ray.tune.schedulers.MedianStoppingRule`
             * ``"pbt"``: :class:`~ray.tune.schedulers.PopulationBasedTraining`
             * ``"fifo"``: :class:`~ray.tune.schedulers.FIFOScheduler`
+
+            Note that that not all schedulers are compatible with all search algorithms.
+            See Ray Tune `documentation <https://docs.ray.io/en/latest/tune/key-concepts.html#schedulers>`_
+            for more details.
         scheduler_kwargs
             Keyword arguments to pass to the scheduler.
         searcher
-            Ray Tune search algorithm to use. Supported options are:
+            Ray Tune search algorithm to use. One of the following:
 
-            * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
-            * ``"grid"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
+            * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator` (default)
             * ``"hyperopt"``: :class:`~ray.tune.hyperopt.HyperOptSearch`
         searcher_kwargs
             Keyword arguments to pass to the search algorithm.
         reporter
-            Whether to display progress with a Ray Tune reporter. Depending on the
-            execution environment, will use one of the following reporters:
+            Whether to display progress with a Ray Tune reporter. Defaults to `True`.
+            Depending on the execution environment, one of the following:
 
-            * :class:`~ray.tune.CLIReporter` if running in a script
-            * :class:`~ray.tune.JupyterNotebookReporter` if running in a notebook
+            * :class:`~ray.tune.CLIReporter` if running non-interactively
+            * :class:`~ray.tune.JupyterNotebookReporter` if running interatively
         resources
             Dictionary of maximum resources to allocate for the experiment. Available
             keys include:
 
-            * ``"cpu"``: maximum number of CPU threads to use
-            * ``"gpu"``: maximum number of GPUs to use
+            * ``"cpu"``: number of CPU threads
+            * ``"gpu"``: number of GPUs
+            * ``"memory"``: amount of memory
 
-            If not provided, defaults to using one CPU thread and one GPU if available.
+            If not provided, defaults to using all available resources. Note that
+            fractional allocations are supported.
+        experiment_name
+            Name of the experiment, used for logging purposes. Defaults to a unique
+            string with the format `"tune_{model_cls}_{timestamp}"`.
+        logging_dir
+            Directory to store experiment logs. Defaults to a directory named `ray` in
+            the current working directory.
+
+        Returns
+        -------
+        :class:`~scvi.autotune.TuneAnalysis`
+            A dataclass containing the results of the tuning experiment.
         """
-        tuner = self._manager._get_tuner(adata, **kwargs)
+        tuner, config = self._manager._get_tuner(adata, **kwargs)
         results = tuner.fit()
-        return results
+        return self._manager._get_analysis(results, config)
 
-    def info(self, show_resources: bool = False) -> None:
-        """Display information about the associated model class."""
-        self._manager._view_registry(show_resources=show_resources)
+    def info(self, **kwargs) -> None:  # noqa: D102
+        self._manager._view_registry(**kwargs)
+
+    info.__doc__ = TunerManager._view_registry.__doc__

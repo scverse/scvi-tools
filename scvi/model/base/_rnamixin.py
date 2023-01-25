@@ -2,7 +2,7 @@ import inspect
 import logging
 import warnings
 from functools import partial
-from typing import Dict, Iterable, Optional, Sequence, Union
+from typing import Dict, Iterable, Literal, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,6 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.utils import unsupported_in_latent_mode
@@ -72,7 +71,7 @@ class RNASeqMixin:
         library_size
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent libary size.
+            magnitude. If set to `"latent"`, use the latent library size.
         n_samples
             Number of posterior samples to use for estimation.
         batch_size

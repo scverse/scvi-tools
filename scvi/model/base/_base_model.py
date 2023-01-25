@@ -14,6 +14,7 @@ from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import AnnOrMuData, LatentDataType
+from scvi.autotune._types import TunableMixin
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
@@ -61,7 +62,7 @@ class BaseModelMetaClass(ABCMeta):
         super().__init__(name, bases, dct)
 
 
-class BaseModelClass(metaclass=BaseModelMetaClass):
+class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
@@ -509,7 +510,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             if not isinstance(v, AnnData) and not isinstance(v, MuData)
         }
         # not very efficient but is explicit
-        # seperates variable params (**kwargs) from non variable params into two dicts
+        # separates variable params (**kwargs) from non variable params into two dicts
         non_var_params = [p.name for p in parameters if p.kind != p.VAR_KEYWORD]
         non_var_params = {k: v for (k, v) in all_params.items() if k in non_var_params}
         var_params = [p.name for p in parameters if p.kind == p.VAR_KEYWORD]
@@ -738,6 +739,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         summary_string += "\nTraining status: {}".format(
             "Trained" if self.is_trained_ else "Not Trained"
         )
+        summary_string += "\nLatent model? {}".format(
+            hasattr(self, "latent_data_type") and self.latent_data_type is not None
+        )
         rich.print(summary_string)
 
         return ""
@@ -843,7 +847,6 @@ class BaseLatentModeModelClass(BaseModelClass):
     @abstractmethod
     def to_latent_mode(
         self,
-        mode: LatentDataType = "posterior_parameters",
         *args,
         **kwargs,
     ):
@@ -855,11 +858,6 @@ class BaseLatentModeModelClass(BaseModelClass):
         the module as latent. Note that this modifies the anndata (and subsequently
         the model and module properties) in place. Please make a copy of those objects
         (before calling this function) if needed.
-
-        Parameters
-        ----------
-        mode
-            The latent data type used
         """
 
     @staticmethod

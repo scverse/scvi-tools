@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, Literal, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -8,7 +8,6 @@ from torch import logsumexp
 from torch.distributions import Beta
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model._utils import _init_library_size
@@ -91,6 +90,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     1. :doc:`/tutorials/notebooks/AutoZI_tutorial`
     """
 
+    _module_cls = AutoZIVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -115,7 +116,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             self.adata_manager, n_batch
         )
 
-        self.module = AutoZIVAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=self.summary_stats.n_labels,
@@ -280,6 +281,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_layer)s

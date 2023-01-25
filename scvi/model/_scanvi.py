@@ -1,7 +1,7 @@
 import logging
 import warnings
 from copy import deepcopy
-from typing import List, Optional, Sequence, Union
+from typing import List, Literal, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -9,32 +9,41 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
+from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
-from scvi.data._constants import _SETUP_ARGS_KEY
-from scvi.data._utils import get_anndata_attribute
+from scvi.data._constants import _ADATA_LATENT_UNS_KEY, _SETUP_ARGS_KEY
+from scvi.data._utils import _get_latent_adata_type, _is_latent, get_anndata_attribute
 from scvi.data.fields import (
+    BaseAnnDataField,
     CategoricalJointObsField,
     CategoricalObsField,
     LabelsWithUnlabeledObsField,
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
+    ObsmField,
+    StringUnsField,
 )
 from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model._utils import _init_library_size
+from scvi.model.utils import get_reduced_adata_scrna
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils import setup_anndata_dsp
 
 from ._scvi import SCVI
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
+
+_SCANVI_LATENT_MODE = "posterior_parameters"
+_SCANVI_LATENT_QZM = "_scanvi_latent_qzm"
+_SCANVI_LATENT_QZV = "_scanvi_latent_qzv"
+_SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 logger = logging.getLogger(__name__)
 
 
-class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
+class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseLatentModeModelClass):
     """
     Single-cell annotation using variational inference :cite:p:`Xu21`.
 
@@ -86,6 +95,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     3. :doc:`/tutorials/notebooks/seed_labeling`
     """
 
+    _module_cls = SCANVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -117,12 +128,12 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
+        if not use_size_factor_key and self.latent_data_type is None:
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
             )
 
-        self.module = SCANVAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=n_labels,
@@ -139,6 +150,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             library_log_vars=library_log_vars,
             **scanvae_model_kwargs,
         )
+        self.module.latent_data_type = self.latent_data_type
 
         self.unsupervised_history_ = None
         self.semisupervised_history_ = None
@@ -202,9 +214,18 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 )
                 del scanvi_kwargs[k]
 
+        if scvi_model.latent_data_type is not None:
+            raise ValueError(
+                "Please provide a non-latent scvi model to initialize scanvi."
+            )
+
         if adata is None:
             adata = scvi_model.adata
         else:
+            if _is_latent(adata):
+                raise ValueError(
+                    "Please provide a non-latent `adata` to initialize scanvi."
+                )
             # validate new anndata against old model
             scvi_model._validate_anndata(adata)
 
@@ -417,6 +438,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
@@ -441,8 +463,88 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
         ]
+        # register new fields for latent mode if needed
+        latent_mode = _get_latent_adata_type(adata)
+        if latent_mode is not None:
+            anndata_fields += cls._get_latent_fields(latent_mode)
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+
+    @staticmethod
+    def _get_latent_fields(mode: LatentDataType) -> List[BaseAnnDataField]:
+        """Latent mode specific manager fields."""
+        if mode == _SCANVI_LATENT_MODE:
+            latent_fields = [
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZM_KEY,
+                    _SCANVI_LATENT_QZM,
+                ),
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZV_KEY,
+                    _SCANVI_LATENT_QZV,
+                ),
+                NumericalObsField(
+                    REGISTRY_KEYS.OBSERVED_LIB_SIZE,
+                    _SCANVI_OBSERVED_LIB_SIZE,
+                ),
+            ]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        latent_fields.append(
+            StringUnsField(
+                REGISTRY_KEYS.LATENT_MODE_KEY,
+                _ADATA_LATENT_UNS_KEY,
+            ),
+        )
+        return latent_fields
+
+    def to_latent_mode(
+        self,
+        mode: LatentDataType = _SCANVI_LATENT_MODE,
+        use_latent_qzm_key: str = "X_latent_qzm",
+        use_latent_qzv_key: str = "X_latent_qzv",
+    ):
+        """
+        Put the model into latent mode.
+
+        The model is put into latent mode by registering new anndata fields
+        required for latent mode support - latent qzm, latent qzv, adata uns
+        containing latent mode type, and library size - and marking the module
+        as latent.
+
+        Parameters
+        ----------
+        mode
+            The latent data type used
+        use_latent_qzm_key
+            Key to use in `adata.obsm` where the latent qzm params are stored
+        use_latent_qzv_key
+            Key to use in `adata.obsm` where the latent qzv params are stored
+
+        Notes
+        -----
+        A new, minimal adata object is associated as `model.adata` after running
+        this method. This adata does not contain any of
+        the original count data, but instead contains the latent representation
+        of the original data and metadata.
+        """
+        if self.module.use_observed_lib_size is False:
+            raise ValueError(
+                "Latent mode not supported when use_observed_lib_size is False"
+            )
+        reduced_adata = get_reduced_adata_scrna(self.adata, mode)
+        if mode == _SCANVI_LATENT_MODE:
+            reduced_adata.obsm[_SCANVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+            reduced_adata.obsm[_SCANVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+            counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+            reduced_adata.obs[_SCANVI_OBSERVED_LIB_SIZE] = np.squeeze(
+                np.asarray(counts.sum(axis=1))
+            )
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        self.adata = reduced_adata
+        self.adata_manager.register_new_fields(self._get_latent_fields(mode))
+        self.module.latent_data_type = mode

@@ -29,9 +29,13 @@ for operating over a collection of AnnDataFields and an AnnData object.
    data.fields.BaseAnnDataField
    data.fields.LayerField
    data.fields.CategoricalObsField
+   data.fields.CategoricalVarField
    data.fields.NumericalJointObsField
+   data.fields.NumericalJointVarField
    data.fields.CategoricalJointObsField
+   data.fields.CategoricalJointVarField
    data.fields.ObsmField
+   data.fields.VarmField
    data.fields.ProteinObsmField
    data.fields.StringUnsField
    data.fields.LabelsWithUnlabeledObsField
@@ -40,10 +44,15 @@ for operating over a collection of AnnDataFields and an AnnData object.
    data.fields.MuDataLayerField
    data.fields.MuDataProteinLayerField
    data.fields.MuDataNumericalObsField
+   data.fields.MuDataNumericalVarField
    data.fields.MuDataCategoricalObsField
+   data.fields.MuDataCategoricalVarField
    data.fields.MuDataObsmField
+   data.fields.MuDataVarmField
    data.fields.MuDataNumericalJointObsField
+   data.fields.MuDataNumericalJointVarField
    data.fields.MuDataCategoricalJointObsField
+   data.fields.MuDataCategoricalJointVarField
 
 ```
 
@@ -111,6 +120,7 @@ These classes should be used to construct user-facing model classes.
     model.base.PyroSviTrainMixin
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
+    model.base.PyroModelGuideWarmup
     model.base.DifferentialComputation
 ```
 
@@ -162,6 +172,7 @@ Module classes in the external API with respective generative and inference proc
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
    external.tangram.TangramMapper
+   external.scbasset.ScBassetModule
 
 ```
 
@@ -227,6 +238,7 @@ TrainingPlans define train/test/val optimization steps for modules.
 
    train.AdversarialTrainingPlan
    train.SemiSupervisedTrainingPlan
+   train.LowLevelPyroTrainingPlan
    train.PyroTrainingPlan
    train.JaxTrainingPlan
    train.Trainer
@@ -253,6 +265,7 @@ classes allow for new model classes to be easily integrated with the module.
 
    autotune.TunerManager
    autotune.Tunable
+   autotune.TunableMixin
 ```
 
 ## Utilities

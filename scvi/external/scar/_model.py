@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,6 @@ from anndata import AnnData
 from torch.distributions.multinomial import Multinomial
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.model._utils import _init_library_size

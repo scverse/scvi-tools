@@ -1,5 +1,5 @@
 """Main module."""
-from typing import Dict, Iterable, Optional, Tuple, Union
+from typing import Dict, Iterable, Literal, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -8,7 +8,7 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
@@ -100,19 +100,21 @@ class TOTALVAE(BaseModuleClass):
         n_input_proteins: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: int = 256,
-        n_latent: int = 20,
-        n_layers_encoder: int = 2,
-        n_layers_decoder: int = 1,
+        n_hidden: Tunable[int] = 256,
+        n_latent: Tunable[int] = 20,
+        n_layers_encoder: Tunable[int] = 2,
+        n_layers_decoder: Tunable[int] = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate_decoder: float = 0.2,
-        dropout_rate_encoder: float = 0.2,
-        gene_dispersion: str = "gene",
-        protein_dispersion: str = "protein",
+        dropout_rate_decoder: Tunable[float] = 0.2,
+        dropout_rate_encoder: Tunable[float] = 0.2,
+        gene_dispersion: Tunable[Literal["gene", "gene-batch", "gene-label"]] = "gene",
+        protein_dispersion: Tunable[
+            Literal["protein", "protein-batch", "protein-label"]
+        ] = "protein",
         log_variational: bool = True,
-        gene_likelihood: str = "nb",
-        latent_distribution: str = "normal",
+        gene_likelihood: Tunable[Literal["zinb", "nb"]] = "nb",
+        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
         protein_batch_mask: Dict[Union[str, int], np.ndarray] = None,
         encode_covariates: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
@@ -121,8 +123,8 @@ class TOTALVAE(BaseModuleClass):
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
+        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion

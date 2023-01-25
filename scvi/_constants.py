@@ -13,6 +13,7 @@ class _REGISTRY_KEYS_NT(NamedTuple):
     LATENT_MODE_KEY: str = "latent_mode"
     LATENT_QZM_KEY: str = "latent_qzm"
     LATENT_QZV_KEY: str = "latent_qzv"
+    OBSERVED_LIB_SIZE: str = "observed_lib_size"
 
 
 REGISTRY_KEYS = _REGISTRY_KEYS_NT()

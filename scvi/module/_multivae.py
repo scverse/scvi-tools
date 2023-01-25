@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Literal, Optional
 
 import numpy as np
 import torch
@@ -8,7 +8,7 @@ from torch.distributions import kl_divergence as kld
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
@@ -212,7 +212,7 @@ class MULTIVAE(BaseModuleClass):
         * ``'zinb'`` - Zero-Inflated Negative Binomial
         * ``'nb'`` - Negative Binomial
         * ``'poisson'`` - Poisson
-    dispersion
+    gene_dispersion
         One of the following:
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
@@ -269,26 +269,28 @@ class MULTIVAE(BaseModuleClass):
         n_input_regions: int = 0,
         n_input_genes: int = 0,
         n_input_proteins: int = 0,
-        modality_weights: Literal["equal", "cell", "universal"] = "equal",
-        modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
+        modality_weights: Tunable[Literal["equal", "cell", "universal"]] = "equal",
+        modality_penalty: Tunable[Literal["Jeffreys", "MMD", "None"]] = "Jeffreys",
         n_batch: int = 0,
         n_obs: int = 0,
         n_labels: int = 0,
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
-        gene_dispersion: str = "gene",
-        n_hidden: Optional[int] = None,
-        n_latent: Optional[int] = None,
-        n_layers_encoder: int = 2,
-        n_layers_decoder: int = 2,
+        gene_likelihood: Tunable[Literal["zinb", "nb", "poisson"]] = "zinb",
+        gene_dispersion: Tunable[
+            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
+        ] = "gene",
+        n_hidden: Tunable[int] = None,
+        n_latent: Tunable[int] = None,
+        n_layers_encoder: Tunable[int] = 2,
+        n_layers_decoder: Tunable[int] = 2,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: float = 0.1,
-        region_factors: bool = True,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
-        latent_distribution: str = "normal",
-        deeply_inject_covariates: bool = False,
-        encode_covariates: bool = False,
+        dropout_rate: Tunable[float] = 0.1,
+        region_factors: Tunable[bool] = True,
+        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
+        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
+        deeply_inject_covariates: Tunable[bool] = False,
+        encode_covariates: Tunable[bool] = False,
         use_size_factor_key: bool = False,
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
