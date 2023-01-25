@@ -10,7 +10,7 @@ from torch.distributions import kl_divergence as kl
 from scvi import REGISTRY_KEYS
 from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
-from scvi.module.base import LossRecorder, auto_move_data
+from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import one_hot
 
 from ._vae import VAE
@@ -426,4 +426,9 @@ class AutoZIVAE(VAE):
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        return LossRecorder(loss, reconst_loss, kl_local, kl_global)
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_local=kl_local,
+            kl_global=kl_global,
+        )
