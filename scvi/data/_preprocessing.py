@@ -452,6 +452,7 @@ def add_dna_sequence(
             seq = str(g.get_seq(chrom, start, end)).upper()
             seqs.append(list(seq))
 
+        assert len(seqs) == len(chrom_df)
         seq_dfs.append(pd.DataFrame(seqs, index=chrom_df.index))
 
     sequence_df = pd.concat(seq_dfs, axis=0).loc[adata.var_names]
