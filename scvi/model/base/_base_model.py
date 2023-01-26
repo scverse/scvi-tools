@@ -739,9 +739,6 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         summary_string += "\nTraining status: {}".format(
             "Trained" if self.is_trained_ else "Not Trained"
         )
-        summary_string += "\nLatent model? {}".format(
-            hasattr(self, "latent_data_type") and self.latent_data_type is not None
-        )
         rich.print(summary_string)
 
         return ""
@@ -864,3 +861,23 @@ class BaseLatentModeModelClass(BaseModelClass):
     @abstractmethod
     def _get_latent_fields(mode: LatentDataType):
         """Return the anndata fields required for latent mode support."""
+
+    def __repr__(self):
+        super().__repr__()
+        summary_string = "\nModel in latent mode: {}".format(
+            hasattr(self, "latent_data_type") and self.latent_data_type is not None
+        )
+        rich.print(summary_string)
+
+    @staticmethod
+    def _update_adata_and_manager(
+        self, reduced_adata: AnnOrMuData, mode: LatentDataType
+    ):
+        """Update the anndata and manager in place after latent mode."""
+        self.adata = reduced_adata
+        # This validates and sets a new adata manager inplace
+        self.adata_manager.register_new_fields(self._get_latent_fields(mode))
+        # We reset the attribute again as this will update self.registry_
+        # derived from the manager, which is important for saving and loading the model
+        self.adata = reduced_adata
+        self.module.latent_data_type = mode
