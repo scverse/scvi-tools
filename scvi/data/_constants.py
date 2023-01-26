@@ -13,6 +13,7 @@ _MANAGER_UUID_KEY = "_scvi_manager_uuid"
 
 _SCVI_VERSION_KEY = "scvi_version"
 _MODEL_NAME_KEY = "model_name"
+_SETUP_METHOD_NAME = "setup_method_name"
 _SETUP_ARGS_KEY = "setup_args"
 _FIELD_REGISTRIES_KEY = "field_registries"
 _DATA_REGISTRY_KEY = "data_registry"
@@ -23,8 +24,15 @@ _SUMMARY_STATS_KEY = "summary_stats"
 # ----------------------------
 # Keys used in the data registry.
 
+_DR_MOD_KEY = "mod_key"
 _DR_ATTR_NAME = "attr_name"
 _DR_ATTR_KEY = "attr_key"
+
+# AnnData Latent Constants
+# ------------------------
+# Constants used in handling adata in latent mode.
+
+_ADATA_LATENT_UNS_KEY = "_scvi_adata_latent"
 
 # AnnData Object Constants
 # ------------------------
@@ -38,6 +46,7 @@ class _ADATA_ATTRS_NT(NamedTuple):
     OBSM: str = "obsm"
     VAR: str = "var"
     VARM: str = "varm"
+    UNS: str = "uns"
 
 
 _ADATA_ATTRS = _ADATA_ATTRS_NT()

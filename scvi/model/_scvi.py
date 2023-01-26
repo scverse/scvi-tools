@@ -1,24 +1,36 @@
 import logging
-from typing import List, Optional
+from typing import List, Literal, Optional
 
+import numpy as np
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
+from scvi._types import LatentDataType
 from scvi.data import AnnDataManager
+from scvi.data._constants import _ADATA_LATENT_UNS_KEY
+from scvi.data._utils import _get_latent_adata_type
 from scvi.data.fields import (
+    BaseAnnDataField,
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
+    ObsmField,
+    StringUnsField,
 )
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.model.utils import get_reduced_adata_scrna
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 
-from .base import ArchesMixin, BaseModelClass, DEMixin, RNASeqMixin, VAEMixin
+from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin, DEMixin
+
+_SCVI_LATENT_MODE = "posterior_parameters"
+_SCVI_LATENT_QZM = "_scvi_latent_qzm"
+_SCVI_LATENT_QZV = "_scvi_latent_qzv"
+_SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +41,10 @@ class SCVI(
     ArchesMixin,
     UnsupervisedTrainingMixin,
     DEMixin,
-    BaseModelClass,
+    BaseLatentModeModelClass,
 ):
     """
-    single-cell Variational Inference [Lopez18]_.
+    single-cell Variational Inference :cite:p:`Lopez18`.
 
     Parameters
     ----------
@@ -86,6 +98,8 @@ class SCVI(
     4. :doc:`/tutorials/notebooks/scvi_in_R`
     """
 
+    _module_cls = VAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -98,7 +112,7 @@ class SCVI(
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super(SCVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
@@ -112,12 +126,12 @@ class SCVI(
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
+        if not use_size_factor_key and self.latent_data_type is None:
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
             )
 
-        self.module = VAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=self.summary_stats.n_labels,
@@ -135,6 +149,7 @@ class SCVI(
             library_log_vars=library_log_vars,
             **model_kwargs,
         )
+        self.module.latent_data_type = self.latent_data_type
         self._model_summary_string = (
             "SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
             "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
@@ -167,6 +182,7 @@ class SCVI(
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
@@ -189,8 +205,91 @@ class SCVI(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
         ]
+        # register new fields for latent mode if needed
+        latent_mode = _get_latent_adata_type(adata)
+        if latent_mode is not None:
+            anndata_fields += cls._get_latent_fields(latent_mode)
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+
+    @staticmethod
+    def _get_latent_fields(mode: LatentDataType) -> List[BaseAnnDataField]:
+        """Latent mode specific manager fields."""
+        if mode == _SCVI_LATENT_MODE:
+            latent_fields = [
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZM_KEY,
+                    _SCVI_LATENT_QZM,
+                ),
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZV_KEY,
+                    _SCVI_LATENT_QZV,
+                ),
+                NumericalObsField(
+                    REGISTRY_KEYS.OBSERVED_LIB_SIZE,
+                    _SCVI_OBSERVED_LIB_SIZE,
+                ),
+            ]
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        latent_fields.append(
+            StringUnsField(
+                REGISTRY_KEYS.LATENT_MODE_KEY,
+                _ADATA_LATENT_UNS_KEY,
+            ),
+        )
+        return latent_fields
+
+    def to_latent_mode(
+        self,
+        mode: LatentDataType = _SCVI_LATENT_MODE,
+        use_latent_qzm_key: str = "X_latent_qzm",
+        use_latent_qzv_key: str = "X_latent_qzv",
+    ) -> None:
+        """
+        Put the model into latent mode.
+
+        The model is put into latent mode by registering new anndata fields
+        required for latent mode support - latent qzm, latent qzv, adata uns
+        containing latent mode type, and library size - and marking the module
+        as latent.
+
+        Parameters
+        ----------
+        mode
+            The latent data type used
+        use_latent_qzm_key
+            Key to use in `adata.obsm` where the latent qzm params are stored
+        use_latent_qzv_key
+            Key to use in `adata.obsm` where the latent qzv params are stored
+
+        Notes
+        -----
+        A new, minimal adata object is associated as `model.adata` after running
+        this method. This adata does not contain any of
+        the original count data, but instead contains the latent representation
+        of the original data and metadata.
+        """
+        # TODO(adamgayoso): Add support for other latent modes, including a mode
+        # in which no data is minified.
+        if self.module.use_observed_lib_size is False:
+            raise ValueError(
+                "Latent mode not supported when use_observed_lib_size is False"
+            )
+        reduced_adata = get_reduced_adata_scrna(self.adata, mode)
+        if mode == _SCVI_LATENT_MODE:
+            reduced_adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+            reduced_adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+            counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+            reduced_adata.obs[_SCVI_OBSERVED_LIB_SIZE] = np.squeeze(
+                np.asarray(counts.sum(axis=1))
+            )
+        else:
+            raise ValueError(f"Unknown latent mode: {mode}")
+        self.adata = reduced_adata
+        # This validates and sets a new adata manager
+        self.adata_manager.register_new_fields(self._get_latent_fields(mode))
+        self.module.latent_data_type = mode

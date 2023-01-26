@@ -3,15 +3,25 @@ import warnings
 from typing import Optional, Union
 from uuid import uuid4
 
-import anndata
 import h5py
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+from anndata import AnnData
 from anndata._core.sparse_dataset import SparseDataset
+
+# TODO use the experimental api once we lower bound to anndata 0.8
+try:
+    from anndata.experimental import read_elem
+except ImportError:
+    from anndata._io.specs import read_elem
+
+from mudata import MuData
 from pandas.api.types import CategoricalDtype
+
+from scvi._types import AnnOrMuData, LatentDataType
 
 from . import _constants
 
@@ -19,9 +29,18 @@ logger = logging.getLogger(__name__)
 
 
 def get_anndata_attribute(
-    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+    adata: AnnOrMuData,
+    attr_name: str,
+    attr_key: Optional[str],
+    mod_key: Optional[str] = None,
 ) -> Union[np.ndarray, pd.DataFrame]:
-    """Returns the requested data from a given AnnData object."""
+    """Returns the requested data from a given AnnData/MuData object."""
+    if mod_key is not None:
+        if isinstance(adata, AnnData):
+            raise ValueError(f"Cannot access modality {mod_key} on an AnnData object.")
+        if mod_key not in adata.mod:
+            raise ValueError(f"{mod_key} is not a valid modality in adata.mod.")
+        adata = adata.mod[mod_key]
     adata_attr = getattr(adata, attr_name)
     if attr_key is None:
         field = adata_attr
@@ -42,7 +61,7 @@ def get_anndata_attribute(
 
 
 def _set_data_in_registry(
-    adata: anndata.AnnData,
+    adata: AnnData,
     data: Union[np.ndarray, pd.DataFrame],
     attr_name: str,
     attr_key: Optional[str],
@@ -78,7 +97,7 @@ def _set_data_in_registry(
 
 
 def _verify_and_correct_data_format(
-    adata: anndata.AnnData, attr_name: str, attr_key: Optional[str]
+    adata: AnnData, attr_name: str, attr_key: Optional[str]
 ):
     """
     Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
@@ -162,7 +181,7 @@ def _make_column_categorical(
     return mapping
 
 
-def _assign_adata_uuid(adata: anndata.AnnData, overwrite: bool = False) -> None:
+def _assign_adata_uuid(adata: AnnOrMuData, overwrite: bool = False) -> None:
     """
     Assigns a UUID unique to the AnnData object.
 
@@ -177,7 +196,6 @@ def _check_nonnegative_integers(
     n_to_check: int = 20,
 ):
     """Approximately checks values of data to ensure it is count data."""
-
     # for backed anndata
     if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
         data = data[:100]
@@ -191,10 +209,13 @@ def _check_nonnegative_integers(
     else:
         raise TypeError("data type not understood")
 
-    inds = np.random.choice(len(data), size=(n_to_check,))
-    check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
-    negative, non_integer = _is_not_count_val(check)
-    return not (negative or non_integer)
+    ret = True
+    if len(data) != 0:
+        inds = np.random.choice(len(data), size=(n_to_check,))
+        check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
+        negative, non_integer = _is_not_count_val(check)
+        ret = not (negative or non_integer)
+    return ret
 
 
 @jax.jit
@@ -205,23 +226,45 @@ def _is_not_count_val(data: jnp.ndarray):
     return negative, non_integer
 
 
-def _get_batch_mask_protein_data(
-    adata: anndata.AnnData, protein_expression_obsm_key: str, batch_key: str
-):
-    """
-    Returns a list with length number of batches where each entry is a mask.
+def _check_if_view(adata: AnnOrMuData, copy_if_view: bool = False):
+    if adata.is_view:
+        if copy_if_view:
+            logger.info("Received view of anndata, making copy.")
+            adata._init_as_actual(adata.copy())
+            # Reassign AnnData UUID to produce a separate AnnDataManager.
+            _assign_adata_uuid(adata, overwrite=True)
+        else:
+            raise ValueError("Please run `adata = adata.copy()`")
+    elif isinstance(adata, MuData):
+        for mod_key in adata.mod.keys():
+            mod_adata = adata.mod[mod_key]
+            _check_if_view(mod_adata, copy_if_view)
 
-    The mask is over cell measurement columns that are present (observed)
-    in each batch. Absence is defined by all 0 for that protein in that batch.
-    """
-    pro_exp = adata.obsm[protein_expression_obsm_key]
-    pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
-    batches = adata.obs[batch_key].values
-    batch_mask = {}
-    for b in np.unique(batches):
-        b_inds = np.where(batches.ravel() == b)[0]
-        batch_sum = pro_exp[b_inds, :].sum(axis=0)
-        all_zero = batch_sum == 0
-        batch_mask[b] = ~all_zero
 
-    return batch_mask
+def _check_mudata_fully_paired(mdata: MuData):
+    if isinstance(mdata, AnnData):
+        raise AssertionError(
+            "Cannot call ``_check_mudata_fully_paired`` with AnnData object."
+        )
+    for mod_key in mdata.mod:
+        if not mdata.obsm[mod_key].all():
+            raise ValueError(
+                f"Detected unpaired observations in modality {mod_key}. "
+                "Please make sure that data is fully paired in all MuData inputs. "
+                "Either pad the unpaired modalities or take the intersection with muon.pp.intersect_obs()."
+            )
+
+
+def _get_latent_adata_type(adata: AnnData) -> Union[LatentDataType, None]:
+    return adata.uns.get(_constants._ADATA_LATENT_UNS_KEY, None)
+
+
+def _is_latent(adata: Union[AnnData, str]) -> bool:
+    uns_key = _constants._ADATA_LATENT_UNS_KEY
+    if isinstance(adata, AnnData):
+        return adata.uns.get(uns_key, None) is not None
+    elif isinstance(adata, str):
+        with h5py.File(adata) as fp:
+            return uns_key in read_elem(fp["uns"]).keys()
+    else:
+        raise TypeError(f"Unsupported type: {type(adata)}")

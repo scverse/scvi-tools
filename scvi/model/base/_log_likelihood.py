@@ -18,11 +18,11 @@ def compute_elbo(vae, data_loader, feed_labels=True, **kwargs):
     for tensors in data_loader:
         _, _, scvi_loss = vae(tensors, **kwargs)
 
-        recon_loss = scvi_loss.reconstruction_loss
-        kl_local = scvi_loss.kl_local
-        elbo += torch.sum(recon_loss + kl_local).item()
+        recon_loss = scvi_loss.reconstruction_loss_sum
+        kl_local = scvi_loss.kl_local_sum
+        elbo += (recon_loss + kl_local).item()
 
-    kl_global = scvi_loss.kl_global
+    kl_global = scvi_loss.kl_global_sum
     n_samples = len(data_loader.indices)
     elbo += kl_global
     return elbo / n_samples
@@ -41,14 +41,18 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
     for tensors in data_loader:
         loss_kwargs = dict(kl_weight=1)
         _, _, losses = vae(tensors, loss_kwargs=loss_kwargs)
-        for key, value in losses._reconstruction_loss.items():
+        if not isinstance(losses.reconstruction_loss, dict):
+            rec_loss_dict = {"reconstruction_loss": losses.reconstruction_loss}
+        else:
+            rec_loss_dict = losses.reconstruction_loss
+        for key, value in rec_loss_dict.items():
             if key in log_lkl:
                 log_lkl[key] += torch.sum(value).item()
             else:
-                log_lkl[key] = 0.0
+                log_lkl[key] = torch.sum(value).item()
 
     n_samples = len(data_loader.indices)
-    for key, value in log_lkl.items():
+    for key, _ in log_lkl.items():
         log_lkl[key] = log_lkl[key] / n_samples
         log_lkl[key] = -log_lkl[key]
     return log_lkl

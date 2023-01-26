@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Tuple, Union
+from typing import Literal, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -7,7 +7,6 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
 
@@ -43,7 +42,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         sc_adata: AnnData,
         **model_kwargs,
     ):
-        super(RNAStereoscope, self).__init__(sc_adata)
+        super().__init__(sc_adata)
         self.n_genes = self.summary_stats.n_vars
         self.n_labels = self.summary_stats.n_labels
         # first we have the scRNA-seq model
@@ -144,7 +143,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
 
 class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Reimplementation of Stereoscope [Andersson20]_ for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
 

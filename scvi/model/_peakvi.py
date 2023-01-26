@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Literal, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,6 @@ import torch
 from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 
-from scvi._compat import Literal
 from scvi._constants import REGISTRY_KEYS
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
@@ -35,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Peak Variational Inference [Ashuach22]_
+    Peak Variational Inference :cite:p:`Ashuach22`.
 
     Parameters
     ----------
@@ -82,6 +81,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     1. :doc:`/tutorials/notebooks/PeakVI`
     """
 
+    _module_cls = PEAKVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -99,7 +100,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         encode_covariates: bool = False,
         **model_kwargs,
     ):
-        super(PEAKVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
@@ -109,7 +110,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             else []
         )
 
-        self.module = PEAKVAE(
+        self.module = self._module_cls(
             n_input_regions=self.summary_stats.n_vars,
             n_batch=self.summary_stats.n_batch,
             n_hidden=n_hidden,
@@ -243,7 +244,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **kwargs,
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_library_size_factors(
         self,
         adata: Optional[AnnData] = None,
@@ -280,14 +281,14 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         return torch.cat(library_sizes).numpy().squeeze()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_region_factors(self):
         """Return region-specific factors."""
         if self.module.region_factors is None:
             raise RuntimeError("region factors were not included in this model")
         return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_accessibility_estimates(
         self,
         adata: Optional[AnnData] = None,
@@ -432,10 +433,11 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
+        r"""\
+
         A unified method for differential accessibility analysis.
 
-        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
+        Implements `"vanilla"` DE :cite:p:`Lopez18`. and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
@@ -517,7 +519,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         result = pd.DataFrame(
             {
                 "prob_da": result.proba_de,
-                "is_da_fdr": result.loc[:, "is_de_fdr_{}".format(fdr_target)],
+                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"],
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,
@@ -546,11 +548,12 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
-        %(param_layer)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        %(param_layer)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [

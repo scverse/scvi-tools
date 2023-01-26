@@ -3,20 +3,47 @@ from __future__ import annotations
 import sys
 from collections import defaultdict
 from copy import deepcopy
-from typing import Optional, Sequence, Union
+from dataclasses import dataclass
+from io import StringIO
+from typing import List, Optional, Union
 from uuid import uuid4
 
 import numpy as np
 import pandas as pd
 import rich
-from anndata import AnnData
+from mudata import MuData
+from rich import box
+from rich.console import Console
 
 import scvi
-from scvi._types import AnnDataField
+from scvi._types import AnnOrMuData
 from scvi.utils import attrdict
 
 from . import _constants
-from ._utils import _assign_adata_uuid, get_anndata_attribute
+from ._utils import (
+    _assign_adata_uuid,
+    _check_if_view,
+    _check_mudata_fully_paired,
+    get_anndata_attribute,
+)
+from .fields import AnnDataField
+
+
+@dataclass
+class AnnDataManagerValidationCheck:
+    """
+    Validation checks for AnnorMudata scvi-tools compat.
+
+    Parameters
+    ----------
+    check_if_view
+        If True, checks if AnnData is a view.
+    check_fully_paired_mudata
+        If True, checks if MuData is fully paired across mods.
+    """
+
+    check_if_view: bool = True
+    check_fully_paired_mudata: bool = True
 
 
 class AnnDataManager:
@@ -33,6 +60,8 @@ class AnnDataManager:
     setup_method_args
         Dictionary describing the model and arguments passed in by the user
         to setup this AnnDataManager.
+    validation_checks
+        DataClass specifying which global validation checks to run on the data object.
 
     Examples
     --------
@@ -49,12 +78,14 @@ class AnnDataManager:
 
     def __init__(
         self,
-        fields: Optional[Sequence[AnnDataField]] = None,
+        fields: Optional[List[AnnDataField]] = None,
         setup_method_args: Optional[dict] = None,
+        validation_checks: Optional[AnnDataManagerValidationCheck] = None,
     ) -> None:
         self.id = str(uuid4())
         self.adata = None
         self.fields = fields or []
+        self.validation_checks = validation_checks or AnnDataManagerValidationCheck()
         self._registry = {
             _constants._SCVI_VERSION_KEY: scvi.__version__,
             _constants._MODEL_NAME_KEY: None,
@@ -71,11 +102,16 @@ class AnnDataManager:
                 "AnnData object not registered. Please call register_fields."
             )
 
-    @staticmethod
-    def _validate_anndata_object(adata: AnnData):
+    def _validate_anndata_object(self, adata: AnnOrMuData):
         """For a given AnnData object, runs general scvi-tools compatibility checks."""
-        if adata.is_view:
-            raise ValueError("Please run `adata = adata.copy()`")
+        if self.validation_checks.check_if_view:
+            _check_if_view(adata, copy_if_view=False)
+
+        if (
+            isinstance(adata, MuData)
+            and self.validation_checks.check_fully_paired_mudata
+        ):
+            _check_mudata_fully_paired(adata)
 
     def _get_setup_method_args(self) -> dict:
         """
@@ -101,15 +137,16 @@ class AnnDataManager:
         self._registry[_constants._SCVI_UUID_KEY] = scvi_uuid
 
     def _assign_most_recent_manager_uuid(self):
-        """
-        Assigns a last manager UUID to the AnnData object for future validation.
-        """
+        """Assigns a last manager UUID to the AnnData object for future validation."""
         self._assert_anndata_registered()
 
         self.adata.uns[_constants._MANAGER_UUID_KEY] = self.id
 
     def register_fields(
-        self, adata: AnnData, source_registry: Optional[dict] = None, **transfer_kwargs
+        self,
+        adata: AnnOrMuData,
+        source_registry: Optional[dict] = None,
+        **transfer_kwargs,
     ):
         """
         Registers each field associated with this instance with the AnnData object.
@@ -137,38 +174,13 @@ class AnnDataManager:
             )
 
         self._validate_anndata_object(adata)
-        field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
 
         for field in self.fields:
-            field_registries[field.registry_key] = {
-                _constants._DATA_REGISTRY_KEY: field.get_data_registry(),
-                _constants._STATE_REGISTRY_KEY: dict(),
-            }
-            field_registry = field_registries[field.registry_key]
-
-            # A field can be empty if the model has optional fields (e.g. extra covariates).
-            # If empty, we skip registering the field.
-            if not field.is_empty:
-                # Transfer case: Source registry is used for validation and/or setup.
-                if source_registry is not None:
-                    field_registry[
-                        _constants._STATE_REGISTRY_KEY
-                    ] = field.transfer_field(
-                        source_registry[_constants._FIELD_REGISTRIES_KEY][
-                            field.registry_key
-                        ][_constants._STATE_REGISTRY_KEY],
-                        adata,
-                        **transfer_kwargs,
-                    )
-                else:
-                    field_registry[
-                        _constants._STATE_REGISTRY_KEY
-                    ] = field.register_field(adata)
-
-            # Compute and set summary stats for the given field.
-            state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
-            field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(
-                state_registry
+            self._add_field(
+                field=field,
+                adata=adata,
+                source_registry=source_registry,
+                **transfer_kwargs,
             )
 
         # Save arguments for register_fields.
@@ -179,7 +191,74 @@ class AnnDataManager:
         self._assign_uuid()
         self._assign_most_recent_manager_uuid()
 
-    def transfer_fields(self, adata_target: AnnData, **kwargs) -> AnnDataManager:
+    def _add_field(
+        self,
+        field: AnnDataField,
+        adata: AnnOrMuData,
+        source_registry: Optional[dict] = None,
+        **transfer_kwargs,
+    ):
+        """Internal function for adding a field with optional transferring."""
+        field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
+        field_registries[field.registry_key] = {
+            _constants._DATA_REGISTRY_KEY: field.get_data_registry(),
+            _constants._STATE_REGISTRY_KEY: dict(),
+        }
+        field_registry = field_registries[field.registry_key]
+
+        # A field can be empty if the model has optional fields (e.g. extra covariates).
+        # If empty, we skip registering the field.
+        if not field.is_empty:
+            # Transfer case: Source registry is used for validation and/or setup.
+            if source_registry is not None:
+                field_registry[_constants._STATE_REGISTRY_KEY] = field.transfer_field(
+                    source_registry[_constants._FIELD_REGISTRIES_KEY][
+                        field.registry_key
+                    ][_constants._STATE_REGISTRY_KEY],
+                    adata,
+                    **transfer_kwargs,
+                )
+            else:
+                field_registry[_constants._STATE_REGISTRY_KEY] = field.register_field(
+                    adata
+                )
+        # Compute and set summary stats for the given field.
+        state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
+        field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(
+            state_registry
+        )
+
+    def register_new_fields(self, fields: List[AnnDataField]):
+        """
+        Register new fields to a manager instance.
+
+        This is useful to augment the functionality of an existing manager.
+
+        Parameters
+        ----------
+        fields
+            List of AnnDataFields to register
+        """
+        if self.adata is None:
+            raise AssertionError(
+                "No AnnData object has been registered with this Manager instance."
+            )
+        self.validate()
+        for field in fields:
+            self._add_field(
+                field=field,
+                adata=self.adata,
+            )
+
+        # Source registry is not None if this manager was created from transfer_fields
+        # In this case self._registry is originally equivalent to self._source_registry
+        # However, with newly registered fields the equality breaks so we reset it
+        if self._source_registry is not None:
+            self._source_registry = deepcopy(self._registry)
+
+        self.fields += fields
+
+    def transfer_fields(self, adata_target: AnnOrMuData, **kwargs) -> AnnDataManager:
         """
         Transfers an existing setup to each field associated with this instance with the target AnnData object.
 
@@ -198,7 +277,9 @@ class AnnDataManager:
 
         fields = self.fields
         new_adata_manager = self.__class__(
-            fields=fields, setup_method_args=self._get_setup_method_args()
+            fields=fields,
+            setup_method_args=self._get_setup_method_args(),
+            validation_checks=self.validation_checks,
         )
         new_adata_manager.register_fields(adata_target, self._registry, **kwargs)
         return new_adata_manager
@@ -212,6 +293,19 @@ class AnnDataManager:
         if most_recent_manager_id != self.id:
             adata, self.adata = self.adata, None  # Reset self.adata.
             self.register_fields(adata, self._source_registry, **self._transfer_kwargs)
+
+    def update_setup_method_args(self, setup_method_args: dict):
+        """
+        Update setup method args.
+
+        Parameters
+        ----------
+        setup_method_args
+            This is a bit of a misnomer, this is a dict representing kwargs
+            of the setup method that will be used to update the existing values
+            in the registry of this instance.
+        """
+        self._registry[_constants._SETUP_ARGS_KEY].update(setup_method_args)
 
     @property
     def adata_uuid(self) -> str:
@@ -229,27 +323,31 @@ class AnnDataManager:
     def data_registry(self) -> attrdict:
         """Returns the data registry for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
+        return self._get_data_registry_from_registry(self._registry)
 
+    @staticmethod
+    def _get_data_registry_from_registry(registry: dict) -> attrdict:
         data_registry = dict()
-        for registry_key, field_registry in self._registry[
+        for registry_key, field_registry in registry[
             _constants._FIELD_REGISTRIES_KEY
         ].items():
             field_data_registry = field_registry[_constants._DATA_REGISTRY_KEY]
             if field_data_registry:
                 data_registry[registry_key] = field_data_registry
-
-        return attrdict(data_registry, recursive=True)
+        return attrdict(data_registry)
 
     @property
     def summary_stats(self) -> attrdict:
         """Returns the summary stats for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
+        return self._get_summary_stats_from_registry(self._registry)
 
+    @staticmethod
+    def _get_summary_stats_from_registry(registry: dict) -> attrdict:
         summary_stats = dict()
-        for field_registry in self._registry[_constants._FIELD_REGISTRIES_KEY].values():
+        for field_registry in registry[_constants._FIELD_REGISTRIES_KEY].values():
             field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
             summary_stats.update(field_summary_stats)
-
         return attrdict(summary_stats)
 
     def get_from_registry(self, registry_key: str) -> Union[np.ndarray, pd.DataFrame]:
@@ -266,12 +364,13 @@ class AnnDataManager:
         The requested data.
         """
         data_loc = self.data_registry[registry_key]
-        attr_name, attr_key = (
+        mod_key, attr_name, attr_key = (
+            getattr(data_loc, _constants._DR_MOD_KEY, None),
             data_loc[_constants._DR_ATTR_NAME],
             data_loc[_constants._DR_ATTR_KEY],
         )
 
-        return get_anndata_attribute(self.adata, attr_name, attr_key)
+        return get_anndata_attribute(self.adata, attr_name, attr_key, mod_key=mod_key)
 
     def get_state_registry(self, registry_key: str) -> attrdict:
         """Returns the state registry for the AnnDataField registered with this instance."""
@@ -283,9 +382,16 @@ class AnnDataManager:
             ]
         )
 
-    def _view_summary_stats(self) -> rich.table.Table:
+    @staticmethod
+    def _view_summary_stats(
+        summary_stats: attrdict, as_markdown: bool = False
+    ) -> Union[rich.table.Table, str]:
         """Prints summary stats."""
-        t = rich.table.Table(title="Summary Statistics")
+        if not as_markdown:
+            t = rich.table.Table(title="Summary Statistics")
+        else:
+            t = rich.table.Table(box=box.MARKDOWN)
+
         t.add_column(
             "Summary Stat Key",
             justify="center",
@@ -300,13 +406,26 @@ class AnnDataManager:
             no_wrap=True,
             overflow="fold",
         )
-        for stat_key, count in self.summary_stats.items():
+        for stat_key, count in summary_stats.items():
             t.add_row(stat_key, str(count))
+
+        if as_markdown:
+            console = Console(file=StringIO(), force_jupyter=False)
+            console.print(t)
+            return console.file.getvalue().strip()
+
         return t
 
-    def _view_data_registry(self) -> rich.table.Table:
+    @staticmethod
+    def _view_data_registry(
+        data_registry: attrdict, as_markdown: bool = False
+    ) -> Union[rich.table.Table, str]:
         """Prints data registry."""
-        t = rich.table.Table(title="Data Registry")
+        if not as_markdown:
+            t = rich.table.Table(title="Data Registry")
+        else:
+            t = rich.table.Table(box=box.MARKDOWN)
+
         t.add_column(
             "Registry Key",
             justify="center",
@@ -322,14 +441,23 @@ class AnnDataManager:
             overflow="fold",
         )
 
-        for registry_key, data_loc in self.data_registry.items():
+        for registry_key, data_loc in data_registry.items():
+            mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
             attr_name = data_loc.attr_name
             attr_key = data_loc.attr_key
+            scvi_data_str = "adata"
+            if mod_key is not None:
+                scvi_data_str += f".mod['{mod_key}']"
             if attr_key is None:
-                scvi_data_str = f"adata.{attr_name}"
+                scvi_data_str += f".{attr_name}"
             else:
-                scvi_data_str = f"adata.{attr_name}['{attr_key}']"
+                scvi_data_str += f".{attr_name}['{attr_key}']"
             t.add_row(registry_key, scvi_data_str)
+
+        if as_markdown:
+            console = Console(file=StringIO(), force_jupyter=False)
+            console.print(t)
+            return console.file.getvalue().strip()
 
         return t
 
@@ -367,8 +495,11 @@ class AnnDataManager:
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
         console = rich.console.Console(force_jupyter=force_jupyter)
-        console.print(self._view_summary_stats())
-        console.print(self._view_data_registry())
+
+        ss = self._get_summary_stats_from_registry(self._registry)
+        dr = self._get_data_registry_from_registry(self._registry)
+        console.print(self._view_summary_stats(ss))
+        console.print(self._view_data_registry(dr))
 
         if not hide_state_registries:
             for field in self.fields:

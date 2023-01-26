@@ -8,7 +8,9 @@ import torch
 import torch.nn.functional as F
 from numpyro.distributions import constraints as numpyro_constraints
 from numpyro.distributions.util import promote_shapes, validate_sample
-from torch.distributions import Distribution, Gamma, Poisson, constraints
+from torch.distributions import Distribution, Gamma
+from torch.distributions import Poisson as PoissonTorch
+from torch.distributions import constraints
 from torch.distributions.utils import (
     broadcast_all,
     lazy_property,
@@ -46,7 +48,8 @@ def log_zinb_positive(
             1, theta.size(0)
         )  # In this case, we reshape theta for broadcasting
 
-    softplus_pi = F.softplus(-pi)  #  uses log(sigmoid(x)) = -softplus(-x)
+    # Uses log(sigmoid(x)) = -softplus(-x)
+    softplus_pi = F.softplus(-pi)
     log_theta_eps = torch.log(theta + eps)
     log_theta_mu_eps = torch.log(theta + mu + eps)
     pi_theta_log = -pi + theta * (log_theta_eps - log_theta_mu_eps)
@@ -236,6 +239,33 @@ def _gamma(theta, mu):
     return gamma_d
 
 
+class Poisson(PoissonTorch):
+    """
+    Poisson distribution.
+
+    Parameters
+    ----------
+    rate
+        rate of the Poisson distribution.
+    validate_args
+        whether to validate input.
+    scale
+        Normalized mean expression of the distribution.
+        This optional parameter is not used in any computations, but allows to store
+        normalization expression levels.
+
+    """
+
+    def __init__(
+        self,
+        rate: torch.Tensor,
+        validate_args: Optional[bool] = None,
+        scale: Optional[torch.Tensor] = None,
+    ):
+        super().__init__(rate=rate, validate_args=validate_args)
+        self.scale = scale
+
+
 class NegativeBinomial(Distribution):
     r"""
     Negative binomial distribution.
@@ -262,6 +292,8 @@ class NegativeBinomial(Distribution):
         Mean of the distribution.
     theta
         Inverse dispersion.
+    scale
+        Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints
     """
@@ -279,6 +311,7 @@ class NegativeBinomial(Distribution):
         logits: Optional[torch.Tensor] = None,
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
+        scale: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
         self._eps = 1e-8
@@ -299,32 +332,36 @@ class NegativeBinomial(Distribution):
             mu, theta = broadcast_all(mu, theta)
         self.mu = mu
         self.theta = theta
+        self.scale = scale
         super().__init__(validate_args=validate_args)
 
     @property
-    def mean(self):
+    def mean(self):  # noqa: D102
         return self.mu
 
     @property
-    def variance(self):
+    def variance(self):  # noqa: D102
         return self.mean + (self.mean**2) / self.theta
 
+    @torch.inference_mode()
     def sample(
-        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+        self,
+        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
     ) -> torch.Tensor:
-        with torch.no_grad():
-            gamma_d = self._gamma()
-            p_means = gamma_d.sample(sample_shape)
+        """Sample from the distribution."""
+        sample_shape = sample_shape or torch.Size()
+        gamma_d = self._gamma()
+        p_means = gamma_d.sample(sample_shape)
 
-            # Clamping as distributions objects can have buggy behaviors when
-            # their parameters are too high
-            l_train = torch.clamp(p_means, max=1e8)
-            counts = Poisson(
-                l_train
-            ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
-            return counts
+        # Clamping as distributions objects can have buggy behaviors when
+        # their parameters are too high
+        l_train = torch.clamp(p_means, max=1e8)
+        counts = PoissonTorch(
+            l_train
+        ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
+        return counts
 
-    def log_prob(self, value: torch.Tensor) -> torch.Tensor:
+    def log_prob(self, value: torch.Tensor) -> torch.Tensor:  # noqa: D102
         if self._validate_args:
             try:
                 self._validate_sample(value)
@@ -368,6 +405,8 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         Inverse dispersion.
     zi_logits
         Logits scale of zero inflation probability.
+    scale
+        Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints
     """
@@ -388,6 +427,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         mu: Optional[torch.Tensor] = None,
         theta: Optional[torch.Tensor] = None,
         zi_logits: Optional[torch.Tensor] = None,
+        scale: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
 
@@ -397,6 +437,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
             logits=logits,
             mu=mu,
             theta=theta,
+            scale=scale,
             validate_args=validate_args,
         )
         self.zi_logits, self.mu, self.theta = broadcast_all(
@@ -404,32 +445,37 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         )
 
     @property
-    def mean(self):
+    def mean(self):  # noqa: D102
         pi = self.zi_probs
         return (1 - pi) * self.mu
 
     @property
-    def variance(self):
+    def variance(self):  # noqa: D102
         raise NotImplementedError
 
     @lazy_property
     def zi_logits(self) -> torch.Tensor:
+        """ZI logits."""
         return probs_to_logits(self.zi_probs, is_binary=True)
 
     @lazy_property
-    def zi_probs(self) -> torch.Tensor:
+    def zi_probs(self) -> torch.Tensor:  # noqa: D102
         return logits_to_probs(self.zi_logits, is_binary=True)
 
+    @torch.inference_mode()
     def sample(
-        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+        self,
+        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
     ) -> torch.Tensor:
-        with torch.no_grad():
-            samp = super().sample(sample_shape=sample_shape)
-            is_zero = torch.rand_like(samp) <= self.zi_probs
-            samp[is_zero] = 0.0
-            return samp
+        """Sample from the distribution."""
+        sample_shape = sample_shape or torch.Size()
+        samp = super().sample(sample_shape=sample_shape)
+        is_zero = torch.rand_like(samp) <= self.zi_probs
+        samp_ = torch.where(is_zero, torch.zeros_like(samp), samp)
+        return samp_
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
+        """Log probability."""
         try:
             self._validate_sample(value)
         except ValueError:
@@ -497,37 +543,41 @@ class NegativeBinomialMixture(Distribution):
             self.theta2 = None
 
     @property
-    def mean(self):
+    def mean(self):  # noqa: D102
         pi = self.mixture_probs
         return pi * self.mu1 + (1 - pi) * self.mu2
 
     @lazy_property
-    def mixture_probs(self) -> torch.Tensor:
+    def mixture_probs(self) -> torch.Tensor:  # noqa: D102
         return logits_to_probs(self.mixture_logits, is_binary=True)
 
+    @torch.inference_mode()
     def sample(
-        self, sample_shape: Union[torch.Size, Tuple] = torch.Size()
+        self,
+        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
     ) -> torch.Tensor:
-        with torch.no_grad():
-            pi = self.mixture_probs
-            mixing_sample = torch.distributions.Bernoulli(pi).sample()
-            mu = self.mu1 * mixing_sample + self.mu2 * (1 - mixing_sample)
-            if self.theta2 is None:
-                theta = self.theta1
-            else:
-                theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
-            gamma_d = _gamma(mu, theta)
-            p_means = gamma_d.sample(sample_shape)
+        """Sample from the distribution."""
+        sample_shape = sample_shape or torch.Size()
+        pi = self.mixture_probs
+        mixing_sample = torch.distributions.Bernoulli(pi).sample()
+        mu = self.mu1 * mixing_sample + self.mu2 * (1 - mixing_sample)
+        if self.theta2 is None:
+            theta = self.theta1
+        else:
+            theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
+        gamma_d = _gamma(mu, theta)
+        p_means = gamma_d.sample(sample_shape)
 
-            # Clamping as distributions objects can have buggy behaviors when
-            # their parameters are too high
-            l_train = torch.clamp(p_means, max=1e8)
-            counts = Poisson(
-                l_train
-            ).sample()  # Shape : (n_samples, n_cells_batch, n_features)
-            return counts
+        # Clamping as distributions objects can have buggy behaviors when
+        # their parameters are too high
+        l_train = torch.clamp(p_means, max=1e8)
+        counts = PoissonTorch(
+            l_train
+        ).sample()  # Shape : (n_samples, n_cells_batch, n_features)
+        return counts
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
+        """Log probability."""
         try:
             self._validate_sample(value)
         except ValueError:
@@ -567,15 +617,16 @@ class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
         super().__init__(mean, inverse_dispersion, validate_args=validate_args)
 
     @property
-    def mean(self):
+    def mean(self):  # noqa: D102
         return self._mean
 
     @property
-    def inverse_dispersion(self):
+    def inverse_dispersion(self):  # noqa: D102
         return self._inverse_dispersion
 
     @validate_sample
     def log_prob(self, value):
+        """Log probability."""
         # theta is inverse_dispersion
         theta = self._inverse_dispersion
         mu = self._mean

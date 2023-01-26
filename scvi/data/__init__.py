@@ -21,8 +21,9 @@ from ._datasets import (
     spleen_lymph_cite_seq,
     synthetic_iid,
 )
-from ._manager import AnnDataManager
+from ._manager import AnnDataManager, AnnDataManagerValidationCheck
 from ._preprocessing import (
+    add_dna_sequence,
     organize_cite_seq_10x,
     organize_multiome_anndatas,
     poisson_gene_selection,
@@ -30,6 +31,7 @@ from ._preprocessing import (
 from ._read import read_10x_atac, read_10x_multiome
 
 __all__ = [
+    "AnnDataManagerValidationCheck",
     "AnnDataManager",
     "poisson_gene_selection",
     "organize_cite_seq_10x",
@@ -59,4 +61,5 @@ __all__ = [
     "heart_cell_atlas_subsampled",
     "organize_multiome_anndatas",
     "pbmc_seurat_v4_cite_seq",
+    "add_dna_sequence",
 ]

@@ -421,7 +421,7 @@ def spleen_lymph_cite_seq(
     remove_outliers: bool = True,
 ) -> anndata.AnnData:
     """
-    Immune cells from the murine spleen and lymph nodes [GayosoSteier21]_.
+    Immune cells from the murine spleen and lymph nodes :cite:p:`GayosoSteier21`.
 
     This dataset was used throughout the totalVI manuscript, and named SLN-all.
 
@@ -532,6 +532,7 @@ def synthetic_iid(
     n_proteins: Optional[int] = 100,
     n_batches: Optional[int] = 2,
     n_labels: Optional[int] = 3,
+    sparse: bool = False,
 ) -> anndata.AnnData:
     """
     Synthetic dataset with ZINB distributed RNA and NB distributed protein.
@@ -551,6 +552,8 @@ def synthetic_iid(
         Number of batches
     n_labels
         Number of cell types
+    sparse
+        Whether to use a sparse matrix
 
     Returns
     -------
@@ -569,6 +572,7 @@ def synthetic_iid(
         n_proteins=n_proteins,
         n_batches=n_batches,
         n_labels=n_labels,
+        sparse=sparse,
     )
 
 
@@ -579,7 +583,7 @@ def heart_cell_atlas_subsampled(
     """
     Combined single cell and single nuclei RNA-Seq data of 485K cardiac cells with annotations.
 
-    Dataset was filtered down randomly to 20k cells using :func:`~scanpy.pp.subsample`. The original
+    Dataset was filtered down randomly to 20k cells using :meth:`~scanpy.pp.subsample`. The original
     data can be downloaded from https://www.heartcellatlas.org/#DataSources.
 
     Parameters

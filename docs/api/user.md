@@ -54,6 +54,9 @@ import scvi
    external.RNAStereoscope
    external.SpatialStereoscope
    external.SOLO
+   external.SCAR
+   external.Tangram
+   external.SCBASSET
 
 ```
 
@@ -95,6 +98,44 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.poisson_gene_selection
    data.organize_cite_seq_10x
    data.organize_multiome_anndatas
+   data.add_dna_sequence
+```
+
+```{eval-rst}
+.. currentmodule:: scvi
+```
+
+## Model hyperparameter autotuning
+
+`scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune].
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   autotune.ModelTuner
+   autotune.TuneAnalysis
+```
+
+## Model hub
+
+We have a hub for pre-trained `scvi-tools` models that is hosted on [huggingface](https://huggingface.co/models).
+Using the functionality that `scvi-tools` provides, users can download pre-trained `scvi-tools` models (and datasets)
+from this platform, and model generators can upload their own pre-trained `scvi-tools` models to this platform.
+
+```{eval-rst}
+.. currentmodule:: scvi
+```
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   scvi.hub.HubMetadata
+   scvi.hub.HubModelCardHelper
+   scvi.hub.HubModel
 ```
 
 ## Utilities
@@ -107,6 +148,7 @@ Here we maintain miscellaneous general methods.
    :nosignatures:
 
    model.utils.mde
+   model.utils.get_reduced_adata_scrna
 ```
 
 ## Configuration
@@ -124,3 +166,4 @@ An instance of the {class}`~scvi._settings.ScviConfig` is available as `scvi.set
 [anndata]: https://anndata.readthedocs.io/en/stable/
 [scanpy]: https://scanpy.readthedocs.io/en/stable/index.html
 [utilities]: https://scanpy.readthedocs.io/en/stable/api/index.html#reading
+[ray tune]: https://docs.ray.io/en/latest/tune/index.html

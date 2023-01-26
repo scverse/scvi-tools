@@ -43,7 +43,7 @@ class ArchesMixin:
         freeze_classifier: bool = True,
     ):
         """
-        Online update of a reference model with scArches algorithm [Lotfollahi21]_.
+        Online update of a reference model with scArches algorithm :cite:p:`Lotfollahi21`.
 
         Parameters
         ----------
@@ -75,7 +75,7 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
-        use_gpu, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_use_gpu_arg(use_gpu)
 
         attr_dict, var_names, load_state_dict = _get_loaded_data(
             reference_model, device=device
@@ -199,17 +199,19 @@ class ArchesMixin:
             )
 
         ratio = inter_len / len(var_names)
-        logger.info("Found {}% reference vars in query data.".format(ratio * 100))
+        logger.info(f"Found {ratio * 100}% reference vars in query data.")
         if ratio < MIN_VAR_NAME_RATIO:
             warnings.warn(
-                f"Query data contains less than {MIN_VAR_NAME_RATIO:.0f}% of reference var names. "
+                f"Query data contains less than {MIN_VAR_NAME_RATIO:.0%} of reference var names. "
                 "This may result in poor performance."
             )
         genes_to_add = var_names.difference(adata.var_names)
         needs_padding = len(genes_to_add) > 0
         if needs_padding:
+            padding_mtx = csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
             adata_padding = AnnData(
-                csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
+                X=padding_mtx.copy(),
+                layers={layer: padding_mtx.copy() for layer in adata.layers},
             )
             adata_padding.var_names = genes_to_add
             adata_padding.obs_names = adata.obs_names
@@ -250,11 +252,11 @@ def _set_params_online_update(
     if unfrozen:
         return
 
-    mod_no_grad = set(["encoder_z2_z1", "decoder_z1_z2"])
-    mod_no_hooks_yes_grad = set(["l_encoder"])
+    mod_inference_mode = {"encoder_z2_z1", "decoder_z1_z2"}
+    mod_no_hooks_yes_grad = {"l_encoder"}
     if not freeze_classifier:
         mod_no_hooks_yes_grad.add("classifier")
-    parameters_yes_grad = set(["background_pro_alpha", "background_pro_log_beta"])
+    parameters_yes_grad = {"background_pro_alpha", "background_pro_log_beta"}
 
     def no_hook_cond(key):
         one = (not freeze_expression) and "encoder" in key
@@ -264,7 +266,7 @@ def _set_params_online_update(
     def requires_grad(key):
         mod_name = key.split(".")[0]
         # linear weights and bias that need grad
-        one = "fc_layers" in key and ".0." in key and mod_name not in mod_no_grad
+        one = "fc_layers" in key and ".0." in key and mod_name not in mod_inference_mode
         # modules that need grad
         two = mod_name in mod_no_hooks_yes_grad
         three = sum([p in key for p in parameters_yes_grad]) > 0

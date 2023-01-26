@@ -11,82 +11,87 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 ## Quick start
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/api_overview
-   notebooks/data_loading
-   notebooks/python_in_R
-
+notebooks/api_overview
+notebooks/data_loading
+notebooks/python_in_R
 ```
 
 ## User tutorials
 
 ### scRNA-seq
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/harmonization
-   notebooks/scvi_in_R
-   notebooks/tabula_muris
-   notebooks/scarches_scvi_tools
-   notebooks/query_hlca_knn
-   notebooks/seed_labeling
-   notebooks/linear_decoder
-   notebooks/AutoZI_tutorial
-   notebooks/cellassign_tutorial
-   notebooks/amortized_lda
-
+notebooks/harmonization
+notebooks/scvi_in_R
+notebooks/tabula_muris
+notebooks/scarches_scvi_tools
+notebooks/query_hlca_knn
+notebooks/seed_labeling
+notebooks/linear_decoder
+notebooks/AutoZI_tutorial
+notebooks/cellassign_tutorial
+notebooks/amortized_lda
 ```
 
 ### ATAC-seq
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/PeakVI
-   notebooks/peakvi_in_R
-
+notebooks/PeakVI
+notebooks/peakvi_in_R
+notebooks/scbasset
 ```
 
 ### Spatial transcriptomics
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/DestVI_tutorial
-   notebooks/DestVI_in_R
-   notebooks/gimvi_tutorial
-
+notebooks/DestVI_tutorial
+notebooks/DestVI_in_R
+notebooks/gimvi_tutorial
+notebooks/tangram_scvi_tools
 ```
 
 ### Multimodal
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/totalVI
-   notebooks/cite_scrna_integration_w_totalVI
-   notebooks/totalVI_reference_mapping
-   notebooks/totalvi_in_R
-   notebooks/MultiVI_tutorial
-
+notebooks/totalVI
+notebooks/cite_scrna_integration_w_totalVI
+notebooks/totalVI_reference_mapping
+notebooks/totalvi_in_R
+notebooks/MultiVI_tutorial
 ```
 
-## Contributed tutorials
+### scvi-hub
 
-```{eval-rst}
-.. nbgallery::
+```{toctree}
+:maxdepth: 1
 
-   notebooks/stereoscope_heart_LV_tutorial
-   notebooks/cell2location_lymph_node_spatial_tutorial
+notebooks/scvi_hub_intro_and_download.ipynb
+notebooks/scvi_hub_upload_and_large_files.ipynb
+```
 
+### Contributed tutorials
+
+```{toctree}
+:maxdepth: 1
+
+notebooks/stereoscope_heart_LV_tutorial
+notebooks/cell2location_lymph_node_spatial_tutorial
 ```
 
 ## Developer tutorials
 
-Here we feature tutorials to guide you through the construction of a model with scvi-tools. For an example of how scvi-tools can be used in an independent package, see our GitHub [template].
+Here we feature tutorials to guide you through the construction of a model with scvi-tools. For an example of how scvi-tools can be used in an independent package, see our simple-scvi [example].
 
 :::{note}
 For questions about developing with scvi-tools, please use our [forum] or [zulip].
@@ -147,4 +152,4 @@ notebooks/model_user_guide
 [ecosystem]: https://scvi-tools.org/ecosystem
 [forum]: https://discourse.scvi-tools.org/
 [zulip]: https://scverse.zulipchat.com/
-[template]: https://github.com/YosefLab/scvi-tools-skeleton
+[example]: https://github.com/scverse/simple-scvi

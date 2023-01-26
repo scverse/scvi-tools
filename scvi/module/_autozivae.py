@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Literal, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -8,6 +8,7 @@ from torch.distributions import Beta, Gamma, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
+from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import LossRecorder, auto_move_data
 from scvi.nn import one_hot
@@ -19,7 +20,7 @@ torch.backends.cudnn.benchmark = True
 
 class AutoZIVAE(VAE):
     """
-    Implementation of the AutoZI model [Clivio19]_.
+    Implementation of the AutoZI model :cite:p:`Clivio19`.
 
     Parameters
     ----------
@@ -28,12 +29,12 @@ class AutoZIVAE(VAE):
     alpha_prior
         Float denoting the alpha parameter of the prior Beta distribution of
         the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-        When set to ``None'', will be set to 1 - beta_prior if beta_prior is not ``None'',
+        When set to ``None``, will be set to 1 - beta_prior if beta_prior is not ``None``,
         otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
     beta_prior
         Float denoting the beta parameter of the prior Beta distribution of
         the zero-inflation Bernoulli parameter. Should be between 0 and 1, not included.
-        When set to ``None'', will be set to 1 - alpha_prior if alpha_prior is not ``None'',
+        When set to ``None``, will be set to 1 - alpha_prior if alpha_prior is not ``None``,
         otherwise the prior Beta distribution will be learned on an Empirical Bayes fashion.
     minimal_dropout
         Float denoting the lower bound of the cell-gene ZI rate in the ZINB component.
@@ -59,10 +60,12 @@ class AutoZIVAE(VAE):
     def __init__(
         self,
         n_input: int,
-        alpha_prior: Optional[float] = 0.5,
-        beta_prior: Optional[float] = 0.5,
-        minimal_dropout: float = 0.01,
-        zero_inflation: str = "gene",
+        alpha_prior: Tunable[float] = 0.5,
+        beta_prior: Tunable[float] = 0.5,
+        minimal_dropout: Tunable[float] = 0.01,
+        zero_inflation: Tunable[
+            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
+        ] = "gene",
         **kwargs,
     ) -> None:
         if "reconstruction_loss" in kwargs:
@@ -152,6 +155,7 @@ class AutoZIVAE(VAE):
     def get_alphas_betas(
         self, as_numpy: bool = True
     ) -> Dict[str, Union[torch.Tensor, np.ndarray]]:
+        """Get the parameters of the Bernoulli beta prior and posterior distributions."""
         # Return parameters of Bernoulli Beta distributions in a dictionary
         outputs = {}
         outputs["alpha_posterior"] = torch.sigmoid(self.alpha_posterior_logit)
@@ -176,6 +180,7 @@ class AutoZIVAE(VAE):
         eps_gamma: float = 1e-30,
         eps_sample: float = 1e-7,
     ) -> torch.Tensor:
+        """Sample from a beta distribution."""
         # Sample from a Beta distribution using the reparameterization trick.
         # Problem : it is not implemented in CUDA yet
         # Workaround : sample X and Y from Gamma(alpha,1) and Gamma(beta,1), the Beta sample is X/(X+Y)
@@ -203,6 +208,7 @@ class AutoZIVAE(VAE):
         batch_index: Optional[torch.Tensor] = None,
         y: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        """Reshape Bernoulli parameters to match the input tensor."""
         if self.zero_inflation == "gene-label":
             one_hot_label = one_hot(y, self.n_labels)
             # If we sampled several random Bernoulli parameters
@@ -236,7 +242,7 @@ class AutoZIVAE(VAE):
         y: Optional[torch.Tensor] = None,
         n_samples: int = 1,
     ) -> torch.Tensor:
-
+        """Sample Bernoulli parameters from the posterior distribution."""
         outputs = self.get_alphas_betas(as_numpy=False)
         alpha_posterior = outputs["alpha_posterior"]
         beta_posterior = outputs["beta_posterior"]
@@ -269,6 +275,7 @@ class AutoZIVAE(VAE):
     def rescale_dropout(
         self, px_dropout: torch.Tensor, eps_log: float = 1e-8
     ) -> torch.Tensor:
+        """Rescale dropout rate."""
         if self.minimal_dropout > 0.0:
             dropout_prob_rescaled = self.minimal_dropout + (
                 1.0 - self.minimal_dropout
@@ -292,6 +299,7 @@ class AutoZIVAE(VAE):
         n_samples: int = 1,
         eps_log: float = 1e-8,
     ) -> Dict[str, torch.Tensor]:
+        """Run the generative model."""
         outputs = super().generative(
             z=z,
             library=library,
@@ -302,8 +310,14 @@ class AutoZIVAE(VAE):
             size_factor=size_factor,
         )
         # Rescale dropout
-        outputs["px_dropout"] = self.rescale_dropout(
-            outputs["px_dropout"], eps_log=eps_log
+        rescaled_dropout = self.rescale_dropout(
+            outputs["px"].zi_logits, eps_log=eps_log
+        )
+        outputs["px"] = ZeroInflatedNegativeBinomial(
+            mu=outputs["px"].mu,
+            theta=outputs["px"].theta,
+            zi_logits=rescaled_dropout,
+            scale=outputs["px"].scale,
         )
 
         # Bernoulli parameters
@@ -313,6 +327,7 @@ class AutoZIVAE(VAE):
         return outputs
 
     def compute_global_kl_divergence(self) -> torch.Tensor:
+        """Compute global KL divergence."""
         outputs = self.get_alphas_betas(as_numpy=False)
         alpha_posterior = outputs["alpha_posterior"]
         beta_posterior = outputs["beta_posterior"]
@@ -333,7 +348,7 @@ class AutoZIVAE(VAE):
         eps_log: float = 1e-8,
         **kwargs,
     ) -> torch.Tensor:
-
+        """Compute the reconstruction loss."""
         # LLs for NB and ZINB
         ll_zinb = torch.log(
             1.0 - bernoulli_params + eps_log
@@ -364,33 +379,31 @@ class AutoZIVAE(VAE):
         kl_weight: int = 1.0,
         n_obs: int = 1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Compute the loss."""
         # Parameters for z latent distribution
-        qz_m = inference_outputs["qz_m"]
-        qz_v = inference_outputs["qz_v"]
-        px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px_r"]
-        px_dropout = generative_outputs["px_dropout"]
+        qz = inference_outputs["qz"]
+        px = generative_outputs["px"]
+        px_rate = px.mu
+        px_r = px.theta
+        px_dropout = px.zi_logits
         bernoulli_params = generative_outputs["bernoulli_params"]
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
         # KL divergences wrt z_n,l_n
-        mean = torch.zeros_like(qz_m)
-        scale = torch.ones_like(qz_v)
+        mean = torch.zeros_like(qz.loc)
+        scale = torch.ones_like(qz.scale)
 
-        kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
-            dim=1
-        )
+        kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
         if not self.use_observed_lib_size:
-            ql_m = inference_outputs["ql_m"]
-            ql_v = inference_outputs["ql_v"]
+            ql = inference_outputs["ql"]
+
             (
                 local_library_log_means,
                 local_library_log_vars,
             ) = self._compute_local_library_params(batch_index)
 
             kl_divergence_l = kl(
-                Normal(ql_m, torch.sqrt(ql_v)),
+                ql,
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:

@@ -1,11 +1,13 @@
-from typing import Dict, Type, Union
+from typing import Dict, Literal, Union
 
+import anndata
 import jax.numpy as jnp
+import mudata
 import torch
 
-from scvi.data.fields import BaseAnnDataField
-
 Number = Union[int, float]
-AnnDataField = Type[BaseAnnDataField]
+AnnOrMuData = Union[anndata.AnnData, mudata.MuData]
 Tensor = Union[torch.Tensor, jnp.ndarray]
 LossRecord = Union[Dict[str, Tensor], Tensor]
+# TODO(adamgayoso): Add constants for latent data types.
+LatentDataType = Literal["posterior_parameters"]

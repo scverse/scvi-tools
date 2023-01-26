@@ -1,10 +1,11 @@
 import logging
-from typing import Dict, Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 from anndata import AnnData
-from torch.distributions import Normal
+
+from scvi.utils import unsupported_in_latent_mode
 
 from ._log_likelihood import compute_elbo, compute_reconstruction_error
 
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 class VAEMixin:
     """Univseral VAE methods."""
 
-    @torch.no_grad()
+    @torch.inference_mode()
+    @unsupported_in_latent_mode
     def get_elbo(
         self,
         adata: Optional[AnnData] = None,
@@ -44,7 +46,8 @@ class VAEMixin:
         elbo = compute_elbo(self.module, scdl)
         return -elbo
 
-    @torch.no_grad()
+    @torch.inference_mode()
+    @unsupported_in_latent_mode
     def get_marginal_ll(
         self,
         adata: Optional[AnnData] = None,
@@ -108,13 +111,14 @@ class VAEMixin:
                 "Please raise an issue on github if you need it."
             )
 
-    @torch.no_grad()
+    @torch.inference_mode()
+    @unsupported_in_latent_mode
     def get_reconstruction_error(
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
-    ) -> Union[float, Dict[str, float]]:
+    ) -> float:
         r"""
         Return the reconstruction error for the data.
 
@@ -138,7 +142,7 @@ class VAEMixin:
         reconstruction_error = compute_reconstruction_error(self.module, scdl)
         return reconstruction_error
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,
@@ -146,8 +150,9 @@ class VAEMixin:
         give_mean: bool = True,
         mc_samples: int = 5000,
         batch_size: Optional[int] = None,
-    ) -> np.ndarray:
-        r"""
+        return_dist: bool = False,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+        """
         Return the latent representation for each cell.
 
         This is denoted as :math:`z_n` in our manuscripts.
@@ -166,11 +171,13 @@ class VAEMixin:
             samples to take for computing mean.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_dist
+            Return the distribution parameters of the latent variables rather than their sampled values.
+            If `True`, ignores `give_mean` and `mc_samples`.
 
         Returns
         -------
-        latent_representation : np.ndarray
-            Low-dimensional representation for each cell
+        Low-dimensional representation for each cell or a tuple containing its mean and variance.
         """
         self._check_if_trained(warn=False)
 
@@ -179,21 +186,32 @@ class VAEMixin:
             adata=adata, indices=indices, batch_size=batch_size
         )
         latent = []
+        latent_qzm = []
+        latent_qzv = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
-            qz_m = outputs["qz_m"]
-            qz_v = outputs["qz_v"]
-            z = outputs["z"]
-
+            if "qz" in outputs:
+                qz = outputs["qz"]
+            else:
+                qz_m, qz_v = outputs["qz_m"], outputs["qz_v"]
+                qz = torch.distributions.Normal(qz_m, qz_v.sqrt())
             if give_mean:
                 # does each model need to have this latent distribution param?
                 if self.module.latent_distribution == "ln":
-                    samples = Normal(qz_m, qz_v.sqrt()).sample([mc_samples])
+                    samples = qz.sample([mc_samples])
                     z = torch.nn.functional.softmax(samples, dim=-1)
                     z = z.mean(dim=0)
                 else:
-                    z = qz_m
+                    z = qz.loc
+            else:
+                z = outputs["z"]
 
             latent += [z.cpu()]
-        return torch.cat(latent).numpy()
+            latent_qzm += [qz.loc.cpu()]
+            latent_qzv += [qz.scale.square().cpu()]
+        return (
+            (torch.cat(latent_qzm).numpy(), torch.cat(latent_qzv).numpy())
+            if return_dist
+            else torch.cat(latent).numpy()
+        )

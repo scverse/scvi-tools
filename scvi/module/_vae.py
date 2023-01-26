@@ -1,29 +1,29 @@
-# -*- coding: utf-8 -*-
 """Main module."""
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable, Literal, Optional
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import logsumexp
-from torch.distributions import Normal, Poisson
+from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
-from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.autotune._types import Tunable
+from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
+from scvi.module.base import BaseLatentModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
 
+_SCVI_LATENT_MODE = "posterior_parameters"
 
-# VAE model
-class VAE(BaseModuleClass):
+
+class VAE(BaseLatentModeModuleClass):
     """
     Variational auto-encoder model.
 
-    This is an implementation of the scVI model described in [Lopez18]_
+    This is an implementation of the scVI model described in :cite:p:`Lopez18`.
 
     Parameters
     ----------
@@ -70,8 +70,10 @@ class VAE(BaseModuleClass):
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
+    use_batch_norm
+        Whether to use batch norm in layers.
     use_layer_norm
-        Whether to use layer norm in layers
+        Whether to use layer norm in layers.
     use_size_factor_key
         Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
         Takes priority over `use_observed_lib_size`.
@@ -86,6 +88,8 @@ class VAE(BaseModuleClass):
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
+    latent_data_type
+        None or the type of latent data.
     """
 
     def __init__(
@@ -93,20 +97,22 @@ class VAE(BaseModuleClass):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: int = 128,
-        n_latent: int = 10,
-        n_layers: int = 1,
+        n_hidden: Tunable[int] = 128,
+        n_latent: Tunable[int] = 10,
+        n_layers: Tunable[int] = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: float = 0.1,
-        dispersion: str = "gene",
+        dropout_rate: Tunable[float] = 0.1,
+        dispersion: Tunable[
+            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
+        ] = "gene",
         log_variational: bool = True,
-        gene_likelihood: str = "zinb",
-        latent_distribution: str = "normal",
-        encode_covariates: bool = False,
-        deeply_inject_covariates: bool = True,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        gene_likelihood: Tunable[Literal["zinb", "nb", "poisson"]] = "zinb",
+        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
+        encode_covariates: Tunable[bool] = False,
+        deeply_inject_covariates: Tunable[bool] = True,
+        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
+        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
         use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
@@ -127,7 +133,7 @@ class VAE(BaseModuleClass):
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         if not self.use_observed_lib_size:
-            if library_log_means is None or library_log_means is None:
+            if library_log_means is None or library_log_vars is None:
                 raise ValueError(
                     "If not using observed_lib_size, "
                     "must provide library_log_means and library_log_vars."
@@ -177,6 +183,7 @@ class VAE(BaseModuleClass):
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
             var_activation=var_activation,
+            return_dist=True,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(
@@ -190,6 +197,7 @@ class VAE(BaseModuleClass):
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
             var_activation=var_activation,
+            return_dist=True,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         n_input_decoder = n_latent + n_continuous_cov
@@ -205,8 +213,10 @@ class VAE(BaseModuleClass):
             scale_activation="softplus" if use_size_factor_key else "softmax",
         )
 
-    def _get_inference_input(self, tensors):
-        x = tensors[REGISTRY_KEYS.X_KEY]
+    def _get_inference_input(
+        self,
+        tensors,
+    ):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
@@ -215,9 +225,20 @@ class VAE(BaseModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
-        input_dict = dict(
-            x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
-        )
+        if self.latent_data_type is None:
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            input_dict = dict(
+                x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
+            )
+        else:
+            if self.latent_data_type == _SCVI_LATENT_MODE:
+                qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
+                qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
+                observed_lib_size = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
+                input_dict = dict(qzm=qzm, qzv=qzv, observed_lib_size=observed_lib_size)
+            else:
+                raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
+
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs):
@@ -269,7 +290,7 @@ class VAE(BaseModuleClass):
         return local_library_log_means, local_library_log_vars
 
     @auto_move_data
-    def inference(
+    def _regular_inference(
         self,
         x,
         batch_index,
@@ -297,25 +318,24 @@ class VAE(BaseModuleClass):
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
-        qz_m, qz_v, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-
-        ql_m, ql_v = None, None
+        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        ql = None
         if not self.use_observed_lib_size:
-            ql_m, ql_v, library_encoded = self.l_encoder(
+            ql, library_encoded = self.l_encoder(
                 encoder_input, batch_index, *categorical_input
             )
             library = library_encoded
 
         if n_samples > 1:
-            untran_z = Normal(qz_m, qz_v.sqrt()).sample((n_samples,))
+            untran_z = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
             if self.use_observed_lib_size:
                 library = library.unsqueeze(0).expand(
                     (n_samples, library.size(0), library.size(1))
                 )
             else:
-                library = Normal(ql_m, ql_v.sqrt()).sample((n_samples,))
-        outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, ql_m=ql_m, ql_v=ql_v, library=library)
+                library = ql.sample((n_samples,))
+        outputs = dict(z=z, qz=qz, ql=ql, library=library)
         if return_densities:
             log_ql = (
                 0.0
@@ -326,6 +346,24 @@ class VAE(BaseModuleClass):
             outputs["log_ql"] = log_ql
             outputs["log_qz"] = log_qz
             outputs["log_qjoint"] = log_ql + log_qz
+        return outputs
+
+    @auto_move_data
+    def _cached_inference(self, qzm, qzv, observed_lib_size, n_samples=1):
+        if self.latent_data_type == _SCVI_LATENT_MODE:
+            dist = Normal(qzm, qzv.sqrt())
+            # use dist.sample() rather than rsample because we aren't optimizing
+            # the z in latent/cached mode
+            untran_z = dist.sample() if n_samples == 1 else dist.sample((n_samples,))
+            z = self.z_encoder.z_transformation(untran_z)
+            library = torch.log(observed_lib_size)
+            if n_samples > 1:
+                library = library.unsqueeze(0).expand(
+                    (n_samples, library.size(0), library.size(1))
+                )
+        else:
+            raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
+        outputs = dict(z=z, qz_m=qzm, qz_v=qzv, ql=None, library=library)
         return outputs
 
     @auto_move_data
@@ -342,7 +380,16 @@ class VAE(BaseModuleClass):
     ):
         """Runs the generative model."""
         # TODO: refactor forward function to not rely on y
-        decoder_input = z if cont_covs is None else torch.cat([z, cont_covs], dim=-1)
+        # Likelihood distribution
+        if cont_covs is None:
+            decoder_input = z
+        elif z.dim() != cont_covs.dim():
+            decoder_input = torch.cat(
+                [z, cont_covs.unsqueeze(0).expand(z.size(0), -1, -1)], dim=-1
+            )
+        else:
+            decoder_input = torch.cat([z, cont_covs], dim=-1)
+
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
@@ -373,8 +420,32 @@ class VAE(BaseModuleClass):
 
         px_r = torch.exp(px_r)
 
+        if self.gene_likelihood == "zinb":
+            px = ZeroInflatedNegativeBinomial(
+                mu=px_rate,
+                theta=px_r,
+                zi_logits=px_dropout,
+                scale=px_scale,
+            )
+        elif self.gene_likelihood == "nb":
+            px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
+        elif self.gene_likelihood == "poisson":
+            px = Poisson(px_rate, scale=px_scale)
+
+        # Priors
+        if self.use_observed_lib_size:
+            pl = None
+        else:
+            (
+                local_library_log_means,
+                local_library_log_vars,
+            ) = self._compute_local_library_params(batch_index)
+            pl = Normal(local_library_log_means, local_library_log_vars.sqrt())
+        pz = Normal(torch.zeros_like(z), torch.ones_like(z))
         return dict(
-            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
+            px=px,
+            pl=pl,
+            pz=pz,
         )
 
     def loss(
@@ -384,36 +455,20 @@ class VAE(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
     ):
+        """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
-        qz_m = inference_outputs["qz_m"]
-        qz_v = inference_outputs["qz_v"]
-        px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px_r"]
-        px_dropout = generative_outputs["px_dropout"]
-
-        mean = torch.zeros_like(qz_m)
-        scale = torch.ones_like(qz_v)
-
-        kl_divergence_z = kl(Normal(qz_m, qz_v.sqrt()), Normal(mean, scale)).sum(dim=1)
-
+        kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
+            dim=1
+        )
         if not self.use_observed_lib_size:
-            ql_m = inference_outputs["ql_m"]
-            ql_v = inference_outputs["ql_v"]
-            (
-                local_library_log_means,
-                local_library_log_vars,
-            ) = self._compute_local_library_params(batch_index)
-
             kl_divergence_l = kl(
-                Normal(ql_m, ql_v.sqrt()),
-                Normal(local_library_log_means, local_library_log_vars.sqrt()),
+                inference_outputs["ql"],
+                generative_outputs["pl"],
             ).sum(dim=1)
         else:
-            kl_divergence_l = 0.0
+            kl_divergence_l = torch.tensor(0.0, device=x.device)
 
-        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout)
+        reconst_loss = -generative_outputs["px"].log_prob(x).sum(-1)
 
         kl_local_for_warmup = kl_divergence_z
         kl_local_no_warmup = kl_divergence_l
@@ -425,10 +480,11 @@ class VAE(BaseModuleClass):
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        kl_global = torch.tensor(0.0)
-        return LossRecorder(loss, reconst_loss, kl_local, kl_global)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
+        )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def sample(
         self,
         tensors,
@@ -447,7 +503,7 @@ class VAE(BaseModuleClass):
         n_samples
             Number of required samples for each cell
         library_size
-            Library size to scale scamples to
+            Library size to scale samples to
 
         Returns
         -------
@@ -455,34 +511,19 @@ class VAE(BaseModuleClass):
             tensor with shape (n_cells, n_genes, n_samples)
         """
         inference_kwargs = dict(n_samples=n_samples)
-        inference_outputs, generative_outputs, = self.forward(
+        _, generative_outputs, = self.forward(
             tensors,
             inference_kwargs=inference_kwargs,
             compute_loss=False,
         )
 
-        px_r = generative_outputs["px_r"]
-        px_rate = generative_outputs["px_rate"]
-        px_dropout = generative_outputs["px_dropout"]
-
+        dist = generative_outputs["px"]
         if self.gene_likelihood == "poisson":
-            l_train = px_rate
+            l_train = generative_outputs["px"].rate
             l_train = torch.clamp(l_train, max=1e8)
             dist = torch.distributions.Poisson(
                 l_train
             )  # Shape : (n_samples, n_cells_batch, n_genes)
-        elif self.gene_likelihood == "nb":
-            dist = NegativeBinomial(mu=px_rate, theta=px_r)
-        elif self.gene_likelihood == "zinb":
-            dist = ZeroInflatedNegativeBinomial(
-                mu=px_rate, theta=px_r, zi_logits=px_dropout
-            )
-        else:
-            raise ValueError(
-                "{} reconstruction error not handled right now".format(
-                    self.module.gene_likelihood
-                )
-            )
         if n_samples > 1:
             exprs = dist.sample().permute(
                 [1, 2, 0]
@@ -492,61 +533,50 @@ class VAE(BaseModuleClass):
 
         return exprs.cpu()
 
-    def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout) -> torch.Tensor:
-        if self.gene_likelihood == "zinb":
-            reconst_loss = (
-                -ZeroInflatedNegativeBinomial(
-                    mu=px_rate, theta=px_r, zi_logits=px_dropout
-                )
-                .log_prob(x)
+    @torch.inference_mode()
+    @auto_move_data
+    def marginal_ll(self, tensors, n_mc_samples):
+        """Computes the marginal log likelihood of the model."""
+        sample_batch = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+
+        to_sum = torch.zeros(sample_batch.size()[0], n_mc_samples)
+
+        for i in range(n_mc_samples):
+            # Distribution parameters and sampled variables
+            inference_outputs, _, losses = self.forward(tensors)
+            qz = inference_outputs["qz"]
+            ql = inference_outputs["ql"]
+            z = inference_outputs["z"]
+            library = inference_outputs["library"]
+
+            # Reconstruction Loss
+            reconst_loss = losses.dict_sum(losses.reconstruction_loss)
+
+            # Log-probabilities
+            p_z = (
+                Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale))
+                .log_prob(z)
                 .sum(dim=-1)
             )
-        elif self.gene_likelihood == "nb":
-            reconst_loss = (
-                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
-            )
-        elif self.gene_likelihood == "poisson":
-            reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)
-        return reconst_loss
+            p_x_zl = -reconst_loss
+            q_z_x = qz.log_prob(z).sum(dim=-1)
+            log_prob_sum = p_z + p_x_zl - q_z_x
 
-    @torch.no_grad()
-    @auto_move_data
-    def marginal_ll(
-        self,
-        tensors,
-        n_mc_samples,
-        n_samples_per_pass=25,
-        observation_specific: bool = False,
-    ):
-        """
-        Computes marginal likelihood.
+            if not self.use_observed_lib_size:
+                (
+                    local_library_log_means,
+                    local_library_log_vars,
+                ) = self._compute_local_library_params(batch_index)
 
-        Returns the log evidence using n_nc_samples. In order to speed up computing,
-        n_samples_per_pass samples are used in each forward pass.
-        Increasing this value can speed up the computation but might also cause
-        numerical overflows
-        """
+                p_l = (
+                    Normal(local_library_log_means, local_library_log_vars.sqrt())
+                    .log_prob(library)
+                    .sum(dim=-1)
+                )
+                q_l_x = ql.log_prob(library).sum(dim=-1)
 
-        n_passes = int(n_mc_samples // n_samples_per_pass)
-        if n_passes == 0:
-            n_passes = 1
-            n_samples_per_pass = n_mc_samples
-        to_sum = []
-        for _ in range(n_passes):
-            inference_outputs = self.inference(
-                **self._get_inference_input(tensors),
-                return_densities=True,
-                n_samples=n_samples_per_pass,
-            )
-            generative_outputs = self.generative_evaluate(tensors, inference_outputs)
-            to_sum.append(
-                (generative_outputs["log_pjoint"] - inference_outputs["log_qjoint"])
-            )
-        to_sum = torch.cat(to_sum, 0).cpu()
-        log_lkl = logsumexp(to_sum, dim=0) - np.log(to_sum.shape[0])
-        if not observation_specific:
-            log_lkl = torch.sum(log_lkl).item()
-        return log_lkl
+                log_prob_sum += p_l - q_l_x
 
     @auto_move_data
     def generative_evaluate(self, tensors, inference_outputs):
@@ -594,7 +624,7 @@ class LDVAE(VAE):
     """
     Linear-decoded Variational auto-encoder model.
 
-    Implementation of [Svensson20]_.
+    Implementation of :cite:p:`Svensson20`.
 
     This model uses a linear decoder, directly mapping the latent representation
     to gene expression levels. It still uses a deep neural network to encode
@@ -635,6 +665,7 @@ class LDVAE(VAE):
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
+        * ``'poisson'`` - Poisson distribution
     use_batch_norm
         Bool whether to use batch norm in decoder
     bias
@@ -683,6 +714,7 @@ class LDVAE(VAE):
             distribution=latent_distribution,
             use_batch_norm=True,
             use_layer_norm=False,
+            return_dist=True,
         )
         self.l_encoder = Encoder(
             n_input,
@@ -692,6 +724,7 @@ class LDVAE(VAE):
             dropout_rate=dropout_rate,
             use_batch_norm=True,
             use_layer_norm=False,
+            return_dist=True,
         )
         self.decoder = LinearDecoderSCVI(
             n_latent,
@@ -702,7 +735,7 @@ class LDVAE(VAE):
             bias=bias,
         )
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_loadings(self) -> np.ndarray:
         """Extract per-gene weights (for each Z, shape is genes by dim(Z)) in the linear decoder."""
         # This is BW, where B is diag(b) batch norm, W is weight matrix

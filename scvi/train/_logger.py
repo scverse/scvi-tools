@@ -2,18 +2,18 @@ from typing import Any, Dict, Optional, Union
 
 import pandas as pd
 import torch
-from pytorch_lightning.loggers import LightningLoggerBase
-from pytorch_lightning.loggers.base import rank_zero_experiment
+from pytorch_lightning.loggers.logger import Logger, rank_zero_experiment
 from pytorch_lightning.utilities import rank_zero_only
 
 
 class SimpleExperiment:
+    """Simple experiment class."""
+
     def __init__(self):
         self.data = {}
 
     def log_hparams(self, params: Dict[str, Any]) -> None:
         """Record hparams."""
-        pass
 
     def log_metrics(
         self, metrics: Dict[str, float], step: Optional[int] = None
@@ -42,10 +42,11 @@ class SimpleExperiment:
 
     def save(self) -> None:
         """Save data."""
-        pass
 
 
-class SimpleLogger(LightningLoggerBase):
+class SimpleLogger(Logger):
+    """Simple logger class."""
+
     def __init__(
         self, name: str = "lightning_logs", version: Optional[Union[int, str]] = None
     ):
@@ -63,7 +64,7 @@ class SimpleLogger(LightningLoggerBase):
         return self._experiment
 
     @rank_zero_only
-    def log_hyperparams(self, params):
+    def log_hyperparams(self, params):  # noqa: D102
         # params is an argparse.Namespace
         # your code to record hyperparameters goes here
         pass
@@ -74,7 +75,7 @@ class SimpleLogger(LightningLoggerBase):
         self.experiment.log_metrics(metrics, step)
 
     @property
-    def history(self) -> Dict[str, pd.DataFrame]:
+    def history(self) -> Dict[str, pd.DataFrame]:  # noqa: D102
         return self.experiment.data
 
     @property
@@ -91,5 +92,5 @@ class SimpleLogger(LightningLoggerBase):
         return self._version
 
     @property
-    def name(self):
+    def name(self):  # noqa: D102
         return self._name

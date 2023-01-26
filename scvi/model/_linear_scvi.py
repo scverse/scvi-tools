@@ -1,11 +1,10 @@
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 import pandas as pd
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model._utils import _init_library_size
@@ -22,7 +21,7 @@ class LinearSCVI(
     RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, DEMixin, BaseModelClass
 ):
     """
-    Linearly-decoded VAE [Svensson20]_.
+    Linearly-decoded VAE :cite:p:`Svensson20`.
 
     Parameters
     ----------
@@ -72,6 +71,8 @@ class LinearSCVI(
     1. :doc:`/tutorials/notebooks/linear_decoder`
     """
 
+    _module_cls = LDVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -84,14 +85,14 @@ class LinearSCVI(
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super(LinearSCVI, self).__init__(adata)
+        super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
         library_log_means, library_log_vars = _init_library_size(
             self.adata_manager, n_batch
         )
 
-        self.module = LDVAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,
@@ -127,7 +128,7 @@ class LinearSCVI(
         Shape is genes by `n_latent`.
 
         """
-        cols = ["Z_{}".format(i) for i in range(self.n_latent)]
+        cols = [f"Z_{i}" for i in range(self.n_latent)]
         var_names = self.adata.var_names
         loadings = pd.DataFrame(
             self.module.get_loadings(), index=var_names, columns=cols
@@ -150,6 +151,7 @@ class LinearSCVI(
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_layer)s
