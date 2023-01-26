@@ -14,8 +14,6 @@ from scvi._types import Number
 
 logger = logging.getLogger(__name__)
 
-Number = Union[int, float]
-
 
 class DifferentialComputation:
     """

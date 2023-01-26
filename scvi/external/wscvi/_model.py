@@ -1,10 +1,9 @@
 import logging
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,

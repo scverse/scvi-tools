@@ -1,4 +1,4 @@
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable, Optional, Literal
 
 import numpy as np
 import torch
@@ -7,7 +7,6 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.module import VAE
 from scvi.module.base import LossRecorder, auto_move_data
 from scvi.nn import one_hot
@@ -100,37 +99,39 @@ class WVAE(VAE):
         if self.log_variational:
             x_ = torch.log(1 + x_)
 
-        if cont_covs is not None and self.encode_covariates is True:
+        if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
         else:
             encoder_input = x_
-        if cat_covs is not None and self.encode_covariates is True:
+        if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = tuple()
-        qz_m, qz_v, _ = self.z_encoder(encoder_input, batch_index, *categorical_input)
-        ql_m, ql_v, _ = self.l_encoder(encoder_input, batch_index, *categorical_input)
+        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        ql = None
+        if not self.use_observed_lib_size:
+            ql, library_encoded = self.l_encoder(
+                encoder_input, batch_index, *categorical_input
+            )
+            library = library_encoded
 
-        zdist = Normal(qz_m, qz_v.sqrt())
-        untran_z = zdist.rsample(n_samples_)
-        log_qz = zdist.log_prob(untran_z).sum(-1)
+        # if n_samples_ > 1:
+        untran_z = qz.rsample(n_samples_)
+        log_qz = qz.log_prob(untran_z).sum(-1)
         z = self.z_encoder.z_transformation(untran_z)
 
         if self.use_observed_lib_size:
             log_ql = 0.0
             point_library = library
         else:
-            ldist = Normal(ql_m, ql_v.sqrt())
-            library = ldist.rsample(n_samples_)
-            log_ql = ldist.log_prob(library).sum(-1)
-            point_library = ql_m
+            library = ql.rsample(n_samples_)
+            log_ql = ql.log_prob(library).sum(-1)
+            point_library = ql.loc
         log_qjoint = log_ql + log_qz
         outputs = dict(
             z=z,
-            qz_m=qz_m,
-            qz_v=qz_v,
-            ql_m=ql_m,
-            ql_v=ql_v,
+            qz=qz,
+            ql=ql,
             library=library,
             log_ql=log_ql,
             log_qz=log_qz,
@@ -212,7 +213,7 @@ class WVAE(VAE):
             log_pjoint=log_pjoint,
         )
 
-    def generative_evaluate(self, tensors: dict, inference_outputs: dict):
+    def estimate_likelihood(self, tensors: dict, inference_outputs: dict):
         """Runs generative method with custom inference outputs
 
         More particularly, this method easily evaluate :math:`p(x \mid z, l)`
@@ -240,7 +241,7 @@ class WVAE(VAE):
         gen_ins = self._get_generative_input(
             tensors=tensors, inference_outputs=inference_outputs
         )
-        return self.generative(**gen_ins)
+        return self.generative(**gen_ins)["px"].log_prob(tensors["x"])
 
     def loss(
         self,
@@ -254,8 +255,6 @@ class WVAE(VAE):
         if self.loss_type == "ELBO":
             loss = -log_ratios.mean()
 
-        # log_ratio = (log_px_zl + log_pz + log_pl) - (log_qz_x + log_ql_x)
-        #     obj = -(torch.softmax(log_ratio, dim=0).detach() * log_ratio).sum(dim=0)
         elif self.loss_type == "IWELBO":
             loss = (
                 -(torch.softmax(log_ratios, dim=0).detach() * log_ratios)

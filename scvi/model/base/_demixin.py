@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Iterable, Optional, Sequence, Union
+from typing import Iterable, Optional, Sequence, Union, Literal
 
 import numpy as np
 import pandas as pd
@@ -10,7 +10,6 @@ from sklearn.covariance import EllipticEnvelope
 from torch.distributions import Categorical, Normal
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi._utils import _doc_params
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.model.base._utils import _de_core
@@ -29,93 +28,6 @@ class DEMixin:
     This however requires some additional structure on the
     module's (e.g., VAE) methods and associate signatures
     """
-
-    @_doc_params(
-        doc_differential_expression=doc_differential_expression,
-    )
-    def differential_expression(
-        self,
-        adata: Optional[AnnData] = None,
-        groupby: Optional[str] = None,
-        group1: Optional[Iterable[str]] = None,
-        group2: Optional[str] = None,
-        idx1: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
-        idx2: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
-        mode: Literal["vanilla", "change"] = "change",
-        delta: float = 0.25,
-        batch_size: Optional[int] = None,
-        all_stats: bool = True,
-        batch_correction: bool = False,
-        batchid1: Optional[Iterable[str]] = None,
-        batchid2: Optional[Iterable[str]] = None,
-        fdr_target: float = 0.05,
-        silent: bool = False,
-        pseudocounts: float = 0.0,
-        fn_kwargs: Optional[dict] = None,
-        importance_sampling: Optional[bool] = False,
-        **kwargs,
-    ) -> pd.DataFrame:
-        r"""
-        A unified method for differential expression analysis.
-
-        Implements `"vanilla"` DE [Lopez18]_ and `"change"` mode DE [Boyeau19]_.
-        When using the change method, uses either the plugin estimator
-        or importance sampling for improved FDR control.
-
-        Parameters
-        ----------
-        {doc_differential_expression}
-        **kwargs
-            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
-
-        Returns
-        -------
-        Differential expression DataFrame.
-        """
-        adata = self._validate_anndata(adata)
-        # adata.uns["_scvi"]["_requires_validation"] = False
-        fn_kwargs = dict() if fn_kwargs is None else fn_kwargs
-        col_names = adata.var_names
-        if importance_sampling:
-            model_fn = partial(
-                self.get_subpopulation_expression,
-                return_numpy=True,
-                batch_size=batch_size,
-                **fn_kwargs,
-            )
-        else:
-            model_fn = partial(
-                self.get_normalized_expression,
-                return_numpy=True,
-                n_samples=1,
-                batch_size=batch_size,
-            )
-
-        result = _de_core(
-            self.get_anndata_manager(adata, required=True),
-            model_fn,
-            groupby,
-            group1,
-            group2,
-            idx1,
-            idx2,
-            all_stats,
-            scrna_raw_counts_properties,
-            col_names,
-            mode,
-            batchid1,
-            batchid2,
-            delta,
-            batch_correction,
-            fdr_target,
-            silent,
-            pseudocounts=pseudocounts,
-            use_permutation=True,
-            **kwargs,
-        )
-
-        return result
-
     @torch.no_grad()
     def get_subpopulation_expression(
         self,
@@ -133,7 +45,6 @@ class DEMixin:
         truncation=False,
         n_mc=1,
         max_chunks: Optional[int] = None,
-        normalized_expression_key: str = "px_scale",
     ) -> np.ndarray:
         """
         Computes importance-weighted expression levels within a subpopulation.
@@ -173,8 +84,7 @@ class DEMixin:
             Number of cells to use in each minibatch, by default 500
         max_chunks
             Maximum number of chunks to use, by default None
-        normalized_expression_key
-            Key associated to the normalized expression level in the model
+
 
         Returns
         -------
@@ -241,7 +151,6 @@ class DEMixin:
                         batch_size=batch_size,
                         marginal_n_samples_per_pass=marginal_n_samples_per_pass,
                         n_mc_samples_px=n_mc_samples_px,
-                        normalized_expression_key=normalized_expression_key,
                         truncation=truncation,
                     ).numpy()
                 )
@@ -261,7 +170,6 @@ class DEMixin:
         marginal_n_samples_per_pass: int = 500,
         n_mc_samples_px: int = 5000,
         batch_size: int = 64,
-        normalized_expression_key: str = "px_scale",
         truncation=False,
     ) -> dict:
         """
@@ -292,8 +200,6 @@ class DEMixin:
             Number of overall samples per cell used to compute the marginal likelihood, by default 5000
         batch_size
             Number of cells per minibatch, by default 64
-        normalized_expression_key
-            Key associated to the normalized expression level in the model
 
         Returns
         -------
@@ -306,35 +212,36 @@ class DEMixin:
 
         zs = []
         qzs_m = []
-        qzs_v = []
+        qzs_std = []
         hs = []
         log_px_zs = []
         for tensors in scdl:
             inference_outputs, generative_outputs, = self.module.forward(
                 tensors,
-                inference_kwargs=dict(n_samples=n_samples, return_densities=True),
+                inference_kwargs=dict(n_samples=n_samples),
                 compute_loss=False,
             )
             z = inference_outputs["z"].reshape(-1, self.module.n_latent).cpu()
-            h = generative_outputs[normalized_expression_key]
+            h = generative_outputs["px"].scale
             n_genes = h.shape[-1]
             h = h.reshape(-1, n_genes).cpu()
 
             zs.append(z)
-            qzs_m.append(inference_outputs["qz_m"].cpu())
-            qzs_v.append(inference_outputs["qz_v"].cpu())
+            qzs_m.append(inference_outputs["qz"].loc.cpu())
+            qzs_std.append(inference_outputs["qz"].scale.cpu())
             hs.append(h)
 
             _log_px_zs = self._evaluate_likelihood(scdl, inference_outputs)
             log_px_zs.append(_log_px_zs)
         log_px_zs = torch.cat(log_px_zs, 0)
+
         zs = torch.cat(zs, dim=0)  # shape n_samples, n_cells, n_latent
         hs = torch.cat(hs, dim=0)
         qzs_m = torch.cat(qzs_m, dim=0)
-        qzs_v = torch.cat(qzs_v, dim=0)
+        qzs_std = torch.cat(qzs_std, dim=0)
 
         _zs = zs.unsqueeze(1)  # shape (overall samples, 1, n_latent)
-        log_qz = Normal(qzs_m, qzs_v.sqrt()).log_prob(_zs).sum(-1)
+        log_qz = Normal(qzs_m, qzs_std).log_prob(_zs).sum(-1)
         log_pz = (
             Normal(torch.zeros_like(zs), torch.ones_like(zs))
             .log_prob(zs)
@@ -398,32 +305,17 @@ class DEMixin:
         indices
             Likelihoods of shape (number of cells, number of posterior samples)
         """
-        z_samples = inference_outputs["z"]
-        if self.module.use_observed_lib_size:
-            lib_key = "library"
-        else:
-            lib_key = "ql_m"
-        z_reshaped = z_samples.unsqueeze(1).reshape(-1, 1, self.module.n_latent)
+        z_reshaped = inference_outputs["z"].unsqueeze(1).reshape(-1, 1, self.module.n_latent)
         n_samples_loop = z_reshaped.shape[0]
         log_px_zs = []
         for _tensors in scdl:
-            # This is simply used to get a good library value for the cells we are looking at
             inference_inputs = self.module._get_inference_input(_tensors)
             n_cells = inference_inputs["batch_index"].shape[0]
             zs = z_reshaped.expand(n_samples_loop, n_cells, self.module.n_latent)
-
-            point_library = (
-                self.module.inference(**inference_inputs, return_densities=True)[lib_key]
-                .squeeze(0)
-                .expand(n_samples_loop, n_cells, 1)
-            )
-
-            inference_outputs["z"] = zs
-            inference_outputs["library"] = point_library
             log_px_zs.append(
-                self.module.generative_evaluate(
-                    tensors=_tensors, inference_outputs=inference_outputs
-                )["log_px_latents"].cpu()
+                self.module.estimate_likelihood(
+                    tensors=_tensors, z=zs, library=None
+                ).cpu()
             )
         log_px_zs = torch.cat(log_px_zs, 1)
         return log_px_zs

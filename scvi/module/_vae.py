@@ -280,7 +280,6 @@ class VAE(BaseLatentModeModuleClass):
         log library sizes in the batch the cell corresponds to.
         """
         n_batch = self.library_log_means.shape[1]
-
         local_library_log_means = F.linear(
             one_hot(batch_index, n_batch), self.library_log_means
         )
@@ -297,7 +296,6 @@ class VAE(BaseLatentModeModuleClass):
         cont_covs=None,
         cat_covs=None,
         n_samples=1,
-        return_densities=False,
     ):
         """
         High level inference method.
@@ -336,16 +334,6 @@ class VAE(BaseLatentModeModuleClass):
             else:
                 library = ql.sample((n_samples,))
         outputs = dict(z=z, qz=qz, ql=ql, library=library)
-        if return_densities:
-            log_ql = (
-                0.0
-                if self.use_observed_lib_size
-                else Normal(ql_m, ql_v.sqrt()).log_prob(library).sum(-1)
-            )
-            log_qz = Normal(qz_m, qz_v.sqrt()).log_prob(z).sum(-1)
-            outputs["log_ql"] = log_ql
-            outputs["log_qz"] = log_qz
-            outputs["log_qjoint"] = log_ql + log_qz
         return outputs
 
     @auto_move_data
@@ -448,6 +436,29 @@ class VAE(BaseLatentModeModuleClass):
             pz=pz,
         )
 
+    @auto_move_data
+    def estimate_likelihood(self, tensors: dict, z: torch.Tensor, library: torch.Tensor = None):
+        """Estimate the likelihood of the data under the model.
+
+        """
+        n_posterior_samples, n_cells, _ = z.shape
+        if library is None:
+            inference_inputs = self.module._get_inference_input(tensors)
+            library = (
+                torch.log(tensors[REGISTRY_KEYS.X_KEY].sum(1, keepdims=True))
+                if self.module.use_observed_lib_size
+                else self.module.inference(**inference_inputs)["ql"].loc.squeeze(0)
+            )
+            library = library.unsqueeze(0).expand(n_posterior_samples, n_cells, 1)
+        inference_outputs = {
+            "z": z,
+            "library": library,
+        }
+        gen_ins = self._get_generative_input(
+            tensors=tensors, inference_outputs=inference_outputs
+        )
+        return - self.generative(**gen_ins)["px"].log_prob(tensors[REGISTRY_KEYS.X_KEY]).sum(-1)
+
     def loss(
         self,
         tensors,
@@ -535,7 +546,7 @@ class VAE(BaseLatentModeModuleClass):
 
     @torch.inference_mode()
     @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples):
+    def marginal_ll(self, tensors, n_mc_samples, observation_specific=False):
         """Computes the marginal log likelihood of the model."""
         sample_batch = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -578,46 +589,12 @@ class VAE(BaseLatentModeModuleClass):
 
                 log_prob_sum += p_l - q_l_x
 
-    @auto_move_data
-    def generative_evaluate(self, tensors, inference_outputs):
-        """
-        Performs a decoding step and derive densities.
+            to_sum[:, i] = log_prob_sum
 
-        Extension of the generative method, that also
-        returns estimations for the joint density, that is required
-        for marginal likelihood estimation and other tasks
-        """
-        gen_inputs = self._get_generative_input(tensors, inference_outputs)
-        gen_outputs = self.generative(**gen_inputs)
-        z = inference_outputs["z"]
-        x = tensors[REGISTRY_KEYS.X_KEY]
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-        log_px_latents = -self.get_reconstruction_loss(
-            x, gen_outputs["px_rate"], gen_outputs["px_r"], gen_outputs["px_dropout"]
-        )
-        zmean = torch.zeros_like(z)
-        zstd = torch.ones_like(z)
-        log_pz = Normal(zmean, zstd).log_prob(z).sum(-1)
-        if not self.use_observed_lib_size:
-            (
-                local_library_log_means,
-                local_library_log_vars,
-            ) = self._compute_local_library_params(batch_index)
-            log_pl = (
-                Normal(local_library_log_means, torch.sqrt(local_library_log_vars))
-                .log_prob(inference_outputs["library"])
-                .sum(-1)
-            )
-        else:
-            log_pl = 0.0
-        log_pjoint = log_px_latents + log_pz + log_pl
-        return dict(
-            px_scale=gen_outputs["px_scale"],
-            log_px_latents=log_px_latents,
-            log_pz=log_pz,
-            log_pl=log_pl,
-            log_pjoint=log_pjoint,
-        )
+        batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
+        if not observation_specific:
+            batch_log_lkl = torch.sum(batch_log_lkl).item()
+        return batch_log_lkl
 
 
 class LDVAE(VAE):
