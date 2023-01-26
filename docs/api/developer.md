@@ -194,7 +194,6 @@ These classes should be used to construct module classes that define generative 
    module.base.BaseLatentModeModuleClass
    module.base.PyroBaseModuleClass
    module.base.JaxBaseModuleClass
-   module.base.LossRecorder
    module.base.LossOutput
    module.base.auto_move_data
 
