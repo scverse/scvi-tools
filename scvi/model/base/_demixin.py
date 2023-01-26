@@ -1,19 +1,14 @@
 import logging
-from functools import partial
-from typing import Iterable, Optional, Sequence, Union, Literal
+from typing import Optional, Sequence, Union
 
 import numpy as np
-import pandas as pd
 import torch
 from anndata import AnnData
 from sklearn.covariance import EllipticEnvelope
 from torch.distributions import Categorical, Normal
 
 from scvi import REGISTRY_KEYS
-from scvi._utils import _doc_params
-from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
-from scvi.model.base._utils import _de_core
-from scvi.utils._docstrings import doc_differential_expression
+from scvi.model._utils import _get_batch_code_from_category
 
 logger = logging.getLogger(__name__)
 Number = Union[int, float]
@@ -28,6 +23,7 @@ class DEMixin:
     This however requires some additional structure on the
     module's (e.g., VAE) methods and associate signatures
     """
+
     @torch.no_grad()
     def get_subpopulation_expression(
         self,
@@ -122,7 +118,7 @@ class DEMixin:
         # the cell population is too big
         # This ensures that the method remains scalable when looking at very large cell populations
         n_cells = indices_.shape[0]
-        logger.debug("n cells {}".format(n_cells))
+        logger.debug(f"n cells {n_cells}")
         n_cell_chunks = int(np.ceil(n_cells / n_cells_per_chunk))
         np.random.seed(0)
         np.random.shuffle(indices_)
@@ -135,13 +131,13 @@ class DEMixin:
             n_samples_per_cell = n_samples
             n_samples_overall = n_samples_per_cell * n_cells_used
         n_samples_per_cell = np.minimum(n_samples_per_cell, 30)
-        logger.debug("n samples per cell {}".format(n_samples_per_cell))
+        logger.debug(f"n samples per cell {n_samples_per_cell}")
 
         # Step 3
         res = []
         for chunk in cell_chunks:
             # for chunk in cell_indices:
-            logger.debug("n cells in chunk {}".format(chunk.shape[0]))
+            logger.debug(f"n cells in chunk {chunk.shape[0]}")
             for _ in range(n_mc):
                 res.append(
                     self._importance_weighted_expression(
@@ -275,7 +271,7 @@ class DEMixin:
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
         ws = log_probs.exp()
         n_samples_overall = ws.shape[0]
-        logger.debug("Max ratio {}".format(ws.max().item()))
+        logger.debug(f"Max ratio {ws.max().item()}")
         windices = (
             Categorical(logits=log_probs.unsqueeze(0))
             .sample((n_samples_overall,))
@@ -305,7 +301,9 @@ class DEMixin:
         indices
             Likelihoods of shape (number of cells, number of posterior samples)
         """
-        z_reshaped = inference_outputs["z"].unsqueeze(1).reshape(-1, 1, self.module.n_latent)
+        z_reshaped = (
+            inference_outputs["z"].unsqueeze(1).reshape(-1, 1, self.module.n_latent)
+        )
         n_samples_loop = z_reshaped.shape[0]
         log_px_zs = []
         for _tensors in scdl:
@@ -364,5 +362,5 @@ class DEMixin:
             )
             indices = indices[idx_filt]
         except IndexError:
-            raise IndexError((idx_filt))
+            raise IndexError(idx_filt)
         return indices

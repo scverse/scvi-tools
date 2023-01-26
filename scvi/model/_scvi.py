@@ -25,7 +25,7 @@ from scvi.model.utils import get_reduced_adata_scrna
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 
-from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin, DEMixin
+from .base import ArchesMixin, BaseLatentModeModelClass, DEMixin, RNASeqMixin, VAEMixin
 
 _SCVI_LATENT_MODE = "posterior_parameters"
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"

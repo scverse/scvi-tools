@@ -33,7 +33,7 @@ from scvi.train._callbacks import SubSampleLabels
 from scvi.utils import setup_anndata_dsp
 
 from ._scvi import SCVI
-from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin, DEMixin
+from .base import ArchesMixin, BaseLatentModeModelClass, DEMixin, RNASeqMixin, VAEMixin
 
 _SCANVI_LATENT_MODE = "posterior_parameters"
 _SCANVI_LATENT_QZM = "_scanvi_latent_qzm"

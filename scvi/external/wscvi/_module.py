@@ -1,4 +1,4 @@
-from typing import Callable, Iterable, Optional, Literal
+from typing import Callable, Iterable, Literal, Optional
 
 import numpy as np
 import torch
@@ -214,7 +214,7 @@ class WVAE(VAE):
         )
 
     def estimate_likelihood(self, tensors: dict, inference_outputs: dict):
-        """Runs generative method with custom inference outputs
+        r"""Runs generative method with custom inference outputs
 
         More particularly, this method easily evaluate :math:`p(x \mid z, l)`
         for arbitrary latent values.
@@ -262,7 +262,7 @@ class WVAE(VAE):
                 .mean()
             )
         else:
-            raise ValueError("Unknown loss type {}".format(self.loss_type))
+            raise ValueError(f"Unknown loss type {self.loss_type}")
         reconst_loss = -generative_outputs["log_px_latents"].mean(0)
         kl_local = torch.tensor(0.0)
         kl_global = torch.tensor(0.0)

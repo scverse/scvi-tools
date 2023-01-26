@@ -12,11 +12,10 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.utils import unsupported_in_latent_mode
 from scvi.model.base._utils import _de_core
+from scvi.utils import unsupported_in_latent_mode
 from scvi.utils._docstrings import doc_differential_expression
 
-from scvi.model.base._utils import _de_core
 from ._utils import _get_batch_code_from_category
 
 logger = logging.getLogger(__name__)

@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Literal
+from typing import List, Literal, Optional
 
 from anndata import AnnData
 
@@ -46,7 +46,7 @@ class WSCVI(
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super(WSCVI, self).__init__(adata)
+        super().__init__(adata)
         self.n_genes = adata.shape[-1]
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(

@@ -437,10 +437,10 @@ class VAE(BaseLatentModeModuleClass):
         )
 
     @auto_move_data
-    def estimate_likelihood(self, tensors: dict, z: torch.Tensor, library: torch.Tensor = None):
-        """Estimate the likelihood of the data under the model.
-
-        """
+    def estimate_likelihood(
+        self, tensors: dict, z: torch.Tensor, library: torch.Tensor = None
+    ):
+        """Estimate the likelihood of the data under the model."""
         n_posterior_samples, n_cells, _ = z.shape
         if library is None:
             inference_inputs = self.module._get_inference_input(tensors)
@@ -457,7 +457,11 @@ class VAE(BaseLatentModeModuleClass):
         gen_ins = self._get_generative_input(
             tensors=tensors, inference_outputs=inference_outputs
         )
-        return - self.generative(**gen_ins)["px"].log_prob(tensors[REGISTRY_KEYS.X_KEY]).sum(-1)
+        return (
+            -self.generative(**gen_ins)["px"]
+            .log_prob(tensors[REGISTRY_KEYS.X_KEY])
+            .sum(-1)
+        )
 
     def loss(
         self,
