@@ -545,6 +545,4 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseLatentModeModelClass):
             )
         else:
             raise ValueError(f"Unknown latent mode: {mode}")
-        self.adata = reduced_adata
-        self.adata_manager.register_new_fields(self._get_latent_fields(mode))
-        self.module.latent_data_type = mode
+        self._update_adata_and_manager(reduced_adata, mode)

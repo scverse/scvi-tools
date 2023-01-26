@@ -874,10 +874,12 @@ class BaseLatentModeModelClass(BaseModelClass):
         self, reduced_adata: AnnOrMuData, mode: LatentDataType
     ):
         """Update the anndata and manager inplace after creating reduced data."""
-        self.adata = reduced_adata
-        # This validates and sets a new adata manager inplace
-        self.adata_manager.register_new_fields(self._get_latent_fields(mode))
-        # We reset the attribute again as this will update self.registry_
-        # derived from the manager, which is important for saving and loading the model
+        # Register this new adata with the model, creating a new manager in the cache
+        self._validate_anndata(reduced_adata)
+        reduced_adata_manager = self.get_anndata_manager(reduced_adata, required=True)
+        # This inplace edits the manager
+        reduced_adata_manager.register_new_fields(self._get_latent_fields(mode))
+        # We set the adata attribute as this will update self.registry_
+        # and self.adata_manager with the reduced adata manager
         self.adata = reduced_adata
         self.module.latent_data_type = mode
