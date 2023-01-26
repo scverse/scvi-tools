@@ -868,6 +868,7 @@ class BaseLatentModeModelClass(BaseModelClass):
             hasattr(self, "latent_data_type") and self.latent_data_type is not None
         )
         rich.print(summary_string)
+        return ""
 
     def _update_adata_and_manager(
         self, reduced_adata: AnnOrMuData, mode: LatentDataType
