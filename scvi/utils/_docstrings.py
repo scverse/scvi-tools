@@ -49,6 +49,11 @@ fdr_target
     Tag features as DE based on posterior expected false discovery rate.
 silent
     If True, disables the progress bar. Default: False.
+importance_sampling
+    Whether to use importance sampling to compute normalized gene expression.
+fn_kwargs
+    Additional kwargs for the normalized gene expression estimation.
+    Only applies if `importance_sampling` is True.
 """
 
 

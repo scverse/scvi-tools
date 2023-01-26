@@ -290,7 +290,12 @@ class VAE(BaseLatentModeModuleClass):
 
     @auto_move_data
     def _regular_inference(
-        self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1
+        self,
+        x,
+        batch_index,
+        cont_covs=None,
+        cat_covs=None,
+        n_samples=1,
     ):
         """
         High level inference method.
@@ -431,6 +436,36 @@ class VAE(BaseLatentModeModuleClass):
             pz=pz,
         )
 
+    @auto_move_data
+    def estimate_likelihood(
+        self, tensors: dict, z: torch.Tensor, library: torch.Tensor = None
+    ):
+        """Estimate the likelihood of the data under the model.
+
+        Useful to compute the likelihood of the data under specific latent codes.
+        """
+        n_posterior_samples, n_cells, _ = z.shape
+        if library is None:
+            inference_inputs = self._get_inference_input(tensors)
+            library = (
+                torch.log(tensors[REGISTRY_KEYS.X_KEY].sum(1, keepdims=True))
+                if self.use_observed_lib_size
+                else self.inference(**inference_inputs)["ql"].loc.squeeze(0)
+            )
+            library = library.unsqueeze(0).expand(n_posterior_samples, n_cells, 1)
+        inference_outputs = {
+            "z": z,
+            "library": library,
+        }
+        gen_ins = self._get_generative_input(
+            tensors=tensors, inference_outputs=inference_outputs
+        )
+        return (
+            -self.generative(**gen_ins)["px"]
+            .log_prob(tensors[REGISTRY_KEYS.X_KEY])
+            .sum(-1)
+        )
+
     def loss(
         self,
         tensors,
@@ -441,7 +476,7 @@ class VAE(BaseLatentModeModuleClass):
         """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
-            dim=1
+            dim=-1
         )
         if not self.use_observed_lib_size:
             kl_divergence_l = kl(
@@ -518,16 +553,20 @@ class VAE(BaseLatentModeModuleClass):
 
     @torch.inference_mode()
     @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples):
+    def marginal_ll(
+        self, tensors, n_mc_samples, observation_specific=False, n_mc_samples_per_pass=1
+    ):
         """Computes the marginal log likelihood of the model."""
-        sample_batch = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        to_sum = torch.zeros(sample_batch.size()[0], n_mc_samples)
+        to_sum = []
 
-        for i in range(n_mc_samples):
+        n_passes = int(np.ceil(n_mc_samples / n_mc_samples_per_pass))
+        for _ in range(n_passes):
             # Distribution parameters and sampled variables
-            inference_outputs, _, losses = self.forward(tensors)
+            inference_outputs, _, losses = self.forward(
+                tensors, inference_kwargs=dict(n_samples=n_mc_samples_per_pass)
+            )
             qz = inference_outputs["qz"]
             ql = inference_outputs["ql"]
             z = inference_outputs["z"]
@@ -561,11 +600,14 @@ class VAE(BaseLatentModeModuleClass):
 
                 log_prob_sum += p_l - q_l_x
 
-            to_sum[:, i] = log_prob_sum
-
-        batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
-        log_lkl = torch.sum(batch_log_lkl).item()
-        return log_lkl
+            to_sum.append(log_prob_sum)
+        to_sum = torch.cat(to_sum, dim=0)
+        batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(n_mc_samples)
+        if not observation_specific:
+            batch_log_lkl = torch.sum(batch_log_lkl).item()
+        else:
+            batch_log_lkl = batch_log_lkl.cpu()
+        return batch_log_lkl
 
 
 class LDVAE(VAE):

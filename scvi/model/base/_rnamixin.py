@@ -181,13 +181,12 @@ class RNASeqMixin:
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
         silent: bool = False,
+        importance_sampling: Optional[bool] = False,
+        fn_kwargs: Optional[dict] = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
-        \
-
         A unified method for differential expression analysis.
-
 
         Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
 
@@ -202,14 +201,23 @@ class RNASeqMixin:
         Differential expression DataFrame.
         """
         adata = self._validate_anndata(adata)
-
+        fn_kwargs = dict() if fn_kwargs is None else fn_kwargs
         col_names = adata.var_names
-        model_fn = partial(
-            self.get_normalized_expression,
-            return_numpy=True,
-            n_samples=1,
-            batch_size=batch_size,
-        )
+        if importance_sampling:
+            model_fn = partial(
+                self.get_normalized_expression_iw,
+                return_numpy=True,
+                batch_size=batch_size,
+                **fn_kwargs,
+            )
+        else:
+            model_fn = partial(
+                self.get_normalized_expression,
+                return_numpy=True,
+                n_samples=1,
+                batch_size=batch_size,
+            )
+
         result = _de_core(
             self.get_anndata_manager(adata, required=True),
             model_fn,

@@ -1624,3 +1624,28 @@ def test_early_stopping():
     model = SCVI(adata)
     model.train(n_epochs, early_stopping=True, plan_kwargs=dict(lr=0))
     assert len(model.history["elbo_train"]) < n_epochs
+
+
+def test_de_features():
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    model.train(1)
+
+    model.differential_expression(
+        groupby="labels",
+        pseudocounts=1e-4,
+    )
+    model.differential_expression(
+        groupby="labels",
+        importance_sampling=True,
+    )
+    model.differential_expression(
+        groupby="labels",
+        delta=0.5,
+        importance_sampling=True,
+    )
