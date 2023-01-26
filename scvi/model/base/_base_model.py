@@ -872,7 +872,7 @@ class BaseLatentModeModelClass(BaseModelClass):
     def _update_adata_and_manager(
         self, reduced_adata: AnnOrMuData, mode: LatentDataType
     ):
-        """Update the anndata and manager in place after latent mode."""
+        """Update the anndata and manager inplace after creating reduced data."""
         self.adata = reduced_adata
         # This validates and sets a new adata manager inplace
         self.adata_manager.register_new_fields(self._get_latent_fields(mode))
