@@ -869,7 +869,6 @@ class BaseLatentModeModelClass(BaseModelClass):
         )
         rich.print(summary_string)
 
-    @staticmethod
     def _update_adata_and_manager(
         self, reduced_adata: AnnOrMuData, mode: LatentDataType
     ):
