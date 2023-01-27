@@ -84,6 +84,7 @@ def run_test_scvi_latent_mode(
 
     model.to_latent_mode()
     assert model.latent_data_type == _SCVI_LATENT_MODE
+    assert model.adata_manager.registry is model.registry_
 
     # make sure the original adata we set up the model with was not changed
     assert adata is not model.adata
