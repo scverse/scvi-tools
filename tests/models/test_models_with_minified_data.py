@@ -3,11 +3,10 @@ import pytest
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.data._constants import _ADATA_LATENT_UNS_KEY
-from scvi.data._utils import _is_latent
+from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
+from scvi.data._utils import _is_minified
 from scvi.model import SCANVI, SCVI
 
-_SCVI_LATENT_MODE = "posterior_parameters"
 _SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 _SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
@@ -58,11 +57,11 @@ def prep_model(cls=SCVI, layer=None, use_size_factor=False):
 
 def assert_approx_equal(a, b):
     # Allclose because on GPU, the values are not exactly the same
-    # as latents are moved to cpu in latent mode
+    # as some values are moved to cpu during data minification
     np.testing.assert_allclose(a, b, rtol=3e-1, atol=5e-1)
 
 
-def run_test_scvi_latent_mode(
+def run_test_for_model_with_minified_adata(
     cls=SCVI,
     n_samples: int = 1,
     give_mean: bool = False,
@@ -82,13 +81,13 @@ def run_test_scvi_latent_mode(
     )
     adata_orig = adata.copy()
 
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     assert model.adata_manager.registry is model.registry_
 
     # make sure the original adata we set up the model with was not changed
     assert adata is not model.adata
-    assert _is_latent(adata) is False
+    assert _is_minified(adata) is False
 
     assert adata_orig.layers.keys() == model.adata.layers.keys()
     orig_obs_df = adata_orig.obs
@@ -110,8 +109,8 @@ def run_test_scvi_latent_mode(
         )
     else:
         # do this so that we generate the same sequence of random numbers in the
-        # latent and non latent cases (purely to get the tests to pass). this is
-        # because in the non latent case we sample once more (in the call to z_encoder
+        # minified and non-minified cases (purely to get the tests to pass). this is
+        # because in the non-minified case we sample once more (in the call to z_encoder
         # during inference)
         params_latent = model.get_likelihood_parameters(
             n_samples=n_samples + 1, give_mean=False
@@ -125,72 +124,77 @@ def run_test_scvi_latent_mode(
         assert_approx_equal(params_latent[k], params_orig[k])
 
 
-def test_scvi_latent_mode_one_sample():
-    run_test_scvi_latent_mode()
-    run_test_scvi_latent_mode(layer="data_layer", use_size_factor=True)
+def test_scvi_with_minified_adata_one_sample():
+    run_test_for_model_with_minified_adata()
+    run_test_for_model_with_minified_adata(layer="data_layer", use_size_factor=True)
 
 
-def test_scvi_latent_mode_one_sample_with_layer():
-    run_test_scvi_latent_mode(layer="data_layer")
-    run_test_scvi_latent_mode(layer="data_layer", use_size_factor=True)
+def test_scvi_with_minified_adata_one_sample_with_layer():
+    run_test_for_model_with_minified_adata(layer="data_layer")
+    run_test_for_model_with_minified_adata(layer="data_layer", use_size_factor=True)
 
 
-def test_scvi_latent_mode_n_samples():
-    run_test_scvi_latent_mode(n_samples=10, give_mean=True)
-    run_test_scvi_latent_mode(n_samples=10, give_mean=True, use_size_factor=True)
+def test_scvi_with_minified_adata_n_samples():
+    run_test_for_model_with_minified_adata(n_samples=10, give_mean=True)
+    run_test_for_model_with_minified_adata(
+        n_samples=10, give_mean=True, use_size_factor=True
+    )
 
 
-def test_scanvi_latent_mode_one_sample():
-    run_test_scvi_latent_mode(SCANVI)
-    run_test_scvi_latent_mode(SCANVI, use_size_factor=True)
+def test_scanvi_with_minified_adata_one_sample():
+    run_test_for_model_with_minified_adata(SCANVI)
+    run_test_for_model_with_minified_adata(SCANVI, use_size_factor=True)
 
 
-def test_scanvi_latent_mode_one_sample_with_layer():
-    run_test_scvi_latent_mode(SCANVI, layer="data_layer")
-    run_test_scvi_latent_mode(SCANVI, layer="data_layer", use_size_factor=True)
+def test_scanvi_with_minified_adata_one_sample_with_layer():
+    run_test_for_model_with_minified_adata(SCANVI, layer="data_layer")
+    run_test_for_model_with_minified_adata(
+        SCANVI, layer="data_layer", use_size_factor=True
+    )
 
 
-def test_scanvi_latent_mode_n_samples():
-    run_test_scvi_latent_mode(SCANVI, n_samples=10, give_mean=True)
-    run_test_scvi_latent_mode(
+def test_scanvi_with_minified_adata_n_samples():
+    run_test_for_model_with_minified_adata(SCANVI, n_samples=10, give_mean=True)
+    run_test_for_model_with_minified_adata(
         SCANVI, n_samples=10, give_mean=True, use_size_factor=True
     )
 
 
-def test_scanvi_from_scvi_latent(save_path):
+def test_scanvi_from_scvi(save_path):
     model, adata, _, adata_before_setup = prep_model(SCVI)
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     adata.obsm["X_latent_qzm"] = qzm
     adata.obsm["X_latent_qzv"] = qzv
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     # for from_scvi_model to succeed:
-    # 1. scvi_model must not be in latent mode, and
-    # 2. adata (if different from scvi_model.adata) must not be in latent mode
+    # 1. scvi_model.adata must not be minified, and
+    # 2. adata (if different from scvi_model.adata) must not be minified
 
     with pytest.raises(ValueError) as e:
         scvi.model.SCANVI.from_scvi_model(model, "label_0")
     assert (
-        str(e.value) == "Please provide a non-latent scvi model to initialize scanvi."
+        str(e.value)
+        == "We cannot use the given scvi model to initialize scanvi because it has a minified adata."
     )
 
-    # let's load scvi_model with a non_latent adata. Then, scvi_model will no longer be in latent mode
+    # let's load scvi_model with a non-minified adata
     model.save(save_path, overwrite=True)
     loaded_model = SCVI.load(save_path, adata=adata_before_setup)
 
     with pytest.raises(ValueError) as e:
         adata2 = synthetic_iid()
-        # just add this to pretend the data is latent
-        adata2.uns[_ADATA_LATENT_UNS_KEY] = _SCVI_LATENT_MODE
+        # just add this to pretend the data is minified
+        adata2.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = ADATA_MINIFY_TYPE.LATENT_POSTERIOR
         scvi.model.SCANVI.from_scvi_model(loaded_model, "label_0", adata=adata2)
-    assert str(e.value) == "Please provide a non-latent `adata` to initialize scanvi."
+    assert str(e.value) == "Please provide a non-minified `adata` to initialize scanvi."
 
     scanvi_model = scvi.model.SCANVI.from_scvi_model(loaded_model, "label_0")
     scanvi_model.train(1)
 
 
-def test_scvi_latent_mode_get_normalized_expression():
+def test_scvi_with_minified_adata_get_normalized_expression():
     model, adata, _, _ = prep_model()
 
     scvi.settings.seed = 1
@@ -201,17 +205,17 @@ def test_scvi_latent_mode_get_normalized_expression():
     scvi.settings.seed = 1
     exprs_orig = model.get_normalized_expression()
 
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
-    exprs_latent = model.get_normalized_expression()
-    assert exprs_latent.shape == adata.shape
+    exprs_new = model.get_normalized_expression()
+    assert exprs_new.shape == adata.shape
 
-    np.testing.assert_array_equal(exprs_latent, exprs_orig)
+    np.testing.assert_array_equal(exprs_new, exprs_orig)
 
 
-def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
+def test_scvi_with_minified_adata_get_normalized_expression_non_default_gene_list():
     model, adata, _, _ = prep_model()
 
     # non-default gene list and n_samples > 1
@@ -228,34 +232,34 @@ def test_scvi_latent_mode_get_normalized_expression_non_default_gene_list():
         gene_list=gl, n_samples=n_samples, library_size="latent"
     )
 
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
     # do this so that we generate the same sequence of random numbers in the
-    # latent and non latent cases (purely to get the tests to pass). this is
-    # because in the non latent case we sample once more (in the call to z_encoder
+    # minified and non-minified cases (purely to get the tests to pass). this is
+    # because in the non-minified case we sample once more (in the call to z_encoder
     # during inference)
-    exprs_latent = model.get_normalized_expression(
+    exprs_new = model.get_normalized_expression(
         gene_list=gl, n_samples=n_samples + 1, return_mean=False, library_size="latent"
     )
-    exprs_latent = exprs_latent[1:].mean(0)
+    exprs_new = exprs_new[1:].mean(0)
 
-    assert exprs_latent.shape == (adata.shape[0], 5)
-    np.testing.assert_allclose(exprs_latent, exprs_orig, rtol=3e-1, atol=5e-1)
+    assert exprs_new.shape == (adata.shape[0], 5)
+    np.testing.assert_allclose(exprs_new, exprs_orig, rtol=3e-1, atol=5e-1)
 
 
-def test_latent_mode_validate_unsupported():
+def test_validate_unsupported_if_minified():
     model, _, _, _ = prep_model()
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
     model.adata.obsm["X_latent_qzv"] = qzv
 
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
-    common_err_msg = "Latent mode currently not supported for the {} function."
+    common_err_msg = "The {} function currently does not support minified data."
 
     with pytest.raises(ValueError) as e:
         model.get_elbo()
@@ -274,7 +278,10 @@ def test_latent_mode_validate_unsupported():
     assert str(e.value) == common_err_msg.format("RNASeqMixin.get_latent_library_size")
 
 
-def test_scvi_latent_mode_save_load_latent(save_path):
+def test_scvi_with_minified_adata_save_then_load(save_path):
+    # create a model and minify its adata, then save it and its adata.
+    # Load it back up using the same (minified) adata. Validate that the
+    # loaded model has the minified_data_type attribute set as expected.
     model, adata, _, _ = prep_model()
 
     scvi.settings.seed = 1
@@ -285,14 +292,14 @@ def test_scvi_latent_mode_save_load_latent(save_path):
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters()
 
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     model.save(save_path, overwrite=True, save_anndata=True)
-    # load saved latent model with saved latent adata
+    # load saved model with saved (minified) adata
     loaded_model = SCVI.load(save_path)
 
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    assert loaded_model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
     params_latent = loaded_model.get_likelihood_parameters()
@@ -300,7 +307,10 @@ def test_scvi_latent_mode_save_load_latent(save_path):
     np.testing.assert_array_equal(params_latent["mean"], params_orig["mean"])
 
 
-def test_scvi_latent_mode_save_load_latent_to_non_latent(save_path):
+def test_scvi_with_minified_adata_save_then_load_with_non_minified_adata(save_path):
+    # create a model and minify its adata, then save it and its adata.
+    # Load it back up using a non-minified adata. Validate that the
+    # loaded model does not has the minified_data_type attribute set.
     model, adata, _, adata_before_setup = prep_model()
 
     scvi.settings.seed = 1
@@ -311,12 +321,14 @@ def test_scvi_latent_mode_save_load_latent_to_non_latent(save_path):
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters()
 
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     model.save(save_path, overwrite=True, save_anndata=True)
-    # load saved latent model with non-latent adata
+    # load saved model with a non-minified adata
     loaded_model = SCVI.load(save_path, adata=adata_before_setup)
+
+    assert loaded_model.minified_data_type is None
 
     scvi.settings.seed = 1
     params_new = loaded_model.get_likelihood_parameters()
@@ -324,7 +336,11 @@ def test_scvi_latent_mode_save_load_latent_to_non_latent(save_path):
     np.testing.assert_array_equal(params_new["mean"], params_orig["mean"])
 
 
-def test_scvi_latent_mode_save_load_non_latent_to_latent(save_path):
+def test_scvi_save_then_load_with_minified_adata(save_path):
+    # create a model, then save it and its adata (non-minified).
+    # Load it back up using a minified adata. Validate that this
+    # fails, as expected because we don't have a way to validate
+    # whether the minified-adata was set up correctly
     model, _, _, _ = prep_model()
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
@@ -333,17 +349,17 @@ def test_scvi_latent_mode_save_load_non_latent_to_latent(save_path):
 
     model.save(save_path, overwrite=True, save_anndata=True)
 
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
-    # loading saved non-latent model with latent adata is not allowed
-    # because we don't have a way to validate the correctness of the
-    # latent data setup
+    # loading this model with a minified adata is not allowed because
+    # we don't have a way to validate whether the minified-adata was
+    # set up correctly
     with pytest.raises(KeyError):
         SCVI.load(save_path, adata=model.adata)
 
 
-def test_scvi_latent_mode_get_latent_representation():
+def test_scvi_with_minified_adata_get_latent_representation():
     model, _, _, _ = prep_model()
 
     scvi.settings.seed = 1
@@ -354,16 +370,16 @@ def test_scvi_latent_mode_get_latent_representation():
     scvi.settings.seed = 1
     latent_repr_orig = model.get_latent_representation()
 
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
-    latent_repr_latent = model.get_latent_representation()
+    latent_repr_new = model.get_latent_representation()
 
-    np.testing.assert_array_equal(latent_repr_latent, latent_repr_orig)
+    np.testing.assert_array_equal(latent_repr_new, latent_repr_orig)
 
 
-def test_scvi_latent_mode_posterior_predictive_sample():
+def test_scvi_with_minified_adata_posterior_predictive_sample():
     model, _, _, _ = prep_model()
 
     scvi.settings.seed = 1
@@ -376,19 +392,19 @@ def test_scvi_latent_mode_posterior_predictive_sample():
         indices=[1, 2, 3], gene_list=["1", "2"]
     )
 
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
-    sample_latent = model.posterior_predictive_sample(
+    sample_new = model.posterior_predictive_sample(
         indices=[1, 2, 3], gene_list=["1", "2"]
     )
-    assert sample_latent.shape == (3, 2)
+    assert sample_new.shape == (3, 2)
 
-    np.testing.assert_array_equal(sample_latent, sample_orig)
+    np.testing.assert_array_equal(sample_new, sample_orig)
 
 
-def test_scvi_latent_mode_get_feature_correlation_matrix():
+def test_scvi_with_minified_adata_get_feature_correlation_matrix():
     model, _, _, _ = prep_model()
 
     scvi.settings.seed = 1
@@ -403,14 +419,14 @@ def test_scvi_latent_mode_get_feature_correlation_matrix():
         transform_batch=["batch_0", "batch_1"],
     )
 
-    model.to_latent_mode()
-    assert model.latent_data_type == _SCVI_LATENT_MODE
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
-    fcm_latent = model.get_feature_correlation_matrix(
+    fcm_new = model.get_feature_correlation_matrix(
         correlation_type="pearson",
         n_samples=1,
         transform_batch=["batch_0", "batch_1"],
     )
 
-    assert_approx_equal(fcm_latent, fcm_orig)
+    assert_approx_equal(fcm_new, fcm_orig)

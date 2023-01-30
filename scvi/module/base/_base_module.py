@@ -20,8 +20,9 @@ from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._types import LatentDataType, LossRecord, Tensor
+from scvi._types import LossRecord, MinifiedDataType, Tensor
 from scvi.autotune._types import TunableMixin
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
@@ -249,26 +250,26 @@ class BaseModuleClass(TunableMixin, nn.Module):
         """Generate samples from the learned model."""
 
 
-class BaseLatentModeModuleClass(BaseModuleClass):
-    """Abstract base class for scvi-tools modules that support latent mode."""
+class BaseMinifiedModeModuleClass(BaseModuleClass):
+    """Abstract base class for scvi-tools modules that can handle minified data."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._latent_data_type = None
+        self._minified_data_type = None
 
     @property
-    def latent_data_type(self) -> Union[LatentDataType, None]:
-        """The latent data type associated with this module."""
-        return self._latent_data_type
+    def minified_data_type(self) -> Union[MinifiedDataType, None]:
+        """The type of minified data associated with this module, if applicable."""
+        return self._minified_data_type
 
-    @latent_data_type.setter
-    def latent_data_type(self, latent_data_type):
-        """Set latent data type associated with this module."""
-        self._latent_data_type = latent_data_type
+    @minified_data_type.setter
+    def minified_data_type(self, minified_data_type):
+        """Set the type of minified data associated with this module."""
+        self._minified_data_type = minified_data_type
 
     @abstractmethod
     def _cached_inference(self, *args, **kwargs):
-        """Uses the cached latent mode distribution to perform inference, thus bypassing the encoder."""
+        """Uses the cached latent distribution to perform inference, thus bypassing the encoder."""
 
     @abstractmethod
     def _regular_inference(self, *args, **kwargs):
@@ -279,13 +280,16 @@ class BaseLatentModeModuleClass(BaseModuleClass):
         """
         Main inference call site.
 
-        Branches off to regular or cached inference depending on the latent data
-        type of the module.
+        Branches off to regular or cached inference depending on whether we have a minified adata
+        that contains the latent posterior parameters.
         """
-        if self.latent_data_type is None:
-            return self._regular_inference(*args, **kwargs)
-        else:
+        if (
+            self.minified_data_type is not None
+            and self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             return self._cached_inference(*args, **kwargs)
+        else:
+            return self._regular_inference(*args, **kwargs)
 
 
 def _get_dict_if_none(param):

@@ -10,16 +10,15 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi.autotune._types import Tunable
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
-from scvi.module.base import BaseLatentModeModuleClass, LossOutput, auto_move_data
+from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
 
-_SCVI_LATENT_MODE = "posterior_parameters"
 
-
-class VAE(BaseLatentModeModuleClass):
+class VAE(BaseMinifiedModeModuleClass):
     """
     Variational auto-encoder model.
 
@@ -88,8 +87,6 @@ class VAE(BaseLatentModeModuleClass):
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
-    latent_data_type
-        None or the type of latent data.
     """
 
     def __init__(
@@ -225,19 +222,21 @@ class VAE(BaseLatentModeModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
-        if self.latent_data_type is None:
+        if self.minified_data_type is None:
             x = tensors[REGISTRY_KEYS.X_KEY]
             input_dict = dict(
                 x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
             )
         else:
-            if self.latent_data_type == _SCVI_LATENT_MODE:
+            if self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
                 qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
                 qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
                 observed_lib_size = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
                 input_dict = dict(qzm=qzm, qzv=qzv, observed_lib_size=observed_lib_size)
             else:
-                raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
+                raise NotImplementedError(
+                    f"Unknown minified-data type: {self.minified_data_type}"
+                )
 
         return input_dict
 
@@ -333,10 +332,9 @@ class VAE(BaseLatentModeModuleClass):
 
     @auto_move_data
     def _cached_inference(self, qzm, qzv, observed_lib_size, n_samples=1):
-        if self.latent_data_type == _SCVI_LATENT_MODE:
+        if self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             dist = Normal(qzm, qzv.sqrt())
-            # use dist.sample() rather than rsample because we aren't optimizing
-            # the z in latent/cached mode
+            # use dist.sample() rather than rsample because we aren't optimizing the z here
             untran_z = dist.sample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
             library = torch.log(observed_lib_size)
@@ -345,7 +343,9 @@ class VAE(BaseLatentModeModuleClass):
                     (n_samples, library.size(0), library.size(1))
                 )
         else:
-            raise ValueError(f"Unknown latent data type: {self.latent_data_type}")
+            raise NotImplementedError(
+                f"Unknown minified-data type: {self.minified_data_type}"
+            )
         outputs = dict(z=z, qz_m=qzm, qz_v=qzv, ql=None, library=library)
         return outputs
 
