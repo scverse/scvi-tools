@@ -80,11 +80,11 @@ class _ConvBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor):
+        x = self.activation_fn(x)
         x = self.conv(x)
         x = self.batch_norm(x)
         x = self.dropout(x)
         x = self.pool(x)
-        x = self.activation_fn(x)
         return x
 
 
