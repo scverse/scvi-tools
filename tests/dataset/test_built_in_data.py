@@ -108,3 +108,9 @@ def test_download_heart_cell_atlas(save_path):
 @pytest.mark.internet
 def test_download_seurat_v4_pbmc(save_path):
     scvi.data.pbmc_seurat_v4_cite_seq(save_path=save_path, mask_protein_batches=5)
+
+
+@pytest.mark.internet
+def test_download_cellxgene(save_path):
+    url = "https://cellxgene.cziscience.com/e/4b6af54a-4a21-46e0-bc8d-673c0561a836.cxg/"
+    scvi.data.cellxgene(url, save_path=save_path)
