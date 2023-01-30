@@ -865,11 +865,11 @@ class BaseMinifiedModeModelClass(BaseModelClass):
 
     @staticmethod
     @abstractmethod
-    def _get_fields_for_adata_minification(type: MinifiedDataType):
+    def _get_fields_for_adata_minification(minified_data_type: MinifiedDataType):
         """Return the anndata fields required for adata minification of the given type."""
 
     def _update_adata_and_manager_post_minification(
-        self, minified_adata: AnnOrMuData, type: MinifiedDataType
+        self, minified_adata: AnnOrMuData, minified_data_type: MinifiedDataType
     ):
         """Update the anndata and manager inplace after creating a minified adata."""
         # Register this new adata with the model, creating a new manager in the cache
@@ -877,7 +877,7 @@ class BaseMinifiedModeModelClass(BaseModelClass):
         new_adata_manager = self.get_anndata_manager(minified_adata, required=True)
         # This inplace edits the manager
         new_adata_manager.register_new_fields(
-            self._get_fields_for_adata_minification(type)
+            self._get_fields_for_adata_minification(minified_data_type)
         )
         # We set the adata attribute of the model as this will update self.registry_
         # and self.adata_manager with the new adata manager

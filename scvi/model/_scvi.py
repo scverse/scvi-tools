@@ -215,10 +215,10 @@ class SCVI(
 
     @staticmethod
     def _get_fields_for_adata_minification(
-        type: MinifiedDataType,
+        minified_data_type: MinifiedDataType,
     ) -> List[BaseAnnDataField]:
-        """Return the anndata fields required for adata minification of the given type."""
-        if type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        """Return the anndata fields required for adata minification of the given minified_data_type."""
+        if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             fields = [
                 ObsmField(
                     REGISTRY_KEYS.LATENT_QZM_KEY,
@@ -234,7 +234,7 @@ class SCVI(
                 ),
             ]
         else:
-            raise NotImplementedError(f"Unknown MinifiedDataType: {type}")
+            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
         fields.append(
             StringUnsField(
                 REGISTRY_KEYS.MINIFY_TYPE_KEY,
@@ -245,7 +245,7 @@ class SCVI(
 
     def minify_adata(
         self,
-        type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
+        minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ) -> None:
@@ -258,9 +258,9 @@ class SCVI(
 
         Parameters
         ----------
-        type
+        minified_data_type
             How to minify the data. Currently only supports `latent_posterior_parameters`.
-            If type == `latent_posterior_parameters`:
+            If minified_data_type == `latent_posterior_parameters`:
 
             * the original count data is removed (`adata.X`, adata.raw, and any layers)
             * the parameters of the latent representation of the original data is stored
@@ -277,20 +277,22 @@ class SCVI(
         """
         # TODO(adamgayoso): Add support for a scenario where we want to cache the latent posterior
         # without removing the original counts.
-        if type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            raise NotImplementedError(f"Unknown MinifiedDataType: {type}")
+        if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
 
         if self.module.use_observed_lib_size is False:
             raise ValueError(
                 "Cannot minify the data if `use_observed_lib_size` is False"
             )
 
-        minified_adata = get_minified_adata_scrna(self.adata, type)
+        minified_adata = get_minified_adata_scrna(self.adata, minified_data_type)
         minified_adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
         minified_adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
         counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
         minified_adata.obs[_SCVI_OBSERVED_LIB_SIZE] = np.squeeze(
             np.asarray(counts.sum(axis=1))
         )
-        self._update_adata_and_manager_post_minification(minified_adata, type)
-        self.module.minified_data_type = type
+        self._update_adata_and_manager_post_minification(
+            minified_adata, minified_data_type
+        )
+        self.module.minified_data_type = minified_data_type

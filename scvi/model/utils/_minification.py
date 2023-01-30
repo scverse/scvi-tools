@@ -11,7 +11,7 @@ from scvi.data._constants import (
 
 def get_minified_adata_scrna(
     adata: AnnData,
-    type: MinifiedDataType,
+    minified_data_type: MinifiedDataType,
 ) -> AnnData:
     """
     Returns a minified adata that works for most scrna models (such as SCVI, SCANVI).
@@ -20,11 +20,11 @@ def get_minified_adata_scrna(
     ----------
     adata
         Original adata, of which we to create a minified version.
-    type
+    minified_data_type
         How to minify the data.
     """
-    if type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-        raise NotImplementedError(f"Unknown MinifiedDataType: {type}")
+    if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
 
     all_zeros = csr_matrix(adata.X.shape)
     layers = {layer: all_zeros.copy() for layer in adata.layers}
@@ -40,5 +40,5 @@ def get_minified_adata_scrna(
     )
     # Remove scvi uuid key to make bdata fresh w.r.t. the model's manager
     del bdata.uns[_SCVI_UUID_KEY]
-    bdata.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = type
+    bdata.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = minified_data_type
     return bdata
