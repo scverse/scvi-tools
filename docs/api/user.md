@@ -105,7 +105,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
 .. currentmodule:: scvi
 ```
 
-## Model hyperparameter autotuning
+## Model hyperparameter tuning
 
 `scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune].
 
