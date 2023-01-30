@@ -1,5 +1,5 @@
 from ._base_module import (
-    BaseLatentModeModuleClass,
+    BaseMinifiedModeModuleClass,
     BaseModuleClass,
     JaxBaseModuleClass,
     LossOutput,
@@ -16,5 +16,5 @@ __all__ = [
     "flax_configure",
     "JaxBaseModuleClass",
     "TrainStateWithState",
-    "BaseLatentModeModuleClass",
+    "BaseMinifiedModeModuleClass",
 ]
