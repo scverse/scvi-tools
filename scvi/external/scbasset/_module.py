@@ -105,10 +105,10 @@ class _DenseBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor):
+        x = self.activation_fn(x)
         x = self.dense(x)
         x = self.batch_norm(x)
         x = self.dropout(x)
-        x = self.activation_fn(x)
         return x
 
 
@@ -285,7 +285,6 @@ class ScBassetModule(BaseModuleClass):
             out_features=n_bottleneck_layer,
             batch_norm=True,
             dropout=0.2,
-            activation_fn=nn.Identity(),
         )
         self.stochastic_rc = _StochasticReverseComplement()
         self.stochastic_shift = _StochasticShift(3)
@@ -311,6 +310,7 @@ class ScBassetModule(BaseModuleClass):
         h = h.view(h.shape[0], -1)
         # Regions by bottleneck layer dim
         h = self.bottleneck(h)
+        h = _GELU()(h)
         return {"region_embedding": h}
 
     def _get_generative_input(
