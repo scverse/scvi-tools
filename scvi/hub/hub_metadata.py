@@ -6,7 +6,7 @@ from typing import List, Optional
 from huggingface_hub import ModelCard, ModelCardData
 
 from scvi.data import AnnDataManager
-from scvi.data._utils import _is_latent
+from scvi.data._utils import _is_minified
 from scvi.model.base._utils import _load_saved_files
 
 from ._constants import _SCVI_HUB
@@ -99,8 +99,8 @@ class HubModelCardHelper:
         The tissues of the training data.
     data_is_annotated
         Whether the training data is annotated.
-    data_is_latent
-        Whether the training data is latent.
+    data_is_minified
+        Whether the training data uploaded with the model has been minified.
     training_data_url
         Link to the training data used to train the model, if it is too large to be uploaded to the hub.
     training_code_url
@@ -125,7 +125,7 @@ class HubModelCardHelper:
     data_modalities: List[str] = field(default_factory=list)
     tissues: List[str] = field(default_factory=list)
     data_is_annotated: Optional[bool] = None
-    data_is_latent: Optional[bool] = None
+    data_is_minified: Optional[bool] = None
     training_data_url: Optional[str] = None
     training_code_url: Optional[str] = None
     model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
@@ -141,7 +141,7 @@ class HubModelCardHelper:
         local_dir: str,
         license_info: str,
         anndata_version: str,
-        data_is_latent: Optional[bool] = None,
+        data_is_minified: Optional[bool] = None,
         **kwargs,
     ):
         """
@@ -155,8 +155,8 @@ class HubModelCardHelper:
             The license information for the model.
         anndata_version
             The version of anndata used during model training.
-        data_is_latent
-            Whether the training data is latent.
+        data_is_minified
+            Whether the training data uploaded with the model has been minified.
         kwargs
             Additional keyword arguments to pass to the HubModelCardHelper initializer.
         """
@@ -173,10 +173,10 @@ class HubModelCardHelper:
             AnnDataManager._get_data_registry_from_registry(registry)
         )
 
-        # get `is_latent` from the param if it is given, else from adata if it on disk, else set it to None
-        is_latent = data_is_latent
-        if is_latent is None and os.path.isfile(f"{local_dir}/adata.h5ad"):
-            is_latent = _is_latent(f"{local_dir}/adata.h5ad")
+        # get `is_minified` from the param if it is given, else from adata if it on disk, else set it to None
+        is_minified = data_is_minified
+        if is_minified is None and os.path.isfile(f"{local_dir}/adata.h5ad"):
+            is_minified = _is_minified(f"{local_dir}/adata.h5ad")
 
         return cls(
             license_info,
@@ -187,7 +187,7 @@ class HubModelCardHelper:
             model_data_registry,
             scvi_version,
             anndata_version,
-            data_is_latent=is_latent,
+            data_is_minified=is_minified,
             **kwargs,
         )
 
@@ -252,9 +252,9 @@ class HubModelCardHelper:
                 self.model_data_registry, as_markdown=True
             ),
             model_parent_module=self.model_parent_module,
-            data_is_latent=_SCVI_HUB.DEFAULT_MISSING_FIELD
-            if self.data_is_latent is None
-            else self.data_is_latent,
+            data_is_minified=_SCVI_HUB.DEFAULT_MISSING_FIELD
+            if self.data_is_minified is None
+            else self.data_is_minified,
             training_data_url=self.training_data_url or _SCVI_HUB.DEFAULT_NA_FIELD,
             training_code_url=self.training_code_url or _SCVI_HUB.DEFAULT_NA_FIELD,
             references=self.references,

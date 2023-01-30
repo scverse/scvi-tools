@@ -148,7 +148,7 @@ Here we maintain miscellaneous general methods.
    :nosignatures:
 
    model.utils.mde
-   model.utils.get_reduced_adata_scrna
+   model.utils.get_minified_adata_scrna
 ```
 
 ## Configuration
