@@ -298,7 +298,14 @@ class HubModel:
             logger.info("No data found on disk. Skipping...")
 
     def read_large_training_adata(self):
-        """Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op."""
+        """
+        Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op
+
+        Notes
+        -----
+        The large training data url can be a cellxgene explorer session url. However it cannot be a self-hosted
+        session. In other words, it must be from the cellxgene portal (https://cellxgene.cziscience.com/).
+        """
         training_data_url = self.metadata.training_data_url
         if training_data_url is not None:
             logger.info(
@@ -309,7 +316,7 @@ class HubModel:
             url_parts = training_data_url.split("/")
             url_last_part = url_parts[-2] if url_parts[-1] == "" else url_parts[-1]
             if url_last_part.endswith(".cxg"):
-                cellxgene(training_data_url, fn, dn, return_path=True)
+                _ = cellxgene(training_data_url, fn, dn, return_path=True)
             else:
                 _download(training_data_url, dn, fn)
             logger.info("Reading large training data...")
