@@ -343,7 +343,9 @@ class ScBassetModule(BaseModuleClass):
                 self.l2_reg_cell_embedding * torch.square(self.cell_embedding).mean()
             )
         auroc = torchmetrics.functional.auroc(
-            torch.sigmoid(reconstruction_logits).ravel(), target.ravel(), task="binary"
+            torch.sigmoid(reconstruction_logits).ravel(),
+            target.int().ravel(),
+            task="binary",
         )
         return LossOutput(
             loss=loss,
