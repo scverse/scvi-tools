@@ -248,7 +248,7 @@ TrainingPlans define train/test/val optimization steps for modules.
 
 ```
 
-## Model hyperparameter autotuning
+## Model hyperparameter tuning
 
 `scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune]. These
 classes allow for new model classes to be easily integrated with the module.

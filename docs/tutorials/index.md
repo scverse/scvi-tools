@@ -46,6 +46,7 @@ notebooks/amortized_lda
 notebooks/PeakVI
 notebooks/peakvi_in_R
 notebooks/scbasset
+notebooks/scbasset_batch
 ```
 
 ### Spatial transcriptomics
@@ -78,6 +79,15 @@ notebooks/MultiVI_tutorial
 
 notebooks/scvi_hub_intro_and_download.ipynb
 notebooks/scvi_hub_upload_and_large_files.ipynb
+```
+
+### Model hyperparameter tuning
+
+```{toctree}
+:maxdepth: 1
+
+notebooks/autotune_scvi
+notebooks/autotune_new_model
 ```
 
 ### Contributed tutorials
