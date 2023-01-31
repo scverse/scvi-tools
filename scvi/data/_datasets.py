@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import anndata
 
@@ -123,7 +123,8 @@ def cellxgene(
     url: str,
     filename: Optional[str] = None,
     save_path: str = "data/",
-) -> anndata.AnnData:
+    return_path: bool = False,
+) -> Union[anndata.AnnData, str]:
     """
     Loads a file from `cellxgene <https://cellxgene.cziscience.com/>`_ portal.
 

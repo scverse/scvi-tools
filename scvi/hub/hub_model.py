@@ -13,6 +13,7 @@ from anndata import AnnData
 from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
 from rich.markdown import Markdown
 
+from scvi.data import cellxgene
 from scvi.data._download import _download
 from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
@@ -305,7 +306,12 @@ class HubModel:
             )
             dn = Path(self._large_training_adata_path).parent.as_posix()
             fn = Path(self._large_training_adata_path).name
-            _download(training_data_url, dn, fn)
+            url_parts = training_data_url.split("/")
+            url_last_part = url_parts[-2] if url_parts[-1] == "" else url_parts[-1]
+            if url_last_part.endswith(".cxg"):
+                cellxgene(training_data_url, fn, dn, return_path=True)
+            else:
+                _download(training_data_url, dn, fn)
             logger.info("Reading large training data...")
             self._large_training_adata = anndata.read_h5ad(
                 self._large_training_adata_path

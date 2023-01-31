@@ -63,4 +63,5 @@ __all__ = [
     "organize_multiome_anndatas",
     "pbmc_seurat_v4_cite_seq",
     "add_dna_sequence",
+    "cellxgene",
 ]
