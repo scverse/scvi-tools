@@ -45,10 +45,11 @@ class _GELU(nn.Module):
 
 
 class _BatchNorm(nn.BatchNorm1d):
-    """Batch normalization with Keras default initializations."""
+    """Batch normalization with Keras default initializations and scBasset defaults."""
 
-    def __init__(self, *args, eps: int = 1e-3, **kwargs):
-        super().__init__(*args, eps=eps, **kwargs)
+    def __init__(self, *args, eps: int = 1e-3, momentum=0.1, **kwargs):
+        # Keras uses 0.01 for momentum, but scBasset uses 0.1
+        super().__init__(*args, eps=eps, momentum=momentum, **kwargs)
 
 
 class _ConvBlock(nn.Module):
@@ -213,6 +214,8 @@ class ScBassetModule(BaseModuleClass):
     dropout
         Dropout rate across layers, by default we do not do it for
         convolutional layers but we do it for the dense layers
+    l2_reg_cell_embedding
+        L2 regularization for the cell embedding layer
     """
 
     def __init__(
@@ -226,24 +229,16 @@ class ScBassetModule(BaseModuleClass):
         n_bottleneck_layer: int = 32,
         batch_norm: bool = True,
         dropout: float = 0.0,
+        l2_reg_cell_embedding: float = 0.0,
     ):
         super().__init__()
-
+        self.l2_reg_cell_embedding = l2_reg_cell_embedding
         self.cell_embedding = nn.Parameter(torch.randn(n_bottleneck_layer, n_cells))
         self.cell_bias = nn.Parameter(torch.randn(n_cells))
         if batch_ids is not None:
             self.register_buffer("batch_ids", torch.as_tensor(batch_ids).long())
             self.n_batch = len(torch.unique(batch_ids))
-            self.register_buffer(
-                "batch_ids_one_hot",
-                torch.nn.functional.one_hot(batch_ids, self.n_batch)
-                .squeeze(1)
-                .float()
-                .T,
-            )
-            self.batch_emdedding = nn.Parameter(
-                torch.randn(n_bottleneck_layer, self.n_batch)
-            )
+            self.batch_emdedding = nn.Embedding(self.n_batch, n_bottleneck_layer)
         self.stem = _ConvBlock(
             in_channels=4,
             out_channels=n_filters_init,
@@ -325,12 +320,13 @@ class ScBassetModule(BaseModuleClass):
 
     def generative(self, region_embedding: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Generative method for the model."""
-        accessibility = region_embedding @ self.cell_embedding
+        if hasattr(self, "batch_ids"):
+            # embeddings dim by cells dim
+            cell_batch_embedding = self.batch_emdedding(self.batch_ids).squeeze(-2).T
+        else:
+            cell_batch_embedding = 0
+        accessibility = region_embedding @ (self.cell_embedding + cell_batch_embedding)
         accessibility += self.cell_bias
-        if hasattr(self, "batch_ids_one_hot"):
-            accessibility += (
-                region_embedding @ self.batch_emdedding
-            ) @ self.batch_ids_one_hot
         return {"reconstruction_logits": accessibility}
 
     def loss(self, tensors, inference_outputs, generative_outputs) -> LossOutput:
@@ -340,9 +336,10 @@ class ScBassetModule(BaseModuleClass):
         loss_fn = nn.BCEWithLogitsLoss(reduction="none")
         full_loss = loss_fn(reconstruction_logits, target)
         reconstruction_loss = full_loss.sum(dim=-1)
-        loss = reconstruction_loss.sum() / (
-            reconstruction_logits.shape[0] * reconstruction_logits.shape[1]
-        )
+        # SUM_OVER_BATCH_SIZE in Keras version
+        loss = reconstruction_loss.sum() / reconstruction_loss.shape[0]
+        if self.l2_reg_cell_embedding > 0:
+            loss += self.l2_reg_cell_embedding * torch.norm(self.cell_embedding) ** 2
         auroc = torchmetrics.functional.auroc(
             torch.sigmoid(reconstruction_logits).ravel(), target.ravel(), task="binary"
         )
