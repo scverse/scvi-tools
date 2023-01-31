@@ -17,7 +17,9 @@
             "extensions": [
                 "EditorConfig.EditorConfig",
                 "ms-python.python",
-                "eamodio.gitlens"
+                "eamodio.gitlens",
+                "vscode-icons-team.vscode-icons",
+                "ms-toolsai.jupyter"
             ]
         }
     }
