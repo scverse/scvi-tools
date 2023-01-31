@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from abc import abstractmethod
 from dataclasses import field
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
@@ -21,104 +20,13 @@ from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._types import LatentDataType, LossRecord, Tensor
+from scvi._types import LossRecord, MinifiedDataType, Tensor
+from scvi.autotune._types import TunableMixin
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
-
-
-class LossRecorder:
-    """
-    Loss signature for models.
-
-    This class provides an organized way to record the model loss, as well as
-    the components of the ELBO. This may also be used in MLE, MAP, EM methods.
-    The loss is used for backpropagation during inference. The other parameters
-    are used for logging/early stopping during inference.
-
-    Parameters
-    ----------
-    loss
-        Tensor with loss for minibatch. Should be one dimensional with one value.
-        Note that loss should be a :class:`~torch.Tensor` and not the result of ``.item()``.
-    reconstruction_loss
-        Reconstruction loss for each observation in the minibatch. If a tensor, converted to
-        a dictionary with key "reconstruction_loss" and value as tensor
-    kl_local
-        KL divergence associated with each observation in the minibatch. If a tensor, converted to
-        a dictionary with key "kl_local" and value as tensor
-    kl_global
-        Global kl divergence term. Should be one dimensional with one value. If a tensor, converted to
-        a dictionary with key "kl_global" and value as tensor
-    **kwargs
-        Additional metrics can be passed as keyword arguments and will
-        be available as attributes of the object.
-    """
-
-    def __init__(
-        self,
-        loss: LossRecord,
-        reconstruction_loss: Optional[LossRecord] = None,
-        kl_local: Optional[LossRecord] = None,
-        kl_global: Optional[LossRecord] = None,
-        **kwargs,
-    ):
-        warnings.warn(
-            "LossRecorder is deprecated and will be removed in version 0.20.0. Please use LossOutput",
-            category=DeprecationWarning,
-        )
-        self._loss_output = LossOutput(
-            loss=loss,
-            reconstruction_loss=reconstruction_loss,
-            kl_local=kl_local,
-            kl_global=kl_global,
-            extra_metrics=kwargs,
-        )
-        self.extra_metric_attrs = []
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-            self.extra_metric_attrs.append(key)
-
-    @property
-    def loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.loss
-
-    @property
-    def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self.dict_sum(self._loss_output.reconstruction_loss)
-
-    @property
-    def _reconstruction_loss(self):
-        return self._loss_output.reconstruction_loss
-
-    @property
-    def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self.dict_sum(self._loss_output.kl_local)
-
-    @property
-    def _kl_local(self):
-        return self._loss_output.kl_local
-
-    @property
-    def reconstruction_loss_sum(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.reconstruction_loss_sum
-
-    @property
-    def kl_local_sum(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.kl_local_sum
-
-    @property
-    def kl_global_sum(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.kl_global_sum
-
-    @property
-    def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self.dict_sum(self._loss_output.kl_global)
-
-    def dict_sum(self, x):
-        """Wrapper of LossOutput.dict_sum."""
-        return self._loss_output.dict_sum(x)
 
 
 @chex.dataclass
@@ -220,7 +128,7 @@ class LossOutput:
             return {attr_name: attr}
 
 
-class BaseModuleClass(nn.Module):
+class BaseModuleClass(TunableMixin, nn.Module):
     """Abstract class for scvi-tools modules."""
 
     def __init__(
@@ -250,7 +158,7 @@ class BaseModuleClass(nn.Module):
         compute_loss=True,
     ) -> Union[
         Tuple[torch.Tensor, torch.Tensor],
-        Tuple[torch.Tensor, torch.Tensor, LossRecorder],
+        Tuple[torch.Tensor, torch.Tensor, LossOutput],
     ]:
         """
         Forward pass through the network.
@@ -342,26 +250,26 @@ class BaseModuleClass(nn.Module):
         """Generate samples from the learned model."""
 
 
-class BaseLatentModeModuleClass(BaseModuleClass):
-    """Abstract base class for scvi-tools modules that support latent mode."""
+class BaseMinifiedModeModuleClass(BaseModuleClass):
+    """Abstract base class for scvi-tools modules that can handle minified data."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._latent_data_type = None
+        self._minified_data_type = None
 
     @property
-    def latent_data_type(self) -> Union[LatentDataType, None]:
-        """The latent data type associated with this module."""
-        return self._latent_data_type
+    def minified_data_type(self) -> Union[MinifiedDataType, None]:
+        """The type of minified data associated with this module, if applicable."""
+        return self._minified_data_type
 
-    @latent_data_type.setter
-    def latent_data_type(self, latent_data_type):
-        """Set latent data type associated with this module."""
-        self._latent_data_type = latent_data_type
+    @minified_data_type.setter
+    def minified_data_type(self, minified_data_type):
+        """Set the type of minified data associated with this module."""
+        self._minified_data_type = minified_data_type
 
     @abstractmethod
     def _cached_inference(self, *args, **kwargs):
-        """Uses the cached latent mode distribution to perform inference, thus bypassing the encoder."""
+        """Uses the cached latent distribution to perform inference, thus bypassing the encoder."""
 
     @abstractmethod
     def _regular_inference(self, *args, **kwargs):
@@ -372,13 +280,16 @@ class BaseLatentModeModuleClass(BaseModuleClass):
         """
         Main inference call site.
 
-        Branches off to regular or cached inference depending on the latent data
-        type of the module.
+        Branches off to regular or cached inference depending on whether we have a minified adata
+        that contains the latent posterior parameters.
         """
-        if self.latent_data_type is None:
-            return self._regular_inference(*args, **kwargs)
-        else:
+        if (
+            self.minified_data_type is not None
+            and self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             return self._cached_inference(*args, **kwargs)
+        else:
+            return self._regular_inference(*args, **kwargs)
 
 
 def _get_dict_if_none(param):
@@ -387,7 +298,7 @@ def _get_dict_if_none(param):
     return param
 
 
-class PyroBaseModuleClass(nn.Module):
+class PyroBaseModuleClass(TunableMixin, nn.Module):
     """
     Base module class for Pyro models.
 
@@ -532,7 +443,7 @@ class TrainStateWithState(train_state.TrainState):
     state: FrozenDict[str, Any]
 
 
-class JaxBaseModuleClass(flax.linen.Module):
+class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
     """
     Abstract class for Jax-based scvi-tools modules.
 
@@ -584,7 +495,7 @@ class JaxBaseModuleClass(flax.linen.Module):
         compute_loss=True,
     ) -> Union[
         Tuple[jnp.ndarray, jnp.ndarray],
-        Tuple[jnp.ndarray, jnp.ndarray, LossRecorder],
+        Tuple[jnp.ndarray, jnp.ndarray, LossOutput],
     ]:
         """
         Forward pass through the network.

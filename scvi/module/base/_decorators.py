@@ -122,7 +122,7 @@ def _apply_to_collection(
 
 
 def flax_configure(cls: nn.Module) -> Callable:
-    """Decorator to raise an error if the model is in latent mode."""
+    """Decorator to raise an error if a boolean `training` param is missing in the call."""
     original_init = cls.__init__
 
     @wraps(original_init)

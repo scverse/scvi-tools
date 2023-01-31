@@ -81,6 +81,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     1. :doc:`/tutorials/notebooks/PeakVI`
     """
 
+    _module_cls = PEAKVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -108,7 +110,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             else []
         )
 
-        self.module = PEAKVAE(
+        self.module = self._module_cls(
             n_input_regions=self.summary_stats.n_vars,
             n_batch=self.summary_stats.n_batch,
             n_hidden=n_hidden,
@@ -546,11 +548,12 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
-        %(param_layer)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        %(param_layer)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [

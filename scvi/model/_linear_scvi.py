@@ -69,6 +69,8 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     1. :doc:`/tutorials/notebooks/linear_decoder`
     """
 
+    _module_cls = LDVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -88,7 +90,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
             self.adata_manager, n_batch
         )
 
-        self.module = LDVAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,
@@ -147,6 +149,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_layer)s

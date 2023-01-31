@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal, Union
 
 import torch
-from lightning_lite import seed_everything
+from pytorch_lightning import seed_everything
 from rich.console import Console
 from rich.logging import RichHandler
 

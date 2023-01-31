@@ -10,6 +10,7 @@ from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 
 from scvi._constants import REGISTRY_KEYS
+from scvi.autotune._types import Tunable
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import Encoder
 
@@ -64,7 +65,7 @@ class AmortizedLDAPyroModel(PyroModule):
     def __init__(
         self,
         n_input: int,
-        n_topics: int,
+        n_topics: Tunable[int],
         cell_topic_prior: torch.Tensor,
         topic_feature_prior: torch.Tensor,
     ):

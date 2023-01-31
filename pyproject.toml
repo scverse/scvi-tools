@@ -5,7 +5,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "0.19.0"
+version = "0.20.0b1"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -44,11 +44,11 @@ dependencies = [
     "scipy",
     "scikit-learn>=0.21.2",
     "openpyxl>=3.0",
-    "rich>=9.1.0",
+    "rich>=12.0.0",
     "h5py>=2.9.0",
     "torch>=1.8.0",
-    "pytorch-lightning>=1.8.0,<1.9.0",
-    "torchmetrics>=0.6.0",
+    "pytorch-lightning>=1.9.0,<1.10.0",
+    "torchmetrics>=0.11.0",
     "pyro-ppl>=1.6.0",
     "tqdm>=4.56.0",
     "scikit-learn>=0.21.2",
@@ -58,13 +58,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde"]
+dev = ["black", "pytest", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde", "genomepy"]
 docs = [
   "sphinx>=4.1",
   "nbsphinx",
   "ipython",
   "furo",
-  "sphinx-autodoc-typehints",
+  "sphinx-autodoc-typehints<1.21.4",
   "sphinx_copybutton",
   "sphinx-design",
   "sphinxext-opengraph",
@@ -72,9 +72,14 @@ docs = [
   "sphinxcontrib-bibtex>=1.0.0",
   "myst-parser",
 ]
-autotune = ["hyperopt>=0.2", "ray[tune]>=2.1.0", "ipython"]
+autotune = [
+  "hyperopt>=0.2",
+  "ray[tune]>=2.2.0",
+  "ipython",
+  "scib-metrics>=0.1.1",
+]
 pymde = ["pymde"]
-tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "hub"]
+tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub", "genomepy"]
 hub = ["huggingface_hub"]
 
 [tool.hatch.build.targets.wheel]

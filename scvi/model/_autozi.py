@@ -90,6 +90,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     1. :doc:`/tutorials/notebooks/AutoZI_tutorial`
     """
 
+    _module_cls = AutoZIVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -114,7 +116,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             self.adata_manager, n_batch
         )
 
-        self.module = AutoZIVAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=self.summary_stats.n_labels,
@@ -279,6 +281,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_layer)s

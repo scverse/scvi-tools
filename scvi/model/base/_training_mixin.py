@@ -9,6 +9,10 @@ from scvi.train import TrainingPlan, TrainRunner
 class UnsupervisedTrainingMixin:
     """General purpose unsupervised train method."""
 
+    _data_splitter_cls = DataSplitter
+    _training_plan_cls = TrainingPlan
+    _train_runner_cls = TrainRunner
+
     def train(
         self,
         max_epochs: Optional[int] = None,
@@ -53,20 +57,20 @@ class UnsupervisedTrainingMixin:
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
-        data_splitter = DataSplitter(
+        data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = TrainingPlan(self.module, **plan_kwargs)
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
             early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         )
-        runner = TrainRunner(
+        runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
             data_splitter=data_splitter,
