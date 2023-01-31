@@ -145,6 +145,7 @@ def cellxgene(
         url=url,
         filename=filename,
         save_path=save_path,
+        return_path=return_path,
     )
 
 
