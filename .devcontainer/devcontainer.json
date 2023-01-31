@@ -1,27 +1,11 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/python
 {
-    "name": "Python 3",
-    // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-    "image": "mcr.microsoft.com/devcontainers/python:0-3.8",
-
-    // Features to add to the dev container. More info: https://containers.dev/features.
-    "features": {
-        "ghcr.io/devcontainers-contrib/features/black:2": {},
-        "ghcr.io/devcontainers-contrib/features/flake8:2": {},
-        "ghcr.io/devcontainers-contrib/features/hatch:2": {},
-        "ghcr.io/devcontainers-contrib/features/isort:2": {},
-        "ghcr.io/devcontainers-contrib/features/pipx-package:1": {},
-        "ghcr.io/devcontainers-contrib/features/pre-commit:2": {},
-        "ghcr.io/devcontainers-contrib/features/pylint:2": {},
-        "ghcr.io/mamba-org/devcontainer-features/micromamba:1": {}
-    },
-
-    "postCreateCommand": "pre-commit install && pip install --disable-pip-version-check --no-cache-dir -e .[dev,docs,tutorials]"
-
-    // Configure tool-specific properties.
-    // "customizations": {},
-
-    // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-    // "remoteUser": "root"
+    "name": "scvi-tools-dev",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": {
+            "PYTHON_VERSION": "3.10"
+        }
+    }
 }
