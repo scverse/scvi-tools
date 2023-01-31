@@ -8,5 +8,17 @@
             "PYTHON_VERSION": "3.10"
         },
         "context": ".."
+    },
+    "features": {
+        "ghcr.io/devcontainers-contrib/features/pre-commit:2": {}
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "EditorConfig.EditorConfig",
+                "ms-python.python",
+                "mhutchie.git-graph"
+            ]
+        }
     }
 }
