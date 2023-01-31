@@ -34,7 +34,7 @@ TUNABLE_TYPES = {
         Trainer,
         TrainRunner,
     ],
-    "training plan": [
+    "training_plan": [
         LightningModule,
     ],
 }

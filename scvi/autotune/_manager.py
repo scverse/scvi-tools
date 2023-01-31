@@ -169,7 +169,7 @@ class TunerManager:
                 model_kwargs[param] = value
             elif _type == "train":
                 train_kwargs[param] = value
-            elif _type == "plan":
+            elif _type == "training_plan":
                 plan_kwargs[param] = value
 
         train_kwargs["plan_kwargs"] = plan_kwargs
