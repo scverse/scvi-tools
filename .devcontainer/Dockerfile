@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM condaforge/mambaforge:latest
 WORKDIR /scvi-tools
-COPY . .
+COPY .. .
 
 RUN mamba init
 RUN mamba install python=3.10

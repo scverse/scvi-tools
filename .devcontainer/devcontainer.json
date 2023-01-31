@@ -7,10 +7,5 @@
         "args": {
             "PYTHON_VERSION": "3.10"
         }
-    },
-    "customizations": {
-        "vscode": {
-            "extensions": ["GitHub.copilot", "eamodio.gitlens"]
-        }
     }
 }
