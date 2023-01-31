@@ -47,9 +47,9 @@ class _GELU(nn.Module):
 class _BatchNorm(nn.BatchNorm1d):
     """Batch normalization with Keras default initializations and scBasset defaults."""
 
-    def __init__(self, *args, eps: int = 1e-3, momentum=0.1, **kwargs):
+    def __init__(self, *args, eps: int = 1e-3, **kwargs):
         # Keras uses 0.01 for momentum, but scBasset uses 0.1
-        super().__init__(*args, eps=eps, momentum=momentum, **kwargs)
+        super().__init__(*args, eps=eps, **kwargs)
 
 
 class _ConvBlock(nn.Module):
@@ -156,15 +156,14 @@ class _StochasticShift(nn.Module):
             shift_i = np.random.randint(0, len(self.augment_shifts))
             shift = self.augment_shifts[shift_i]
             if shift != 0:
-                sseq_1hot = self.shift_sequence(seq_1hot, shift)
+                return self.shift_sequence(seq_1hot, shift)
             else:
-                sseq_1hot = seq_1hot
-            return sseq_1hot
+                return seq_1hot
         else:
             return seq_1hot
 
     @staticmethod
-    def shift_sequence(seq: torch.Tensor, shift: torch.Tensor, pad_value: float = 0.25):
+    def shift_sequence(seq: torch.Tensor, shift: int, pad_value: float = 0.25):
         """Shift a sequence left or right by shift_amount.
 
         Parameters
@@ -181,9 +180,9 @@ class _StochasticShift(nn.Module):
 
         sseq = torch.roll(seq, shift, dims=-1)
         if shift > 0:
-            sseq[:, :shift] = pad_value
+            sseq[..., :shift] = pad_value
         else:
-            sseq[:, shift:] = pad_value
+            sseq[..., shift:] = pad_value
 
         return sseq
 
@@ -336,10 +335,13 @@ class ScBassetModule(BaseModuleClass):
         loss_fn = nn.BCEWithLogitsLoss(reduction="none")
         full_loss = loss_fn(reconstruction_logits, target)
         reconstruction_loss = full_loss.sum(dim=-1)
-        # SUM_OVER_BATCH_SIZE in Keras version
-        loss = reconstruction_loss.sum() / reconstruction_loss.shape[0]
+        loss = reconstruction_loss.sum() / (
+            reconstruction_logits.shape[0] * reconstruction_logits.shape[1]
+        )
         if self.l2_reg_cell_embedding > 0:
-            loss += self.l2_reg_cell_embedding * torch.norm(self.cell_embedding) ** 2
+            loss += (
+                self.l2_reg_cell_embedding * torch.square(self.cell_embedding).mean()
+            )
         auroc = torchmetrics.functional.auroc(
             torch.sigmoid(reconstruction_logits).ravel(), target.ravel(), task="binary"
         )
