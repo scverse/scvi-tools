@@ -4,6 +4,7 @@ from ._datasets import (
     annotation_simulation,
     brainlarge_dataset,
     breast_cancer_dataset,
+    cellxgene,
     cortex,
     dataset_10x,
     frontalcortex_dropseq,
