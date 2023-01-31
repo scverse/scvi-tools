@@ -20,5 +20,6 @@
                 "ms-toolsai.jupyter"
             ]
         }
-    }
+    },
+    "postCreateCommand": "pre-commit install"
 }

@@ -7,4 +7,3 @@ RUN mamba init
 RUN mamba install python=${PYTHON_VERSION} --yes
 RUN mamba install scvi-tools --yes
 RUN pip install -e ".[dev,docs,autotune,hub]"
-RUN pre-commit install
