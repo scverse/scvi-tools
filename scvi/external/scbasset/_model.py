@@ -27,6 +27,11 @@ class SCBASSET(BaseModelClass):
     ----------
     adata
         single-cell AnnData object that has been registered via :meth:`~scvi.external.SCBASSET.setup_anndata`.
+    n_bottleneck_layer
+        Size of the bottleneck layer
+    l2_reg_cell_embedding
+        L2 regularization for the cell embedding layer. A value, e.g. 1e-8 can be used to improve
+        integration performance.
     **model_kwargs
         Keyword args for :class:`~scvi.external.scbasset.ScBassetModule`
 
@@ -44,6 +49,8 @@ class SCBASSET(BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
+        n_bottleneck_layer: int = 32,
+        l2_reg_cell_embedding: float = 0.0,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -54,6 +61,8 @@ class SCBASSET(BaseModelClass):
         self.module = ScBassetModule(
             n_cells=self.n_cells,
             batch_ids=torch.tensor(batch_ids).long() if batch_ids.sum() > 0 else None,
+            n_bottleneck_layer=n_bottleneck_layer,
+            l2_reg_cell_embedding=l2_reg_cell_embedding,
             **model_kwargs,
         )
         self._model_summary_string = (
