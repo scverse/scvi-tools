@@ -376,7 +376,7 @@ def add_dna_sequence(
     seq_len: int = 1334,
     genome_name: str = "hg38",
     genome_dir: Optional[Path] = None,
-    genome_provider: str = "UCSC",
+    genome_provider: Optional[str] = None,
     install_genome: bool = True,
     chr_var_key: str = "chr",
     start_var_key: str = "start",
