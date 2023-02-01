@@ -77,8 +77,9 @@ notebooks/MultiVI_tutorial
 ```{toctree}
 :maxdepth: 1
 
-notebooks/scvi_hub_intro_and_download.ipynb
-notebooks/scvi_hub_upload_and_large_files.ipynb
+notebooks/scvi_hub_intro_and_download
+notebooks/scvi_hub_upload_and_large_files
+notebooks/minification
 ```
 
 ### Model hyperparameter tuning
