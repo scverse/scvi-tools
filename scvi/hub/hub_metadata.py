@@ -25,7 +25,9 @@ class HubMetadata:
     anndata_version
         The version of anndata used during model training.
     training_data_url
-        Link to the training data used to train the model, if it is too large to be uploaded to the hub.
+        Link to the training data used to train the model, if it is too large to be uploaded to the hub. This can be
+        a cellxgene explorer session url. However it cannot be a self-hosted session -- it must be from the cellxgene
+        portal (https://cellxgene.cziscience.com/).
     model_parent_module
         The parent module of the model class. Defaults to `scvi.model`. Change this if you are using a model
         class that is not in the `scvi.model` module, for example, if you are using a model class from a custom module.
@@ -102,7 +104,9 @@ class HubModelCardHelper:
     data_is_minified
         Whether the training data uploaded with the model has been minified.
     training_data_url
-        Link to the training data used to train the model, if it is too large to be uploaded to the hub.
+        Link to the training data used to train the model, if it is too large to be uploaded to the hub. This can be
+        a cellxgene explorer session url. However it cannot be a self-hosted session -- it must be from the cellxgene
+        portal (https://cellxgene.cziscience.com/).
     training_code_url
         Link to the code used to train the model.
     model_parent_module

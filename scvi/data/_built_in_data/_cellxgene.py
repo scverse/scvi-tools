@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Optional, Union
 
 import requests
 from anndata import AnnData, read_h5ad
@@ -14,7 +14,8 @@ def _load_cellxgene_dataset(
     collection_id: Optional[str] = None,
     filename: Optional[str] = None,
     save_path: str = "data/",
-) -> AnnData:
+    return_path: bool = False,
+) -> Union[AnnData, str]:
     """
     Loads a file from `cellxgene <https://cellxgene.cziscience.com/>`_ portal.
 
@@ -61,6 +62,7 @@ def _load_cellxgene_dataset(
         filename = "local.h5ad"
     _download(presigned_url, save_path, filename)
     file_path = os.path.join(save_path, filename)
+    if return_path:
+        return file_path
     adata = read_h5ad(file_path)
-
     return adata
