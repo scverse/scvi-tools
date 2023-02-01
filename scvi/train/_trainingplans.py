@@ -1168,8 +1168,9 @@ class JaxTrainingPlan(TrainingPlan):
         **kwargs,
     ):
         """Jit training step."""
-        # state can't be passed here
+
         def loss_fn(params):
+            # state can't be passed here
             vars_in = {"params": params, **state.state}
             outputs, new_model_state = state.apply_fn(
                 vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs

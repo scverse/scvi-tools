@@ -135,7 +135,6 @@ def _initialize_model(cls, adata, attr_dict):
 
 
 def _validate_var_names(adata, source_var_names):
-
     user_var_names = adata.var_names.astype(str)
     if not np.array_equal(source_var_names, user_var_names):
         warnings.warn(

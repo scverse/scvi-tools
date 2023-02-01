@@ -50,7 +50,6 @@ def test_features():
 
 
 def test_differential_computation(save_path):
-
     n_latent = 5
     adata = synthetic_iid()
     SCVI.setup_anndata(
@@ -111,7 +110,11 @@ def test_differential_computation(save_path):
     )
 
     # Test query features
-    obs_col, group1, _, = _prepare_obs(
+    (
+        obs_col,
+        group1,
+        _,
+    ) = _prepare_obs(
         idx1="(labels == 'label_1') & (batch == 'batch_1')", idx2=None, adata=adata
     )
     assert (obs_col == group1).sum() == adata.obs.loc[
