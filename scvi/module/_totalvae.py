@@ -660,7 +660,10 @@ class TOTALVAE(BaseModuleClass):
         """Sample from the generative model."""
         inference_kwargs = dict(n_samples=n_samples)
         with torch.inference_mode():
-            inference_outputs, generative_outputs, = self.forward(
+            (
+                inference_outputs,
+                generative_outputs,
+            ) = self.forward(
                 tensors,
                 inference_kwargs=inference_kwargs,
                 compute_loss=False,

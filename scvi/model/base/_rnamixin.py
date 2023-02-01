@@ -583,7 +583,6 @@ class RNASeqMixin:
             else:
                 ql = outputs["ql"]
                 if ql is None:
-
                     raise RuntimeError(
                         "The module for this model does not compute the posterior distribution "
                         "for the library size. Set `give_mean` to False to use the observed library size instead."

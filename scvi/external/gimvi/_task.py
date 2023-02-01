@@ -34,7 +34,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             loss_output_objs = []
             n_obs = 0
             zs = []
-            for (i, tensors) in enumerate(batch):
+            for i, tensors in enumerate(batch):
                 n_obs += tensors[REGISTRY_KEYS.X_KEY].shape[0]
                 self.loss_kwargs.update(dict(kl_weight=self.kl_weight, mode=i))
                 inference_kwargs = dict(mode=i)
@@ -76,7 +76,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
         # this condition will not be met unless self.adversarial_classifier is not False
         if optimizer_idx == 1:
             zs = []
-            for (i, tensors) in enumerate(batch):
+            for i, tensors in enumerate(batch):
                 inference_inputs = self.module._get_inference_input(tensors)
                 inference_inputs.update({"mode": i})
                 outputs = self.module.inference(**inference_inputs)

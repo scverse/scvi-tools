@@ -639,7 +639,12 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         load_adata = adata is None
         _, _, device = parse_use_gpu_arg(use_gpu)
 
-        (attr_dict, var_names, model_state_dict, new_adata,) = _load_saved_files(
+        (
+            attr_dict,
+            var_names,
+            model_state_dict,
+            new_adata,
+        ) = _load_saved_files(
             dir_path,
             load_adata,
             map_location=device,

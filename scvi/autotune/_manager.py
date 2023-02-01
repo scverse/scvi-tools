@@ -190,7 +190,6 @@ class TunerManager:
         # add defaults if requested
         _search_space = {}
         if use_defaults:
-
             # parse defaults into tune sample functions
             for param, metadata in self._defaults.items():
                 sample_fn = getattr(tune, metadata["fn"])

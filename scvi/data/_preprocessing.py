@@ -103,7 +103,6 @@ def poisson_gene_selection(
     obs_frac_zeross = []
     exp_frac_zeross = []
     for b in np.unique(batch_info):
-
         ad = adata[batch_info == b]
         data = ad.layers[layer] if layer is not None else ad.X
 

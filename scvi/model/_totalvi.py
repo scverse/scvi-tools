@@ -897,7 +897,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             generative_kwargs = dict(transform_batch=transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
             with torch.inference_mode():
-                inference_outputs, generative_outputs, = self.module.forward(
+                (
+                    inference_outputs,
+                    generative_outputs,
+                ) = self.module.forward(
                     tensors,
                     inference_kwargs=inference_kwargs,
                     generative_kwargs=generative_kwargs,

@@ -284,7 +284,6 @@ class PyroSampleMixin:
             description="Sampling global variables, sample: ",
             disable=not show_progress,
         ):
-
             # generate new sample
             samples_ = self._get_one_posterior_sample(
                 args, kwargs, return_sites=return_sites, return_observed=return_observed

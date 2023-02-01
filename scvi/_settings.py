@@ -58,7 +58,6 @@ class ScviConfig:
         dl_pin_memory_gpu_training: bool = False,
         jax_preallocate_gpu_memory: bool = False,
     ):
-
         self.seed = seed
         self.batch_size = batch_size
         if progress_bar_style not in ["rich", "tqdm"]:
