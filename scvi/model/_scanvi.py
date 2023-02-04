@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from pytorch_lightning.accelerators import Accelerator
 
 from scvi import REGISTRY_KEYS
 from scvi._types import MinifiedDataType
@@ -348,6 +349,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: Optional[Union[str, Accelerator]] = None,
+        devices: Optional[Union[List[int], str, int]] = None,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -375,6 +378,14 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
             or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        devices
+            The devices to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         plan_kwargs
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -417,6 +428,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             check_val_every_n_epoch=check_val_every_n_epoch,
             **trainer_kwargs,
         )

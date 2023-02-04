@@ -11,6 +11,7 @@ import rich
 import torch
 from anndata import AnnData
 from mudata import MuData
+from pytorch_lightning.accelerators import Accelerator
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import AnnOrMuData, MinifiedDataType
@@ -25,7 +26,7 @@ from scvi.data._constants import (
 )
 from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
 from scvi.dataloaders import AnnDataLoader
-from scvi.model._utils import parse_use_gpu_arg
+from scvi.model._utils import parse_device_args
 from scvi.model.base._utils import _load_legacy_saved_files
 from scvi.utils import attrdict, setup_anndata_dsp
 
@@ -604,6 +605,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         dir_path: str,
         adata: Optional[AnnOrMuData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: Optional[Union[str, Accelerator]] = None,
+        device: Optional[Union[str, int]] = None,
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):
@@ -622,6 +625,12 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        device
+            The device to use. Can be set to a positive number (int or str), or ``"auto"``
+            for automatic selection based on the chosen accelerator.
         prefix
             Prefix of saved file names.
         backup_url
@@ -637,7 +646,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         >>> model.get_....
         """
         load_adata = adata is None
-        _, _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_device_args(
+            accelerator=accelerator, devices=device, use_gpu=use_gpu, return_device=True
+        )
 
         (
             attr_dict,

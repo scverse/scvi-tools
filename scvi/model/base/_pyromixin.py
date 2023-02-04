@@ -1,14 +1,15 @@
 import logging
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
 from pyro import poutine
+from pytorch_lightning.accelerators import Accelerator
 from pytorch_lightning.callbacks import Callback
 
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
-from scvi.model._utils import parse_use_gpu_arg
+from scvi.model._utils import parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
 
@@ -89,6 +90,8 @@ class PyroSviTrainMixin:
         self,
         max_epochs: Optional[int] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: Optional[Union[str, Accelerator]] = None,
+        devices: Optional[Union[List[int], str, int]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -109,6 +112,14 @@ class PyroSviTrainMixin:
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
             or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        devices
+            The devices to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -173,6 +184,8 @@ class PyroSviTrainMixin:
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             **trainer_kwargs,
         )
         return runner()
@@ -378,7 +391,7 @@ class PyroSampleMixin:
         """
         samples = dict()
 
-        _, _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_device_args(use_gpu=use_gpu)
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
 

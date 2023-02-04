@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -9,6 +9,7 @@ import scipy
 from anndata import AnnData
 from jaxlib.xla_extension import Device
 from mudata import MuData
+from pytorch_lightning.accelerators import Accelerator
 
 from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
@@ -126,6 +127,8 @@ class Tangram(BaseModelClass):
         self,
         max_epochs: int = 1000,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: Optional[Union[str, Accelerator]] = None,
+        devices: Optional[Union[List[int], str, int]] = None,
         lr: float = 0.1,
         plan_kwargs: Optional[dict] = None,
     ):
@@ -139,6 +142,14 @@ class Tangram(BaseModelClass):
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
             or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        devices
+            The devices to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         lr
             Optimiser learning rate (default optimiser is :class:`~pyro.optim.ClippedAdam`).
             Specifying optimiser via plan_kwargs overrides this choice of lr.

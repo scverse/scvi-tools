@@ -1,9 +1,10 @@
 import logging
-from typing import Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 
 import numpy as np
 import torch
 from anndata import AnnData
+from pytorch_lightning.accelerators import Accelerator
 
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalVarField, LayerField, ObsmField
@@ -79,6 +80,8 @@ class SCBASSET(BaseModelClass):
         max_epochs: int = 1000,
         lr: float = 0.01,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: Optional[Union[str, Accelerator]] = None,
+        devices: Optional[Union[List[int], str, int]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -101,6 +104,14 @@ class SCBASSET(BaseModelClass):
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
             or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        devices
+            The devices to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -165,6 +176,8 @@ class SCBASSET(BaseModelClass):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             **trainer_kwargs,
         )
         return runner()

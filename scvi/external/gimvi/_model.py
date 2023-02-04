@@ -7,6 +7,7 @@ from typing import List, Optional, Union
 import numpy as np
 import torch
 from anndata import AnnData
+from pytorch_lightning.accelerators import Accelerator
 from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS
@@ -15,7 +16,7 @@ from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import _init_library_size, parse_use_gpu_arg
+from scvi.model._utils import _init_library_size, parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
 from scvi.utils import setup_anndata_dsp
@@ -161,6 +162,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         self,
         max_epochs: int = 200,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: Optional[Union[str, Accelerator]] = None,
+        devices: Optional[Union[List[int], str, int]] = None,
         kappa: int = 5,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
@@ -179,6 +182,14 @@ class GIMVI(VAEMixin, BaseModelClass):
         use_gpu
             Use default GPU if available (if None or True), or index of GPU to use (if int),
             or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        devices
+            The devices to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         kappa
             Scaling parameter for the discriminator loss.
         train_size
@@ -194,7 +205,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        accelerator, lightning_devices, device = parse_use_gpu_arg(use_gpu)
+        accelerator, lightning_devices, device = parse_device_args(
+            accelerator=accelerator,
+            devices=devices,
+            use_gpu=use_gpu,
+            return_device=True,
+        )
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
@@ -447,7 +463,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
+        accelerator: Optional[Union[str, Accelerator]] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        device: Optional[Union[str, int]] = None,
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):
@@ -469,6 +487,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        device
+            The device to use. Can be set to a positive number (int or str), or ``"auto"``
+            for automatic selection based on the chosen accelerator.
         prefix
             Prefix of saved file names.
         backup_url
@@ -483,7 +507,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         >>> vae = GIMVI.load(adata_seq, adata_spatial, save_path)
         >>> vae.get_latent_representation()
         """
-        _, _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_device_args(
+            accelerator=accelerator, devices=device, use_gpu=use_gpu, return_device=True
+        )
 
         (
             attr_dict,

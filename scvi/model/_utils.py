@@ -6,12 +6,68 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
+from pytorch_lightning.accelerators import Accelerator
+from pytorch_lightning.trainer.connectors.accelerator_connector import (
+    AcceleratorConnector,
+)
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
+
+
+# TODO: Change for 1.0.0
+def parse_device_args(
+    accelerator: Optional[Union[str, Accelerator]] = None,
+    devices: Optional[Union[List[int], str, int]] = None,
+    use_gpu: Optional[Union[str, int, bool]] = None,
+    return_device=True,
+):
+    """
+    Parse device-related arguments.
+
+    Currently gives priority to `use_gpu` over `accelerator` and `devices` for
+    backwards compatibility.
+
+    Parameters
+    ----------
+    accelerator
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+        "mps, "auto") as well as custom accelerator instances.
+    devices
+        The devices to use. Can be set to a positive number (int or str), a sequence of
+        device indices (list or str), the value ``-1`` to indicate all available devices
+        should be used, or ``"auto"`` for automatic selection based on the chosen
+        accelerator.
+    use_gpu
+        Use default GPU if available (if None or True), or index of GPU to use (if int),
+        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+    return_device
+        Whether to return the `torch.device`of `use_gpu` or the first device in `devices`.
+    """
+    if use_gpu is not False:
+        warnings.warn(
+            "`use_gpu` is deprecated in v0.20 and will be removed in v1.0. "
+            "Please use `accelerator` and `devices` instead.",
+            DeprecationWarning,
+        )
+        return parse_use_gpu_arg(use_gpu, return_device=return_device)
+
+    if return_device:
+        pl_connector = AcceleratorConnector(accelerator=accelerator, devices=devices)
+        _accelerator = pl_connector._accelerator_flag
+        _devices = pl_connector._devices_flag
+        if isinstance(_devices, int):
+            _device = torch.device(f"{_accelerator}:{_devices}")
+        elif isinstance(_devices, str):
+            _device = torch.device(_devices)
+        elif isinstance(_devices, list):
+            _device = torch.device(f"{_accelerator}:{_devices[0]}")
+        return _accelerator, _devices, _device
+    else:
+        return accelerator, devices
 
 
 def parse_use_gpu_arg(

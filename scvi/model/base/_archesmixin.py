@@ -8,12 +8,13 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from pytorch_lightning.accelerators import Accelerator
 from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
-from scvi.model._utils import parse_use_gpu_arg
+from scvi.model._utils import parse_device_args
 from scvi.nn import FCLayers
 
 from ._base_model import BaseModelClass
@@ -34,6 +35,8 @@ class ArchesMixin:
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: Optional[Union[str, Accelerator]] = None,
+        device: Optional[Union[str, int]] = None,
         unfrozen: bool = False,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
@@ -60,6 +63,12 @@ class ArchesMixin:
         use_gpu
             Load model on default GPU if available (if None or True),
             or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        device
+            The device to use. Can be set to a positive number (int or str), or ``"auto"``
+            for automatic selection based on the chosen accelerator.
         unfrozen
             Override all other freeze options for a fully unfrozen model
         freeze_dropout
@@ -75,7 +84,9 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
-        _, _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_device_args(
+            accelerator=accelerator, devices=device, use_gpu=use_gpu, return_device=True
+        )
 
         attr_dict, var_names, load_state_dict = _get_loaded_data(
             reference_model, device=device

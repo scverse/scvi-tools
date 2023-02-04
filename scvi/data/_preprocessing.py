@@ -1,14 +1,16 @@
 import logging
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import anndata
 import numpy as np
 import pandas as pd
 import torch
+from pytorch_lightning.accelerators import Accelerator
 
 from scvi._decorators import dependencies
+from scvi.model._utils import parse_device_args
 from scvi.utils import track
 
 from ._utils import _check_nonnegative_integers
@@ -22,6 +24,8 @@ def poisson_gene_selection(
     layer: Optional[str] = None,
     n_top_genes: int = 4000,
     use_gpu: bool = True,
+    accelerator: Optional[Union[str, Accelerator]] = None,
+    device: Optional[Union[str, int]] = None,
     subset: bool = False,
     inplace: bool = True,
     n_samples: int = 10000,
@@ -40,7 +44,6 @@ def poisson_gene_selection(
     Instead of Z-test, enrichment of zeros is quantified by posterior
     probabilites from a binomial model, computed through sampling.
 
-
     Parameters
     ----------
     adata
@@ -51,6 +54,12 @@ def poisson_gene_selection(
         How many variable genes to select.
     use_gpu
         Whether to use GPU
+    accelerator
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+        "mps, "auto") as well as custom accelerator instances.
+    device
+        The device to use. Can be set to a positive number (int or str), or ``"auto"``
+        for automatic selection based on the chosen accelerator.
     subset
         Inplace subset to highly-variable genes if `True` otherwise merely indicate
         highly variable genes.
@@ -92,7 +101,9 @@ def poisson_gene_selection(
     if _check_nonnegative_integers(data) is False:
         raise ValueError("`poisson_gene_selection` expects " "raw count data.")
 
-    use_gpu = use_gpu and torch.cuda.is_available()
+    _, _, device = parse_device_args(
+        accelerator=accelerator, devices=device, use_gpu=use_gpu, return_device=True
+    )
 
     if batch_key is None:
         batch_info = pd.Categorical(np.zeros(adata.shape[0], dtype=int))
@@ -108,22 +119,19 @@ def poisson_gene_selection(
 
         # Calculate empirical statistics.
         sum_0 = np.asarray(data.sum(0)).ravel()
-        scaled_means = torch.from_numpy(sum_0 / sum_0.sum())
-        if use_gpu is True:
-            scaled_means = scaled_means.cuda()
-        dev = scaled_means.device
-        total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(dev)
+        scaled_means = torch.from_numpy(sum_0 / sum_0.sum()).to(device)
+        total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(device)
 
         observed_fraction_zeros = torch.from_numpy(
             np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel()
-        ).to(dev)
+        ).to(device)
 
         # Calculate probability of zero for a Poisson model.
         # Perform in batches to save memory.
         minibatch_size = min(total_counts.shape[0], minibatch_size)
         n_batches = total_counts.shape[0] // minibatch_size
 
-        expected_fraction_zeros = torch.zeros(scaled_means.shape, device=dev)
+        expected_fraction_zeros = torch.zeros(scaled_means.shape, device=device)
 
         for i in range(n_batches):
             total_counts_batch = total_counts[
@@ -144,7 +152,7 @@ def poisson_gene_selection(
         observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
         expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
-        extra_zeros = torch.zeros(expected_fraction_zeros.shape, device=dev)
+        extra_zeros = torch.zeros(expected_fraction_zeros.shape, device=device)
         for _ in track(
             range(n_samples),
             description="Sampling from binomial...",
@@ -164,9 +172,6 @@ def poisson_gene_selection(
         del expected_fraction_zeros
         del observed_fraction_zeros
         del extra_zeros
-
-        if use_gpu:
-            torch.cuda.empty_cache()
 
         prob_zero_enrichments.append(prob_zero_enrichment.reshape(1, -1))
         obs_frac_zeross.append(obs_frac_zeros.reshape(1, -1))

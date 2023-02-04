@@ -25,12 +25,13 @@ class Trainer(TunableMixin, pl.Trainer):
     Parameters
     ----------
     accelerator
-        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
-        as well as custom accelerator instances.
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+        "mps, "auto") as well as custom accelerator instances.
     devices
-        The devices to use. Can be set to a positive number (int or str), a sequence of device indices
-        (list or str), the value ``-1`` to indicate all available devices should be used, or ``"auto"`` for
-        automatic selection based on the chosen accelerator. Default: ``"auto"``.
+        The devices to use. Can be set to a positive number (int or str), a sequence of
+        device indices (list or str), the value ``-1`` to indicate all available devices
+        should be used, or ``"auto"`` for automatic selection based on the chosen
+        accelerator.
     benchmark
         If true enables cudnn.benchmark, which improves speed when inputs are fixed size
     check_val_every_n_epoch
