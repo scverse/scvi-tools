@@ -201,7 +201,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         """Initialize ELBO metric and the metric collection."""
         rec_loss = ElboMetric("reconstruction_loss", mode, "obs")
         kl_local = ElboMetric("kl_local", mode, "obs")
-        kl_global = ElboMetric("kl_global", mode, "obs")
+        kl_global = ElboMetric("kl_global", mode, "batch")
         # n_total can be 0 if there is no validation set, this won't ever be used
         # in that case anyway
         n = 1 if n_total is None or n_total < 1 else n_total

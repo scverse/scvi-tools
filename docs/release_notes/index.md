@@ -9,6 +9,12 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 0.20
 
+### 0.20.1 (2023-MM-DD)
+
+#### Fixed
+
+-   Fixed computation of ELBO during training plan logging when using global kl terms [{pr}`1895`]
+
 ### New in 0.20.0 (2023-02-01)
 
 #### Major changes
