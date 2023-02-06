@@ -1,11 +1,13 @@
 import logging
 import warnings
-from typing import Optional
+from typing import Optional, Union
 
 import jax
 import numpy as np
+from pytorch_lightning.accelerators import Accelerator
 
 from scvi.dataloaders import DataSplitter
+from scvi.model._utils import parse_device_args
 from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
 
 logger = logging.getLogger(__name__)
@@ -22,6 +24,8 @@ class JaxTrainingMixin:
         self,
         max_epochs: Optional[int] = None,
         use_gpu: Optional[bool] = None,
+        accelerator: Optional[Union[str, Accelerator]] = None,
+        device: Optional[Union[str, int]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -38,6 +42,12 @@ class JaxTrainingMixin:
             `np.min([round((20000 / n_cells) * 400), 400])`
         use_gpu
             Whether or not to use GPU resources. If None, will use GPU if available.
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        device
+            The device to use. Can be set to a positive number (int or str), or ``"auto"``
+            for automatic selection based on the chosen accelerator.
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -56,6 +66,10 @@ class JaxTrainingMixin:
         if max_epochs is None:
             n_cells = self.adata.n_obs
             max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
+
+        _, _, device = parse_device_args(
+            accelerator=accelerator, devices=device, use_gpu=use_gpu, return_device=True
+        )
 
         if use_gpu is None or use_gpu is True:
             try:

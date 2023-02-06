@@ -45,7 +45,7 @@ def parse_device_args(
         Use default GPU if available (if None or True), or index of GPU to use (if int),
         or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
     return_device
-        Whether to return the `torch.device`of `use_gpu` or the first device in `devices`.
+        Whether to return the `torch.device` of `use_gpu` or the first device in `devices`.
     """
     if use_gpu is not False:
         warnings.warn(
@@ -59,7 +59,9 @@ def parse_device_args(
         pl_connector = AcceleratorConnector(accelerator=accelerator, devices=devices)
         _accelerator = pl_connector._accelerator_flag
         _devices = pl_connector._devices_flag
-        if isinstance(_devices, int):
+        if _accelerator == "cpu":
+            _device = "cpu"
+        elif isinstance(_devices, int):
             _device = torch.device(f"{_accelerator}:{_devices}")
         elif isinstance(_devices, str):
             _device = torch.device(_devices)
