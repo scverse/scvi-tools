@@ -1059,6 +1059,33 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
         return optimizer
 
 
+class MultiBinaryClassifierTrainingPlan(ClassifierTrainingPlan):
+    """Lightning module task to train a simple MLP classifier.
+
+    Only edit to `ClassifierTrainingPlan` is **not** reshaping labels
+    (assuming a single label per sample) during training and validation
+    steps. Allows for compatibility with `BCELossWithLogits` with arbitrary
+    shapes.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def training_step(self, batch, batch_idx, optimizer_idx=0):
+        """Training step for classifier training."""
+        soft_prediction = self.forward(batch[self.data_key])
+        loss = self.loss_fn(soft_prediction, batch[self.labels_key])
+        self.log("train_loss", loss, on_epoch=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        """Validation step for classifier training."""
+        soft_prediction = self.forward(batch[self.data_key])
+        loss = self.loss_fn(soft_prediction, batch[self.labels_key])
+        self.log("validation_loss", loss)
+        return loss
+
+
 class JaxTrainingPlan(TrainingPlan):
     """
     Lightning module task to train Pyro scvi-tools modules.

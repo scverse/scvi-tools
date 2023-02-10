@@ -1,4 +1,5 @@
 from .cellassign import CellAssign
+from .cpxvi import CPXVI
 from .gimvi import GIMVI
 from .scar import SCAR
 from .scbasset import SCBASSET
@@ -15,4 +16,5 @@ __all__ = [
     "CellAssign",
     "Tangram",
     "SCBASSET",
+    "CPXVI",
 ]

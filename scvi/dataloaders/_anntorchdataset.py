@@ -53,7 +53,7 @@ class AnnTorchDataset(Dataset):
         and will attempt to infer the correct type. np.float32 for continuous values, otherwise np.int64.
 
         If you want to specify which specific tensors to return you can pass in a List of keys from
-        the scvi data registry. If you want to speficy specific tensors to return as well as their
+        the scvi data registry. If you want to specify specific tensors to return as well as their
         associated types, then you can pass in a dictionary with their type.
 
         Paramaters
