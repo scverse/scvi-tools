@@ -40,7 +40,7 @@ html_context = {
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    "myst_parser",
+    "myst_nb",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.linkcode",
@@ -77,11 +77,20 @@ typehints_defaults = "braces"
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this
+myst_heading_anchors = 3  # create anchors for h1-h3
 myst_enable_extensions = [
-    "colon_fence",
-    "dollarmath",
     "amsmath",
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "html_image",
+    "html_admonition",
 ]
+myst_url_schemes = ("http", "https", "mailto")
+nb_output_stderr = "remove"
+nb_execution_mode = "off"
+nb_merge_streams = True
+typehints_defaults = "braces"
 
 source_suffix = {
     ".rst": "restructuredtext",
