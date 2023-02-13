@@ -61,7 +61,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["black", "pytest", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde", "genomepy"]
 docs = [
-  "sphinx>=4.1",
+  "sphinx>=4.1,<5", # TODO: remove upper bound when sphinx-book-theme is updated
   "ipython",
   "sphinx-book-theme",
   "sphinx-autodoc-typehints<1.21.4",
