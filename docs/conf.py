@@ -41,6 +41,7 @@ html_context = {
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     "myst_nb",
+    "numpydoc",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.linkcode",
@@ -68,12 +69,11 @@ autosummary_generate = True
 autodoc_member_order = "bysource"
 bibtex_reference_style = "author_year"
 napoleon_google_docstring = True  # for pytorch lightning
-napoleon_numpy_docstring = True
+napoleon_numpy_docstring = False
 napoleon_include_init_with_doc = False
 napoleon_use_rtype = True  # having a separate entry generally helps readability
 napoleon_use_param = True
 napoleon_custom_sections = [("Params", "Parameters")]
-typehints_defaults = "braces"
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this

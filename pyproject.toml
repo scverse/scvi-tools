@@ -71,7 +71,8 @@ docs = [
   "sphinx-hoverxref",
   "sphinxcontrib-bibtex>=1.0.0",
   "myst-parser",
-  "myst-nb"
+  "myst-nb",
+  "numpydoc",
 ]
 autotune = [
   "hyperopt>=0.2",
