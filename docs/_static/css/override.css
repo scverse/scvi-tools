@@ -1,33 +1,12 @@
-/*
-  Furo CSS variables
-  https://github.com/pradyunsg/furo/blob/main/src/furo/assets/styles/variables/_index.scss
-  https://github.com/pradyunsg/furo/blob/main/src/furo/theme/partials/_head_css_variables.html
-https://github.com/streamlink/streamlink/blob/17a4088c38709123c0bcab4a150549bd16d19e07/docs/_static/styles/custom.css
-*/
-
 /* for the sphinx design cards */
 body {
     --sd-color-shadow: dimgrey;
-}
-
-dt:target,
-span.highlighted {
-    background-color: #f0f0f0;
 }
 
 dl.citation > dt {
     float: left;
     margin-right: 15px;
     font-weight: bold;
-}
-
-/* so that api methods are small in sidebar */
-li.toctree-l3 {
-    font-size: 81.25% !important;
-}
-
-li.toctree-l4 {
-    font-size: 75% !important;
 }
 
 /*********************************************
@@ -42,40 +21,4 @@ div.cell_output table {
     color: inherit;
     font-size: 0.8em;
     table-layout: fixed;
-}
-
-body:not([data-theme="light"]) div.cell_output tbody tr:nth-child(odd) {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-div.cell div.cell_input {
-    padding-left: 0em;
-    padding-right: 0em;
-    background-color: inherit;
-    border: 1px #ccc solid;
-    border-radius: 0.2em;
-    border-left-color: green;
-    border-left-width: medium;
-    box-shadow: 1px 1px 1px #d8d8d8;
-}
-
-div.cell div.cell_output {
-    padding-left: 0em;
-    padding-right: 0em;
-    border: none;
-    background-color: inherit;
-    overflow: auto;
-    margin-top: 0.2em;
-}
-
-div.cell div.cell_output div.output.text_plain {
-    border: none;
-    background-color: inherit;
-    margin-top: 0.2em;
-}
-
-div.cell div.cell_output div.output.stream {
-    border: none;
-    background-color: inherit;
-    margin-top: 0.2em;
 }
