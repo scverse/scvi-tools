@@ -55,6 +55,7 @@ extensions = [
     "sphinx_design",
     "sphinxext.opengraph",
     "hoverxref.extension",
+    "scanpydoc.definition_list_typed_field",
 ]
 
 
