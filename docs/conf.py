@@ -69,14 +69,12 @@ autosummary_generate = True
 autodoc_member_order = "bysource"
 bibtex_reference_style = "author_year"
 napoleon_google_docstring = True  # for pytorch lightning
-napoleon_numpy_docstring = False
+napoleon_numpy_docstring = False  # use numpydoc style
 napoleon_include_init_with_doc = False
 napoleon_use_rtype = True  # having a separate entry generally helps readability
 napoleon_use_param = True
 napoleon_custom_sections = [("Params", "Parameters")]
 todo_include_todos = False
-numpydoc_show_class_members = False
-annotate_defaults = True  # scanpydoc option, look into why we need this
 myst_enable_extensions = [
     "amsmath",
     "colon_fence",
