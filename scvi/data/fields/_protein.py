@@ -6,9 +6,9 @@ import pandas as pd
 from anndata import AnnData
 from mudata import MuData
 
+from ._arraylike_field import ObsmField
 from ._layer_field import LayerField
 from ._mudata import BaseMuDataWrapperClass, MuDataWrapper
-from ._obsm_field import ObsmField
 
 logger = logging.getLogger(__name__)
 

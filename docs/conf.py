@@ -28,6 +28,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",  # needs to be after napoleon
+    "sphinx.ext.extlinks",
     "sphinx.ext.autosummary",
     "sphinxcontrib.bibtex",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
@@ -104,6 +105,7 @@ intersphinx_mapping = {
     "ml_collections": ("https://ml-collections.readthedocs.io/en/latest/", None),
     "mudata": ("https://mudata.readthedocs.io/en/latest/", None),
     "ray": ("https://docs.ray.io/en/latest/", None),
+    "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
 }
 
 
@@ -269,7 +271,7 @@ def linkcode_resolve(domain, info):
 hoverx_default_type = "tooltip"
 hoverxref_domains = ["py"]
 hoverxref_role_types = dict.fromkeys(
-    ["ref", "class", "func", "meth", "attr", "exc", "data"],
+    ["ref", "class", "func", "meth", "attr", "exc", "data", "mod"],
     "tooltip",
 )
 hoverxref_intersphinx = [
@@ -281,7 +283,16 @@ hoverxref_intersphinx = [
     "scipy",
     "pandas",
     "ml_collections",
+    "ray",
 ]
 # use proxied API endpoint on rtd to avoid CORS issues
 if os.environ.get("READTHEDOCS"):
     hoverxref_api_host = "/_"
+
+
+# extlinks config
+extlinks = {
+    "issue": ("https://github.com/scverse/scvi-tools/issues/%s", "#%s"),
+    "pr": ("https://github.com/scverse/scvi-tools/pull/%s", "#%s"),
+    "ghuser": ("https://github.com/%s", "@%s"),
+}

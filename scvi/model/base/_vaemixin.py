@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from anndata import AnnData
 
-from scvi.utils import unsupported_in_latent_mode
+from scvi.utils import unsupported_if_adata_minified
 
 from ._log_likelihood import compute_elbo, compute_reconstruction_error
 
@@ -16,7 +16,7 @@ class VAEMixin:
     """Univseral VAE methods."""
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
+    @unsupported_if_adata_minified
     def get_elbo(
         self,
         adata: Optional[AnnData] = None,
@@ -47,7 +47,7 @@ class VAEMixin:
         return -elbo
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
+    @unsupported_if_adata_minified
     def get_marginal_ll(
         self,
         adata: Optional[AnnData] = None,
@@ -92,7 +92,7 @@ class VAEMixin:
         return log_lkl / n_samples
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
+    @unsupported_if_adata_minified
     def get_reconstruction_error(
         self,
         adata: Optional[AnnData] = None,

@@ -2,7 +2,7 @@ import inspect
 import logging
 import warnings
 from functools import partial
-from typing import Dict, Iterable, Optional, Sequence, Union
+from typing import Dict, Iterable, Literal, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -10,10 +10,9 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.utils import unsupported_in_latent_mode
+from scvi.utils import unsupported_if_adata_minified
 from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
@@ -72,7 +71,7 @@ class RNASeqMixin:
         library_size
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent libary size.
+            magnitude. If set to `"latent"`, use the latent library size.
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
@@ -542,7 +541,7 @@ class RNASeqMixin:
         return return_dict
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
+    @unsupported_if_adata_minified
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,
@@ -584,7 +583,6 @@ class RNASeqMixin:
             else:
                 ql = outputs["ql"]
                 if ql is None:
-
                     raise RuntimeError(
                         "The module for this model does not compute the posterior distribution "
                         "for the library size. Set `give_mean` to False to use the observed library size instead."

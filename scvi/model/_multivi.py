@@ -2,7 +2,7 @@ import logging
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Literal, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,6 @@ from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
@@ -24,7 +23,6 @@ from scvi.data.fields import (
     NumericalObsField,
     ProteinObsmField,
 )
-from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
     scatac_raw_counts_properties,
@@ -37,7 +35,7 @@ from scvi.model.base import (
     VAEMixin,
 )
 from scvi.module import MULTIVAE
-from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.train import AdversarialTrainingPlan
 from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
 
@@ -132,6 +130,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
        the `categorical_covariate_keys` argument.
     """
 
+    _module_cls = MULTIVAE
+    _training_plan_cls = AdversarialTrainingPlan
+
     def __init__(
         self,
         adata: AnnData,
@@ -178,7 +179,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         else:
             n_proteins = 0
 
-        self.module = MULTIVAE(
+        self.module = self._module_cls(
             n_input_genes=n_genes,
             n_input_regions=n_regions,
             n_input_proteins=n_proteins,
@@ -323,15 +324,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 SaveBestState(monitor="reconstruction_loss_validation")
             )
 
-        data_splitter = DataSplitter(
+        data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = AdversarialTrainingPlan(self.module, **plan_kwargs)
-        runner = TrainRunner(
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
+        runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
             data_splitter=data_splitter,
@@ -1048,11 +1049,17 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_layer)s
         %(param_batch_key)s
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        protein_expression_obsm_key
+            key in `adata.obsm` for protein expression data.
+        protein_names_uns_key
+            key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
+            if it is a DataFrame, else will assign sequential names to proteins.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         adata.obs["_indices"] = np.arange(adata.n_obs)

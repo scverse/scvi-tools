@@ -1,17 +1,16 @@
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import List, Literal, Optional
 
+import numpy as np
 from anndata import AnnData
-from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
-from scvi._decorators import classproperty
-from scvi._types import LatentDataType
+from scvi._types import MinifiedDataType
 from scvi.data import AnnDataManager
-from scvi.data._constants import _ADATA_LATENT_UNS_KEY
-from scvi.data._utils import _get_latent_adata_type
+from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
+from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (
+    BaseAnnDataField,
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
@@ -22,17 +21,15 @@ from scvi.data.fields import (
 )
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import VAE
-from scvi.module.base import BaseModuleClass
 from scvi.utils import setup_anndata_dsp
 
-from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
-
-logger = logging.getLogger(__name__)
+from .base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
-
+_SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +39,7 @@ class SCVI(
     VAEMixin,
     ArchesMixin,
     UnsupervisedTrainingMixin,
-    BaseLatentModeModelClass,
+    BaseMinifiedModeModelClass,
 ):
     """
     single-cell Variational Inference :cite:p:`Lopez18`.
@@ -99,6 +96,8 @@ class SCVI(
     4. :doc:`/tutorials/notebooks/scvi_in_R`
     """
 
+    _module_cls = VAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -125,12 +124,7 @@ class SCVI(
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
-            if self.latent_data_type is not None:
-                raise ValueError(
-                    "Latent mode not supported when use_size_factor_key is False"
-                )
-
+        if not use_size_factor_key and self.minified_data_type is None:
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
             )
@@ -151,9 +145,9 @@ class SCVI(
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
-            latent_data_type=self.latent_data_type,
             **model_kwargs,
         )
+        self.module.minified_data_type = self.minified_data_type
         self._model_summary_string = (
             "SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
             "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
@@ -167,14 +161,6 @@ class SCVI(
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    @classproperty
-    def _module_cls(cls) -> BaseModuleClass:
-        return VAE
-
-    @classproperty
-    def _tunables(cls) -> Tuple[Any]:
-        return (cls._module_cls,)
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -194,6 +180,7 @@ class SCVI(
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
@@ -216,37 +203,23 @@ class SCVI(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
         ]
-        # register new fields for latent mode if needed
-        latent_mode = _get_latent_adata_type(adata)
-        if latent_mode is not None:
-            anndata_fields += cls._get_latent_fields(latent_mode)
+        # register new fields if the adata is minified
+        adata_minify_type = _get_adata_minify_type(adata)
+        if adata_minify_type is not None:
+            anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    def _get_latent_adata_from_adata(
-        self,
-        mode: LatentDataType,
-        use_latent_qzm_key: str = "X_latent_qzm",
-        use_latent_qzv_key: str = "X_latent_qzv",
-    ):
-        if mode == "dist":
-            self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-            self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-        else:
-            raise ValueError(f"Unknown latent mode: {mode}")
-        self.adata.uns[_ADATA_LATENT_UNS_KEY] = mode
-        del self.adata.raw
-        all_zeros = csr_matrix(self.adata.X.shape)
-        self.adata.X = all_zeros.copy()
-        self.adata.layers = {layer: all_zeros.copy() for layer in self.adata.layers}
-
     @staticmethod
-    def _get_latent_fields(mode: LatentDataType):
-        if mode == "dist":
-            latent_fields = [
+    def _get_fields_for_adata_minification(
+        minified_data_type: MinifiedDataType,
+    ) -> List[BaseAnnDataField]:
+        """Return the anndata fields required for adata minification of the given minified_data_type."""
+        if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+            fields = [
                 ObsmField(
                     REGISTRY_KEYS.LATENT_QZM_KEY,
                     _SCVI_LATENT_QZM,
@@ -255,42 +228,71 @@ class SCVI(
                     REGISTRY_KEYS.LATENT_QZV_KEY,
                     _SCVI_LATENT_QZV,
                 ),
+                NumericalObsField(
+                    REGISTRY_KEYS.OBSERVED_LIB_SIZE,
+                    _SCVI_OBSERVED_LIB_SIZE,
+                ),
             ]
         else:
-            raise ValueError(f"Unknown latent mode: {mode}")
-        latent_fields.append(
+            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
+        fields.append(
             StringUnsField(
-                REGISTRY_KEYS.LATENT_MODE_KEY,
-                _ADATA_LATENT_UNS_KEY,
+                REGISTRY_KEYS.MINIFY_TYPE_KEY,
+                _ADATA_MINIFY_TYPE_UNS_KEY,
             ),
         )
-        return latent_fields
+        return fields
 
-    def to_latent_mode(
+    def minify_adata(
         self,
-        mode: LatentDataType = "dist",
+        minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
-    ):
+    ) -> None:
         """
-        Put the model into latent mode.
+        Minifies the model's adata.
 
-        The model is put into latent mode by registering new anndata fields
-        required for latent mode support - latent qzm, latent qzv, and adata uns
-        containing latent mode type - and marking the module as latent. Note that
-        this modifies the anndata (and subsequently the model and module properties)
-        in place. Please make a copy of those objects (before calling this function)
-        if needed.
+        Minifies the adata, and registers new anndata fields: latent qzm, latent qzv, adata uns
+        containing minified-adata type, and library size.
+        This also sets the appropriate property on the module to indicate that the adata is minified.
 
         Parameters
         ----------
-        mode
-            The latent data type used
+        minified_data_type
+            How to minify the data. Currently only supports `latent_posterior_parameters`.
+            If minified_data_type == `latent_posterior_parameters`:
+
+            * the original count data is removed (`adata.X`, adata.raw, and any layers)
+            * the parameters of the latent representation of the original data is stored
+            * everything else is left untouched
         use_latent_qzm_key
             Key to use in `adata.obsm` where the latent qzm params are stored
         use_latent_qzv_key
             Key to use in `adata.obsm` where the latent qzv params are stored
+
+        Notes
+        -----
+        The modification is not done inplace -- instead the model is assigned a new (minified)
+        version of the adata.
         """
-        self._get_latent_adata_from_adata(mode, use_latent_qzm_key, use_latent_qzv_key)
-        self.adata_manager.register_new_fields(self.__class__._get_latent_fields(mode))
-        self.module.latent_data_type = mode
+        # TODO(adamgayoso): Add support for a scenario where we want to cache the latent posterior
+        # without removing the original counts.
+        if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
+
+        if self.module.use_observed_lib_size is False:
+            raise ValueError(
+                "Cannot minify the data if `use_observed_lib_size` is False"
+            )
+
+        minified_adata = get_minified_adata_scrna(self.adata, minified_data_type)
+        minified_adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+        minified_adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+        counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+        minified_adata.obs[_SCVI_OBSERVED_LIB_SIZE] = np.squeeze(
+            np.asarray(counts.sum(axis=1))
+        )
+        self._update_adata_and_manager_post_minification(
+            minified_adata, minified_data_type
+        )
+        self.module.minified_data_type = minified_data_type

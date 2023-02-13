@@ -46,12 +46,44 @@ class PyroJitGuideWarmup(Callback):
             break
 
 
+class PyroModelGuideWarmup(Callback):
+    """
+    A callback to warmup a Pyro guide and model.
+
+    This helps initialize all the relevant parameters by running
+    one minibatch through the Pyro model. This warmup occurs on the CPU.
+    """
+
+    def __init__(self, dataloader: AnnDataLoader) -> None:
+        super().__init__()
+        self.dataloader = dataloader
+
+    def setup(self, trainer, pl_module, stage=None):
+        """
+        Way to warmup Pyro Model and Guide in an automated way.
+
+        Setup occurs before any device movement, so params are iniitalized on CPU.
+        """
+        if stage == "fit":
+            pyro_guide = pl_module.module.guide
+            dl = self.dataloader
+            for tensors in dl:
+                tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
+                args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
+                pyro_guide(*args, **kwargs)
+                break
+
+
 class PyroSviTrainMixin:
     """
     Mixin class for training Pyro models.
 
     Training using minibatches and using full data (copies data to GPU only once).
     """
+
+    _data_splitter_cls = DataSplitter
+    _training_plan_cls = PyroTrainingPlan
+    _train_runner_cls = TrainRunner
 
     def train(
         self,
@@ -117,14 +149,14 @@ class PyroSviTrainMixin:
                 use_gpu=use_gpu,
             )
         else:
-            data_splitter = DataSplitter(
+            data_splitter = self._data_splitter_cls(
                 self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
                 use_gpu=use_gpu,
             )
-        training_plan = training_plan(self.module, **plan_kwargs)
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
@@ -135,7 +167,7 @@ class PyroSviTrainMixin:
             trainer_kwargs["callbacks"] = []
         trainer_kwargs["callbacks"].append(PyroJitGuideWarmup())
 
-        runner = TrainRunner(
+        runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
             data_splitter=data_splitter,
@@ -252,7 +284,6 @@ class PyroSampleMixin:
             description="Sampling global variables, sample: ",
             disable=not show_progress,
         ):
-
             # generate new sample
             samples_ = self._get_one_posterior_sample(
                 args, kwargs, return_sites=return_sites, return_observed=return_observed

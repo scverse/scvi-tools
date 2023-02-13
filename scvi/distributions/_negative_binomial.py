@@ -430,7 +430,6 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         scale: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
-
         super().__init__(
             total_count=total_count,
             probs=probs,
@@ -471,7 +470,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         sample_shape = sample_shape or torch.Size()
         samp = super().sample(sample_shape=sample_shape)
         is_zero = torch.rand_like(samp) <= self.zi_probs
-        samp_ = torch.where(is_zero, 0.0, samp)
+        samp_ = torch.where(is_zero, torch.zeros_like(samp), samp)
         return samp_
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
@@ -527,7 +526,6 @@ class NegativeBinomialMixture(Distribution):
         theta2: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
-
         (
             self.mu1,
             self.theta1,

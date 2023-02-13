@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 class JaxTrainingMixin:
     """General purpose train method for Jax-backed modules."""
 
+    _data_splitter_cls = DataSplitter
+    _training_plan_cls = JaxTrainingPlan
+    _train_runner_cls = TrainRunner
+
     def train(
         self,
         max_epochs: Optional[int] = None,
@@ -67,7 +71,7 @@ class JaxTrainingMixin:
             self.module.to(cpu_device)
             logger.info("Jax module moved to CPU.")
 
-        data_splitter = DataSplitter(
+        data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
@@ -78,7 +82,7 @@ class JaxTrainingMixin:
         )
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
-        self.training_plan = JaxTrainingPlan(self.module, **plan_kwargs)
+        self.training_plan = self._training_plan_cls(self.module, **plan_kwargs)
         if "callbacks" not in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] = []
         trainer_kwargs["callbacks"].append(JaxModuleInit())
@@ -88,7 +92,7 @@ class JaxTrainingMixin:
             warnings.filterwarnings(
                 "ignore", category=UserWarning, module=r"pytorch_lightning.*"
             )
-            runner = TrainRunner(
+            runner = self._train_runner_cls(
                 self,
                 training_plan=self.training_plan,
                 data_splitter=data_splitter,

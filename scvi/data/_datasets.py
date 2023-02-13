@@ -1,8 +1,9 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import anndata
 
 from ._built_in_data._brain_large import _load_brainlarge_dataset
+from ._built_in_data._cellxgene import _load_cellxgene_dataset
 from ._built_in_data._cite_seq import (
     _load_pbmc_seurat_v4_cite_seq,
     _load_pbmcs_10x_cite_seq,
@@ -115,6 +116,36 @@ def dataset_10x(
         return_filtered=return_filtered,
         remove_extracted_data=remove_extracted_data,
         **scanpy_read_10x_kwargs,
+    )
+
+
+def cellxgene(
+    url: str,
+    filename: Optional[str] = None,
+    save_path: str = "data/",
+    return_path: bool = False,
+) -> Union[anndata.AnnData, str]:
+    """
+    Loads a file from `cellxgene <https://cellxgene.cziscience.com/>`_ portal.
+
+    Parameters
+    ----------
+    url
+        URL to cellxgene session
+    filename
+        manual override of the filename to write to.
+    save_path
+        Location to use when saving/loading the data.
+
+    Returns
+    -------
+    adata initialized with cellxgene data
+    """
+    return _load_cellxgene_dataset(
+        url=url,
+        filename=filename,
+        save_path=save_path,
+        return_path=return_path,
     )
 
 

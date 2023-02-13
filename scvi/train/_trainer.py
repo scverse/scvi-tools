@@ -1,13 +1,13 @@
 import sys
 import warnings
-from typing import Optional, Union
+from typing import List, Literal, Optional, Union
 
-import numpy as np
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import LightningLoggerBase
+from pytorch_lightning.accelerators import Accelerator
+from pytorch_lightning.loggers import Logger
 
 from scvi import settings
-from scvi._compat import Literal
+from scvi.autotune._types import Tunable, TunableMixin
 
 from ._callbacks import LoudEarlyStopping
 from ._logger import SimpleLogger
@@ -15,7 +15,7 @@ from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
 
 
-class Trainer(pl.Trainer):
+class Trainer(TunableMixin, pl.Trainer):
     """
     Lightweight wrapper of Pytorch Lightning Trainer.
 
@@ -24,8 +24,13 @@ class Trainer(pl.Trainer):
 
     Parameters
     ----------
-    gpus
-        Number of gpus to train on (int) or which GPUs to train on (list or str) applied per node
+    accelerator
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
+        as well as custom accelerator instances.
+    devices
+        The devices to use. Can be set to a positive number (int or str), a sequence of device indices
+        (list or str), the value ``-1`` to indicate all available devices should be used, or ``"auto"`` for
+        automatic selection based on the chosen accelerator. Default: ``"auto"``.
     benchmark
         If true enables cudnn.benchmark, which improves speed when inputs are fixed size
     check_val_every_n_epoch
@@ -84,11 +89,11 @@ class Trainer(pl.Trainer):
 
     def __init__(
         self,
-        gpus: Union[int, str] = 1,
+        accelerator: Optional[Union[str, Accelerator]] = None,
+        devices: Optional[Union[List[int], str, int]] = None,
         benchmark: bool = True,
-        flush_logs_every_n_steps=np.inf,
         check_val_every_n_epoch: Optional[int] = None,
-        max_epochs: int = 400,
+        max_epochs: Tunable[int] = 400,
         default_root_dir: Optional[str] = None,
         enable_checkpointing: bool = False,
         num_sanity_val_steps: int = 0,
@@ -103,9 +108,9 @@ class Trainer(pl.Trainer):
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
-        logger: Union[Optional[LightningLoggerBase], bool] = None,
+        logger: Union[Optional[Logger], bool] = None,
         log_every_n_steps: int = 10,
-        replace_sampler_ddp: bool = False,
+        replace_sampler_ddp: bool = True,
         **kwargs,
     ):
         if default_root_dir is None:
@@ -131,7 +136,7 @@ class Trainer(pl.Trainer):
                 else sys.maxsize
             )
 
-        if simple_progress_bar:
+        if simple_progress_bar and enable_progress_bar:
             bar = ProgressBar(refresh_rate=progress_bar_refresh_rate)
             kwargs["callbacks"] += [bar]
 
@@ -139,7 +144,8 @@ class Trainer(pl.Trainer):
             logger = SimpleLogger()
 
         super().__init__(
-            gpus=gpus,
+            accelerator=accelerator,
+            devices=devices,
             benchmark=benchmark,
             check_val_every_n_epoch=check_val_every_n_epoch,
             max_epochs=max_epochs,

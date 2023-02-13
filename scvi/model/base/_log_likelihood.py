@@ -49,7 +49,7 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
             if key in log_lkl:
                 log_lkl[key] += torch.sum(value).item()
             else:
-                log_lkl[key] = 0.0
+                log_lkl[key] = torch.sum(value).item()
 
     n_samples = len(data_loader.indices)
     for key, _ in log_lkl.items():

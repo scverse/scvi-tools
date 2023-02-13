@@ -2,7 +2,7 @@ import logging
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Iterable, List, Literal, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -11,7 +11,6 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi._types import Number
 from scvi._utils import _doc_params
 from scvi.data import AnnDataManager, fields
@@ -92,6 +91,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
     """
 
+    _module_cls = TOTALVAE
+    _data_splitter_cls = DataSplitter
+    _training_plan_cls = AdversarialTrainingPlan
+    _train_runner_cls = TrainRunner
+
     def __init__(
         self,
         adata: AnnData,
@@ -158,7 +162,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 self.adata_manager, n_batch
             )
 
-        self.module = TOTALVAE(
+        self.module = self._module_cls(
             n_input_genes=self.summary_stats.n_vars,
             n_input_proteins=self.summary_stats.n_proteins,
             n_batch=n_batch,
@@ -278,15 +282,15 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
 
-        data_splitter = DataSplitter(
+        data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
             use_gpu=use_gpu,
         )
-        training_plan = AdversarialTrainingPlan(self.module, **plan_kwargs)
-        runner = TrainRunner(
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
+        runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
             data_splitter=data_splitter,
@@ -893,7 +897,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             generative_kwargs = dict(transform_batch=transform_batch)
             inference_kwargs = dict(n_samples=n_samples)
             with torch.inference_mode():
-                inference_outputs, generative_outputs, = self.module.forward(
+                (
+                    inference_outputs,
+                    generative_outputs,
+                ) = self.module.forward(
                     tensors,
                     inference_kwargs=inference_kwargs,
                     generative_kwargs=generative_kwargs,
@@ -1195,7 +1202,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         **kwargs,
-    ) -> Optional[AnnData]:
+    ):
         """
         %(summary)s.
 
@@ -1212,7 +1219,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
-        %(param_copy)s
 
         Returns
         -------
@@ -1251,6 +1257,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         cls.register_manager(adata_manager)
 
     @classmethod
+    @setup_anndata_dsp.dedent
     def setup_mudata(
         cls,
         mdata: MuData,
@@ -1262,8 +1269,29 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         continuous_covariate_keys: Optional[List[str]] = None,
         modalities: Optional[Dict[str, str]] = None,
         **kwargs,
-    ) -> Optional[AnnData]:
-        """Setup MuData."""
+    ):
+        """
+        %(summary_mdata)s.
+
+        Parameters
+        ----------
+        %(param_mdata)s
+        rna_layer
+            RNA layer key. If `None`, will use `.X` of specified modality key.
+        protein_layer
+            Protein layer key. If `None`, will use `.X` of specified modality key.
+        %(param_batch_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        %(param_modalities)s
+
+        Examples
+        --------
+        >>> mdata = muon.read_10x_h5("pbmc_10k_protein_v3_filtered_feature_bc_matrix.h5")
+        >>> scvi.model.TOTALVI.setup_mudata(mdata, modalities={"rna_layer": "rna": "protein_layer": "prot"})
+        >>> vae = scvi.model.TOTALVI(mdata)
+        """
         setup_method_args = cls._get_setup_method_args(**locals())
 
         if modalities is None:

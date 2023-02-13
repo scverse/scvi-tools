@@ -6,7 +6,7 @@ scvi-tools can be installed via conda or pip. If you don't know which to choose,
 
 ### conda prerequisites
 
-1. Install conda. We typically use the [mambaforge] distribution. Use python version >3.7, and consider using mamba instead of conda. Mamba is a drop-in replacement for conda that is significantly more efficient.
+1. Install conda. We typically use the [mambaforge] distribution. Use python version >=3.8, and consider using mamba instead of conda. Mamba is a drop-in replacement for conda that is significantly more efficient.
 
 2. Create a new conda environment:
 
@@ -43,8 +43,8 @@ pip install "jax[cpu]" -f https://whls.blob.core.windows.net/unstable/index.html
 All scvi-tools models will be faster when accelerated with a GPU. Before installing scvi-tools, you can install GPU versions of PyTorch and jax using conda as follows:
 
 ```
-conda install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch -c conda-forge
-conda install jax jaxlib cuda-nvcc -c conda-forge -c nvidia
+conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+conda install jax jaxlib -c conda-forge
 ```
 
 Please go to the respective package website for more information on how to install with pip.

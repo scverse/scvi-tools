@@ -1,11 +1,12 @@
 from collections import OrderedDict
+from typing import Literal
 
 import numpy as np
 import torch
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import FCLayers
@@ -70,9 +71,9 @@ class MRDeconv(BaseModuleClass):
         self,
         n_spots: int,
         n_labels: int,
-        n_hidden: int,
-        n_layers: int,
-        n_latent: int,
+        n_hidden: Tunable[int],
+        n_layers: Tunable[int],
+        n_latent: Tunable[int],
         n_genes: int,
         decoder_state_dict: OrderedDict,
         px_decoder_state_dict: OrderedDict,
@@ -83,9 +84,9 @@ class MRDeconv(BaseModuleClass):
         var_vprior: np.ndarray = None,
         mp_vprior: np.ndarray = None,
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
-        l1_reg: float = 0.0,
-        beta_reg: float = 5.0,
-        eta_reg: float = 1e-4,
+        l1_reg: Tunable[float] = 0.0,
+        beta_reg: Tunable[float] = 5.0,
+        eta_reg: Tunable[float] = 1e-4,
     ):
         super().__init__()
         self.n_spots = n_spots
