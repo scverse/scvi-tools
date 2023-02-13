@@ -145,6 +145,8 @@ html_theme_options = {
     "logo_only": True,
     "show_toc_level": 4,
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
+    "path_to_docs": "docs/",
+    "repository_branch": version,
 }
 
 pygments_style = "default"
