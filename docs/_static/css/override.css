@@ -8,17 +8,3 @@ dl.citation > dt {
     margin-right: 15px;
     font-weight: bold;
 }
-
-/*********************************************
-* MyST NB and Jupyter Notebooks *
-* ref: https://github.com/executablebooks/myst-nb
-https://github.com/executablebooks/sphinx-book-theme/blob/2deba9ac0e995fbc722df37872fd06e059c64dcf/src/sphinx_book_theme/assets/styles/extensions/_myst-nb.scss
-*********************************************/
-div.cell_output table {
-    border: none;
-    border-collapse: collapse;
-    border-spacing: 0;
-    color: inherit;
-    font-size: 0.8em;
-    table-layout: fixed;
-}
