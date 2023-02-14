@@ -11,7 +11,6 @@ from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
-from scvi.model._utils import parse_use_gpu_arg
 
 
 def validate_data_split(
@@ -67,9 +66,10 @@ class DataSplitter(pl.LightningDataModule):
         float, or None (default is 0.9)
     validation_size
         float, or None (default is None)
-    use_gpu
-        Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+    pin_memory
+        Whether to copy tensors into device/cuda pinned memory, passed into
+        :class:`~scvi.dataloaders.AnnDataLoader`. If `None`, defaults to the
+        value of `scvi.settings.dl_pin_memory_gpu_training`.
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -90,7 +90,7 @@ class DataSplitter(pl.LightningDataModule):
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
-        use_gpu: bool = False,
+        pin_memory: Optional[bool] = None,
         **kwargs,
     ):
         super().__init__()
@@ -98,7 +98,11 @@ class DataSplitter(pl.LightningDataModule):
         self.train_size = float(train_size)
         self.validation_size = validation_size
         self.data_loader_kwargs = kwargs
-        self.use_gpu = use_gpu
+
+        if pin_memory is None:
+            self.pin_memory = settings.dl_pin_memory_gpu_training
+        else:
+            self.pin_memory = pin_memory
 
         self.n_train, self.n_val = validate_data_split(
             self.adata_manager.adata.n_obs, self.train_size, self.validation_size
@@ -113,15 +117,6 @@ class DataSplitter(pl.LightningDataModule):
         self.val_idx = permutation[:n_val]
         self.train_idx = permutation[n_val : (n_val + n_train)]
         self.test_idx = permutation[(n_val + n_train) :]
-
-        accelerator, _, self.device = parse_use_gpu_arg(
-            self.use_gpu, return_device=True
-        )
-        self.pin_memory = (
-            True
-            if (settings.dl_pin_memory_gpu_training and accelerator == "gpu")
-            else False
-        )
 
     def train_dataloader(self):
         """Create train data loader."""
@@ -181,9 +176,10 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         float, or None (default is None)
     n_samples_per_label
         Number of subsamples for each label class to sample per epoch
-    use_gpu
-        Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+    pin_memory
+        Whether to copy tensors into device/cuda pinned memory, passed into
+        :class:`~scvi.dataloaders.AnnDataLoader`. If `None`, defaults to the
+        value of `scvi.settings.dl_pin_memory_gpu_training`.
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -206,7 +202,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         n_samples_per_label: Optional[int] = None,
-        use_gpu: bool = False,
+        pin_memory: Optional[bool] = None,
         **kwargs,
     ):
         super().__init__()
@@ -229,7 +225,11 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
 
         self.data_loader_kwargs = kwargs
-        self.use_gpu = use_gpu
+
+        if pin_memory is None:
+            self.pin_memory = settings.dl_pin_memory_gpu_training
+        else:
+            self.pin_memory = pin_memory
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
@@ -281,11 +281,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.train_idx = indices_train.astype(int)
         self.val_idx = indices_val.astype(int)
         self.test_idx = indices_test.astype(int)
-
-        gpus = parse_use_gpu_arg(self.use_gpu, return_device=False)
-        self.pin_memory = (
-            True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
-        )
 
         if len(self._labeled_indices) != 0:
             self.data_loader_class = SemiSupervisedDataLoader
@@ -352,9 +347,10 @@ class DeviceBackedDataSplitter(DataSplitter):
         float, or None (default is 0.9)
     validation_size
         float, or None (default is None)
-    use_gpu
-        Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+    pin_memory
+        Whether to copy tensors into device/cuda pinned memory, passed into
+        :class:`~scvi.dataloaders.AnnDataLoader`. If `None`, defaults to the
+        value of `scvi.settings.dl_pin_memory_gpu_training`.
     shuffle
         if ``True``, shuffles indices before sampling for training set
     shuffle_test_val
@@ -377,7 +373,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         adata_manager: AnnDataManager,
         train_size: float = 1.0,
         validation_size: Optional[float] = None,
-        use_gpu: bool = False,
+        pin_memory: Optional[bool] = None,
         shuffle: bool = False,
         shuffle_test_val: bool = False,
         batch_size: Optional[int] = None,
@@ -387,7 +383,7 @@ class DeviceBackedDataSplitter(DataSplitter):
             adata_manager=adata_manager,
             train_size=train_size,
             validation_size=validation_size,
-            use_gpu=use_gpu,
+            pin_memory=pin_memory,
             **kwargs,
         )
         self.batch_size = batch_size

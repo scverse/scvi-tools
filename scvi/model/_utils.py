@@ -59,17 +59,19 @@ def parse_device_args(
         pl_connector = AcceleratorConnector(accelerator=accelerator, devices=devices)
         _accelerator = pl_connector._accelerator_flag
         _devices = pl_connector._devices_flag
+
         if _accelerator == "cpu":
-            _device = "cpu"
+            _device = _accelerator
         elif isinstance(_devices, int):
             _device = torch.device(f"{_accelerator}:{_devices}")
         elif isinstance(_devices, str):
             _device = torch.device(_devices)
         elif isinstance(_devices, list):
             _device = torch.device(f"{_accelerator}:{_devices[0]}")
+
         return _accelerator, _devices, _device
-    else:
-        return accelerator, devices
+
+    return accelerator, devices
 
 
 def parse_use_gpu_arg(
