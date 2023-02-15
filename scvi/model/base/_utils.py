@@ -21,6 +21,67 @@ from ._differential import DifferentialComputation
 logger = logging.getLogger(__name__)
 
 
+def subset_distribution(my_distribution, index, dim=0):
+    """Utility function to subset the parameter of a Pytorch distribution."""
+    return my_distribution.__class__(
+        **{
+            name: torch.index_select(
+                getattr(my_distribution, name), dim=dim, index=index
+            )
+            for name in my_distribution.arg_constraints.keys()
+        }
+    )
+
+
+class DistributionsConcatenator:
+    """Utility class to concatenate Pytorch distributions and move them to cpu."""
+
+    def __init__(self):
+        self.storage = {}
+
+    def add_distributions(self, forward_outputs):
+        """Add a dictionary of distributions to the concatenator."""
+        for key, potential_distribution in forward_outputs.items():
+            if isinstance(potential_distribution, torch.distributions.Distribution):
+                if key not in self.storage:
+                    params = {
+                        name: []
+                        for name in potential_distribution.arg_constraints.keys()
+                    }
+                    self.storage[key] = dict(
+                        cls=potential_distribution.__class__,
+                        **params,
+                    )
+                new_params = {
+                    name: getattr(potential_distribution, name).cpu()
+                    for name in potential_distribution.arg_constraints.keys()
+                }
+                for param_name, param in new_params.items():
+                    self.storage[key][param_name].append(param)
+
+    @staticmethod
+    def _find_concat_dim(my_list):
+        ndims = my_list[0].ndim
+        if ndims == 2:
+            return 0
+        elif ndims == 3:
+            return 1
+        else:
+            raise ValueError("Only 2D and 3D tensors are supported.")
+
+    def get_concatenated_distributions(self):
+        """Returns concatenated distributions."""
+        dists = {}
+        for dist_name, dist_props in self.storage.items():
+            dist_cls = dist_props.pop("cls")
+            concat_params = {
+                key: torch.cat(value, dim=self._find_concat_dim(value))
+                for key, value in dist_props.items()
+            }
+            dists[dist_name] = dist_cls(**concat_params)
+        return dists
+
+
 def _load_legacy_saved_files(
     dir_path: str,
     file_name_prefix: str,
@@ -196,6 +257,7 @@ def _prepare_obs(
 def _de_core(
     adata_manager,
     model_fn,
+    representation_fn,
     groupby,
     group1,
     group2,
@@ -234,7 +296,7 @@ def _de_core(
         groupby = temp_key
 
     df_results = []
-    dc = DifferentialComputation(model_fn, adata_manager)
+    dc = DifferentialComputation(model_fn, representation_fn, adata_manager)
     for g1 in track(
         group1,
         description="DE...",

@@ -797,6 +797,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
+            representation_fn=None,
             groupby=groupby,
             group1=group1,
             group2=group2,
@@ -885,6 +886,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
+            representation_fn=None,
             groupby=groupby,
             group1=group1,
             group2=group2,

@@ -1,6 +1,5 @@
 from ._archesmixin import ArchesMixin
 from ._base_model import BaseLatentModeModelClass, BaseModelClass
-from ._demixin import DEMixin
 from ._differential import DifferentialComputation
 from ._jaxmixin import JaxTrainingMixin
 from ._pyromixin import (
@@ -19,7 +18,6 @@ __all__ = [
     "RNASeqMixin",
     "VAEMixin",
     "UnsupervisedTrainingMixin",
-    "DEMixin",
     "PyroSviTrainMixin",
     "PyroSampleMixin",
     "PyroJitGuideWarmup",

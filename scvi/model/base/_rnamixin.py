@@ -7,6 +7,7 @@ from typing import Dict, Iterable, Literal, Optional, Sequence, Union
 import numpy as np
 import pandas as pd
 import torch
+import torch.distributions as db
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
@@ -16,7 +17,7 @@ from scvi.utils import unsupported_in_latent_mode
 from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
-from ._utils import _de_core
+from ._utils import DistributionsConcatenator, _de_core, subset_distribution
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,86 @@ class RNASeqMixin:
                 "Transforming batches is not implemented for this model."
             )
 
+    def get_importance_weights(
+        self,
+        adata: Optional[AnnData],
+        indices: Optional[Sequence[int]],
+        distributions,
+        zs: torch.Tensor,
+        max_cells: int = 500,
+        truncation: bool = True,
+    ):
+        """Computes importance weights for the given samples.
+
+        Parameters
+        ----------
+        adata :
+            Data to use for computing importance weights.
+        indices :
+            Indices of cells in adata to use.
+        distributions :
+            Dictionary of distributions associated with `indices`.
+        zs :
+            Samples assiciated with `indices`.
+        max_cells :
+            Maximum number of cells used to estimated the importance weights, by default 500
+        truncation :
+            Whether importance weights should be truncated, by default True
+        """
+        log_pz = db.Normal(0, 1).log_prob(zs).sum(dim=-1)
+
+        all_cell_indices = np.arange(len(indices))
+        anchor_cells = (
+            np.random.choice(np.arange(len(indices)), size=max_cells, replace=False)
+            if len(indices) > max_cells
+            else all_cell_indices
+        )
+
+        log_px = self.get_marginal_ll(
+            adata,
+            indices=indices[anchor_cells],
+            observation_specific=True,
+            n_mc_samples=500,
+            n_mc_samples_per_pass=250,
+        )
+        mask = torch.tensor(anchor_cells)
+        qz_anchor = subset_distribution(
+            distributions["qz"], mask, 0
+        )  # n_anchors, n_latent
+        log_qz = qz_anchor.log_prob(zs.unsqueeze(-2)).sum(
+            dim=-1
+        )  # n_samples, n_cells, n_anchors
+
+        log_px_z = []
+        anchors_obs = adata[indices[anchor_cells]]
+        scdl = self._make_data_loader(adata=anchors_obs, batch_size=1)
+        for tensors in scdl:
+            x = tensors[REGISTRY_KEYS.X_KEY]  # 1, n_genes
+            px_z = distributions["px"]  # n_samples, n_cells, n_genes
+            log_px_z.append(
+                px_z.log_prob(x).sum(dim=-1)[..., None]
+            )  # n_samples, n_cells, 1
+            # TODO: library size adjustment
+        log_px_z = torch.cat(log_px_z, dim=-1)
+
+        log_pz = log_pz.reshape(-1, 1)
+        log_px_z = log_px_z.reshape(-1, len(anchor_cells))
+        log_qz = log_qz.reshape(-1, len(anchor_cells))
+        log_px = log_px.reshape(1, len(anchor_cells))
+
+        importance_weight = torch.logsumexp(
+            log_pz + log_px_z - log_px - torch.logsumexp(log_qz, 1, keepdims=True),
+            dim=1,
+        )
+        if truncation:
+            tau = torch.logsumexp(importance_weight, 0) - np.log(
+                importance_weight.shape[0]
+            )
+            importance_weight = torch.clamp(importance_weight, min=tau)
+
+        log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
+        return log_probs.exp().numpy()
+
     @torch.inference_mode()
     def get_normalized_expression(
         self,
@@ -42,6 +123,7 @@ class RNASeqMixin:
         library_size: Union[float, Literal["latent"]] = 1,
         n_samples: int = 1,
         n_samples_overall: int = None,
+        weights: Optional[Literal["uniform", "importance"]] = None,
         batch_size: Optional[int] = None,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
@@ -50,6 +132,11 @@ class RNASeqMixin:
         Returns the normalized (decoded) gene expression.
 
         This is denoted as :math:`\rho_n` in the scVI paper.
+        This function has two modes of operation:
+        If `n_samples` is provided or if `return_mean` is True,
+        this method returns a 3d tensor of shape (n_samples, n_cells, n_genes).
+        Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
+        of shape (n_samples_overall, n_genes).
 
         Parameters
         ----------
@@ -74,6 +161,10 @@ class RNASeqMixin:
             magnitude. If set to `"latent"`, use the latent library size.
         n_samples
             Number of posterior samples to use for estimation.
+        n_samples_overall
+            Number of posterior samples to use for estimation. Overrides `n_samples`.
+        weights
+            Weights to use for sampling. If `None`, defaults to `"uniform"`.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_mean
@@ -93,7 +184,8 @@ class RNASeqMixin:
         if indices is None:
             indices = np.arange(adata.n_obs)
         if n_samples_overall is not None:
-            indices = np.random.choice(indices, n_samples_overall)
+            assert n_samples == 1  # default value
+            n_samples = n_samples_overall // len(indices) + 1
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
@@ -102,12 +194,9 @@ class RNASeqMixin:
             self.get_anndata_manager(adata, required=True), transform_batch
         )
 
-        if gene_list is None:
-            gene_mask = slice(None)
-        else:
-            gene_mask = [
-                True if gene in gene_list else False for gene in adata.var_names
-            ]
+        gene_mask = (
+            slice(None) if gene_list is None else adata.var_names.isin(gene_list)
+        )
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -122,34 +211,63 @@ class RNASeqMixin:
             generative_output_key = "scale"
             scaling = library_size
 
+        store_distributions = weights == "importance"
+        if store_distributions & len(transform_batch) > 1:
+            raise NotImplementedError(
+                "Importance weights cannot be computed when expression levels are averaged across batches."
+            )
+
         exprs = []
+        zs = []
+        dist_store = DistributionsConcatenator()
         for tensors in scdl:
             per_batch_exprs = []
             for batch in transform_batch:
                 generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
                 inference_kwargs = dict(n_samples=n_samples)
-                _, generative_outputs = self.module.forward(
+                inference_outputs, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
-                output = getattr(generative_outputs["px"], generative_output_key)
-                output = output[..., gene_mask]
-                output *= scaling
-                output = output.cpu().numpy()
-                per_batch_exprs.append(output)
-            per_batch_exprs = np.stack(
-                per_batch_exprs
-            )  # shape is (len(transform_batch) x batch_size x n_var)
-            exprs += [per_batch_exprs.mean(0)]
+                exp_ = getattr(generative_outputs["px"], generative_output_key)
+                exp_ = exp_[..., gene_mask]
+                exp_ *= scaling
+                per_batch_exprs.append(exp_[None].cpu())
+                if store_distributions:
+                    dist_store.add_distributions(
+                        {
+                            **inference_outputs,
+                            **generative_outputs,
+                        }
+                    )
 
-        if n_samples > 1:
-            # The -2 axis correspond to cells.
-            exprs = np.concatenate(exprs, axis=-2)
-        else:
-            exprs = np.concatenate(exprs, axis=0)
-        if n_samples > 1 and return_mean:
+            zs.append(inference_outputs["z"].cpu())
+            per_batch_exprs = torch.cat(per_batch_exprs, dim=0).mean(0).numpy()
+            exprs.append(per_batch_exprs)
+
+        cell_axis = 1 if n_samples > 1 else 0
+        exprs = np.concatenate(exprs, axis=cell_axis)
+        zs = torch.concat(zs, dim=cell_axis)
+
+        if n_samples_overall is not None:
+            # Converts the 3d tensor to a 2d tensor
+            exprs = exprs.reshape(-1, exprs.shape[-1])
+            n_samples_ = exprs.shape[0]
+            if (weights is None) or weights == "uniform":
+                p = None
+            else:
+                distributions = dist_store.get_concatenated_distributions()
+                p = self.get_importance_weights(
+                    adata,
+                    indices,
+                    distributions,
+                    zs,
+                )
+            ind_ = np.random.choice(n_samples_, n_samples_overall, p=p, replace=True)
+            exprs = exprs[ind_]
+        elif n_samples > 1 and return_mean:
             exprs = exprs.mean(0)
 
         if return_numpy is None or return_numpy is False:
@@ -181,8 +299,8 @@ class RNASeqMixin:
         batchid2: Optional[Iterable[str]] = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        importance_sampling: Optional[bool] = False,
-        fn_kwargs: Optional[dict] = None,
+        weights: Optional[Literal["uniform", "importance"]] = "uniform",
+        filter_outlier_cells: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
         r"""
@@ -201,26 +319,22 @@ class RNASeqMixin:
         Differential expression DataFrame.
         """
         adata = self._validate_anndata(adata)
-        fn_kwargs = dict() if fn_kwargs is None else fn_kwargs
         col_names = adata.var_names
-        if importance_sampling:
-            model_fn = partial(
-                self.get_normalized_expression_iw,
-                return_numpy=True,
-                batch_size=batch_size,
-                **fn_kwargs,
-            )
-        else:
-            model_fn = partial(
-                self.get_normalized_expression,
-                return_numpy=True,
-                n_samples=1,
-                batch_size=batch_size,
-            )
+        model_fn = partial(
+            self.get_normalized_expression,
+            return_numpy=True,
+            n_samples=1,
+            batch_size=batch_size,
+            weights=weights,
+        )
+        representation_fn = (
+            self.get_latent_representation if filter_outlier_cells else None
+        )
 
         result = _de_core(
             self.get_anndata_manager(adata, required=True),
             model_fn,
+            representation_fn,
             groupby,
             group1,
             group2,

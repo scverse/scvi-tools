@@ -763,6 +763,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         result = _de_core(
             adata_manager,
             model_fn,
+            None,
             groupby,
             group1,
             group2,

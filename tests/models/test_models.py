@@ -319,6 +319,7 @@ def test_scvi(save_path):
         labels_key="labels",
     )
     model = SCVI(adata)
+    model.train(1, train_size=0.5)
     adata2 = adata.copy()
     model.get_elbo(adata2)
     assert adata.uns[_constants._SCVI_UUID_KEY] != adata2.uns[_constants._SCVI_UUID_KEY]
@@ -1642,10 +1643,10 @@ def test_de_features():
     )
     model.differential_expression(
         groupby="labels",
-        importance_sampling=True,
+        weights="importance",
     )
     model.differential_expression(
         groupby="labels",
         delta=0.5,
-        importance_sampling=True,
+        weights="importance",
     )

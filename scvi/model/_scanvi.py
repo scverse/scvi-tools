@@ -33,7 +33,7 @@ from scvi.train._callbacks import SubSampleLabels
 from scvi.utils import setup_anndata_dsp
 
 from ._scvi import SCVI
-from .base import ArchesMixin, BaseLatentModeModelClass, DEMixin, RNASeqMixin, VAEMixin
+from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
 
 _SCANVI_LATENT_MODE = "posterior_parameters"
 _SCANVI_LATENT_QZM = "_scanvi_latent_qzm"
@@ -43,7 +43,7 @@ _SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 logger = logging.getLogger(__name__)
 
 
-class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, DEMixin, BaseLatentModeModelClass):
+class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseLatentModeModelClass):
     """
     Single-cell annotation using variational inference :cite:p:`Xu21`.
 
