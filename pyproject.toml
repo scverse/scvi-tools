@@ -36,7 +36,7 @@ dependencies = [
     "chex",
     "docrep>=0.3.2",
     "flax",
-    "jax=0.4.4",
+    "jax==0.4.4",
     "jaxlib",
     "optax",
     "numpy>=1.17.0",
