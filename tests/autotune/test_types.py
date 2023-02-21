@@ -14,7 +14,6 @@ class DummyDataSplitter(TunableMixin):
 
 
 class DummyModel(TunableMixin, DummyTrainingMixin):
-
     _data_splitter_cls = DummyDataSplitter
 
     def __init__(

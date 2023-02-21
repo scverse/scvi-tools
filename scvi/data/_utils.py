@@ -21,7 +21,7 @@ except ImportError:
 from mudata import MuData
 from pandas.api.types import CategoricalDtype
 
-from scvi._types import AnnOrMuData, LatentDataType
+from scvi._types import AnnOrMuData, MinifiedDataType
 
 from . import _constants
 
@@ -255,12 +255,12 @@ def _check_mudata_fully_paired(mdata: MuData):
             )
 
 
-def _get_latent_adata_type(adata: AnnData) -> Union[LatentDataType, None]:
-    return adata.uns.get(_constants._ADATA_LATENT_UNS_KEY, None)
+def _get_adata_minify_type(adata: AnnData) -> Union[MinifiedDataType, None]:
+    return adata.uns.get(_constants._ADATA_MINIFY_TYPE_UNS_KEY, None)
 
 
-def _is_latent(adata: Union[AnnData, str]) -> bool:
-    uns_key = _constants._ADATA_LATENT_UNS_KEY
+def _is_minified(adata: Union[AnnData, str]) -> bool:
+    uns_key = _constants._ADATA_MINIFY_TYPE_UNS_KEY
     if isinstance(adata, AnnData):
         return adata.uns.get(uns_key, None) is not None
     elif isinstance(adata, str):

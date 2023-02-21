@@ -20,7 +20,6 @@ from scvi.module.base import (
     BaseModuleClass,
     JaxBaseModuleClass,
     LossOutput,
-    LossRecorder,
     PyroBaseModuleClass,
     TrainStateWithState,
 )
@@ -202,7 +201,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         """Initialize ELBO metric and the metric collection."""
         rec_loss = ElboMetric("reconstruction_loss", mode, "obs")
         kl_local = ElboMetric("kl_local", mode, "obs")
-        kl_global = ElboMetric("kl_global", mode, "obs")
+        kl_global = ElboMetric("kl_global", mode, "batch")
         # n_total can be 0 if there is no validation set, this won't ever be used
         # in that case anyway
         n = 1 if n_total is None or n_total < 1 else n_total
@@ -284,7 +283,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
     @torch.inference_mode()
     def compute_and_log_metrics(
         self,
-        loss_recorder: Union[LossRecorder, LossOutput],
+        loss_output: LossOutput,
         metrics: Dict[str, ElboMetric],
         mode: str,
     ):
@@ -293,18 +292,14 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
 
         Parameters
         ----------
-        loss_recorder
-            LossRecorder object from scvi-tools module
+        loss_output
+            LossOutput object from scvi-tools module
         metric_attr_name
             The name of the torch metric object to use
         mode
             Postfix string to add to the metric name of
             extra metrics
         """
-        if isinstance(loss_recorder, LossRecorder):
-            loss_output = loss_recorder._loss_output
-        else:
-            loss_output = loss_recorder
         rec_loss = loss_output.reconstruction_loss_sum
         n_obs_minibatch = loss_output.n_obs_minibatch
         kl_local = loss_output.kl_local_sum
@@ -1173,8 +1168,9 @@ class JaxTrainingPlan(TrainingPlan):
         **kwargs,
     ):
         """Jit training step."""
-        # state can't be passed here
+
         def loss_fn(params):
+            # state can't be passed here
             vars_in = {"params": params, **state.state}
             outputs, new_model_state = state.apply_fn(
                 vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs

@@ -430,7 +430,6 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         scale: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
-
         super().__init__(
             total_count=total_count,
             probs=probs,
@@ -527,7 +526,6 @@ class NegativeBinomialMixture(Distribution):
         theta2: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
-
         (
             self.mu1,
             self.theta1,

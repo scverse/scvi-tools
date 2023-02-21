@@ -34,20 +34,21 @@ class _Linear(nn.Linear):
             torch.nn.init.zeros_(self.bias)
 
 
-class _GELU(nn.GELU):
+class _GELU(nn.Module):
     """GELU unit approximated by a sigmoid, same as original."""
 
     def __init__(self):
         super().__init__()
 
     def forward(self, x: torch.Tensor):
-        return torch.nn.functional.sigmoid(1.702 * x) * x
+        return torch.sigmoid(1.702 * x) * x
 
 
 class _BatchNorm(nn.BatchNorm1d):
-    """Batch normalization with Keras default initializations."""
+    """Batch normalization with Keras default initializations and scBasset defaults."""
 
     def __init__(self, *args, eps: int = 1e-3, **kwargs):
+        # Keras uses 0.01 for momentum, but scBasset uses 0.1
         super().__init__(*args, eps=eps, **kwargs)
 
 
@@ -80,11 +81,11 @@ class _ConvBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor):
+        x = self.activation_fn(x)
         x = self.conv(x)
         x = self.batch_norm(x)
         x = self.dropout(x)
         x = self.pool(x)
-        x = self.activation_fn(x)
         return x
 
 
@@ -105,10 +106,10 @@ class _DenseBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor):
+        x = self.activation_fn(x)
         x = self.dense(x)
         x = self.batch_norm(x)
         x = self.dropout(x)
-        x = self.activation_fn(x)
         return x
 
 
@@ -155,15 +156,14 @@ class _StochasticShift(nn.Module):
             shift_i = np.random.randint(0, len(self.augment_shifts))
             shift = self.augment_shifts[shift_i]
             if shift != 0:
-                sseq_1hot = self.shift_sequence(seq_1hot, shift)
+                return self.shift_sequence(seq_1hot, shift)
             else:
-                sseq_1hot = seq_1hot
-            return sseq_1hot
+                return seq_1hot
         else:
             return seq_1hot
 
     @staticmethod
-    def shift_sequence(seq: torch.Tensor, shift: torch.Tensor, pad_value: float = 0.25):
+    def shift_sequence(seq: torch.Tensor, shift: int, pad_value: float = 0.25):
         """Shift a sequence left or right by shift_amount.
 
         Parameters
@@ -180,9 +180,9 @@ class _StochasticShift(nn.Module):
 
         sseq = torch.roll(seq, shift, dims=-1)
         if shift > 0:
-            sseq[:, :shift] = pad_value
+            sseq[..., :shift] = pad_value
         else:
-            sseq[:, shift:] = pad_value
+            sseq[..., shift:] = pad_value
 
         return sseq
 
@@ -213,6 +213,8 @@ class ScBassetModule(BaseModuleClass):
     dropout
         Dropout rate across layers, by default we do not do it for
         convolutional layers but we do it for the dense layers
+    l2_reg_cell_embedding
+        L2 regularization for the cell embedding layer
     """
 
     def __init__(
@@ -226,24 +228,16 @@ class ScBassetModule(BaseModuleClass):
         n_bottleneck_layer: int = 32,
         batch_norm: bool = True,
         dropout: float = 0.0,
+        l2_reg_cell_embedding: float = 0.0,
     ):
         super().__init__()
-
+        self.l2_reg_cell_embedding = l2_reg_cell_embedding
         self.cell_embedding = nn.Parameter(torch.randn(n_bottleneck_layer, n_cells))
         self.cell_bias = nn.Parameter(torch.randn(n_cells))
         if batch_ids is not None:
             self.register_buffer("batch_ids", torch.as_tensor(batch_ids).long())
             self.n_batch = len(torch.unique(batch_ids))
-            self.register_buffer(
-                "batch_ids_one_hot",
-                torch.nn.functional.one_hot(batch_ids, self.n_batch)
-                .squeeze(1)
-                .float()
-                .T,
-            )
-            self.batch_emdedding = nn.Parameter(
-                torch.randn(n_bottleneck_layer, self.n_batch)
-            )
+            self.batch_emdedding = nn.Embedding(self.n_batch, n_bottleneck_layer)
         self.stem = _ConvBlock(
             in_channels=4,
             out_channels=n_filters_init,
@@ -285,7 +279,6 @@ class ScBassetModule(BaseModuleClass):
             out_features=n_bottleneck_layer,
             batch_norm=True,
             dropout=0.2,
-            activation_fn=nn.Identity(),
         )
         self.stochastic_rc = _StochasticReverseComplement()
         self.stochastic_shift = _StochasticShift(3)
@@ -311,6 +304,7 @@ class ScBassetModule(BaseModuleClass):
         h = h.view(h.shape[0], -1)
         # Regions by bottleneck layer dim
         h = self.bottleneck(h)
+        h = _GELU()(h)
         return {"region_embedding": h}
 
     def _get_generative_input(
@@ -325,12 +319,13 @@ class ScBassetModule(BaseModuleClass):
 
     def generative(self, region_embedding: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Generative method for the model."""
-        accessibility = region_embedding @ self.cell_embedding
+        if hasattr(self, "batch_ids"):
+            # embeddings dim by cells dim
+            cell_batch_embedding = self.batch_emdedding(self.batch_ids).squeeze(-2).T
+        else:
+            cell_batch_embedding = 0
+        accessibility = region_embedding @ (self.cell_embedding + cell_batch_embedding)
         accessibility += self.cell_bias
-        if hasattr(self, "batch_ids_one_hot"):
-            accessibility += (
-                region_embedding @ self.batch_emdedding
-            ) @ self.batch_ids_one_hot
         return {"reconstruction_logits": accessibility}
 
     def loss(self, tensors, inference_outputs, generative_outputs) -> LossOutput:
@@ -343,8 +338,14 @@ class ScBassetModule(BaseModuleClass):
         loss = reconstruction_loss.sum() / (
             reconstruction_logits.shape[0] * reconstruction_logits.shape[1]
         )
+        if self.l2_reg_cell_embedding > 0:
+            loss += (
+                self.l2_reg_cell_embedding * torch.square(self.cell_embedding).mean()
+            )
         auroc = torchmetrics.functional.auroc(
-            torch.sigmoid(reconstruction_logits).ravel(), target.ravel(), task="binary"
+            torch.sigmoid(reconstruction_logits).ravel(),
+            target.int().ravel(),
+            task="binary",
         )
         return LossOutput(
             loss=loss,

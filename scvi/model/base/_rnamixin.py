@@ -12,7 +12,7 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.utils import unsupported_in_latent_mode
+from scvi.utils import unsupported_if_adata_minified
 from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
@@ -541,7 +541,7 @@ class RNASeqMixin:
         return return_dict
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
+    @unsupported_if_adata_minified
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,
@@ -583,7 +583,6 @@ class RNASeqMixin:
             else:
                 ql = outputs["ql"]
                 if ql is None:
-
                     raise RuntimeError(
                         "The module for this model does not compute the posterior distribution "
                         "for the library size. Set `give_mean` to False to use the observed library size instead."

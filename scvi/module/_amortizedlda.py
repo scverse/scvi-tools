@@ -101,7 +101,6 @@ class AmortizedLDAPyroModel(PyroModule):
     def _get_fn_args_from_batch(
         tensor_dict: Dict[str, torch.Tensor]
     ) -> Union[Iterable, dict]:
-
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         library = torch.sum(x, dim=1)
         return (x, library), {}

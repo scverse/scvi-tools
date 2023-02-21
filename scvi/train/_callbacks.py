@@ -86,7 +86,7 @@ class SaveBestState(Callback):
     def check_monitor_top(self, current):  # noqa: D102
         return self.monitor_op(current, self.best_module_metric_val)
 
-    def on_val_epoch_end(self, trainer, pl_module):  # noqa: D102
+    def on_validation_epoch_end(self, trainer, pl_module):  # noqa: D102
         logs = trainer.callback_metrics
         self.epochs_since_last_check += 1
 

@@ -13,7 +13,7 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData, LatentDataType
+from scvi._types import AnnOrMuData, MinifiedDataType
 from scvi.autotune._types import TunableMixin
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
@@ -23,7 +23,7 @@ from scvi.data._constants import (
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
 )
-from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_latent_adata_type
+from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 from scvi.model.base._utils import _load_legacy_saved_files
@@ -66,14 +66,16 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
     def __init__(self, adata: Optional[AnnOrMuData] = None):
-        # check if the given adata is in latent mode and check if the model being created
-        # supports latent mode (i.e. inherits from the abstract BaseLatentModeModelClass).
-        # If not, raise an error to inform the user of the lack of latent mode functionality
+        # check if the given adata is minified and check if the model being created
+        # supports minified-data mode (i.e. inherits from the abstract BaseMinifiedModeModelClass).
+        # If not, raise an error to inform the user of the lack of minified-data functionality
         # for this model
-        latent_adata = adata is not None and _get_latent_adata_type(adata) is not None
-        if latent_adata and not issubclass(type(self), BaseLatentModeModelClass):
+        data_is_minified = (
+            adata is not None and _get_adata_minify_type(adata) is not None
+        )
+        if data_is_minified and not issubclass(type(self), BaseMinifiedModeModelClass):
             raise NotImplementedError(
-                f"Latent mode currently not supported for the {type(self).__name__} model."
+                f"The {type(self).__name__} model currently does not support minified data."
             )
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
@@ -637,7 +639,12 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         load_adata = adata is None
         _, _, device = parse_use_gpu_arg(use_gpu)
 
-        (attr_dict, var_names, model_state_dict, new_adata,) = _load_saved_files(
+        (
+            attr_dict,
+            var_names,
+            model_state_dict,
+            new_adata,
+        ) = _load_saved_files(
             dir_path,
             load_adata,
             map_location=device,
@@ -739,11 +746,10 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         summary_string += "\nTraining status: {}".format(
             "Trained" if self.is_trained_ else "Not Trained"
         )
-        summary_string += "\nLatent model? {}".format(
-            hasattr(self, "latent_data_type") and self.latent_data_type is not None
+        summary_string += "\nModel's adata is minified?: {}".format(
+            hasattr(self, "minified_data_type") and self.minified_data_type is not None
         )
         rich.print(summary_string)
-
         return ""
 
     @classmethod
@@ -832,35 +838,52 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         adata_manager.view_registry(hide_state_registries=hide_state_registries)
 
 
-class BaseLatentModeModelClass(BaseModelClass):
-    """Abstract base class for scvi-tools models that support latent mode."""
+class BaseMinifiedModeModelClass(BaseModelClass):
+    """Abstract base class for scvi-tools models that can handle minified data."""
 
     @property
-    def latent_data_type(self) -> Union[LatentDataType, None]:
-        """The latent data type associated with this model."""
+    def minified_data_type(self) -> Union[MinifiedDataType, None]:
+        """The type of minified data associated with this model, if applicable."""
         return (
-            self.adata_manager.get_from_registry(REGISTRY_KEYS.LATENT_MODE_KEY)
-            if REGISTRY_KEYS.LATENT_MODE_KEY in self.adata_manager.data_registry
+            self.adata_manager.get_from_registry(REGISTRY_KEYS.MINIFY_TYPE_KEY)
+            if REGISTRY_KEYS.MINIFY_TYPE_KEY in self.adata_manager.data_registry
             else None
         )
 
     @abstractmethod
-    def to_latent_mode(
+    def minify_adata(
         self,
         *args,
         **kwargs,
     ):
         """
-        Put the model into latent mode.
+        Minifies the model's adata.
 
-        The model is put into latent mode by registering new anndata fields
-        required for latent mode support (can be model-specific) and marking
-        the module as latent. Note that this modifies the anndata (and subsequently
-        the model and module properties) in place. Please make a copy of those objects
-        (before calling this function) if needed.
+        Minifies the adata, and registers new anndata fields as required (can be model-specific).
+        This also sets the appropriate property on the module to indicate that the adata is minified.
+
+        Notes
+        -----
+        The modification is not done inplace -- instead the model is assigned a new (minified)
+        version of the adata.
         """
 
     @staticmethod
     @abstractmethod
-    def _get_latent_fields(mode: LatentDataType):
-        """Return the anndata fields required for latent mode support."""
+    def _get_fields_for_adata_minification(minified_data_type: MinifiedDataType):
+        """Return the anndata fields required for adata minification of the given type."""
+
+    def _update_adata_and_manager_post_minification(
+        self, minified_adata: AnnOrMuData, minified_data_type: MinifiedDataType
+    ):
+        """Update the anndata and manager inplace after creating a minified adata."""
+        # Register this new adata with the model, creating a new manager in the cache
+        self._validate_anndata(minified_adata)
+        new_adata_manager = self.get_anndata_manager(minified_adata, required=True)
+        # This inplace edits the manager
+        new_adata_manager.register_new_fields(
+            self._get_fields_for_adata_minification(minified_data_type)
+        )
+        # We set the adata attribute of the model as this will update self.registry_
+        # and self.adata_manager with the new adata manager
+        self.adata = minified_adata
