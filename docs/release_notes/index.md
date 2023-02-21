@@ -14,6 +14,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Fixed
 
 -   Fixed computation of ELBO during training plan logging when using global kl terms [{pr}`1895`]
+-   Fixed usage of {class}`scvi.train.SaveBestState` callback [{pr}`1913`]
+-   Fixed original seed for jax-based models to work with jax 0.4.4 [{pr}`1907`, {pr}`1909`]
 
 ### New in 0.20.0 (2023-02-01)
 
