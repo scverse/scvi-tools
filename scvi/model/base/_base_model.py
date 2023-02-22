@@ -40,8 +40,7 @@ _SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "mdata", "kwargs"}
 
 
 class BaseModelMetaClass(ABCMeta):
-    """
-    Metaclass for :class:`~scvi.model.base.BaseModelClass`.
+    """Metaclass for :class:`~scvi.model.base.BaseModelClass`.
 
     Constructs model class-specific mappings for :class:`~scvi.data.AnnDataManager` instances.
     ``cls._setup_adata_manager_store`` maps from AnnData object UUIDs to :class:`~scvi.data.AnnDataManager` instances.
@@ -55,10 +54,10 @@ class BaseModelMetaClass(ABCMeta):
     def __init__(cls, name, bases, dct):
         cls._setup_adata_manager_store: Dict[
             str, Type[AnnDataManager]
-        ] = dict()  # Maps adata id to AnnDataManager instances.
+        ] = {}  # Maps adata id to AnnDataManager instances.
         cls._per_instance_manager_store: Dict[
             str, Dict[str, Type[AnnDataManager]]
-        ] = dict()  # Maps model instance id to AnnDataManager mappings.
+        ] = {}  # Maps model instance id to AnnDataManager mappings.
         super().__init__(name, bases, dct)
 
 
@@ -117,8 +116,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         return self._adata_manager
 
     def to_device(self, device: Union[str, int]):
-        """
-        Move model to device.
+        """Move model to device.
 
         Parameters
         ----------
@@ -144,8 +142,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
     @staticmethod
     def _get_setup_method_args(**setup_locals) -> dict:
-        """
-        Returns a dictionary organizing the arguments used to call ``setup_anndata``.
+        """Returns a dictionary organizing the arguments used to call ``setup_anndata``.
 
         Must be called with ``**locals()`` at the start of the ``setup_anndata`` method
         to avoid the inclusion of any extraneous variables.
@@ -158,7 +155,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             method_name = "setup_mudata"
 
         model_name = cls.__name__
-        setup_args = dict()
+        setup_args = {}
         for k, v in setup_locals.items():
             if k not in _SETUP_INPUTS_EXCLUDED_PARAMS:
                 setup_args[k] = v
@@ -172,8 +169,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def _create_modalities_attr_dict(
         modalities: Dict[str, str], setup_method_args: dict
     ) -> attrdict:
-        """
-        Preprocesses a ``modalities`` dictionary used in ``setup_mudata()`` to map modality names.
+        """Preprocesses a ``modalities`` dictionary used in ``setup_mudata()`` to map modality names.
 
         Ensures each field key has a respective modality key, defaulting to ``None``.
         Raises a ``UserWarning`` if extraneous modality mappings are detected.
@@ -198,8 +194,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
     @classmethod
     def register_manager(cls, adata_manager: AnnDataManager):
-        """
-        Registers an :class:`~scvi.data.AnnDataManager` instance with this model class.
+        """Registers an :class:`~scvi.data.AnnDataManager` instance with this model class.
 
         Stores the :class:`~scvi.data.AnnDataManager` reference in a class-specific manager store.
         Intended for use in the ``setup_anndata()`` class method followed up by retrieval of the
@@ -215,14 +210,13 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         cls._setup_adata_manager_store[adata_id] = adata_manager
 
     def _register_manager_for_instance(self, adata_manager: AnnDataManager):
-        """
-        Registers an :class:`~scvi.data.AnnDataManager` instance with this model instance.
+        """Registers an :class:`~scvi.data.AnnDataManager` instance with this model instance.
 
         Creates a model-instance specific mapping in ``cls._per_instance_manager_store`` for this
         :class:`~scvi.data.AnnDataManager` instance.
         """
         if self.id not in self._per_instance_manager_store:
-            self._per_instance_manager_store[self.id] = dict()
+            self._per_instance_manager_store[self.id] = {}
 
         adata_id = adata_manager.adata_uuid
         instance_manager_store = self._per_instance_manager_store[self.id]
@@ -232,8 +226,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def _get_most_recent_anndata_manager(
         cls, adata: AnnOrMuData, required: bool = False
     ) -> Optional[AnnDataManager]:
-        """
-        Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model class.
+        """Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model class.
 
         Checks for the most recent :class:`~scvi.data.AnnDataManager` created for the given AnnData object via
         ``setup_anndata()`` on model initialization. Unlike :meth:`scvi.model.base.BaseModelClass.get_anndata_manager`,
@@ -275,8 +268,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def get_anndata_manager(
         self, adata: AnnOrMuData, required: bool = False
     ) -> Optional[AnnDataManager]:
-        """
-        Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model instance.
+        """Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model instance.
 
         Requires ``self.id`` has been set. Checks for an :class:`~scvi.data.AnnDataManager`
         specific to this model instance.
@@ -327,8 +319,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         adata: AnnOrMuData,
         registry_key: str,
     ) -> np.ndarray:
-        """
-        Returns the object in AnnData associated with the key in the data registry.
+        """Returns the object in AnnData associated with the key in the data registry.
 
         AnnData object should be registered with the model prior to calling this function
         via the ``self._validate_anndata`` method.
@@ -361,8 +352,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         data_loader_class=None,
         **data_loader_kwargs,
     ):
-        """
-        Create a AnnDataLoader object for data iteration.
+        """Create a AnnDataLoader object for data iteration.
 
         Parameters
         ----------
@@ -433,8 +423,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def _check_if_trained(
         self, warn: bool = True, message: str = _UNTRAINED_WARNING_MESSAGE
     ):
-        """
-        Check if the model is trained.
+        """Check if the model is trained.
 
         If not trained and `warn` is True, raise a warning, else raise a RuntimeError.
         """
@@ -495,8 +484,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         return attributes
 
     def _get_init_params(self, locals):
-        """
-        Returns the model init signature with associated passed in values.
+        """Returns the model init signature with associated passed in values.
 
         Ignores the initial AnnData.
         """
@@ -534,8 +522,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         save_anndata: bool = False,
         **anndata_write_kwargs,
     ):
-        """
-        Save the state of the model.
+        """Save the state of the model.
 
         Neither the trainer optimizer state nor the trainer history are saved.
         Model files are not expected to be reproducibly saved and loaded across versions
@@ -590,11 +577,11 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
 
         torch.save(
-            dict(
-                model_state_dict=model_state_dict,
-                var_names=var_names,
-                attr_dict=user_attributes,
-            ),
+            {
+                "model_state_dict": model_state_dict,
+                "var_names": var_names,
+                "attr_dict": user_attributes,
+            },
             model_save_path,
         )
 
@@ -607,8 +594,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):
-        """
-        Instantiate a model from the saved output.
+        """Instantiate a model from the saved output.
 
         Parameters
         ----------
@@ -692,8 +678,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         overwrite: bool = False,
         prefix: Optional[str] = None,
     ) -> None:
-        """
-        Converts a legacy saved model (<v0.15.0) to the updated save format.
+        """Converts a legacy saved model (<v0.15.0) to the updated save format.
 
         Parameters
         ----------
@@ -731,11 +716,11 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
         model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
         torch.save(
-            dict(
-                model_state_dict=model_state_dict,
-                var_names=var_names,
-                attr_dict=attr_dict,
-            ),
+            {
+                "model_state_dict": model_state_dict,
+                "var_names": var_names,
+                "attr_dict": attr_dict,
+            },
             model_save_path,
         )
 
@@ -761,8 +746,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         *args,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Each model class deriving from this class provides parameters to this method
         according to its needs. To operate correctly with the model initialization,
@@ -772,8 +756,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
     @staticmethod
     def view_setup_args(dir_path: str, prefix: Optional[str] = None) -> None:
-        """
-        Print args used to setup a saved model.
+        """Print args used to setup a saved model.
 
         Parameters
         ----------
@@ -787,8 +770,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
     @staticmethod
     def load_registry(dir_path: str, prefix: Optional[str] = None) -> dict:
-        """
-        Return the full registry saved with the model.
+        """Return the full registry saved with the model.
 
         Parameters
         ----------
@@ -815,8 +797,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def view_anndata_setup(
         self, adata: Optional[AnnOrMuData] = None, hide_state_registries: bool = False
     ) -> None:
-        """
-        Print summary of the setup for the initial AnnData or a given AnnData object.
+        """Print summary of the setup for the initial AnnData or a given AnnData object.
 
         Parameters
         ----------
@@ -830,11 +811,11 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             adata = self.adata
         try:
             adata_manager = self.get_anndata_manager(adata, required=True)
-        except ValueError:
+        except ValueError as err:
             raise ValueError(
                 f"Given AnnData not setup with {self.__class__.__name__}. "
                 "Cannot view setup summary."
-            )
+            ) from err
         adata_manager.view_registry(hide_state_registries=hide_state_registries)
 
 
@@ -856,8 +837,7 @@ class BaseMinifiedModeModelClass(BaseModelClass):
         *args,
         **kwargs,
     ):
-        """
-        Minifies the model's adata.
+        """Minifies the model's adata.
 
         Minifies the adata, and registers new anndata fields as required (can be model-specific).
         This also sets the appropriate property on the module to indicate that the adata is minified.

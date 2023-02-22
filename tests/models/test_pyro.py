@@ -9,8 +9,6 @@ from anndata import AnnData
 from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
-from torch import nn
-
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager, synthetic_iid
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
@@ -26,6 +24,7 @@ from scvi.model.base import (
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
 from scvi.train import LowLevelPyroTrainingPlan, PyroTrainingPlan, Trainer
+from torch import nn
 
 
 class BayesianRegressionPyroModel(PyroModule):

@@ -60,7 +60,7 @@ class TangramMapper(JaxBaseModuleClass):
             )
 
     @property
-    def required_rngs(self):  # noqa: D102
+    def required_rngs(self):
         return ("params",)
 
     def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):

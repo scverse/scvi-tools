@@ -15,8 +15,7 @@ from .model_card_template import template
 
 @dataclass
 class HubMetadata:
-    """
-    Encapsulates the required metadata for `scvi-tools` hub models.
+    """Encapsulates the required metadata for `scvi-tools` hub models.
 
     Parameters
     ----------
@@ -45,8 +44,7 @@ class HubMetadata:
         anndata_version: str,
         **kwargs,
     ):
-        """
-        Create a `HubMetadata` object from a local directory.
+        """Create a `HubMetadata` object from a local directory.
 
         Parameters
         ----------
@@ -69,8 +67,7 @@ class HubMetadata:
 
 @dataclass
 class HubModelCardHelper:
-    """
-    A helper for creating a `ModelCard` for `scvi-tools` hub models.
+    """A helper for creating a `ModelCard` for `scvi-tools` hub models.
 
     It is not required to use this class to create a `ModelCard`. But this helps you do so in a way that is
     consistent with most other `scvi-tools` hub models. You can think of this as a template. The actual template
@@ -114,7 +111,9 @@ class HubModelCardHelper:
         class that is not in the `scvi.model` module, for example, if you are using a model class from a custom module.
     description
         A description of the model.
-    references
+
+    References
+    ----------
         A list of references for the model.
     """
 
@@ -148,8 +147,7 @@ class HubModelCardHelper:
         data_is_minified: Optional[bool] = None,
         **kwargs,
     ):
-        """
-        Create a `HubModelCardHelper` object from a local directory.
+        """Create a `HubModelCardHelper` object from a local directory.
 
         Parameters
         ----------

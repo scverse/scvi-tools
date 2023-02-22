@@ -16,8 +16,7 @@ def _load_cellxgene_dataset(
     save_path: str = "data/",
     return_path: bool = False,
 ) -> Union[AnnData, str]:
-    """
-    Loads a file from `cellxgene <https://cellxgene.cziscience.com/>`_ portal.
+    """Loads a file from `cellxgene <https://cellxgene.cziscience.com/>`_ portal.
 
     Parameters
     ----------
@@ -29,6 +28,8 @@ def _load_cellxgene_dataset(
         manual override of the filename to write to.
     save_path
         Location to use when saving/loading the data.
+    return_path
+        If True, returns the path to the downloaded file instead of the AnnData object.
 
     Returns
     -------

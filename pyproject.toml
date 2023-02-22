@@ -158,10 +158,12 @@ ignore = [
     "D203",
     # We want docstrings to start immediately after the opening triple quote
     "D213",
+    # Missing argument description in the docstring TODO: enable
+    "D417",
 ]
 
 [tool.ruff.per-file-ignores]
-"docs/*" = ["I"]
+"docs/*" = ["I", "BLE001"]
 "tests/*" = ["D"]
 "*/__init__.py" = ["F401"]
 

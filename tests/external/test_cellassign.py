@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-
 from scvi.data import synthetic_iid
 from scvi.external import CellAssign
 
