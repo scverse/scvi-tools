@@ -15,9 +15,12 @@ def _generate_synthetic(
     n_batches: int = 2,
     n_labels: int = 3,
     sparse: bool = False,
+    noise_ratio: float = 0.7,
 ) -> AnnData:
     data = np.random.negative_binomial(5, 0.3, size=(batch_size * n_batches, n_genes))
-    mask = np.random.binomial(n=1, p=0.7, size=(batch_size * n_batches, n_genes))
+    mask = np.random.binomial(
+        n=1, p=noise_ratio, size=(batch_size * n_batches, n_genes)
+    )
     data = data * mask  # We put the batch index first
     labels = np.random.randint(0, n_labels, size=(batch_size * n_batches,))
     labels = np.array(["label_%d" % i for i in labels])

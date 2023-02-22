@@ -564,6 +564,7 @@ def synthetic_iid(
     n_batches: Optional[int] = 2,
     n_labels: Optional[int] = 3,
     sparse: bool = False,
+    noise_ratio: float = 0.7,
 ) -> anndata.AnnData:
     """
     Synthetic dataset with ZINB distributed RNA and NB distributed protein.
@@ -585,7 +586,8 @@ def synthetic_iid(
         Number of cell types
     sparse
         Whether to use a sparse matrix
-
+    noise_ratio
+        The expected percentage of zeros artificially added into the data
     Returns
     -------
     AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``),
@@ -604,6 +606,7 @@ def synthetic_iid(
         n_batches=n_batches,
         n_labels=n_labels,
         sparse=sparse,
+        noise_ratio=noise_ratio,
     )
 
 
