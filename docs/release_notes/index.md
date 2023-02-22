@@ -14,6 +14,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Changed
 
 -   Use ruff for fixing and linting {pr}`1921`
+-   Removed .flake8 and .prospector files {pr}`1923`
 
 ### 0.20.1 (2023-02-21)
 
