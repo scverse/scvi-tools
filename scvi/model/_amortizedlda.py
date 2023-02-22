@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
-    """
-    Amortized Latent Dirichlet Allocation :cite:p:`Blei03`.
+    """Amortized Latent Dirichlet Allocation :cite:p:`Blei03`.
 
     Parameters
     ----------
@@ -106,8 +105,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ) -> Optional[AnnData]:
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
@@ -125,8 +123,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         cls.register_manager(adata_manager)
 
     def get_feature_by_topic(self, n_samples=5000) -> pd.DataFrame:
-        """
-        Gets a Monte-Carlo estimate of the expectation of the feature by topic matrix.
+        """Gets a Monte-Carlo estimate of the expectation of the feature by topic matrix.
 
         Parameters
         ----------
@@ -157,8 +154,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         batch_size: Optional[int] = None,
         n_samples: int = 5000,
     ) -> pd.DataFrame:
-        """
-        Converts a count matrix to an inferred topic distribution.
+        """Converts a count matrix to an inferred topic distribution.
 
         Parameters
         ----------
@@ -202,8 +198,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> float:
-        """
-        Return the ELBO for the data.
+        """Return the ELBO for the data.
 
         The ELBO is a lower bound on the log likelihood of the data used for optimization
         of VAEs. Note, this is not the negative ELBO, higher is better.
@@ -240,8 +235,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> float:
-        """
-        Computes approximate perplexity for `adata`.
+        """Computes approximate perplexity for `adata`.
 
         Perplexity is defined as exp(-1 * log-likelihood per count).
 

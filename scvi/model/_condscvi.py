@@ -23,8 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez21`.
+    """Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez21`.
 
     Parameters
     ----------
@@ -97,8 +96,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     def get_vamp_prior(
         self, adata: Optional[AnnData] = None, p: int = 10
     ) -> np.ndarray:
-        r"""
-        Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
+        r"""Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
 
         Parameters
         ----------
@@ -206,8 +204,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using MAP inference.
+        """Trains the model using MAP inference.
 
         Parameters
         ----------
@@ -257,8 +254,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

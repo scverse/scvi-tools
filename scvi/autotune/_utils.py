@@ -2,8 +2,7 @@ import sys
 
 
 def in_notebook() -> bool:
-    """
-    Check if running in a Jupyter notebook or Colab session.
+    """Check if running in a Jupyter notebook or Colab session.
 
     Based on: https://stackoverflow.com/questions/15411967/how-can-i-check-if-code-is-executed-in-the-ipython-notebook
     """

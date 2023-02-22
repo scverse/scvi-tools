@@ -5,10 +5,9 @@ import anndata
 import numpy as np
 import pandas as pd
 import pytest
+import scvi
 from scipy import sparse
 from scipy.sparse.csr import csr_matrix
-
-import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import _constants, synthetic_iid
 from scvi.data.fields import ObsmField, ProteinObsmField

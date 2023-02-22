@@ -42,8 +42,7 @@ class TuneAnalysis:
 
 
 class TunerManager:
-    """
-    Internal manager for validation of inputs from :class:`~scvi.autotune.ModelTuner`.
+    """Internal manager for validation of inputs from :class:`~scvi.autotune.ModelTuner`.
 
     Parameters
     ----------
@@ -79,8 +78,7 @@ class TunerManager:
 
     @staticmethod
     def _get_registry(model_cls: BaseModelClass) -> dict:
-        """
-        Returns the model class's registry of tunable hyperparameters and metrics.
+        """Returns the model class's registry of tunable hyperparameters and metrics.
 
         For a given model class, checks whether a `_tunables` class property has been
         defined. If so, iterates through the attribute to recursively discover tunable
@@ -544,8 +542,7 @@ class TunerManager:
     def _view_registry(
         self, show_additional_info: bool = False, show_resources: bool = False
     ) -> None:
-        """
-        Displays a summary of the model class's registry and available resources.
+        """Displays a summary of the model class's registry and available resources.
 
         Parameters
         ----------

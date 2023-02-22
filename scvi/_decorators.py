@@ -3,8 +3,7 @@ from typing import Callable, List, Union
 
 
 class classproperty:
-    """
-    Read-only class property decorator.
+    """Read-only class property decorator.
 
     Source: https://stackoverflow.com/questions/5189699/how-to-make-a-class-property
     """
@@ -17,8 +16,7 @@ class classproperty:
 
 
 def dependencies(packages: Union[str, List[str]]) -> Callable:
-    """
-    Decorator to check for dependencies.
+    """Decorator to check for dependencies.
 
     Parameters
     ----------
@@ -36,10 +34,10 @@ def dependencies(packages: Union[str, List[str]]) -> Callable:
 
                 for package in packages:
                     importlib.import_module(package)
-            except ImportError:
+            except ImportError as err:
                 raise ImportError(
                     f"Please install {packages} to use this functionality."
-                )
+                ) from err
             return fn(*args, **kwargs)
 
         return wrapper

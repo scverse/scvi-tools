@@ -4,8 +4,7 @@ from scvi.nn import FCLayers
 
 
 class Classifier(nn.Module):
-    """
-    Basic fully-connected NN classifier.
+    """Basic fully-connected NN classifier.
 
     Parameters
     ----------

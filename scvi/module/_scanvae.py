@@ -17,8 +17,7 @@ from ._vae import VAE
 
 
 class SCANVAE(VAE):
-    """
-    Single-cell annotation using variational inference.
+    """Single-cell annotation using variational inference.
 
     This is an implementation of the scANVI model described in :cite:p:`Xu21`,
     inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
@@ -112,7 +111,7 @@ class SCANVAE(VAE):
             **vae_kwargs,
         )
 
-        classifier_parameters = classifier_parameters or dict()
+        classifier_parameters = classifier_parameters or {}
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
@@ -202,7 +201,7 @@ class SCANVAE(VAE):
         if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
-            categorical_input = tuple()
+            categorical_input = ()
 
         qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
         # We classify using the inferred mean parameter of z_1 in the latent space
@@ -222,7 +221,7 @@ class SCANVAE(VAE):
         return w_y
 
     @auto_move_data
-    def classification_loss(self, labelled_dataset):  # noqa: D102
+    def classification_loss(self, labelled_dataset):
         x = labelled_dataset[REGISTRY_KEYS.X_KEY]
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]

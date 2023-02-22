@@ -8,8 +8,7 @@ from torch.nn import Module
 
 
 def auto_move_data(fn: Callable) -> Callable:
-    """
-    Decorator for :class:`~torch.nn.Module` methods to move data to correct device.
+    """Decorator for :class:`~torch.nn.Module` methods to move data to correct device.
 
     Input arguments are moved automatically to the correct device.
     It has no effect if applied to a method of an object that is not an instance of
@@ -45,8 +44,7 @@ def auto_move_data(fn: Callable) -> Callable:
 
 
 def _move_data_to_device(batch: Any, device: torch.device):
-    """
-    Transfers a collection of data to the given device.
+    """Transfers a collection of data to the given device.
 
     Any object that defines a method ``to(device)`` will be moved and all other objects
     in the collection will be left untouched.
@@ -65,7 +63,7 @@ def _move_data_to_device(batch: Any, device: torch.device):
     """
 
     def batch_to(data):
-        kwargs = dict(non_blocking=True) if isinstance(data, torch.Tensor) else {}
+        kwargs = {"non_blocking": True} if isinstance(data, torch.Tensor) else {}
         return data.to(device, **kwargs)
 
     return _apply_to_collection(batch, dtype=torch.Tensor, function=batch_to)
@@ -78,8 +76,7 @@ def _apply_to_collection(
     *args,
     **kwargs,
 ) -> Any:
-    """
-    Recursively applies a function to all elements of a certain dtype.
+    """Recursively applies a function to all elements of a certain dtype.
 
     Parameters
     ----------
@@ -89,6 +86,10 @@ def _apply_to_collection(
         The given function will be applied to all elements of this dtype.
     function
         The function to apply.
+    *args
+        Positional arguments to be passed to the function.
+    **kwargs
+        Keyword arguments to be passed to the function.
 
     Returns
     -------

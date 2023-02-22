@@ -17,7 +17,8 @@
                 "ms-python.python",
                 "eamodio.gitlens",
                 "vscode-icons-team.vscode-icons",
-                "ms-toolsai.jupyter"
+                "ms-toolsai.jupyter",
+                "charliermarsh.ruf"
             ]
         }
     },

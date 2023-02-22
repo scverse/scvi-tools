@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
 
@@ -70,8 +69,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using MAP inference.
+        """Trains the model using MAP inference.
 
         Parameters
         ----------
@@ -121,8 +119,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
@@ -142,8 +139,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
 
 
 class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
 
@@ -212,8 +208,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **model_kwargs,
     ):
-        """
-        Alternate constructor for exploiting a pre-trained model on RNA-seq data.
+        """Alternate constructor for exploiting a pre-trained model on RNA-seq data.
 
         Parameters
         ----------
@@ -241,8 +236,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         )
 
     def get_proportions(self, keep_noise=False) -> pd.DataFrame:
-        """
-        Returns the estimated cell type proportion for the spatial data.
+        """Returns the estimated cell type proportion for the spatial data.
 
         Shape is n_cells x n_labels OR n_cells x (n_labels + 1) if keep_noise
 
@@ -266,8 +260,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         y: np.ndarray,
     ) -> np.ndarray:
-        r"""
-        Calculate the cell type specific expression.
+        r"""Calculate the cell type specific expression.
 
         Parameters
         ----------
@@ -295,8 +288,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using MAP inference.
+        """Trains the model using MAP inference.
 
         Parameters
         ----------
@@ -340,8 +332,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

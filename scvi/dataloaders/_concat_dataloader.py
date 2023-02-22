@@ -10,8 +10,7 @@ from ._ann_dataloader import AnnDataLoader
 
 
 class ConcatDataLoader(DataLoader):
-    """
-    DataLoader that supports a list of list of indices to load.
+    """DataLoader that supports a list of list of indices to load.
 
     Parameters
     ----------
@@ -62,8 +61,7 @@ class ConcatDataLoader(DataLoader):
         return len(self.largest_dl)
 
     def __iter__(self):
-        """
-        Iter method for concat data loader.
+        """Iter method for concat data loader.
 
         Will iter over the dataloader with the most data while cycling through
         the data in the other dataloaders. The order of data in returned iter_list
