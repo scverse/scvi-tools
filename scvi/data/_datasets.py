@@ -29,8 +29,7 @@ def pbmc_dataset(
     save_path: str = "data/",
     remove_extracted_data: bool = True,
 ) -> anndata.AnnData:
-    """
-    Loads pbmc dataset.
+    """Loads pbmc dataset.
 
     We considered scRNA-seq data from two batches of peripheral blood mononuclear cells (PBMCs) from a healthy donor
     (4K PBMCs and 8K PBMCs). We derived quality control metrics using the cellrangerRkit R package (v. 1.1.0).
@@ -70,8 +69,7 @@ def dataset_10x(
     remove_extracted_data: bool = False,
     **scanpy_read_10x_kwargs,
 ) -> anndata.AnnData:
-    """
-    Loads a file from `10x <http://cf.10xgenomics.com/>`_ website.
+    """Loads a file from `10x <http://cf.10xgenomics.com/>`_ website.
 
     Parameters
     ----------
@@ -125,8 +123,7 @@ def cellxgene(
     save_path: str = "data/",
     return_path: bool = False,
 ) -> Union[anndata.AnnData, str]:
-    """
-    Loads a file from `cellxgene <https://cellxgene.cziscience.com/>`_ portal.
+    """Loads a file from `cellxgene <https://cellxgene.cziscience.com/>`_ portal.
 
     Parameters
     ----------
@@ -136,6 +133,8 @@ def cellxgene(
         manual override of the filename to write to.
     save_path
         Location to use when saving/loading the data.
+    return_path
+        Whether to return the path to the downloaded file.
 
     Returns
     -------
@@ -153,8 +152,7 @@ def smfish(
     save_path: str = "data/",
     use_high_level_cluster: bool = True,
 ) -> anndata.AnnData:
-    """
-    Loads osmFISH data of mouse cortex cells from the Linarsson lab.
+    """Loads osmFISH data of mouse cortex cells from the Linarsson lab.
 
     Parameters
     ----------
@@ -185,8 +183,7 @@ def seqfishplus(
     save_path: str = "data/",
     tissue_region="subventricular cortex",
 ) -> anndata.AnnData:
-    """
-    seqFISH+ of cortex, subventricular zone and olfactory bulb of mouse brain.
+    """seqFISH+ of cortex, subventricular zone and olfactory bulb of mouse brain.
 
     seqFISH+ can image mRNAs for 10,000 genes in single cells—with high accuracy and
     sub-diffraction-limit resolution—in the cortex, subventricular zone
@@ -218,8 +215,7 @@ def seqfishplus(
 def seqfish(
     save_path: str = "data/",
 ) -> anndata.AnnData:
-    """
-    Seqfish dataset.
+    """Seqfish dataset.
 
     Parameters
     ----------
@@ -242,8 +238,7 @@ def purified_pbmc_dataset(
     save_path: str = "data/",
     subset_datasets: Optional[List[str]] = None,
 ) -> anndata.AnnData:
-    """
-    Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
+    """Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
 
     Parameters
     ----------
@@ -271,8 +266,7 @@ def purified_pbmc_dataset(
 
 
 def prefrontalcortex_starmap(save_path: str = "data/") -> anndata.AnnData:
-    """
-    Loads a starMAP dataset of mouse pre-frontal cortex (Wang et al., 2018).
+    """Loads a starMAP dataset of mouse pre-frontal cortex (Wang et al., 2018).
 
     3,704 cells and 166 genes.
 
@@ -296,8 +290,7 @@ def prefrontalcortex_starmap(save_path: str = "data/") -> anndata.AnnData:
 
 
 def frontalcortex_dropseq(save_path: str = "data/") -> anndata.AnnData:
-    """
-    Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018).
+    """Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018).
 
     Load the 71639 annotated cells located in the frontal cortex of adult mouses among the 690,000 cells
     studied by (Saunders et al., 2018) using the Drop-seq method. We have a 71639*7611 gene expression matrix
@@ -322,8 +315,7 @@ def frontalcortex_dropseq(save_path: str = "data/") -> anndata.AnnData:
 
 
 def annotation_simulation(name: str, save_path: str = "data/") -> anndata.AnnData:
-    """
-    Simulated datasets for scANVI tutorials.
+    """Simulated datasets for scANVI tutorials.
 
     Parameters
     ----------
@@ -346,8 +338,7 @@ def annotation_simulation(name: str, save_path: str = "data/") -> anndata.AnnDat
 
 
 def retina(save_path: str = "data/") -> anndata.AnnData:
-    """
-    Loads retina dataset.
+    """Loads retina dataset.
 
     The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
     13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author.
@@ -370,8 +361,7 @@ def retina(save_path: str = "data/") -> anndata.AnnData:
 
 
 def mouse_ob_dataset(save_path: str = "data/") -> anndata.AnnData:
-    """
-    Loads mouse ob dataset.
+    """Loads mouse ob dataset.
 
     Parameters
     ----------
@@ -391,8 +381,7 @@ def mouse_ob_dataset(save_path: str = "data/") -> anndata.AnnData:
 
 
 def breast_cancer_dataset(save_path: str = "data/") -> anndata.AnnData:
-    """
-    Loads breast cancer dataset.
+    """Loads breast cancer dataset.
 
     Parameters
     ----------
@@ -415,8 +404,7 @@ def pbmcs_10x_cite_seq(
     save_path: str = "data/",
     protein_join: str = "inner",
 ) -> anndata.AnnData:
-    """
-    Filtered PBMCs from 10x Genomics profiled with RNA and protein.
+    """Filtered PBMCs from 10x Genomics profiled with RNA and protein.
 
     Datasets were filtered for doublets and other outliers as in
     https://github.com/YosefLab/totalVI_reproducibility/blob/master/data/data_filtering_scripts/pbmc_10k/pbmc_10k.py
@@ -451,8 +439,7 @@ def spleen_lymph_cite_seq(
     protein_join: str = "inner",
     remove_outliers: bool = True,
 ) -> anndata.AnnData:
-    """
-    Immune cells from the murine spleen and lymph nodes :cite:p:`GayosoSteier21`.
+    """Immune cells from the murine spleen and lymph nodes :cite:p:`GayosoSteier21`.
 
     This dataset was used throughout the totalVI manuscript, and named SLN-all.
 
@@ -491,8 +478,7 @@ def brainlarge_dataset(
     n_genes_to_keep: int = 720,
     loading_batch_size: int = 100000,
 ) -> anndata.AnnData:
-    """
-    Loads brain-large dataset.
+    """Loads brain-large dataset.
 
     This dataset contains 1.3 million brain cells from
     `10x Genomics <https://support.10xgenomics.com/single-cell-gene-expression/datasets>`_.
@@ -532,8 +518,7 @@ def brainlarge_dataset(
 
 
 def cortex(save_path: str = "data/") -> anndata.AnnData:
-    """
-    Loads cortex dataset.
+    """Loads cortex dataset.
 
     The
     `Mouse Cortex Cells dataset <https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt>`_
@@ -566,8 +551,7 @@ def synthetic_iid(
     sparse: bool = False,
     noise_ratio: float = 0.7,
 ) -> anndata.AnnData:
-    """
-    Synthetic dataset with ZINB distributed RNA and NB distributed protein.
+    """Synthetic dataset with ZINB distributed RNA and NB distributed protein.
 
     This dataset is just for testing purposed and not meant for modeling or research.
     Each value is independently and identically distributed.
@@ -614,8 +598,7 @@ def heart_cell_atlas_subsampled(
     save_path: str = "data/",
     remove_nuisance_clusters: bool = True,
 ) -> anndata.AnnData:
-    """
-    Combined single cell and single nuclei RNA-Seq data of 485K cardiac cells with annotations.
+    """Combined single cell and single nuclei RNA-Seq data of 485K cardiac cells with annotations.
 
     Dataset was filtered down randomly to 20k cells using :meth:`~scanpy.pp.subsample`. The original
     data can be downloaded from https://www.heartcellatlas.org/#DataSources.
@@ -657,8 +640,7 @@ def pbmc_seurat_v4_cite_seq(
     aggregate_proteins: bool = True,
     mask_protein_batches: int = 0,
 ) -> anndata.AnnData:
-    """
-    Dataset of PBMCs measured with CITE-seq (161764 cells).
+    """Dataset of PBMCs measured with CITE-seq (161764 cells).
 
     This dataset was first presented in the Seurat v4 paper:
 
@@ -679,7 +661,7 @@ def pbmc_seurat_v4_cite_seq(
     aggregate_proteins
         Antibodies targeting the same surface protein are added together,
         and isotype controls are removed. See the source code for full details.
-    mask_protein_subset
+    mask_protein_batches
         Set proteins in this many batches to be all zero (considered missing
         for :class:`~scvi.model.TOTALVI`.). This improves transfer learning
         with this dataset.

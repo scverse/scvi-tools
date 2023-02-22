@@ -35,8 +35,7 @@ class AnnTorchDataset(Dataset):
         return self.adata_manager.data_registry.keys()
 
     def setup_data_attr(self):
-        """
-        Sets data attribute.
+        """Sets data attribute.
 
         Reduces number of times anndata needs to be accessed
         """
@@ -46,8 +45,7 @@ class AnnTorchDataset(Dataset):
         }
 
     def setup_getitem(self):
-        """
-        Sets up the __getitem__ function used by Pytorch.
+        """Sets up the __getitem__ function used by Pytorch.
 
         By default, getitem will return every single item registered in the scvi data registry
         and will attempt to infer the correct type. np.float32 for continuous values, otherwise np.int64.
@@ -128,7 +126,7 @@ class AnnTorchDataset(Dataset):
 
         return data_numpy
 
-    def get_data(self, scvi_data_key):  # noqa: D102
+    def get_data(self, scvi_data_key):
         tensors = self.__getitem__(idx=list(range(self.__len__())))
         return tensors[scvi_data_key]
 

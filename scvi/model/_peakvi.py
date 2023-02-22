@@ -33,8 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Peak Variational Inference :cite:p:`Ashuach22`.
+    """Peak Variational Inference :cite:p:`Ashuach22`.
 
     Parameters
     ----------
@@ -165,8 +164,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using amortized variational inference.
+        """Trains the model using amortized variational inference.
 
         Parameters
         ----------
@@ -211,14 +209,14 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        update_dict = dict(
-            lr=lr,
-            weight_decay=weight_decay,
-            eps=eps,
-            n_epochs_kl_warmup=n_epochs_kl_warmup,
-            n_steps_kl_warmup=n_steps_kl_warmup,
-            optimizer="AdamW",
-        )
+        update_dict = {
+            "lr": lr,
+            "weight_decay": weight_decay,
+            "eps": eps,
+            "n_epochs_kl_warmup": n_epochs_kl_warmup,
+            "n_steps_kl_warmup": n_steps_kl_warmup,
+            "optimizer": "AdamW",
+        }
         if plan_kwargs is not None:
             plan_kwargs.update(update_dict)
         else:
@@ -251,8 +249,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         indices: Sequence[int] = None,
         batch_size: int = 128,
     ) -> Dict[str, np.ndarray]:
-        """
-        Return library size factors.
+        """Return library size factors.
 
         Parameters
         ----------
@@ -303,8 +300,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         batch_size: int = 128,
         return_numpy: bool = False,
     ) -> Union[pd.DataFrame, np.ndarray, csr_matrix]:
-        """
-        Impute the full accessibility matrix.
+        """Impute the full accessibility matrix.
 
         Returns a matrix of accessibility probabilities for each cell and genomic region in the input
         (for return matrix A, A[i,j] is the probability that region j is accessible in cell i).
@@ -369,8 +365,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         imputed = []
         for tensors in post:
-            get_generative_input_kwargs = dict(transform_batch=transform_batch[0])
-            generative_kwargs = dict(use_z_mean=use_z_mean)
+            get_generative_input_kwargs = {"transform_batch": transform_batch[0]}
+            generative_kwargs = {"use_z_mean": use_z_mean}
             inference_outputs, generative_outputs = self.module.forward(
                 tensors=tensors,
                 get_generative_input_kwargs=get_generative_input_kwargs,
@@ -433,7 +429,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\
+        r"""\.
 
         A unified method for differential accessibility analysis.
 
@@ -543,8 +539,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

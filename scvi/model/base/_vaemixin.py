@@ -23,8 +23,7 @@ class VAEMixin:
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> float:
-        """
-        Return the ELBO for the data.
+        """Return the ELBO for the data.
 
         The ELBO is a lower bound on the log likelihood of the data used for optimization
         of VAEs. Note, this is not the negative ELBO, higher is better.
@@ -55,8 +54,7 @@ class VAEMixin:
         n_mc_samples: int = 1000,
         batch_size: Optional[int] = None,
     ) -> float:
-        """
-        Return the marginal LL for the data.
+        """Return the marginal LL for the data.
 
         The computation here is a biased estimator of the marginal log likelihood of the data.
         Note, this is not the negative log likelihood, higher is better.
@@ -99,8 +97,7 @@ class VAEMixin:
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> float:
-        r"""
-        Return the reconstruction error for the data.
+        r"""Return the reconstruction error for the data.
 
         This is typically written as :math:`p(x \mid z)`, the likelihood term given one posterior sample.
         Note, this is not the negative likelihood, higher is better.
@@ -132,8 +129,7 @@ class VAEMixin:
         batch_size: Optional[int] = None,
         return_dist: bool = False,
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-        """
-        Return the latent representation for each cell.
+        """Return the latent representation for each cell.
 
         This is denoted as :math:`z_n` in our manuscripts.
 

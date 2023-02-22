@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Linearly-decoded VAE :cite:p:`Svensson20`.
+    """Linearly-decoded VAE :cite:p:`Svensson20`.
 
     Parameters
     ----------
@@ -120,8 +119,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         self.init_params_ = self._get_init_params(locals())
 
     def get_loadings(self) -> pd.DataFrame:
-        """
-        Extract per-gene weights in the linear decoder.
+        """Extract per-gene weights in the linear decoder.
 
         Shape is genes by `n_latent`.
 
@@ -144,8 +142,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

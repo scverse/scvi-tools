@@ -17,8 +17,7 @@ torch.backends.cudnn.benchmark = True
 
 
 class JVAE(BaseModuleClass):
-    """
-    Joint variational auto-encoder for imputing missing genes in spatial data.
+    """Joint variational auto-encoder for imputing missing genes in spatial data.
 
     Implementation of gimVI :cite:p:`Lopez19`.
 
@@ -174,8 +173,7 @@ class JVAE(BaseModuleClass):
     def sample_from_posterior_z(
         self, x: torch.Tensor, mode: int = None, deterministic: bool = False
     ) -> torch.Tensor:
-        """
-        Sample tensor of latent values from the posterior.
+        """Sample tensor of latent values from the posterior.
 
         Parameters
         ----------
@@ -206,8 +204,7 @@ class JVAE(BaseModuleClass):
     def sample_from_posterior_l(
         self, x: torch.Tensor, mode: int = None, deterministic: bool = False
     ) -> torch.Tensor:
-        """
-        Sample the tensor of library sizes from the posterior.
+        """Sample the tensor of library sizes from the posterior.
 
         Parameters
         ----------
@@ -240,8 +237,7 @@ class JVAE(BaseModuleClass):
         deterministic: bool = False,
         decode_mode: Optional[int] = None,
     ) -> torch.Tensor:
-        """
-        Return the tensor of predicted frequencies of expression.
+        """Return the tensor of predicted frequencies of expression.
 
         Parameters
         ----------
@@ -313,8 +309,7 @@ class JVAE(BaseModuleClass):
         deterministic: bool = False,
         decode_mode: int = None,
     ) -> torch.Tensor:
-        """
-        Returns the tensor of scaled frequencies of expression.
+        """Returns the tensor of scaled frequencies of expression.
 
         Parameters
         ----------
@@ -375,7 +370,7 @@ class JVAE(BaseModuleClass):
 
     def _get_inference_input(self, tensors):
         """Get the input for the inference model."""
-        return dict(x=tensors[REGISTRY_KEYS.X_KEY])
+        return {"x": tensors[REGISTRY_KEYS.X_KEY]}
 
     def _get_generative_input(self, tensors, inference_outputs):
         """Get the input for the generative model."""
@@ -383,7 +378,7 @@ class JVAE(BaseModuleClass):
         library = inference_outputs["library"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
-        return dict(z=z, library=library, batch_index=batch_index, y=y)
+        return {"z": z, "library": library, "batch_index": batch_index, "y": y}
 
     @auto_move_data
     def inference(self, x: torch.Tensor, mode: Optional[int] = None) -> dict:
@@ -399,7 +394,7 @@ class JVAE(BaseModuleClass):
         else:
             library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
 
-        return dict(qz=qz, z=z, ql=ql, library=library)
+        return {"qz": qz, "z": z, "ql": ql, "library": library}
 
     @auto_move_data
     def generative(
@@ -427,9 +422,12 @@ class JVAE(BaseModuleClass):
         ).view(-1, 1)
         px_rate = px_scale * torch.exp(library)
 
-        return dict(
-            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
-        )
+        return {
+            "px_scale": px_scale,
+            "px_r": px_r,
+            "px_rate": px_rate,
+            "px_dropout": px_dropout,
+        }
 
     def loss(
         self,
@@ -439,8 +437,7 @@ class JVAE(BaseModuleClass):
         mode: Optional[int] = None,
         kl_weight=1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Return the reconstruction loss and the Kullback divergences.
+        """Return the reconstruction loss and the Kullback divergences.
 
         Parameters
         ----------

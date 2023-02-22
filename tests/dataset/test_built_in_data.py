@@ -3,7 +3,6 @@ from unittest import TestCase
 
 import anndata
 import pytest
-
 import scvi
 
 from .utils import unsupervised_training_one_epoch

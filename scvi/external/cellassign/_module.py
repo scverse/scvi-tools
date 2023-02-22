@@ -15,8 +15,7 @@ B = 10
 
 
 class CellAssignModule(BaseModuleClass):
-    """
-    Model for CellAssign.
+    """Model for CellAssign.
 
     Parameters
     ----------
@@ -129,11 +128,15 @@ class CellAssignModule(BaseModuleClass):
 
         design_matrix = torch.cat(to_cat, dim=1) if len(to_cat) > 0 else None
 
-        input_dict = dict(x=x, size_factor=size_factor, design_matrix=design_matrix)
+        input_dict = {
+            "x": x,
+            "size_factor": size_factor,
+            "design_matrix": design_matrix,
+        }
         return input_dict
 
     @auto_move_data
-    def inference(self):  # noqa: D102
+    def inference(self):
         return {}
 
     @auto_move_data
@@ -194,13 +197,13 @@ class CellAssignModule(BaseModuleClass):
         )
         gamma = torch.exp(p_x_c - normalizer_over_c)  # (n, c)
 
-        return dict(
-            mu=mu_ngc,
-            phi=phi,
-            gamma=gamma,
-            p_x_c=p_x_c,
-            s=size_factor,
-        )
+        return {
+            "mu": mu_ngc,
+            "phi": phi,
+            "gamma": gamma,
+            "p_x_c": p_x_c,
+            "s": size_factor,
+        }
 
     def loss(
         self,

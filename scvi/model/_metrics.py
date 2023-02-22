@@ -11,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def nearest_neighbor_overlap(x1, x2, k=100):
-    """
-    Compute the overlap between the k-nearest neighbor graph of x1 and x2.
+    """Compute the overlap between the k-nearest neighbor graph of x1 and x2.
 
     Using Spearman correlation of the adjacency matrices.
     Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor

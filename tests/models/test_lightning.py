@@ -1,6 +1,5 @@
-import torch
-
 import scvi
+import torch
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
 from scvi.train._callbacks import SaveBestState

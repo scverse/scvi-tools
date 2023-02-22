@@ -66,8 +66,7 @@ def _set_data_in_registry(
     attr_name: str,
     attr_key: Optional[str],
 ):
-    """
-    Sets the data in the AnnData object according to the attr_name and attr_key.
+    """Sets the data in the AnnData object according to the attr_name and attr_key.
 
     Note: This is a dangerous method and will change the underlying data of the user's anndata
     Currently used to make the user's anndata C_CONTIGUOUS and csr if it is dense numpy
@@ -99,8 +98,7 @@ def _set_data_in_registry(
 def _verify_and_correct_data_format(
     adata: AnnData, attr_name: str, attr_key: Optional[str]
 ):
-    """
-    Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
+    """Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
 
     Parameters
     ----------
@@ -146,8 +144,7 @@ def _make_column_categorical(
     alternate_column_key: str,
     categorical_dtype: Optional[Union[str, CategoricalDtype]] = None,
 ):
-    """
-    Makes the data in column_key in DataFrame all categorical.
+    """Makes the data in column_key in DataFrame all categorical.
 
     Categorizes df[column_key], then saves category codes to
     df[alternate_column_key] and returns the category mappings.
@@ -182,8 +179,7 @@ def _make_column_categorical(
 
 
 def _assign_adata_uuid(adata: AnnOrMuData, overwrite: bool = False) -> None:
-    """
-    Assigns a UUID unique to the AnnData object.
+    """Assigns a UUID unique to the AnnData object.
 
     If already present, the UUID is left alone, unless ``overwrite == True``.
     """

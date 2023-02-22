@@ -5,7 +5,6 @@ import mudata
 import numpy as np
 import pandas as pd
 import pytest
-
 from scvi import REGISTRY_KEYS
 from scvi.data import synthetic_iid
 

@@ -1,7 +1,6 @@
 import os
 
 import pytest
-
 import scvi
 from scvi.hub import HubMetadata, HubModelCardHelper
 
