@@ -188,8 +188,7 @@ class _StochasticShift(nn.Module):
 
 
 class ScBassetModule(BaseModuleClass):
-    """
-    PyTorch implementation of ScBasset :cite:p:`Yuan2022`
+    """PyTorch implementation of ScBasset :cite:p:`Yuan2022`.
 
     Original implementation in Keras: https://github.com/calico/scBasset
 
@@ -286,7 +285,7 @@ class ScBassetModule(BaseModuleClass):
     def _get_inference_input(self, tensors: Dict[str, torch.Tensor]):
         dna_code = tensors[REGISTRY_KEYS.DNA_CODE_KEY]
 
-        input_dict = dict(dna_code=dna_code)
+        input_dict = {"dna_code": dna_code}
         return input_dict
 
     @auto_move_data
@@ -313,7 +312,7 @@ class ScBassetModule(BaseModuleClass):
         inference_outputs: Dict[str, torch.Tensor],
     ):
         region_embedding = inference_outputs["region_embedding"]
-        input_dict = dict(region_embedding=region_embedding)
+        input_dict = {"region_embedding": region_embedding}
 
         return input_dict
 

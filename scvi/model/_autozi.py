@@ -23,8 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Automatic identification of ZI genes :cite:p:`Clivio19`.
+    """Automatic identification of ZI genes :cite:p:`Clivio19`.
 
     Parameters
     ----------
@@ -167,8 +166,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_mc_samples: int = 1000,
         batch_size: Optional[int] = None,
     ) -> float:
-        """
-        Return the marginal LL for the data.
+        """Return the marginal LL for the data.
 
         The computation here is a biased estimator of the marginal log likelihood of the data.
         Note, this is not the negative log likelihood, higher is better.
@@ -276,8 +274,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

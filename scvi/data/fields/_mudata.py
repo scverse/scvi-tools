@@ -10,8 +10,7 @@ from ._base_field import AnnDataField, BaseAnnDataField
 
 
 class BaseMuDataWrapperClass(BaseAnnDataField):
-    """
-    A wrapper class that adds MuData support for an AnnDataField.
+    """A wrapper class that adds MuData support for an AnnDataField.
 
     The wrapper class makes calls to the ``self.adata_field`` instance using the appropriate
     modality and allows for manipulation at the MuData object level.
@@ -61,7 +60,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         return self.adata_field.attr_key
 
     @property
-    def is_empty(self) -> bool:  # noqa: D102
+    def is_empty(self) -> bool:
         return self.adata_field.is_empty
 
     def get_modality(self, mdata: MuData) -> AnnOrMuData:
@@ -83,8 +82,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         return self.adata_field.validate_field(bdata)
 
     def preregister(self, mdata: MuData) -> None:
-        """
-        Function that is called prior to registering fields.
+        """Function that is called prior to registering fields.
 
         Function that is be called at the beginning of :meth:`~scvi.data.fields.BaseMuDataWrapperClass.register_field`
         and :meth:`~scvi.data.fields.BaseMuDataWrapperClass.transfer_field`.
@@ -118,8 +116,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
 def MuDataWrapper(
     adata_field_cls: AnnDataField, preregister_fn: Optional[Callable] = None
 ) -> AnnDataField:
-    """
-    Wraps an AnnDataField with :class:`~scvi.data.fields.BaseMuDataWrapperClass`.
+    """Wraps an AnnDataField with :class:`~scvi.data.fields.BaseMuDataWrapperClass`.
 
     Parameters
     ----------

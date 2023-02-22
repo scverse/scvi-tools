@@ -18,8 +18,7 @@ def parse_use_gpu_arg(
     use_gpu: Optional[Union[str, int, bool]] = None,
     return_device=True,
 ):
-    """
-    Parses the use_gpu arg in codebase.
+    """Parses the use_gpu arg in codebase.
 
     Returned gpus are is compatible with PytorchLightning's gpus arg.
     If return_device is True, will also return the device.
@@ -83,8 +82,7 @@ def scrna_raw_counts_properties(
     idx2: Union[List[int], np.ndarray],
     var_idx: Optional[Union[List[int], np.ndarray]] = None,
 ) -> Dict[str, np.ndarray]:
-    """
-    Computes and returns some statistics on the raw counts of two sub-populations.
+    """Computes and returns some statistics on the raw counts of two sub-populations.
 
     Parameters
     ----------
@@ -134,14 +132,14 @@ def scrna_raw_counts_properties(
     norm_mean1 = np.asarray(norm_data1.mean(axis=0)).ravel()
     norm_mean2 = np.asarray(norm_data2.mean(axis=0)).ravel()
 
-    properties = dict(
-        raw_mean1=mean1,
-        raw_mean2=mean2,
-        non_zeros_proportion1=nonz1,
-        non_zeros_proportion2=nonz2,
-        raw_normalized_mean1=norm_mean1,
-        raw_normalized_mean2=norm_mean2,
-    )
+    properties = {
+        "raw_mean1": mean1,
+        "raw_mean2": mean2,
+        "non_zeros_proportion1": nonz1,
+        "non_zeros_proportion2": nonz2,
+        "raw_normalized_mean1": norm_mean1,
+        "raw_normalized_mean2": norm_mean2,
+    }
     return properties
 
 
@@ -150,8 +148,7 @@ def cite_seq_raw_counts_properties(
     idx1: Union[List[int], np.ndarray],
     idx2: Union[List[int], np.ndarray],
 ) -> Dict[str, np.ndarray]:
-    """
-    Computes and returns some statistics on the raw counts of two sub-populations.
+    """Computes and returns some statistics on the raw counts of two sub-populations.
 
     Parameters
     ----------
@@ -177,14 +174,18 @@ def cite_seq_raw_counts_properties(
     mean2_pro = np.asarray(protein_exp[idx2].mean(0))
     nonz1_pro = np.asarray((protein_exp[idx1] > 0).mean(0))
     nonz2_pro = np.asarray((protein_exp[idx2] > 0).mean(0))
-    properties = dict(
-        raw_mean1=np.concatenate([gp["raw_mean1"], mean1_pro]),
-        raw_mean2=np.concatenate([gp["raw_mean2"], mean2_pro]),
-        non_zeros_proportion1=np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
-        non_zeros_proportion2=np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
-        raw_normalized_mean1=np.concatenate([gp["raw_normalized_mean1"], nan]),
-        raw_normalized_mean2=np.concatenate([gp["raw_normalized_mean2"], nan]),
-    )
+    properties = {
+        "raw_mean1": np.concatenate([gp["raw_mean1"], mean1_pro]),
+        "raw_mean2": np.concatenate([gp["raw_mean2"], mean2_pro]),
+        "non_zeros_proportion1": np.concatenate(
+            [gp["non_zeros_proportion1"], nonz1_pro]
+        ),
+        "non_zeros_proportion2": np.concatenate(
+            [gp["non_zeros_proportion2"], nonz2_pro]
+        ),
+        "raw_normalized_mean1": np.concatenate([gp["raw_normalized_mean1"], nan]),
+        "raw_normalized_mean2": np.concatenate([gp["raw_normalized_mean2"], nan]),
+    }
 
     return properties
 
@@ -195,8 +196,7 @@ def scatac_raw_counts_properties(
     idx2: Union[List[int], np.ndarray],
     var_idx: Optional[Union[List[int], np.ndarray]] = None,
 ) -> Dict[str, np.ndarray]:
-    """
-    Computes and returns some statistics on the raw counts of two sub-populations.
+    """Computes and returns some statistics on the raw counts of two sub-populations.
 
     Parameters
     ----------
@@ -222,7 +222,7 @@ def scatac_raw_counts_properties(
         data2 = data2[:, var_idx]
     mean1 = np.asarray((data1 > 0).mean(axis=0)).ravel()
     mean2 = np.asarray((data2 > 0).mean(axis=0)).ravel()
-    properties = dict(emp_mean1=mean1, emp_mean2=mean2, emp_effect=(mean1 - mean2))
+    properties = {"emp_mean1": mean1, "emp_mean2": mean2, "emp_effect": (mean1 - mean2)}
     return properties
 
 
@@ -250,8 +250,7 @@ def _get_batch_code_from_category(
 def _init_library_size(
     adata_manager: AnnDataManager, n_batch: dict
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Computes and returns library size.
+    """Computes and returns library size.
 
     Parameters
     ----------

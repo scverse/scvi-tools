@@ -3,7 +3,6 @@ from typing import List, Optional
 import torch
 from anndata import AnnData
 from mudata import MuData
-
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY

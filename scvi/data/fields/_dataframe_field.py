@@ -16,8 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseDataFrameField(BaseAnnDataField):
-    """
-    An abstract AnnDataField for .obs attributes in the AnnData data structure.
+    """An abstract AnnDataField for .obs attributes in the AnnData data structure.
 
     Parameters
     ----------
@@ -55,25 +54,24 @@ class BaseDataFrameField(BaseAnnDataField):
         self._is_empty = attr_key is None
 
     @property
-    def registry_key(self) -> str:  # noqa: D102
+    def registry_key(self) -> str:
         return self._registry_key
 
     @property
-    def attr_name(self) -> str:  # noqa: D102
+    def attr_name(self) -> str:
         return self._attr_name
 
     @property
-    def attr_key(self) -> str:  # noqa: D102
+    def attr_key(self) -> str:
         return self._attr_key
 
     @property
-    def is_empty(self) -> bool:  # noqa: D102
+    def is_empty(self) -> bool:
         return self._is_empty
 
 
 class NumericalDataFrameField(BaseDataFrameField):
-    """
-    An AnnDataField for numerical .obs or .var attributes in the AnnData data structure.
+    """An AnnDataField for numerical .obs or .var attributes in the AnnData data structure.
 
     Parameters
     ----------
@@ -128,8 +126,7 @@ MuDataNumericalVarField = MuDataWrapper(NumericalVarField)
 
 
 class CategoricalDataFrameField(BaseDataFrameField):
-    """
-    An AnnDataField for categorical .obs or .var attributes in the AnnData data structure.
+    """An AnnDataField for categorical .obs or .var attributes in the AnnData data structure.
 
     Parameters
     ----------

@@ -28,8 +28,7 @@ class JaxTrainingMixin:
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
@@ -80,7 +79,7 @@ class JaxTrainingMixin:
             use_gpu=False,
             iter_ndarray=True,
         )
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
         self.training_plan = self._training_plan_cls(self.module, **plan_kwargs)
         if "callbacks" not in trainer_kwargs.keys():

@@ -16,8 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class PyroJitGuideWarmup(Callback):
-    """
-    A callback to warmup a Pyro guide.
+    """A callback to warmup a Pyro guide.
 
     This helps initialize all the relevant parameters by running
     one minibatch through the Pyro model.
@@ -28,8 +27,7 @@ class PyroJitGuideWarmup(Callback):
         self.dataloader = dataloader
 
     def on_train_start(self, trainer, pl_module):
-        """
-        Way to warmup Pyro Guide in an automated way.
+        """Way to warmup Pyro Guide in an automated way.
 
         Also device agnostic.
         """
@@ -47,8 +45,7 @@ class PyroJitGuideWarmup(Callback):
 
 
 class PyroModelGuideWarmup(Callback):
-    """
-    A callback to warmup a Pyro guide and model.
+    """A callback to warmup a Pyro guide and model.
 
     This helps initialize all the relevant parameters by running
     one minibatch through the Pyro model. This warmup occurs on the CPU.
@@ -59,8 +56,7 @@ class PyroModelGuideWarmup(Callback):
         self.dataloader = dataloader
 
     def setup(self, trainer, pl_module, stage=None):
-        """
-        Way to warmup Pyro Model and Guide in an automated way.
+        """Way to warmup Pyro Model and Guide in an automated way.
 
         Setup occurs before any device movement, so params are iniitalized on CPU.
         """
@@ -75,8 +71,7 @@ class PyroModelGuideWarmup(Callback):
 
 
 class PyroSviTrainMixin:
-    """
-    Mixin class for training Pyro models.
+    """Mixin class for training Pyro models.
 
     Training using minibatches and using full data (copies data to GPU only once).
     """
@@ -98,8 +93,7 @@ class PyroSviTrainMixin:
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
@@ -135,7 +129,7 @@ class PyroSviTrainMixin:
             n_obs = self.adata.n_obs
             max_epochs = int(np.min([round((20000 / n_obs) * 1000), 1000]))
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
         if lr is not None and "optim" not in plan_kwargs.keys():
             plan_kwargs.update({"optim_kwargs": {"lr": lr}})
 
@@ -179,8 +173,7 @@ class PyroSviTrainMixin:
 
 
 class PyroSampleMixin:
-    """
-    Mixin class for generating samples from posterior distribution.
+    """Mixin class for generating samples from posterior distribution.
 
     Works using both minibatches and full data.
     """
@@ -193,8 +186,7 @@ class PyroSampleMixin:
         return_sites: Optional[list] = None,
         return_observed: bool = False,
     ):
-        """
-        Get one sample from posterior distribution.
+        """Get one sample from posterior distribution.
 
         Parameters
         ----------
@@ -252,8 +244,7 @@ class PyroSampleMixin:
         return_observed: bool = False,
         show_progress: bool = True,
     ):
-        """
-        Get many (num_samples=N) samples from posterior distribution.
+        """Get many (num_samples=N) samples from posterior distribution.
 
         Parameters
         ----------
@@ -313,8 +304,7 @@ class PyroSampleMixin:
         kwargs: dict,
         return_observed: bool = False,
     ):
-        """
-        Automatically guess which model sites belong to observation/minibatch plate.
+        """Automatically guess which model sites belong to observation/minibatch plate.
 
         This function requires minibatch plate name specified in `self.module.list_obs_plate_vars["name"]`.
 
@@ -358,8 +348,7 @@ class PyroSampleMixin:
     def _posterior_samples_minibatch(
         self, use_gpu: bool = None, batch_size: Optional[int] = None, **sample_kwargs
     ):
-        """
-        Generate samples of the posterior distribution in minibatches.
+        """Generate samples of the posterior distribution in minibatches.
 
         Generate samples of the posterior distribution of each parameter, separating local (minibatch) variables
         and global variables, which is necessary when performing minibatch inference.
@@ -376,7 +365,7 @@ class PyroSampleMixin:
         -------
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
-        samples = dict()
+        samples = {}
 
         _, _, device = parse_use_gpu_arg(use_gpu)
 
@@ -464,8 +453,7 @@ class PyroSampleMixin:
         return_samples: bool = False,
         summary_fun: Optional[Dict[str, Callable]] = None,
     ):
-        """
-        Summarise posterior distribution.
+        """Summarise posterior distribution.
 
         Generate samples from posterior distribution for each parameter
         and compute mean, 5%/95% quantiles, standard deviation.
@@ -520,7 +508,7 @@ class PyroSampleMixin:
         )
 
         param_names = list(samples.keys())
-        results = dict()
+        results = {}
         if return_samples:
             results["posterior_samples"] = samples
 

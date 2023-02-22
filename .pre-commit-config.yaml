@@ -7,65 +7,44 @@ default_stages:
 minimum_pre_commit_version: 2.16.0
 repos:
     - repo: https://github.com/psf/black
-      rev: 23.1.0
+      rev: "23.1.0"
       hooks:
           - id: black
-    - repo: https://github.com/pre-commit/mirrors-prettier
-      rev: v3.0.0-alpha.4
-      hooks:
-          - id: prettier
     - repo: https://github.com/asottile/blacken-docs
       rev: 1.13.0
       hooks:
           - id: blacken-docs
-    - repo: https://github.com/PyCQA/isort
-      rev: 5.12.0
+    - repo: https://github.com/pre-commit/mirrors-prettier
+      rev: v2.5.1
       hooks:
-          - id: isort
-    - repo: https://github.com/asottile/yesqa
-      rev: v1.4.0
+          - id: prettier
+            # Newer versions of node don't work on systems that have an older version of GLIBC
+            # (in particular Ubuntu 18.04 and Centos 7)
+            # EOL of Centos 7 is in 2024-06, we can probably get rid of this then.
+            # See https://github.com/scverse/cookiecutter-scverse/issues/143 and
+            # https://github.com/jupyterlab/jupyterlab/issues/12675
+            language_version: "17.9.1"
+    - repo: https://github.com/charliermarsh/ruff-pre-commit
+      rev: v0.0.250
       hooks:
-          - id: yesqa
-            additional_dependencies:
-                - flake8-tidy-imports
-                - flake8-docstrings
-                - flake8-rst-docstrings
-                - flake8-comprehensions
-                - flake8-bugbear
-                - flake8-blind-except
+          - id: ruff
+            args: [--fix, --exit-non-zero-on-fix]
     - repo: https://github.com/pre-commit/pre-commit-hooks
-      rev: v4.4.0
+      rev: v4.1.0
       hooks:
           - id: detect-private-key
           - id: check-ast
           - id: end-of-file-fixer
-            exclude_types: [svg]
           - id: mixed-line-ending
             args: [--fix=lf]
           - id: trailing-whitespace
           - id: check-case-conflict
-    - repo: https://github.com/PyCQA/autoflake
-      rev: v2.0.1
+    - repo: local
       hooks:
-          - id: autoflake
-            args:
-                - --in-place
-                - --remove-all-unused-imports
-                - --remove-unused-variable
-                - --ignore-init-module-imports
-    - repo: https://github.com/PyCQA/flake8
-      rev: 6.0.0
-      hooks:
-          - id: flake8
-            additional_dependencies:
-                - flake8-tidy-imports
-                - flake8-docstrings
-                - flake8-rst-docstrings
-                - flake8-comprehensions
-                - flake8-bugbear
-                - flake8-blind-except
-    - repo: https://github.com/asottile/pyupgrade
-      rev: v3.3.1
-      hooks:
-          - id: pyupgrade
-            args: [--py3-plus, --py38-plus, --keep-runtime-typing]
+          - id: forbid-to-commit
+            name: Don't commit rej files
+            entry: |
+                Cannot commit .rej files. These indicate merge conflicts that arise during automated template updates.
+                Fix the merge conflicts manually and remove the .rej files.
+            language: fail
+            files: '.*\.rej$'

@@ -1,5 +1,4 @@
 import scipy
-
 from scvi.data import synthetic_iid
 from scvi.external import SCAR
 

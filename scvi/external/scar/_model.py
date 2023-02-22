@@ -25,8 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Ambient RNA removal in scRNA-seq data :cite:p:`Sheng22`.
+    """Ambient RNA removal in scRNA-seq data :cite:p:`Sheng22`.
 
     Original Github: https://github.com/Novartis/scar.
     The models are parameter matched in architecture, activations, dropout, sparsity, and batch normalization.
@@ -160,8 +159,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         size_factor_key: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
@@ -195,8 +193,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_batch: int = 1,
         sample: int = 50000,
     ):
-        """
-        Calculate ambient profile for relevant features.
+        """Calculate ambient profile for relevant features.
 
         Identify the cell-free droplets through a multinomial distribution. See EmptyDrops :cite:p:`Lun2019` for details.
 
@@ -245,8 +242,10 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             for b in range(n_batch):
                 try:
                     count_batch = raw_adata[batch_idx == b].X.astype(int).A
-                except MemoryError:
-                    raise MemoryError("use more batches by setting a higher n_batch")
+                except MemoryError as err:
+                    raise MemoryError(
+                        "use more batches by setting a higher n_batch"
+                    ) from err
                 log_prob_batch = Multinomial(
                     probs=torch.tensor(ambient_prof), validate_args=False
                 ).log_prob(torch.Tensor(count_batch))
@@ -280,8 +279,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_samples: int = 1,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
-        r"""
-        Generate observation samples from the posterior predictive distribution.
+        r"""Generate observation samples from the posterior predictive distribution.
 
         The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
 
@@ -306,7 +304,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         data_loader_list = []
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
-            inference_kwargs = dict(n_samples=n_samples)
+            inference_kwargs = {"n_samples": n_samples}
             _, generative_outputs = self.module.forward(
                 tensors=tensors,
                 inference_kwargs=inference_kwargs,

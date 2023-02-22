@@ -5,7 +5,6 @@ from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
 from io import StringIO
-from typing import List, Optional, Union
 from uuid import uuid4
 
 import numpy as np
@@ -31,8 +30,7 @@ from .fields import AnnDataField
 
 @dataclass
 class AnnDataManagerValidationCheck:
-    """
-    Validation checks for AnnorMudata scvi-tools compat.
+    """Validation checks for AnnorMudata scvi-tools compat.
 
     Parameters
     ----------
@@ -47,8 +45,7 @@ class AnnDataManagerValidationCheck:
 
 
 class AnnDataManager:
-    """
-    Provides an interface to validate and process an AnnData object for use in scvi-tools.
+    """Provides an interface to validate and process an AnnData object for use in scvi-tools.
 
     A class which wraps a collection of AnnDataField instances and provides an interface
     to validate and process an AnnData object with respect to the fields.
@@ -78,9 +75,9 @@ class AnnDataManager:
 
     def __init__(
         self,
-        fields: Optional[List[AnnDataField]] = None,
-        setup_method_args: Optional[dict] = None,
-        validation_checks: Optional[AnnDataManagerValidationCheck] = None,
+        fields: list[AnnDataField] | None = None,
+        setup_method_args: dict | None = None,
+        validation_checks: AnnDataManagerValidationCheck | None = None,
     ) -> None:
         self.id = str(uuid4())
         self.adata = None
@@ -114,8 +111,7 @@ class AnnDataManager:
             _check_mudata_fully_paired(adata)
 
     def _get_setup_method_args(self) -> dict:
-        """
-        Returns the ``setup_anndata`` method arguments used to initialize this :class:`~scvi.data.AnnDataManager` instance.
+        """Returns the ``setup_anndata`` method arguments used to initialize this :class:`~scvi.data.AnnDataManager` instance.
 
         Returns the ``setup_anndata`` method arguments, including the model name,
         that were used to initialize this :class:`~scvi.data.AnnDataManager` instance
@@ -145,11 +141,10 @@ class AnnDataManager:
     def register_fields(
         self,
         adata: AnnOrMuData,
-        source_registry: Optional[dict] = None,
+        source_registry: dict | None = None,
         **transfer_kwargs,
     ):
-        """
-        Registers each field associated with this instance with the AnnData object.
+        """Registers each field associated with this instance with the AnnData object.
 
         Either registers or transfers the setup from `source_setup_dict` if passed in.
         Sets ``self.adata``.
@@ -195,14 +190,14 @@ class AnnDataManager:
         self,
         field: AnnDataField,
         adata: AnnOrMuData,
-        source_registry: Optional[dict] = None,
+        source_registry: dict | None = None,
         **transfer_kwargs,
     ):
         """Internal function for adding a field with optional transferring."""
         field_registries = self._registry[_constants._FIELD_REGISTRIES_KEY]
         field_registries[field.registry_key] = {
             _constants._DATA_REGISTRY_KEY: field.get_data_registry(),
-            _constants._STATE_REGISTRY_KEY: dict(),
+            _constants._STATE_REGISTRY_KEY: {},
         }
         field_registry = field_registries[field.registry_key]
 
@@ -228,9 +223,8 @@ class AnnDataManager:
             state_registry
         )
 
-    def register_new_fields(self, fields: List[AnnDataField]):
-        """
-        Register new fields to a manager instance.
+    def register_new_fields(self, fields: list[AnnDataField]):
+        """Register new fields to a manager instance.
 
         This is useful to augment the functionality of an existing manager.
 
@@ -259,8 +253,7 @@ class AnnDataManager:
         self.fields += fields
 
     def transfer_fields(self, adata_target: AnnOrMuData, **kwargs) -> AnnDataManager:
-        """
-        Transfers an existing setup to each field associated with this instance with the target AnnData object.
+        """Transfers an existing setup to each field associated with this instance with the target AnnData object.
 
         Creates a new :class:`~scvi.data.AnnDataManager` instance with the same set of fields.
         Then, registers the fields with a target AnnData object, incorporating details of the
@@ -295,8 +288,7 @@ class AnnDataManager:
             self.register_fields(adata, self._source_registry, **self._transfer_kwargs)
 
     def update_setup_method_args(self, setup_method_args: dict):
-        """
-        Update setup method args.
+        """Update setup method args.
 
         Parameters
         ----------
@@ -327,7 +319,7 @@ class AnnDataManager:
 
     @staticmethod
     def _get_data_registry_from_registry(registry: dict) -> attrdict:
-        data_registry = dict()
+        data_registry = {}
         for registry_key, field_registry in registry[
             _constants._FIELD_REGISTRIES_KEY
         ].items():
@@ -344,15 +336,14 @@ class AnnDataManager:
 
     @staticmethod
     def _get_summary_stats_from_registry(registry: dict) -> attrdict:
-        summary_stats = dict()
+        summary_stats = {}
         for field_registry in registry[_constants._FIELD_REGISTRIES_KEY].values():
             field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
             summary_stats.update(field_summary_stats)
         return attrdict(summary_stats)
 
-    def get_from_registry(self, registry_key: str) -> Union[np.ndarray, pd.DataFrame]:
-        """
-        Returns the object in AnnData associated with the key in the data registry.
+    def get_from_registry(self, registry_key: str) -> np.ndarray | pd.DataFrame:
+        """Returns the object in AnnData associated with the key in the data registry.
 
         Parameters
         ----------
@@ -385,7 +376,7 @@ class AnnDataManager:
     @staticmethod
     def _view_summary_stats(
         summary_stats: attrdict, as_markdown: bool = False
-    ) -> Union[rich.table.Table, str]:
+    ) -> rich.table.Table | str:
         """Prints summary stats."""
         if not as_markdown:
             t = rich.table.Table(title="Summary Statistics")
@@ -419,7 +410,7 @@ class AnnDataManager:
     @staticmethod
     def _view_data_registry(
         data_registry: attrdict, as_markdown: bool = False
-    ) -> Union[rich.table.Table, str]:
+    ) -> rich.table.Table | str:
         """Prints data registry."""
         if not as_markdown:
             t = rich.table.Table(title="Data Registry")
@@ -463,8 +454,7 @@ class AnnDataManager:
 
     @staticmethod
     def view_setup_method_args(registry: dict) -> None:
-        """
-        Prints setup kwargs used to produce a given registry.
+        """Prints setup kwargs used to produce a given registry.
 
         Parameters
         ----------
@@ -479,8 +469,7 @@ class AnnDataManager:
             rich.print()
 
     def view_registry(self, hide_state_registries: bool = False) -> None:
-        """
-        Prints summary of the registry.
+        """Prints summary of the registry.
 
         Parameters
         ----------

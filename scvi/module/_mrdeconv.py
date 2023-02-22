@@ -18,8 +18,7 @@ def identity(x):
 
 
 class MRDeconv(BaseModuleClass):
-    """
-    Model for multi-resolution deconvolution of spatial transriptomics.
+    """Model for multi-resolution deconvolution of spatial transriptomics.
 
     Parameters
     ----------
@@ -180,7 +179,7 @@ class MRDeconv(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
 
-        input_dict = dict(x=x, ind_x=ind_x)
+        input_dict = {"x": x, "ind_x": ind_x}
         return input_dict
 
     @auto_move_data
@@ -240,9 +239,13 @@ class MRDeconv(BaseModuleClass):
         px_scale = torch.sum(v_ind.unsqueeze(2) * r_hat, dim=1)  # batch_size, n_genes
         px_rate = library * px_scale
 
-        return dict(
-            px_o=self.px_o, px_rate=px_rate, px_scale=px_scale, gamma=gamma_ind, v=v_ind
-        )
+        return {
+            "px_o": self.px_o,
+            "px_rate": px_rate,
+            "px_scale": px_scale,
+            "gamma": gamma_ind,
+            "v": v_ind,
+        }
 
     def loss(
         self,
@@ -349,8 +352,7 @@ class MRDeconv(BaseModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def get_gamma(self, x: torch.Tensor = None) -> torch.Tensor:
-        """
-        Returns the loadings.
+        """Returns the loadings.
 
         Returns
         -------
@@ -372,8 +374,7 @@ class MRDeconv(BaseModuleClass):
     def get_ct_specific_expression(
         self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None
     ):
-        """
-        Returns cell type specific gene expression at the queried spots.
+        """Returns cell type specific gene expression at the queried spots.
 
         Parameters
         ----------

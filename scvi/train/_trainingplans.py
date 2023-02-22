@@ -39,8 +39,7 @@ def _compute_kl_weight(
     max_kl_weight: float = 1.0,
     min_kl_weight: float = 0.0,
 ) -> float:
-    """
-    Computes the kl weight for the current step or epoch.
+    """Computes the kl weight for the current step or epoch.
 
     If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None `max_kl_weight` is returned.
 
@@ -77,8 +76,7 @@ def _compute_kl_weight(
 
 
 class TrainingPlan(TunableMixin, pl.LightningModule):
-    """
-    Lightning module task to train scvi-tools modules.
+    """Lightning module task to train scvi-tools modules.
 
     The training plan is a PyTorch Lightning Module that is initialized
     with a scvi-tools module object. It configures the optimizers, defines
@@ -240,8 +238,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
 
     @property
     def n_obs_training(self):
-        """
-        Number of observations in the training set.
+        """Number of observations in the training set.
 
         This will update the loss kwargs for loss rescaling.
 
@@ -260,8 +257,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
 
     @property
     def n_obs_validation(self):
-        """
-        Number of observations in the validation set.
+        """Number of observations in the validation set.
 
         This will update the loss kwargs for loss rescaling.
 
@@ -287,15 +283,14 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         metrics: Dict[str, ElboMetric],
         mode: str,
     ):
-        """
-        Computes and logs metrics.
+        """Computes and logs metrics.
 
         Parameters
         ----------
         loss_output
             LossOutput object from scvi-tools module
-        metric_attr_name
-            The name of the torch metric object to use
+        metrics
+            Dictionary of metrics to update
         mode
             Postfix string to add to the metric name of
             extra metrics
@@ -360,8 +355,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
     def _optimizer_creator_fn(
         self, optimizer_cls: Union[torch.optim.Adam, torch.optim.AdamW]
     ):
-        """
-        Create optimizer for the model.
+        """Create optimizer for the model.
 
         This type of function can be passed as the `optimizer_creator`
         """
@@ -419,8 +413,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
 
 
 class AdversarialTrainingPlan(TrainingPlan):
-    """
-    Train vaes with adversarial loss option to encourage latent space mixing.
+    """Train vaes with adversarial loss option to encourage latent space mixing.
 
     Parameters
     ----------
@@ -620,8 +613,7 @@ class AdversarialTrainingPlan(TrainingPlan):
 
 
 class SemiSupervisedTrainingPlan(TrainingPlan):
-    """
-    Lightning module task for SemiSupervised Training.
+    """Lightning module task for SemiSupervised Training.
 
     Parameters
     ----------
@@ -700,10 +692,10 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
 
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
-        input_kwargs = dict(
-            feed_labels=False,
-            labelled_tensors=labelled_dataset,
-        )
+        input_kwargs = {
+            "feed_labels": False,
+            "labelled_tensors": labelled_dataset,
+        }
         input_kwargs.update(self.loss_kwargs)
         _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = loss_output.loss
@@ -726,10 +718,10 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             full_dataset = batch
             labelled_dataset = None
 
-        input_kwargs = dict(
-            feed_labels=False,
-            labelled_tensors=labelled_dataset,
-        )
+        input_kwargs = {
+            "feed_labels": False,
+            "labelled_tensors": labelled_dataset,
+        }
         input_kwargs.update(self.loss_kwargs)
         _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = loss_output.loss
@@ -743,8 +735,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
 
 
 class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
-    """
-    Lightning module task to train Pyro scvi-tools modules.
+    """Lightning module task to train Pyro scvi-tools modules.
 
     Parameters
     ----------
@@ -784,7 +775,7 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
         self.module = pyro_module
         self._n_obs_training = None
 
-        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
+        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
         if "lr" not in optim_kwargs.keys():
             optim_kwargs.update({"lr": 1e-3})
         self.optim_kwargs = optim_kwargs
@@ -855,8 +846,7 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
 
     @property
     def n_obs_training(self):
-        """
-        Number of training examples.
+        """Number of training examples.
 
         If not `None`, updates the `n_obs` attr
         of the Pyro module's `model` and `guide`, if they exist.
@@ -876,8 +866,7 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
 
 
 class PyroTrainingPlan(LowLevelPyroTrainingPlan):
-    """
-    Lightning module task to train Pyro scvi-tools modules.
+    """Lightning module task to train Pyro scvi-tools modules.
 
     Parameters
     ----------
@@ -920,7 +909,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
             n_steps_kl_warmup=n_steps_kl_warmup,
             scale_elbo=scale_elbo,
         )
-        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else dict()
+        optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
         if "lr" not in optim_kwargs.keys():
             optim_kwargs.update({"lr": 1e-3})
         self.optim = (
@@ -954,8 +943,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         return {"loss": loss}
 
     def configure_optimizers(self):
-        """
-        Shim optimizer for PyTorch Lightning.
+        """Shim optimizer for PyTorch Lightning.
 
         PyTorch Lightning wants to take steps on an optimizer
         returned by this function in order to increment the global
@@ -966,16 +954,15 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         """
         return torch.optim.Adam([self._dummy_param])
 
-    def optimizer_step(self, *args, **kwargs):  # noqa: D102
+    def optimizer_step(self, *args, **kwargs):
         pass
 
-    def backward(self, *args, **kwargs):  # noqa: D102
+    def backward(self, *args, **kwargs):
         pass
 
 
 class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
-    """
-    Lightning module task to train a simple MLP classifier.
+    """Lightning module task to train a simple MLP classifier.
 
     Parameters
     ----------
@@ -1060,8 +1047,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
 
 
 class JaxTrainingPlan(TrainingPlan):
-    """
-    Lightning module task to train Pyro scvi-tools modules.
+    """Lightning module task to train Pyro scvi-tools modules.
 
     Parameters
     ----------
@@ -1255,8 +1241,7 @@ class JaxTrainingPlan(TrainingPlan):
         return batch
 
     def configure_optimizers(self):
-        """
-        Shim optimizer for PyTorch Lightning.
+        """Shim optimizer for PyTorch Lightning.
 
         PyTorch Lightning wants to take steps on an optimizer
         returned by this function in order to increment the global
@@ -1267,11 +1252,11 @@ class JaxTrainingPlan(TrainingPlan):
         """
         return torch.optim.Adam([self._dummy_param])
 
-    def optimizer_step(self, *args, **kwargs):  # noqa: D102
+    def optimizer_step(self, *args, **kwargs):
         pass
 
-    def backward(self, *args, **kwargs):  # noqa: D102
+    def backward(self, *args, **kwargs):
         pass
 
-    def forward(self, *args, **kwargs):  # noqa: D102
+    def forward(self, *args, **kwargs):
         pass
