@@ -69,11 +69,6 @@ class HubMetadata:
 class HubModelCardHelper:
     """A helper for creating a `ModelCard` for `scvi-tools` hub models.
 
-    It is not required to use this class to create a `ModelCard`. But this helps you do so in a way that is
-    consistent with most other `scvi-tools` hub models. You can think of this as a template. The actual template
-    string used can be found in ``scvi.template``. The resulting huggingface :class:`~huggingface_hub.ModelCard`
-    can be accessed via the :meth:`~scvi.hub.HubModelCardHelper.model_card` property.
-
     Parameters
     ----------
     license_info
@@ -111,10 +106,15 @@ class HubModelCardHelper:
         class that is not in the `scvi.model` module, for example, if you are using a model class from a custom module.
     description
         A description of the model.
-
-    References
-    ----------
+    references_
         A list of references for the model.
+
+    Notes
+    -----
+    It is not required to use this class to create a `ModelCard`. But this helps you do so in a way that is
+    consistent with most other `scvi-tools` hub models. You can think of this as a template. The actual template
+    string used can be found in ``scvi.template``. The resulting huggingface :class:`~huggingface_hub.ModelCard`
+    can be accessed via the :meth:`~scvi.hub.HubModelCardHelper.model_card` property.
     """
 
     license_info: str
