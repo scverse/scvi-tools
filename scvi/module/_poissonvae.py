@@ -9,7 +9,7 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi.autotune._types import Tunable
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers, one_hot
 
 
@@ -470,8 +470,8 @@ class POISSONVAE(BaseModuleClass):
         kl_local = dict(
             kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
         )
-        kl_global = torch.tensor(0.0)
-        return LossRecorder(loss, reconst_loss, kl_local, kl_global)
+
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)
 
     def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout) -> torch.Tensor:
         reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)

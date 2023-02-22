@@ -87,7 +87,7 @@ class AnnDataManager:
         self.fields = fields or []
         self.validation_checks = validation_checks or AnnDataManagerValidationCheck()
         self._registry = {
-            _constants._SCVI_VERSION_KEY: scvi.__version__,
+            #      _constants._SCVI_VERSION_KEY: scvi.__version__,
             _constants._MODEL_NAME_KEY: None,
             _constants._SETUP_ARGS_KEY: None,
             _constants._FIELD_REGISTRIES_KEY: defaultdict(dict),

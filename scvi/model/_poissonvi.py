@@ -11,9 +11,11 @@ from scipy.sparse import csr_matrix
 from torch.distributions import Poisson
 
 from scvi import REGISTRY_KEYS
-from scvi._types import LatentDataType
+from scvi._types import MinifiedDataType
 from scvi.data import AnnDataManager
-from scvi.data._constants import _ADATA_LATENT_UNS_KEY, _SCVI_UUID_KEY
+from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
+from scvi.data._utils import _get_adata_minify_type
+
 from scvi.data.fields import (
     BaseAnnDataField,
     CategoricalJointObsField,
@@ -32,23 +34,24 @@ from scvi.model._utils import (
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import POISSONVAE
 from scvi.utils import setup_anndata_dsp
+from scvi.model.utils import get_minified_adata_scrna
 
-from .base import ArchesMixin, BaseLatentModeModelClass, RNASeqMixin, VAEMixin
+from .base import RNASeqMixin, ArchesMixin, BaseModelClass, VAEMixin
 from .base._utils import _de_core
 
 logger = logging.getLogger(__name__)
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
-_SCVI_LATENT_MODE = "posterior_parameters"
+_SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 
 
 class POISSONVI(
-    ArchesMixin,
     RNASeqMixin,
+    ArchesMixin,
     VAEMixin,
     UnsupervisedTrainingMixin,
-    BaseLatentModeModelClass,
+    BaseModelClass,
 ):
     """
     Variational inference on peaks using count data.
@@ -136,7 +139,6 @@ class POISSONVI(
             **model_kwargs,
         )
 
-        self.module.latent_data_type = self.latent_data_type
         self._model_summary_string = (
             "PoissonVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
             "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
@@ -456,140 +458,6 @@ class POISSONVI(
 
         return result
 
-    @classmethod
-    @setup_anndata_dsp.dedent
-    def setup_anndata(
-        cls,
-        adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
-        **kwargs,
-    ):
-        """
-        %(summary)s.
-        Parameters
-        ----------
-        %(param_layer)s
-        %(param_batch_key)s
-        %(param_labels_key)s
-        %(param_size_factor_key)s
-        %(param_cat_cov_keys)s
-        %(param_cont_cov_keys)s
-        """
-
-        cls._validate_fragment_counts(adata, layer=layer)
-
-        setup_method_args = cls._get_setup_method_args(**locals())
-        anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            NumericalObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
-        ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
-        adata_manager.register_fields(adata, **kwargs)
-        cls.register_manager(adata_manager)
-
-    def _get_reduced_adata(
-        self,
-        mode: LatentDataType,
-    ) -> AnnData:
-        """Return a minimal anndata object with the latent representation."""
-        all_zeros = csr_matrix(self.adata.X.shape)
-        layers = {layer: all_zeros.copy() for layer in self.adata.layers}
-        bdata = AnnData(
-            X=all_zeros,
-            layers=layers,
-            uns=self.adata.uns,
-            obs=self.adata.obs,
-            var=self.adata.var,
-            varm=self.adata.varm,
-            obsm=self.adata.obsm,
-            obsp=self.adata.obsp,
-        )
-        # Remove scvi uuid key to make bdata fresh w.r.t. the model's manager
-        del bdata.uns[_SCVI_UUID_KEY]
-        bdata.uns[_ADATA_LATENT_UNS_KEY] = mode
-        return bdata
-
-    @staticmethod
-    def _get_latent_fields(mode: LatentDataType) -> List[BaseAnnDataField]:
-        """Latent mode specific manager fields."""
-        if mode == _SCVI_LATENT_MODE:
-            latent_fields = [
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_QZM_KEY,
-                    _SCVI_LATENT_QZM,
-                ),
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_QZV_KEY,
-                    _SCVI_LATENT_QZV,
-                ),
-            ]
-        else:
-            raise ValueError(f"Unknown latent mode: {mode}")
-        latent_fields.append(
-            StringUnsField(
-                REGISTRY_KEYS.LATENT_MODE_KEY,
-                _ADATA_LATENT_UNS_KEY,
-            ),
-        )
-        return latent_fields
-
-    def to_latent_mode(
-        self,
-        mode: LatentDataType = "posterior_parameters",
-        use_latent_qzm_key: str = "X_latent_qzm",
-        use_latent_qzv_key: str = "X_latent_qzv",
-    ) -> None:
-        """
-        Put the model into latent mode.
-
-        The model is put into latent mode by registering new anndata fields
-        required for latent mode support - latent qzm, latent qzv, and adata uns
-        containing latent mode type - and marking the module as latent.
-
-        Parameters
-        ----------
-        mode
-            The latent data type used
-        use_latent_qzm_key
-            Key to use in `adata.obsm` where the latent qzm params are stored
-        use_latent_qzv_key
-            Key to use in `adata.obsm` where the latent qzv params are stored
-
-        Notes
-        -----
-        A new, minimal adata object is associated as `model.adata` after running
-        this method. This adata does not contain any of
-        the original count data, but instead contains the latent representation
-        of the original data and metadata.
-        """
-        # TODO(adamgayoso): Add support for other latent modes, including a mode
-        # in which no data is minified.
-        # This validates and sets a new adata manager
-        self.adata = self._get_reduced_adata(mode)
-        if mode == _SCVI_LATENT_MODE:
-            self.adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-            self.adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-        else:
-            raise ValueError(f"Unknown latent mode: {mode}")
-        self.adata_manager.register_new_fields(self._get_latent_fields(mode))
-        self.module.latent_data_type = mode
 
     @staticmethod
     def reads_to_fragments(
@@ -633,3 +501,55 @@ class POISSONVI(
         if non_zero_counts.loc[1, 0] < non_zero_counts.loc[2, 0]:
             message = "You have provided read counts not fragment counts. You can convert them by running scvi.model.POISSONVI.reads_to_fragment"
             raise RuntimeError(message)
+
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        cls,
+        adata: AnnData,
+        layer: Optional[str] = None,
+        batch_key: Optional[str] = None,
+        labels_key: Optional[str] = None,
+        size_factor_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        **kwargs,
+    ):
+        """
+        %(summary)s.
+        Parameters
+        ----------
+        %(param_layer)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        """
+
+        cls._validate_fragment_counts(adata, layer=layer)
+
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            NumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
+            ),
+            CategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
+        ]
+       
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
+
+   
