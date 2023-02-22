@@ -24,8 +24,7 @@ class UnsupervisedTrainingMixin:
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
@@ -55,7 +54,7 @@ class UnsupervisedTrainingMixin:
         if max_epochs is None:
             max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,

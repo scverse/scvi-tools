@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class SCBASSET(BaseModelClass):
-    """
-    Reimplementation of ScBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
+    """Reimplementation of ScBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
 
     This implementation is EXPERIMENTAL. We are working to measure the performance of this model
     compared to the original.
@@ -89,8 +88,7 @@ class SCBASSET(BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
@@ -126,12 +124,12 @@ class SCBASSET(BaseModelClass):
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        custom_plan_kwargs = dict(
-            optimizer="Custom",
-            optimizer_creator=lambda p: torch.optim.Adam(
+        custom_plan_kwargs = {
+            "optimizer": "Custom",
+            "optimizer_creator": lambda p: torch.optim.Adam(
                 p, lr=lr, betas=(0.95, 0.9995)
             ),
-        )
+        }
         if plan_kwargs is not None:
             custom_plan_kwargs.update(plan_kwargs)
 
@@ -171,8 +169,7 @@ class SCBASSET(BaseModelClass):
 
     @torch.inference_mode()
     def get_latent_representation(self) -> np.ndarray:
-        """
-        Returns the latent representation of the cells.
+        """Returns the latent representation of the cells.
 
         Returns
         -------
@@ -182,8 +179,7 @@ class SCBASSET(BaseModelClass):
 
     @torch.inference_mode()
     def get_cell_bias(self) -> np.ndarray:
-        """
-        Returns the cell-specific bias term.
+        """Returns the cell-specific bias term.
 
         Returns
         -------
@@ -201,8 +197,7 @@ class SCBASSET(BaseModelClass):
         batch_key: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

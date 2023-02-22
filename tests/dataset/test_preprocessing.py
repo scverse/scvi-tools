@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 from scipy import sparse
-
 from scvi.data import add_dna_sequence, poisson_gene_selection, synthetic_iid
 
 

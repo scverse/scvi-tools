@@ -25,8 +25,7 @@ class SubSampleLabels(Callback):
 
 
 class SaveBestState(Callback):
-    r"""
-    Save the best module state and restore into model.
+    r"""Save the best module state and restore into model.
 
     Parameters
     ----------
@@ -83,10 +82,10 @@ class SaveBestState(Callback):
                 self.best_module_metric_val = np.Inf
                 self.mode = "min"
 
-    def check_monitor_top(self, current):  # noqa: D102
+    def check_monitor_top(self, current):
         return self.monitor_op(current, self.best_module_metric_val)
 
-    def on_validation_epoch_end(self, trainer, pl_module):  # noqa: D102
+    def on_validation_epoch_end(self, trainer, pl_module):
         logs = trainer.callback_metrics
         self.epochs_since_last_check += 1
 
@@ -113,16 +112,15 @@ class SaveBestState(Callback):
                             f" Module best state updated."
                         )
 
-    def on_train_start(self, trainer, pl_module):  # noqa: D102
+    def on_train_start(self, trainer, pl_module):
         self.best_module_state = deepcopy(pl_module.module.state_dict())
 
-    def on_train_end(self, trainer, pl_module):  # noqa: D102
+    def on_train_end(self, trainer, pl_module):
         pl_module.module.load_state_dict(self.best_module_state)
 
 
 class LoudEarlyStopping(EarlyStopping):
-    """
-    Wrapper of Pytorch Lightning EarlyStopping callback that prints the reason for stopping on teardown.
+    """Wrapper of Pytorch Lightning EarlyStopping callback that prints the reason for stopping on teardown.
 
     When the early stopping condition is met, the reason is saved to the callback instance,
     then printed on teardown. By printing on teardown, we do not interfere with the progress
@@ -157,7 +155,7 @@ class JaxModuleInit(Callback):
         super().__init__()
         self.dataloader = dataloader
 
-    def on_train_start(self, trainer, pl_module):  # noqa: D102
+    def on_train_start(self, trainer, pl_module):
         module = pl_module.module
         if self.dataloader is None:
             dl = trainer.datamodule.train_dataloader()

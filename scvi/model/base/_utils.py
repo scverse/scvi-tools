@@ -149,8 +149,7 @@ def _prepare_obs(
     idx2: Union[List[bool], np.ndarray, str],
     adata: anndata.AnnData,
 ):
-    """
-    Construct an array used for masking.
+    """Construct an array used for masking.
 
     Given population identifiers `idx1` and potentially `idx2`,
     this function creates an array `obs_col` that identifies both populations

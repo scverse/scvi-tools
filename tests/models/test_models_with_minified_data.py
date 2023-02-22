@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 import scvi
 from scvi.data import synthetic_iid
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE

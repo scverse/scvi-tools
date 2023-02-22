@@ -9,7 +9,13 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 0.20
 
-### 0.20.1 (2023-MM-DD)
+### 0.20.2 (2023-MM-DD)
+
+#### Changed
+
+-   Use ruff for fixing and linting {pr}`1921`
+
+### 0.20.1 (2023-02-21)
 
 #### Fixed
 

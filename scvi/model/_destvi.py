@@ -19,8 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez21`. Most users will use the alternate constructor (see example).
+    """Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez21`. Most users will use the alternate constructor (see example).
 
     Parameters
     ----------
@@ -106,8 +105,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         l1_reg: float = 0.0,
         **module_kwargs,
     ):
-        """
-        Alternate constructor for exploiting a pre-trained model on a RNA-seq dataset.
+        """Alternate constructor for exploiting a pre-trained model on a RNA-seq dataset.
 
         Parameters
         ----------
@@ -161,8 +159,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> pd.DataFrame:
-        """
-        Returns the estimated cell type proportion for the spatial data.
+        """Returns the estimated cell type proportion for the spatial data.
 
         Shape is n_cells x n_labels OR n_cells x (n_labels + 1) if keep_noise.
 
@@ -215,8 +212,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         batch_size: Optional[int] = None,
         return_numpy: bool = False,
     ) -> Union[np.ndarray, Dict[str, pd.DataFrame]]:
-        """
-        Returns the estimated cell-type specific latent space for the spatial data.
+        """Returns the estimated cell-type specific latent space for the spatial data.
 
         Parameters
         ----------
@@ -268,8 +264,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> pd.DataFrame:
-        r"""
-        Return the scaled parameter of the NB for every spot in queried cell types.
+        r"""Return the scaled parameter of the NB for every spot in queried cell types.
 
         Parameters
         ----------
@@ -322,8 +317,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using MAP inference.
+        """Trains the model using MAP inference.
 
         Parameters
         ----------
@@ -375,8 +369,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

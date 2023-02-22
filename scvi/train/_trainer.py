@@ -16,8 +16,7 @@ from ._trainingplans import PyroTrainingPlan
 
 
 class Trainer(TunableMixin, pl.Trainer):
-    """
-    Lightweight wrapper of Pytorch Lightning Trainer.
+    """Lightweight wrapper of Pytorch Lightning Trainer.
 
     Appropriate defaults are set for scvi-tools models, as well as callbacks like
     EarlyStopping, with parameters accessible here.

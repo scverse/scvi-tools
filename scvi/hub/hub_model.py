@@ -25,8 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class HubModel:
-    """
-    Provides functionality to interact with the scvi-hub backed by `huggingface <https://huggingface.co/models>`_.
+    """Provides functionality to interact with the scvi-hub backed by `huggingface <https://huggingface.co/models>`_.
 
     Parameters
     ----------
@@ -94,8 +93,7 @@ class HubModel:
     def push_to_huggingface_hub(
         self, repo_name: str, repo_token: str, repo_create: bool
     ):
-        """
-        Push this model to huggingface.
+        """Push this model to huggingface.
 
         If the dataset is too large to upload to huggingface, this will raise an
         exception prompting the user to upload the data elsewhere. Otherwise, the
@@ -155,8 +153,7 @@ class HubModel:
         revision: Optional[str] = None,
         **kwargs,
     ):
-        """
-        Download the given model repo from huggingface.
+        """Download the given model repo from huggingface.
 
         The model, its card, data, metadata are downloaded to a cached location on disk
         selected by huggingface and an instance of this class is created with that info
@@ -217,8 +214,7 @@ class HubModel:
 
     @property
     def model(self) -> Type[BaseModelClass]:
-        """
-        Returns the model object for this hub model.
+        """Returns the model object for this hub model.
 
         If the model has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.load_model`.
         Otherwise, it will simply return the loaded model.
@@ -229,8 +225,7 @@ class HubModel:
 
     @property
     def adata(self) -> Optional[AnnData]:
-        """
-        Returns the data for this model.
+        """Returns the data for this model.
 
         If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_adata`.
         Otherwise, it will simply return the loaded data.
@@ -241,8 +236,7 @@ class HubModel:
 
     @property
     def large_training_adata(self) -> Optional[AnnData]:
-        """
-        Returns the training data for this model, which might be too large to reside within the hub model.
+        """Returns the training data for this model, which might be too large to reside within the hub model.
 
         If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_large_training_adata`,
         which will attempt to download from the source url. Otherwise, it will simply return the loaded data.
@@ -255,8 +249,7 @@ class HubModel:
         self,
         adata: Optional[AnnData] = None,
     ):
-        """
-        Loads the model.
+        """Loads the model.
 
         Parameters
         ----------
@@ -298,8 +291,7 @@ class HubModel:
             logger.info("No data found on disk. Skipping...")
 
     def read_large_training_adata(self):
-        """
-        Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op
+        """Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op.
 
         Notes
         -----
