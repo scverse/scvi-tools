@@ -14,9 +14,9 @@ from scvi.nn import Encoder, FCLayers, one_hot
 
 
 class DecoderPoissonVI(nn.Module):
-    """
-    Decodes data from latent space of ``n_input`` dimensions into ``n_output``dimensions.
+    """Decodes data from latent space of ``n_input`` dimensions into ``n_output``dimensions.
     Uses a fully-connected neural network of ``n_hidden`` layers.
+
     Parameters
     ----------
     n_input
@@ -40,7 +40,7 @@ class DecoderPoissonVI(nn.Module):
     use_layer_norm
         Whether to use layer norm in layers
     scale_activation
-        Activation layer to use for px_scale_decoder
+        Activation layer to use for px_scale_decoder.
     """
 
     def __init__(
@@ -87,8 +87,7 @@ class DecoderPoissonVI(nn.Module):
         library: torch.Tensor,
         *cat_list: int,
     ):
-        """
-        Parameters
+        """Parameters
         ----------
         z :
             tensor with shape ``(n_input,)``
@@ -111,8 +110,7 @@ class DecoderPoissonVI(nn.Module):
 
 
 class POISSONVAE(BaseModuleClass):
-    """
-    Variational auto-encoder model for ATAC-seq count data.
+    """Variational auto-encoder model for ATAC-seq count data.
 
     Parameters
     ----------
@@ -287,9 +285,9 @@ class POISSONVAE(BaseModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
-        input_dict = dict(
-            x=x, batch_index=batch_index, cont_covs=cont_covs, cat_covs=cat_covs
-        )
+        input_dict = {
+            "x": x, "batch_index": batch_index, "cont_covs": cont_covs, "cat_covs": cat_covs
+        }
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs):
@@ -311,20 +309,19 @@ class POISSONVAE(BaseModuleClass):
             else None
         )
 
-        input_dict = dict(
-            z=z,
-            library=library,
-            batch_index=batch_index,
-            y=y,
-            cont_covs=cont_covs,
-            cat_covs=cat_covs,
-            size_factor=size_factor,
-        )
+        input_dict = {
+            "z": z,
+            "library": library,
+            "batch_index": batch_index,
+            "y": y,
+            "cont_covs": cont_covs,
+            "cat_covs": cat_covs,
+            "size_factor": size_factor,
+        }
         return input_dict
 
     def _compute_local_library_params(self, batch_index):
-        """
-        Computes local library parameters.
+        """Computes local library parameters.
         Compute two tensors of shape (batch_index.shape[0], 1) where each
         element corresponds to the mean and variances, respectively, of the
         log library sizes in the batch the cell corresponds to.
@@ -340,8 +337,7 @@ class POISSONVAE(BaseModuleClass):
 
     @auto_move_data
     def inference(self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1):
-        """
-        High level inference method.
+        """High level inference method.
         Runs the inference (encoder) model.
         """
         x_ = x
@@ -357,7 +353,7 @@ class POISSONVAE(BaseModuleClass):
         if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
-            categorical_input = tuple()
+            categorical_input = ()
         qz_m, qz_v, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
 
         ql_m, ql_v = None, None
@@ -382,7 +378,7 @@ class POISSONVAE(BaseModuleClass):
                 ql_v = ql_v.unsqueeze(0).expand((n_samples, ql_v.size(0), ql_v.size(1)))
                 library = Normal(ql_m, ql_v.sqrt()).sample()
 
-        outputs = dict(z=z, qz_m=qz_m, qz_v=qz_v, ql_m=ql_m, ql_v=ql_v, library=library)
+        outputs = {"z": z, "qz_m": qz_m, "qz_v": qz_v, "ql_m": ql_m, "ql_v": ql_v, "library": library}
         return outputs
 
     @auto_move_data
@@ -402,7 +398,7 @@ class POISSONVAE(BaseModuleClass):
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
-            categorical_input = tuple()
+            categorical_input = ()
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
@@ -418,9 +414,9 @@ class POISSONVAE(BaseModuleClass):
             y,
         )
 
-        return dict(
-            px_scale=px_scale, px_r=px_r, px_rate=px_rate, px_dropout=px_dropout
-        )
+        return {
+            "px_scale": px_scale, "px_r": px_r, "px_rate": px_rate, "px_dropout": px_dropout
+        }
 
     def loss(
         self,
@@ -467,11 +463,13 @@ class POISSONVAE(BaseModuleClass):
 
         loss = torch.mean(reconst_loss + weighted_kl_local)
 
-        kl_local = dict(
-            kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
-        )
+        kl_local = {
+            "kl_divergence_l": kl_divergence_l, "kl_divergence_z": kl_divergence_z
+        }
 
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
+        )
 
     def get_reconstruction_loss(self, x, px_rate, px_r, px_dropout) -> torch.Tensor:
         reconst_loss = -Poisson(px_rate).log_prob(x).sum(dim=-1)

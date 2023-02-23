@@ -15,7 +15,6 @@ from mudata import MuData
 from rich import box
 from rich.console import Console
 
-import scvi
 from scvi._types import AnnOrMuData
 from scvi.utils import attrdict
 

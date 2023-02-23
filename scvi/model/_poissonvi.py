@@ -1,30 +1,22 @@
 import logging
 import warnings
 from functools import partial
-from typing import Iterable, List, Optional, Sequence, Union, Literal
+from typing import Iterable, List, Literal, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from scipy.sparse import csr_matrix
 from torch.distributions import Poisson
 
 from scvi import REGISTRY_KEYS
-from scvi._types import MinifiedDataType
 from scvi.data import AnnDataManager
-from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
-from scvi.data._utils import _get_adata_minify_type
-
 from scvi.data.fields import (
-    BaseAnnDataField,
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
-    ObsmField,
-    StringUnsField,
 )
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -34,9 +26,8 @@ from scvi.model._utils import (
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import POISSONVAE
 from scvi.utils import setup_anndata_dsp
-from scvi.model.utils import get_minified_adata_scrna
 
-from .base import RNASeqMixin, ArchesMixin, BaseModelClass, VAEMixin
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 from .base._utils import _de_core
 
 logger = logging.getLogger(__name__)
@@ -53,8 +44,8 @@ class POISSONVI(
     UnsupervisedTrainingMixin,
     BaseModelClass,
 ):
-    """
-    Variational inference on peaks using count data.
+    """Variational inference on peaks using count data.
+
     Parameters
     ----------
     adata
@@ -79,7 +70,7 @@ class POISSONVI(
         Whether to deeply inject covariates into all layers of the decoder. If False (default),
         covariates will only be included in the input layer.
     **model_kwargs
-        Keyword args for :class:`~poisson_atac.module.PoissonVAE`
+        Keyword args for :class:`~poisson_atac.module.PoissonVAE`.
     """
 
     def __init__(
@@ -173,8 +164,8 @@ class POISSONVI(
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using amortized variational inference.
+        """Trains the model using amortized variational inference.
+
         Parameters
         ----------
         max_epochs
@@ -218,14 +209,14 @@ class POISSONVI(
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        update_dict = dict(
-            lr=lr,
-            weight_decay=weight_decay,
-            eps=eps,
-            n_epochs_kl_warmup=n_epochs_kl_warmup,
-            n_steps_kl_warmup=n_steps_kl_warmup,
-            optimizer="AdamW",
-        )
+        update_dict = {
+            "lr": lr,
+            "weight_decay": weight_decay,
+            "eps": eps,
+            "n_epochs_kl_warmup": n_epochs_kl_warmup,
+            "n_steps_kl_warmup": n_steps_kl_warmup,
+            "optimizer": "AdamW",
+        }
         if plan_kwargs is not None:
             plan_kwargs.update(update_dict)
         else:
@@ -265,8 +256,8 @@ class POISSONVI(
         return_numpy: Optional[bool] = None,
         binarize=True,
     ) -> Union[np.ndarray, pd.DataFrame]:
-        """
-        Returns the decoded accessibility.
+        """Returns the decoded accessibility.
+
         Parameters
         ----------
         adata
@@ -343,7 +334,7 @@ class POISSONVI(
             per_batch_accs = []
             for batch in transform_batch:
                 generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
-                inference_kwargs = dict(n_samples=n_samples)
+                inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
@@ -402,10 +393,10 @@ class POISSONVI(
         two_sided=True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
-        \
+        r"""\
         A unified method for differential expression analysis.
         Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
+
         Parameters
         ----------
         {doc_differential_expression}
@@ -458,14 +449,12 @@ class POISSONVI(
 
         return result
 
-
     @staticmethod
     def reads_to_fragments(
         adata: AnnData,
         layer: Optional[str] = None,
     ):
-        """
-        Function to convert read counts to appoximate fragment counts
+        """Function to convert read counts to appoximate fragment counts.
 
         Parameters
         ----------
@@ -474,7 +463,6 @@ class POISSONVI(
         layer
             Layer that the read counts are stored in.
         """
-
         if layer:
             data = np.ceil(adata.layers[layer].data / 2)
         else:
@@ -502,7 +490,6 @@ class POISSONVI(
             message = "You have provided read counts not fragment counts. You can convert them by running scvi.model.POISSONVI.reads_to_fragment"
             raise RuntimeError(message)
 
-
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
@@ -516,8 +503,8 @@ class POISSONVI(
         continuous_covariate_keys: Optional[List[str]] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
+
         Parameters
         ----------
         %(param_layer)s
@@ -525,9 +512,8 @@ class POISSONVI(
         %(param_labels_key)s
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
-        %(param_cont_cov_keys)s
+        %(param_cont_cov_keys)s.
         """
-
         cls._validate_fragment_counts(adata, layer=layer)
 
         setup_method_args = cls._get_setup_method_args(**locals())
@@ -545,11 +531,9 @@ class POISSONVI(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
         ]
-       
+
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
         )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
-
-   
