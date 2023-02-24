@@ -37,7 +37,7 @@ class RNASeqMixin:
         self,
         adata: Optional[AnnData],
         indices: Optional[Sequence[int]],
-        distributions,
+        distributions: dict,
         zs: torch.Tensor,
         max_cells: int = 500,
         truncation: bool = True,
@@ -85,14 +85,14 @@ class RNASeqMixin:
 
         log_px_z = []
         anchors_obs = adata[indices[anchor_cells]]
-        scdl = self._make_data_loader(adata=anchors_obs, batch_size=1)
-        for tensors in scdl:
-            x = tensors[REGISTRY_KEYS.X_KEY]  # 1, n_genes
+        scdl_anchor = self._make_data_loader(adata=anchors_obs, batch_size=1)
+        for tensors_anchor in scdl_anchor:
+            x_anchor = tensors_anchor[REGISTRY_KEYS.X_KEY]  # 1, n_genes
             px_z = distributions["px"]  # n_samples, n_cells, n_genes
+            px_z.mu = px_z.scale * x_anchor.sum(-1)
             log_px_z.append(
-                px_z.log_prob(x).sum(dim=-1)[..., None]
+                px_z.log_prob(x_anchor).sum(dim=-1)[..., None]
             )  # n_samples, n_cells, 1
-            # TODO: library size adjustment
         log_px_z = torch.cat(log_px_z, dim=-1)
 
         log_pz = log_pz.reshape(-1, 1)

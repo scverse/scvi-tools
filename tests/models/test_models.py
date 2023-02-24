@@ -332,12 +332,20 @@ def test_scvi(save_path):
 
     # test differential expression
     model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", weights="importance")
     model.differential_expression(
         groupby="labels", group1="label_1", group2="label_2", mode="change"
     )
     model.differential_expression(groupby="labels")
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
     model.differential_expression(idx1=[0, 1, 2])
+
+    model2 = SCVI(adata, use_observed_lib_size=False)
+    model2.train(1)
+    model2.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model2.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
 
     # transform batch works with all different types
     a = synthetic_iid()
