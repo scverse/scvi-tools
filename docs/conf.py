@@ -185,15 +185,15 @@ git_ref = None
 try:
     git_ref = git("name-rev", "--name-only", "--no-undefined", "HEAD")
     git_ref = re.sub(r"^(remotes/[^/]+|tags)/", "", git_ref)
-except Exception:  # noqa: B902
+except Exception:
     pass
 
 # (if no name found or relative ref, use commit hash instead)
 if not git_ref or re.search(r"[\^~]", git_ref):
     try:
         git_ref = git("rev-parse", "HEAD")
-    except Exception:  # noqa: B902
-        git_ref = "master"
+    except Exception:
+        git_ref = "main"
 
 # https://github.com/DisnakeDev/disnake/blob/7853da70b13fcd2978c39c0b7efa59b34d298186/docs/conf.py#L192
 _scvi_tools_module_path = os.path.dirname(importlib.util.find_spec("scvi").origin)  # type: ignore
@@ -215,7 +215,7 @@ def linkcode_resolve(domain, info):
 
         path = os.path.relpath(inspect.getsourcefile(obj), start=_scvi_tools_module_path)  # type: ignore
         src, lineno = inspect.getsourcelines(obj)
-    except Exception:  # noqa: B902
+    except Exception:
         return None
 
     path = f"{path}#L{lineno}-L{lineno + len(src) - 1}"

@@ -41,8 +41,7 @@ class SCVI(
     UnsupervisedTrainingMixin,
     BaseMinifiedModeModelClass,
 ):
-    """
-    single-cell Variational Inference :cite:p:`Lopez18`.
+    """single-cell Variational Inference :cite:p:`Lopez18`.
 
     Parameters
     ----------
@@ -175,8 +174,7 @@ class SCVI(
         continuous_covariate_keys: Optional[List[str]] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
@@ -249,8 +247,7 @@ class SCVI(
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ) -> None:
-        """
-        Minifies the model's adata.
+        """Minifies the model's adata.
 
         Minifies the adata, and registers new anndata fields: latent qzm, latent qzv, adata uns
         containing minified-adata type, and library size.

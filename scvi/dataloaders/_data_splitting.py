@@ -17,8 +17,7 @@ from scvi.model._utils import parse_use_gpu_arg
 def validate_data_split(
     n_samples: int, train_size: float, validation_size: Optional[float] = None
 ):
-    """
-    Check data splitting parameters and return n_train and n_val.
+    """Check data splitting parameters and return n_train and n_val.
 
     Parameters
     ----------
@@ -54,8 +53,7 @@ def validate_data_split(
 
 
 class DataSplitter(pl.LightningDataModule):
-    """
-    Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
+    """Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
 
     If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
 
@@ -164,8 +162,7 @@ class DataSplitter(pl.LightningDataModule):
 
 
 class SemiSupervisedDataSplitter(pl.LightningDataModule):
-    """
-    Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
+    """Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
 
     If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
     The ratio between labeled and unlabeled data in adata will be preserved
@@ -339,8 +336,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
 
 class DeviceBackedDataSplitter(DataSplitter):
-    """
-    Creates loaders for data that is already on device, e.g., GPU.
+    """Creates loaders for data that is already on device, e.g., GPU.
 
     If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
 

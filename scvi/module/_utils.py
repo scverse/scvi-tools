@@ -13,8 +13,7 @@ def iterate(obj, func):
 
 
 def broadcast_labels(y, *o, n_broadcast=-1):
-    """
-    Utility for the semi-supervised setting.
+    """Utility for the semi-supervised setting.
 
     If y is defined(labelled batch) then one-hot encode the labels (no broadcasting needed)
     If y is undefined (unlabelled batch) then generate all possible labels (and broadcast other arguments if not None)
@@ -47,8 +46,7 @@ def enumerate_discrete(x, y_dim):
 
 
 def masked_softmax(weights, mask, dim=-1, eps=1e-30):
-    """
-    Computes a softmax of ``weights`` along ``dim`` where ``mask is True``.
+    """Computes a softmax of ``weights`` along ``dim`` where ``mask is True``.
 
     Adds a small ``eps`` term in the numerator and denominator to avoid zero division.
     Taken from: https://discuss.pytorch.org/t/apply-mask-softmax/14212/15.

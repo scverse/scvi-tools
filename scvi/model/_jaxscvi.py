@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class JaxSCVI(JaxTrainingMixin, BaseModelClass):
-    """
-    EXPERIMENTAL single-cell Variational Inference :cite:p:`Lopez18`, but with a Jax backend.
+    """EXPERIMENTAL single-cell Variational Inference :cite:p:`Lopez18`, but with a Jax backend.
 
     This implementation is in a very experimental state. API is completely subject to change.
 
@@ -86,8 +85,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         batch_key: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
@@ -114,8 +112,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         n_samples: int = 1,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
-        r"""
-        Return the latent representation for each cell.
+        r"""Return the latent representation for each cell.
 
         This is denoted as :math:`z_n` in our manuscripts.
 
@@ -161,9 +158,9 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         return self.module.as_numpy_array(latent)
 
-    def to_device(self, device):  # noqa: D102
+    def to_device(self, device):
         pass
 
     @property
-    def device(self):  # noqa: D102
+    def device(self):
         return self.module.device

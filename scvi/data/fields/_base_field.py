@@ -11,8 +11,7 @@ from scvi.data._utils import get_anndata_attribute
 
 
 class BaseAnnDataField(ABC):
-    """
-    Abstract class for a single AnnData/MuData field.
+    """Abstract class for a single AnnData/MuData field.
 
     A Field class defines how scvi-tools will map a data field used by a model
     to an attribute in an AnnData/MuData object.
@@ -41,8 +40,7 @@ class BaseAnnDataField(ABC):
     @property
     @abstractmethod
     def is_empty(self) -> bool:
-        """
-        Returns True if the field is empty as a function of its kwargs.
+        """Returns True if the field is empty as a function of its kwargs.
 
         A field can be empty if it is composed of a collection of variables, and for a given
         instance of a model, the collection is empty. If empty, the field will be omitted from
@@ -55,8 +53,7 @@ class BaseAnnDataField(ABC):
 
     @abstractmethod
     def register_field(self, adata: AnnOrMuData) -> dict:
-        """
-        Sets up the AnnData/MuData object and creates a mapping for scvi-tools models to use.
+        """Sets up the AnnData/MuData object and creates a mapping for scvi-tools models to use.
 
         Returns
         -------
@@ -65,14 +62,13 @@ class BaseAnnDataField(ABC):
             stored directly on the AnnData/MuData object.
         """
         self.validate_field(adata)
-        return dict()
+        return {}
 
     @abstractmethod
     def transfer_field(
         self, state_registry: dict, adata_target: AnnOrMuData, **kwargs
     ) -> dict:
-        """
-        Takes an existing scvi-tools setup dictionary and transfers the same setup to the target AnnData.
+        """Takes an existing scvi-tools setup dictionary and transfers the same setup to the target AnnData.
 
         Used when one is running a pretrained model on a new AnnData object, which
         requires the mapping from the original data to be applied to the new AnnData object.
@@ -92,12 +88,11 @@ class BaseAnnDataField(ABC):
             A dictionary containing any additional state required for scvi-tools models not
             stored directly on the AnnData object.
         """
-        return dict()
+        return {}
 
     @abstractmethod
     def get_summary_stats(self, state_registry: dict) -> dict:
-        """
-        Returns a dictionary comprising of summary statistics relevant to the field.
+        """Returns a dictionary comprising of summary statistics relevant to the field.
 
         Parameters
         ----------
@@ -115,8 +110,7 @@ class BaseAnnDataField(ABC):
 
     @abstractmethod
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
-        """
-        Returns a :class:`rich.table.Table` summarizing a state registry produced by this field.
+        """Returns a :class:`rich.table.Table` summarizing a state registry produced by this field.
 
         Parameters
         ----------
@@ -139,14 +133,13 @@ class BaseAnnDataField(ABC):
         )
 
     def get_data_registry(self) -> dict:
-        """
-        Returns a nested dictionary which describes the mapping to the data field.
+        """Returns a nested dictionary which describes the mapping to the data field.
 
         The dictionary is of the form {"mod_key": mod_key, "attr_name": attr_name, "attr_key": attr_key}.
         This mapping is then combined with the mappings of other fields to make up the data registry.
         """
         if self.is_empty:
-            return dict()
+            return {}
 
         data_registry = {
             _constants._DR_ATTR_NAME: self.attr_name,

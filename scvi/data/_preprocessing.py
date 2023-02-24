@@ -28,10 +28,8 @@ def poisson_gene_selection(
     batch_key: str = None,
     silent: bool = False,
     minibatch_size: int = 5000,
-    **kwargs,
 ) -> Optional[pd.DataFrame]:
-    """
-    Rank and select genes based on the enrichment of zero counts.
+    """Rank and select genes based on the enrichment of zero counts.
 
     Enrichment is considered by comparing data to a Poisson count model.
     This is based on M3Drop: https://github.com/tallulandrews/M3Drop
@@ -236,8 +234,7 @@ def poisson_gene_selection(
 def organize_cite_seq_10x(
     adata: anndata.AnnData, copy: bool = False
 ) -> Optional[anndata.AnnData]:
-    """
-    Organize anndata object loaded from 10x for scvi models.
+    """Organize anndata object loaded from 10x for scvi models.
 
     Parameters
     ----------
@@ -288,8 +285,7 @@ def organize_multiome_anndatas(
     atac_anndata: Optional[anndata.AnnData] = None,
     modality_key: str = "modality",
 ) -> anndata.AnnData:
-    """
-    Concatenate multiome and single-modality input anndata objects.
+    """Concatenate multiome and single-modality input anndata objects.
 
     These anndata objects should already have been preprocessed so that both single-modality
     objects use a subset of the features used in the multiome object. The feature names (index of
@@ -383,8 +379,7 @@ def add_dna_sequence(
     sequence_varm_key: str = "dna_sequence",
     code_varm_key: str = "dna_code",
 ) -> None:
-    """
-    Add DNA sequence to AnnData object.
+    """Add DNA sequence to AnnData object.
 
     Uses genomepy under the hood to download the genome.
 

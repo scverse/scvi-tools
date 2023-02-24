@@ -1,5 +1,4 @@
 import numpy as np
-
 from scvi.data import synthetic_iid
 from scvi.external import RNAStereoscope, SpatialStereoscope
 

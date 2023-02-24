@@ -13,8 +13,7 @@ def get_minified_adata_scrna(
     adata: AnnData,
     minified_data_type: MinifiedDataType,
 ) -> AnnData:
-    """
-    Returns a minified adata that works for most scrna models (such as SCVI, SCANVI).
+    """Returns a minified adata that works for most scrna models (such as SCVI, SCANVI).
 
     Parameters
     ----------

@@ -5,9 +5,8 @@ from uuid import uuid4
 
 import numpy as np
 import pytest
-from huggingface_hub import delete_repo
-
 import scvi
+from huggingface_hub import delete_repo
 from scvi.hub import HubMetadata, HubModel, HubModelCardHelper
 from scvi.hub._constants import _SCVI_HUB
 

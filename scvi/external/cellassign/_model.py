@@ -28,8 +28,7 @@ B = 10
 
 
 class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Reimplementation of CellAssign for reference-based annotation :cite:p:`Zhang19`.
+    """Reimplementation of CellAssign for reference-based annotation :cite:p:`Zhang19`.
 
     Parameters
     ----------
@@ -68,10 +67,10 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     ):
         try:
             cell_type_markers = cell_type_markers.loc[adata.var_names]
-        except KeyError:
+        except KeyError as err:
             raise KeyError(
                 "Anndata and cell type markers do not contain the same genes."
-            )
+            ) from err
         super().__init__(adata)
 
         self.n_genes = self.summary_stats.n_vars
@@ -141,8 +140,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         early_stopping_min_delta: float = 0.0,
         **kwargs,
     ):
-        """
-        Trains the model.
+        """Trains the model.
 
         Parameters
         ----------
@@ -202,7 +200,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             n_cells = self.adata.n_obs
             max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
         data_splitter = DataSplitter(
             self.adata_manager,
@@ -234,11 +232,11 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
+        %(param_adata)s
         size_factor_key
             key in `adata.obs` with continuous valued size factors.
         %(param_batch_key)s
