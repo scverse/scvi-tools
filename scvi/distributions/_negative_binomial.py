@@ -301,6 +301,7 @@ class NegativeBinomial(Distribution):
     arg_constraints = {
         "mu": constraints.greater_than_eq(0),
         "theta": constraints.greater_than_eq(0),
+        "scale": constraints.greater_than_eq(0),
     }
     support = constraints.nonnegative_integer
 
@@ -415,6 +416,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         "mu": constraints.greater_than_eq(0),
         "theta": constraints.greater_than_eq(0),
         "zi_logits": constraints.real,
+        "scale": constraints.greater_than_eq(0),
     }
     support = constraints.nonnegative_integer
 

@@ -13,11 +13,17 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi._utils import _doc_params
+from scvi.module.base._decorators import _move_data_to_device
 from scvi.utils import unsupported_in_latent_mode
 from scvi.utils._docstrings import doc_differential_expression
 
 from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
-from ._utils import DistributionsConcatenator, _de_core, subset_distribution
+from ._utils import (
+    DistributionsConcatenator,
+    _de_core,
+    move_distribution,
+    subset_distribution,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +45,7 @@ class RNASeqMixin:
         indices: Optional[Sequence[int]],
         distributions: dict,
         zs: torch.Tensor,
-        max_cells: int = 500,
+        max_cells: int = 128,
         truncation: bool = True,
     ):
         """Computes importance weights for the given samples.
@@ -59,8 +65,8 @@ class RNASeqMixin:
         truncation :
             Whether importance weights should be truncated, by default True
         """
+        device = self.device
         log_pz = db.Normal(0, 1).log_prob(zs).sum(dim=-1)
-
         all_cell_indices = np.arange(len(indices))
         anchor_cells = (
             np.random.choice(np.arange(len(indices)), size=max_cells, replace=False)
@@ -84,14 +90,16 @@ class RNASeqMixin:
         )  # n_samples, n_cells, n_anchors
 
         log_px_z = []
-        anchors_obs = adata[indices[anchor_cells]]
-        scdl_anchor = self._make_data_loader(adata=anchors_obs, batch_size=1)
+        distributions_px = move_distribution(distributions["px"], device)
+        scdl_anchor = self._make_data_loader(
+            adata=adata, indices=indices[anchor_cells], batch_size=1
+        )
         for tensors_anchor in scdl_anchor:
+            tensors_anchor = _move_data_to_device(tensors_anchor, device)
             x_anchor = tensors_anchor[REGISTRY_KEYS.X_KEY]  # 1, n_genes
-            px_z = distributions["px"]  # n_samples, n_cells, n_genes
-            px_z.mu = px_z.scale * x_anchor.sum(-1)
+            distributions_px.mu = distributions_px.scale * x_anchor.sum(-1)
             log_px_z.append(
-                px_z.log_prob(x_anchor).sum(dim=-1)[..., None]
+                distributions_px.log_prob(x_anchor).sum(dim=-1)[..., None].cpu()
             )  # n_samples, n_cells, 1
         log_px_z = torch.cat(log_px_z, dim=-1)
 

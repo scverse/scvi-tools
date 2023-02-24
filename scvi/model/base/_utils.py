@@ -14,6 +14,7 @@ from anndata import AnnData, read
 
 from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
+from scvi.module.base._decorators import _move_data_to_device
 from scvi.utils import track
 
 from ._differential import DifferentialComputation
@@ -31,6 +32,15 @@ def subset_distribution(my_distribution, index, dim=0):
             for name in my_distribution.arg_constraints.keys()
         }
     )
+
+
+def move_distribution(my_distribution, device):
+    """Utility function to move the parameter of a Pytorch distribution to a specific device."""
+    new_params = {
+        name: _move_data_to_device(getattr(my_distribution, name), device)
+        for name in my_distribution.arg_constraints.keys()
+    }
+    return my_distribution.__class__(**new_params)
 
 
 class DistributionsConcatenator:
