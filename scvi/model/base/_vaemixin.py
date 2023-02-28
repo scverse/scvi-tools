@@ -131,7 +131,7 @@ class VAEMixin:
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Return the latent representation for each cell.
 
-        This is denoted as :math:`z_n` in our manuscripts.
+        This is typically denoted as :math:`z_n`.
 
         Parameters
         ----------
