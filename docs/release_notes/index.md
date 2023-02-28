@@ -11,7 +11,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ### 0.20.2 (2023-MM-DD)
 
-####
+#### Fixed
 
 -   Fixed `return_dist` docstring of {meth}`scvi.model.base.VAEMixin.get_latent_representation` {pr}`1932`
 
