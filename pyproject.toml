@@ -63,7 +63,7 @@ dev = ["black", "pytest", "pytest-cov", "flake8", "codecov", "scanpy>=1.6", "loo
 docs = [
   "sphinx>=4.1",
   "ipython",
-  "sphinx-book-theme>=1.0.0rc2",
+  "sphinx-book-theme>=1.0.0rc3",
   "sphinx-autodoc-typehints<1.21.4",
   "sphinx_copybutton",
   "sphinx-design",
