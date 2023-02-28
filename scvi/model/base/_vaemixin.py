@@ -148,8 +148,10 @@ class VAEMixin:
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_dist
-            Return the distribution parameters of the latent variables rather than their sampled values.
-            If `True`, ignores `give_mean` and `mc_samples`.
+            Return (mean, variance) of distributions instead of just the mean.
+            If `True`, ignores `give_mean` and `mc_samples`. In the case of the latter,
+            `mc_samples` is used to compute the mean of a transformed distribution.
+            If `return_dist` is true the untransformed mean and variance are returned.
 
         Returns
         -------
