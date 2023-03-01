@@ -7,6 +7,14 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
+## Version 1.0
+
+### 1.0.0 (2023-MM-DD)
+
+#### Changed
+
+-   Use sphinx book theme for documentation {pr}`1673`
+
 ## Version 0.20
 
 ### 0.20.2 (2023-MM-DD)
