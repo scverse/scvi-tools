@@ -137,13 +137,23 @@ html_title = project_name
 html_logo = "_static/logo.png"
 
 html_theme_options = {
-    "repository_url": repository_url,
-    "use_repository_button": True,
+    "repository_url": "https://github.com/scverse/scvi-tutorials",
+    # This is false because the repo is the tutorials repo so colab links work
+    # instead we use the icon link below for the main repo
+    "use_repository_button": False,
     "logo_only": True,
     "show_toc_level": 4,
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
-    "path_to_docs": "docs/",
+    "path_to_docs": "docs/tutorials/notebooks",
     "repository_branch": version,
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": repository_url,  # required
+            "icon": "fa-brands fa-square-github",
+            "type": "fontawesome",
+        }
+    ],
 }
 
 pygments_style = "default"
