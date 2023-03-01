@@ -1,3 +1,4 @@
+from typing import Optional, Dict
 import importlib.util
 import inspect
 import os
@@ -8,6 +9,8 @@ from pathlib import Path
 from typing import Any
 from importlib.metadata import metadata
 from datetime import datetime
+from sphinx.application import Sphinx
+from docutils.nodes import document
 
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
@@ -137,22 +140,29 @@ html_title = project_name
 html_logo = "_static/logo.png"
 
 html_theme_options = {
-    "repository_url": "https://github.com/scverse/scvi-tutorials",
-    # This is false because the repo is the tutorials repo so colab links work
-    # instead we use the icon link below for the main repo
+    # Here we use the tutorials repo so that colab links are
+    # resolved correctly
+    "repository_url": repository_url,
     "use_repository_button": False,
     "logo_only": True,
     "show_toc_level": 4,
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
-    "path_to_docs": "docs/tutorials/notebooks",
+    "path_to_docs": "docs/",
     "repository_branch": version,
     "icon_links": [
         {
+            "name": "Scverse",
+            "url": "https://scverse.org/",
+            "icon": "https://github.com/scverse/scverse.github.io/blob/main/static/img/icons/scverse_bw_logo.svg",
+            "type": "url",
+        },
+        {
             "name": "GitHub",
-            "url": repository_url,  # required
-            "icon": "fa-brands fa-square-github",
+            # main repo github icon is defined here
+            "url": repository_url,
+            "icon": "fa-brands fa-github",
             "type": "fontawesome",
-        }
+        },
     ],
 }
 
@@ -164,6 +174,31 @@ pygments_style = "default"
 html_static_path = ["_static"]
 html_css_files = ["css/override.css"]
 html_show_sphinx = False
+
+
+def edit_colab_url(
+    app: Sphinx,
+    pagename: str,
+    templatename: str,
+    context: Dict[str, Any],
+    doctree: Optional[document],
+):
+    """Edit the colab url to point to the correct repo.
+
+    This assumes that the tutorials repo makes the same tag releases as the main repo.
+    """
+    header_buttons = context["header_buttons"]
+    for button in header_buttons:
+        # get launch buttons
+        if button["label"] == "launch-buttons":
+            # only one items in the launch buttons list as we only use colab
+            # remove "tutorials/notebooks" from url
+            button["buttons"][0]["url"] = button["buttons"][0]["url"].replace(
+                "tutorials/notebooks", ""
+            )
+            button["buttons"][0]["url"] = button["buttons"][0]["url"].replace(
+                "scvi-tools", "scvi-tutorials"
+            )
 
 
 def setup(app):
@@ -179,6 +214,9 @@ def setup(app):
         },
         True,
     )
+
+    # Get the html context
+    app.connect("html-page-context", edit_colab_url)
 
 
 # -- Config for linkcode -------------------------------------------
