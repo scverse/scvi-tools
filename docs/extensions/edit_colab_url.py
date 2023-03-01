@@ -31,4 +31,5 @@ def edit_colab_url(
 
 def setup(app: Sphinx):
     """Setup the extension."""
-    app.connect("html-page-context", edit_colab_url)
+    # Priority is set to 502 to ensure that this runs after the sphinx-book-theme
+    app.connect("html-page-context", edit_colab_url, priority=502)
