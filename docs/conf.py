@@ -1,4 +1,3 @@
-from typing import Optional, Dict
 import importlib.util
 import inspect
 import os
@@ -8,9 +7,6 @@ import sys
 from pathlib import Path
 from typing import Any
 from importlib.metadata import metadata
-from datetime import datetime
-from sphinx.application import Sphinx
-from docutils.nodes import document
 
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
@@ -19,8 +15,8 @@ sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
 
 info = metadata("scvi-tools")
 project_name = info["Name"]
-author = info["Author"]
-copyright = f"{datetime.now():%Y}, {author}."
+# author = info["Author"]
+# copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
 repository_url = f"https://github.com/scverse/{project_name}"
 
@@ -176,31 +172,6 @@ html_css_files = ["css/override.css"]
 html_show_sphinx = False
 
 
-def edit_colab_url(
-    app: Sphinx,
-    pagename: str,
-    templatename: str,
-    context: Dict[str, Any],
-    doctree: Optional[document],
-):
-    """Edit the colab url to point to the correct repo.
-
-    This assumes that the tutorials repo makes the same tag releases as the main repo.
-    """
-    header_buttons = context["header_buttons"]
-    for button in header_buttons:
-        # get launch buttons
-        if button["label"] == "launch-buttons":
-            # only one items in the launch buttons list as we only use colab
-            # remove "tutorials/notebooks" from url
-            button["buttons"][0]["url"] = button["buttons"][0]["url"].replace(
-                "/docs/tutorials/notebooks", ""
-            )
-            button["buttons"][0]["url"] = button["buttons"][0]["url"].replace(
-                "scvi-tools", "scvi-tutorials"
-            )
-
-
 def setup(app):
     """App setup hook."""
     app.add_config_value(
@@ -214,9 +185,6 @@ def setup(app):
         },
         True,
     )
-
-    # Get the html context
-    app.connect("html-page-context", edit_colab_url)
 
 
 # -- Config for linkcode -------------------------------------------
