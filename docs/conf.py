@@ -138,7 +138,7 @@ html_logo = "_static/logo.png"
 
 html_theme_options = {
     "repository_url": repository_url,
-    "use_repository_button": False,
+    "use_repository_button": True,
     "logo_only": True,
     "show_toc_level": 4,
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
