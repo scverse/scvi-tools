@@ -19,6 +19,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Use ruff for fixing and linting {pr}`1921`
 -   Removed .flake8 and .prospector files {pr}`1923`
+-   Add MuData support for {class}`scvi.model.MULTIVI` with {meth}`scvi.model.MULTIVI.setup_mudata` {pr}`1937`.
 
 ### 0.20.1 (2023-02-21)
 
