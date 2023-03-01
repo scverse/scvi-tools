@@ -137,8 +137,6 @@ html_title = project_name
 html_logo = "_static/logo.png"
 
 html_theme_options = {
-    # Here we use the tutorials repo so that colab links are
-    # resolved correctly
     "repository_url": repository_url,
     "use_repository_button": False,
     "logo_only": True,
@@ -150,7 +148,7 @@ html_theme_options = {
         {
             "name": "Scverse",
             "url": "https://scverse.org/",
-            "icon": "https://github.com/scverse/scverse.github.io/blob/main/static/img/icons/scverse_bw_logo.svg",
+            "icon": "https://raw.githubusercontent.com/scverse/scverse.github.io/main/static/img/icons/scverse_bw_logo.svg",
             "type": "url",
         },
         {
