@@ -858,7 +858,7 @@ class MULTIVAE(BaseModuleClass):
         ).sum(dim=1)
 
         # Compute KLD between distributions for paired data
-        kld_paired = self._compute_mod_penalty(
+        kl_div_paired = self._compute_mod_penalty(
             (inference_outputs["qzm_expr"], inference_outputs["qzv_expr"]),
             (inference_outputs["qzm_acc"], inference_outputs["qzv_acc"]),
             (inference_outputs["qzm_pro"], inference_outputs["qzv_pro"]),
@@ -869,10 +869,10 @@ class MULTIVAE(BaseModuleClass):
 
         # KL WARMUP
         kl_local_for_warmup = kl_div_z
-        weighted_kl_local = kl_weight * kl_local_for_warmup
+        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_div_paired
 
         # TOTAL LOSS
-        loss = torch.mean(recon_loss + weighted_kl_local + kld_paired)
+        loss = torch.mean(recon_loss + weighted_kl_local)
 
         recon_losses = {
             "reconstruction_loss_expression": recon_loss_expression,
@@ -881,7 +881,7 @@ class MULTIVAE(BaseModuleClass):
         }
         kl_local = {
             "kl_divergence_z": kl_div_z,
-            "kl_divergence_paired": kld_paired,
+            "kl_divergence_paired": kl_div_paired,
         }
         return LossOutput(
             loss=loss, reconstruction_loss=recon_losses, kl_local=kl_local
