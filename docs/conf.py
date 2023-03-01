@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 from importlib.metadata import metadata
+from datetime import datetime
 
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
@@ -15,8 +16,8 @@ sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
 
 info = metadata("scvi-tools")
 project_name = info["Name"]
-# author = info["Author"]
-# copyright = f"{datetime.now():%Y}, {author}."
+author = info["Author"]
+copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
 repository_url = f"https://github.com/scverse/{project_name}"
 
