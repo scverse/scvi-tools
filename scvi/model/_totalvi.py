@@ -1264,10 +1264,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         Parameters
         ----------
         %(param_mdata)s
-        rna_layer
-            RNA layer key. If `None`, will use `.X` of specified modality key.
-        protein_layer
-            Protein layer key. If `None`, will use `.X` of specified modality key.
+        %(param_rna_layer)s
+        %(param_protein_layer)s
         %(param_batch_key)s
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s

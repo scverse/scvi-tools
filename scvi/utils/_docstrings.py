@@ -91,6 +91,18 @@ param_layer = """\
 layer
     if not `None`, uses this as the key in `adata.layers` for raw count data."""
 
+param_rna_layer = """\
+rna_layer
+    RNA layer key. If `None`, will use `.X` of specified modality key."""
+
+param_protein_layer = """\
+protein_layer
+    Protein layer key. If `None`, will use `.X` of specified modality key."""
+
+param_accessibility_layer = """\
+accessibility_layer
+    Accessibility layer key. If `None`, will use `.X` of specified modality key."""
+
 param_cat_cov_keys = """\
 categorical_covariate_keys
     keys in `adata.obs` that correspond to categorical data.

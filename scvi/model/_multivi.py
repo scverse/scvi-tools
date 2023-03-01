@@ -8,21 +8,14 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from mudata import MuData
 from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.data import AnnDataManager
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-    ProteinObsmField,
-)
+from scvi.data import AnnDataManager, fields
 from scvi.model._utils import (
     _get_batch_code_from_category,
     scatac_raw_counts_properties,
@@ -1053,26 +1046,26 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         adata.obs["_indices"] = np.arange(adata.n_obs)
-        batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
+        batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             batch_field,
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            NumericalObsField(
+            fields.CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
+            fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            fields.NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
             ),
-            CategoricalJointObsField(
+            fields.CategoricalJointObsField(
                 REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
             ),
-            NumericalJointObsField(
+            fields.NumericalJointObsField(
                 REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
             ),
-            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
+            fields.NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
         if protein_expression_obsm_key is not None:
             anndata_fields.append(
-                ProteinObsmField(
+                fields.ProteinObsmField(
                     REGISTRY_KEYS.PROTEIN_EXP_KEY,
                     protein_expression_obsm_key,
                     use_batch_mask=True,
@@ -1086,6 +1079,99 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             fields=anndata_fields, setup_method_args=setup_method_args
         )
         adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_mudata(
+        cls,
+        mdata: MuData,
+        rna_layer: Optional[str] = None,
+        protein_layer: Optional[str] = None,
+        accessibility_layer: Optional[str] = None,
+        batch_key: Optional[str] = None,
+        size_factor_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        modalities: Optional[Dict[str, str]] = None,
+        **kwargs,
+    ):
+        """%(summary_mdata)s.
+
+        Parameters
+        ----------
+        %(param_mdata)s
+        %(param_rna_layer)s
+        %(param_protein_layer)s
+        %(param_accessibility_layer)s
+        %(param_batch_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        %(param_modalities)s
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+
+        if modalities is None:
+            raise ValueError("Modalities cannot be None.")
+        modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
+
+        batch_field = fields.MuDataCategoricalObsField(
+            REGISTRY_KEYS.BATCH_KEY,
+            batch_key,
+            mod_key=modalities.batch_key,
+        )
+        mudata_fields = [
+            fields.MuDataLayerField(
+                REGISTRY_KEYS.X_KEY,
+                rna_layer,
+                mod_key=modalities.rna_key,
+                is_count_data=True,
+                mod_required=True,
+            ),
+            fields.MuDataCategoricalObsField(
+                REGISTRY_KEYS.LABELS_KEY,
+                None,
+                mod_key=None,
+            ),
+            batch_field,
+            fields.MuDataNumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY,
+                size_factor_key,
+                mod_key=modalities.size_factor_key,
+                required=False,
+            ),
+            fields.MuDataCategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY,
+                categorical_covariate_keys,
+                mod_key=modalities.categorical_covariate_keys,
+            ),
+            fields.MuDataNumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY,
+                continuous_covariate_keys,
+                mod_key=modalities.continuous_covariate_keys,
+            ),
+            fields.MuDataProteinLayerField(
+                REGISTRY_KEYS.PROTEIN_EXP_KEY,
+                protein_layer,
+                mod_key=modalities.protein_key,
+                use_batch_mask=True,
+                batch_field=batch_field,
+                is_count_data=True,
+                mod_required=False,
+            ),
+            fields.MuDataLayerField(
+                REGISTRY_KEYS.ACCESSIBILITY_KEY,
+                accessibility_layer,
+                mod_key=modalities.accessibility_key,
+                is_count_data=True,
+                mod_required=False,
+            ),
+        ]
+        adata_manager = AnnDataManager(
+            fields=mudata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)
 
     def _check_adata_modality_weights(self, adata):
