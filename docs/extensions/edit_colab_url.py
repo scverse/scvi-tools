@@ -10,7 +10,10 @@ def edit_colab_url(
 ):
     """Edit the colab url to point to the correct repo.
 
-    This assumes that the tutorials repo makes the same tag releases as the main repo.
+    This assumes that the tutorials repo makes the same tag releases as the main repo,
+    in addition to only using colab urls (no binder or jupyterhub)
+
+    If this code needs updating, see how the sphinx book theme handles launch buttons.
     """
     try:
         header_buttons = context["header_buttons"]
@@ -32,4 +35,5 @@ def edit_colab_url(
 def setup(app: Sphinx):
     """Setup the extension."""
     # Priority is set to 502 to ensure that this runs after the sphinx-book-theme
+    # The launch buttons are added in the sphinx-book-theme with priority 501
     app.connect("html-page-context", edit_colab_url, priority=502)
