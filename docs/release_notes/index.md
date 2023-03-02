@@ -21,12 +21,13 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Fixed
 
--   Fixed `return_dist` docstring of {meth}`scvi.model.base.VAEMixin.get_latent_representation` {pr}`1932`
+-   Fix `return_dist` docstring of {meth}`scvi.model.base.VAEMixin.get_latent_representation` {pr}`1932`.
 
 #### Changed
 
--   Use ruff for fixing and linting {pr}`1921`
--   Removed .flake8 and .prospector files {pr}`1923`
+-   Use ruff for fixing and linting {pr}`1921`.
+-   Remove .flake8 and .prospector files {pr}`1923`.
+-   Log individual loss terms in {meth}`scvi.module.MULTIVAE.loss` {pr}`1936`.
 
 ### 0.20.1 (2023-02-21)
 
