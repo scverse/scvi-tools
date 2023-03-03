@@ -3,6 +3,7 @@ import tarfile
 
 import pytest
 import scanpy as sc
+
 from scvi.data import dataset_10x, organize_cite_seq_10x
 
 from .utils import unsupervised_training_one_epoch

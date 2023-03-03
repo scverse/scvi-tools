@@ -3,8 +3,9 @@ import pickle
 
 import numpy as np
 import pytest
-import scvi
 import torch
+
+import scvi
 from scvi.data import synthetic_iid
 from scvi.external import GIMVI
 

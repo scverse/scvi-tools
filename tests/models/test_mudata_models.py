@@ -2,9 +2,10 @@ import os
 
 import numpy as np
 import pytest
-import scvi
 from anndata import AnnData
 from mudata import MuData
+
+import scvi
 from scvi.data import synthetic_iid
 from scvi.model import TOTALVI
 from scvi.utils import attrdict

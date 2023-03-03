@@ -28,7 +28,6 @@ extensions = [
     "nbsphinx",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "sphinx_autodoc_typehints",  # needs to be after napoleon
     "sphinx.ext.extlinks",
     "sphinx.ext.autosummary",
     "sphinxcontrib.bibtex",
@@ -55,14 +54,15 @@ templates_path = ["_templates"]
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
+default_role = "literal"
 bibtex_reference_style = "author_year"
+autodoc_typehints = "description"
 napoleon_google_docstring = True  # for pytorch lightning
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False
 napoleon_use_rtype = True  # having a separate entry generally helps readability
 napoleon_use_param = True
 napoleon_custom_sections = [("Params", "Parameters")]
-typehints_defaults = "braces"
 todo_include_todos = False
 numpydoc_show_class_members = False
 annotate_defaults = True  # scanpydoc option, look into why we need this

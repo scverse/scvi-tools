@@ -8,11 +8,13 @@ import anndata
 import numpy as np
 import pandas as pd
 import pytest
-import scvi
 import torch
 from flax import linen as nn
 from pytorch_lightning.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
+from torch.nn import Softplus
+
+import scvi
 from scvi.data import _constants, synthetic_iid
 from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
 from scvi.data._download import _download
@@ -38,8 +40,6 @@ from scvi.model import (
 from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils import attrdict
-from torch.nn import Softplus
-
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
