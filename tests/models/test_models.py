@@ -332,7 +332,9 @@ def test_scvi(save_path):
 
     # test differential expression
     model.differential_expression(groupby="labels", group1="label_1")
-    model.differential_expression(groupby="labels", group1="label_1", weights="importance")
+    model.differential_expression(
+        groupby="labels", group1="label_1", weights="importance"
+    )
     model.differential_expression(
         groupby="labels", group1="label_1", group2="label_2", mode="change"
     )

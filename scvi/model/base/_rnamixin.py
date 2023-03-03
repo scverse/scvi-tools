@@ -13,8 +13,8 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.module.base._decorators import _move_data_to_device
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
+from scvi.module.base._decorators import _move_data_to_device
 from scvi.utils import unsupported_if_adata_minified
 from scvi.utils._docstrings import doc_differential_expression
 

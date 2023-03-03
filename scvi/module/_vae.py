@@ -572,7 +572,7 @@ class VAE(BaseMinifiedModeModuleClass):
         for _ in range(n_passes):
             # Distribution parameters and sampled variables
             inference_outputs, _, losses = self.forward(
-                tensors, inference_kwargs=dict(n_samples=n_mc_samples_per_pass)
+                tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass}
             )
             qz = inference_outputs["qz"]
             ql = inference_outputs["ql"]
