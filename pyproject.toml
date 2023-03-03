@@ -117,7 +117,7 @@ exclude = '''
 '''
 
 [tool.ruff]
-src = ["src"]
+src = ["."]
 line-length = 119
 target-version = "py38"
 select = [
