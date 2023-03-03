@@ -42,7 +42,6 @@ html_context = {
 extensions = [
     "myst_nb",
     "sphinx.ext.autodoc",
-    "sphinxcontrib.default_values",  # must be after autodoc
     "sphinx.ext.intersphinx",
     "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
@@ -67,7 +66,6 @@ ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
 autosummary_generate = True
 autodoc_member_order = "bysource"
 default_role = "literal"
-default_description_format = "*Default %s*"
 bibtex_reference_style = "author_year"
 autodoc_typehints = "description"
 napoleon_google_docstring = True  # for pytorch lightning
