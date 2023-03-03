@@ -46,7 +46,6 @@ extensions = [
     "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "sphinx_autodoc_typehints",  # needs to be after napoleon
     "sphinx.ext.extlinks",
     "sphinx.ext.autosummary",
     "sphinxcontrib.bibtex",
@@ -66,7 +65,9 @@ ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
+default_role = "literal"
 bibtex_reference_style = "author_year"
+autodoc_typehints = "description"
 napoleon_google_docstring = True  # for pytorch lightning
 napoleon_numpy_docstring = True  # use numpydoc style
 napoleon_include_init_with_doc = False
@@ -86,7 +87,6 @@ myst_url_schemes = ("http", "https", "mailto")
 nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
-typehints_defaults = "braces"
 
 source_suffix = {
     ".rst": "restructuredtext",
