@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class DifferentialComputation:
-    """
-    Unified class for differential computation.
+    """Unified class for differential computation.
 
     This class takes a function from a model like `SCVI` or `TOTALVI` and takes outputs
     from this function with respect to the adata input and computed Bayes factors as
@@ -71,8 +70,7 @@ class DifferentialComputation:
         pseudocounts: Union[float, None] = 0.0,
         cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
     ) -> Dict[str, np.ndarray]:
-        r"""
-        A unified method for differential expression inference.
+        r"""A unified method for differential expression inference.
 
         Two modes coexist:
 
@@ -289,13 +287,13 @@ class DifferentialComputation:
             logger.debug("Differential expression using vanilla mode")
             proba_m1 = np.mean(scales_1 > scales_2, 0)
             proba_m2 = 1.0 - proba_m1
-            res = dict(
-                proba_m1=proba_m1,
-                proba_m2=proba_m2,
-                bayes_factor=np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
-                scale1=px_scale_mean1,
-                scale2=px_scale_mean2,
-            )
+            res = {
+                "proba_m1": proba_m1,
+                "proba_m2": proba_m2,
+                "bayes_factor": np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
+                "scale1": px_scale_mean1,
+                "scale2": px_scale_mean2,
+            }
 
         elif mode == "change":
             logger.debug("Differential expression using change mode")
@@ -335,12 +333,12 @@ class DifferentialComputation:
                     if delta is None
                     else delta
                 )
-            except TypeError:
+            except TypeError as err:
                 raise TypeError(
                     "change_fn or m1_domain_fn have has wrong properties."
                     "Please ensure that these functions have the right signatures and"
                     "outputs and that they can process numpy arrays"
-                )
+                ) from err
             proba_m1 = np.mean(is_de, 0)
             change_distribution_props = describe_continuous_distrib(
                 samples=change_distribution,
@@ -375,8 +373,7 @@ class DifferentialComputation:
         use_observed_batches: Optional[bool] = False,
         give_mean: Optional[bool] = False,
     ) -> dict:
-        """
-        Samples the posterior scale using the variational posterior distribution.
+        """Samples the posterior scale using the variational posterior distribution.
 
         Parameters
         ----------
@@ -458,7 +455,7 @@ class DifferentialComputation:
             raise ValueError("sampled scales and batches have inconsistent shapes")
         if give_mean:
             px_scales = px_scales.mean(0)
-        return dict(scale=px_scales, batch=batch_ids)
+        return {"scale": px_scales, "batch": batch_ids}
 
     def process_selection(self, selection: Union[List[bool], np.ndarray]):
         """If selection is a mask, convert it to indices."""
@@ -471,8 +468,7 @@ class DifferentialComputation:
 
 
 def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
-    """
-    Computes a threshold LFC value based on means of LFCs.
+    """Computes a threshold LFC value based on means of LFCs.
 
     Parameters
     ----------
@@ -501,8 +497,7 @@ def estimate_pseudocounts_offset(
     where_zero_b: List[np.ndarray],
     percentile: Optional[float] = 0.9,
 ):
-    """
-    Determines pseudocount offset.
+    """Determines pseudocount offset.
 
     This shrinks LFCs asssociated with non-expressed genes to zero.
 
@@ -551,8 +546,7 @@ def pairs_sampler(
     weights1: Union[List[float], np.ndarray, torch.Tensor] = None,
     weights2: Union[List[float], np.ndarray, torch.Tensor] = None,
 ) -> tuple:
-    """
-    Creates more pairs.
+    """Creates more pairs.
 
     In a context where we want to estimate a double sum, virtually increases the number
     of samples by considering more pairs so as to better estimate the double summation operation
@@ -610,8 +604,7 @@ def pairs_sampler(
 def credible_intervals(
     ary: np.ndarray, confidence_level: Union[float, List[float], np.ndarray] = 0.94
 ) -> np.ndarray:
-    """
-    Calculate highest posterior density (HPD) of array for given credible_interval.
+    """Calculate highest posterior density (HPD) of array for given credible_interval.
 
     Taken from the arviz package
     The HPD is the minimum width Bayesian credible interval (BCI). This implementation works only
@@ -660,8 +653,7 @@ def describe_continuous_distrib(
     samples: Union[np.ndarray, torch.Tensor],
     credible_intervals_levels: Optional[Union[List[float], np.ndarray]] = None,
 ) -> dict:
-    """
-    Computes properties of distribution based on its samples.
+    """Computes properties of distribution based on its samples.
 
     Parameters
     ----------
@@ -676,13 +668,13 @@ def describe_continuous_distrib(
     type
         properties of distribution
     """
-    dist_props = dict(
-        mean=samples.mean(0),
-        median=np.median(samples, 0),
-        std=samples.std(0),
-        min=samples.min(0),
-        max=samples.max(0),
-    )
+    dist_props = {
+        "mean": samples.mean(0),
+        "median": np.median(samples, 0),
+        "std": samples.std(0),
+        "min": samples.min(0),
+        "max": samples.max(0),
+    }
     credible_intervals_levels = (
         [] if credible_intervals_levels is None else credible_intervals_levels
     )
@@ -699,8 +691,7 @@ def describe_continuous_distrib(
 def save_cluster_xlsx(
     filepath: str, de_results: List[pd.DataFrame], cluster_names: List
 ):
-    """
-    Saves multi-clusters DE in an xlsx sheet.
+    """Saves multi-clusters DE in an xlsx sheet.
 
     Parameters
     ----------

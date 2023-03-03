@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class ProgressBar(ProgressBarBase):
-    """
-    Custom progress bar for scvi-tools models.
+    """Custom progress bar for scvi-tools models.
 
     Parameters
     ----------
@@ -34,21 +33,21 @@ class ProgressBar(ProgressBarBase):
         return state
 
     @property
-    def is_enabled(self) -> bool:  # noqa: D102
+    def is_enabled(self) -> bool:
         return self._enabled and self.refresh_rate > 0
 
     @property
-    def refresh_rate(self) -> int:  # noqa: D102
+    def refresh_rate(self) -> int:
         return self._refresh_rate
 
     @property
-    def is_disabled(self) -> bool:  # noqa: D102
+    def is_disabled(self) -> bool:
         return not self.is_enabled
 
-    def disable(self) -> None:  # noqa: D102
+    def disable(self) -> None:
         self._enabled = False
 
-    def enable(self) -> None:  # noqa: D102
+    def enable(self) -> None:
         self._enabled = True
 
     def init_train_tqdm(self, trainer):
@@ -62,15 +61,15 @@ class ProgressBar(ProgressBarBase):
         )
         return bar
 
-    def on_sanity_check_start(self, trainer, pl_module):  # noqa: D102
+    def on_sanity_check_start(self, trainer, pl_module):
         super().on_sanity_check_start(trainer, pl_module)
         logger.info("Running sanity check on val set...")
 
-    def on_train_start(self, trainer, pl_module):  # noqa: D102
+    def on_train_start(self, trainer, pl_module):
         super().on_train_start(trainer, pl_module)
         self.main_progress_bar = self.init_train_tqdm(trainer)
 
-    def on_train_epoch_start(self, trainer, pl_module):  # noqa: D102
+    def on_train_epoch_start(self, trainer, pl_module):
         super().on_train_epoch_start(trainer, pl_module)
         if self._should_update(self.trainer.current_epoch, self.trainer.max_epochs):
             epoch = trainer.current_epoch + 1
@@ -83,13 +82,13 @@ class ProgressBar(ProgressBarBase):
             current % self.refresh_rate == 0 or current == total
         )
 
-    def on_train_epoch_end(self, trainer, pl_module):  # noqa: D102
+    def on_train_epoch_end(self, trainer, pl_module):
         super().on_train_epoch_end(trainer, pl_module)
         if self._should_update(self.trainer.current_epoch, self.trainer.max_epochs):
             self.main_progress_bar.update()
             self.main_progress_bar.set_postfix(self.get_metrics(trainer, pl_module))
 
-    def on_train_end(self, trainer, pl_module):  # noqa: D102
+    def on_train_end(self, trainer, pl_module):
         super().on_train_end(trainer, pl_module)
         if self.is_enabled:
             self.main_progress_bar.close()

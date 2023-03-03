@@ -26,8 +26,7 @@ LABELS_KEY = "_solo_doub_sim"
 
 
 class SOLO(BaseModelClass):
-    """
-    Doublet detection in scRNA-seq :cite:p:`Bernstein20`.
+    """Doublet detection in scRNA-seq :cite:p:`Bernstein20`.
 
     Most users will initialize the model using the class method
     :meth:`~scvi.external.SOLO.from_scvi_model`, which takes as
@@ -100,8 +99,7 @@ class SOLO(BaseModelClass):
         doublet_ratio: int = 2,
         **classifier_kwargs,
     ):
-        """
-        Instantiate a SOLO model from an scvi model.
+        """Instantiate a SOLO model from an scvi model.
 
         Parameters
         ----------
@@ -267,8 +265,7 @@ class SOLO(BaseModelClass):
         early_stopping_min_delta: float = 0.0,
         **kwargs,
     ):
-        """
-        Trains the model.
+        """Trains the model.
 
         Parameters
         ----------
@@ -325,7 +322,7 @@ class SOLO(BaseModelClass):
             n_cells = self.adata.n_obs
             max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
         data_splitter = DataSplitter(
             self.adata_manager,
@@ -349,8 +346,7 @@ class SOLO(BaseModelClass):
     def predict(
         self, soft: bool = True, include_simulated_doublets: bool = False
     ) -> pd.DataFrame:
-        """
-        Return doublet predictions.
+        """Return doublet predictions.
 
         Parameters
         ----------
@@ -405,8 +401,7 @@ class SOLO(BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

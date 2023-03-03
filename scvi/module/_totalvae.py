@@ -22,8 +22,7 @@ torch.backends.cudnn.benchmark = True
 
 # VAE model
 class TOTALVAE(BaseModuleClass):
-    """
-    Total variational inference for CITE-seq data.
+    """Total variational inference for CITE-seq data.
 
     Implements the totalVI model of :cite:p:`GayosoSteier21`.
 
@@ -250,8 +249,7 @@ class TOTALVAE(BaseModuleClass):
         label: Optional[torch.Tensor] = None,
         n_samples: int = 1,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Returns the tensors of dispersions for genes and proteins.
+        """Returns the tensors of dispersions for genes and proteins.
 
         Parameters
         ----------
@@ -335,9 +333,13 @@ class TOTALVAE(BaseModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
-        input_dict = dict(
-            x=x, y=y, batch_index=batch_index, cat_covs=cat_covs, cont_covs=cont_covs
-        )
+        input_dict = {
+            "x": x,
+            "y": y,
+            "batch_index": batch_index,
+            "cat_covs": cat_covs,
+            "cont_covs": cont_covs,
+        }
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs):
@@ -357,15 +359,15 @@ class TOTALVAE(BaseModuleClass):
             tensors[size_factor_key] if size_factor_key in tensors.keys() else None
         )
 
-        return dict(
-            z=z,
-            library_gene=library_gene,
-            batch_index=batch_index,
-            label=label,
-            cat_covs=cat_covs,
-            cont_covs=cont_covs,
-            size_factor=size_factor,
-        )
+        return {
+            "z": z,
+            "library_gene": library_gene,
+            "batch_index": batch_index,
+            "label": label,
+            "cat_covs": cat_covs,
+            "cont_covs": cont_covs,
+            "size_factor": size_factor,
+        }
 
     @auto_move_data
     def generative(
@@ -392,7 +394,7 @@ class TOTALVAE(BaseModuleClass):
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
-            categorical_input = tuple()
+            categorical_input = ()
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
@@ -424,11 +426,11 @@ class TOTALVAE(BaseModuleClass):
 
         px_["r"] = px_r
         py_["r"] = py_r
-        return dict(
-            px_=px_,
-            py_=py_,
-            log_pro_back_mean=log_pro_back_mean,
-        )
+        return {
+            "px_": px_,
+            "py_": py_,
+            "log_pro_back_mean": log_pro_back_mean,
+        }
 
     @auto_move_data
     def inference(
@@ -441,8 +443,7 @@ class TOTALVAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
-        """
-        Internal helper function to compute necessary inference quantities.
+        """Internal helper function to compute necessary inference quantities.
 
         We use the dictionary ``px_`` to contain the parameters of the ZINB/NB for genes.
         The rate refers to the mean of the NB, dropout refers to Bernoulli mixing parameters.
@@ -489,7 +490,7 @@ class TOTALVAE(BaseModuleClass):
         if cat_covs is not None and self.encode_covariates is True:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
-            categorical_input = tuple()
+            categorical_input = ()
         qz, ql, latent, untran_latent = self.encoder(
             encoder_input, batch_index, *categorical_input
         )
@@ -543,14 +544,14 @@ class TOTALVAE(BaseModuleClass):
             py_back_beta_prior = torch.exp(self.background_pro_log_beta)
         self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
 
-        return dict(
-            qz=qz,
-            z=z,
-            untran_z=untran_z,
-            ql=ql,
-            library_gene=library_gene,
-            untran_l=untran_l,
-        )
+        return {
+            "qz": qz,
+            "z": z,
+            "untran_z": untran_z,
+            "ql": ql,
+            "library_gene": library_gene,
+            "untran_l": untran_l,
+        }
 
     def loss(
         self,
@@ -562,8 +563,7 @@ class TOTALVAE(BaseModuleClass):
     ) -> Tuple[
         torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor
     ]:
-        """
-        Returns the reconstruction loss and the Kullback divergences.
+        """Returns the reconstruction loss and the Kullback divergences.
 
         Parameters
         ----------
@@ -641,15 +641,15 @@ class TOTALVAE(BaseModuleClass):
             + kl_weight * kl_div_back_pro
         )
 
-        reconst_losses = dict(
-            reconst_loss_gene=reconst_loss_gene,
-            reconst_loss_protein=reconst_loss_protein,
-        )
-        kl_local = dict(
-            kl_div_z=kl_div_z,
-            kl_div_l_gene=kl_div_l_gene,
-            kl_div_back_pro=kl_div_back_pro,
-        )
+        reconst_losses = {
+            "reconst_loss_gene": reconst_loss_gene,
+            "reconst_loss_protein": reconst_loss_protein,
+        }
+        kl_local = {
+            "kl_div_z": kl_div_z,
+            "kl_div_l_gene": kl_div_l_gene,
+            "kl_div_back_pro": kl_div_back_pro,
+        }
 
         return LossOutput(
             loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local
@@ -658,9 +658,12 @@ class TOTALVAE(BaseModuleClass):
     @torch.inference_mode()
     def sample(self, tensors, n_samples=1):
         """Sample from the generative model."""
-        inference_kwargs = dict(n_samples=n_samples)
+        inference_kwargs = {"n_samples": n_samples}
         with torch.inference_mode():
-            inference_outputs, generative_outputs, = self.forward(
+            (
+                inference_outputs,
+                generative_outputs,
+            ) = self.forward(
                 tensors,
                 inference_kwargs=inference_kwargs,
                 compute_loss=False,

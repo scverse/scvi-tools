@@ -12,8 +12,7 @@ scvi_logger = logging.getLogger("scvi")
 
 
 class ScviConfig:
-    """
-    Config manager for scvi-tools.
+    """Config manager for scvi-tools.
 
     Examples
     --------
@@ -58,7 +57,6 @@ class ScviConfig:
         dl_pin_memory_gpu_training: bool = False,
         jax_preallocate_gpu_memory: bool = False,
     ):
-
         self.seed = seed
         self.batch_size = batch_size
         if progress_bar_style not in ["rich", "tqdm"]:
@@ -73,8 +71,7 @@ class ScviConfig:
 
     @property
     def batch_size(self) -> int:
-        """
-        Minibatch size for loading data into the model.
+        """Minibatch size for loading data into the model.
 
         This is only used after a model is trained. Trainers have specific
         `batch_size` parameters.
@@ -83,8 +80,7 @@ class ScviConfig:
 
     @batch_size.setter
     def batch_size(self, batch_size: int):
-        """
-        Minibatch size for loading data into the model.
+        """Minibatch size for loading data into the model.
 
         This is only used after a model is trained. Trainers have specific
         `batch_size` parameters.
@@ -161,8 +157,7 @@ class ScviConfig:
 
     @verbosity.setter
     def verbosity(self, level: Union[str, int]):
-        """
-        Sets logging configuration for scvi based on chosen level of verbosity.
+        """Sets logging configuration for scvi based on chosen level of verbosity.
 
         If "scvi" logger has no StreamHandler, add one.
         Else, set its level to `level`.
@@ -190,8 +185,7 @@ class ScviConfig:
             scvi_logger.setLevel(level)
 
     def reset_logging_handler(self):
-        """
-        Resets "scvi" log handler to a basic RichHandler().
+        """Resets "scvi" log handler to a basic RichHandler().
 
         This is useful if piping outputs to a file.
         """
@@ -203,8 +197,7 @@ class ScviConfig:
 
     @property
     def jax_preallocate_gpu_memory(self):
-        """
-        Jax GPU memory allocation settings.
+        """Jax GPU memory allocation settings.
 
         If False, Jax will ony preallocate GPU memory it needs.
         If float in (0, 1), Jax will preallocate GPU memory to that

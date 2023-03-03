@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class BatchSampler(torch.utils.data.sampler.Sampler):
-    """
-    Custom torch Sampler that returns a list of indices of size batch_size.
+    """Custom torch Sampler that returns a list of indices of size batch_size.
 
     Parameters
     ----------
@@ -87,8 +86,7 @@ class BatchSampler(torch.utils.data.sampler.Sampler):
 
 
 class AnnDataLoader(DataLoader):
-    """
-    DataLoader for loading tensors from AnnData objects.
+    """DataLoader for loading tensors from AnnData objects.
 
     Parameters
     ----------
@@ -121,7 +119,6 @@ class AnnDataLoader(DataLoader):
         iter_ndarray: bool = False,
         **data_loader_kwargs,
     ):
-
         if adata_manager.adata is None:
             raise ValueError(
                 "Please run register_fields() on your AnnDataManager object first."

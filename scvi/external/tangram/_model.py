@@ -24,8 +24,7 @@ def _asarray(x: np.ndarray, device: Device) -> jnp.ndarray:
 
 
 class Tangram(BaseModelClass):
-    """
-    Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell RNA-seq data to spatial data.
+    """Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell RNA-seq data to spatial data.
 
     Currently the "cells" and "constrained" modes are implemented.
 
@@ -111,8 +110,7 @@ class Tangram(BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     def get_mapper_matrix(self) -> np.ndarray:
-        """
-        Return the mapping matrix.
+        """Return the mapping matrix.
 
         Returns
         -------
@@ -129,8 +127,7 @@ class Tangram(BaseModelClass):
         lr: float = 0.1,
         plan_kwargs: Optional[dict] = None,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
@@ -203,8 +200,7 @@ class Tangram(BaseModelClass):
         modalities: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

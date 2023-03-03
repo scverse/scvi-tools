@@ -158,6 +158,7 @@ def test_hub_model_pull_from_hf(save_path):
     assert hmo._local_dir.startswith(save_path)
 
 
+@pytest.mark.skip(reason="requires an auth token which breaks some CI pipelines")
 @pytest.mark.internet
 def test_hub_model_push_to_hf(request, save_path):
     model = prep_model()

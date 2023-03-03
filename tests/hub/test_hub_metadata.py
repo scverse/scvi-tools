@@ -121,7 +121,7 @@ def test_hub_modelcardhelper(request, save_path):
     assert hmch.data_modalities == []
     assert hmch.tissues == ["eye"]
     assert hmch.data_is_annotated is None
-    assert hmch.data_is_latent is None
+    assert hmch.data_is_minified is None
     assert hmch.training_data_url is None
     assert hmch.training_code_url is None
     assert hmch.model_parent_module == "scvi.model"
@@ -164,7 +164,7 @@ def test_hub_modelcardhelper(request, save_path):
     assert hmch.data_modalities == []
     assert hmch.tissues == []
     assert hmch.data_is_annotated is None
-    assert hmch.data_is_latent is False
+    assert hmch.data_is_minified is False
     assert hmch.training_data_url is None
     assert hmch.training_code_url is None
     assert hmch.model_parent_module == "other_module"

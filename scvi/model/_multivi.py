@@ -45,8 +45,7 @@ logger = logging.getLogger(__name__)
 
 
 class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
-    """
-    Integration of multi-modal and single-modality data :cite:p:`AshuachGabitto21`.
+    """Integration of multi-modal and single-modality data :cite:p:`AshuachGabitto21`.
 
     MultiVI is used to integrate multiomic datasets with single-modality (expression
     or accessibility) datasets.
@@ -118,7 +117,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     >>> vae.train()
 
     Notes
-    ------
+    -----
     * The model assumes that the features are organized so that all expression features are
        consecutive, followed by all accessibility features. For example, if the data has 100 genes
        and 250 genomic regions, the model assumes that the first 100 features are genes, and the
@@ -256,8 +255,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using amortized variational inference.
+        """Trains the model using amortized variational inference.
 
         Parameters
         ----------
@@ -302,16 +300,16 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        update_dict = dict(
-            lr=lr,
-            adversarial_classifier=adversarial_mixing,
-            weight_decay=weight_decay,
-            eps=eps,
-            n_epochs_kl_warmup=n_epochs_kl_warmup,
-            n_steps_kl_warmup=n_steps_kl_warmup,
-            optimizer="AdamW",
-            scale_adversarial_loss=1,
-        )
+        update_dict = {
+            "lr": lr,
+            "adversarial_classifier": adversarial_mixing,
+            "weight_decay": weight_decay,
+            "eps": eps,
+            "n_epochs_kl_warmup": n_epochs_kl_warmup,
+            "n_steps_kl_warmup": n_steps_kl_warmup,
+            "optimizer": "AdamW",
+            "scale_adversarial_loss": 1,
+        }
         if plan_kwargs is not None:
             plan_kwargs.update(update_dict)
         else:
@@ -353,8 +351,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         indices: Sequence[int] = None,
         batch_size: int = 128,
     ) -> Dict[str, np.ndarray]:
-        """
-        Return library size factors.
+        """Return library size factors.
 
         Parameters
         ----------
@@ -407,8 +404,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         give_mean: bool = True,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
-        r"""
-        Return the latent representation for each cell.
+        r"""Return the latent representation for each cell.
 
         Parameters
         ----------
@@ -488,8 +484,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         batch_size: int = 128,
         return_numpy: bool = False,
     ) -> Union[np.ndarray, csr_matrix, pd.DataFrame]:
-        """
-        Impute the full accessibility matrix.
+        """Impute the full accessibility matrix.
 
         Returns a matrix of accessibility probabilities for each cell and genomic region in the input
         (for return matrix A, A[i,j] is the probability that region j is accessible in cell i).
@@ -503,8 +498,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Indices of cells in adata to use. If `None`, all cells are used.
         n_samples_overall
             Number of samples to return in total
-        region_indices
-            Indices of regions to use. if `None`, all regions are used.
+        region_list
+            Regions to use. if `None`, all regions are used.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -551,8 +546,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
 
         imputed = []
         for tensors in post:
-            get_generative_input_kwargs = dict(transform_batch=transform_batch[0])
-            generative_kwargs = dict(use_z_mean=use_z_mean)
+            get_generative_input_kwargs = {"transform_batch": transform_batch[0]}
+            generative_kwargs = {"use_z_mean": use_z_mean}
             inference_outputs, generative_outputs = self.module.forward(
                 tensors=tensors,
                 get_generative_input_kwargs=get_generative_input_kwargs,
@@ -606,8 +601,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         return_mean: bool = True,
         return_numpy: bool = False,
     ) -> Union[np.ndarray, pd.DataFrame]:
-        r"""
-        Returns the normalized (decoded) gene expression.
+        r"""Returns the normalized (decoded) gene expression.
 
         This is denoted as :math:`\rho_n` in the scVI paper.
 
@@ -676,8 +670,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                     )
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
-                    inference_kwargs=dict(n_samples=n_samples),
-                    generative_kwargs=dict(use_z_mean=use_z_mean),
+                    inference_kwargs={"n_samples": n_samples},
+                    generative_kwargs={"use_z_mean": use_z_mean},
                     compute_loss=False,
                 )
                 output = generative_outputs["px_scale"]
@@ -727,8 +721,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
-        \
+        r"""\.
 
         A unified method for differential accessibility analysis.
 
@@ -855,8 +848,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
-        \
+        r"""\.
 
         A unified method for differential expression analysis. Implements `"vanilla"`
         DE :cite:p:`Lopez18` and `"change"` mode DE :cite:p:`Boyeau19`.
@@ -920,8 +912,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ):
-        r"""
-        Returns the foreground probability for proteins.
+        r"""Returns the foreground probability for proteins.
 
         This is denoted as :math:`(1 - \pi_{nt})` in the totalVI paper.
 
@@ -995,8 +986,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 py_mixing = torch.stack(n_samples * [py_mixing])
             for _ in transform_batch:
                 # generative_kwargs = dict(transform_batch=b)
-                generative_kwargs = dict(use_z_mean=use_z_mean)
-                inference_kwargs = dict(n_samples=n_samples)
+                generative_kwargs = {"use_z_mean": use_z_mean}
+                inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
@@ -1046,8 +1037,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         protein_names_uns_key: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
@@ -1101,8 +1091,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         cls.register_manager(adata_manager)
 
     def _check_adata_modality_weights(self, adata):
-        """
-        Checks if adata is None and weights are per cell.
+        """Checks if adata is None and weights are per cell.
 
         :param adata: anndata object
         :return:

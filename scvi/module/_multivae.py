@@ -74,13 +74,13 @@ class DecoderADT(torch.nn.Module):
         super().__init__()
         self.n_output_proteins = n_output_proteins
 
-        linear_args = dict(
-            n_layers=1,
-            use_activation=False,
-            use_batch_norm=False,
-            use_layer_norm=False,
-            dropout_rate=0,
-        )
+        linear_args = {
+            "n_layers": 1,
+            "use_activation": False,
+            "use_batch_norm": False,
+            "use_layer_norm": False,
+            "dropout_rate": 0,
+        }
 
         self.py_fore_decoder = FCLayers(
             n_in=n_input,
@@ -184,8 +184,7 @@ class DecoderADT(torch.nn.Module):
 
 
 class MULTIVAE(BaseModuleClass):
-    """
-    Variational auto-encoder model for joint paired + unpaired RNA-seq and ATAC-seq data.
+    """Variational auto-encoder model for joint paired + unpaired RNA-seq and ATAC-seq data.
 
     Parameters
     ----------
@@ -556,15 +555,15 @@ class MULTIVAE(BaseModuleClass):
         cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY)
         cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY)
         label = tensors[REGISTRY_KEYS.LABELS_KEY]
-        input_dict = dict(
-            x=x,
-            y=y,
-            batch_index=batch_index,
-            cont_covs=cont_covs,
-            cat_covs=cat_covs,
-            label=label,
-            cell_idx=cell_idx,
-        )
+        input_dict = {
+            "x": x,
+            "y": y,
+            "batch_index": batch_index,
+            "cont_covs": cont_covs,
+            "cat_covs": cat_covs,
+            "label": label,
+            "cell_idx": cell_idx,
+        }
         return input_dict
 
     @auto_move_data
@@ -608,7 +607,7 @@ class MULTIVAE(BaseModuleClass):
         if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
-            categorical_input = tuple()
+            categorical_input = ()
 
         # Z Encoders
         qzm_acc, qzv_acc, z_acc = self.z_encoder_accessibility(
@@ -665,22 +664,22 @@ class MULTIVAE(BaseModuleClass):
         untran_z = Normal(qz_m, qz_v.sqrt()).rsample()
         z = self.z_encoder_accessibility.z_transformation(untran_z)
 
-        outputs = dict(
-            z=z,
-            qz_m=qz_m,
-            qz_v=qz_v,
-            z_expr=z_expr,
-            qzm_expr=qzm_expr,
-            qzv_expr=qzv_expr,
-            z_acc=z_acc,
-            qzm_acc=qzm_acc,
-            qzv_acc=qzv_acc,
-            z_pro=z_pro,
-            qzm_pro=qzm_pro,
-            qzv_pro=qzv_pro,
-            libsize_expr=libsize_expr,
-            libsize_acc=libsize_acc,
-        )
+        outputs = {
+            "z": z,
+            "qz_m": qz_m,
+            "qz_v": qz_v,
+            "z_expr": z_expr,
+            "qzm_expr": qzm_expr,
+            "qzv_expr": qzv_expr,
+            "z_acc": z_acc,
+            "qzm_acc": qzm_acc,
+            "qzv_acc": qzv_acc,
+            "z_pro": z_pro,
+            "qzm_pro": qzm_pro,
+            "qzv_pro": qzv_pro,
+            "libsize_expr": libsize_expr,
+            "libsize_acc": libsize_acc,
+        }
         return outputs
 
     def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
@@ -708,16 +707,16 @@ class MULTIVAE(BaseModuleClass):
 
         label = tensors[REGISTRY_KEYS.LABELS_KEY]
 
-        input_dict = dict(
-            z=z,
-            qz_m=qz_m,
-            batch_index=batch_index,
-            cont_covs=cont_covs,
-            cat_covs=cat_covs,
-            libsize_expr=libsize_expr,
-            size_factor=size_factor,
-            label=label,
-        )
+        input_dict = {
+            "z": z,
+            "qz_m": qz_m,
+            "batch_index": batch_index,
+            "cont_covs": cont_covs,
+            "cat_covs": cat_covs,
+            "libsize_expr": libsize_expr,
+            "size_factor": size_factor,
+            "label": label,
+        }
         return input_dict
 
     @auto_move_data
@@ -737,7 +736,7 @@ class MULTIVAE(BaseModuleClass):
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
-            categorical_input = tuple()
+            categorical_input = ()
 
         latent = z if not use_z_mean else qz_m
         if cont_covs is None:
@@ -789,15 +788,15 @@ class MULTIVAE(BaseModuleClass):
         py_r = torch.exp(py_r)
         py_["r"] = py_r
 
-        return dict(
-            p=p,
-            px_scale=px_scale,
-            px_r=torch.exp(self.px_r),
-            px_rate=px_rate,
-            px_dropout=px_dropout,
-            py_=py_,
-            log_pro_back_mean=log_pro_back_mean,
-        )
+        return {
+            "p": p,
+            "px_scale": px_scale,
+            "px_r": torch.exp(self.px_r),
+            "px_rate": px_rate,
+            "px_dropout": px_dropout,
+            "py_": py_,
+            "log_pro_back_mean": log_pro_back_mean,
+        }
 
     def loss(
         self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
@@ -843,10 +842,11 @@ class MULTIVAE(BaseModuleClass):
 
         # calling without weights makes this act like a masked sum
         # TODO : CHECK MIXING HERE
+        recon_loss_expression = rl_expression * mask_expr
+        recon_loss_accessibility = rl_accessibility * mask_acc
+        recon_loss_protein = rl_protein * mask_pro
         recon_loss = (
-            (rl_expression * mask_expr)
-            + (rl_accessibility * mask_acc)
-            + (rl_protein * mask_pro)
+            recon_loss_expression + recon_loss_accessibility + recon_loss_protein
         )
 
         # Compute KLD between Z and N(0,I)
@@ -858,7 +858,7 @@ class MULTIVAE(BaseModuleClass):
         ).sum(dim=1)
 
         # Compute KLD between distributions for paired data
-        kld_paired = self._compute_mod_penalty(
+        kl_div_paired = self._compute_mod_penalty(
             (inference_outputs["qzm_expr"], inference_outputs["qzv_expr"]),
             (inference_outputs["qzm_acc"], inference_outputs["qzv_acc"]),
             (inference_outputs["qzm_pro"], inference_outputs["qzv_pro"]),
@@ -869,13 +869,23 @@ class MULTIVAE(BaseModuleClass):
 
         # KL WARMUP
         kl_local_for_warmup = kl_div_z
-        weighted_kl_local = kl_weight * kl_local_for_warmup
+        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_div_paired
 
         # TOTAL LOSS
-        loss = torch.mean(recon_loss + weighted_kl_local + kld_paired)
+        loss = torch.mean(recon_loss + weighted_kl_local)
 
-        kl_local = dict(kl_divergence_z=kl_div_z)
-        return LossOutput(loss=loss, reconstruction_loss=recon_loss, kl_local=kl_local)
+        recon_losses = {
+            "reconstruction_loss_expression": recon_loss_expression,
+            "reconstruction_loss_accessibility": recon_loss_accessibility,
+            "reconstruction_loss_protein": recon_loss_protein,
+        }
+        kl_local = {
+            "kl_divergence_z": kl_div_z,
+            "kl_divergence_paired": kl_div_paired,
+        }
+        return LossOutput(
+            loss=loss, reconstruction_loss=recon_losses, kl_local=kl_local
+        )
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""
@@ -906,8 +916,7 @@ class MULTIVAE(BaseModuleClass):
     def _compute_mod_penalty(
         self, mod_params1, mod_params2, mod_params3, mask1, mask2, mask3
     ):
-        """
-        Computes Similarity Penalty across modalities given selection (None, Jeffreys, MMD)
+        """Computes Similarity Penalty across modalities given selection (None, Jeffreys, MMD).
 
         Parameters
         ----------
@@ -990,8 +999,7 @@ class MULTIVAE(BaseModuleClass):
 
 @auto_move_data
 def mix_modalities(Xs, masks, weights, weight_transform: callable = None):
-    """
-    Compute the weighted mean of the Xs while masking unmeasured modality values.
+    """Compute the weighted mean of the Xs while masking unmeasured modality values.
 
     Parameters
     ----------

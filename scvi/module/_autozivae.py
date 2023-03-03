@@ -19,8 +19,7 @@ torch.backends.cudnn.benchmark = True
 
 
 class AutoZIVAE(VAE):
-    """
-    Implementation of the AutoZI model :cite:p:`Clivio19`.
+    """Implementation of the AutoZI model :cite:p:`Clivio19`.
 
     Parameters
     ----------
@@ -423,9 +422,10 @@ class AutoZIVAE(VAE):
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
         loss = n_obs * torch.mean(reconst_loss + weighted_kl_local) + kl_global
-        kl_local = dict(
-            kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
-        )
+        kl_local = {
+            "kl_divergence_l": kl_divergence_l,
+            "kl_divergence_z": kl_divergence_z,
+        }
         return LossOutput(
             loss=loss,
             reconstruction_loss=reconst_loss,

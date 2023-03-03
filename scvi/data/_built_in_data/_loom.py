@@ -12,8 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def _load_retina(save_path: str = "data/") -> AnnData:
-    """
-    Loads retina dataset.
+    """Loads retina dataset.
 
     The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
     13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author.
@@ -88,8 +87,7 @@ def _load_frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
 
 
 def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
-    """
-    Simulated datasets for scANVI tutorials.
+    """Simulated datasets for scANVI tutorials.
 
     Parameters
     ----------
