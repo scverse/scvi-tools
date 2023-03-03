@@ -64,7 +64,6 @@ docs = [
   "sphinx>=4.1",
   "ipython",
   "sphinx-book-theme>=1.0.0",
-  "sphinx-autodoc-typehints",
   "sphinx_copybutton",
   "sphinx-design",
   "sphinxext-opengraph",
