@@ -2,6 +2,7 @@ import shutil
 from distutils.dir_util import copy_tree
 
 import pytest
+
 import scvi
 
 

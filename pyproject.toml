@@ -64,7 +64,6 @@ docs = [
   "nbsphinx",
   "ipython",
   "furo",
-  "sphinx-autodoc-typehints<1.21.4",
   "sphinx_copybutton",
   "sphinx-design",
   "sphinxext-opengraph",
@@ -116,7 +115,7 @@ exclude = '''
 '''
 
 [tool.ruff]
-src = ["src"]
+src = ["."]
 line-length = 119
 target-version = "py38"
 select = [
