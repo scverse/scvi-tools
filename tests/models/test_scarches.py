@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 import pytest
+
 from scvi.data import synthetic_iid
 from scvi.model import PEAKVI, SCANVI, SCVI, TOTALVI
 
