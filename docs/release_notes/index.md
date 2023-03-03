@@ -26,6 +26,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Changed
 
 -   Use ruff for fixing and linting {pr}`1921`, {pr}`1941`.
+-   Use sphinx autodoc instead of sphinx-autodoc-typehints {pr}`1941`.
 -   Remove .flake8 and .prospector files {pr}`1923`.
 -   Log individual loss terms in {meth}`scvi.module.MULTIVAE.loss` {pr}`1936`.
 
