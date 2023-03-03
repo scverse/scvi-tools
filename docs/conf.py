@@ -65,6 +65,7 @@ ogp_image = "https://docs.scvi-tools.org/en/stable/_static/logo.png"
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = "bysource"
+default_role = "literal"
 bibtex_reference_style = "author_year"
 autodoc_typehints = "description"
 napoleon_google_docstring = True  # for pytorch lightning
