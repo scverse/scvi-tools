@@ -190,7 +190,9 @@ class PyroSampleMixin:
 
         Parameters
         ----------
-        args
+
+        Args:
+        ----
             arguments to model and guide
         kwargs
             arguments to model and guide
@@ -199,7 +201,7 @@ class PyroSampleMixin:
         return_observed
             Record samples of observed variables.
 
-        Returns
+        Returns:
         -------
         Dictionary with a sample for each variable
         """
@@ -248,7 +250,9 @@ class PyroSampleMixin:
 
         Parameters
         ----------
-        args
+
+        Args:
+        ----
             arguments to model and guide
         kwargs
             keyword arguments to model and guide
@@ -259,7 +263,7 @@ class PyroSampleMixin:
         show_progress
             show progress bar
 
-        Returns
+        Returns:
         -------
         Dictionary with array of samples for each variable
         dictionary {variable_name: [array with samples in 0 dimension]}
@@ -310,14 +314,16 @@ class PyroSampleMixin:
 
         Parameters
         ----------
-        args
+
+        Args:
+        ----
             Arguments to the model.
         kwargs
             Keyword arguments to the model.
         return_observed
             Record samples of observed variables.
 
-        Returns
+        Returns:
         -------
         Dictionary with keys corresponding to site names and values to plate dimension.
         """
