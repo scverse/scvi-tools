@@ -22,7 +22,7 @@ def mde(
         Whether to run on cpu or gpu ("cuda"). If None, tries to run on gpu if available.
     kwargs
         Keyword args to :func:`pymde.preserve_neighbors`
-        
+
     Returns
     -------
     The pymde embedding, defaults to two dimensions.
