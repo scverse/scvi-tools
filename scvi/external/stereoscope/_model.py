@@ -227,7 +227,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         """
         if (
             layer is not None
-            or st_adata.uns["_scvi_uuid"]
+            or st_adata.uns.get("_scvi_uuid")
             not in SpatialStereoscope._setup_adata_manager_store
         ):
             warnings.warn(
