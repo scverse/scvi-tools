@@ -462,3 +462,37 @@ def add_dna_sequence(
     output_df = pd.concat(output_dfs, axis=0).loc[adata.var_names]
     adata.varm[sequence_varm_key] = output_df
     adata.varm[code_varm_key] = output_df.applymap(_dna_to_code)
+
+
+def reads_to_fragments(
+    adata: anndata.AnnData, layer: Optional[str] = None, copy: bool = False
+) -> Optional[anndata.AnnData]:
+    """
+    Convert read counts to appoximate fragment counts.
+
+    Parameters
+    ----------
+    adata
+        AnnData object that contains read counts.
+    layer
+        Layer that the read counts are stored in.
+
+    Returns
+    -------
+    If copy is True, returns anndata object with fragment counts in `adata.layers['counts']`.
+
+    Else, updates the anndata inplace.
+    """
+    if copy:
+        adata = adata.copy()
+
+    if layer:
+        data = np.ceil(adata.layers[layer].data / 2)
+    else:
+        data = np.ceil(adata.X.data / 2)
+
+    adata.layers["counts"] = adata.X.copy()
+    adata.layers["counts"].data = data
+
+    if copy:
+        return adata
