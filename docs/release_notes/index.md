@@ -14,6 +14,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Fixed
 
 -   Fix `return_dist` docstring of {meth}`scvi.model.base.VAEMixin.get_latent_representation` {pr}`1932`.
+-   Fix hyperlink to pymde docs {pr}`1944`
 
 #### Changed
 
