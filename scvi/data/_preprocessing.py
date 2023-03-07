@@ -457,8 +457,7 @@ def add_dna_sequence(
 def reads_to_fragments(
     adata: anndata.AnnData, layer: Optional[str] = None, copy: bool = False
 ) -> Optional[anndata.AnnData]:
-    """
-    Convert read counts to appoximate fragment counts.
+    """Convert read counts to appoximate fragment counts.
 
     Parameters
     ----------
