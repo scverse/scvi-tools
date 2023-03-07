@@ -4,6 +4,7 @@ from ._datasets import (
     annotation_simulation,
     brainlarge_dataset,
     breast_cancer_dataset,
+    cellxgene,
     cortex,
     dataset_10x,
     frontalcortex_dropseq,
@@ -64,4 +65,5 @@ __all__ = [
     "pbmc_seurat_v4_cite_seq",
     "add_dna_sequence",
     "reads_to_fragments",
+    "cellxgene",
 ]

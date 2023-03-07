@@ -11,8 +11,7 @@ from ._dataframe_field import CategoricalObsField
 
 
 class LabelsWithUnlabeledObsField(CategoricalObsField):
-    """
-    An AnnDataField for labels which include explicitly unlabeled cells.
+    """An AnnDataField for labels which include explicitly unlabeled cells.
 
     Remaps the unlabeled category to the final index if present in labels.
     The unlabeled category is a specific category name specified by the user.

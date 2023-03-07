@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class TrainRunner:
-    """
-    TrainRunner calls Trainer.fit() and handles pre and post training procedures.
+    """TrainRunner calls Trainer.fit() and handles pre and post training procedures.
 
     Parameters
     ----------
@@ -48,6 +47,8 @@ class TrainRunner:
     >>> runner()
     """
 
+    _trainer_cls = Trainer
+
     def __init__(
         self,
         model: BaseModelClass,
@@ -64,11 +65,10 @@ class TrainRunner:
         self.accelerator = accelerator
         self.lightning_devices = lightning_devices
         self.device = device
-        self.trainer = Trainer(
+        self.trainer = self._trainer_cls(
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=lightning_devices,
-            gpus=None,
             **trainer_kwargs,
         )
 

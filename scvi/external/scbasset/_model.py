@@ -17,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class SCBASSET(BaseModelClass):
-    """
-    Reimplementation of ScBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
+    """Reimplementation of ScBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
 
     This implementation is EXPERIMENTAL. We are working to measure the performance of this model
     compared to the original.
@@ -27,6 +26,11 @@ class SCBASSET(BaseModelClass):
     ----------
     adata
         single-cell AnnData object that has been registered via :meth:`~scvi.external.SCBASSET.setup_anndata`.
+    n_bottleneck_layer
+        Size of the bottleneck layer
+    l2_reg_cell_embedding
+        L2 regularization for the cell embedding layer. A value, e.g. 1e-8 can be used to improve
+        integration performance.
     **model_kwargs
         Keyword args for :class:`~scvi.external.scbasset.ScBassetModule`
 
@@ -44,6 +48,8 @@ class SCBASSET(BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
+        n_bottleneck_layer: int = 32,
+        l2_reg_cell_embedding: float = 0.0,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -54,6 +60,8 @@ class SCBASSET(BaseModelClass):
         self.module = ScBassetModule(
             n_cells=self.n_cells,
             batch_ids=torch.tensor(batch_ids).long() if batch_ids.sum() > 0 else None,
+            n_bottleneck_layer=n_bottleneck_layer,
+            l2_reg_cell_embedding=l2_reg_cell_embedding,
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -80,8 +88,7 @@ class SCBASSET(BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
@@ -117,12 +124,12 @@ class SCBASSET(BaseModelClass):
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        custom_plan_kwargs = dict(
-            optimizer="Custom",
-            optimizer_creator=lambda p: torch.optim.Adam(
+        custom_plan_kwargs = {
+            "optimizer": "Custom",
+            "optimizer_creator": lambda p: torch.optim.Adam(
                 p, lr=lr, betas=(0.95, 0.9995)
             ),
-        )
+        }
         if plan_kwargs is not None:
             custom_plan_kwargs.update(plan_kwargs)
 
@@ -162,8 +169,7 @@ class SCBASSET(BaseModelClass):
 
     @torch.inference_mode()
     def get_latent_representation(self) -> np.ndarray:
-        """
-        Returns the latent representation of the cells.
+        """Returns the latent representation of the cells.
 
         Returns
         -------
@@ -173,8 +179,7 @@ class SCBASSET(BaseModelClass):
 
     @torch.inference_mode()
     def get_cell_bias(self) -> np.ndarray:
-        """
-        Returns the cell-specific bias term.
+        """Returns the cell-specific bias term.
 
         Returns
         -------
@@ -192,8 +197,7 @@ class SCBASSET(BaseModelClass):
         batch_key: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

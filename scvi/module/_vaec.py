@@ -4,6 +4,7 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
+from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
@@ -13,8 +14,7 @@ torch.backends.cudnn.benchmark = True
 
 # Conditional VAE model
 class VAEC(BaseModuleClass):
-    """
-    Conditional Variational auto-encoder model.
+    """Conditional Variational auto-encoder model.
 
     This is an implementation of the CondSCVI model
 
@@ -40,12 +40,12 @@ class VAEC(BaseModuleClass):
         self,
         n_input: int,
         n_labels: int = 0,
-        n_hidden: int = 128,
-        n_latent: int = 5,
-        n_layers: int = 2,
+        n_hidden: Tunable[int] = 128,
+        n_latent: Tunable[int] = 5,
+        n_layers: Tunable[int] = 2,
         log_variational: bool = True,
         ct_weight: np.ndarray = None,
-        dropout_rate: float = 0.05,
+        dropout_rate: Tunable[float] = 0.05,
         **module_kwargs,
     ):
         super().__init__()
@@ -104,10 +104,10 @@ class VAEC(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
 
-        input_dict = dict(
-            x=x,
-            y=y,
-        )
+        input_dict = {
+            "x": x,
+            "y": y,
+        }
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs):
@@ -124,8 +124,7 @@ class VAEC(BaseModuleClass):
 
     @auto_move_data
     def inference(self, x, y, n_samples=1):
-        """
-        High level inference method.
+        """High level inference method.
 
         Runs the inference (encoder) model.
         """
@@ -143,7 +142,7 @@ class VAEC(BaseModuleClass):
                 (n_samples, library.size(0), library.size(1))
             )
 
-        outputs = dict(z=z, qz=qz, library=library)
+        outputs = {"z": z, "qz": qz, "library": library}
         return outputs
 
     @auto_move_data
@@ -153,7 +152,7 @@ class VAEC(BaseModuleClass):
         px_scale = self.px_decoder(h)
         px_rate = library * px_scale
         px = NegativeBinomial(px_rate, logits=self.px_r)
-        return dict(px=px)
+        return {"px": px}
 
     def loss(
         self,
@@ -187,8 +186,7 @@ class VAEC(BaseModuleClass):
         tensors,
         n_samples=1,
     ) -> np.ndarray:
-        r"""
-        Generate observation samples from the posterior predictive distribution.
+        r"""Generate observation samples from the posterior predictive distribution.
 
         The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
 
@@ -204,7 +202,7 @@ class VAEC(BaseModuleClass):
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        inference_kwargs = dict(n_samples=n_samples)
+        inference_kwargs = {"n_samples": n_samples}
         generative_outputs = self.forward(
             tensors,
             inference_kwargs=inference_kwargs,

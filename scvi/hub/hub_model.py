@@ -13,6 +13,7 @@ from anndata import AnnData
 from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
 from rich.markdown import Markdown
 
+from scvi.data import cellxgene
 from scvi.data._download import _download
 from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
@@ -24,8 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class HubModel:
-    """
-    Provides functionality to interact with the scvi-hub backed by `huggingface <https://huggingface.co/models>`_.
+    """Provides functionality to interact with the scvi-hub backed by `huggingface <https://huggingface.co/models>`_.
 
     Parameters
     ----------
@@ -93,8 +93,7 @@ class HubModel:
     def push_to_huggingface_hub(
         self, repo_name: str, repo_token: str, repo_create: bool
     ):
-        """
-        Push this model to huggingface.
+        """Push this model to huggingface.
 
         If the dataset is too large to upload to huggingface, this will raise an
         exception prompting the user to upload the data elsewhere. Otherwise, the
@@ -154,8 +153,7 @@ class HubModel:
         revision: Optional[str] = None,
         **kwargs,
     ):
-        """
-        Download the given model repo from huggingface.
+        """Download the given model repo from huggingface.
 
         The model, its card, data, metadata are downloaded to a cached location on disk
         selected by huggingface and an instance of this class is created with that info
@@ -216,8 +214,7 @@ class HubModel:
 
     @property
     def model(self) -> Type[BaseModelClass]:
-        """
-        Returns the model object for this hub model.
+        """Returns the model object for this hub model.
 
         If the model has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.load_model`.
         Otherwise, it will simply return the loaded model.
@@ -228,8 +225,7 @@ class HubModel:
 
     @property
     def adata(self) -> Optional[AnnData]:
-        """
-        Returns the data for this model.
+        """Returns the data for this model.
 
         If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_adata`.
         Otherwise, it will simply return the loaded data.
@@ -240,8 +236,7 @@ class HubModel:
 
     @property
     def large_training_adata(self) -> Optional[AnnData]:
-        """
-        Returns the training data for this model, which might be too large to reside within the hub model.
+        """Returns the training data for this model, which might be too large to reside within the hub model.
 
         If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_large_training_adata`,
         which will attempt to download from the source url. Otherwise, it will simply return the loaded data.
@@ -254,8 +249,7 @@ class HubModel:
         self,
         adata: Optional[AnnData] = None,
     ):
-        """
-        Loads the model.
+        """Loads the model.
 
         Parameters
         ----------
@@ -297,7 +291,13 @@ class HubModel:
             logger.info("No data found on disk. Skipping...")
 
     def read_large_training_adata(self):
-        """Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op."""
+        """Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op.
+
+        Notes
+        -----
+        The large training data url can be a cellxgene explorer session url. However it cannot be a self-hosted
+        session. In other words, it must be from the cellxgene portal (https://cellxgene.cziscience.com/).
+        """
         training_data_url = self.metadata.training_data_url
         if training_data_url is not None:
             logger.info(
@@ -305,7 +305,12 @@ class HubModel:
             )
             dn = Path(self._large_training_adata_path).parent.as_posix()
             fn = Path(self._large_training_adata_path).name
-            _download(training_data_url, dn, fn)
+            url_parts = training_data_url.split("/")
+            url_last_part = url_parts[-2] if url_parts[-1] == "" else url_parts[-1]
+            if url_last_part.endswith(".cxg"):
+                _ = cellxgene(training_data_url, fn, dn, return_path=True)
+            else:
+                _download(training_data_url, dn, fn)
             logger.info("Reading large training data...")
             self._large_training_adata = anndata.read_h5ad(
                 self._large_training_adata_path

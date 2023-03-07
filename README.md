@@ -42,7 +42,7 @@ Lightning](https://www.pytorchlightning.ai/) and
 is structured, you may refer to [this](https://docs.scvi-tools.org/en/stable/user_guide/background/codebase_overview.html) page.
 
 We recommend checking out the [skeleton
-repository](https://github.com/YosefLab/scvi-tools-skeleton) as a
+repository](https://github.com/scverse/simple-scvi) as a
 starting point for developing and deploying new models with scvi-tools.
 
 # Basic installation

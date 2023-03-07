@@ -28,10 +28,8 @@ def poisson_gene_selection(
     batch_key: str = None,
     silent: bool = False,
     minibatch_size: int = 5000,
-    **kwargs,
 ) -> Optional[pd.DataFrame]:
-    """
-    Rank and select genes based on the enrichment of zero counts.
+    """Rank and select genes based on the enrichment of zero counts.
 
     Enrichment is considered by comparing data to a Poisson count model.
     This is based on M3Drop: https://github.com/tallulandrews/M3Drop
@@ -103,7 +101,6 @@ def poisson_gene_selection(
     obs_frac_zeross = []
     exp_frac_zeross = []
     for b in np.unique(batch_info):
-
         ad = adata[batch_info == b]
         data = ad.layers[layer] if layer is not None else ad.X
 
@@ -237,8 +234,7 @@ def poisson_gene_selection(
 def organize_cite_seq_10x(
     adata: anndata.AnnData, copy: bool = False
 ) -> Optional[anndata.AnnData]:
-    """
-    Organize anndata object loaded from 10x for scvi models.
+    """Organize anndata object loaded from 10x for scvi models.
 
     Parameters
     ----------
@@ -289,8 +285,7 @@ def organize_multiome_anndatas(
     atac_anndata: Optional[anndata.AnnData] = None,
     modality_key: str = "modality",
 ) -> anndata.AnnData:
-    """
-    Concatenate multiome and single-modality input anndata objects.
+    """Concatenate multiome and single-modality input anndata objects.
 
     These anndata objects should already have been preprocessed so that both single-modality
     objects use a subset of the features used in the multiome object. The feature names (index of
@@ -357,7 +352,6 @@ def organize_multiome_anndatas(
 
 
 def _dna_to_code(nt: str) -> int:
-    nt = nt.upper()
     if nt == "A":
         return 0
     elif nt == "C":
@@ -377,7 +371,7 @@ def add_dna_sequence(
     seq_len: int = 1334,
     genome_name: str = "hg38",
     genome_dir: Optional[Path] = None,
-    genome_provider: str = "UCSC",
+    genome_provider: Optional[str] = None,
     install_genome: bool = True,
     chr_var_key: str = "chr",
     start_var_key: str = "start",
@@ -385,8 +379,7 @@ def add_dna_sequence(
     sequence_varm_key: str = "dna_sequence",
     code_varm_key: str = "dna_code",
 ) -> None:
-    """
-    Add DNA sequence to AnnData object.
+    """Add DNA sequence to AnnData object.
 
     Uses genomepy under the hood to download the genome.
 
@@ -438,26 +431,23 @@ def add_dna_sequence(
     else:
         g = genomepy.Genome(genome_name, genomes_dir=genome_dir)
 
-    output_dfs = []
     chroms = adata.var[chr_var_key].unique()
     df = adata.var[[chr_var_key, start_var_key, end_var_key]]
+    seq_dfs = []
+
     for chrom in track(chroms):
         chrom_df = df[df[chr_var_key] == chrom]
-        lengths = chrom_df[end_var_key] - chrom_df[start_var_key]
-
-        block_starts = (
-            chrom_df[start_var_key] + (lengths // 2.0) - (seq_len // 2.0)
-        ).astype(int)
+        block_mid = (chrom_df[start_var_key] + chrom_df[end_var_key]) // 2
+        block_starts = block_mid - (seq_len // 2)
         block_ends = block_starts + seq_len
+        seqs = []
 
-        concat_seq = str(
-            g.get_spliced_seq(chrom, zip(block_starts, block_ends - 1))
-        ).upper()
-        concat_seq = [iter(concat_seq)] * seq_len
-        concat_seq = list(zip(*concat_seq))
-        assert len(concat_seq) == len(chrom_df)
+        for start, end in zip(block_starts, block_ends - 1):
+            seq = str(g.get_seq(chrom, start, end)).upper()
+            seqs.append(list(seq))
 
-        output_dfs.append(pd.DataFrame(np.array(concat_seq), index=chrom_df.index))
+        assert len(seqs) == len(chrom_df)
+        seq_dfs.append(pd.DataFrame(seqs, index=chrom_df.index))
 
     output_df = pd.concat(output_dfs, axis=0).loc[adata.var_names]
     adata.varm[sequence_varm_key] = output_df

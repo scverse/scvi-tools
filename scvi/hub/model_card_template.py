@@ -29,15 +29,16 @@ Many model properties are in the model tags. Some more are listed below.
 
 **model_parent_module**: {model_parent_module}
 
-**data_is_latent**: {data_is_latent}
+**data_is_minified**: {data_is_minified}
 
 # Training data
 
 This is an optional link to where the training data is stored if it is too large
 to host on the huggingface Model hub.
 
-<!-- This field is required for models that haven't been minified by converting to latent
-mode. See the scvi-tools documentation for more details. -->
+<!-- If your model is not uploaded with any data (e.g., minified data) on the Model Hub, then make
+sure to provide this field if you want users to be able to access your training data. See the scvi-tools
+documentation for details. -->
 
 Training data url: {training_data_url}
 

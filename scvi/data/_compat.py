@@ -29,7 +29,7 @@ LEGACY_REGISTRY_KEY_MAP = {
 def _infer_setup_args(
     model_cls, setup_dict: dict, unlabeled_category: Optional[str]
 ) -> dict:
-    setup_args = dict()
+    setup_args = {}
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
     categorical_mappings = setup_dict["categorical_mappings"]
     for registry_key, adata_mapping in data_registry.items():
@@ -77,8 +77,7 @@ def _infer_setup_args(
 def registry_from_setup_dict(
     model_cls, setup_dict: dict, unlabeled_category: Optional[str] = None
 ) -> dict:
-    """
-    Converts old setup dict format to new registry dict format.
+    """Converts old setup dict format to new registry dict format.
 
     Only to be used for backwards compatibility when loading setup dictionaries for models.
     Takes old hard-coded setup dictionary structure and fills in the analogous registry structure.
@@ -115,8 +114,8 @@ def registry_from_setup_dict(
 
         field_registries[new_registry_key] = {
             _constants._DATA_REGISTRY_KEY: adata_mapping,
-            _constants._STATE_REGISTRY_KEY: dict(),
-            _constants._SUMMARY_STATS_KEY: dict(),
+            _constants._STATE_REGISTRY_KEY: {},
+            _constants._SUMMARY_STATS_KEY: {},
         }
         field_registry = field_registries[new_registry_key]
         field_state_registry = field_registry[_constants._STATE_REGISTRY_KEY]

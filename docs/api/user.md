@@ -105,7 +105,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
 .. currentmodule:: scvi
 ```
 
-## Model hyperparameter autotuning
+## Model hyperparameter tuning
 
 `scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune].
 
@@ -115,6 +115,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
    :nosignatures:
 
    autotune.ModelTuner
+   autotune.TuneAnalysis
 ```
 
 ## Model hub
@@ -147,6 +148,7 @@ Here we maintain miscellaneous general methods.
    :nosignatures:
 
    model.utils.mde
+   model.utils.get_minified_adata_scrna
 ```
 
 ## Configuration

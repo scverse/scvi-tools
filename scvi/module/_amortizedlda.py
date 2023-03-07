@@ -10,6 +10,7 @@ from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 
 from scvi._constants import REGISTRY_KEYS
+from scvi.autotune._types import Tunable
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import Encoder
 
@@ -33,8 +34,7 @@ class CategoricalBoW(dist.Multinomial):
 def logistic_normal_approximation(
     alpha: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    Returns the mean and standard deviation of the Logistic Normal approximation to the Dirichlet.
+    """Returns the mean and standard deviation of the Logistic Normal approximation to the Dirichlet.
 
     Uses the Laplace approximation of the Logistic Normal distribution to the Dirichlet distribution
     as described in Srivastava et al. https://arxiv.org/pdf/1703.01488.pdf.
@@ -46,8 +46,7 @@ def logistic_normal_approximation(
 
 
 class AmortizedLDAPyroModel(PyroModule):
-    """
-    A PyroModule that serves as the model for the AmortizedLDAPyroModule class.
+    """A PyroModule that serves as the model for the AmortizedLDAPyroModule class.
 
     Parameters
     ----------
@@ -64,7 +63,7 @@ class AmortizedLDAPyroModel(PyroModule):
     def __init__(
         self,
         n_input: int,
-        n_topics: int,
+        n_topics: Tunable[int],
         cell_topic_prior: torch.Tensor,
         topic_feature_prior: torch.Tensor,
     ):
@@ -100,7 +99,6 @@ class AmortizedLDAPyroModel(PyroModule):
     def _get_fn_args_from_batch(
         tensor_dict: Dict[str, torch.Tensor]
     ) -> Union[Iterable, dict]:
-
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         library = torch.sum(x, dim=1)
         return (x, library), {}
@@ -144,8 +142,7 @@ class AmortizedLDAPyroModel(PyroModule):
 
 
 class AmortizedLDAPyroGuide(PyroModule):
-    """
-    A PyroModule that serves as the guide for the AmortizedLDAPyroModule class.
+    """A PyroModule that serves as the guide for the AmortizedLDAPyroModule class.
 
     Parameters
     ----------
@@ -179,7 +176,7 @@ class AmortizedLDAPyroGuide(PyroModule):
         )
 
     @property
-    def topic_feature_posterior_sigma(self):  # noqa: D102
+    def topic_feature_posterior_sigma(self):
         return F.softplus(self.unconstrained_topic_feature_posterior_sigma)
 
     @auto_move_data
@@ -217,8 +214,7 @@ class AmortizedLDAPyroGuide(PyroModule):
 
 
 class AmortizedLDAPyroModule(PyroBaseModuleClass):
-    """
-    An amortized implementation of Latent Dirichlet Allocation :cite:p:`Blei03` implemented in Pyro.
+    """An amortized implementation of Latent Dirichlet Allocation :cite:p:`Blei03` implemented in Pyro.
 
     This module uses auto encoding variational Bayes to optimize the latent variables in the model.
     In particular, a fully-connected neural network is used as an encoder, which takes in feature counts
@@ -280,16 +276,15 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 
     @property
-    def model(self):  # noqa: D102
+    def model(self):
         return self._model
 
     @property
-    def guide(self):  # noqa: D102
+    def guide(self):
         return self._guide
 
     def topic_by_feature(self, n_samples: int) -> torch.Tensor:
-        """
-        Gets a Monte-Carlo estimate of the expectation of the topic by feature matrix.
+        """Gets a Monte-Carlo estimate of the expectation of the topic by feature matrix.
 
         Assumes the module has already been trained.
 
@@ -320,8 +315,7 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
     @auto_move_data
     @torch.inference_mode()
     def get_topic_distribution(self, x: torch.Tensor, n_samples: int) -> torch.Tensor:
-        """
-        Converts `x` to its inferred topic distribution.
+        """Converts `x` to its inferred topic distribution.
 
         Parameters
         ----------
@@ -351,8 +345,7 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
     @auto_move_data
     @torch.inference_mode()
     def get_elbo(self, x: torch.Tensor, library: torch.Tensor, n_obs: int) -> float:
-        """
-        Computes ELBO.
+        """Computes ELBO.
 
         Parameters
         ----------

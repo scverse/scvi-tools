@@ -12,10 +12,10 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi._utils import _doc_params
-from scvi.utils import unsupported_in_latent_mode
+from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
+from scvi.utils import unsupported_if_adata_minified
 from scvi.utils._docstrings import doc_differential_expression
 
-from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from ._utils import _de_core
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class RNASeqMixin:
 
     def _get_transform_batch_gen_kwargs(self, batch):
         if "transform_batch" in inspect.signature(self.module.generative).parameters:
-            return dict(transform_batch=batch)
+            return {"transform_batch": batch}
         else:
             raise NotImplementedError(
                 "Transforming batches is not implemented for this model."
@@ -46,8 +46,7 @@ class RNASeqMixin:
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Union[np.ndarray, pd.DataFrame]:
-        r"""
-        Returns the normalized (decoded) gene expression.
+        r"""Returns the normalized (decoded) gene expression.
 
         This is denoted as :math:`\rho_n` in the scVI paper.
 
@@ -71,7 +70,7 @@ class RNASeqMixin:
         library_size
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent libary size.
+            magnitude. If set to `"latent"`, use the latent library size.
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
@@ -127,7 +126,7 @@ class RNASeqMixin:
             per_batch_exprs = []
             for batch in transform_batch:
                 generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
-                inference_kwargs = dict(n_samples=n_samples)
+                inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
@@ -183,8 +182,7 @@ class RNASeqMixin:
         silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
-        \
+        r"""\.
 
         A unified method for differential expression analysis.
 
@@ -242,8 +240,7 @@ class RNASeqMixin:
         gene_list: Optional[Sequence[str]] = None,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
-        r"""
-        Generate observation samples from the posterior predictive distribution.
+        r"""Generate observation samples from the posterior predictive distribution.
 
         The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
 
@@ -308,8 +305,7 @@ class RNASeqMixin:
         rna_size_factor: int = 1000,
         transform_batch: Optional[Sequence[int]] = None,
     ) -> np.ndarray:
-        """
-        Return samples from an adjusted posterior predictive.
+        """Return samples from an adjusted posterior predictive.
 
         Parameters
         ----------
@@ -340,7 +336,7 @@ class RNASeqMixin:
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
             generative_kwargs = self._get_transform_batch_gen_kwargs(transform_batch)
-            inference_kwargs = dict(n_samples=n_samples)
+            inference_kwargs = {"n_samples": n_samples}
             _, generative_outputs = self.module.forward(
                 tensors=tensors,
                 inference_kwargs=inference_kwargs,
@@ -388,8 +384,7 @@ class RNASeqMixin:
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
     ) -> pd.DataFrame:
-        """
-        Generate gene-gene correlation matrix using scvi uncertainty and expression.
+        """Generate gene-gene correlation matrix using scvi uncertainty and expression.
 
         Parameters
         ----------
@@ -470,8 +465,7 @@ class RNASeqMixin:
         give_mean: Optional[bool] = False,
         batch_size: Optional[int] = None,
     ) -> Dict[str, np.ndarray]:
-        r"""
-        Estimates for the parameters of the likelihood :math:`p(x \mid z)`
+        r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`.
 
         Parameters
         ----------
@@ -497,7 +491,7 @@ class RNASeqMixin:
         mean_list = []
         dispersion_list = []
         for tensors in scdl:
-            inference_kwargs = dict(n_samples=n_samples)
+            inference_kwargs = {"n_samples": n_samples}
             _, generative_outputs = self.module.forward(
                 tensors=tensors,
                 inference_kwargs=inference_kwargs,
@@ -541,7 +535,7 @@ class RNASeqMixin:
         return return_dict
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
+    @unsupported_if_adata_minified
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,
@@ -549,8 +543,7 @@ class RNASeqMixin:
         give_mean: bool = True,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
-        r"""
-        Returns the latent library size for each cell.
+        r"""Returns the latent library size for each cell.
 
         This is denoted as :math:`\ell_n` in the scVI paper.
 
@@ -583,7 +576,6 @@ class RNASeqMixin:
             else:
                 ql = outputs["ql"]
                 if ql is None:
-
                     raise RuntimeError(
                         "The module for this model does not compute the posterior distribution "
                         "for the library size. Set `give_mean` to False to use the observed library size instead."

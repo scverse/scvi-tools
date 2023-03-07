@@ -46,6 +46,7 @@ notebooks/amortized_lda
 notebooks/PeakVI
 notebooks/peakvi_in_R
 notebooks/scbasset
+notebooks/scbasset_batch
 ```
 
 ### Spatial transcriptomics
@@ -76,8 +77,18 @@ notebooks/MultiVI_tutorial
 ```{toctree}
 :maxdepth: 1
 
-notebooks/scvi_hub_intro_and_download.ipynb
-notebooks/scvi_hub_upload_and_large_files.ipynb
+notebooks/scvi_hub_intro_and_download
+notebooks/scvi_hub_upload_and_large_files
+notebooks/minification
+```
+
+### Model hyperparameter tuning
+
+```{toctree}
+:maxdepth: 1
+
+notebooks/autotune_scvi
+notebooks/autotune_new_model
 ```
 
 ### Contributed tutorials
@@ -107,7 +118,7 @@ notebooks/model_user_guide
 
 ### Glossary
 
-```{eval-rst}
+```{toctree}
 .. tab-set::
 
     .. tab-item:: Model
@@ -128,7 +139,7 @@ notebooks/model_user_guide
         while the `loss` method computes the loss, e.g, ELBO in the case of variational inference.
 ```
 
-```{eval-rst}
+```{toctree}
 .. tab-set::
 
     .. tab-item:: TrainingPlan

@@ -15,7 +15,6 @@ def _load_seqfishplus(
     save_path: str = "data/",
     tissue_region: str = "subventricular cortex",
 ) -> anndata.AnnData:
-
     if tissue_region == "subventricular cortex":
         file_prefix = "cortex_svz"
     elif tissue_region == "olfactory bulb":

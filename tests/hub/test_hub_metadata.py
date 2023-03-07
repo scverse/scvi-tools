@@ -121,7 +121,7 @@ def test_hub_modelcardhelper(request, save_path):
     assert hmch.data_modalities == []
     assert hmch.tissues == ["eye"]
     assert hmch.data_is_annotated is None
-    assert hmch.data_is_latent is None
+    assert hmch.data_is_minified is None
     assert hmch.training_data_url is None
     assert hmch.training_code_url is None
     assert hmch.model_parent_module == "scvi.model"
@@ -131,6 +131,9 @@ def test_hub_modelcardhelper(request, save_path):
         "license": "cc-by-4.0",
         "library_name": "scvi-tools",
         "tags": [
+            "biology",
+            "genomics",
+            "single-cell",
             "model_cls_name:SCVI",
             "scvi_version:0.17.8",
             "anndata_version:0.8.0",
@@ -161,7 +164,7 @@ def test_hub_modelcardhelper(request, save_path):
     assert hmch.data_modalities == []
     assert hmch.tissues == []
     assert hmch.data_is_annotated is None
-    assert hmch.data_is_latent is False
+    assert hmch.data_is_minified is False
     assert hmch.training_data_url is None
     assert hmch.training_code_url is None
     assert hmch.model_parent_module == "other_module"
@@ -171,6 +174,9 @@ def test_hub_modelcardhelper(request, save_path):
         "license": "cc-by-4.0",
         "library_name": "scvi-tools",
         "tags": [
+            "biology",
+            "genomics",
+            "single-cell",
             "model_cls_name:SCVI",
             f"scvi_version:{scvi.__version__}",
             "anndata_version:0.8.0",
