@@ -12,6 +12,7 @@ python:
           extra_requirements:
               - docs
               - pymde
+              - hub
 submodules:
     include:
         - "docs/tutorials/notebooks"

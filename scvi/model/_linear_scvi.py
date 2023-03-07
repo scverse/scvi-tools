@@ -1,11 +1,10 @@
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 import pandas as pd
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model._utils import _init_library_size
@@ -19,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Linearly-decoded VAE :cite:p:`Svensson20`.
+    """Linearly-decoded VAE :cite:p:`Svensson20`.
 
     Parameters
     ----------
@@ -70,6 +68,8 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     1. :doc:`/tutorials/notebooks/linear_decoder`
     """
 
+    _module_cls = LDVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -89,7 +89,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
             self.adata_manager, n_batch
         )
 
-        self.module = LDVAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,
@@ -119,8 +119,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         self.init_params_ = self._get_init_params(locals())
 
     def get_loadings(self) -> pd.DataFrame:
-        """
-        Extract per-gene weights in the linear decoder.
+        """Extract per-gene weights in the linear decoder.
 
         Shape is genes by `n_latent`.
 
@@ -143,11 +142,11 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_layer)s

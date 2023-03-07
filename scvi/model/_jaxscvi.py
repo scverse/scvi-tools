@@ -1,12 +1,11 @@
 import logging
-from typing import Optional, Sequence
+from typing import Literal, Optional, Sequence
 
 import jax.numpy as jnp
 import numpy as np
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.module import JaxVAE
@@ -18,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class JaxSCVI(JaxTrainingMixin, BaseModelClass):
-    """
-    EXPERIMENTAL single-cell Variational Inference :cite:p:`Lopez18`, but with a Jax backend.
+    """EXPERIMENTAL single-cell Variational Inference :cite:p:`Lopez18`, but with a Jax backend.
 
     This implementation is in a very experimental state. API is completely subject to change.
 
@@ -50,6 +48,8 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     """
 
+    _module_cls = JaxVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -63,7 +63,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         n_batch = self.summary_stats.n_batch
 
-        self.module = JaxVAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,
@@ -85,11 +85,11 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         batch_key: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_layer)s
         %(param_batch_key)s
         """
@@ -112,8 +112,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         n_samples: int = 1,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
-        r"""
-        Return the latent representation for each cell.
+        r"""Return the latent representation for each cell.
 
         This is denoted as :math:`z_n` in our manuscripts.
 
@@ -159,9 +158,9 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
         return self.module.as_numpy_array(latent)
 
-    def to_device(self, device):  # noqa: D102
+    def to_device(self, device):
         pass
 
     @property
-    def device(self):  # noqa: D102
+    def device(self):
         return self.module.device

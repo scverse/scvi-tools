@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Literal, Optional
 
 import numpy as np
 import torch
@@ -6,14 +6,13 @@ from torch import nn
 from torch.distributions import Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
 
 class Decoder(nn.Module):
-    """
-    Decodes data from latent space of ``n_input`` dimensions ``n_output`` dimensions.
+    """Decodes data from latent space of ``n_input`` dimensions ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -77,8 +76,7 @@ class Decoder(nn.Module):
 
 
 class PEAKVAE(BaseModuleClass):
-    """
-    Variational auto-encoder model for ATAC-seq data.
+    """Variational auto-encoder model for ATAC-seq data.
 
     This is an implementation of the peakVI model descibed in.
 
@@ -133,19 +131,19 @@ class PEAKVAE(BaseModuleClass):
         self,
         n_input_regions: int,
         n_batch: int = 0,
-        n_hidden: Optional[int] = None,
-        n_latent: Optional[int] = None,
-        n_layers_encoder: int = 2,
-        n_layers_decoder: int = 2,
+        n_hidden: Tunable[int] = None,
+        n_latent: Tunable[int] = None,
+        n_layers_encoder: Tunable[int] = 2,
+        n_layers_decoder: Tunable[int] = 2,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: float = 0.1,
+        dropout_rate: Tunable[float] = 0.1,
         model_depth: bool = True,
         region_factors: bool = True,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
-        latent_distribution: str = "normal",
-        deeply_inject_covariates: bool = False,
+        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
+        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
+        deeply_inject_covariates: Tunable[bool] = False,
         encode_covariates: bool = False,
     ):
         super().__init__()
@@ -220,12 +218,12 @@ class PEAKVAE(BaseModuleClass):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY)
         cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY)
-        input_dict = dict(
-            x=x,
-            batch_index=batch_index,
-            cont_covs=cont_covs,
-            cat_covs=cat_covs,
-        )
+        input_dict = {
+            "x": x,
+            "batch_index": batch_index,
+            "cont_covs": cont_covs,
+            "cat_covs": cat_covs,
+        }
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
@@ -265,7 +263,7 @@ class PEAKVAE(BaseModuleClass):
         if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
-            categorical_input = tuple()
+            categorical_input = ()
         if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat([x, cont_covs], dim=-1)
         else:
@@ -284,7 +282,7 @@ class PEAKVAE(BaseModuleClass):
             untran_z = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
 
-        return dict(d=d, qz=qz, z=z)
+        return {"d": d, "qz": qz, "z": z}
 
     @auto_move_data
     def generative(
@@ -300,7 +298,7 @@ class PEAKVAE(BaseModuleClass):
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
-            categorical_input = tuple()
+            categorical_input = ()
 
         latent = z if not use_z_mean else qz_m
         if cont_covs is None:
@@ -314,7 +312,7 @@ class PEAKVAE(BaseModuleClass):
 
         p = self.z_decoder(decoder_input, batch_index, *categorical_input)
 
-        return dict(p=p)
+        return {"p": p}
 
     def loss(
         self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0

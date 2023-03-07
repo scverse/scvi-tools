@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Literal, Optional, Sequence
 
 import numpy as np
 import torch
@@ -7,7 +7,7 @@ from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
+from scvi.autotune._types import Tunable
 from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import Decoder, Encoder
 
@@ -17,8 +17,7 @@ from ._vae import VAE
 
 
 class SCANVAE(VAE):
-    """
-    Single-cell annotation using variational inference.
+    """Single-cell annotation using variational inference.
 
     This is an implementation of the scANVI model described in :cite:p:`Xu21`,
     inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
@@ -53,7 +52,7 @@ class SCANVAE(VAE):
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
     gene_likelihood
-        One of
+        One of:
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
@@ -76,22 +75,24 @@ class SCANVAE(VAE):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: int = 128,
-        n_latent: int = 10,
-        n_layers: int = 1,
+        n_hidden: Tunable[int] = 128,
+        n_latent: Tunable[int] = 10,
+        n_layers: Tunable[int] = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: float = 0.1,
-        dispersion: str = "gene",
-        log_variational: bool = True,
-        gene_likelihood: str = "zinb",
+        dropout_rate: Tunable[float] = 0.1,
+        dispersion: Tunable[
+            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
+        ] = "gene",
+        log_variational: Tunable[bool] = True,
+        gene_likelihood: Tunable[Literal["zinb", "nb"]] = "zinb",
         y_prior=None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
         classifier_parameters: Optional[dict] = None,
-        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
-        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        **vae_kwargs
+        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
+        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        **vae_kwargs,
     ):
         super().__init__(
             n_input,
@@ -107,10 +108,10 @@ class SCANVAE(VAE):
             gene_likelihood=gene_likelihood,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
-            **vae_kwargs
+            **vae_kwargs,
         )
 
-        classifier_parameters = classifier_parameters or dict()
+        classifier_parameters = classifier_parameters or {}
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
@@ -129,7 +130,7 @@ class SCANVAE(VAE):
             n_labels=n_labels,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
-            **cls_parameters
+            **cls_parameters,
         )
 
         self.encoder_z2_z1 = Encoder(
@@ -200,7 +201,7 @@ class SCANVAE(VAE):
         if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
-            categorical_input = tuple()
+            categorical_input = ()
 
         qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
         # We classify using the inferred mean parameter of z_1 in the latent space
@@ -220,7 +221,7 @@ class SCANVAE(VAE):
         return w_y
 
     @auto_move_data
-    def classification_loss(self, labelled_dataset):  # noqa: D102
+    def classification_loss(self, labelled_dataset):
         x = labelled_dataset[REGISTRY_KEYS.X_KEY]
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]

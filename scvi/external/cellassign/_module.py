@@ -7,7 +7,7 @@ from torch.distributions import Dirichlet, Normal
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
 from scvi.module._utils import one_hot
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 LOWER_BOUND = 1e-10
 THETA_LOWER_BOUND = 1e-20
@@ -15,8 +15,7 @@ B = 10
 
 
 class CellAssignModule(BaseModuleClass):
-    """
-    Model for CellAssign.
+    """Model for CellAssign.
 
     Parameters
     ----------
@@ -129,11 +128,15 @@ class CellAssignModule(BaseModuleClass):
 
         design_matrix = torch.cat(to_cat, dim=1) if len(to_cat) > 0 else None
 
-        input_dict = dict(x=x, size_factor=size_factor, design_matrix=design_matrix)
+        input_dict = {
+            "x": x,
+            "size_factor": size_factor,
+            "design_matrix": design_matrix,
+        }
         return input_dict
 
     @auto_move_data
-    def inference(self):  # noqa: D102
+    def inference(self):
         return {}
 
     @auto_move_data
@@ -194,13 +197,13 @@ class CellAssignModule(BaseModuleClass):
         )
         gamma = torch.exp(p_x_c - normalizer_over_c)  # (n, c)
 
-        return dict(
-            mu=mu_ngc,
-            phi=phi,
-            gamma=gamma,
-            p_x_c=p_x_c,
-            s=size_factor,
-        )
+        return {
+            "mu": mu_ngc,
+            "phi": phi,
+            "gamma": gamma,
+            "p_x_c": p_x_c,
+            "s": size_factor,
+        }
 
     def loss(
         self,
@@ -236,8 +239,11 @@ class CellAssignModule(BaseModuleClass):
 
         loss = (torch.mean(q_per_cell) * n_obs + prior_log_prob) / n_obs
 
-        return LossRecorder(
-            loss, q_per_cell, torch.zeros_like(q_per_cell), prior_log_prob
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=q_per_cell,
+            kl_local=torch.zeros_like(q_per_cell),
+            kl_global=prior_log_prob,
         )
 
     @torch.inference_mode()

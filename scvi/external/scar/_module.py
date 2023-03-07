@@ -1,10 +1,11 @@
+from typing import Literal
+
 import torch
 from torch import nn
 from torch.distributions import Binomial, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module._vae import VAE
 from scvi.module.base import LossOutput, auto_move_data
@@ -49,7 +50,7 @@ class softplus(nn.Module):
         return self._softplus(input_x)
 
     def _softplus(self, input_x):
-        """Customized softplus activation, output range: [0, inf)"""
+        """Customized softplus activation, output range: [0, inf)."""
         var_sp = nn.functional.softplus(input_x)
         threshold = nn.functional.softplus(
             torch.tensor(-(1 - self.sparsity) * 10.0, device=input_x.device)
@@ -61,8 +62,7 @@ class softplus(nn.Module):
 
 
 class DecoderSCAR(nn.Module):
-    """
-    Decodes data from latent space of ``n_input`` dimensions into ``n_output`` dimensions.
+    """Decodes data from latent space of ``n_input`` dimensions into ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -135,8 +135,7 @@ class DecoderSCAR(nn.Module):
         z: torch.Tensor,
         library: torch.Tensor,
     ):
-        """
-        The forward computation for a single sample.
+        """The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns parameters for the ZINB distribution of expression
@@ -169,8 +168,7 @@ class DecoderSCAR(nn.Module):
 
 
 class SCAR_VAE(VAE):
-    """
-    Slightly modified version of scVI's VAE model to enable ambient RNA removal in scRNA-seq data.
+    """Slightly modified version of scVI's VAE model to enable ambient RNA removal in scRNA-seq data.
 
     Parameters
     ----------
@@ -319,13 +317,13 @@ class SCAR_VAE(VAE):
             ) = self._compute_local_library_params(batch_index)
             pl = Normal(local_library_log_means, local_library_log_vars.sqrt())
         pz = Normal(torch.zeros_like(z), torch.ones_like(z))
-        return dict(
-            px=px,
-            pl=pl,
-            pz=pz,
-            pamb_scale=pamb_scale,
-            pamb_rate=pamb_rate,
-        )
+        return {
+            "px": px,
+            "pl": pl,
+            "pz": pz,
+            "pamb_scale": pamb_scale,
+            "pamb_rate": pamb_rate,
+        }
 
     def loss(
         self,
@@ -381,9 +379,10 @@ class SCAR_VAE(VAE):
 
         loss = torch.mean(reconst_loss + weighted_kl_local)
 
-        kl_local = dict(
-            kl_divergence_l=kl_divergence_l, kl_divergence_z=kl_divergence_z
-        )
+        kl_local = {
+            "kl_divergence_l": kl_divergence_l,
+            "kl_divergence_z": kl_divergence_z,
+        }
         return LossOutput(
             loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
         )

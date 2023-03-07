@@ -11,10 +11,17 @@ import pandas as pd
 import scipy.sparse as sp_sparse
 from anndata import AnnData
 from anndata._core.sparse_dataset import SparseDataset
+
+# TODO use the experimental api once we lower bound to anndata 0.8
+try:
+    from anndata.experimental import read_elem
+except ImportError:
+    from anndata._io.specs import read_elem
+
 from mudata import MuData
 from pandas.api.types import CategoricalDtype
 
-from scvi._types import AnnOrMuData, LatentDataType
+from scvi._types import AnnOrMuData, MinifiedDataType
 
 from . import _constants
 
@@ -59,8 +66,7 @@ def _set_data_in_registry(
     attr_name: str,
     attr_key: Optional[str],
 ):
-    """
-    Sets the data in the AnnData object according to the attr_name and attr_key.
+    """Sets the data in the AnnData object according to the attr_name and attr_key.
 
     Note: This is a dangerous method and will change the underlying data of the user's anndata
     Currently used to make the user's anndata C_CONTIGUOUS and csr if it is dense numpy
@@ -92,8 +98,7 @@ def _set_data_in_registry(
 def _verify_and_correct_data_format(
     adata: AnnData, attr_name: str, attr_key: Optional[str]
 ):
-    """
-    Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
+    """Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
 
     Parameters
     ----------
@@ -139,8 +144,7 @@ def _make_column_categorical(
     alternate_column_key: str,
     categorical_dtype: Optional[Union[str, CategoricalDtype]] = None,
 ):
-    """
-    Makes the data in column_key in DataFrame all categorical.
+    """Makes the data in column_key in DataFrame all categorical.
 
     Categorizes df[column_key], then saves category codes to
     df[alternate_column_key] and returns the category mappings.
@@ -175,8 +179,7 @@ def _make_column_categorical(
 
 
 def _assign_adata_uuid(adata: AnnOrMuData, overwrite: bool = False) -> None:
-    """
-    Assigns a UUID unique to the AnnData object.
+    """Assigns a UUID unique to the AnnData object.
 
     If already present, the UUID is left alone, unless ``overwrite == True``.
     """
@@ -248,5 +251,16 @@ def _check_mudata_fully_paired(mdata: MuData):
             )
 
 
-def _get_latent_adata_type(adata: AnnData) -> Union[LatentDataType, None]:
-    return adata.uns.get(_constants._ADATA_LATENT_UNS_KEY, None)
+def _get_adata_minify_type(adata: AnnData) -> Union[MinifiedDataType, None]:
+    return adata.uns.get(_constants._ADATA_MINIFY_TYPE_UNS_KEY, None)
+
+
+def _is_minified(adata: Union[AnnData, str]) -> bool:
+    uns_key = _constants._ADATA_MINIFY_TYPE_UNS_KEY
+    if isinstance(adata, AnnData):
+        return adata.uns.get(uns_key, None) is not None
+    elif isinstance(adata, str):
+        with h5py.File(adata) as fp:
+            return uns_key in read_elem(fp["uns"]).keys()
+    else:
+        raise TypeError(f"Unsupported type: {type(adata)}")

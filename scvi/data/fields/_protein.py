@@ -6,16 +6,15 @@ import pandas as pd
 from anndata import AnnData
 from mudata import MuData
 
+from ._arraylike_field import ObsmField
 from ._layer_field import LayerField
 from ._mudata import BaseMuDataWrapperClass, MuDataWrapper
-from ._obsm_field import ObsmField
 
 logger = logging.getLogger(__name__)
 
 
 class ProteinFieldMixin:
-    """
-    A mixin class for an protein data stored in a field of an AnnData object.
+    """A mixin class for an protein data stored in a field of an AnnData object.
 
     For usage with the TotalVI model. Computes an additional mask which indicates
     where batches are missing protein data.
@@ -52,8 +51,7 @@ class ProteinFieldMixin:
         )
 
     def _get_batch_mask_protein_data(self, adata: AnnData) -> Optional[dict]:
-        """
-        Returns a dict with length number of batches where each entry is a mask.
+        """Returns a dict with length number of batches where each entry is a mask.
 
         The mask is over cell measurement columns that are present (observed)
         in each batch. Absence is defined by all 0 for that protein in that batch.
@@ -100,8 +98,7 @@ class ProteinFieldMixin:
 
 
 class ProteinObsmField(ProteinFieldMixin, ObsmField):
-    """
-    An AnnDataField for an protein data stored in an .obsm field of an AnnData object.
+    """An AnnDataField for an protein data stored in an .obsm field of an AnnData object.
 
     For usage with the TotalVI model. Computes an additional mask which indicates
     where batches are missing protein data.
@@ -130,8 +127,7 @@ class ProteinObsmField(ProteinFieldMixin, ObsmField):
 
 
 class ProteinLayerField(ProteinFieldMixin, LayerField):
-    """
-    An AnnDataField for an protein data stored in a layer field of an AnnData object.
+    """An AnnDataField for an protein data stored in a layer field of an AnnData object.
 
     For usage with the TotalVI model. Computes an additional mask which indicates
     where batches are missing protein data.

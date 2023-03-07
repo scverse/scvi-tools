@@ -45,6 +45,8 @@ notebooks/amortized_lda
 
 notebooks/PeakVI
 notebooks/peakvi_in_R
+notebooks/scbasset
+notebooks/scbasset_batch
 ```
 
 ### Spatial transcriptomics
@@ -70,7 +72,26 @@ notebooks/totalvi_in_R
 notebooks/MultiVI_tutorial
 ```
 
-## Contributed tutorials
+### scvi-hub
+
+```{toctree}
+:maxdepth: 1
+
+notebooks/scvi_hub_intro_and_download
+notebooks/scvi_hub_upload_and_large_files
+notebooks/minification
+```
+
+### Model hyperparameter tuning
+
+```{toctree}
+:maxdepth: 1
+
+notebooks/autotune_scvi
+notebooks/autotune_new_model
+```
+
+### Contributed tutorials
 
 ```{toctree}
 :maxdepth: 1
@@ -81,7 +102,7 @@ notebooks/cell2location_lymph_node_spatial_tutorial
 
 ## Developer tutorials
 
-Here we feature tutorials to guide you through the construction of a model with scvi-tools. For an example of how scvi-tools can be used in an independent package, see our GitHub [template].
+Here we feature tutorials to guide you through the construction of a model with scvi-tools. For an example of how scvi-tools can be used in an independent package, see our simple-scvi [example].
 
 :::{note}
 For questions about developing with scvi-tools, please use our [forum] or [zulip].
@@ -97,7 +118,7 @@ notebooks/model_user_guide
 
 ### Glossary
 
-```{eval-rst}
+```{toctree}
 .. tab-set::
 
     .. tab-item:: Model
@@ -118,7 +139,7 @@ notebooks/model_user_guide
         while the `loss` method computes the loss, e.g, ELBO in the case of variational inference.
 ```
 
-```{eval-rst}
+```{toctree}
 .. tab-set::
 
     .. tab-item:: TrainingPlan
@@ -142,4 +163,4 @@ notebooks/model_user_guide
 [ecosystem]: https://scvi-tools.org/ecosystem
 [forum]: https://discourse.scvi-tools.org/
 [zulip]: https://scverse.zulipchat.com/
-[template]: https://github.com/YosefLab/scvi-tools-skeleton
+[example]: https://github.com/scverse/simple-scvi

@@ -10,16 +10,19 @@ COLORS = [
     "dark_violet",
     "green",
     "dark_orange",
+    "red",
 ]
 
 # default rich table column kwargs
 COLUMN_KWARGS = {
     "justify": "center",
     "no_wrap": True,
-    "overflow": "fold",
+    "min_width": 10,
+    "max_width": 50,
 }
 
-# maps classes to the type of hyperparameters they use
+# maps classes to the tunable type
+# TODO: better way to do this?
 TUNABLE_TYPES = {
     "model": [
         BaseModuleClass,
@@ -31,13 +34,10 @@ TUNABLE_TYPES = {
         Trainer,
         TrainRunner,
     ],
-    "train_plan": [
+    "training_plan": [
         LightningModule,
     ],
 }
-
-# supported model classes
-SUPPORTED = [model.SCVI]
 
 # default hyperparameter search spaces for each model class
 DEFAULTS = {

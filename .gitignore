@@ -6,8 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
-# DS_Store
+# Temp files
 .DS_Store
+*~
+buck-out/
 
 # Distribution / packaging
 .Python
@@ -113,7 +115,12 @@ ENV/
 .floo
 .flooignore
 
+# local debugging
+/local
 
+# Custom scvi
 /data
 .vscode/settings.json
 poetry.lock
+.mypy_cache/
+.ruff_cache/

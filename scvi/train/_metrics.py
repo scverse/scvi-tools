@@ -1,12 +1,11 @@
+from typing import Literal
+
 import torch
 from torchmetrics import Metric
 
-from scvi._compat import Literal
-
 
 class ElboMetric(Metric):
-    """
-    Elbo metric aggregator for scvi-tools experiments.
+    """Elbo metric aggregator for scvi-tools experiments.
 
     Parameters
     ----------
@@ -45,11 +44,11 @@ class ElboMetric(Metric):
         self.add_state("n_batches", default=torch.tensor(0.0), dist_reduce_fx="sum")
 
     @property
-    def mode(self):  # noqa: D102
+    def mode(self):
         return self._mode
 
     @property
-    def name(self):  # noqa: D102
+    def name(self):
         return f"{self._name}_{self.mode}"
 
     @name.setter
@@ -57,7 +56,7 @@ class ElboMetric(Metric):
         self._name = new_name
 
     @property
-    def interval(self):  # noqa: D102
+    def interval(self):
         return self._interval
 
     def get_intervals_recorded(self):
@@ -72,8 +71,7 @@ class ElboMetric(Metric):
         self,
         **kwargs,
     ):
-        """
-        Updates this metric for one minibatch.
+        """Updates this metric for one minibatch.
 
         Takes kwargs associated with all metrics being updated for a given minibatch.
         Filters for the relevant metric's value and updates this metric.

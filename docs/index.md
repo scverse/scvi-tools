@@ -7,7 +7,7 @@
 
 If you find a model useful for your research, please consider citing the [scvi-tools manuscript](http://dx.doi.org/10.1038/s41587-021-01206-w) as well as the publication describing the model, which can be found in the corresponding documentation.
 
-::::{grid} 3
+::::{grid} 1 2 3 3
 :gutter: 2
 
 :::{grid-item-card} Installation {octicon}`plug;1em;`

@@ -1,11 +1,9 @@
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from scipy.sparse import spmatrix
-
-from scvi._compat import Literal
 
 
 def mde(
@@ -13,8 +11,7 @@ def mde(
     device: Optional[Literal["cpu", "cuda"]] = None,
     **kwargs,
 ) -> np.ndarray:
-    """
-    Util to run :meth:`pymde.preserve_neighbors` for visualization of scvi-tools embeddings.
+    """Util to run :func:`pymde.preserve_neighbors` for visualization of scvi-tools embeddings.
 
     Parameters
     ----------
@@ -24,7 +21,8 @@ def mde(
     device
         Whether to run on cpu or gpu ("cuda"). If None, tries to run on gpu if available.
     kwargs
-        Keyword args to :meth:`pymde.preserve_neighbors`
+        Keyword args to :func:`pymde.preserve_neighbors`
+
     Returns
     -------
     The pymde embedding, defaults to two dimensions.
@@ -52,22 +50,24 @@ def mde(
     """
     try:
         import pymde
-    except ImportError:
-        raise ImportError("Please install pymde package via `pip install pymde`")
+    except ImportError as err:
+        raise ImportError(
+            "Please install pymde package via `pip install pymde`"
+        ) from err
 
     if isinstance(data, pd.DataFrame):
         data = data.values
 
     device = "cpu" if not torch.cuda.is_available() else "cuda"
 
-    _kwargs = dict(
-        embedding_dim=2,
-        constraint=pymde.Standardized(),
-        repulsive_fraction=0.7,
-        verbose=False,
-        device=device,
-        n_neighbors=15,
-    )
+    _kwargs = {
+        "embedding_dim": 2,
+        "constraint": pymde.Standardized(),
+        "repulsive_fraction": 0.7,
+        "verbose": False,
+        "device": device,
+        "n_neighbors": 15,
+    }
     _kwargs.update(kwargs)
 
     emb = pymde.preserve_neighbors(data, **_kwargs).embed(verbose=_kwargs["verbose"])

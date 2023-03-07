@@ -35,8 +35,7 @@ def _unpack_tensors(tensors):
 
 
 class GIMVI(VAEMixin, BaseModelClass):
-    """
-    Joint VAE for imputing missing genes in spatial data :cite:p:`Lopez19`.
+    """Joint VAE for imputing missing genes in spatial data :cite:p:`Lopez19`.
 
     Parameters
     ----------
@@ -168,8 +167,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
@@ -223,7 +221,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             self.validation_indices_.append(ds.val_idx)
         train_dl = TrainDL(train_dls)
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
         self._training_plan = GIMVITrainingPlan(
             self.module,
             adversarial_classifier=True,
@@ -262,8 +260,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         deterministic: bool = True,
         batch_size: int = 128,
     ) -> List[np.ndarray]:
-        """
-        Return the latent space embedding for each dataset.
+        """Return the latent space embedding for each dataset.
 
         Parameters
         ----------
@@ -306,8 +303,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         decode_mode: Optional[int] = None,
         batch_size: int = 128,
     ) -> List[np.ndarray]:
-        """
-        Return imputed values for all genes for each dataset.
+        """Return imputed values for all genes for each dataset.
 
         Parameters
         ----------
@@ -375,8 +371,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         save_anndata: bool = False,
         **anndata_write_kwargs,
     ):
-        """
-        Save the state of the model.
+        """Save the state of the model.
 
         Neither the trainer optimizer state nor the trainer history are saved.
         Model files are not expected to be reproducibly saved and loaded across versions
@@ -432,12 +427,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
 
         torch.save(
-            dict(
-                model_state_dict=model_state_dict,
-                seq_var_names=seq_var_names,
-                spatial_var_names=spatial_var_names,
-                attr_dict=user_attributes,
-            ),
+            {
+                "model_state_dict": model_state_dict,
+                "seq_var_names": seq_var_names,
+                "spatial_var_names": spatial_var_names,
+                "attr_dict": user_attributes,
+            },
             model_save_path,
         )
 
@@ -451,8 +446,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):
-        """
-        Instantiate a model from the saved output.
+        """Instantiate a model from the saved output.
 
         Parameters
         ----------
@@ -535,19 +529,19 @@ class GIMVI(VAEMixin, BaseModelClass):
                 adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
             )
 
-        # get the parameters for the class init signiture
+        # get the parameters for the class init signature
         init_params = attr_dict.pop("init_params_")
 
         # new saving and loading, enable backwards compatibility
         if "non_kwargs" in init_params.keys():
-            # grab all the parameters execept for kwargs (is a dict)
+            # grab all the parameters except for kwargs (is a dict)
             non_kwargs = init_params["non_kwargs"]
             kwargs = init_params["kwargs"]
 
             # expand out kwargs
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         else:
-            # grab all the parameters execept for kwargs (is a dict)
+            # grab all the parameters except for kwargs (is a dict)
             non_kwargs = {
                 k: v for k, v in init_params.items() if not isinstance(v, dict)
             }
@@ -571,8 +565,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         overwrite: bool = False,
         prefix: Optional[str] = None,
     ) -> None:
-        """
-        Converts a legacy saved GIMVI model (<v0.15.0) to the updated save format.
+        """Converts a legacy saved GIMVI model (<v0.15.0) to the updated save format.
 
         Parameters
         ----------
@@ -618,12 +611,12 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
         torch.save(
-            dict(
-                model_state_dict=model_state_dict,
-                seq_var_names=seq_var_names,
-                spatial_var_names=spatial_var_names,
-                attr_dict=attr_dict,
-            ),
+            {
+                "model_state_dict": model_state_dict,
+                "seq_var_names": seq_var_names,
+                "spatial_var_names": spatial_var_names,
+                "attr_dict": attr_dict,
+            },
             model_save_path,
         )
 
@@ -637,8 +630,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

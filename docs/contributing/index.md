@@ -28,7 +28,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     pyenv virtualenv scvi-tools-dev
     pyenv activate scvi-tools-dev
     # If you have mamba (omit the python parameter if you already have the relevant python version installed)
-    mamba create -n scvi-tools-dev python=3.8.8 # or any python >3.7 that is available (mamba search python)
+    mamba create -n scvi-tools-dev python=3.8.8 # or any python >=3.8 that is available (mamba search python)
     mamba activate scvi-tools-dev
     ```
 
@@ -130,15 +130,9 @@ Before you submit a pull request, check that it meets these guidelines:
 
 ## Deploying
 
-First, please install Poetry.
-
 A reminder for the maintainers on how to deploy. Make sure all your changes are committed (including a release note entry).
 
-Additionally, make sure to commit a version bump to [pyproject.toml](https://github.com/YosefLab/scvi-tools/blob/master/pyproject.toml) which can be updated by running:
-
-```
-$ poetry version preversion # possible: major / minor / patch
-```
+Additionally, make sure to commit a version bump to [pyproject.toml](https://github.com/YosefLab/scvi-tools/blob/master/pyproject.toml).
 
 Then, make sure you've tested your code using pytest by running:
 
@@ -149,11 +143,13 @@ $ pytest
 Subsequently run:
 
 ```
-$ poetry build
-$ poetry publish
+$ hatch build
+$ hatch publish
 ```
 
 This will upload `scvi-tools` to PyPi. Also be sure to add a tag corresponding to the new version number on the tutorials repo, as the tagged repo is used for the Colab links.
+
+All the steps above are automated in the `release.yml` workflow. It's triggered by a new tag on GitHub that's named with a version (e.g., 1.2.3).
 
 ### Instructions on Uploading to conda
 

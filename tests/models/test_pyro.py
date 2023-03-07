@@ -19,12 +19,13 @@ from scvi.model import AmortizedLDA
 from scvi.model.base import (
     BaseModelClass,
     PyroJitGuideWarmup,
+    PyroModelGuideWarmup,
     PyroSampleMixin,
     PyroSviTrainMixin,
 )
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
-from scvi.train import PyroTrainingPlan, Trainer
+from scvi.train import LowLevelPyroTrainingPlan, PyroTrainingPlan, Trainer
 
 
 class BayesianRegressionPyroModel(PyroModule):
@@ -41,6 +42,11 @@ class BayesianRegressionPyroModel(PyroModule):
         self.register_buffer("ten", torch.tensor(10.0))
 
         self.linear = PyroModule[nn.Linear](in_features, out_features)
+        # Using the lambda here means that Pyro recreates the prior every time
+        # it retrieves it. In this case this is first when the model is called, which is
+        # also when the auto guide params are created.
+        # This effectively allows these priors to move with the model's device with the
+        # expense of dynamic recreation.
         self.linear.weight = PyroSample(
             lambda prior: dist.Normal(self.zero, self.one)
             .expand([self.out_features, self.in_features])
@@ -87,7 +93,6 @@ class BayesianRegressionPyroModel(PyroModule):
         return (x, y, ind_x), {}
 
     def forward(self, x, y, ind_x):
-
         obs_plate = self.create_plates(x, y, ind_x)
 
         sigma = pyro.sample("sigma", dist.Exponential(self.one))
@@ -108,7 +113,6 @@ class BayesianRegressionPyroModel(PyroModule):
 
 class BayesianRegressionModule(PyroBaseModuleClass):
     def __init__(self, **kwargs):
-
         super().__init__()
         self._model = BayesianRegressionPyroModel(**kwargs)
         self._guide = AutoNormal(
@@ -183,6 +187,33 @@ def _create_indices_adata_manager(adata: AnnData) -> AnnDataManager:
     return adata_manager
 
 
+def test_pyro_bayesian_regression_low_level():
+    use_gpu = int(torch.cuda.is_available())
+    adata = synthetic_iid()
+    adata_manager = _create_indices_adata_manager(adata)
+    train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
+    pyro.clear_param_store()
+    model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
+    plan = LowLevelPyroTrainingPlan(model)
+    plan.n_obs_training = len(train_dl.indices)
+    trainer = Trainer(
+        accelerator="gpu" if use_gpu else "cpu",
+        devices="auto",
+        max_epochs=2,
+        callbacks=[PyroModelGuideWarmup(train_dl)],
+    )
+    trainer.fit(plan, train_dl)
+    # 100 features
+    assert list(model.guide.state_dict()["locs.linear.weight_unconstrained"].shape) == [
+        1,
+        100,
+    ]
+    # 1 bias
+    assert list(model.guide.state_dict()["locs.linear.bias_unconstrained"].shape) == [
+        1,
+    ]
+
+
 def test_pyro_bayesian_regression(save_path):
     use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
@@ -193,7 +224,8 @@ def test_pyro_bayesian_regression(save_path):
     plan = PyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        gpus=use_gpu,
+        accelerator="gpu" if use_gpu else "cpu",
+        devices="auto",
         max_epochs=2,
     )
     trainer.fit(plan, train_dl)
@@ -431,7 +463,6 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
 
 class FunctionBasedPyroModule(PyroBaseModuleClass):
     def __init__(self, n_input: int, n_latent: int, n_hidden: int, n_layers: int):
-
         super().__init__()
         self.n_input = n_input
         self.n_latent = n_latent

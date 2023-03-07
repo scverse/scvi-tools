@@ -34,11 +34,11 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             loss_output_objs = []
             n_obs = 0
             zs = []
-            for (i, tensors) in enumerate(batch):
+            for i, tensors in enumerate(batch):
                 n_obs += tensors[REGISTRY_KEYS.X_KEY].shape[0]
-                self.loss_kwargs.update(dict(kl_weight=self.kl_weight, mode=i))
-                inference_kwargs = dict(mode=i)
-                generative_kwargs = dict(mode=i)
+                self.loss_kwargs.update({"kl_weight": self.kl_weight, "mode": i})
+                inference_kwargs = {"mode": i}
+                generative_kwargs = {"mode": i}
                 inference_outputs, _, loss_output = self.forward(
                     tensors,
                     loss_kwargs=self.loss_kwargs,
@@ -76,7 +76,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
         # this condition will not be met unless self.adversarial_classifier is not False
         if optimizer_idx == 1:
             zs = []
-            for (i, tensors) in enumerate(batch):
+            for i, tensors in enumerate(batch):
                 inference_inputs = self.module._get_inference_input(tensors)
                 inference_inputs.update({"mode": i})
                 outputs = self.module.inference(**inference_inputs)
@@ -95,9 +95,9 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
         """Validation step."""
-        self.loss_kwargs.update(dict(kl_weight=self.kl_weight, mode=dataloader_idx))
-        inference_kwargs = dict(mode=dataloader_idx)
-        generative_kwargs = dict(mode=dataloader_idx)
+        self.loss_kwargs.update({"kl_weight": self.kl_weight, "mode": dataloader_idx})
+        inference_kwargs = {"mode": dataloader_idx}
+        generative_kwargs = {"mode": dataloader_idx}
         _, _, loss_output = self.forward(
             batch,
             loss_kwargs=self.loss_kwargs,

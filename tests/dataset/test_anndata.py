@@ -537,7 +537,8 @@ def test_backed_anndata(adata, save_path):
 
     # test get item
     bd = AnnTorchDataset(adata_manager)
-    bd[np.arange(adata.n_obs)]
+    subset = bd[np.arange(adata.n_obs)]
+    assert isinstance(subset["X"], np.ndarray)
 
 
 def test_backed_anndata_sparse(adata, save_path):
@@ -550,4 +551,5 @@ def test_backed_anndata_sparse(adata, save_path):
 
     # test get item
     bd = AnnTorchDataset(adata_manager)
-    bd[np.arange(adata.n_obs)]
+    subset = bd[np.arange(adata.n_obs)]
+    assert isinstance(subset["X"], np.ndarray)

@@ -1,12 +1,11 @@
 import os
 import pickle
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 import numpy as np
 import torch
 from anndata import AnnData, read
 
-from scvi._compat import Literal
 from scvi.data._download import _download
 
 

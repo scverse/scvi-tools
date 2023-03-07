@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, Literal, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -8,7 +8,6 @@ from torch import logsumexp
 from torch.distributions import Beta
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model._utils import _init_library_size
@@ -24,8 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Automatic identification of ZI genes :cite:p:`Clivio19`.
+    """Automatic identification of ZI genes :cite:p:`Clivio19`.
 
     Parameters
     ----------
@@ -91,6 +89,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     1. :doc:`/tutorials/notebooks/AutoZI_tutorial`
     """
 
+    _module_cls = AutoZIVAE
+
     def __init__(
         self,
         adata: AnnData,
@@ -115,7 +115,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             self.adata_manager, n_batch
         )
 
-        self.module = AutoZIVAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=self.summary_stats.n_labels,
@@ -166,8 +166,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_mc_samples: int = 1000,
         batch_size: Optional[int] = None,
     ) -> float:
-        """
-        Return the marginal LL for the data.
+        """Return the marginal LL for the data.
 
         The computation here is a biased estimator of the marginal log likelihood of the data.
         Note, this is not the negative log likelihood, higher is better.
@@ -275,11 +274,11 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_layer)s

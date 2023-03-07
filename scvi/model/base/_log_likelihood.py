@@ -3,8 +3,7 @@ import torch
 
 
 def compute_elbo(vae, data_loader, feed_labels=True, **kwargs):
-    """
-    Computes the ELBO.
+    """Computes the ELBO.
 
     The ELBO is the reconstruction error + the KL divergences
     between the variational distributions and the priors.
@@ -30,8 +29,7 @@ def compute_elbo(vae, data_loader, feed_labels=True, **kwargs):
 
 # do each one
 def compute_reconstruction_error(vae, data_loader, **kwargs):
-    """
-    Computes log p(x/z), which is the reconstruction error.
+    """Computes log p(x/z), which is the reconstruction error.
 
     Differs from the marginal log likelihood, but still gives good
     insights on the modeling of the data, and is fast to compute.
@@ -39,7 +37,7 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
     # Iterate once over the data and computes the reconstruction error
     log_lkl = {}
     for tensors in data_loader:
-        loss_kwargs = dict(kl_weight=1)
+        loss_kwargs = {"kl_weight": 1}
         _, _, losses = vae(tensors, loss_kwargs=loss_kwargs)
         if not isinstance(losses.reconstruction_loss, dict):
             rec_loss_dict = {"reconstruction_loss": losses.reconstruction_loss}
@@ -49,7 +47,7 @@ def compute_reconstruction_error(vae, data_loader, **kwargs):
             if key in log_lkl:
                 log_lkl[key] += torch.sum(value).item()
             else:
-                log_lkl[key] = 0.0
+                log_lkl[key] = torch.sum(value).item()
 
     n_samples = len(data_loader.indices)
     for key, _ in log_lkl.items():

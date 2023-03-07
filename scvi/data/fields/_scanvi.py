@@ -7,12 +7,11 @@ from pandas.api.types import CategoricalDtype
 
 from scvi.data._utils import _make_column_categorical, _set_data_in_registry
 
-from ._obs_field import CategoricalObsField
+from ._dataframe_field import CategoricalObsField
 
 
 class LabelsWithUnlabeledObsField(CategoricalObsField):
-    """
-    An AnnDataField for labels which include explicitly unlabeled cells.
+    """An AnnDataField for labels which include explicitly unlabeled cells.
 
     Remaps the unlabeled category to the final index if present in labels.
     The unlabeled category is a specific category name specified by the user.

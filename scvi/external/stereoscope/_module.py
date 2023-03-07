@@ -1,17 +1,15 @@
-from typing import Tuple
+from typing import Literal, Tuple
 
 import numpy as np
 import torch
 from torch.distributions import NegativeBinomial, Normal
 
 from scvi import REGISTRY_KEYS
-from scvi._compat import Literal
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 
 class RNADeconv(BaseModuleClass):
-    """
-    Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
+    """Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
     Reimplementation of the ScModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
@@ -50,8 +48,7 @@ class RNADeconv(BaseModuleClass):
 
     @torch.inference_mode()
     def get_params(self) -> Tuple[np.ndarray]:
-        """
-        Returns the parameters for feeding into the spatial data.
+        """Returns the parameters for feeding into the spatial data.
 
         Returns
         -------
@@ -68,7 +65,7 @@ class RNADeconv(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
 
-        input_dict = dict(x=x, y=y)
+        input_dict = {"x": x, "y": y}
         return input_dict
 
     @auto_move_data
@@ -86,13 +83,13 @@ class RNADeconv(BaseModuleClass):
         px_rate = library * px_scale
         scaling_factor = self.ct_weight[y.long().ravel()]
 
-        return dict(
-            px_scale=px_scale,
-            px_o=self.px_o,
-            px_rate=px_rate,
-            library=library,
-            scaling_factor=scaling_factor,
-        )
+        return {
+            "px_scale": px_scale,
+            "px_o": self.px_o,
+            "px_rate": px_rate,
+            "library": library,
+            "scaling_factor": scaling_factor,
+        }
 
     def loss(
         self,
@@ -124,8 +121,7 @@ class RNADeconv(BaseModuleClass):
 
 
 class SpatialDeconv(BaseModuleClass):
-    """
-    Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
+    """Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
 
     Reimplementation of the STModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
@@ -186,7 +182,7 @@ class SpatialDeconv(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
 
-        input_dict = dict(x=x, ind_x=ind_x)
+        input_dict = {"x": x, "ind_x": ind_x}
         return input_dict
 
     @auto_move_data
@@ -212,7 +208,7 @@ class SpatialDeconv(BaseModuleClass):
             torch.matmul(r_hat, v_ind), 0, 1
         )  # batch_size, n_genes
 
-        return dict(px_o=self.px_o, px_rate=px_rate, eta=self.eta)
+        return {"px_o": self.px_o, "px_rate": px_rate, "eta": self.eta}
 
     def loss(
         self,
@@ -258,8 +254,7 @@ class SpatialDeconv(BaseModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def get_ct_specific_expression(self, y):
-        """
-        Returns cell type specific gene expression at the queried spots.
+        """Returns cell type specific gene expression at the queried spots.
 
         Parameters
         ----------

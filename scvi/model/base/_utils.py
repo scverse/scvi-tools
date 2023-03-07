@@ -3,7 +3,7 @@ import os
 import pickle
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import List, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 import anndata
 import mudata
@@ -12,7 +12,6 @@ import pandas as pd
 import torch
 from anndata import AnnData, read
 
-from scvi._compat import Literal
 from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
 from scvi.utils import track
@@ -136,7 +135,6 @@ def _initialize_model(cls, adata, attr_dict):
 
 
 def _validate_var_names(adata, source_var_names):
-
     user_var_names = adata.var_names.astype(str)
     if not np.array_equal(source_var_names, user_var_names):
         warnings.warn(
@@ -151,8 +149,7 @@ def _prepare_obs(
     idx2: Union[List[bool], np.ndarray, str],
     adata: anndata.AnnData,
 ):
-    """
-    Construct an array used for masking.
+    """Construct an array used for masking.
 
     Given population identifiers `idx1` and potentially `idx2`,
     this function creates an array `obs_col` that identifies both populations
