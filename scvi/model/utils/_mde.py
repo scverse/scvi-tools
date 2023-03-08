@@ -11,8 +11,7 @@ def mde(
     device: Optional[Literal["cpu", "cuda"]] = None,
     **kwargs,
 ) -> np.ndarray:
-    """
-    Util to run :meth:`pymde.preserve_neighbors` for visualization of scvi-tools embeddings.
+    """Util to run :meth:`pymde.preserve_neighbors` for visualization of scvi-tools embeddings.
 
     Parameters
     ----------
@@ -50,22 +49,24 @@ def mde(
     """
     try:
         import pymde
-    except ImportError:
-        raise ImportError("Please install pymde package via `pip install pymde`")
+    except ImportError as err:
+        raise ImportError(
+            "Please install pymde package via `pip install pymde`"
+        ) from err
 
     if isinstance(data, pd.DataFrame):
         data = data.values
 
     device = "cpu" if not torch.cuda.is_available() else "cuda"
 
-    _kwargs = dict(
-        embedding_dim=2,
-        constraint=pymde.Standardized(),
-        repulsive_fraction=0.7,
-        verbose=False,
-        device=device,
-        n_neighbors=15,
-    )
+    _kwargs = {
+        "embedding_dim": 2,
+        "constraint": pymde.Standardized(),
+        "repulsive_fraction": 0.7,
+        "verbose": False,
+        "device": device,
+        "n_neighbors": 15,
+    }
     _kwargs.update(kwargs)
 
     emb = pymde.preserve_neighbors(data, **_kwargs).embed(verbose=_kwargs["verbose"])

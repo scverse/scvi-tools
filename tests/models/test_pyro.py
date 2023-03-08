@@ -93,7 +93,6 @@ class BayesianRegressionPyroModel(PyroModule):
         return (x, y, ind_x), {}
 
     def forward(self, x, y, ind_x):
-
         obs_plate = self.create_plates(x, y, ind_x)
 
         sigma = pyro.sample("sigma", dist.Exponential(self.one))
@@ -114,7 +113,6 @@ class BayesianRegressionPyroModel(PyroModule):
 
 class BayesianRegressionModule(PyroBaseModuleClass):
     def __init__(self, **kwargs):
-
         super().__init__()
         self._model = BayesianRegressionPyroModel(**kwargs)
         self._guide = AutoNormal(
@@ -199,7 +197,8 @@ def test_pyro_bayesian_regression_low_level():
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        gpus=use_gpu,
+        accelerator="gpu" if use_gpu else "cpu",
+        devices="auto",
         max_epochs=2,
         callbacks=[PyroModelGuideWarmup(train_dl)],
     )
@@ -225,7 +224,8 @@ def test_pyro_bayesian_regression(save_path):
     plan = PyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        gpus=use_gpu,
+        accelerator="gpu" if use_gpu else "cpu",
+        devices="auto",
         max_epochs=2,
     )
     trainer.fit(plan, train_dl)
@@ -463,7 +463,6 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
 
 class FunctionBasedPyroModule(PyroBaseModuleClass):
     def __init__(self, n_input: int, n_latent: int, n_hidden: int, n_layers: int):
-
         super().__init__()
         self.n_input = n_input
         self.n_latent = n_latent

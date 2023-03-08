@@ -15,8 +15,7 @@ def track(
     style: Literal["rich", "tqdm"] = None,
     **kwargs,
 ):
-    """
-    Progress bar with `'rich'` and `'tqdm'` styles.
+    """Progress bar with `'rich'` and `'tqdm'` styles.
 
     Parameters
     ----------

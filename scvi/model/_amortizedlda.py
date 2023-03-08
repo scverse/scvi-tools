@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
-    """
-    Amortized Latent Dirichlet Allocation :cite:p:`Blei03`.
+    """Amortized Latent Dirichlet Allocation :cite:p:`Blei03`.
 
     Parameters
     ----------
@@ -45,6 +44,8 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     >>> feature_by_topic = model.get_feature_by_topic()
     >>> adata.obsm["X_LDA"] = model.get_latent_representation()
     """
+
+    _module_cls = AmortizedLDAPyroModule
 
     def __init__(
         self,
@@ -86,7 +87,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
                 f"a float or a Sequence of length n_input."
             )
 
-        self.module = AmortizedLDAPyroModule(
+        self.module = self._module_cls(
             n_input=n_input,
             n_topics=n_topics,
             n_hidden=n_hidden,
@@ -104,8 +105,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ) -> Optional[AnnData]:
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
@@ -123,8 +123,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         cls.register_manager(adata_manager)
 
     def get_feature_by_topic(self, n_samples=5000) -> pd.DataFrame:
-        """
-        Gets a Monte-Carlo estimate of the expectation of the feature by topic matrix.
+        """Gets a Monte-Carlo estimate of the expectation of the feature by topic matrix.
 
         Parameters
         ----------
@@ -155,8 +154,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         batch_size: Optional[int] = None,
         n_samples: int = 5000,
     ) -> pd.DataFrame:
-        """
-        Converts a count matrix to an inferred topic distribution.
+        """Converts a count matrix to an inferred topic distribution.
 
         Parameters
         ----------
@@ -200,8 +198,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> float:
-        """
-        Return the ELBO for the data.
+        """Return the ELBO for the data.
 
         The ELBO is a lower bound on the log likelihood of the data used for optimization
         of VAEs. Note, this is not the negative ELBO, higher is better.
@@ -238,8 +235,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> float:
-        """
-        Computes approximate perplexity for `adata`.
+        """Computes approximate perplexity for `adata`.
 
         Perplexity is defined as exp(-1 * log-likelihood per count).
 

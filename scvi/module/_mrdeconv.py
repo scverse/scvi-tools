@@ -6,6 +6,7 @@ import torch
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
+from scvi.autotune._types import Tunable
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import FCLayers
@@ -17,8 +18,7 @@ def identity(x):
 
 
 class MRDeconv(BaseModuleClass):
-    """
-    Model for multi-resolution deconvolution of spatial transriptomics.
+    """Model for multi-resolution deconvolution of spatial transriptomics.
 
     Parameters
     ----------
@@ -70,9 +70,9 @@ class MRDeconv(BaseModuleClass):
         self,
         n_spots: int,
         n_labels: int,
-        n_hidden: int,
-        n_layers: int,
-        n_latent: int,
+        n_hidden: Tunable[int],
+        n_layers: Tunable[int],
+        n_latent: Tunable[int],
         n_genes: int,
         decoder_state_dict: OrderedDict,
         px_decoder_state_dict: OrderedDict,
@@ -83,9 +83,9 @@ class MRDeconv(BaseModuleClass):
         var_vprior: np.ndarray = None,
         mp_vprior: np.ndarray = None,
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
-        l1_reg: float = 0.0,
-        beta_reg: float = 5.0,
-        eta_reg: float = 1e-4,
+        l1_reg: Tunable[float] = 0.0,
+        beta_reg: Tunable[float] = 5.0,
+        eta_reg: Tunable[float] = 1e-4,
     ):
         super().__init__()
         self.n_spots = n_spots
@@ -179,7 +179,7 @@ class MRDeconv(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
 
-        input_dict = dict(x=x, ind_x=ind_x)
+        input_dict = {"x": x, "ind_x": ind_x}
         return input_dict
 
     @auto_move_data
@@ -239,9 +239,13 @@ class MRDeconv(BaseModuleClass):
         px_scale = torch.sum(v_ind.unsqueeze(2) * r_hat, dim=1)  # batch_size, n_genes
         px_rate = library * px_scale
 
-        return dict(
-            px_o=self.px_o, px_rate=px_rate, px_scale=px_scale, gamma=gamma_ind, v=v_ind
-        )
+        return {
+            "px_o": self.px_o,
+            "px_rate": px_rate,
+            "px_scale": px_scale,
+            "gamma": gamma_ind,
+            "v": v_ind,
+        }
 
     def loss(
         self,
@@ -348,8 +352,7 @@ class MRDeconv(BaseModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def get_gamma(self, x: torch.Tensor = None) -> torch.Tensor:
-        """
-        Returns the loadings.
+        """Returns the loadings.
 
         Returns
         -------
@@ -371,8 +374,7 @@ class MRDeconv(BaseModuleClass):
     def get_ct_specific_expression(
         self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None
     ):
-        """
-        Returns cell type specific gene expression at the queried spots.
+        """Returns cell type specific gene expression at the queried spots.
 
         Parameters
         ----------

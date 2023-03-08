@@ -2,14 +2,14 @@ from functools import wraps
 from typing import Callable
 
 
-def unsupported_in_latent_mode(fn: Callable) -> Callable:
-    """Decorator to raise an error if the model is in latent mode."""
+def unsupported_if_adata_minified(fn: Callable) -> Callable:
+    """Decorator to raise an error if the model's `adata` is minified."""
 
     @wraps(fn)
     def wrapper(self, *args, **kwargs):
-        if getattr(self, "latent_data_type", None) is not None:
+        if getattr(self, "minified_data_type", None) is not None:
             raise ValueError(
-                f"Latent mode currently not supported for the {fn.__qualname__} function."
+                f"The {fn.__qualname__} function currently does not support minified data."
             )
         return fn(self, *args, **kwargs)
 

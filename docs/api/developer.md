@@ -112,7 +112,7 @@ These classes should be used to construct user-facing model classes.
     :nosignatures:
 
     model.base.BaseModelClass
-    model.base.BaseLatentModeModelClass
+    model.base.BaseMinifiedModeModelClass
     model.base.VAEMixin
     model.base.RNASeqMixin
     model.base.ArchesMixin
@@ -191,10 +191,9 @@ These classes should be used to construct module classes that define generative 
    :nosignatures:
 
    module.base.BaseModuleClass
-   module.base.BaseLatentModeModuleClass
+   module.base.BaseMinifiedModeModuleClass
    module.base.PyroBaseModuleClass
    module.base.JaxBaseModuleClass
-   module.base.LossRecorder
    module.base.LossOutput
    module.base.auto_move_data
 
@@ -249,7 +248,7 @@ TrainingPlans define train/test/val optimization steps for modules.
 
 ```
 
-## Model hyperparameter autotuning
+## Model hyperparameter tuning
 
 `scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune]. These
 classes allow for new model classes to be easily integrated with the module.
@@ -265,6 +264,7 @@ classes allow for new model classes to be easily integrated with the module.
 
    autotune.TunerManager
    autotune.Tunable
+   autotune.TunableMixin
 ```
 
 ## Utilities

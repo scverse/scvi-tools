@@ -8,9 +8,8 @@ import torch
 import torch.nn.functional as F
 from numpyro.distributions import constraints as numpyro_constraints
 from numpyro.distributions.util import promote_shapes, validate_sample
-from torch.distributions import Distribution, Gamma
+from torch.distributions import Distribution, Gamma, constraints
 from torch.distributions import Poisson as PoissonTorch
-from torch.distributions import constraints
 from torch.distributions.utils import (
     broadcast_all,
     lazy_property,
@@ -22,8 +21,7 @@ from torch.distributions.utils import (
 def log_zinb_positive(
     x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, pi: torch.Tensor, eps=1e-8
 ):
-    """
-    Log likelihood (scalar) of a minibatch according to a zinb model.
+    """Log likelihood (scalar) of a minibatch according to a zinb model.
 
     Parameters
     ----------
@@ -80,8 +78,7 @@ def log_nb_positive(
     log_fn: callable = torch.log,
     lgamma_fn: callable = torch.lgamma,
 ):
-    """
-    Log likelihood (scalar) of a minibatch according to a nb model.
+    """Log likelihood (scalar) of a minibatch according to a nb model.
 
     Parameters
     ----------
@@ -93,6 +90,10 @@ def log_nb_positive(
         inverse dispersion parameter (has to be positive support) (shape: minibatch x vars)
     eps
         numerical stability constant
+    log_fn
+        log function
+    lgamma_fn
+        log gamma function
     """
     log = log_fn
     lgamma = lgamma_fn
@@ -117,8 +118,7 @@ def log_mixture_nb(
     pi_logits: torch.Tensor,
     eps=1e-8,
 ):
-    """
-    Log likelihood (scalar) of a minibatch according to a mixture nb model.
+    """Log likelihood (scalar) of a minibatch according to a mixture nb model.
 
     pi_logits is the probability (logits) to be in the first component.
     For totalVI, the first component should be background.
@@ -182,8 +182,7 @@ def log_mixture_nb(
 
 
 def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
-    r"""
-    NB parameterizations conversion.
+    r"""NB parameterizations conversion.
 
     Parameters
     ----------
@@ -210,8 +209,7 @@ def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
 
 
 def _convert_counts_logits_to_mean_disp(total_count, logits):
-    """
-    NB parameterizations conversion.
+    """NB parameterizations conversion.
 
     Parameters
     ----------
@@ -240,8 +238,7 @@ def _gamma(theta, mu):
 
 
 class Poisson(PoissonTorch):
-    """
-    Poisson distribution.
+    """Poisson distribution.
 
     Parameters
     ----------
@@ -267,8 +264,7 @@ class Poisson(PoissonTorch):
 
 
 class NegativeBinomial(Distribution):
-    r"""
-    Negative binomial distribution.
+    r"""Negative binomial distribution.
 
     One of the following parameterizations must be provided:
 
@@ -336,11 +332,11 @@ class NegativeBinomial(Distribution):
         super().__init__(validate_args=validate_args)
 
     @property
-    def mean(self):  # noqa: D102
+    def mean(self):
         return self.mu
 
     @property
-    def variance(self):  # noqa: D102
+    def variance(self):
         return self.mean + (self.mean**2) / self.theta
 
     @torch.inference_mode()
@@ -361,7 +357,7 @@ class NegativeBinomial(Distribution):
         ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
         return counts
 
-    def log_prob(self, value: torch.Tensor) -> torch.Tensor:  # noqa: D102
+    def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         if self._validate_args:
             try:
                 self._validate_sample(value)
@@ -378,8 +374,7 @@ class NegativeBinomial(Distribution):
 
 
 class ZeroInflatedNegativeBinomial(NegativeBinomial):
-    r"""
-    Zero-inflated negative binomial distribution.
+    r"""Zero-inflated negative binomial distribution.
 
     One of the following parameterizations must be provided:
 
@@ -430,7 +425,6 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         scale: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
-
         super().__init__(
             total_count=total_count,
             probs=probs,
@@ -445,12 +439,12 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         )
 
     @property
-    def mean(self):  # noqa: D102
+    def mean(self):
         pi = self.zi_probs
         return (1 - pi) * self.mu
 
     @property
-    def variance(self):  # noqa: D102
+    def variance(self):
         raise NotImplementedError
 
     @lazy_property
@@ -459,7 +453,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         return probs_to_logits(self.zi_probs, is_binary=True)
 
     @lazy_property
-    def zi_probs(self) -> torch.Tensor:  # noqa: D102
+    def zi_probs(self) -> torch.Tensor:
         return logits_to_probs(self.zi_logits, is_binary=True)
 
     @torch.inference_mode()
@@ -487,8 +481,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
 
 
 class NegativeBinomialMixture(Distribution):
-    """
-    Negative binomial mixture distribution.
+    """Negative binomial mixture distribution.
 
     See :class:`~scvi.distributions.NegativeBinomial` for further description
     of parameters.
@@ -527,7 +520,6 @@ class NegativeBinomialMixture(Distribution):
         theta2: Optional[torch.Tensor] = None,
         validate_args: bool = False,
     ):
-
         (
             self.mu1,
             self.theta1,
@@ -543,12 +535,12 @@ class NegativeBinomialMixture(Distribution):
             self.theta2 = None
 
     @property
-    def mean(self):  # noqa: D102
+    def mean(self):
         pi = self.mixture_probs
         return pi * self.mu1 + (1 - pi) * self.mu2
 
     @lazy_property
-    def mixture_probs(self) -> torch.Tensor:  # noqa: D102
+    def mixture_probs(self) -> torch.Tensor:
         return logits_to_probs(self.mixture_logits, is_binary=True)
 
     @torch.inference_mode()
@@ -617,11 +609,11 @@ class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
         super().__init__(mean, inverse_dispersion, validate_args=validate_args)
 
     @property
-    def mean(self):  # noqa: D102
+    def mean(self):
         return self._mean
 
     @property
-    def inverse_dispersion(self):  # noqa: D102
+    def inverse_dispersion(self):
         return self._inverse_dispersion
 
     @validate_sample

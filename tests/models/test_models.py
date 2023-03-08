@@ -171,7 +171,7 @@ def test_jax_scvi_save_load(save_path):
     model = JaxSCVI.load(save_path, adata=adata)
     assert "batch" in model.adata_manager.data_registry
     assert model.adata_manager.data_registry.batch == attrdict(
-        dict(attr_name="obs", attr_key="_scvi_batch")
+        {"attr_name": "obs", "attr_key": "_scvi_batch"}
     )
     assert model.is_trained is True
 
@@ -572,7 +572,7 @@ def test_saving_and_loading(save_path):
         model = cls.load(save_path, adata=adata, prefix=prefix)
         assert "batch" in model.adata_manager.data_registry
         assert model.adata_manager.data_registry.batch == attrdict(
-            dict(attr_name="obs", attr_key="_scvi_batch")
+            {"attr_name": "obs", "attr_key": "_scvi_batch"}
         )
 
         z2 = model.get_latent_representation()
@@ -619,7 +619,7 @@ def test_saving_and_loading(save_path):
     model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
     assert model.adata_manager.data_registry.batch == attrdict(
-        dict(attr_name="obs", attr_key="_scvi_batch")
+        {"attr_name": "obs", "attr_key": "_scvi_batch"}
     )
 
     ab2 = model.get_alphas_betas()
@@ -656,7 +656,7 @@ def test_saving_and_loading(save_path):
     model = SCANVI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
     assert model.adata_manager.data_registry.batch == attrdict(
-        dict(attr_name="obs", attr_key="_scvi_batch")
+        {"attr_name": "obs", "attr_key": "_scvi_batch"}
     )
 
     p2 = model.predict()
@@ -1124,7 +1124,7 @@ def test_autozi():
             dispersion=disp_zi,
             zero_inflation=disp_zi,
         )
-        autozivae.train(1, plan_kwargs=dict(lr=1e-2), check_val_every_n_epoch=1)
+        autozivae.train(1, plan_kwargs={"lr": 1e-2}, check_val_every_n_epoch=1)
         assert len(autozivae.history["elbo_train"]) == 1
         assert len(autozivae.history["elbo_validation"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)
@@ -1140,7 +1140,7 @@ def test_autozi():
             zero_inflation=disp_zi,
             use_observed_lib_size=False,
         )
-        autozivae.train(1, plan_kwargs=dict(lr=1e-2), check_val_every_n_epoch=1)
+        autozivae.train(1, plan_kwargs={"lr": 1e-2}, check_val_every_n_epoch=1)
         assert hasattr(autozivae.module, "library_log_means") and hasattr(
             autozivae.module, "library_log_vars"
         )
@@ -1622,5 +1622,5 @@ def test_early_stopping():
         labels_key="labels",
     )
     model = SCVI(adata)
-    model.train(n_epochs, early_stopping=True, plan_kwargs=dict(lr=0))
+    model.train(n_epochs, early_stopping=True, plan_kwargs={"lr": 0})
     assert len(model.history["elbo_train"]) < n_epochs

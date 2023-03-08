@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from anndata import AnnData
 
-from scvi.utils import unsupported_in_latent_mode
+from scvi.utils import unsupported_if_adata_minified
 
 from ._log_likelihood import compute_elbo, compute_reconstruction_error
 
@@ -16,15 +16,14 @@ class VAEMixin:
     """Univseral VAE methods."""
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
+    @unsupported_if_adata_minified
     def get_elbo(
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> float:
-        """
-        Return the ELBO for the data.
+        """Return the ELBO for the data.
 
         The ELBO is a lower bound on the log likelihood of the data used for optimization
         of VAEs. Note, this is not the negative ELBO, higher is better.
@@ -47,7 +46,7 @@ class VAEMixin:
         return -elbo
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
+    @unsupported_if_adata_minified
     def get_marginal_ll(
         self,
         adata: Optional[AnnData] = None,
@@ -55,8 +54,7 @@ class VAEMixin:
         n_mc_samples: int = 1000,
         batch_size: Optional[int] = None,
     ) -> float:
-        """
-        Return the marginal LL for the data.
+        """Return the marginal LL for the data.
 
         The computation here is a biased estimator of the marginal log likelihood of the data.
         Note, this is not the negative log likelihood, higher is better.
@@ -92,15 +90,14 @@ class VAEMixin:
         return log_lkl / n_samples
 
     @torch.inference_mode()
-    @unsupported_in_latent_mode
+    @unsupported_if_adata_minified
     def get_reconstruction_error(
         self,
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> float:
-        r"""
-        Return the reconstruction error for the data.
+        r"""Return the reconstruction error for the data.
 
         This is typically written as :math:`p(x \mid z)`, the likelihood term given one posterior sample.
         Note, this is not the negative likelihood, higher is better.
@@ -132,10 +129,9 @@ class VAEMixin:
         batch_size: Optional[int] = None,
         return_dist: bool = False,
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-        """
-        Return the latent representation for each cell.
+        """Return the latent representation for each cell.
 
-        This is denoted as :math:`z_n` in our manuscripts.
+        This is typically denoted as :math:`z_n`.
 
         Parameters
         ----------
@@ -152,8 +148,10 @@ class VAEMixin:
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_dist
-            Return the distribution parameters of the latent variables rather than their sampled values.
-            If `True`, ignores `give_mean` and `mc_samples`.
+            Return (mean, variance) of distributions instead of just the mean.
+            If `True`, ignores `give_mean` and `mc_samples`. In the case of the latter,
+            `mc_samples` is used to compute the mean of a transformed distribution.
+            If `return_dist` is true the untransformed mean and variance are returned.
 
         Returns
         -------

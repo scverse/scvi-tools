@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import warnings
 from abc import abstractmethod
 from dataclasses import field
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Iterable
 
 import chex
 import flax
@@ -21,110 +20,18 @@ from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._types import LatentDataType, LossRecord, Tensor
+from scvi._types import LossRecord, MinifiedDataType, Tensor
+from scvi.autotune._types import TunableMixin
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
 
-class LossRecorder:
-    """
-    Loss signature for models.
-
-    This class provides an organized way to record the model loss, as well as
-    the components of the ELBO. This may also be used in MLE, MAP, EM methods.
-    The loss is used for backpropagation during inference. The other parameters
-    are used for logging/early stopping during inference.
-
-    Parameters
-    ----------
-    loss
-        Tensor with loss for minibatch. Should be one dimensional with one value.
-        Note that loss should be a :class:`~torch.Tensor` and not the result of ``.item()``.
-    reconstruction_loss
-        Reconstruction loss for each observation in the minibatch. If a tensor, converted to
-        a dictionary with key "reconstruction_loss" and value as tensor
-    kl_local
-        KL divergence associated with each observation in the minibatch. If a tensor, converted to
-        a dictionary with key "kl_local" and value as tensor
-    kl_global
-        Global kl divergence term. Should be one dimensional with one value. If a tensor, converted to
-        a dictionary with key "kl_global" and value as tensor
-    **kwargs
-        Additional metrics can be passed as keyword arguments and will
-        be available as attributes of the object.
-    """
-
-    def __init__(
-        self,
-        loss: LossRecord,
-        reconstruction_loss: Optional[LossRecord] = None,
-        kl_local: Optional[LossRecord] = None,
-        kl_global: Optional[LossRecord] = None,
-        **kwargs,
-    ):
-        warnings.warn(
-            "LossRecorder is deprecated and will be removed in version 0.20.0. Please use LossOutput",
-            category=DeprecationWarning,
-        )
-        self._loss_output = LossOutput(
-            loss=loss,
-            reconstruction_loss=reconstruction_loss,
-            kl_local=kl_local,
-            kl_global=kl_global,
-            extra_metrics=kwargs,
-        )
-        self.extra_metric_attrs = []
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-            self.extra_metric_attrs.append(key)
-
-    @property
-    def loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.loss
-
-    @property
-    def reconstruction_loss(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self.dict_sum(self._loss_output.reconstruction_loss)
-
-    @property
-    def _reconstruction_loss(self):
-        return self._loss_output.reconstruction_loss
-
-    @property
-    def kl_local(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self.dict_sum(self._loss_output.kl_local)
-
-    @property
-    def _kl_local(self):
-        return self._loss_output.kl_local
-
-    @property
-    def reconstruction_loss_sum(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.reconstruction_loss_sum
-
-    @property
-    def kl_local_sum(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.kl_local_sum
-
-    @property
-    def kl_global_sum(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self._loss_output.kl_global_sum
-
-    @property
-    def kl_global(self) -> Union[torch.Tensor, jnp.ndarray]:  # noqa: D102
-        return self.dict_sum(self._loss_output.kl_global)
-
-    def dict_sum(self, x):
-        """Wrapper of LossOutput.dict_sum."""
-        return self._loss_output.dict_sum(x)
-
-
 @chex.dataclass
 class LossOutput:
-    """
-    Loss signature for models.
+    """Loss signature for models.
 
     This class provides an organized way to record the model loss, as well as
     the components of the ELBO. This may also be used in MLE, MAP, EM methods.
@@ -164,11 +71,11 @@ class LossOutput:
     """
 
     loss: LossRecord
-    reconstruction_loss: Optional[LossRecord] = None
-    kl_local: Optional[LossRecord] = None
-    kl_global: Optional[LossRecord] = None
-    extra_metrics: Optional[Dict[str, Tensor]] = field(default_factory=dict)
-    n_obs_minibatch: Optional[int] = None
+    reconstruction_loss: LossRecord | None = None
+    kl_local: LossRecord | None = None
+    kl_global: LossRecord | None = None
+    extra_metrics: dict[str, Tensor] | None = field(default_factory=dict)
+    n_obs_minibatch: int | None = None
     reconstruction_loss_sum: Tensor = field(default=None, init=False)
     kl_local_sum: Tensor = field(default=None, init=False)
     kl_global_sum: Tensor = field(default=None, init=False)
@@ -200,7 +107,7 @@ class LossOutput:
             self.n_obs_minibatch = list(rec_loss.values())[0].shape[0]
 
     @staticmethod
-    def dict_sum(dictionary: Union[Dict[str, Tensor], Tensor]):
+    def dict_sum(dictionary: dict[str, Tensor] | Tensor):
         """Sum over elements of a dictionary."""
         if isinstance(dictionary, dict):
             return sum(dictionary.values())
@@ -220,7 +127,7 @@ class LossOutput:
             return {attr_name: attr}
 
 
-class BaseModuleClass(nn.Module):
+class BaseModuleClass(TunableMixin, nn.Module):
     """Abstract class for scvi-tools modules."""
 
     def __init__(
@@ -229,7 +136,7 @@ class BaseModuleClass(nn.Module):
         super().__init__()
 
     @property
-    def device(self):  # noqa: D102
+    def device(self):
         device = list({p.device for p in self.parameters()})
         if len(device) > 1:
             raise RuntimeError("Module tensors on multiple devices.")
@@ -242,18 +149,17 @@ class BaseModuleClass(nn.Module):
     def forward(
         self,
         tensors,
-        get_inference_input_kwargs: Optional[dict] = None,
-        get_generative_input_kwargs: Optional[dict] = None,
-        inference_kwargs: Optional[dict] = None,
-        generative_kwargs: Optional[dict] = None,
-        loss_kwargs: Optional[dict] = None,
+        get_inference_input_kwargs: dict | None = None,
+        get_generative_input_kwargs: dict | None = None,
+        inference_kwargs: dict | None = None,
+        generative_kwargs: dict | None = None,
+        loss_kwargs: dict | None = None,
         compute_loss=True,
-    ) -> Union[
-        Tuple[torch.Tensor, torch.Tensor],
-        Tuple[torch.Tensor, torch.Tensor, LossRecorder],
-    ]:
-        """
-        Forward pass through the network.
+    ) -> (
+        tuple[torch.Tensor, torch.Tensor]
+        | tuple[torch.Tensor, torch.Tensor, LossOutput]
+    ):
+        """Forward pass through the network.
 
         Parameters
         ----------
@@ -285,14 +191,14 @@ class BaseModuleClass(nn.Module):
         )
 
     @abstractmethod
-    def _get_inference_input(self, tensors: Dict[str, torch.Tensor], **kwargs):
+    def _get_inference_input(self, tensors: dict[str, torch.Tensor], **kwargs):
         """Parse tensors dictionary for inference related values."""
 
     @abstractmethod
     def _get_generative_input(
         self,
-        tensors: Dict[str, torch.Tensor],
-        inference_outputs: Dict[str, torch.Tensor],
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor],
         **kwargs,
     ):
         """Parse tensors dictionary for generative related values."""
@@ -302,9 +208,8 @@ class BaseModuleClass(nn.Module):
         self,
         *args,
         **kwargs,
-    ) -> Dict[str, Union[torch.Tensor, torch.distributions.Distribution]]:
-        """
-        Run the recognition model.
+    ) -> dict[str, torch.Tensor | torch.distributions.Distribution]:
+        """Run the recognition model.
 
         In the case of variational inference, this function will perform steps related to
         computing variational distribution parameters. In a VAE, this will involve running
@@ -316,9 +221,8 @@ class BaseModuleClass(nn.Module):
     @abstractmethod
     def generative(
         self, *args, **kwargs
-    ) -> Dict[str, Union[torch.Tensor, torch.distributions.Distribution]]:
-        """
-        Run the generative model.
+    ) -> dict[str, torch.Tensor | torch.distributions.Distribution]:
+        """Run the generative model.
 
         This function should return the parameters associated with the likelihood of the data.
         This is typically written as :math:`p(x|z)`.
@@ -328,8 +232,7 @@ class BaseModuleClass(nn.Module):
 
     @abstractmethod
     def loss(self, *args, **kwargs) -> LossOutput:
-        """
-        Compute the loss for a minibatch of data.
+        """Compute the loss for a minibatch of data.
 
         This function uses the outputs of the inference and generative functions to compute
         a loss. This many optionally include other penalty terms, which should be computed here.
@@ -342,26 +245,26 @@ class BaseModuleClass(nn.Module):
         """Generate samples from the learned model."""
 
 
-class BaseLatentModeModuleClass(BaseModuleClass):
-    """Abstract base class for scvi-tools modules that support latent mode."""
+class BaseMinifiedModeModuleClass(BaseModuleClass):
+    """Abstract base class for scvi-tools modules that can handle minified data."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._latent_data_type = None
+        self._minified_data_type = None
 
     @property
-    def latent_data_type(self) -> Union[LatentDataType, None]:
-        """The latent data type associated with this module."""
-        return self._latent_data_type
+    def minified_data_type(self) -> MinifiedDataType | None:
+        """The type of minified data associated with this module, if applicable."""
+        return self._minified_data_type
 
-    @latent_data_type.setter
-    def latent_data_type(self, latent_data_type):
-        """Set latent data type associated with this module."""
-        self._latent_data_type = latent_data_type
+    @minified_data_type.setter
+    def minified_data_type(self, minified_data_type):
+        """Set the type of minified data associated with this module."""
+        self._minified_data_type = minified_data_type
 
     @abstractmethod
     def _cached_inference(self, *args, **kwargs):
-        """Uses the cached latent mode distribution to perform inference, thus bypassing the encoder."""
+        """Uses the cached latent distribution to perform inference, thus bypassing the encoder."""
 
     @abstractmethod
     def _regular_inference(self, *args, **kwargs):
@@ -369,16 +272,18 @@ class BaseLatentModeModuleClass(BaseModuleClass):
 
     @auto_move_data
     def inference(self, *args, **kwargs):
-        """
-        Main inference call site.
+        """Main inference call site.
 
-        Branches off to regular or cached inference depending on the latent data
-        type of the module.
+        Branches off to regular or cached inference depending on whether we have a minified adata
+        that contains the latent posterior parameters.
         """
-        if self.latent_data_type is None:
-            return self._regular_inference(*args, **kwargs)
-        else:
+        if (
+            self.minified_data_type is not None
+            and self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             return self._cached_inference(*args, **kwargs)
+        else:
+            return self._regular_inference(*args, **kwargs)
 
 
 def _get_dict_if_none(param):
@@ -387,9 +292,8 @@ def _get_dict_if_none(param):
     return param
 
 
-class PyroBaseModuleClass(nn.Module):
-    """
-    Base module class for Pyro models.
+class PyroBaseModuleClass(TunableMixin, nn.Module):
+    """Base module class for Pyro models.
 
     In Pyro, ``model`` and ``guide`` should have the same signature. Out of convenience,
     the forward function of this class passes through to the forward of the ``model``.
@@ -412,17 +316,16 @@ class PyroBaseModuleClass(nn.Module):
         Dictionary containing keyword args to use in ``self.on_load``.
     """
 
-    def __init__(self, on_load_kwargs: Optional[dict] = None):
+    def __init__(self, on_load_kwargs: dict | None = None):
         super().__init__()
         self.on_load_kwargs = on_load_kwargs or {}
 
     @staticmethod
     @abstractmethod
     def _get_fn_args_from_batch(
-        tensor_dict: Dict[str, torch.Tensor]
-    ) -> Union[Iterable, dict]:
-        """
-        Parse the minibatched data to get the correct inputs for ``model`` and ``guide``.
+        tensor_dict: dict[str, torch.Tensor]
+    ) -> Iterable | dict:
+        """Parse the minibatched data to get the correct inputs for ``model`` and ``guide``.
 
         In Pyro, ``model`` and ``guide`` must have the same signature. This is a helper method
         that gets the args and kwargs for these two methods. This helper method aids ``forward`` and
@@ -436,18 +339,17 @@ class PyroBaseModuleClass(nn.Module):
 
     @property
     @abstractmethod
-    def model(self):  # noqa: D102
+    def model(self):
         pass
 
     @property
     @abstractmethod
-    def guide(self):  # noqa: D102
+    def guide(self):
         pass
 
     @property
     def list_obs_plate_vars(self):
-        """
-        Model annotation for minibatch training with pyro plate.
+        """Model annotation for minibatch training with pyro plate.
 
         A dictionary with:
         1. "name" - the name of observation/minibatch plate;
@@ -461,8 +363,7 @@ class PyroBaseModuleClass(nn.Module):
         return {"name": "", "in": [], "sites": {}}
 
     def on_load(self, model):
-        """
-        Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
+        """Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
 
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """
@@ -473,15 +374,14 @@ class PyroBaseModuleClass(nn.Module):
 
     def create_predictive(
         self,
-        model: Optional[Callable] = None,
-        posterior_samples: Optional[dict] = None,
-        guide: Optional[Callable] = None,
-        num_samples: Optional[int] = None,
-        return_sites: Tuple[str] = (),
+        model: Callable | None = None,
+        posterior_samples: dict | None = None,
+        guide: Callable | None = None,
+        num_samples: int | None = None,
+        return_sites: tuple[str] = (),
         parallel: bool = False,
     ) -> Predictive:
-        """
-        Creates a :class:`~pyro.infer.Predictive` object.
+        """Creates a :class:`~pyro.infer.Predictive` object.
 
         Parameters
         ----------
@@ -532,9 +432,8 @@ class TrainStateWithState(train_state.TrainState):
     state: FrozenDict[str, Any]
 
 
-class JaxBaseModuleClass(flax.linen.Module):
-    """
-    Abstract class for Jax-based scvi-tools modules.
+class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
+    """Abstract class for Jax-based scvi-tools modules.
 
     The :class:`~scvi.module.base.JaxBaseModuleClass` provides an interface for Jax-backed
     modules consistent with the :class:`~scvi.module.base.BaseModuleClass`.
@@ -557,8 +456,7 @@ class JaxBaseModuleClass(flax.linen.Module):
 
     @abstractmethod
     def setup(self):
-        """
-        Flax setup method.
+        """Flax setup method.
 
         With scvi-tools we prefer to use the setup parameterization of
         flax.linen Modules. This lends the interface to be more like
@@ -575,19 +473,15 @@ class JaxBaseModuleClass(flax.linen.Module):
 
     def __call__(
         self,
-        tensors: Dict[str, jnp.ndarray],
-        get_inference_input_kwargs: Optional[dict] = None,
-        get_generative_input_kwargs: Optional[dict] = None,
-        inference_kwargs: Optional[dict] = None,
-        generative_kwargs: Optional[dict] = None,
-        loss_kwargs: Optional[dict] = None,
+        tensors: dict[str, jnp.ndarray],
+        get_inference_input_kwargs: dict | None = None,
+        get_generative_input_kwargs: dict | None = None,
+        inference_kwargs: dict | None = None,
+        generative_kwargs: dict | None = None,
+        loss_kwargs: dict | None = None,
         compute_loss=True,
-    ) -> Union[
-        Tuple[jnp.ndarray, jnp.ndarray],
-        Tuple[jnp.ndarray, jnp.ndarray, LossRecorder],
-    ]:
-        """
-        Forward pass through the network.
+    ) -> tuple[jnp.ndarray, jnp.ndarray] | tuple[jnp.ndarray, jnp.ndarray, LossOutput]:
+        """Forward pass through the network.
 
         Parameters
         ----------
@@ -619,14 +513,14 @@ class JaxBaseModuleClass(flax.linen.Module):
         )
 
     @abstractmethod
-    def _get_inference_input(self, tensors: Dict[str, jnp.ndarray], **kwargs):
+    def _get_inference_input(self, tensors: dict[str, jnp.ndarray], **kwargs):
         """Parse tensors dictionary for inference related values."""
 
     @abstractmethod
     def _get_generative_input(
         self,
-        tensors: Dict[str, jnp.ndarray],
-        inference_outputs: Dict[str, jnp.ndarray],
+        tensors: dict[str, jnp.ndarray],
+        inference_outputs: dict[str, jnp.ndarray],
         **kwargs,
     ):
         """Parse tensors dictionary for generative related values."""
@@ -636,9 +530,8 @@ class JaxBaseModuleClass(flax.linen.Module):
         self,
         *args,
         **kwargs,
-    ) -> Dict[str, Union[jnp.ndarray, Distribution]]:
-        """
-        Run the recognition model.
+    ) -> dict[str, jnp.ndarray | Distribution]:
+        """Run the recognition model.
 
         In the case of variational inference, this function will perform steps related to
         computing variational distribution parameters. In a VAE, this will involve running
@@ -648,11 +541,8 @@ class JaxBaseModuleClass(flax.linen.Module):
         """
 
     @abstractmethod
-    def generative(
-        self, *args, **kwargs
-    ) -> Dict[str, Union[jnp.ndarray, Distribution]]:
-        """
-        Run the generative model.
+    def generative(self, *args, **kwargs) -> dict[str, jnp.ndarray | Distribution]:
+        """Run the generative model.
 
         This function should return the parameters associated with the likelihood of the data.
         This is typically written as :math:`p(x|z)`.
@@ -662,8 +552,7 @@ class JaxBaseModuleClass(flax.linen.Module):
 
     @abstractmethod
     def loss(self, *args, **kwargs) -> LossOutput:
-        """
-        Compute the loss for a minibatch of data.
+        """Compute the loss for a minibatch of data.
 
         This function uses the outputs of the inference and generative functions to compute
         a loss. This many optionally include other penalty terms, which should be computed here.
@@ -672,7 +561,7 @@ class JaxBaseModuleClass(flax.linen.Module):
         """
 
     @property
-    def device(self):  # noqa: D102
+    def device(self):
         return self.seed_rng.device()
 
     def train(self):
@@ -684,9 +573,8 @@ class JaxBaseModuleClass(flax.linen.Module):
         self.training = False
 
     @property
-    def rngs(self) -> Dict[str, jnp.ndarray]:
-        """
-        Dictionary of RNGs mapping required RNG name to RNG values.
+    def rngs(self) -> dict[str, jnp.ndarray]:
+        """Dictionary of RNGs mapping required RNG name to RNG values.
 
         Calls ``self._split_rngs()`` resulting in newly generated RNGs on
         every reference to ``self.rngs``.
@@ -701,8 +589,7 @@ class JaxBaseModuleClass(flax.linen.Module):
         self._rngs = {k: module_rngs[i] for i, k in enumerate(required_rngs)}
 
     def _split_rngs(self):
-        """
-        Regenerates the current set of RNGs and returns newly split RNGs.
+        """Regenerates the current set of RNGs and returns newly split RNGs.
 
         Importantly, this method does not reuse RNGs in future references to ``self.rngs``.
         """
@@ -714,21 +601,21 @@ class JaxBaseModuleClass(flax.linen.Module):
         return ret_rngs
 
     @property
-    def params(self) -> FrozenDict[str, Any]:  # noqa: D102
+    def params(self) -> FrozenDict[str, Any]:
         self._check_train_state_is_not_none()
         return self.train_state.params
 
     @property
-    def state(self) -> FrozenDict[str, Any]:  # noqa: D102
+    def state(self) -> FrozenDict[str, Any]:
         self._check_train_state_is_not_none()
         return self.train_state.state
 
-    def state_dict(self) -> Dict[str, Any]:
+    def state_dict(self) -> dict[str, Any]:
         """Returns a serialized version of the train state as a dictionary."""
         self._check_train_state_is_not_none()
         return flax.serialization.to_state_dict(self.train_state)
 
-    def load_state_dict(self, state_dict: Dict[str, Any]):
+    def load_state_dict(self, state_dict: dict[str, Any]):
         """Load a state dictionary into a train state."""
         if self.train_state is None:
             raise RuntimeError(
@@ -762,13 +649,12 @@ class JaxBaseModuleClass(flax.linen.Module):
 
     def get_jit_inference_fn(
         self,
-        get_inference_input_kwargs: Optional[Dict[str, Any]] = None,
-        inference_kwargs: Optional[Dict[str, Any]] = None,
+        get_inference_input_kwargs: dict[str, Any] | None = None,
+        inference_kwargs: dict[str, Any] | None = None,
     ) -> Callable[
-        [Dict[str, jnp.ndarray], Dict[str, jnp.ndarray]], Dict[str, jnp.ndarray]
+        [dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]
     ]:
-        """
-        Create a method to run inference using the bound module.
+        """Create a method to run inference using the bound module.
 
         Parameters
         ----------
@@ -803,8 +689,7 @@ class JaxBaseModuleClass(flax.linen.Module):
 
     @staticmethod
     def on_load(model):
-        """
-        Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
+        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
 
         Run one training step prior to loading state dict in order to initialize params.
         """
