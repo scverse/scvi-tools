@@ -35,8 +35,7 @@ class AnnTorchDataset(Dataset):
         return self.adata_manager.data_registry.keys()
 
     def setup_data_attr(self):
-        """
-        Sets data attribute.
+        """Sets data attribute.
 
         Reduces number of times anndata needs to be accessed
         """
@@ -46,8 +45,7 @@ class AnnTorchDataset(Dataset):
         }
 
     def setup_getitem(self):
-        """
-        Sets up the __getitem__ function used by Pytorch.
+        """Sets up the __getitem__ function used by Pytorch.
 
         By default, getitem will return every single item registered in the scvi data registry
         and will attempt to infer the correct type. np.float32 for continuous values, otherwise np.int64.
@@ -116,11 +114,11 @@ class AnnTorchDataset(Dataset):
                 sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
             elif issparse(cur_data):
                 sliced_data = cur_data[idx].toarray().astype(dtype)
-            # for latent mode anndata, we need this because we can have a string
-            # cur_data, which is the value of the LATENT_MODE_KEY in adata.uns,
-            # used to record the latent data type in latent mode
+            # for minified  anndata, we need this because we can have a string
+            # cur_data, which is the value of the MINIFY_TYPE_KEY in adata.uns,
+            # used to record the type data minification
             # TODO: Adata manager should have a list of which fields it will load
-            elif isinstance(cur_data, str) and key == REGISTRY_KEYS.LATENT_MODE_KEY:
+            elif isinstance(cur_data, str) and key == REGISTRY_KEYS.MINIFY_TYPE_KEY:
                 continue
             else:
                 raise TypeError(f"{key} is not a supported type")
@@ -128,7 +126,7 @@ class AnnTorchDataset(Dataset):
 
         return data_numpy
 
-    def get_data(self, scvi_data_key):  # noqa: D102
+    def get_data(self, scvi_data_key):
         tensors = self.__getitem__(idx=list(range(self.__len__())))
         return tensors[scvi_data_key]
 

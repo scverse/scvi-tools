@@ -64,7 +64,7 @@ class SimpleLogger(Logger):
         return self._experiment
 
     @rank_zero_only
-    def log_hyperparams(self, params):  # noqa: D102
+    def log_hyperparams(self, params):
         # params is an argparse.Namespace
         # your code to record hyperparameters goes here
         pass
@@ -75,13 +75,12 @@ class SimpleLogger(Logger):
         self.experiment.log_metrics(metrics, step)
 
     @property
-    def history(self) -> Dict[str, pd.DataFrame]:  # noqa: D102
+    def history(self) -> Dict[str, pd.DataFrame]:
         return self.experiment.data
 
     @property
     def version(self) -> int:
-        """
-        Gets the version of the experiment.
+        """Gets the version of the experiment.
 
         Returns
         -------
@@ -92,5 +91,5 @@ class SimpleLogger(Logger):
         return self._version
 
     @property
-    def name(self):  # noqa: D102
+    def name(self):
         return self._name

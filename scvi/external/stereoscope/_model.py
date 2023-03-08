@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Literal, Optional, Tuple, Union
 
 import numpy as np
@@ -17,8 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
 
@@ -70,8 +70,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using MAP inference.
+        """Trains the model using MAP inference.
 
         Parameters
         ----------
@@ -121,8 +120,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
@@ -142,8 +140,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
 
 
 class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
     https://github.com/almaan/stereoscope.
 
@@ -212,8 +209,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **model_kwargs,
     ):
-        """
-        Alternate constructor for exploiting a pre-trained model on RNA-seq data.
+        """Alternate constructor for exploiting a pre-trained model on RNA-seq data.
 
         Parameters
         ----------
@@ -225,11 +221,25 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
             procedure, "minibatch" is the procedure implemented in Stereoscope.
         layer
-            if not `None`, uses this as the key in `adata.layers` for raw count data.
+            if not `None`, uses this as the key in `adata.layers` for raw count data. Deprecated.
         **model_kwargs
             Keyword args for :class:`~scvi.external.SpatialDeconv`
         """
-        cls.setup_anndata(st_adata, layer=layer)
+        if (
+            layer is not None
+            or st_adata.uns.get("_scvi_uuid")
+            not in SpatialStereoscope._setup_adata_manager_store
+        ):
+            warnings.warn(
+                """
+                    Setting up adata in SpatialStereoscope.from_rna_model is deprecated and
+                    will be removed in version 1.0.0. Please use SpatialStereoscope.setup_anndata
+                    before initializing model.
+                """,
+                category=DeprecationWarning,
+            )
+            cls.setup_anndata(st_adata, layer=layer)
+
         return cls(
             st_adata,
             sc_model.module.get_params(),
@@ -241,8 +251,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         )
 
     def get_proportions(self, keep_noise=False) -> pd.DataFrame:
-        """
-        Returns the estimated cell type proportion for the spatial data.
+        """Returns the estimated cell type proportion for the spatial data.
 
         Shape is n_cells x n_labels OR n_cells x (n_labels + 1) if keep_noise
 
@@ -266,8 +275,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         y: np.ndarray,
     ) -> np.ndarray:
-        r"""
-        Calculate the cell type specific expression.
+        r"""Calculate the cell type specific expression.
 
         Parameters
         ----------
@@ -295,8 +303,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using MAP inference.
+        """Trains the model using MAP inference.
 
         Parameters
         ----------
@@ -340,8 +347,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

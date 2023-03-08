@@ -10,8 +10,7 @@ from ._concat_dataloader import ConcatDataLoader
 
 
 class SemiSupervisedDataLoader(ConcatDataLoader):
-    """
-    DataLoader that supports semisupervised training.
+    """DataLoader that supports semisupervised training.
 
     Parameters
     ----------

@@ -7,6 +7,7 @@ from flax import linen as nn
 from flax.linen.initializers import variance_scaling
 
 from scvi import REGISTRY_KEYS
+from scvi.autotune._types import Tunable
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
@@ -121,12 +122,12 @@ class JaxVAE(JaxBaseModuleClass):
 
     n_input: int
     n_batch: int
-    n_hidden: int = 128
-    n_latent: int = 30
-    dropout_rate: float = 0.0
-    n_layers: int = 1
-    gene_likelihood: str = "nb"
-    eps: float = 1e-8
+    n_hidden: Tunable[int] = 128
+    n_latent: Tunable[int] = 30
+    dropout_rate: Tunable[float] = 0.0
+    n_layers: Tunable[int] = 1
+    gene_likelihood: Tunable[str] = "nb"
+    eps: Tunable[float] = 1e-8
     training: bool = True
 
     def setup(self):
@@ -145,14 +146,14 @@ class JaxVAE(JaxBaseModuleClass):
         )
 
     @property
-    def required_rngs(self):  # noqa: D102
+    def required_rngs(self):
         return ("params", "dropout", "z")
 
     def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
         """Get input for inference."""
         x = tensors[REGISTRY_KEYS.X_KEY]
 
-        input_dict = dict(x=x)
+        input_dict = {"x": x}
         return input_dict
 
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
@@ -165,7 +166,7 @@ class JaxVAE(JaxBaseModuleClass):
         sample_shape = () if n_samples == 1 else (n_samples,)
         z = qz.rsample(z_rng, sample_shape=sample_shape)
 
-        return dict(qz=qz, z=z)
+        return {"qz": qz, "z": z}
 
     def _get_generative_input(
         self,
@@ -177,11 +178,11 @@ class JaxVAE(JaxBaseModuleClass):
         z = inference_outputs["z"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        input_dict = dict(
-            x=x,
-            z=z,
-            batch_index=batch_index,
-        )
+        input_dict = {
+            "x": x,
+            "z": z,
+            "batch_index": batch_index,
+        }
         return input_dict
 
     def generative(self, x, z, batch_index) -> dict:
@@ -200,7 +201,7 @@ class JaxVAE(JaxBaseModuleClass):
         else:
             px = dist.Poisson(mu)
 
-        return dict(px=px, rho=rho)
+        return {"px": px, "rho": rho}
 
     def loss(
         self,

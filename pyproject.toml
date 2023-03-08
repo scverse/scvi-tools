@@ -5,7 +5,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "0.19.0"
+version = "0.20.1"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -36,19 +36,19 @@ dependencies = [
     "chex",
     "docrep>=0.3.2",
     "flax",
-    "jax>=0.3",
-    "jaxlib",
+    "jax>=0.4.4",
+    "jaxlib>=0.4.3",
     "optax",
     "numpy>=1.17.0",
     "pandas>=1.0",
     "scipy",
     "scikit-learn>=0.21.2",
     "openpyxl>=3.0",
-    "rich>=9.1.0",
+    "rich>=12.0.0",
     "h5py>=2.9.0",
     "torch>=1.8.0",
-    "pytorch-lightning>=1.8.0,<1.9.0",
-    "torchmetrics>=0.6.0",
+    "pytorch-lightning>=1.9.0,<1.10.0",
+    "torchmetrics>=0.11.0",
     "pyro-ppl>=1.6.0",
     "tqdm>=4.56.0",
     "scikit-learn>=0.21.2",
@@ -57,24 +57,29 @@ dependencies = [
     "mudata>=0.1.2",
 ]
 
+
 [project.optional-dependencies]
-dev = ["black", "pytest", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde"]
+dev = ["black", "pytest", "pytest-cov", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde", "genomepy"]
 docs = [
   "sphinx>=4.1",
-  "nbsphinx",
   "ipython",
-  "furo",
-  "sphinx-autodoc-typehints",
+  "sphinx-book-theme>=1.0.0",
   "sphinx_copybutton",
   "sphinx-design",
   "sphinxext-opengraph",
   "sphinx-hoverxref",
   "sphinxcontrib-bibtex>=1.0.0",
   "myst-parser",
+  "myst-nb",
 ]
-autotune = ["hyperopt>=0.2", "ray[tune]>=2.1.0", "ipython"]
+autotune = [
+  "hyperopt>=0.2",
+  "ray[tune]>=2.2.0",
+  "ipython",
+  "scib-metrics>=0.1.1",
+]
 pymde = ["pymde"]
-tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "hub"]
+tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub", "genomepy"]
 hub = ["huggingface_hub"]
 
 [tool.hatch.build.targets.wheel]
@@ -90,14 +95,8 @@ omit = [
 testpaths = ["tests"]
 xfail_strict = true
 
-[tool.isort]
-include_trailing_comma = true
-multi_line_output = 3
-profile = "black"
-skip_glob = ["docs/*", "scvi/__init__.py"]
 
 [tool.black]
-target-version = ['py38']
 include = '\.pyi?$'
 exclude = '''
 (
@@ -115,6 +114,59 @@ exclude = '''
   )/
 )
 '''
+
+[tool.ruff]
+src = ["."]
+line-length = 119
+target-version = "py38"
+select = [
+    "F",  # Errors detected by Pyflakes
+    "E",  # Error detected by Pycodestyle
+    "W",  # Warning detected by Pycodestyle
+    "I",  # isort
+    "D",  # pydocstyle
+    "B",  # flake8-bugbear
+    "TID",  # flake8-tidy-imports
+    "C4",  # flake8-comprehensions
+    "BLE",  # flake8-blind-except
+    "UP",  # pyupgrade
+    "RUF100",  # Report unused noqa directives
+]
+ignore = [
+    # line too long -> we accept long comment lines; black gets rid of long code lines
+    "E501",
+    # Do not assign a lambda expression, use a def -> lambda expression assignments are convenient
+    "E731",
+    # allow I, O, l as variable names -> I is the identity matrix
+    "E741",
+    # Missing docstring in public package
+    "D104",
+    # Missing docstring in public module
+    "D100",
+    # Missing docstring in __init__
+    "D107",
+    # Errors from function calls in argument defaults. These are fine when the result is immutable.
+    "B008",
+    # __magic__ methods are are often self-explanatory, allow missing docstrings
+    "D105",
+    # first line should end with a period [Bug: doesn't work with single-line docstrings]
+    "D400",
+    # First line should be in imperative mood; try rephrasing
+    "D401",
+    ## Disable one in each pair of mutually incompatible rules
+    # We don’t want a blank line before a class docstring
+    "D203",
+    # We want docstrings to start immediately after the opening triple quote
+    "D213",
+    # Missing argument description in the docstring TODO: enable
+    "D417",
+]
+
+[tool.ruff.per-file-ignores]
+"docs/*" = ["I", "BLE001"]
+"tests/*" = ["D"]
+"*/__init__.py" = ["F401"]
+"scvi/__init__.py" = ["I"]
 
 [tool.jupytext]
 formats = "ipynb,md"

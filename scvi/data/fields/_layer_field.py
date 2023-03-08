@@ -17,8 +17,7 @@ from ._mudata import MuDataWrapper
 
 
 class LayerField(BaseAnnDataField):
-    """
-    An AnnDataField for layer or X attributes in the AnnData data structure.
+    """An AnnDataField for layer or X attributes in the AnnData data structure.
 
     Parameters
     ----------
@@ -64,19 +63,19 @@ class LayerField(BaseAnnDataField):
         )
 
     @property
-    def registry_key(self) -> str:  # noqa: D102
+    def registry_key(self) -> str:
         return self._registry_key
 
     @property
-    def attr_name(self) -> str:  # noqa: D102
+    def attr_name(self) -> str:
         return self._attr_name
 
     @property
-    def attr_key(self) -> Optional[str]:  # noqa: D102
+    def attr_key(self) -> Optional[str]:
         return self._attr_key
 
     @property
-    def is_empty(self) -> bool:  # noqa: D102
+    def is_empty(self) -> bool:
         return False
 
     def validate_field(self, adata: AnnData) -> None:

@@ -42,8 +42,7 @@ class ArchesMixin:
         freeze_batchnorm_decoder: bool = False,
         freeze_classifier: bool = True,
     ):
-        """
-        Online update of a reference model with scArches algorithm :cite:p:`Lotfollahi21`.
+        """Online update of a reference model with scArches algorithm :cite:p:`Lotfollahi21`.
 
         Parameters
         ----------
@@ -158,8 +157,7 @@ class ArchesMixin:
         return_reference_var_names: bool = False,
         inplace: bool = True,
     ) -> Optional[Union[AnnData, pd.Index]]:
-        """
-        Prepare data for query integration.
+        """Prepare data for query integration.
 
         This function will return a new AnnData object with padded zeros
         for missing features, as well as correctly sorted features.

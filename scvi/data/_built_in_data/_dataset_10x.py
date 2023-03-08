@@ -85,8 +85,8 @@ def _load_dataset_10x(
 ):
     try:
         import scanpy
-    except ImportError:
-        raise ImportError("Please install scanpy -- `pip install scanpy`")
+    except ImportError as err:
+        raise ImportError("Please install scanpy -- `pip install scanpy`") from err
 
     # form data url and filename unless manual override
     if dataset_name is not None:
@@ -140,8 +140,7 @@ def _load_dataset_10x(
 
 
 def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
-    """
-    Returns exact path for the data in the archive.
+    """Returns exact path for the data in the archive.
 
     This is required because 10X doesn't have a consistent way of storing their data.
     Additionally, the function returns whether the data is stored in compressed format.

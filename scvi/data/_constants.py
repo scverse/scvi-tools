@@ -28,11 +28,18 @@ _DR_MOD_KEY = "mod_key"
 _DR_ATTR_NAME = "attr_name"
 _DR_ATTR_KEY = "attr_key"
 
-# AnnData Latent Constants
+# AnnData Minification Constants
 # ------------------------
-# Constants used in handling adata in latent mode.
+# Constants used in handling adata minification.
 
-_ADATA_LATENT_UNS_KEY = "_scvi_adata_latent"
+_ADATA_MINIFY_TYPE_UNS_KEY = "_scvi_adata_minify_type"
+
+
+class _ADATA_MINIFY_TYPE_NT(NamedTuple):
+    LATENT_POSTERIOR: str = "latent_posterior_parameters"
+
+
+ADATA_MINIFY_TYPE = _ADATA_MINIFY_TYPE_NT()
 
 # AnnData Object Constants
 # ------------------------

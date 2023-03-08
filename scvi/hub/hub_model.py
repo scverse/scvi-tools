@@ -2,6 +2,7 @@ import importlib
 import json
 import logging
 import os
+import warnings
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Type, Union
@@ -12,6 +13,7 @@ from anndata import AnnData
 from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
 from rich.markdown import Markdown
 
+from scvi.data import cellxgene
 from scvi.data._download import _download
 from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
@@ -23,8 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class HubModel:
-    """
-    Provides functionality to interact with the scvi-hub backed by `huggingface <https://huggingface.co/models>`_.
+    """Provides functionality to interact with the scvi-hub backed by `huggingface <https://huggingface.co/models>`_.
 
     Parameters
     ----------
@@ -38,6 +39,13 @@ class HubModel:
         model/data and is displayed on huggingface. This can be either an instance of
         :class:`~huggingface_hub.ModelCard` or an instance of :class:`~scvi.hub.HubModelCardHelper` that wraps
         the model card or a path to a file on disk where the model card can be read from.
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/scvi_hub_intro_and_download`
+    2. :doc:`/tutorials/notebooks/scvi_hub_upload_and_large_files`
     """
 
     def __init__(
@@ -85,8 +93,7 @@ class HubModel:
     def push_to_huggingface_hub(
         self, repo_name: str, repo_token: str, repo_create: bool
     ):
-        """
-        Push this model to huggingface.
+        """Push this model to huggingface.
 
         If the dataset is too large to upload to huggingface, this will raise an
         exception prompting the user to upload the data elsewhere. Otherwise, the
@@ -99,7 +106,7 @@ class HubModel:
         repo_token
             huggingface API token with write permissions
         repo_create
-            Whether to create a repo if one does not exist
+            Whether to create the repo
         """
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
@@ -130,7 +137,7 @@ class HubModel:
                 repo_id=repo_name,
                 token=repo_token,
             )
-        # upload the metadata and model card
+        # upload the metadata
         api.upload_file(
             path_or_fileobj=json.dumps(asdict(self.metadata), indent=4).encode(),
             path_in_repo=_SCVI_HUB.METADATA_FILE_NAME,
@@ -139,9 +146,14 @@ class HubModel:
         )
 
     @classmethod
-    def pull_from_huggingface_hub(cls, repo_name: str, cache_dir: Optional[str] = None):
-        """
-        Download the given model repo from huggingface.
+    def pull_from_huggingface_hub(
+        cls,
+        repo_name: str,
+        cache_dir: Optional[str] = None,
+        revision: Optional[str] = None,
+        **kwargs,
+    ):
+        """Download the given model repo from huggingface.
 
         The model, its card, data, metadata are downloaded to a cached location on disk
         selected by huggingface and an instance of this class is created with that info
@@ -153,11 +165,22 @@ class HubModel:
             ID of the huggingface repo where this model needs to be uploaded
         cache_dir
             The directory where the downloaded model artifacts will be cached
+        revision
+            The revision to pull from the repo. This can be a branch name, a tag, or a full-length commit hash.
+            If None, the default (latest) revision is pulled.
+        kwargs
+            Additional keyword arguments to pass to :meth:`~huggingface_hub.snapshot_download`.
         """
+        if revision is None:
+            warnings.warn(
+                "No revision was passed, so the default (latest) revision will be used."
+            )
         snapshot_folder = snapshot_download(
             repo_id=repo_name,
             allow_patterns=["model.pt", "adata.h5ad", _SCVI_HUB.METADATA_FILE_NAME],
             cache_dir=cache_dir,
+            revision=revision,
+            **kwargs,
         )
         model_card = ModelCard.load(repo_name)
         return cls(snapshot_folder, model_card=model_card)
@@ -175,7 +198,8 @@ class HubModel:
             f"metadata:\n{self.metadata}\n"
             f"model_card:"
         )
-        rich.print(Markdown(self.model_card.content))
+        # TODO figure out how to print tables in rich Markdown without the replace trick
+        rich.print(Markdown(self.model_card.content.replace("\n", "\n\n")))
         return ""
 
     @property
@@ -190,8 +214,7 @@ class HubModel:
 
     @property
     def model(self) -> Type[BaseModelClass]:
-        """
-        Returns the model object for this hub model.
+        """Returns the model object for this hub model.
 
         If the model has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.load_model`.
         Otherwise, it will simply return the loaded model.
@@ -202,8 +225,7 @@ class HubModel:
 
     @property
     def adata(self) -> Optional[AnnData]:
-        """
-        Returns the data for this model.
+        """Returns the data for this model.
 
         If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_adata`.
         Otherwise, it will simply return the loaded data.
@@ -214,8 +236,7 @@ class HubModel:
 
     @property
     def large_training_adata(self) -> Optional[AnnData]:
-        """
-        Returns the training data for this model, which might be too large to reside within the hub model.
+        """Returns the training data for this model, which might be too large to reside within the hub model.
 
         If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_large_training_adata`,
         which will attempt to download from the source url. Otherwise, it will simply return the loaded data.
@@ -228,8 +249,7 @@ class HubModel:
         self,
         adata: Optional[AnnData] = None,
     ):
-        """
-        Loads the model.
+        """Loads the model.
 
         Parameters
         ----------
@@ -252,7 +272,8 @@ class HubModel:
             if self.large_training_adata is None:
                 raise ValueError(
                     "Could not find any dataset to load the model with.\
-                    Either provide a dataset on disk or a url to download the data in the model card.\
+                    Either provide a dataset on disk or a url to download the data in the model card,\
+                    or pass an adata to this method.\
                     See scvi-tools tutorials for more details."
                 )
             else:
@@ -270,7 +291,13 @@ class HubModel:
             logger.info("No data found on disk. Skipping...")
 
     def read_large_training_adata(self):
-        """Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op."""
+        """Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op.
+
+        Notes
+        -----
+        The large training data url can be a cellxgene explorer session url. However it cannot be a self-hosted
+        session. In other words, it must be from the cellxgene portal (https://cellxgene.cziscience.com/).
+        """
         training_data_url = self.metadata.training_data_url
         if training_data_url is not None:
             logger.info(
@@ -278,7 +305,12 @@ class HubModel:
             )
             dn = Path(self._large_training_adata_path).parent.as_posix()
             fn = Path(self._large_training_adata_path).name
-            _download(training_data_url, dn, fn)
+            url_parts = training_data_url.split("/")
+            url_last_part = url_parts[-2] if url_parts[-1] == "" else url_parts[-1]
+            if url_last_part.endswith(".cxg"):
+                _ = cellxgene(training_data_url, fn, dn, return_path=True)
+            else:
+                _download(training_data_url, dn, fn)
             logger.info("Reading large training data...")
             self._large_training_adata = anndata.read_h5ad(
                 self._large_training_adata_path
