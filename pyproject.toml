@@ -57,20 +57,20 @@ dependencies = [
     "mudata>=0.1.2",
 ]
 
+
 [project.optional-dependencies]
 dev = ["black", "pytest", "pytest-cov", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde", "genomepy"]
 docs = [
   "sphinx>=4.1",
-  "nbsphinx",
   "ipython",
-  "furo",
-  "sphinx-autodoc-typehints<1.21.4",
+  "sphinx-book-theme>=1.0.0",
   "sphinx_copybutton",
   "sphinx-design",
   "sphinxext-opengraph",
   "sphinx-hoverxref",
   "sphinxcontrib-bibtex>=1.0.0",
   "myst-parser",
+  "myst-nb",
 ]
 autotune = [
   "hyperopt>=0.2",
@@ -116,7 +116,7 @@ exclude = '''
 '''
 
 [tool.ruff]
-src = ["src"]
+src = ["."]
 line-length = 119
 target-version = "py38"
 select = [

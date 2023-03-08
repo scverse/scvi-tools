@@ -11,7 +11,7 @@ def mde(
     device: Optional[Literal["cpu", "cuda"]] = None,
     **kwargs,
 ) -> np.ndarray:
-    """Util to run :meth:`pymde.preserve_neighbors` for visualization of scvi-tools embeddings.
+    """Util to run :func:`pymde.preserve_neighbors` for visualization of scvi-tools embeddings.
 
     Parameters
     ----------
@@ -21,7 +21,8 @@ def mde(
     device
         Whether to run on cpu or gpu ("cuda"). If None, tries to run on gpu if available.
     kwargs
-        Keyword args to :meth:`pymde.preserve_neighbors`
+        Keyword args to :func:`pymde.preserve_neighbors`
+
     Returns
     -------
     The pymde embedding, defaults to two dimensions.
