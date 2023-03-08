@@ -3,7 +3,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Optional, Sequence, Type, Union
+from typing import Dict, List, Optional, Sequence, Type, Union
 from uuid import uuid4
 
 import numpy as np
@@ -25,7 +25,7 @@ from scvi.data._constants import (
 )
 from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
 from scvi.dataloaders import AnnDataLoader
-from scvi.model._utils import parse_use_gpu_arg
+from scvi.model._utils import parse_device_args
 from scvi.model.base._utils import _load_legacy_saved_files
 from scvi.utils import attrdict, setup_anndata_dsp
 
@@ -590,7 +590,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         cls,
         dir_path: str,
         adata: Optional[AnnOrMuData] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        use_gpu: Union[str, int, bool] | None = None,
+        accelerator: str | None = None,
+        device: Union[List[int], str, int] | None = None,
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):
@@ -606,8 +608,18 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
         use_gpu
-            Load model on default GPU if available (if None or True),
-            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+            Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
+            anything `use_gpu!=False` will override `accelerator` and `devices` arguments
+            and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        device
+            The device to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         prefix
             Prefix of saved file names.
         backup_url
@@ -623,7 +635,12 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         >>> model.get_....
         """
         load_adata = adata is None
-        _, _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_device_args(
+            accelerator=accelerator,
+            devices=device,
+            use_gpu=use_gpu,
+            return_device="torch",
+        )
 
         (
             attr_dict,

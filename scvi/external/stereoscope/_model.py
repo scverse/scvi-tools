@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Literal, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -63,7 +63,9 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 0.01,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        use_gpu: Union[str, int, bool] | None = None,
+        accelerator: str | None = None,
+        devices: Union[List[int], str, int] | None = None,
         train_size: float = 1,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -79,8 +81,18 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         lr
             Learning rate for optimization.
         use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+            Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
+            anything `use_gpu!=False` will override `accelerator` and `devices` arguments
+            and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        devices
+            The devices to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -104,6 +116,8 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
@@ -298,7 +312,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 0.01,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        use_gpu: Union[str, int, bool] | None = None,
+        accelerator: str | None = None,
+        devices: Union[List[int], str, int] | None = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
         **kwargs,
@@ -312,8 +328,18 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         lr
             Learning rate for optimization.
         use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+            Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
+            anything `use_gpu!=False` will override `accelerator` and `devices` arguments
+            and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        devices
+            The devices to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         batch_size
             Minibatch size to use during training.
         plan_kwargs
@@ -332,6 +358,8 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             train_size=1,
             validation_size=None,
             batch_size=batch_size,

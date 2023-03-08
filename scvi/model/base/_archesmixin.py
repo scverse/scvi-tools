@@ -1,7 +1,7 @@
 import logging
 import warnings
 from copy import deepcopy
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import anndata
 import numpy as np
@@ -13,7 +13,7 @@ from scipy.sparse import csr_matrix
 from scvi import REGISTRY_KEYS
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
-from scvi.model._utils import parse_use_gpu_arg
+from scvi.model._utils import parse_device_args
 from scvi.nn import FCLayers
 
 from ._base_model import BaseModelClass
@@ -33,7 +33,9 @@ class ArchesMixin:
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        use_gpu: Union[str, int, bool] | None = None,
+        accelerator: str | None = None,
+        device: Union[List[int], str, int] | None = None,
         unfrozen: bool = False,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
@@ -57,8 +59,18 @@ class ArchesMixin:
             Whether to subset and rearrange query vars inplace based on vars used to
             train reference model.
         use_gpu
-            Load model on default GPU if available (if None or True),
-            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+            Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
+            anything `use_gpu!=False` will override `accelerator` and `devices` arguments
+            and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        device
+            The device to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         unfrozen
             Override all other freeze options for a fully unfrozen model
         freeze_dropout
@@ -74,7 +86,12 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
-        _, _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_device_args(
+            accelerator=accelerator,
+            devices=device,
+            use_gpu=use_gpu,
+            return_device="torch",
+        )
 
         attr_dict, var_names, load_state_dict = _get_loaded_data(
             reference_model, device=device

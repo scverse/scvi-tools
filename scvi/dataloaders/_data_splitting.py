@@ -1,3 +1,4 @@
+import warnings
 from math import ceil, floor
 from typing import Dict, List, Optional
 
@@ -96,6 +97,13 @@ class DataSplitter(pl.LightningDataModule):
         self.train_size = float(train_size)
         self.validation_size = validation_size
         self.data_loader_kwargs = kwargs
+
+        if use_gpu is not False:
+            warnings.warn(
+                "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0.0. "
+                "Please directly pass in `pin_memory` to the `DataLoader` instead.",
+                DeprecationWarning,
+            )
         self.use_gpu = use_gpu
 
         self.n_train, self.n_val = validate_data_split(
@@ -226,6 +234,13 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
 
         self.data_loader_kwargs = kwargs
+
+        if use_gpu is not False:
+            warnings.warn(
+                "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0.0. "
+                "Please directly pass in `pin_memory` to the `DataLoader` instead.",
+                DeprecationWarning,
+            )
         self.use_gpu = use_gpu
 
     def setup(self, stage: Optional[str] = None):

@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -123,7 +123,9 @@ class Tangram(BaseModelClass):
     def train(
         self,
         max_epochs: int = 1000,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        use_gpu: Union[str, int, bool] | None = None,
+        accelerator: str | None = None,
+        devices: Union[List[int], str, int] | None = None,
         lr: float = 0.1,
         plan_kwargs: Optional[dict] = None,
     ):

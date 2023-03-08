@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 def parse_device_args(
     use_gpu: Union[str, int, bool] | None = None,
     accelerator: str | None = None,
-    devices: Union[str, int, bool] | None = None,
+    devices: Union[List[int], str, int] | None = None,
     return_device: Literal["torch", "jax"] | None = None,
 ) -> Tuple:
     """Parses `accelerator` and `devices` arguments.
@@ -49,6 +49,12 @@ def parse_device_args(
         * `None`: does not return a device.
     """
     if use_gpu is not False:
+        warnings.warn(
+            "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0.0. "
+            "Please use `accelerator` and `devices` instead.",
+            DeprecationWarning,
+        )
+        return_device = return_device or return_device == "torch"
         return parse_use_gpu_arg(use_gpu, return_device=return_device)
 
     valid = [None, "torch", "jax"]

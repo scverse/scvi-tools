@@ -1,13 +1,13 @@
 import logging
 import warnings
-from typing import Optional, Union
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
-from scvi.model._utils import parse_use_gpu_arg
+from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
 
@@ -29,8 +29,18 @@ class TrainRunner:
     max_epochs
         max_epochs to train for
     use_gpu
-        Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
+        anything `use_gpu!=False` will override `accelerator` and `devices` arguments
+        and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+    accelerator
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+        "mps, "auto") as well as custom accelerator instances.
+    devices
+        The devices to use. Can be set to a positive number (int or str), a sequence of
+        device indices (list or str), the value ``-1`` to indicate all available devices
+        should be used, or ``"auto"`` for automatic selection based on the chosen
+        accelerator.
     trainer_kwargs
         Extra kwargs for :class:`~scvi.train.Trainer`
 
@@ -55,20 +65,29 @@ class TrainRunner:
         training_plan: pl.LightningModule,
         data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
         max_epochs: int,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        use_gpu: Union[str, int, bool] | None = None,
+        accelerator: str | None = None,
+        devices: Union[List[int], str, int] | None = None,
         **trainer_kwargs,
     ):
         self.training_plan = training_plan
         self.data_splitter = data_splitter
         self.model = model
-        accelerator, lightning_devices, device = parse_use_gpu_arg(use_gpu)
+
+        accelerator, devices, device = parse_device_args(
+            accelerator=accelerator,
+            devices=devices,
+            use_gpu=use_gpu,
+            return_device="torch",
+        )
+
         self.accelerator = accelerator
-        self.lightning_devices = lightning_devices
+        self.lightning_devices = devices
         self.device = device
         self.trainer = self._trainer_cls(
             max_epochs=max_epochs,
             accelerator=accelerator,
-            devices=lightning_devices,
+            devices=devices,
             **trainer_kwargs,
         )
 

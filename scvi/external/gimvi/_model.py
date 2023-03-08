@@ -15,7 +15,7 @@ from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import _init_library_size, parse_use_gpu_arg
+from scvi.model._utils import _init_library_size, parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
 from scvi.utils import setup_anndata_dsp
@@ -159,7 +159,9 @@ class GIMVI(VAEMixin, BaseModelClass):
     def train(
         self,
         max_epochs: int = 200,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        use_gpu: Union[str, int, bool] | None = None,
+        accelerator: str | None = None,
+        devices: Union[List[int], str, int] | None = None,
         kappa: int = 5,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
@@ -175,8 +177,18 @@ class GIMVI(VAEMixin, BaseModelClass):
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
         use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+            Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
+            anything `use_gpu!=False` will override `accelerator` and `devices` arguments
+            and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        devices
+            The devices to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         kappa
             Scaling parameter for the discriminator loss.
         train_size
@@ -192,12 +204,17 @@ class GIMVI(VAEMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        accelerator, lightning_devices, device = parse_use_gpu_arg(use_gpu)
+        accelerator, devices, device = parse_device_args(
+            accelerator=accelerator,
+            devices=devices,
+            use_gpu=use_gpu,
+            return_device="torch",
+        )
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
             accelerator=accelerator,
-            devices=lightning_devices,
+            devices=devices,
             **kwargs,
         )
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
@@ -442,7 +459,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        use_gpu: Union[str, int, bool] | None = None,
+        accelerator: str | None = None,
+        device: Union[List[int], str, int] | None = None,
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):
@@ -461,8 +480,18 @@ class GIMVI(VAEMixin, BaseModelClass):
             AnnData organized in the same way as data used to train model.
             If None, will check for and load anndata saved with the model.
         use_gpu
-            Load model on default GPU if available (if None or True),
-            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+            Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
+            anything `use_gpu!=False` will override `accelerator` and `devices` arguments
+            and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+        accelerator
+            Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+            "mps, "auto") as well as custom accelerator instances.
+        device
+            The device to use. Can be set to a positive number (int or str), a sequence of
+            device indices (list or str), the value ``-1`` to indicate all available devices
+            should be used, or ``"auto"`` for automatic selection based on the chosen
+            accelerator.
         prefix
             Prefix of saved file names.
         backup_url
@@ -477,7 +506,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         >>> vae = GIMVI.load(adata_seq, adata_spatial, save_path)
         >>> vae.get_latent_representation()
         """
-        _, _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_device_args(
+            accelerator=accelerator,
+            device=device,
+            use_gpu=use_gpu,
+            return_device="torch",
+        )
 
         (
             attr_dict,
