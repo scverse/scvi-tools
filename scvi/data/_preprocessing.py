@@ -382,6 +382,7 @@ def add_dna_sequence(
     """Add DNA sequence to AnnData object.
 
     Uses genomepy under the hood to download the genome.
+
     Parameters
     ----------
     adata
@@ -408,9 +409,11 @@ def add_dna_sequence(
         Key in `.varm` for added DNA sequence
     code_varm_key
         Key in `.varm` for added DNA sequence, encoded as integers
+
     Returns
     -------
     None
+
     Adds fields to `.varm`:
         sequence_varm_key: DNA sequence
         code_varm_key: DNA sequence, encoded as integers
