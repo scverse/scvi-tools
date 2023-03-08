@@ -382,6 +382,7 @@ def add_dna_sequence(
     """Add DNA sequence to AnnData object.
 
     Uses genomepy under the hood to download the genome.
+
     Parameters
     ----------
     adata
