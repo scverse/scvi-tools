@@ -7,7 +7,7 @@ from mudata import MuData
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.model import TOTALVI
+from scvi.model import MULTIVI, TOTALVI
 from scvi.utils import attrdict
 
 
@@ -294,3 +294,28 @@ def test_totalvi_saving_and_loading(save_path):
         batch_key="batch",
         modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
+
+
+def test_multivi_setup_mudata():
+    rna = synthetic_iid()
+    protein = synthetic_iid(n_genes=50)
+    accessibility = synthetic_iid()
+
+    mdata_rna = MuData({"rna": rna})
+    MuData({"protein": protein})
+    MuData({"accessibility": accessibility})
+
+    MuData({"rna": rna, "protein": protein})
+    MuData({"rna": rna, "accessibility": accessibility})
+    MuData({"protein": protein, "accessibility": accessibility})
+    MuData({"rna": rna, "protein": protein, "accessibility": accessibility})
+
+    # Test that setup_mudata works with single modalities
+    MULTIVI.setup_mudata(
+        mdata_rna,
+        modalities={"rna_layer": "rna"},
+    )
+    model = MULTIVI(mdata_rna, n_genes=rna.n_vars, n_regions=0)
+    model.train(1, save_best=False)
+
+    # TODO: Add more tests

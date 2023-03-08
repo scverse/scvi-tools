@@ -1116,19 +1116,16 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             raise ValueError("Modalities cannot be None.")
         modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
 
+        mdata.obs["_indices"] = np.arange(
+            mdata.n_obs
+        )  # TODO: Find a cleaner way to do this
+
         batch_field = fields.MuDataCategoricalObsField(
             REGISTRY_KEYS.BATCH_KEY,
             batch_key,
             mod_key=modalities.batch_key,
         )
         mudata_fields = [
-            fields.MuDataLayerField(
-                REGISTRY_KEYS.X_KEY,
-                rna_layer,
-                mod_key=modalities.rna_key,
-                is_count_data=True,
-                mod_required=True,
-            ),
             fields.MuDataCategoricalObsField(
                 REGISTRY_KEYS.LABELS_KEY,
                 None,
@@ -1151,23 +1148,45 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 continuous_covariate_keys,
                 mod_key=modalities.continuous_covariate_keys,
             ),
-            fields.MuDataProteinLayerField(
-                REGISTRY_KEYS.PROTEIN_EXP_KEY,
-                protein_layer,
-                mod_key=modalities.protein_key,
-                use_batch_mask=True,
-                batch_field=batch_field,
-                is_count_data=True,
-                mod_required=False,
-            ),
-            fields.MuDataLayerField(
-                REGISTRY_KEYS.ACCESSIBILITY_KEY,
-                accessibility_layer,
-                mod_key=modalities.accessibility_key,
-                is_count_data=True,
-                mod_required=False,
+            fields.MuDataNumericalObsField(
+                REGISTRY_KEYS.INDICES_KEY,
+                "_indices",
+                mod_key=None,
             ),
         ]
+        if modalities.rna_layer is not None:
+            mudata_fields.append(
+                fields.MuDataLayerField(
+                    REGISTRY_KEYS.X_KEY,
+                    rna_layer,
+                    mod_key=modalities.rna_layer,
+                    is_count_data=True,
+                    mod_required=True,
+                )
+            )
+        if modalities.accessibility_layer is not None:
+            mudata_fields.append(
+                fields.MuDataLayerField(
+                    REGISTRY_KEYS.ACCESSIBILITY_KEY,
+                    accessibility_layer,
+                    mod_key=modalities.accessibility_layer,
+                    is_count_data=True,
+                    mod_required=True,
+                )
+            )
+        if modalities.protein_layer is not None:
+            mudata_fields.append(
+                fields.MuDataProteinLayerField(
+                    REGISTRY_KEYS.PROTEIN_EXP_KEY,
+                    protein_layer,
+                    mod_key=modalities.protein_layer,
+                    use_batch_mask=True,
+                    batch_field=batch_field,
+                    is_count_data=True,
+                    mod_required=True,
+                )
+            )
+
         adata_manager = AnnDataManager(
             fields=mudata_fields, setup_method_args=setup_method_args
         )
