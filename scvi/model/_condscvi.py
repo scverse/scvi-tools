@@ -197,7 +197,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         self,
         max_epochs: int = 300,
         lr: float = 0.001,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         devices: Union[List[int], str, int] | None = None,
         train_size: float = 1,

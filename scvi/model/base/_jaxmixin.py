@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Optional
+from typing import Optional, Union
 
 import jax
 import numpy as np
@@ -21,7 +21,7 @@ class JaxTrainingMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,

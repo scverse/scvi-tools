@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, List, Literal, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -83,7 +83,7 @@ class PyroSviTrainMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         devices: Union[List[int], str, int] | None = None,
         train_size: float = 0.9,
@@ -361,7 +361,7 @@ class PyroSampleMixin:
 
     def _posterior_samples_minibatch(
         self,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         device: Union[List[int], str, int] | None = None,
         batch_size: int | None = None,
@@ -481,10 +481,9 @@ class PyroSampleMixin:
         self,
         num_samples: int = 1000,
         return_sites: Optional[list] = None,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         device: Union[List[int], str, int] | None = None,
-        return_device: Literal["torch", "jax"] | None = None,
         batch_size: Optional[int] = None,
         return_observed: bool = False,
         return_samples: bool = False,

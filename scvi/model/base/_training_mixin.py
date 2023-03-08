@@ -16,7 +16,7 @@ class UnsupervisedTrainingMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         devices: Union[List[int], str, int] | None = None,
         train_size: float = 0.9,

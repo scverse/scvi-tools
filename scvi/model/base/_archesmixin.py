@@ -33,7 +33,7 @@ class ArchesMixin:
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         device: Union[List[int], str, int] | None = None,
         unfrozen: bool = False,

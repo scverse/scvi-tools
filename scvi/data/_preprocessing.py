@@ -22,7 +22,7 @@ def poisson_gene_selection(
     adata,
     layer: str | None = None,
     n_top_genes: int = 4000,
-    use_gpu: Union[str, int, bool] | None = None,
+    use_gpu: Optional[Union[str, int, bool]] = None,
     accelerator: str | None = None,
     device: Union[List[int], str, int] | None = None,
     subset: bool = False,

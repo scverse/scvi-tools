@@ -196,7 +196,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         max_epochs: Optional[int] = None,
         lr: float = 4e-3,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         devices: Union[List[int], str, int] | None = None,
         train_size: float = 0.9,

@@ -149,7 +149,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 500,
         lr: float = 1e-4,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         devices: Union[List[int], str, int] | None = None,
         train_size: float = 0.9,

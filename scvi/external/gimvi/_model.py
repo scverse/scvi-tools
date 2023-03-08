@@ -159,7 +159,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     def train(
         self,
         max_epochs: int = 200,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         devices: Union[List[int], str, int] | None = None,
         kappa: int = 5,
@@ -459,7 +459,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         device: Union[List[int], str, int] | None = None,
         prefix: Optional[str] = None,

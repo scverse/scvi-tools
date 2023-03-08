@@ -123,7 +123,7 @@ class Tangram(BaseModelClass):
     def train(
         self,
         max_epochs: int = 1000,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         devices: Union[List[int], str, int] | None = None,
         lr: float = 0.1,

@@ -1,6 +1,6 @@
 import warnings
 from math import ceil, floor
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -89,7 +89,7 @@ class DataSplitter(pl.LightningDataModule):
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
-        use_gpu: bool = False,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         **kwargs,
     ):
         super().__init__()

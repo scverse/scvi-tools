@@ -590,7 +590,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         cls,
         dir_path: str,
         adata: Optional[AnnOrMuData] = None,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         device: Union[List[int], str, int] | None = None,
         prefix: Optional[str] = None,

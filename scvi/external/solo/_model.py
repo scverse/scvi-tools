@@ -255,7 +255,7 @@ class SOLO(BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 1e-3,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         devices: Union[List[int], str, int] | None = None,
         train_size: float = 0.9,

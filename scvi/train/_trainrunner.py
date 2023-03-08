@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import List, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -65,7 +65,7 @@ class TrainRunner:
         training_plan: pl.LightningModule,
         data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
         max_epochs: int,
-        use_gpu: Union[str, int, bool] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str | None = None,
         devices: Union[List[int], str, int] | None = None,
         **trainer_kwargs,
