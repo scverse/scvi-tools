@@ -22,6 +22,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Fixed
 
 -   Fix `return_dist` docstring of {meth}`scvi.model.base.VAEMixin.get_latent_representation` {pr}`1932`.
+-   Fix hyperlink to pymde docs {pr}`1944`
 
 #### Changed
 
@@ -29,6 +30,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Use sphinx autodoc instead of sphinx-autodoc-typehints {pr}`1941`.
 -   Remove .flake8 and .prospector files {pr}`1923`.
 -   Log individual loss terms in {meth}`scvi.module.MULTIVAE.loss` {pr}`1936`.
+-   Setting up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model` is deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1803`.
 
 ### 0.20.1 (2023-02-21)
 
