@@ -377,7 +377,7 @@ def add_dna_sequence(
     seq_len: int = 1334,
     genome_name: str = "hg38",
     genome_dir: Optional[Path] = None,
-    genome_provider: str = "UCSC",
+    genome_provider: Optional[str] = None,
     install_genome: bool = True,
     chr_var_key: str = "chr",
     start_var_key: str = "start",
@@ -385,11 +385,8 @@ def add_dna_sequence(
     sequence_varm_key: str = "dna_sequence",
     code_varm_key: str = "dna_code",
 ) -> None:
-    """
-    Add DNA sequence to AnnData object.
-
+    """Add DNA sequence to AnnData object.
     Uses genomepy under the hood to download the genome.
-
     Parameters
     ----------
     adata
@@ -416,11 +413,9 @@ def add_dna_sequence(
         Key in `.varm` for added DNA sequence
     code_varm_key
         Key in `.varm` for added DNA sequence, encoded as integers
-
     Returns
     -------
     None
-
     Adds fields to `.varm`:
         sequence_varm_key: DNA sequence
         code_varm_key: DNA sequence, encoded as integers
@@ -438,61 +433,55 @@ def add_dna_sequence(
     else:
         g = genomepy.Genome(genome_name, genomes_dir=genome_dir)
 
-    output_dfs = []
     chroms = adata.var[chr_var_key].unique()
     df = adata.var[[chr_var_key, start_var_key, end_var_key]]
+    seq_dfs = []
+
     for chrom in track(chroms):
         chrom_df = df[df[chr_var_key] == chrom]
-        lengths = chrom_df[end_var_key] - chrom_df[start_var_key]
-
-        block_starts = (
-            chrom_df[start_var_key] + (lengths // 2.0) - (seq_len // 2.0)
-        ).astype(int)
+        block_mid = (chrom_df[start_var_key] + chrom_df[end_var_key]) // 2
+        block_starts = block_mid - (seq_len // 2)
         block_ends = block_starts + seq_len
+        seqs = []
 
-        concat_seq = str(
-            g.get_spliced_seq(chrom, zip(block_starts, block_ends - 1))
-        ).upper()
-        concat_seq = [iter(concat_seq)] * seq_len
-        concat_seq = list(zip(*concat_seq))
-        assert len(concat_seq) == len(chrom_df)
+        for start, end in zip(block_starts, block_ends - 1):
+            seq = str(g.get_seq(chrom, start, end)).upper()
+            seqs.append(list(seq))
 
-        output_dfs.append(pd.DataFrame(np.array(concat_seq), index=chrom_df.index))
+        assert len(seqs) == len(chrom_df)
+        seq_dfs.append(pd.DataFrame(seqs, index=chrom_df.index))
 
-    output_df = pd.concat(output_dfs, axis=0).loc[adata.var_names]
-    adata.varm[sequence_varm_key] = output_df
-    adata.varm[code_varm_key] = output_df.applymap(_dna_to_code)
+    sequence_df = pd.concat(seq_dfs, axis=0).loc[adata.var_names]
+    adata.varm[sequence_varm_key] = sequence_df
+    adata.varm[code_varm_key] = sequence_df.applymap(_dna_to_code)
 
 
 def reads_to_fragments(
-    adata: anndata.AnnData, layer: Optional[str] = None, copy: bool = False
-) -> Optional[anndata.AnnData]:
+    adata: anndata.AnnData,
+    read_layer: Optional[str] = None,
+    fragment_layer: Optional[str] = "fragments",
+) -> None:
     """
-    Convert read counts to appoximate fragment counts.
+    Convert scATAC-seq read counts to appoximate fragment counts.
 
     Parameters
     ----------
     adata
         AnnData object that contains read counts.
-    layer
-        Layer that the read counts are stored in.
+    read_layer
+        Key in`.layer` that the read counts are stored in.
+    fragment_layer
+        Key in`.layer` that the fragment counts will be stored in.
 
     Returns
     -------
-    If copy is True, returns anndata object with fragment counts in `adata.layers['counts']`.
-
-    Else, updates the anndata inplace.
+    Adds layer with fragment counts in `.layers[fragment_layer]`.
     """
-    if copy:
-        adata = adata.copy()
 
-    if layer:
-        data = np.ceil(adata.layers[layer].data / 2)
+    if read_layer:
+        data = np.ceil(adata.layers[read_layer].data / 2)
     else:
         data = np.ceil(adata.X.data / 2)
 
-    adata.layers["counts"] = adata.X.copy()
-    adata.layers["counts"].data = data
-
-    if copy:
-        return adata
+    adata.layers[fragment_layer] = adata.X.copy()
+    adata.layers[fragment_layer].data = data
