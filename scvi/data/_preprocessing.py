@@ -456,8 +456,7 @@ def reads_to_fragments(
     read_layer: Optional[str] = None,
     fragment_layer: Optional[str] = "fragments",
 ) -> None:
-    """
-    Convert scATAC-seq read counts to appoximate fragment counts.
+    """Convert scATAC-seq read counts to appoximate fragment counts.
 
     Parameters
     ----------
@@ -472,7 +471,6 @@ def reads_to_fragments(
     -------
     Adds layer with fragment counts in `.layers[fragment_layer]`.
     """
-
     if read_layer:
         data = np.ceil(adata.layers[read_layer].data / 2)
     else:
