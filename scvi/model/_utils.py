@@ -1,19 +1,83 @@
 import logging
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
+from pytorch_lightning.trainer.connectors.accelerator_connector import (
+    AcceleratorConnector,
+)
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi.data import AnnDataManager
+from scvi.utils._exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
 
 
+def parse_device_args(
+    use_gpu: Union[str, int, bool] | None = None,
+    accelerator: str | None = None,
+    devices: Union[str, int, bool] | None = None,
+    return_device: Literal["torch", "jax"] | None = None,
+) -> Tuple:
+    """Parses `accelerator` and `devices` arguments.
+
+    Parameters
+    ----------
+    use_gpu
+        Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
+        anything `use_gpu!=False` will override `accelerator` and `devices` arguments
+        and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+    accelerator
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+        "mps, "auto") as well as custom accelerator instances.
+    devices
+        The devices to use. Can be set to a positive number (int or str), a sequence of
+        device indices (list or str), the value ``-1`` to indicate all available devices
+        should be used, or ``"auto"`` for automatic selection based on the chosen
+        accelerator.
+    return_device
+        One of the following:
+
+        * `"torch"`: returns the first PyTorch device.
+        * `"jax"`: returns the first Jax device.
+        * `None`: does not return a device.
+    """
+    if use_gpu is not False:
+        return parse_use_gpu_arg(use_gpu, return_device=return_device)
+
+    valid = [None, "torch", "jax"]
+    if return_device not in valid:
+        raise InvalidParameterError(
+            param="return_device", value=return_device, valid=valid
+        )
+
+    if return_device == "torch":
+        pl_connector = AcceleratorConnector(accelerator=accelerator, devices=devices)
+        accelerator_ = pl_connector._accelerator_flag
+        devices_ = pl_connector._device_flag
+
+        if accelerator_ == "cpu":
+            device = torch.device("cpu")
+        elif isinstance(devices_, int):
+            device = torch.device(f"{accelerator_}:{devices_}")
+        elif isinstance(devices_, list):
+            device = torch.device(f"{accelerator_}:{devices_[0]}")
+        elif isinstance(devices_, str):
+            device = torch.device(devices_)
+        return accelerator, devices, device
+    elif return_device == "jax":
+        raise NotImplementedError("Jax device parsing not implemented.")
+    else:
+        return accelerator, devices
+
+
+# TODO: remove in v1.0.0
 def parse_use_gpu_arg(
     use_gpu: Optional[Union[str, int, bool]] = None,
     return_device=True,
