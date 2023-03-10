@@ -17,7 +17,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 0.20
 
-### 0.20.2 (2023-MM-DD)
+### 0.20.2 (2023-03-10)
 
 #### Fixed
 
