@@ -364,7 +364,7 @@ class PyroSampleMixin:
         use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: Optional[str] = None,
         device: Optional[Union[str, int]] = None,
-        batch_size: int | None = None,
+        batch_size: Optional[int] = None,
         **sample_kwargs,
     ):
         """Generate samples of the posterior distribution in minibatches.
