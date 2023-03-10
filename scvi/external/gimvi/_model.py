@@ -508,7 +508,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         """
         _, _, device = parse_device_args(
             accelerator=accelerator,
-            device=device,
+            devices=device,
             use_gpu=use_gpu,
             return_device="torch",
         )

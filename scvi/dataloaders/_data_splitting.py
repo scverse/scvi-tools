@@ -295,7 +295,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.test_idx = indices_test.astype(int)
 
         gpus = parse_device_args(
-            use_gpu=self.use_gpu, accelerator=None, devices=None, return_device=False
+            use_gpu=self.use_gpu, accelerator=None, devices=None, return_device=None
         )
         self.pin_memory = (
             True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False

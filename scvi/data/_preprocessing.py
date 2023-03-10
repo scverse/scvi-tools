@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @torch.inference_mode()
 def poisson_gene_selection(
     adata,
-    layer: str | None = None,
+    layer: Optional[str] = None,
     n_top_genes: int = 4000,
     use_gpu: Optional[Union[str, int, bool]] = None,
     accelerator: Optional[str] = None,
