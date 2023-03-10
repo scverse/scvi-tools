@@ -22,7 +22,7 @@ def parse_device_args(
     use_gpu: Optional[Union[str, int, bool]] = None,
     accelerator: Optional[str] = None,
     devices: Optional[Union[List[int], str, int]] = None,
-    return_device: Literal["torch", "jax"] | None = None,
+    return_device: Optional[Literal["torch", "jax"]] = None,
 ) -> Tuple:
     """Parses `accelerator` and `devices` arguments.
 
@@ -86,7 +86,7 @@ def parse_device_args(
 # TODO: remove in v1.0.0
 def parse_use_gpu_arg(
     use_gpu: Optional[Union[str, int, bool]] = None,
-    return_device=True,
+    return_device: bool = True,
 ):
     """Parses the use_gpu arg in codebase.
 
