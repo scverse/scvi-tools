@@ -13,7 +13,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Changed
 
--   Use sphinx book theme for documentation {pr}`1673`
+-   Use sphinx book theme for documentation {pr}`1673`.
 
 ## Version 0.20
 
@@ -22,15 +22,16 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Fixed
 
 -   Fix `return_dist` docstring of {meth}`scvi.model.base.VAEMixin.get_latent_representation` {pr}`1932`.
--   Fix hyperlink to pymde docs {pr}`1944`
+-   Fix hyperlink to pymde docs {pr}`1944`.
 
 #### Changed
 
+-   Setting up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model` is deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1803`.
 -   Use ruff for fixing and linting {pr}`1921`, {pr}`1941`.
 -   Use sphinx autodoc instead of sphinx-autodoc-typehints {pr}`1941`.
 -   Remove .flake8 and .prospector files {pr}`1923`.
 -   Log individual loss terms in {meth}`scvi.module.MULTIVAE.loss` {pr}`1936`.
--   Setting up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model` is deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1803`.
+-   Deprecate `use_gpu` in favor of `accelerator` and `devices` Lightning arguments {pr}`1950`.
 
 ### 0.20.1 (2023-02-21)
 
