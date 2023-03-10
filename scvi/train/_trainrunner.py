@@ -66,8 +66,8 @@ class TrainRunner:
         data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
         max_epochs: int,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        accelerator: str | None = None,
-        devices: Union[List[int], str, int] | None = None,
+        accelerator: Optional[str] = None,
+        devices: Optional[Union[List[int], str, int]] = None,
         **trainer_kwargs,
     ):
         self.training_plan = training_plan

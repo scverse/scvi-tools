@@ -344,9 +344,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
-        use_gpu: Union[str, int, bool] | None = None,
-        accelerator: str | None = None,
-        devices: Union[List[int], str, int] | None = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: Optional[str] = None,
+        devices: Optional[Union[List[int], str, int]] = None,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):

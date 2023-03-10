@@ -1,7 +1,7 @@
 import logging
 import warnings
 from copy import deepcopy
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import anndata
 import numpy as np
@@ -34,8 +34,8 @@ class ArchesMixin:
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        accelerator: str | None = None,
-        device: Union[List[int], str, int] | None = None,
+        accelerator: Optional[str] = None,
+        device: Optional[Union[str, int]] = None,
         unfrozen: bool = False,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,

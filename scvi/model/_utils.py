@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 def parse_device_args(
     use_gpu: Optional[Union[str, int, bool]] = None,
-    accelerator: str | None = None,
-    devices: Union[List[int], str, int] | None = None,
+    accelerator: Optional[str] = None,
+    devices: Optional[Union[List[int], str, int]] = None,
     return_device: Literal["torch", "jax"] | None = None,
 ) -> Tuple:
     """Parses `accelerator` and `devices` arguments.
@@ -66,7 +66,7 @@ def parse_device_args(
     if return_device == "torch":
         pl_connector = AcceleratorConnector(accelerator=accelerator, devices=devices)
         accelerator_ = pl_connector._accelerator_flag
-        devices_ = pl_connector._device_flag
+        devices_ = pl_connector._devices_flag
 
         if accelerator_ == "cpu":
             device = torch.device("cpu")

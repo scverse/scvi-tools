@@ -3,7 +3,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Dict, List, Optional, Sequence, Type, Union
+from typing import Dict, Optional, Sequence, Type, Union
 from uuid import uuid4
 
 import numpy as np
@@ -591,8 +591,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         dir_path: str,
         adata: Optional[AnnOrMuData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        accelerator: str | None = None,
-        device: Union[List[int], str, int] | None = None,
+        accelerator: Optional[str] = None,
+        device: Optional[Union[str, int]] = None,
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):

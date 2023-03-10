@@ -1,7 +1,7 @@
 import logging
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import anndata
 import numpy as np
@@ -23,8 +23,8 @@ def poisson_gene_selection(
     layer: str | None = None,
     n_top_genes: int = 4000,
     use_gpu: Optional[Union[str, int, bool]] = None,
-    accelerator: str | None = None,
-    device: Union[List[int], str, int] | None = None,
+    accelerator: Optional[str] = None,
+    device: Optional[Union[str, int]] = None,
     subset: bool = False,
     inplace: bool = True,
     n_samples: int = 10000,

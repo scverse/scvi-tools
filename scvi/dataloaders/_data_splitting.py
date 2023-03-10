@@ -12,7 +12,7 @@ from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
-from scvi.model._utils import parse_use_gpu_arg
+from scvi.model._utils import parse_device_args
 
 
 def validate_data_split(
@@ -120,8 +120,8 @@ class DataSplitter(pl.LightningDataModule):
         self.train_idx = permutation[n_val : (n_val + n_train)]
         self.test_idx = permutation[(n_val + n_train) :]
 
-        accelerator, _, self.device = parse_use_gpu_arg(
-            self.use_gpu, return_device=True
+        accelerator, _, self.device = parse_device_args(
+            use_gpu=self.use_gpu, accelerator=None, devices=None, return_device="torch"
         )
         self.pin_memory = (
             True
@@ -294,7 +294,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.val_idx = indices_val.astype(int)
         self.test_idx = indices_test.astype(int)
 
-        gpus = parse_use_gpu_arg(self.use_gpu, return_device=False)
+        gpus = parse_device_args(
+            use_gpu=self.use_gpu, accelerator=None, devices=None, return_device=False
+        )
         self.pin_memory = (
             True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
         )
@@ -388,7 +390,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         adata_manager: AnnDataManager,
         train_size: float = 1.0,
         validation_size: Optional[float] = None,
-        use_gpu: bool = False,
+        use_gpu: Optional[Union[str, int, bool]] = None,
         shuffle: bool = False,
         shuffle_test_val: bool = False,
         batch_size: Optional[int] = None,
