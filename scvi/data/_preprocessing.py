@@ -31,7 +31,7 @@ def poisson_gene_selection(
     batch_key: str = None,
     silent: bool = False,
     minibatch_size: int = 5000,
-) -> pd.DataFrame | None:
+) -> Optional[pd.DataFrame]:
     """Rank and select genes based on the enrichment of zero counts.
 
     Enrichment is considered by comparing data to a Poisson count model.
