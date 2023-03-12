@@ -291,5 +291,5 @@ def _fdr_de_prediction(posterior_probas: pd.Series, fdr: float = 0.05) -> pd.Ser
         np.zeros_like(cumulative_fdr).astype(bool), index=sorted_pgs.index
     )
     is_pred_de.iloc[:d] = True
-    is_pred_de = is_pred_de[original_index]
+    is_pred_de = is_pred_de.loc[original_index]
     return is_pred_de
