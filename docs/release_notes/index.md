@@ -15,6 +15,16 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Use sphinx book theme for documentation {pr}`1673`
 
+
+## Version 0.21
+
+### 0.21.0 (2023-MM-DD)
+
+#### Fixed
+
+-   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`
+
+
 ## Version 0.20
 
 ### 0.20.2 (2023-03-10)
@@ -23,7 +33,6 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Fix `return_dist` docstring of {meth}`scvi.model.base.VAEMixin.get_latent_representation` {pr}`1932`.
 -   Fix hyperlink to pymde docs {pr}`1944`
--   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`
 
 #### Changed
 
