@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 def parse_device_args(
     use_gpu: Optional[Union[str, int, bool]] = None,
-    accelerator: Optional[str] = None,
-    devices: Optional[Union[List[int], str, int]] = None,
+    accelerator: Optional[str] = "auto",
+    devices: Optional[Union[List[int], str, int]] = "auto",
     return_device: Optional[Literal["torch", "jax"]] = None,
 ) -> Tuple:
     """Parses `accelerator` and `devices` arguments.
@@ -29,10 +29,10 @@ def parse_device_args(
     Parameters
     ----------
     use_gpu
-        Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+        Use default GPU if available (if `True`), or index of GPU to use (if int),
         or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
-        anything `use_gpu!=False` will override `accelerator` and `devices` arguments
-        and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+        anything `use_gpu!=None` will override `accelerator` and `devices` arguments
+        and thus replicate previous behavior in v0.20. Will be removed in v1.0.
     accelerator
         Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
         "mps, "auto") as well as custom accelerator instances.
@@ -48,9 +48,9 @@ def parse_device_args(
         * `"jax"`: returns the first Jax device.
         * `None`: does not return a device.
     """
-    if use_gpu is not False:
+    if use_gpu is not None:
         warnings.warn(
-            "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0.0. "
+            "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0. "
             "Please use `accelerator` and `devices` instead.",
             DeprecationWarning,
         )

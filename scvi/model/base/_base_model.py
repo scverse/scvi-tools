@@ -591,8 +591,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         dir_path: str,
         adata: Optional[AnnOrMuData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        accelerator: Optional[str] = None,
-        device: Optional[Union[str, int]] = None,
+        accelerator: Optional[str] = "auto",
+        device: Optional[Union[str, int]] = "auto",
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):
@@ -608,10 +608,10 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
         use_gpu
-            Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+            Use default GPU if available (if `True`), or index of GPU to use (if int),
             or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
-            anything `use_gpu!=False` will override `accelerator` and `devices` arguments
-            and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+            anything `use_gpu!=None` will override `accelerator` and `devices` arguments
+            and thus replicate previous behavior in v0.20. Will be removed in v1.0.
         accelerator
             Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
             "mps, "auto") as well as custom accelerator instances.

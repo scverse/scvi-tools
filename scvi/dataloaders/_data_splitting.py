@@ -98,10 +98,10 @@ class DataSplitter(pl.LightningDataModule):
         self.validation_size = validation_size
         self.data_loader_kwargs = kwargs
 
-        if use_gpu is not False:
+        if use_gpu is not None:
             warnings.warn(
-                "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0.0. "
-                "Please directly pass in `pin_memory` to the `DataLoader` instead.",
+                "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0. "
+                "Please directly pass in `pin_memory` directly for device memory pinning.",
                 DeprecationWarning,
             )
         self.use_gpu = use_gpu
@@ -235,10 +235,10 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
         self.data_loader_kwargs = kwargs
 
-        if use_gpu is not False:
+        if use_gpu is not None:
             warnings.warn(
-                "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0.0. "
-                "Please directly pass in `pin_memory` to the `DataLoader` instead.",
+                "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0. "
+                "Please directly pass in `pin_memory` directly for device memory pinning.",
                 DeprecationWarning,
             )
         self.use_gpu = use_gpu

@@ -124,8 +124,8 @@ class Tangram(BaseModelClass):
         self,
         max_epochs: int = 1000,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        accelerator: Optional[str] = None,
-        devices: Optional[Union[List[int], str, int]] = None,
+        accelerator: Optional[str] = "auto",
+        devices: Optional[Union[List[int], str, int]] = "auto",
         lr: float = 0.1,
         plan_kwargs: Optional[dict] = None,
     ):

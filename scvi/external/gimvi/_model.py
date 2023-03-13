@@ -160,8 +160,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         self,
         max_epochs: int = 200,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        accelerator: Optional[str] = None,
-        devices: Optional[Union[List[int], str, int]] = None,
+        accelerator: Optional[str] = "auto",
+        devices: Optional[Union[List[int], str, int]] = "auto",
         kappa: int = 5,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
@@ -177,10 +177,10 @@ class GIMVI(VAEMixin, BaseModelClass):
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
         use_gpu
-            Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+            Use default GPU if available (if `True`), or index of GPU to use (if int),
             or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
-            anything `use_gpu!=False` will override `accelerator` and `devices` arguments
-            and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+            anything `use_gpu!=None` will override `accelerator` and `devices` arguments
+            and thus replicate previous behavior in v0.20. Will be removed in v1.0.
         accelerator
             Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
             "mps, "auto") as well as custom accelerator instances.
@@ -460,8 +460,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        accelerator: Optional[str] = None,
-        device: Optional[Union[str, int]] = None,
+        accelerator: Optional[str] = "auto",
+        device: Optional[Union[str, int]] = "auto",
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):
@@ -480,10 +480,10 @@ class GIMVI(VAEMixin, BaseModelClass):
             AnnData organized in the same way as data used to train model.
             If None, will check for and load anndata saved with the model.
         use_gpu
-            Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+            Use default GPU if available (if `True`), or index of GPU to use (if int),
             or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
-            anything `use_gpu!=False` will override `accelerator` and `devices` arguments
-            and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+            anything `use_gpu!=None` will override `accelerator` and `devices` arguments
+            and thus replicate previous behavior in v0.20. Will be removed in v1.0.
         accelerator
             Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
             "mps, "auto") as well as custom accelerator instances.

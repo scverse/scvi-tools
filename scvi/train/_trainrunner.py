@@ -29,10 +29,10 @@ class TrainRunner:
     max_epochs
         max_epochs to train for
     use_gpu
-        Use default GPU if available (if `None` or `True`), or index of GPU to use (if int),
+        Use default GPU if available (if `True`), or index of GPU to use (if int),
         or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in
-        anything `use_gpu!=False` will override `accelerator` and `devices` arguments
-        and thus replicate previous behavior in v0.20. Will be removed in v1.0.0.
+        anything `use_gpu!=None` will override `accelerator` and `devices` arguments
+        and thus replicate previous behavior in v0.20. Will be removed in v1.0.
     accelerator
         Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
         "mps, "auto") as well as custom accelerator instances.
@@ -66,8 +66,8 @@ class TrainRunner:
         data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
         max_epochs: int,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        accelerator: Optional[str] = None,
-        devices: Optional[Union[List[int], str, int]] = None,
+        accelerator: Optional[str] = "auto",
+        devices: Optional[Union[List[int], str, int]] = "auto",
         **trainer_kwargs,
     ):
         self.training_plan = training_plan
