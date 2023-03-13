@@ -7,6 +7,7 @@ import anndata
 import numpy as np
 import pandas as pd
 import torch
+from scipy.sparse import issparse
 
 from scvi._decorators import dependencies
 from scvi.utils import track
@@ -474,10 +475,12 @@ def reads_to_fragments(
     -------
     Adds layer with fragment counts in `.layers[fragment_layer]`.
     """
-    if read_layer:
-        data = np.ceil(adata.layers[read_layer].data / 2)
+    adata.layers[fragment_layer] = (
+        adata.layers[read_layer].copy() if read_layer else adata.X.copy()
+    )
+    if issparse(adata.layers[fragment_layer]):
+        adata.layers[fragment_layer].data = np.ceil(
+            adata.layers[fragment_layer].data / 2
+        )
     else:
-        data = np.ceil(adata.X.data / 2)
-
-    adata.layers[fragment_layer] = adata.X.copy()
-    adata.layers[fragment_layer].data = data
+        adata.layers[fragment_layer] = np.ceil(adata.layers[fragment_layer] / 2)
