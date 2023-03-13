@@ -17,6 +17,12 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 0.20
 
+### 0.20.3 (2023-MM-DD)
+
+#### Changed
+
+-   Deprecate `use_gpu` in favor of `accelerator` and `devices` Lightning arguments {pr}`1950`.
+
 ### 0.20.2 (2023-03-10)
 
 #### Fixed
@@ -31,7 +37,6 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Use sphinx autodoc instead of sphinx-autodoc-typehints {pr}`1941`.
 -   Remove .flake8 and .prospector files {pr}`1923`.
 -   Log individual loss terms in {meth}`scvi.module.MULTIVAE.loss` {pr}`1936`.
--   Deprecate `use_gpu` in favor of `accelerator` and `devices` Lightning arguments {pr}`1950`.
 
 ### 0.20.1 (2023-02-21)
 
