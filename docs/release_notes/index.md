@@ -9,6 +9,12 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 0.20
 
+### 0.20.3 (2023-MM-DD)
+
+#### Fixed
+
+-   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`
+
 ### 0.20.2 (2023-03-10)
 
 #### Fixed
