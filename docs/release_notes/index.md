@@ -15,7 +15,6 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Use sphinx book theme for documentation {pr}`1673`
 
-
 ## Version 0.21
 
 ### 0.21.0 (2023-MM-DD)
@@ -23,7 +22,6 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Fixed
 
 -   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`
-
 
 ## Version 0.20
 
