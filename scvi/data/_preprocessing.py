@@ -458,7 +458,7 @@ def add_dna_sequence(
 def reads_to_fragments(
     adata: anndata.AnnData,
     read_layer: Optional[str] = None,
-    fragment_layer: Optional[str] = "fragments",
+    fragment_layer: str = "fragments",
 ) -> None:
     """Convert scATAC-seq read counts to appoximate fragment counts.
 
