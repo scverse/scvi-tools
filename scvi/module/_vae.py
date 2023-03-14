@@ -215,7 +215,7 @@ class VAE(BaseMinifiedModeModuleClass):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            scale_activation="softplus" if use_size_factor_key else "softmax",
+            scale_activation="softplus" if (use_size_factor_key or not use_observed_lib_size) else "softmax",
         )
 
     def _get_inference_input(
