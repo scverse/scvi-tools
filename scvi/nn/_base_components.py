@@ -368,7 +368,7 @@ class DecoderSCVI(nn.Module):
 
         # dropout
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
-        
+
         # library
         if library_activation == "exp":
             self.library_activation = torch.exp
