@@ -323,6 +323,8 @@ class DecoderSCVI(nn.Module):
         Whether to use layer norm in layers
     scale_activation
         Activation layer to use for px_scale_decoder
+    library_activation
+        Activation layer to use for library / scale factor. Use "softplus" for computational stability.
     """
 
     def __init__(
@@ -336,6 +338,7 @@ class DecoderSCVI(nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         scale_activation: Literal["softmax", "softplus"] = "softmax",
+        library_activation: Literal["exp", "softplus"] = "exp",
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -365,6 +368,12 @@ class DecoderSCVI(nn.Module):
 
         # dropout
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
+        
+        # library
+        if library_activation == "exp":
+            self.library_activation = torch.exp
+        elif library_activation == "softplus":
+            self.library_activation = nn.Softplus()
 
     def forward(
         self,
@@ -406,7 +415,7 @@ class DecoderSCVI(nn.Module):
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
-        px_rate = torch.exp(library) * px_scale  # torch.clamp( , max=12)
+        px_rate = self.library_activation(library) * px_scale  # torch.clamp( , max=12)
         px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
         return px_scale, px_r, px_rate, px_dropout
 
