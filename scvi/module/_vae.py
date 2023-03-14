@@ -83,6 +83,9 @@ class VAE(BaseMinifiedModeModuleClass):
     library_log_vars
         1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
+    library_log_vars_weight
+        Weight that allows adjusting the expected variance in library sizes that can be attributed to technical 
+        rather than biological effect. Set library_log_vars_weight < 1.0 to regularise technical effect.
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
@@ -113,6 +116,7 @@ class VAE(BaseMinifiedModeModuleClass):
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
+        library_log_vars_weight: float = 1.0,
         var_activation: Optional[Callable] = None,
     ):
         super().__init__()
@@ -139,7 +143,7 @@ class VAE(BaseMinifiedModeModuleClass):
                 "library_log_means", torch.from_numpy(library_log_means).float()
             )
             self.register_buffer(
-                "library_log_vars", torch.from_numpy(library_log_vars).float()
+                "library_log_vars", torch.from_numpy(library_log_vars * library_log_vars_weight).float()
             )
 
         if self.dispersion == "gene":
