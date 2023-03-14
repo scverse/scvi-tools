@@ -209,9 +209,7 @@ class VAE(BaseMinifiedModeModuleClass):
         # decoder goes from n_latent-dimensional space to n_input-d data
         n_input_decoder = n_latent + n_continuous_cov
         if scale_activation is None:
-            scale_activation = (
-                "softplus" if use_size_factor_key else "softmax"
-            )
+            scale_activation = "softplus" if use_size_factor_key else "softmax"
         self.decoder = DecoderSCVI(
             n_input_decoder,
             n_input,
