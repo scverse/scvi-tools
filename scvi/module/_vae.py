@@ -84,7 +84,7 @@ class VAE(BaseMinifiedModeModuleClass):
         1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
     library_log_vars_weight
-        Weight that allows adjusting the expected variance in library sizes that can be attributed to technical 
+        Weight that allows adjusting the expected variance in library sizes that can be attributed to technical
         rather than biological effect. Set library_log_vars_weight < 1.0 to regularise technical effect.
     library_n_hidden
         Number of hidden layers to use for the encoder that learns library sizes. Default: use n_hidden.
@@ -146,7 +146,8 @@ class VAE(BaseMinifiedModeModuleClass):
                 "library_log_means", torch.from_numpy(library_log_means).float()
             )
             self.register_buffer(
-                "library_log_vars", torch.from_numpy(library_log_vars * library_log_vars_weight).float()
+                "library_log_vars",
+                torch.from_numpy(library_log_vars * library_log_vars_weight).float(),
             )
 
         if self.dispersion == "gene":
@@ -215,7 +216,9 @@ class VAE(BaseMinifiedModeModuleClass):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            scale_activation="softplus" if (use_size_factor_key or not use_observed_lib_size) else "softmax",
+            scale_activation="softplus"
+            if (use_size_factor_key or not use_observed_lib_size)
+            else "softmax",
         )
 
     def _get_inference_input(
