@@ -121,6 +121,7 @@ class VAE(BaseMinifiedModeModuleClass):
         library_log_vars_weight: float = 1.0,
         library_n_hidden: Optional[int] = None,
         var_activation: Optional[Callable] = None,
+        scale_activation: Optional[Literal[["softplus", "softmax"]]] = None,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -207,6 +208,10 @@ class VAE(BaseMinifiedModeModuleClass):
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         n_input_decoder = n_latent + n_continuous_cov
+        if scale_activation is None:
+            scale_activation = (
+                "softplus" if use_size_factor_key else "softmax"
+            )
         self.decoder = DecoderSCVI(
             n_input_decoder,
             n_input,
@@ -216,9 +221,7 @@ class VAE(BaseMinifiedModeModuleClass):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            scale_activation="softplus"
-            if (use_size_factor_key or not use_observed_lib_size)
-            else "softmax",
+            scale_activation=scale_activation,
         )
 
     def _get_inference_input(
