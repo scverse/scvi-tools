@@ -86,6 +86,8 @@ class VAE(BaseMinifiedModeModuleClass):
     library_log_vars_weight
         Weight that allows adjusting the expected variance in library sizes that can be attributed to technical 
         rather than biological effect. Set library_log_vars_weight < 1.0 to regularise technical effect.
+    library_n_hidden
+        Number of hidden layers to use for the encoder that learns library sizes. Default: use n_hidden.
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
@@ -117,6 +119,7 @@ class VAE(BaseMinifiedModeModuleClass):
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
         library_log_vars_weight: float = 1.0,
+        library_n_hidden: Optional[int] = None,
         var_activation: Optional[Callable] = None,
     ):
         super().__init__()
@@ -186,12 +189,14 @@ class VAE(BaseMinifiedModeModuleClass):
             return_dist=True,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
+        if library_n_hidden is None:
+            library_n_hidden = n_hidden
         self.l_encoder = Encoder(
             n_input_encoder,
             1,
             n_layers=1,
             n_cat_list=encoder_cat_list,
-            n_hidden=n_hidden,
+            n_hidden=library_n_hidden,
             dropout_rate=dropout_rate,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_encoder,
