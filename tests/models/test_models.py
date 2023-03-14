@@ -1249,37 +1249,24 @@ def test_totalvi(save_path):
 
     # test automatic transfer_anndata_setup
     adata = synthetic_iid()
+    # no protein names so we test our auto generation
     TOTALVI.setup_anndata(
         adata,
         batch_key="batch",
         protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
     )
     model = TOTALVI(adata)
+    model.train(1, train_size=0.5)
     adata2 = synthetic_iid()
     model.get_elbo(adata2)
 
     # test that we catch incorrect mappings
-    adata = synthetic_iid()
-    TOTALVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
-    )
     adata2 = synthetic_iid()
     adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"], inplace=True)
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
 
     # test that same mapping different order is okay
-    adata = synthetic_iid()
-    TOTALVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
-    )
     adata2 = synthetic_iid()
     adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"], inplace=True)
     model.get_elbo(adata2)  # should automatically transfer setup
