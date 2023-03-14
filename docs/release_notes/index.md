@@ -15,7 +15,6 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Use sphinx book theme for documentation {pr}`1673`
 
-
 #### Added
 
 -   Added {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
