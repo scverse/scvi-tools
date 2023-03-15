@@ -91,6 +91,9 @@ class VAE(BaseMinifiedModeModuleClass):
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
+    scale_activation
+        String naming the activation function to use for transforming decoder output 
+        before applying per cell normalisation.
     """
 
     def __init__(
@@ -121,7 +124,7 @@ class VAE(BaseMinifiedModeModuleClass):
         library_log_vars_weight: float = 1.0,
         library_n_hidden: Optional[int] = None,
         var_activation: Optional[Callable] = None,
-        scale_activation: Optional[Literal[["softplus", "softmax"]]] = None,
+        scale_activation: Optional[Literal["softplus", "softmax"]] = None,
     ):
         super().__init__()
         self.dispersion = dispersion
