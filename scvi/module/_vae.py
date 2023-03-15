@@ -92,7 +92,7 @@ class VAE(BaseMinifiedModeModuleClass):
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
     scale_activation
-        String naming the activation function to use for transforming decoder output 
+        String naming the activation function to use for transforming decoder output
         before applying per cell normalisation.
     """
 
