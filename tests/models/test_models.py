@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import torch
 from flax import linen as nn
-from pytorch_lightning.callbacks import LearningRateMonitor
+from lightning.pytorch.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 

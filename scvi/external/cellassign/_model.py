@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from pytorch_lightning.callbacks import Callback
+from lightning.pytorch.callbacks import Callback
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager

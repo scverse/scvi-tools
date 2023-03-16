@@ -50,7 +50,7 @@ class Trainer(TunableMixin, pl.Trainer):
         Whether to enable or disable the model summarization.
     early_stopping
         Whether to perform early stopping with respect to the validation set. This
-        automatically adds a :class:`~pytorch_lightning.callbacks.early_stopping.EarlyStopping`
+        automatically adds a :class:`~lightning.pytorch.callbacks.early_stopping.EarlyStopping`
         instance. A custom instance can be passed by using the callbacks argument and
         setting this to `False`.
     early_stopping_monitor
