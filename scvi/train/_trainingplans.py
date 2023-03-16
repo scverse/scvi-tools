@@ -631,11 +631,10 @@ class AdversarialTrainingPlan(TrainingPlan):
             )
             config2 = {"optimizer": optimizer2}
 
-            # bug in pytorch lightning requires this way to return
+            # pytorch lightning requires this way to return
             opts = [config1.pop("optimizer"), config2["optimizer"]]
             if "lr_scheduler" in config1:
-                config1["scheduler"] = config1.pop("lr_scheduler")
-                scheds = [config1]
+                scheds = [config1["lr_scheduler"]]
                 return opts, scheds
             else:
                 return opts
