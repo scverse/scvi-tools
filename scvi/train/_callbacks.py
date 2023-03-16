@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.utilities import rank_zero_info
+from lightning.pytorch.utilities import rank_zero_info
 
 from scvi.dataloaders import AnnDataLoader
 
