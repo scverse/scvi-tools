@@ -975,7 +975,9 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         _opt = self.optimizers()
         _opt.step()
 
-        return {"loss": loss}
+        out_dict = {"loss": loss}
+        self.training_step_outputs.append(out_dict)
+        return out_dict
 
     def configure_optimizers(self):
         """Shim optimizer for PyTorch Lightning.

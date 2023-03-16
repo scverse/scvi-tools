@@ -3,8 +3,8 @@ import warnings
 from typing import List, Literal, Optional, Union
 
 import lightning.pytorch as pl
-from pytorch_lightning.accelerators import Accelerator
-from pytorch_lightning.loggers import Logger
+from lightning.pytorch.accelerators import Accelerator
+from lightning.pytorch.loggers import Logger
 
 from scvi import settings
 from scvi.autotune._types import Tunable, TunableMixin
