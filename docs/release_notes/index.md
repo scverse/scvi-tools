@@ -14,6 +14,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Changed
 
 -   Use sphinx book theme for documentation {pr}`1673`
+-   Update to lightning 2.0 {pr}`1961`
+-   {class}`scvi.train.AdversarialTrainingPlan` no longer encodes data twice during a training step, instead uses same latent for both optimizers {pr}`1961`
 
 ## Version 0.20
 
