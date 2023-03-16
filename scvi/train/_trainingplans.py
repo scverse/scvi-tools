@@ -579,7 +579,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             self.manual_backward(loss)
             opt2.step()
 
-    def on_training_epoch_end(self):
+    def on_train_epoch_end(self):
         """Update the learning rate via scheduler steps."""
         if "validation" in self.lr_scheduler_metric or not self.reduce_lr_on_plateau:
             return
@@ -848,7 +848,7 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
         self.training_step_outputs.append(out_dict)
         return out_dict
 
-    def on_training_epoch_end(self):
+    def on_train_epoch_end(self):
         """Training epoch end for Pyro training."""
         outputs = self.training_step_outputs
         elbo = 0
