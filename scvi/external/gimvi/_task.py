@@ -112,7 +112,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             "n_obs": loss_output.n_obs_minibatch,
         }
 
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self, outputs):
         """Aggregate validation step information."""
         n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
         for dl_out in outputs:

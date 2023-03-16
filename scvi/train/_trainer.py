@@ -77,11 +77,6 @@ class Trainer(TunableMixin, pl.Trainer):
         If `True`, defaults to the default pytorch lightning logger.
     log_every_n_steps
         How often to log within steps. This does not affect epoch-level logging.
-    replace_sampler_ddp
-        Explicitly enables or disables sampler replacement. If `True`, by default it will
-        add shuffle=True for train sampler and shuffle=False for val/test sampler. If you
-        want to customize it,  you can set replace_sampler_ddp=False and add your own
-        distributed sampler.
     **kwargs
         Other keyword args for :class:`~pytorch_lightning.trainer.Trainer`
     """
@@ -109,7 +104,6 @@ class Trainer(TunableMixin, pl.Trainer):
         simple_progress_bar: bool = True,
         logger: Union[Optional[Logger], bool] = None,
         log_every_n_steps: int = 10,
-        replace_sampler_ddp: bool = True,
         **kwargs,
     ):
         if default_root_dir is None:
@@ -154,7 +148,6 @@ class Trainer(TunableMixin, pl.Trainer):
             enable_model_summary=enable_model_summary,
             logger=logger,
             log_every_n_steps=log_every_n_steps,
-            replace_sampler_ddp=replace_sampler_ddp,
             enable_progress_bar=enable_progress_bar,
             **kwargs,
         )

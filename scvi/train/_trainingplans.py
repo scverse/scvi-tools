@@ -815,7 +815,7 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
         )
         return {"loss": loss}
 
-    def training_epoch_end(self, outputs):
+    def on_training_epoch_end(self, outputs):
         """Training epoch end for Pyro training."""
         elbo = 0
         n = 0
