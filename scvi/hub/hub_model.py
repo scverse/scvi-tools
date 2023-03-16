@@ -9,6 +9,7 @@ from typing import Optional, Type, Union
 
 import anndata
 import rich
+import torch
 from anndata import AnnData
 from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
 from rich.markdown import Markdown
@@ -248,19 +249,25 @@ class HubModel:
     def load_model(
         self,
         adata: Optional[AnnData] = None,
+        device: Optional[Union[str, torch.device]] = "cpu",
     ):
         """Loads the model.
 
         Parameters
         ----------
         adata
-            The data to  load the model with, if not None. If None, we'll try to load the model using the data
+            The data to load the model with, if not None. If None, we'll try to load the model using the data
             at ``self._adata_path``. If that file does not exist, we'll try to load the model using
             :meth:`~scvi.hub.HubModel.large_training_adata`. If that does not exist either, we'll error out.
+        device
+            The device to load the model on, passed in as `map_location` to
+            :meth:`~torch.load`.
         """
         logger.info("Loading model...")
         # get the class name for this model (e.g. TOTALVI)
-        attr_dict, _, _, _ = _load_saved_files(self._local_dir, load_adata=False)
+        attr_dict, _, _, _ = _load_saved_files(
+            self._local_dir, load_adata=False, map_location=device
+        )
         cls_name = attr_dict["registry_"]["model_name"]
         python_module = importlib.import_module(self.metadata.model_parent_module)
         model_cls = getattr(python_module, cls_name)

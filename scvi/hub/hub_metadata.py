@@ -1,8 +1,9 @@
 import json
 import os
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Union
 
+import torch
 from huggingface_hub import ModelCard, ModelCardData
 
 from scvi.data import AnnDataManager
@@ -42,6 +43,7 @@ class HubMetadata:
         cls,
         local_dir: str,
         anndata_version: str,
+        device: Optional[Union[str, torch.device]] = "cpu",
         **kwargs,
     ):
         """Create a `HubMetadata` object from a local directory.
@@ -52,10 +54,15 @@ class HubMetadata:
             The local directory containing the model files.
         anndata_version
             The version of anndata used during model training.
+        device
+            The device to load the model on, passed in as `map_location` to
+            :meth:`~torch.load`.
         kwargs
             Additional keyword arguments to pass to the HubMetadata initializer.
         """
-        attr_dict, _, _, _ = _load_saved_files(local_dir, load_adata=False)
+        attr_dict, _, _, _ = _load_saved_files(
+            local_dir, load_adata=False, map_location=device
+        )
         scvi_version = attr_dict["registry_"]["scvi_version"]
 
         return cls(
@@ -145,6 +152,7 @@ class HubModelCardHelper:
         license_info: str,
         anndata_version: str,
         data_is_minified: Optional[bool] = None,
+        device: Optional[Union[str, torch.device]] = "cpu",
         **kwargs,
     ):
         """Create a `HubModelCardHelper` object from a local directory.
@@ -159,10 +167,15 @@ class HubModelCardHelper:
             The version of anndata used during model training.
         data_is_minified
             Whether the training data uploaded with the model has been minified.
+        device
+            The device to load the model on, passed in as `map_location` to
+            :meth:`~torch.load`.
         kwargs
             Additional keyword arguments to pass to the HubModelCardHelper initializer.
         """
-        attr_dict, _, _, _ = _load_saved_files(local_dir, load_adata=False)
+        attr_dict, _, _, _ = _load_saved_files(
+            local_dir, load_adata=False, map_location=device
+        )
         model_init_params = attr_dict["init_params_"]
         registry = attr_dict["registry_"]
         model_cls_name = registry["model_name"]
