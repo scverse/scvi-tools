@@ -1,6 +1,6 @@
 from typing import Callable, Dict
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 
 try:
     from ray.tune.integration.pytorch_lightning import TuneCallback

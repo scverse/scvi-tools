@@ -2,8 +2,8 @@ import warnings
 from copy import deepcopy
 from typing import Optional, Tuple
 
+import lightning.pytorch as pl
 import numpy as np
-import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping

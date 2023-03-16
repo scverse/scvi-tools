@@ -5,10 +5,10 @@ from typing import Callable, Dict, Iterable, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
+import lightning.pytorch as pl
 import numpy as np
 import optax
 import pyro
-import pytorch_lightning as pl
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
