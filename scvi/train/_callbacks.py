@@ -20,7 +20,7 @@ class SubSampleLabels(Callback):
 
     def on_train_epoch_start(self, trainer, pl_module):
         """Subsample labels at the beginning of each epoch."""
-        trainer.train_dataloader.loaders.resample_labels()
+        trainer.train_dataloader.resample_labels()
         super().on_train_epoch_start(trainer, pl_module)
 
 

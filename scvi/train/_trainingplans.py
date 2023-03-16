@@ -548,7 +548,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
 
         opts = self.optimizers()
-        if len(opts) == 1:
+        if not isinstance(opts, list):
             opt1 = opts
             opt2 = None
         else:

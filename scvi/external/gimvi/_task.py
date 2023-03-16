@@ -32,7 +32,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             else self.scale_adversarial_loss
         )
         opts = self.optimizers()
-        if len(opts) == 1:
+        if not isinstance(opts, list):
             opt1 = opts
             opt2 = None
         else:
