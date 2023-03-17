@@ -1,5 +1,5 @@
 from math import ceil, floor
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -11,6 +11,7 @@ from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
+from scvi.model._utils import parse_device_args
 
 
 def validate_data_split(
@@ -338,7 +339,15 @@ class DeviceBackedDataSplitter(DataSplitter):
     shuffle_test_val
         Shuffle test and validation indices.
     batch_size
-        batch size of each iteration. If `None`, do not minibatch
+        batch size of each iteration. If `None`, do not minibatch.
+     accelerator
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+        "mps, "auto") as well as custom accelerator instances.
+    device
+        The device to use. Can be set to a positive number (int or str), a sequence of
+        device indices (list or str), the value ``-1`` to indicate all available devices
+        should be used, or ``"auto"`` for automatic selection based on the chosen
+        accelerator.
     pin_memory
         Whether to copy tensors into device pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
@@ -363,6 +372,8 @@ class DeviceBackedDataSplitter(DataSplitter):
         shuffle: bool = False,
         shuffle_test_val: bool = False,
         batch_size: Optional[int] = None,
+        accelerator: Optional[str] = "auto",
+        device: Optional[Union[List[int], str, int]] = "auto",
         pin_memory: bool = False,
         **kwargs,
     ):
@@ -376,6 +387,11 @@ class DeviceBackedDataSplitter(DataSplitter):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.shuffle_test_val = shuffle_test_val
+        _, _, self.device = parse_device_args(
+            accelerator=accelerator,
+            devices=device,
+            return_device="torch",
+        )
 
     def setup(self, stage: Optional[str] = None):
         """Create the train, validation, and test indices."""
