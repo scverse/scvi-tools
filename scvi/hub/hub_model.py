@@ -259,9 +259,9 @@ class HubModel:
         """
         logger.info("Loading model...")
         # get the class name for this model (e.g. TOTALVI)
-        cls_name = self.metadata.cls_name
+        model_cls_name = self.metadata.model_cls_name
         python_module = importlib.import_module(self.metadata.model_parent_module)
-        model_cls = getattr(python_module, cls_name)
+        model_cls = getattr(python_module, model_cls_name)
         if adata is not None or os.path.isfile(self._adata_path):
             self._model = model_cls.load(os.path.dirname(self._model_path), adata=adata)
         else:

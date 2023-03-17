@@ -24,7 +24,7 @@ class HubMetadata:
         The version of `scvi-tools` that the model was trained with.
     anndata_version
         The version of anndata used during model training.
-    cls_name
+    model_cls_name
         The name of the model class.
     training_data_url
         Link to the training data used to train the model, if it is too large to be uploaded to the hub. This can be
@@ -37,7 +37,7 @@ class HubMetadata:
 
     scvi_version: str
     anndata_version: str
-    cls_name: str
+    model_cls_name: str
     training_data_url: Optional[str] = None
     model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
 
@@ -66,12 +66,12 @@ class HubMetadata:
             local_dir, load_adata=False, map_location=map_location
         )
         scvi_version = attr_dict["registry_"]["scvi_version"]
-        cls_name = attr_dict["registry_"]["model_name"]
+        model_cls_name = attr_dict["registry_"]["model_name"]
 
         return cls(
             scvi_version,
             anndata_version,
-            cls_name,
+            model_cls_name,
             **kwargs,
         )
 
