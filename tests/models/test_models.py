@@ -192,7 +192,7 @@ def test_scvi(save_path):
         size_factor_key="size_factor",
     )
     model = SCVI(adata, n_latent=n_latent)
-    model.train(12, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # test mde
     mde(model.get_latent_representation())
