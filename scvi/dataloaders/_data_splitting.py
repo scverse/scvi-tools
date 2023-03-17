@@ -1,4 +1,3 @@
-import warnings
 from math import ceil, floor
 from typing import Dict, List, Optional, Union
 
@@ -12,7 +11,6 @@ from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
-from scvi.model._utils import parse_device_args
 
 
 def validate_data_split(
@@ -66,9 +64,9 @@ class DataSplitter(pl.LightningDataModule):
         float, or None (default is 0.9)
     validation_size
         float, or None (default is None)
-    use_gpu
-        Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+    pin_memory
+        Whether to copy tensors into device pinned memory before returning them. Passed
+        into :class:`~scvi.data.AnnDataLoader`.
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -89,22 +87,15 @@ class DataSplitter(pl.LightningDataModule):
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        pin_memory: bool = False,
         **kwargs,
     ):
         super().__init__()
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
+        self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
         self.data_loader_kwargs = kwargs
-
-        if use_gpu is not None:
-            warnings.warn(
-                "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0. "
-                "Please directly pass in `pin_memory` directly for device memory pinning.",
-                DeprecationWarning,
-            )
-        self.use_gpu = use_gpu
 
         self.n_train, self.n_val = validate_data_split(
             self.adata_manager.adata.n_obs, self.train_size, self.validation_size
@@ -119,15 +110,6 @@ class DataSplitter(pl.LightningDataModule):
         self.val_idx = permutation[:n_val]
         self.train_idx = permutation[n_val : (n_val + n_train)]
         self.test_idx = permutation[(n_val + n_train) :]
-
-        accelerator, _, self.device = parse_device_args(
-            use_gpu=self.use_gpu, accelerator=None, devices=None, return_device="torch"
-        )
-        self.pin_memory = (
-            True
-            if (settings.dl_pin_memory_gpu_training and accelerator == "gpu")
-            else False
-        )
 
     def train_dataloader(self):
         """Create train data loader."""
@@ -186,9 +168,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         float, or None (default is None)
     n_samples_per_label
         Number of subsamples for each label class to sample per epoch
-    use_gpu
-        Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+    pin_memory
+        Whether to copy tensors into device pinned memory before returning them. Passed
+        into :class:`~scvi.data.AnnDataLoader`.
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -211,7 +193,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         n_samples_per_label: Optional[int] = None,
-        use_gpu: bool = False,
+        pin_memory: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -233,15 +215,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
 
+        self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
         self.data_loader_kwargs = kwargs
-
-        if use_gpu is not None:
-            warnings.warn(
-                "The `use_gpu` argument is deprecated in v0.20 and will be removed in v1.0. "
-                "Please directly pass in `pin_memory` directly for device memory pinning.",
-                DeprecationWarning,
-            )
-        self.use_gpu = use_gpu
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
@@ -293,13 +268,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.train_idx = indices_train.astype(int)
         self.val_idx = indices_val.astype(int)
         self.test_idx = indices_test.astype(int)
-
-        gpus = parse_device_args(
-            use_gpu=self.use_gpu, accelerator=None, devices=None, return_device=None
-        )
-        self.pin_memory = (
-            True if (settings.dl_pin_memory_gpu_training and gpus != 0) else False
-        )
 
         if len(self._labeled_indices) != 0:
             self.data_loader_class = SemiSupervisedDataLoader
@@ -365,15 +333,17 @@ class DeviceBackedDataSplitter(DataSplitter):
         float, or None (default is 0.9)
     validation_size
         float, or None (default is None)
-    use_gpu
-        Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
     shuffle
         if ``True``, shuffles indices before sampling for training set
     shuffle_test_val
         Shuffle test and validation indices.
     batch_size
         batch size of each iteration. If `None`, do not minibatch
+    pin_memory
+        Whether to copy tensors into device pinned memory before returning them. Passed
+        into :class:`~scvi.data.AnnDataLoader`.
+    **kwargs
+        Keyword arguments for :class:`~scvi.data.DataSplitter`.
 
     Examples
     --------
@@ -394,6 +364,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         shuffle: bool = False,
         shuffle_test_val: bool = False,
         batch_size: Optional[int] = None,
+        pin_memory: bool = False,
         **kwargs,
     ):
         super().__init__(
@@ -401,6 +372,7 @@ class DeviceBackedDataSplitter(DataSplitter):
             train_size=train_size,
             validation_size=validation_size,
             use_gpu=use_gpu,
+            pin_memory=pin_memory,
             **kwargs,
         )
         self.batch_size = batch_size

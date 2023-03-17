@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 from pathlib import Path
 from typing import Literal, Union
 
@@ -54,7 +55,7 @@ class ScviConfig:
         seed: int = 0,
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
-        dl_pin_memory_gpu_training: bool = False,
+        dl_pin_memory_gpu_training: bool = False,  # TODO: Remove in v1.0
         jax_preallocate_gpu_memory: bool = False,
     ):
         self.seed = seed
@@ -64,7 +65,9 @@ class ScviConfig:
         self.progress_bar_style = progress_bar_style
         self.logging_dir = logging_dir
         self.dl_num_workers = dl_num_workers
-        self.dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
+        self.dl_pin_memory_gpu_training = (
+            dl_pin_memory_gpu_training  # TODO: Remove in v1.0
+        )
         self._num_threads = None
         self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
         self.verbosity = verbosity
@@ -97,14 +100,22 @@ class ScviConfig:
         """Number of workers for PyTorch data loaders (Default is 0)."""
         self._dl_num_workers = dl_num_workers
 
+    # TODO: Remove in v1.0
     @property
     def dl_pin_memory_gpu_training(self) -> int:
         """Set `pin_memory` in data loaders when using a GPU for training."""
         return self._dl_pin_memory_gpu_training
 
+    # TODO: Remove in v1.0
     @dl_pin_memory_gpu_training.setter
     def dl_pin_memory_gpu_training(self, dl_pin_memory_gpu_training: int):
         """Set `pin_memory` in data loaders when using a GPU for training."""
+        warnings.warn(
+            "Setting `dl_pin_memory_gpu_training` is deprecated in v0.20. "
+            "and will be removed in v1.0. Please pass in `pin_memory` to "
+            "the dataloaders instead.",
+            DeprecationWarning,
+        )
         self._dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
 
     @property

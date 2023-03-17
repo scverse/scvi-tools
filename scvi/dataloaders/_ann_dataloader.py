@@ -102,18 +102,22 @@ class AnnDataLoader(DataLoader):
         Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
         and value equal to desired numpy loading type (later made into torch tensor).
         If ``None``, defaults to all registered data.
-    data_loader_kwargs
-        Keyword arguments for :class:`~torch.utils.data.DataLoader`
+    drop_last
+        if int, drops the last batch if its length is less than drop_last.
+        if drop_last == True, drops last non-full batch.
+        if drop_last == False, iterate over all batches.
     iter_ndarray
-        Whether to iterate over numpy arrays instead of torch tensors
+        Whether to iterate over numpy arrays instead of torch tensors.
+    data_loader_kwargs
+        Keyword arguments for :class:`~torch.utils.data.DataLoader`.
     """
 
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        shuffle=False,
-        indices=None,
-        batch_size=128,
+        shuffle: bool = False,
+        indices: np.ndarray = None,
+        batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,
         drop_last: Union[bool, int] = False,
         iter_ndarray: bool = False,
