@@ -7,7 +7,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## Version 1.0
+## [Unreleased]
 
 ### 1.0.0 (2023-MM-DD)
 
@@ -17,7 +17,18 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 0.20
 
-### 0.20.2 (2023-MM-DD)
+### 0.20.3 (2023-MM-DD)
+
+#### Fixed
+
+-   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`
+-   Fix peakVI scArches test case {pr}`1962`
+
+#### Changed
+
+-   Allow passing in `map_location` into {meth}`~scvi.hub.Metadata.from_dir` and {meth}`~scvi.hub.HubModelCardHelper.from_dir` and set default to `"cpu"` {pr}`1960`.
+
+### 0.20.2 (2023-03-10)
 
 #### Fixed
 
