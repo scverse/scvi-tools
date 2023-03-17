@@ -225,7 +225,6 @@ class GIMVI(VAEMixin, BaseModelClass):
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
-                use_gpu=use_gpu,
             )
             ds.setup()
             train_dls.append(ds.train_dataloader())

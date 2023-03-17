@@ -1,5 +1,5 @@
 from math import ceil, floor
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 import pytorch_lightning as pl
@@ -360,7 +360,6 @@ class DeviceBackedDataSplitter(DataSplitter):
         adata_manager: AnnDataManager,
         train_size: float = 1.0,
         validation_size: Optional[float] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         shuffle: bool = False,
         shuffle_test_val: bool = False,
         batch_size: Optional[int] = None,
@@ -371,7 +370,6 @@ class DeviceBackedDataSplitter(DataSplitter):
             adata_manager=adata_manager,
             train_size=train_size,
             validation_size=validation_size,
-            use_gpu=use_gpu,
             pin_memory=pin_memory,
             **kwargs,
         )

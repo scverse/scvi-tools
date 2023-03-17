@@ -150,7 +150,6 @@ class SCBASSET(BaseModelClass):
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            use_gpu=use_gpu,
             # We don't want to dataload the batch ids into the module
             data_and_attributes={
                 REGISTRY_KEYS.X_KEY: np.float32,

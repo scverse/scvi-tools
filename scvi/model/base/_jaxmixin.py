@@ -75,8 +75,6 @@ class JaxTrainingMixin:
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            # for pinning memory only
-            use_gpu=False,
             iter_ndarray=True,
         )
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
