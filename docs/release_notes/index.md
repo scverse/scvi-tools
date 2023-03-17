@@ -24,6 +24,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Fixed
 
 -   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`
+-   Fix peakVI scArches test case {pr}`1962`
 
 ### 0.20.2 (2023-03-10)
 
