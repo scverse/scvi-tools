@@ -27,6 +27,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Changed
 
 -   Deprecate `use_gpu` in favor of `accelerator` and `devices` Lightning arguments {pr}`1950`.
+-   Allow passing in `map_location` into {meth}`~scvi.hub.Metadata.from_dir` and {meth}`~scvi.hub.HubModelCardHelper.from_dir` and set default to `"cpu"` {pr}`1960`.
 
 ### 0.20.2 (2023-03-10)
 
