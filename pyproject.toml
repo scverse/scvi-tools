@@ -71,6 +71,7 @@ docs = [
   "sphinxcontrib-bibtex>=1.0.0",
   "myst-parser",
   "myst-nb",
+  "sphinx-autodoc-typehints",
 ]
 autotune = [
   "hyperopt>=0.2",
