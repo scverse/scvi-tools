@@ -161,6 +161,9 @@ ignore = [
     "D417",
 ]
 
+[tool.ruff.pydocstyle]
+convention = "numpy"
+
 [tool.ruff.per-file-ignores]
 "docs/*" = ["I", "BLE001"]
 "tests/*" = ["D"]
