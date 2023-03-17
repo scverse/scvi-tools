@@ -15,7 +15,7 @@ def prep_model():
 
 
 def test_hub_metadata(request, save_path):
-    hm = HubMetadata("0.17.4", "0.8.0")
+    hm = HubMetadata("0.17.4", "0.8.0", "SCVI")
     assert hm.scvi_version == "0.17.4"
     assert hm.anndata_version == "0.8.0"
     assert hm.training_data_url is None
@@ -24,6 +24,7 @@ def test_hub_metadata(request, save_path):
     d = {
         "scvi_version": "0.15.4",
         "anndata_version": "0.8.1",
+        "model_cls_name": "SCVI",
         "training_data_url": None,
         "model_parent_module": "bar",
     }
