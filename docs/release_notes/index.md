@@ -13,7 +13,12 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Changed
 
--   Use sphinx book theme for documentation {pr}`1673`
+-   Use sphinx book theme for documentation {pr}`1673`.
+-   Switch back to using sphinx autodoc typehints {pr}`1970`.
+
+#### Removed
+
+-   Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
 
 ## Version 0.20
 
