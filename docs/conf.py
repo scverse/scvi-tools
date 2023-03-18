@@ -16,7 +16,7 @@ sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
 
 info = metadata("scvi-tools")
 project_name = info["Name"]
-author = "test"
+author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
 version = info["Version"]
 repository_url = f"https://github.com/scverse/{project_name}"
