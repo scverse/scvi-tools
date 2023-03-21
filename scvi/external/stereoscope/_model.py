@@ -1,5 +1,4 @@
 import logging
-import warnings
 from typing import Literal, Optional, Tuple, Union
 
 import numpy as np
@@ -206,7 +205,6 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: RNAStereoscope,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
-        layer: Optional[str] = None,
         **model_kwargs,
     ):
         """Alternate constructor for exploiting a pre-trained model on RNA-seq data.
@@ -220,26 +218,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         prior_weight
             how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
             procedure, "minibatch" is the procedure implemented in Stereoscope.
-        layer
-            if not `None`, uses this as the key in `adata.layers` for raw count data. Deprecated.
         **model_kwargs
             Keyword args for :class:`~scvi.external.SpatialDeconv`
         """
-        if (
-            layer is not None
-            or st_adata.uns.get("_scvi_uuid")
-            not in SpatialStereoscope._setup_adata_manager_store
-        ):
-            warnings.warn(
-                """
-                    Setting up adata in SpatialStereoscope.from_rna_model is deprecated and
-                    will be removed in version 1.0.0. Please use SpatialStereoscope.setup_anndata
-                    before initializing model.
-                """,
-                category=DeprecationWarning,
-            )
-            cls.setup_anndata(st_adata, layer=layer)
-
         return cls(
             st_adata,
             sc_model.module.get_params(),

@@ -19,20 +19,21 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Removed
 
 -   Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
+-   Remove ability to set up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model`, which was deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1949`.
 
 ## Version 0.20
 
-### 0.20.3 (2023-MM-DD)
+### 0.20.3 (2023-03-21)
 
 #### Fixed
 
--   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`
--   Fix peakVI scArches test case {pr}`1962`
+-   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`.
+-   Fix peakVI scArches test case {pr}`1962`.
 
 #### Changed
 
 -   Allow passing in `map_location` into {meth}`~scvi.hub.Metadata.from_dir` and {meth}`~scvi.hub.HubModelCardHelper.from_dir` and set default to `"cpu"` {pr}`1960`.
--   Updated tutorials {pr}`1966`
+-   Updated tutorials {pr}`1966`.
 
 ### 0.20.2 (2023-03-10)
 
