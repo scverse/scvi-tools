@@ -205,7 +205,6 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: RNAStereoscope,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
-        layer: Optional[str] = None,
         **model_kwargs,
     ):
         """Alternate constructor for exploiting a pre-trained model on RNA-seq data.
@@ -219,8 +218,6 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         prior_weight
             how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
             procedure, "minibatch" is the procedure implemented in Stereoscope.
-        layer
-            if not `None`, uses this as the key in `adata.layers` for raw count data. Deprecated.
         **model_kwargs
             Keyword args for :class:`~scvi.external.SpatialDeconv`
         """
