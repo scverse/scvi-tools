@@ -14,6 +14,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Changed
 
 -   Use sphinx book theme for documentation {pr}`1673`
+-   Remove ability to set up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model`, which was deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1949`.
 
 ## Version 0.20
 
