@@ -12,7 +12,6 @@ from mudata import MuData
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
-from scvi._utils import _doc_params
 from scvi.data import AnnDataManager, fields
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
@@ -25,7 +24,7 @@ from scvi.model._utils import (
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
-from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
+from scvi.utils._docstrings import de_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -699,9 +698,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         joint = np.concatenate([rna, protein], axis=1)
         return joint
 
-    @_doc_params(
-        doc_differential_expression=doc_differential_expression,
-    )
+    @de_dsp.dedent
     def differential_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -725,16 +722,27 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         include_protein_background: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\.
-
-        A unified method for differential expression analysis.
-
+        r"""A unified method for differential expression analysis.
 
         Implements `"vanilla"` DE :cite:p:`Lopez18`. and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         protein_prior_count
             Prior count added to protein expression before LFC computation
         scale_protein

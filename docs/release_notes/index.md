@@ -14,7 +14,12 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Changed
 
 -   Use sphinx book theme for documentation {pr}`1673`.
--   Use sphinx book theme for documentation {pr}`1673`
+-   Switch back to using sphinx autodoc typehints {pr}`1970`.
+-   Disable default seed, run `scvi.settings.seed` after import for reproducibility {pr}`1976`.
+
+#### Removed
+
+-   Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
 -   Remove ability to set up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model`, which was deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1949`.
 
 ## Version 0.20
