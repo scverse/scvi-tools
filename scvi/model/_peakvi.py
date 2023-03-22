@@ -9,7 +9,6 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 
 from scvi._constants import REGISTRY_KEYS
-from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -24,7 +23,7 @@ from scvi.model._utils import (
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import PEAKVAE
 from scvi.train._callbacks import SaveBestState
-from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
+from scvi.utils._docstrings import de_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin
 from .base._utils import _de_core
@@ -406,9 +405,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 columns=adata.var_names[region_mask],
             )
 
-    @_doc_params(
-        doc_differential_expression=doc_differential_expression,
-    )
+    @de_dsp.dedent
     def differential_accessibility(
         self,
         adata: Optional[AnnData] = None,
@@ -437,7 +434,21 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         two_sided
             Whether to perform a two-sided test, or a one-sided test.
         **kwargs
