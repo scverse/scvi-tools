@@ -149,7 +149,7 @@ class ScviConfig:
         if seed is None:
             self._seed = None
             warnings.warn(
-                "Since v1.0.0, scvi-tools will use a random seed by default. Run `scvi.settings.seed = 0` to reproduce results from previous versions."
+                "Since v1.0.0, scvi-tools no longer uses a random seed by default. Run `scvi.settings.seed = 0` to reproduce results from previous versions."
             )
         else:
             torch.backends.cudnn.deterministic = True
