@@ -55,8 +55,6 @@ def poisson_gene_selection(
     %(param_use_gpu)s
     %(param_accelerator)s
     %(param_device)s
-    use_gpu
-        Whether to use GPU
     subset
         Inplace subset to highly-variable genes if `True` otherwise merely indicate
         highly variable genes.
@@ -169,9 +167,6 @@ def poisson_gene_selection(
         del expected_fraction_zeros
         del observed_fraction_zeros
         del extra_zeros
-
-        if use_gpu:
-            torch.cuda.empty_cache()
 
         prob_zero_enrichments.append(prob_zero_enrichment.reshape(1, -1))
         obs_frac_zeross.append(obs_frac_zeros.reshape(1, -1))

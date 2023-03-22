@@ -56,6 +56,13 @@ def parse_device_args(
     _accelerator = connector._accelerator_flag
     _devices = connector._devices_flag
 
+    if _accelerator in ["tpu", "ipu", "hpu"]:
+        warnings.warn(
+            f"The selected accelerator `{_accelerator}` has not been extensively ",
+            "tested. Please report any issues in the GitHub repo.",
+            UserWarning,
+        )
+
     # get the first device index
     if isinstance(_devices, list):
         device_idx = _devices[0]
@@ -66,7 +73,7 @@ def parse_device_args(
 
     # auto device should not use multiple devices for non-cpu accelerators
     if devices == "auto" and _accelerator != "cpu":
-        _devices = device_idx
+        _devices = [device_idx]
 
     if return_device == "torch":
         device = torch.device(f"{_accelerator}:{device_idx}")

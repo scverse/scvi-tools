@@ -201,6 +201,7 @@ return_device
     Depending on the value, will either return a PyTorch device (`"torch"`), a Jax
     device (`"jax"`), or neither (`None`)."""
 
+
 devices_dsp = DocstringProcessor(
     param_use_gpu=param_use_gpu,  # TODO: remove in v1.1
     param_accelerator=param_accelerator,

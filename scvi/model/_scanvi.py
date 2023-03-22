@@ -35,6 +35,7 @@ from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 from ._scvi import SCVI
 from .base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
@@ -336,6 +337,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             )
             return pred
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: Optional[int] = None,
@@ -345,6 +347,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -368,9 +372,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
             Minibatch size to use during training.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         plan_kwargs
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -399,7 +403,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             validation_size=validation_size,
             n_samples_per_label=n_samples_per_label,
             batch_size=batch_size,
-            use_gpu=use_gpu,
         )
         training_plan = SemiSupervisedTrainingPlan(self.module, **plan_kwargs)
         if "callbacks" in trainer_kwargs.keys():
@@ -413,6 +416,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             check_val_every_n_epoch=check_val_every_n_epoch,
             **trainer_kwargs,
         )
