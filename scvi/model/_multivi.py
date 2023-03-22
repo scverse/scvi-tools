@@ -13,7 +13,6 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
-from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -37,7 +36,7 @@ from scvi.model.base import (
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan
 from scvi.train._callbacks import SaveBestState
-from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
+from scvi.utils._docstrings import de_dsp, setup_anndata_dsp
 
 from .base._utils import _de_core
 
@@ -700,7 +699,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 index=adata.obs_names[indices],
             )
 
-    @_doc_params(doc_differential_expression=doc_differential_expression)
+    @de_dsp.dedent
     def differential_accessibility(
         self,
         adata: Optional[AnnData] = None,
@@ -721,16 +720,27 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\.
-
-        A unified method for differential accessibility analysis.
-
+        r"""A unified method for differential accessibility analysis.
 
         Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         two_sided
             Whether to perform a two-sided test, or a one-sided test.
         **kwargs
@@ -827,7 +837,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         )
         return result
 
-    @_doc_params(doc_differential_expression=doc_differential_expression)
+    @de_dsp.dedent
     def differential_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -847,14 +857,27 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\.
+        r"""A unified method for differential expression analysis.
 
-        A unified method for differential expression analysis. Implements `"vanilla"`
-        DE :cite:p:`Lopez18` and `"change"` mode DE :cite:p:`Boyeau19`.
+        Implements `"vanilla"` DE :cite:p:`Lopez18` and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 

@@ -1,8 +1,9 @@
 import json
 import os
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Union
 
+import torch
 from huggingface_hub import ModelCard, ModelCardData
 
 from scvi.data import AnnDataManager
@@ -23,6 +24,8 @@ class HubMetadata:
         The version of `scvi-tools` that the model was trained with.
     anndata_version
         The version of anndata used during model training.
+    model_cls_name
+        The name of the model class.
     training_data_url
         Link to the training data used to train the model, if it is too large to be uploaded to the hub. This can be
         a cellxgene explorer session url. However it cannot be a self-hosted session -- it must be from the cellxgene
@@ -34,6 +37,7 @@ class HubMetadata:
 
     scvi_version: str
     anndata_version: str
+    model_cls_name: str
     training_data_url: Optional[str] = None
     model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
 
@@ -42,6 +46,7 @@ class HubMetadata:
         cls,
         local_dir: str,
         anndata_version: str,
+        map_location: Optional[Union[torch.device, str, dict]] = "cpu",
         **kwargs,
     ):
         """Create a `HubMetadata` object from a local directory.
@@ -52,15 +57,21 @@ class HubMetadata:
             The local directory containing the model files.
         anndata_version
             The version of anndata used during model training.
+        map_location
+            The device to map model tensors to, passed into :meth:`~torch.load`.
         kwargs
             Additional keyword arguments to pass to the HubMetadata initializer.
         """
-        attr_dict, _, _, _ = _load_saved_files(local_dir, load_adata=False)
+        attr_dict, _, _, _ = _load_saved_files(
+            local_dir, load_adata=False, map_location=map_location
+        )
         scvi_version = attr_dict["registry_"]["scvi_version"]
+        model_cls_name = attr_dict["registry_"]["model_name"]
 
         return cls(
             scvi_version,
             anndata_version,
+            model_cls_name,
             **kwargs,
         )
 
@@ -145,6 +156,7 @@ class HubModelCardHelper:
         license_info: str,
         anndata_version: str,
         data_is_minified: Optional[bool] = None,
+        map_location: Optional[Union[torch.device, str, dict]] = "cpu",
         **kwargs,
     ):
         """Create a `HubModelCardHelper` object from a local directory.
@@ -159,10 +171,14 @@ class HubModelCardHelper:
             The version of anndata used during model training.
         data_is_minified
             Whether the training data uploaded with the model has been minified.
+        map_location
+            The device to map model tensors to, passed into :meth:`~torch.load`.
         kwargs
             Additional keyword arguments to pass to the HubModelCardHelper initializer.
         """
-        attr_dict, _, _, _ = _load_saved_files(local_dir, load_adata=False)
+        attr_dict, _, _, _ = _load_saved_files(
+            local_dir, load_adata=False, map_location=map_location
+        )
         model_init_params = attr_dict["init_params_"]
         registry = attr_dict["registry_"]
         model_cls_name = registry["model_name"]
