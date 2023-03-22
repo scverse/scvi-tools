@@ -15,6 +15,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Use sphinx book theme for documentation {pr}`1673`.
 -   Switch back to using sphinx autodoc typehints {pr}`1970`.
+-   Disable default seed, run `scvi.settings.seed` after import for reproducibility {pr}`1976`.
 
 #### Removed
 
