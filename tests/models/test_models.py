@@ -818,24 +818,32 @@ def test_backed_anndata_scvi(save_path):
     model.get_elbo()
 
 
-def test_ann_dataloader():
-    a = scvi.data.synthetic_iid()
+@pytest.mark.parametrize(
+    "data", [scvi.data.synthetic_iid(200), scvi.data.synthetic_iid(200, sparse=True)]
+)
+def test_ann_dataloader(data):
     adata_manager = generic_setup_adata_manager(
-        a, batch_key="batch", labels_key="labels"
+        data, batch_key="batch", labels_key="labels"
     )
 
     # test that batch sampler drops the last batch if it has less than 3 cells
-    assert a.n_obs == 400
+    assert data.n_obs == 400
     adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=True)
     assert len(adl) == 1
     for _i, _ in enumerate(adl):
         pass
-    assert _i == 1
+    assert _i == 0
     adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=False)
     assert len(adl) == 2
     for _i, _ in enumerate(adl):
         pass
-    assert _i == 2
+    assert _i == 1
+    adl = AnnDataLoader(adata_manager, batch_size=399, drop_last=False)
+    assert len(adl) == 2
+    for _i, loaded_data in enumerate(adl):
+        loaded_data
+    assert _i == 1
+    assert loaded_data["X"].shape[0] == 1
 
 
 def test_semisupervised_dataloader():
