@@ -543,7 +543,7 @@ def cortex(save_path: str = "data/") -> anndata.AnnData:
 
 
 def synthetic_iid(
-    batch_size: Optional[int] = 128,
+    batch_size: Optional[int] = 200,
     n_genes: Optional[int] = 100,
     n_proteins: Optional[int] = 100,
     n_batches: Optional[int] = 2,

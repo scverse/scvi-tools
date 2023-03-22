@@ -112,9 +112,9 @@ class AnnTorchDataset(Dataset):
         """Get tensors in dictionary from anndata at idx."""
         data_numpy = {}
 
-        if self.is_backed and hasattr(idx, "shape"):
+        if self.is_backed and not isinstance(idx, int):
             # need to sort idxs for h5py datasets
-            idx = idx[np.argsort(idx)]
+            idx = np.sort(idx)
         for key, dtype in self.attributes_and_types.items():
             cur_data = self.data[key]
             # for backed anndata

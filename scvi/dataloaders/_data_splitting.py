@@ -4,12 +4,18 @@ from typing import Dict, List, Optional
 import numpy as np
 import pytorch_lightning as pl
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import (
+    BatchSampler,
+    DataLoader,
+    Dataset,
+    RandomSampler,
+    SequentialSampler,
+)
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
-from scvi.dataloaders._ann_dataloader import AnnDataLoader, BatchSampler
+from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_use_gpu_arg
 
@@ -127,7 +133,7 @@ class DataSplitter(pl.LightningDataModule):
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
-            drop_last=True,
+            drop_last=False,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
@@ -139,7 +145,7 @@ class DataSplitter(pl.LightningDataModule):
                 self.adata_manager,
                 indices=self.val_idx,
                 shuffle=False,
-                drop_last=True,
+                drop_last=False,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -153,7 +159,7 @@ class DataSplitter(pl.LightningDataModule):
                 self.adata_manager,
                 indices=self.test_idx,
                 shuffle=False,
-                drop_last=True,
+                drop_last=False,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -301,7 +307,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
-            drop_last=True,
+            drop_last=False,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
@@ -313,7 +319,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 self.adata_manager,
                 indices=self.val_idx,
                 shuffle=False,
-                drop_last=True,
+                drop_last=False,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -327,7 +333,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 self.adata_manager,
                 indices=self.test_idx,
                 shuffle=False,
-                drop_last=True,
+                drop_last=False,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -436,9 +442,13 @@ class DeviceBackedDataSplitter(DataSplitter):
         if tensor_dict is None:
             return None
         dataset = _DeviceBackedDataset(tensor_dict)
-        indices = np.arange(len(dataset))
-        bs = self.batch_size if self.batch_size is not None else len(indices)
-        sampler = BatchSampler(shuffle=shuffle, indices=indices, batch_size=bs)
+        bs = self.batch_size if self.batch_size is not None else len(dataset)
+        sampler_cls = SequentialSampler if not shuffle else RandomSampler
+        sampler = BatchSampler(
+            sampler=sampler_cls(dataset),
+            batch_size=bs,
+            drop_last=False,
+        )
         return DataLoader(dataset, sampler=sampler, batch_size=None)
 
     def train_dataloader(self):
