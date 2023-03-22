@@ -9,6 +9,12 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## [Unreleased]
 
+### 1.1.0 (2023-MM-DD)
+
+#### Removed
+
+-   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
+
 ### 1.0.0 (2023-MM-DD)
 
 #### Changed
