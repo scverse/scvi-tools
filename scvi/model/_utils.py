@@ -76,7 +76,10 @@ def parse_device_args(
         _devices = [device_idx]
 
     if return_device == "torch":
-        device = torch.device(f"{_accelerator}:{device_idx}")
+        if _accelerator == "cpu":
+            device = torch.device("cpu")
+        else:
+            device = torch.device(f"{_accelerator}:{device_idx}")
         return _accelerator, _devices, device
     elif return_device == "jax":
         device = jax.devices(_accelerator)[device_idx]
