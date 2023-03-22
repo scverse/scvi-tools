@@ -826,18 +826,16 @@ def test_ann_dataloader():
 
     # test that batch sampler drops the last batch if it has less than 3 cells
     assert a.n_obs == 400
-    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=3)
-    assert len(adl) == 2
-    for _i, _ in enumerate(adl):
-        pass
-    assert _i == 1
-    adl = AnnDataLoader(adata_manager, batch_size=398, drop_last=3)
+    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=True)
     assert len(adl) == 1
     for _i, _ in enumerate(adl):
         pass
-    assert _i == 0
-    with pytest.raises(ValueError):
-        AnnDataLoader(adata_manager, batch_size=1, drop_last=2)
+    assert _i == 1
+    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=False)
+    assert len(adl) == 2
+    for _i, _ in enumerate(adl):
+        pass
+    assert _i == 2
 
 
 def test_semisupervised_dataloader():

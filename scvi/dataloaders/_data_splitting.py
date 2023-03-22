@@ -127,7 +127,7 @@ class DataSplitter(pl.LightningDataModule):
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
-            drop_last=3,
+            drop_last=True,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
@@ -139,7 +139,7 @@ class DataSplitter(pl.LightningDataModule):
                 self.adata_manager,
                 indices=self.val_idx,
                 shuffle=False,
-                drop_last=3,
+                drop_last=True,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -153,7 +153,7 @@ class DataSplitter(pl.LightningDataModule):
                 self.adata_manager,
                 indices=self.test_idx,
                 shuffle=False,
-                drop_last=3,
+                drop_last=True,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -301,7 +301,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
-            drop_last=3,
+            drop_last=True,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
@@ -313,7 +313,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 self.adata_manager,
                 indices=self.val_idx,
                 shuffle=False,
-                drop_last=3,
+                drop_last=True,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -327,7 +327,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 self.adata_manager,
                 indices=self.test_idx,
                 shuffle=False,
-                drop_last=3,
+                drop_last=True,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )

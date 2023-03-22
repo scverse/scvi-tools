@@ -15,26 +15,59 @@ logger = logging.getLogger(__name__)
 
 
 class AnnTorchDataset(Dataset):
-    """Extension of torch dataset to get tensors from anndata."""
+    """Extension of torch dataset to get tensors from AnnData.
+
+    Parameters
+    ----------
+    adata_manager
+        :class:`~scvi.data.AnnDataManager` object with a registered AnnData object.
+    getitem_tensors
+        Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
+        and value equal to desired numpy loading type (later made into torch tensor) or list of
+        such keys. A list can be used to subset to certain keys in the event that more tensors than
+        needed have been registered. If ``None``, defaults to all registered data.
+
+    Examples
+    --------
+    >>> sd = AnnTorchDataset(adata_manager, ['X', 'batch'])
+    >>> sd[[0, 1, 2]] # Return the X and batch data both as np.float32
+    >>> sd = AnnTorchDataset(adata_manager, {'X':np.int64, 'batch':np.float32]})
+    >>> sd[[0, 1, 2]] # Return the X as np.int64 and batch as np.float32
+    """
 
     def __init__(
         self,
         adata_manager: AnnDataManager,
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
     ):
+        if adata_manager.adata is None:
+            raise ValueError(
+                "Please run register_fields() on your AnnDataManager object first."
+            )
         self.adata_manager = adata_manager
         self.is_backed = adata_manager.adata.isbacked
         self.attributes_and_types = None
+        if getitem_tensors is not None:
+            data_registry = adata_manager.data_registry
+            for key in (
+                getitem_tensors.keys()
+                if isinstance(getitem_tensors, dict)
+                else getitem_tensors
+            ):
+                if key not in data_registry.keys():
+                    raise ValueError(
+                        f"{key} required for model but not registered with AnnDataManager."
+                    )
         self.getitem_tensors = getitem_tensors
-        self.setup_getitem()
-        self.setup_data_attr()
+        self._setup_getitem()
+        self._set_data_attr()
 
     @property
     def registered_keys(self):
         """Returns the keys of the mappings in scvi data registry."""
         return self.adata_manager.data_registry.keys()
 
-    def setup_data_attr(self):
+    def _set_data_attr(self):
         """Sets data attribute.
 
         Reduces number of times anndata needs to be accessed
@@ -44,8 +77,8 @@ class AnnTorchDataset(Dataset):
             for key, _ in self.attributes_and_types.items()
         }
 
-    def setup_getitem(self):
-        """Sets up the __getitem__ function used by Pytorch.
+    def _setup_getitem(self):
+        """Sets up the __getitem__ function used by PyTorch.
 
         By default, getitem will return every single item registered in the scvi data registry
         and will attempt to infer the correct type. np.float32 for continuous values, otherwise np.int64.
@@ -53,22 +86,6 @@ class AnnTorchDataset(Dataset):
         If you want to specify which specific tensors to return you can pass in a List of keys from
         the scvi data registry. If you want to speficy specific tensors to return as well as their
         associated types, then you can pass in a dictionary with their type.
-
-        Paramaters
-        ----------
-        getitem_tensors:
-            Either a list of keys in the scvi data registry to return when getitem is called
-            or a dictionary mapping keys to numpy types.
-
-        Examples
-        --------
-        >>> sd = AnnTorchDataset(adata_manager, getitem_tensors =['X', 'batch'])
-
-        # following will only return the X and batch both by default as np.float32
-        >>> sd.setup_getitem()
-
-        # This will return X as an integer and batch as np.float32
-        >>> sd.setup_getitem(getitem_tensors  = {'X':np.int64, 'batch':np.float32])
         """
         registered_keys = self.registered_keys
         getitem_tensors = self.getitem_tensors
@@ -126,7 +143,8 @@ class AnnTorchDataset(Dataset):
 
         return data_numpy
 
-    def get_data(self, scvi_data_key):
+    def get_data(self, scvi_data_key: str):
+        """Get the tensor associated with a key."""
         tensors = self.__getitem__(idx=list(range(self.__len__())))
         return tensors[scvi_data_key]
 
