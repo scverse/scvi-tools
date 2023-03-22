@@ -450,7 +450,7 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
         """Add necessary attrs."""
         self.training = None
         self.train_state = None
-        self.seed = settings.seed
+        self.seed = settings.seed if settings.seed is not None else 0
         self.seed_rng = device_selecting_PRNGKey()(self.seed)
         self._set_rngs()
 

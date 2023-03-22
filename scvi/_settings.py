@@ -1,7 +1,8 @@
 import logging
 import os
+import warnings
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal, Optional, Union
 
 import torch
 from pytorch_lightning import seed_everything
@@ -51,7 +52,7 @@ class ScviConfig:
         verbosity: int = logging.INFO,
         progress_bar_style: Literal["rich", "tqdm"] = "tqdm",
         batch_size: int = 128,
-        seed: int = 0,
+        seed: Optional[int] = None,
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
         dl_pin_memory_gpu_training: bool = False,
@@ -143,12 +144,18 @@ class ScviConfig:
         return self._seed
 
     @seed.setter
-    def seed(self, seed: int):
+    def seed(self, seed: Union[int, None] = None):
         """Random seed for torch and numpy."""
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        seed_everything(seed)
-        self._seed = seed
+        if seed is None:
+            self._seed = None
+            warnings.warn(
+                "Since v1.0.0, scvi-tools no longer uses a random seed by default. Run `scvi.settings.seed = 0` to reproduce results from previous versions."
+            )
+        else:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+            seed_everything(seed)
+            self._seed = seed
 
     @property
     def verbosity(self) -> int:
