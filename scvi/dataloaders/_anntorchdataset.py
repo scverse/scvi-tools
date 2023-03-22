@@ -131,6 +131,12 @@ class AnnTorchDataset(Dataset):
                 sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
             elif issparse(cur_data):
                 sliced_data = cur_data[idx].toarray().astype(dtype)
+
+            # Make a row vector if only one element is selected
+            # this is because our dataloader disables automatic batching
+            # Normally, this would be handled by the default collate fn
+            if isinstance(idx, int) or len(idx) == 1:
+                sliced_data = sliced_data.reshape(1, -1)
             # for minified  anndata, we need this because we can have a string
             # cur_data, which is the value of the MINIFY_TYPE_KEY in adata.uns,
             # used to record the type data minification
