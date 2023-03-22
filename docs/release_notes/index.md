@@ -14,6 +14,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Changed
 
 -   Use sphinx book theme for documentation {pr}`1673`.
+-   Deprecate `use_gpu` in favor of `accelerator` and `devices` Lightning arguments, to be removed in 1.1.0 {pr}`1950`.
 -   Switch back to using sphinx autodoc typehints {pr}`1970`.
 -   Disable default seed, run `scvi.settings.seed` after import for reproducibility {pr}`1976`.
 
@@ -33,7 +34,6 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Changed
 
--   Deprecate `use_gpu` in favor of `accelerator` and `devices` Lightning arguments {pr}`1950`.
 -   Allow passing in `map_location` into {meth}`~scvi.hub.Metadata.from_dir` and {meth}`~scvi.hub.HubModelCardHelper.from_dir` and set default to `"cpu"` {pr}`1960`.
 -   Updated tutorials {pr}`1966`.
 
