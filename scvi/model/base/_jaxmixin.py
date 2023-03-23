@@ -100,7 +100,8 @@ class JaxTrainingMixin:
                 data_splitter=data_splitter,
                 max_epochs=max_epochs,
                 accelerator="cpu",
-                devices="auto" ** trainer_kwargs,
+                devices="auto",
+                **trainer_kwargs,
             )
             runner()
 
