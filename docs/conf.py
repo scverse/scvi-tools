@@ -117,7 +117,7 @@ intersphinx_mapping = {
     "sklearn": ("https://scikit-learn.org/stable/", None),
     "torch": ("https://pytorch.org/docs/master/", None),
     "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
-    "pytorch_lightning": ("https://pytorch-lightning.readthedocs.io/en/stable/", None),
+    "lightning": ("https://lightning.ai/docs/pytorch/stable/", None),
     "pyro": ("http://docs.pyro.ai/en/stable/", None),
     "pymde": ("https://pymde.org/", None),
     "flax": ("https://flax.readthedocs.io/en/latest/", None),
