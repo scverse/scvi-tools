@@ -13,18 +13,31 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Changed
 
--   Use sphinx book theme for documentation {pr}`1673`
 -   Update to lightning 2.0 {pr}`1961`
 -   {class}`scvi.train.AdversarialTrainingPlan` no longer encodes data twice during a training step, instead uses same latent for both optimizers {pr}`1961`
+-   Use sphinx book theme for documentation {pr}`1673`.
+-   Switch back to using sphinx autodoc typehints {pr}`1970`.
+-   Disable default seed, run `scvi.settings.seed` after import for reproducibility {pr}`1976`.
+
+#### Removed
+
+-   Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
+-   Remove ability to set up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model`, which was deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1949`.
+-   Remove `drop_last` as an integer from {class}`~scvi.dataloaders.AnnDataLoader`, add typing and code cleanup {pr}`1975`.
 
 ## Version 0.20
 
-### 0.20.3 (2023-MM-DD)
+### 0.20.3 (2023-03-21)
 
 #### Fixed
 
--   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`
--   Fix peakVI scArches test case {pr}`1962`
+-   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`.
+-   Fix peakVI scArches test case {pr}`1962`.
+
+#### Changed
+
+-   Allow passing in `map_location` into {meth}`~scvi.hub.Metadata.from_dir` and {meth}`~scvi.hub.HubModelCardHelper.from_dir` and set default to `"cpu"` {pr}`1960`.
+-   Updated tutorials {pr}`1966`.
 
 ### 0.20.2 (2023-03-10)
 
