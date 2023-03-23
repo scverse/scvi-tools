@@ -457,7 +457,7 @@ class TunerManager:
         max_epochs = max_epochs or 100  # TODO: better default
         scheduler = scheduler or "asha"
         scheduler_kwargs = scheduler_kwargs or {}
-        searcher = searcher or "random"
+        searcher = searcher or "hyperopt"
         searcher_kwargs = searcher_kwargs or {}
         resources = resources or {}
 
