@@ -6,6 +6,7 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import Any, Callable, List, Optional, Tuple
 
+import lightning.pytorch as pl
 import rich
 from chex import dataclass
 
@@ -27,6 +28,12 @@ from ._types import TunableMeta
 from ._utils import in_notebook
 
 logger = logging.getLogger(__name__)
+
+
+# This is to get around lightning import changes
+class _TuneReportCallback(TuneReportCallback, pl.Callback):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 
 @dataclass
@@ -388,7 +395,7 @@ class TunerManager:
             model_kwargs, train_kwargs = self._get_search_space(search_space)
             getattr(model_cls, setup_method_name)(adata, **setup_kwargs)
             model = model_cls(adata, **model_kwargs)
-            monitor = TuneReportCallback(metric, on="validation_end")
+            monitor = _TuneReportCallback(metric, on="validation_end")
             model.train(
                 max_epochs=max_epochs,
                 use_gpu=use_gpu,
