@@ -174,26 +174,29 @@ setup_anndata_dsp = DocstringProcessor(
 
 param_use_gpu = """\
 use_gpu
-    Use default GPU if available (if `True`), or index of GPU to use (if int), or name
-    of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in `use_gpu != None`
+    Use default GPU if available (if `True`), or index of GPU to use (if `int`), or name
+    of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in `use_gpu!=None`
     will override `accelerator` and `devices` arguments. This argument is deprecated in
     v1.0 and will be removed in v1.1. Please use `accelerator` and `devices` instead."""  # TODO: remove in v1.1
 
 param_accelerator = """\
 accelerator
-    Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
-    "mps, "auto") as well as custom accelerator instances."""
+    Supports passing different accelerator types `("cpu", "gpu", "tpu", "ipu", "hpu",
+    "mps, "auto")` as well as custom accelerator instances."""
 
 param_devices = """\
 devices
-    The devices to use. Can be set to a positive number (int or str), a sequence of
-    device indices (list or str), the value -1 to indicate all available devices should
-    be used, or "auto" for automatic selection based on the chosen accelerator."""
+    The devices to use. Can be set to a positive number (`int` or `str`), a sequence of
+    device indices (`list` or `str`), the value `-1` to indicate all available devices
+    should be used, or `"auto"` for automatic selection based on the chosen accelerator.
+    If `"auto"` and `accelerator` is not determined to be `"cpu"`, then `devices` will
+    be set to the first device."""
 
 param_device = """\
 device
-    The device to use. Can be set to a positive number (int or str) or "auto" for
-    automatic selection based on the chosen accelerator."""
+    The device to use. Can be set to a positive number (`int` or `str`) or `"auto"` for
+    automatic selection based on the chosen accelerator. If `"auto"` and `accelerator`
+    is not determined to be `"cpu"`, then `devices` will be set to the first device."""
 
 param_return_device = """\
 return_device

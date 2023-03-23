@@ -15,6 +15,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
 
+## Version 1.0
+
 ### 1.0.0 (2023-MM-DD)
 
 #### Changed
@@ -41,7 +43,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Changed
 
--   Allow passing in `map_location` into {meth}`~scvi.hub.Metadata.from_dir` and {meth}`~scvi.hub.HubModelCardHelper.from_dir` and set default to `"cpu"` {pr}`1960`.
+-   Allow passing in `map_location` into {meth}`~scvi.hub.HubMetadata.from_dir` and {meth}`~scvi.hub.HubModelCardHelper.from_dir` and set default to `"cpu"` {pr}`1960`.
 -   Updated tutorials {pr}`1966`.
 
 ### 0.20.2 (2023-03-10)

@@ -99,8 +99,8 @@ class JaxTrainingMixin:
                 training_plan=self.training_plan,
                 data_splitter=data_splitter,
                 max_epochs=max_epochs,
-                use_gpu=False,  # TODO: remove this
-                **trainer_kwargs,
+                accelerator="cpu",
+                devices="auto" ** trainer_kwargs,
             )
             runner()
 
