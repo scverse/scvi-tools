@@ -13,7 +13,6 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
-from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -37,7 +36,7 @@ from scvi.model.base import (
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan
 from scvi.train._callbacks import SaveBestState
-from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
+from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base._utils import _de_core
 
@@ -236,11 +235,14 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         self.n_regions = n_regions
         self.n_proteins = n_proteins
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 500,
         lr: float = 1e-4,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -263,9 +265,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Number of passes through the dataset.
         lr
             Learning rate for optimization.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -327,7 +329,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            use_gpu=use_gpu,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
         runner = self._train_runner_cls(
@@ -336,6 +337,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             early_stopping=early_stopping,
             check_val_every_n_epoch=check_val_every_n_epoch,
             early_stopping_monitor="reconstruction_loss_validation",
@@ -700,7 +703,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 index=adata.obs_names[indices],
             )
 
-    @_doc_params(doc_differential_expression=doc_differential_expression)
+    @de_dsp.dedent
     def differential_accessibility(
         self,
         adata: Optional[AnnData] = None,
@@ -721,16 +724,27 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\.
-
-        A unified method for differential accessibility analysis.
-
+        r"""A unified method for differential accessibility analysis.
 
         Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         two_sided
             Whether to perform a two-sided test, or a one-sided test.
         **kwargs
@@ -827,7 +841,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         )
         return result
 
-    @_doc_params(doc_differential_expression=doc_differential_expression)
+    @de_dsp.dedent
     def differential_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -847,14 +861,27 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\.
+        r"""A unified method for differential expression analysis.
 
-        A unified method for differential expression analysis. Implements `"vanilla"`
-        DE :cite:p:`Lopez18` and `"change"` mode DE :cite:p:`Boyeau19`.
+        Implements `"vanilla"` DE :cite:p:`Lopez18` and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 

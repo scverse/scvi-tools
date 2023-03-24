@@ -7,13 +7,62 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## Version 0.20
+## [Unreleased]
 
-### 0.20.2 (2023-MM-DD)
+### 1.1.0 (2023-MM-DD)
+
+#### Removed
+
+-   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
+
+## Version 1.0
+
+### 1.0.0 (2023-MM-DD)
 
 #### Changed
 
--   Use ruff for fixing and linting {pr}`1921`
+-   Update to lightning 2.0 {pr}`1961`
+-   Hyperopt is new default searcher for tuner {pr}`1961`
+-   {class}`scvi.train.AdversarialTrainingPlan` no longer encodes data twice during a training step, instead uses same latent for both optimizers {pr}`1961`
+-   Use sphinx book theme for documentation {pr}`1673`.
+-   Switch back to using sphinx autodoc typehints {pr}`1970`.
+-   Disable default seed, run `scvi.settings.seed` after import for reproducibility {pr}`1976`.
+-   Deprecate `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices`, to be removed in v1.1 {pr}`1978`.
+
+#### Removed
+
+-   Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
+-   Remove ability to set up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model`, which was deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1949`.
+-   Remove `drop_last` as an integer from {class}`~scvi.dataloaders.AnnDataLoader`, add typing and code cleanup {pr}`1975`.
+
+## Version 0.20
+
+### 0.20.3 (2023-03-21)
+
+#### Fixed
+
+-   Fix totalVI differential expression when integer sequential protein names are automatically used {pr}`1951`.
+-   Fix peakVI scArches test case {pr}`1962`.
+
+#### Changed
+
+-   Allow passing in `map_location` into {meth}`~scvi.hub.HubMetadata.from_dir` and {meth}`~scvi.hub.HubModelCardHelper.from_dir` and set default to `"cpu"` {pr}`1960`.
+-   Updated tutorials {pr}`1966`.
+
+### 0.20.2 (2023-03-10)
+
+#### Fixed
+
+-   Fix `return_dist` docstring of {meth}`scvi.model.base.VAEMixin.get_latent_representation` {pr}`1932`.
+-   Fix hyperlink to pymde docs {pr}`1944`
+
+#### Changed
+
+-   Use ruff for fixing and linting {pr}`1921`, {pr}`1941`.
+-   Use sphinx autodoc instead of sphinx-autodoc-typehints {pr}`1941`.
+-   Remove .flake8 and .prospector files {pr}`1923`.
+-   Log individual loss terms in {meth}`scvi.module.MULTIVAE.loss` {pr}`1936`.
+-   Setting up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model` is deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1803`.
 
 ### 0.20.1 (2023-02-21)
 

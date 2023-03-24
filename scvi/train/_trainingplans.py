@@ -5,10 +5,10 @@ from typing import Callable, Dict, Iterable, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
+import lightning.pytorch as pl
 import numpy as np
 import optax
 import pyro
-import pytorch_lightning as pl
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -332,7 +332,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
                 batch_size=n_obs_minibatch,
             )
 
-    def training_step(self, batch, batch_idx, optimizer_idx=0):
+    def training_step(self, batch, batch_idx):
         """Training step for the model."""
         if "kl_weight" in self.loss_kwargs:
             kl_weight = self.kl_weight
@@ -393,8 +393,10 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             )
             config.update(
                 {
-                    "lr_scheduler": scheduler,
-                    "monitor": self.lr_scheduler_metric,
+                    "lr_scheduler": {
+                        "scheduler": scheduler,
+                        "monitor": self.lr_scheduler_metric,
+                    },
                 },
             )
         return config
@@ -512,6 +514,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         else:
             self.adversarial_classifier = adversarial_classifier
         self.scale_adversarial_loss = scale_adversarial_loss
+        self.automatic_optimization = False
 
     def loss_adversarial_classifier(self, z, batch_index, predict_true_class=True):
         """Loss for adversarial classifier."""
@@ -533,7 +536,7 @@ class AdversarialTrainingPlan(TrainingPlan):
 
         return loss
 
-    def training_step(self, batch, batch_idx, optimizer_idx=0):
+    def training_step(self, batch, batch_idx):
         """Training step for adversarial training."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
@@ -543,31 +546,57 @@ class AdversarialTrainingPlan(TrainingPlan):
             else self.scale_adversarial_loss
         )
         batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
-        if optimizer_idx == 0:
-            inference_outputs, _, scvi_loss = self.forward(
-                batch, loss_kwargs=self.loss_kwargs
-            )
-            loss = scvi_loss.loss
-            # fool classifier if doing adversarial training
-            if kappa > 0 and self.adversarial_classifier is not False:
-                z = inference_outputs["z"]
-                fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
-                loss += fool_loss * kappa
 
-            self.log("train_loss", loss, on_epoch=True)
-            self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
-            return loss
+        opts = self.optimizers()
+        if not isinstance(opts, list):
+            opt1 = opts
+            opt2 = None
+        else:
+            opt1, opt2 = opts
+
+        inference_outputs, _, scvi_loss = self.forward(
+            batch, loss_kwargs=self.loss_kwargs
+        )
+        loss = scvi_loss.loss
+        # fool classifier if doing adversarial training
+        if kappa > 0 and self.adversarial_classifier is not False:
+            z = inference_outputs["z"]
+            fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
+            loss += fool_loss * kappa
+
+        self.log("train_loss", loss, on_epoch=True)
+        self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
+        opt1.zero_grad()
+        self.manual_backward(loss)
+        opt1.step()
 
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
-        if optimizer_idx == 1:
-            inference_inputs = self.module._get_inference_input(batch)
-            outputs = self.module.inference(**inference_inputs)
-            z = outputs["z"]
+        if opt2 is not None:
             loss = self.loss_adversarial_classifier(z.detach(), batch_tensor, True)
             loss *= kappa
+            opt2.zero_grad()
+            self.manual_backward(loss)
+            opt2.step()
 
-            return loss
+    def on_train_epoch_end(self):
+        """Update the learning rate via scheduler steps."""
+        if "validation" in self.lr_scheduler_metric or not self.reduce_lr_on_plateau:
+            return
+        else:
+            sch = self.lr_schedulers()
+            sch.step(self.trainer.callback_metrics[self.lr_scheduler_metric])
+
+    def on_validation_epoch_end(self) -> None:
+        """Update the learning rate via scheduler steps."""
+        if (
+            not self.reduce_lr_on_plateau
+            or "validation" not in self.lr_scheduler_metric
+        ):
+            return
+        else:
+            sch = self.lr_schedulers()
+            sch.step(self.trainer.callback_metrics[self.lr_scheduler_metric])
 
     def configure_optimizers(self):
         """Configure optimizers for adversarial training."""
@@ -586,8 +615,10 @@ class AdversarialTrainingPlan(TrainingPlan):
             )
             config1.update(
                 {
-                    "lr_scheduler": scheduler1,
-                    "monitor": self.lr_scheduler_metric,
+                    "lr_scheduler": {
+                        "scheduler": scheduler1,
+                        "monitor": self.lr_scheduler_metric,
+                    },
                 },
             )
 
@@ -600,11 +631,10 @@ class AdversarialTrainingPlan(TrainingPlan):
             )
             config2 = {"optimizer": optimizer2}
 
-            # bug in pytorch lightning requires this way to return
+            # pytorch lightning requires this way to return
             opts = [config1.pop("optimizer"), config2["optimizer"]]
             if "lr_scheduler" in config1:
-                config1["scheduler"] = config1.pop("lr_scheduler")
-                scheds = [config1]
+                scheds = [config1["lr_scheduler"]]
                 return opts, scheds
             else:
                 return opts
@@ -680,7 +710,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
 
-    def training_step(self, batch, batch_idx, optimizer_idx=0):
+    def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
         # Potentially dangerous if batch is from a single dataloader with two keys
         if len(batch) == 2:
@@ -708,7 +738,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
         return loss
 
-    def validation_step(self, batch, batch_idx, optimizer_idx=0):
+    def validation_step(self, batch, batch_idx):
         """Validation step for semi-supervised training."""
         # Potentially dangerous if batch is from a single dataloader with two keys
         if len(batch) == 2:
@@ -798,6 +828,7 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
             else obj
         )
         self.differentiable_loss_fn = self.loss_fn.differentiable_loss
+        self.training_step_outputs = []
 
     def training_step(self, batch, batch_idx):
         """Training step for Pyro training."""
@@ -813,10 +844,13 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
             *args,
             **kwargs,
         )
-        return {"loss": loss}
+        out_dict = {"loss": loss}
+        self.training_step_outputs.append(out_dict)
+        return out_dict
 
-    def training_epoch_end(self, outputs):
+    def on_train_epoch_end(self):
         """Training epoch end for Pyro training."""
+        outputs = self.training_step_outputs
         elbo = 0
         n = 0
         for out in outputs:
@@ -824,6 +858,7 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
             n += 1
         elbo /= n
         self.log("elbo_train", elbo, prog_bar=True)
+        self.training_step_outputs.clear()
 
     def configure_optimizers(self):
         """Configure optimizers for the model."""
@@ -940,7 +975,9 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         _opt = self.optimizers()
         _opt.step()
 
-        return {"loss": loss}
+        out_dict = {"loss": loss}
+        self.training_step_outputs.append(out_dict)
+        return out_dict
 
     def configure_optimizers(self):
         """Shim optimizer for PyTorch Lightning.
@@ -1015,7 +1052,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
         """Passthrough to the module's forward function."""
         return self.module(*args, **kwargs)
 
-    def training_step(self, batch, batch_idx, optimizer_idx=0):
+    def training_step(self, batch, batch_idx):
         """Training step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())

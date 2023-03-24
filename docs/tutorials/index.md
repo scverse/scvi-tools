@@ -118,7 +118,7 @@ notebooks/model_user_guide
 
 ### Glossary
 
-```{eval-rst}
+```{toctree}
 .. tab-set::
 
     .. tab-item:: Model
@@ -139,7 +139,7 @@ notebooks/model_user_guide
         while the `loss` method computes the loss, e.g, ELBO in the case of variational inference.
 ```
 
-```{eval-rst}
+```{toctree}
 .. tab-set::
 
     .. tab-item:: TrainingPlan

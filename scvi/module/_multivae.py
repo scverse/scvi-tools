@@ -842,10 +842,11 @@ class MULTIVAE(BaseModuleClass):
 
         # calling without weights makes this act like a masked sum
         # TODO : CHECK MIXING HERE
+        recon_loss_expression = rl_expression * mask_expr
+        recon_loss_accessibility = rl_accessibility * mask_acc
+        recon_loss_protein = rl_protein * mask_pro
         recon_loss = (
-            (rl_expression * mask_expr)
-            + (rl_accessibility * mask_acc)
-            + (rl_protein * mask_pro)
+            recon_loss_expression + recon_loss_accessibility + recon_loss_protein
         )
 
         # Compute KLD between Z and N(0,I)
@@ -857,7 +858,7 @@ class MULTIVAE(BaseModuleClass):
         ).sum(dim=1)
 
         # Compute KLD between distributions for paired data
-        kld_paired = self._compute_mod_penalty(
+        kl_div_paired = self._compute_mod_penalty(
             (inference_outputs["qzm_expr"], inference_outputs["qzv_expr"]),
             (inference_outputs["qzm_acc"], inference_outputs["qzv_acc"]),
             (inference_outputs["qzm_pro"], inference_outputs["qzv_pro"]),
@@ -868,13 +869,23 @@ class MULTIVAE(BaseModuleClass):
 
         # KL WARMUP
         kl_local_for_warmup = kl_div_z
-        weighted_kl_local = kl_weight * kl_local_for_warmup
+        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_div_paired
 
         # TOTAL LOSS
-        loss = torch.mean(recon_loss + weighted_kl_local + kld_paired)
+        loss = torch.mean(recon_loss + weighted_kl_local)
 
-        kl_local = {"kl_divergence_z": kl_div_z}
-        return LossOutput(loss=loss, reconstruction_loss=recon_loss, kl_local=kl_local)
+        recon_losses = {
+            "reconstruction_loss_expression": recon_loss_expression,
+            "reconstruction_loss_accessibility": recon_loss_accessibility,
+            "reconstruction_loss_protein": recon_loss_protein,
+        }
+        kl_local = {
+            "kl_divergence_z": kl_div_z,
+            "kl_divergence_paired": kl_div_paired,
+        }
+        return LossOutput(
+            loss=loss, reconstruction_loss=recon_losses, kl_local=kl_local
+        )
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""
