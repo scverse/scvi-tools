@@ -68,7 +68,7 @@ def parse_device_args(
     if _accelerator in ["tpu", "ipu", "hpu"]:
         warnings.warn(
             f"The selected accelerator `{_accelerator}` has not been extensively ",
-            "tested. Please report any issues in the GitHub repo.",
+            "tested in scvi-tools. Please report any issues in the GitHub repo.",
             UserWarning,
         )
 
