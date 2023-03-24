@@ -2,9 +2,9 @@ import logging
 import warnings
 from typing import Optional, Union
 
+import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
-import pytorch_lightning as pl
 
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_use_gpu_arg

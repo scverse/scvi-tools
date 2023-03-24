@@ -48,6 +48,7 @@ def parse_use_gpu_arg(
     if (use_gpu is None and not gpu_available) or (use_gpu is False):
         accelerator = "cpu"
         device = torch.device("cpu")
+        lightning_devices = "auto"
     elif (use_gpu is None and gpu_available) or (use_gpu is True):
         current = torch.cuda.current_device() if cuda_available else "mps"
         if current != "mps":

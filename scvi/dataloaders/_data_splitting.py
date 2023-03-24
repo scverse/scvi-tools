@@ -1,8 +1,8 @@
 from math import ceil, floor
 from typing import Dict, List, Optional
 
+import lightning.pytorch as pl
 import numpy as np
-import pytorch_lightning as pl
 import torch
 from torch.utils.data import (
     BatchSampler,
