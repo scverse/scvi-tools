@@ -557,10 +557,10 @@ class AdversarialTrainingPlan(TrainingPlan):
         inference_outputs, _, scvi_loss = self.forward(
             batch, loss_kwargs=self.loss_kwargs
         )
+        z = inference_outputs["z"]
         loss = scvi_loss.loss
         # fool classifier if doing adversarial training
         if kappa > 0 and self.adversarial_classifier is not False:
-            z = inference_outputs["z"]
             fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
             loss += fool_loss * kappa
 
