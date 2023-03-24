@@ -170,3 +170,52 @@ setup_anndata_dsp = DocstringProcessor(
     param_copy=param_copy,
     returns=returns,
 )
+
+
+param_use_gpu = """\
+use_gpu
+    Use default GPU if available (if `True`), or index of GPU to use (if `int`), or name
+    of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in `use_gpu!=None`
+    will override `accelerator` and `devices` arguments. This argument is deprecated in
+    v1.0 and will be removed in v1.1. Please use `accelerator` and `devices` instead."""  # TODO: remove in v1.1
+
+param_accelerator = """\
+accelerator
+    Supports passing different accelerator types `("cpu", "gpu", "tpu", "ipu", "hpu",
+    "mps, "auto")` as well as custom accelerator instances."""
+
+param_devices = """\
+devices
+    The devices to use. Can be set to a non-negative index (`int` or `str`), a sequence
+    of device indices (`list` or comma-separated `str`), the value `-1` to indicate all
+    available devices, or `"auto"` for automatic selection based on the chosen
+    `accelerator`. If set to `"auto"` and `accelerator` is not determined to be `"cpu"`,
+    then `devices` will be set to the first available device."""
+
+param_device = """\
+device
+    The device to use. Can be set to a non-negative index (`int` or `str`) or `"auto"`
+    for automatic selection based on the chosen accelerator. If set to `"auto"` and
+    `accelerator` is not determined to be `"cpu"`, then `device` will be set to the
+    first available device."""
+
+param_return_device = """\
+return_device
+    Returns the first or only device as determined by `accelerator` and `devices`.
+    Depending on the value, will either return a PyTorch device (`"torch"`), a Jax
+    device (`"jax"`), or neither (`None`)."""
+
+param_validate_single_device = """\
+validate_single_device
+    Validates that `devices` is set to a single device if `device!="auto"` and throws
+    an error if not."""
+
+
+devices_dsp = DocstringProcessor(
+    param_use_gpu=param_use_gpu,  # TODO: remove in v1.1
+    param_accelerator=param_accelerator,
+    param_devices=param_devices,
+    param_device=param_device,
+    param_return_device=param_return_device,
+    param_validate_single_device=param_validate_single_device,
+)

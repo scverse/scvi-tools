@@ -9,13 +9,25 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## [Unreleased]
 
+### 1.1.0 (2023-MM-DD)
+
+#### Removed
+
+-   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
+
+## Version 1.0
+
 ### 1.0.0 (2023-MM-DD)
 
 #### Changed
 
+-   Update to lightning 2.0 {pr}`1961`
+-   Hyperopt is new default searcher for tuner {pr}`1961`
+-   {class}`scvi.train.AdversarialTrainingPlan` no longer encodes data twice during a training step, instead uses same latent for both optimizers {pr}`1961`
 -   Use sphinx book theme for documentation {pr}`1673`.
 -   Switch back to using sphinx autodoc typehints {pr}`1970`.
 -   Disable default seed, run `scvi.settings.seed` after import for reproducibility {pr}`1976`.
+-   Deprecate `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices`, to be removed in v1.1 {pr}`1978`.
 
 #### Removed
 
@@ -34,7 +46,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Changed
 
--   Allow passing in `map_location` into {meth}`~scvi.hub.Metadata.from_dir` and {meth}`~scvi.hub.HubModelCardHelper.from_dir` and set default to `"cpu"` {pr}`1960`.
+-   Allow passing in `map_location` into {meth}`~scvi.hub.HubMetadata.from_dir` and {meth}`~scvi.hub.HubModelCardHelper.from_dir` and set default to `"cpu"` {pr}`1960`.
 -   Updated tutorials {pr}`1966`.
 
 ### 0.20.2 (2023-03-10)
