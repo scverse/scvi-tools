@@ -3,8 +3,8 @@ from typing import Callable, Dict, Optional, Union
 
 import numpy as np
 import torch
+from lightning.pytorch.callbacks import Callback
 from pyro import poutine
-from pytorch_lightning.callbacks import Callback
 
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
