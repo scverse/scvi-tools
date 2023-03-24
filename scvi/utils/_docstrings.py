@@ -204,6 +204,10 @@ return_device
     Depending on the value, will either return a PyTorch device (`"torch"`), a Jax
     device (`"jax"`), or neither (`None`)."""
 
+param_validate_single_device = """\
+validate_single_device
+    Validates that `devices` is set to a single device if `device!="auto"`."""
+
 
 devices_dsp = DocstringProcessor(
     param_use_gpu=param_use_gpu,  # TODO: remove in v1.1
@@ -211,4 +215,5 @@ devices_dsp = DocstringProcessor(
     param_devices=param_devices,
     param_device=param_device,
     param_return_device=param_return_device,
+    param_validate_single_device=param_validate_single_device,
 )

@@ -83,6 +83,7 @@ class ArchesMixin:
             accelerator=accelerator,
             devices=device,
             return_device="torch",
+            validate_single_device=True,
         )
 
         attr_dict, var_names, load_state_dict = _get_loaded_data(

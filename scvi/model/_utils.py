@@ -26,6 +26,7 @@ def parse_device_args(
     accelerator: str = "auto",
     devices: Union[int, List[int], str] = "auto",
     return_device: Optional[Literal["torch", "jax"]] = None,
+    validate_single_device: bool = False,
 ):
     """Parses device-related arguments.
 
@@ -35,6 +36,7 @@ def parse_device_args(
     %(param_accelerator)s
     %(param_devices)s
     %(param_return_device)s
+    %(param_validate_single_device)s
     """
     if use_gpu is not None:
         warnings.warn(
@@ -51,6 +53,12 @@ def parse_device_args(
         raise InvalidParameterError(
             param="return_device", value=return_device, valid=valid
         )
+
+    _validate_single_device = validate_single_device and devices != "auto"
+    cond1 = isinstance(devices, list) and len(devices) > 1
+    cond2 = isinstance(devices, str) and "," in devices
+    if _validate_single_device and (cond1 or cond2):
+        raise ValueError("Only a single device can be specified for this function.")
 
     connector = AcceleratorConnector(accelerator=accelerator, devices=devices)
     _accelerator = connector._accelerator_flag

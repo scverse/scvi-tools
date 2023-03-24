@@ -632,6 +632,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             accelerator=accelerator,
             devices=device,
             return_device="torch",
+            validate_single_device=True,
         )
 
         (

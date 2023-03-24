@@ -97,7 +97,11 @@ def poisson_gene_selection(
         raise ValueError("`poisson_gene_selection` expects " "raw count data.")
 
     _, _, device = parse_device_args(
-        use_gpu=use_gpu, accelerator=accelerator, devices=device, return_device="torch"
+        use_gpu=use_gpu,
+        accelerator=accelerator,
+        devices=device,
+        return_device="torch",
+        validate_single_device=True,
     )
 
     if batch_key is None:

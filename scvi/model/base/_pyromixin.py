@@ -384,6 +384,7 @@ class PyroSampleMixin:
             accelerator=accelerator,
             devices=device,
             return_device="torch",
+            validate_single_device=True,
         )
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
