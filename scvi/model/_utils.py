@@ -8,7 +8,7 @@ import numpy as np
 import scipy.sparse as sp_sparse
 import torch
 from lightning.pytorch.trainer.connectors.accelerator_connector import (
-    AcceleratorConnector,
+    _AcceleratorConnector,
 )
 
 from scvi import REGISTRY_KEYS
@@ -60,7 +60,7 @@ def parse_device_args(
     if _validate_single_device and (cond1 or cond2):
         raise ValueError("Only a single device can be specified for this function.")
 
-    connector = AcceleratorConnector(accelerator=accelerator, devices=devices)
+    connector = _AcceleratorConnector(accelerator=accelerator, devices=devices)
     _accelerator = connector._accelerator_flag
     _devices = connector._devices_flag
 
