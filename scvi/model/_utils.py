@@ -7,7 +7,7 @@ import jax
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
-from pytorch_lightning.trainer.connectors.accelerator_connector import (
+from lightning.pytorch.trainer.connectors.accelerator_connector import (
     AcceleratorConnector,
 )
 
