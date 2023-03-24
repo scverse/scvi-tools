@@ -57,7 +57,8 @@ def parse_device_args(
     _validate_single_device = validate_single_device and devices != "auto"
     cond1 = isinstance(devices, list) and len(devices) > 1
     cond2 = isinstance(devices, str) and "," in devices
-    if _validate_single_device and (cond1 or cond2):
+    cond3 = devices == -1
+    if _validate_single_device and (cond1 or cond2 or cond3):
         raise ValueError("Only a single device can be specified for this function.")
 
     connector = _AcceleratorConnector(accelerator=accelerator, devices=devices)

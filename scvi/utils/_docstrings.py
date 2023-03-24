@@ -186,17 +186,18 @@ accelerator
 
 param_devices = """\
 devices
-    The devices to use. Can be set to a positive number (`int` or `str`), a sequence of
-    device indices (`list` or `str`), the value `-1` to indicate all available devices
-    should be used, or `"auto"` for automatic selection based on the chosen accelerator.
-    If `"auto"` and `accelerator` is not determined to be `"cpu"`, then `devices` will
-    be set to the first device."""
+    The devices to use. Can be set to a non-negative index (`int` or `str`), a sequence
+    of device indices (`list` or comma-separated `str`), the value `-1` to indicate all
+    available devices, or `"auto"` for automatic selection based on the chosen
+    `accelerator`. If `"auto"` and `accelerator` is not determined to be `"cpu"`, then
+    `devices` will be set to the first available device."""
 
 param_device = """\
 device
-    The device to use. Can be set to a positive number (`int` or `str`) or `"auto"` for
-    automatic selection based on the chosen accelerator. If `"auto"` and `accelerator`
-    is not determined to be `"cpu"`, then `devices` will be set to the first device."""
+    The device to use. Can be set to a non-negative index (`int` or `str`) or `"auto"`
+    for automatic selection based on the chosen accelerator. If `"auto"` and
+    `accelerator` is not determined to be `"cpu"`, then `device` will be set to the
+    first available device."""
 
 param_return_device = """\
 return_device
@@ -206,7 +207,8 @@ return_device
 
 param_validate_single_device = """\
 validate_single_device
-    Validates that `devices` is set to a single device if `device!="auto"`."""
+    Validates that `devices` is set to a single device if `device!="auto"` and throws
+    an error if not."""
 
 
 devices_dsp = DocstringProcessor(
