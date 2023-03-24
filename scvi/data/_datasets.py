@@ -590,7 +590,7 @@ def synthetic_iid(
         n_batches=n_batches,
         n_labels=n_labels,
         sparse=sparse,
-        noise_ratio=noise_ratio,
+        dropout_ratio=dropout_ratio,
     )
 
 
