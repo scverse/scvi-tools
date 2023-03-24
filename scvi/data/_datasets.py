@@ -570,7 +570,7 @@ def synthetic_iid(
         Number of cell types
     sparse
         Whether to use a sparse matrix
-    noise_ratio
+    dropout_ratio
         The expected percentage of zeros artificially added into the data
     Returns
     -------
