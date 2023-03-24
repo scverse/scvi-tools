@@ -935,7 +935,7 @@ def test_device_backed_data_splitter():
     model = SCVI(a, n_latent=5)
     adata_manager = model.adata_manager
     # test leaving validataion_size empty works
-    ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0, use_gpu=None)
+    ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0)
     ds.setup()
     train_dl = ds.train_dataloader()
     ds.val_dataloader()
