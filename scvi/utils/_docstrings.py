@@ -189,13 +189,13 @@ devices
     The devices to use. Can be set to a non-negative index (`int` or `str`), a sequence
     of device indices (`list` or comma-separated `str`), the value `-1` to indicate all
     available devices, or `"auto"` for automatic selection based on the chosen
-    `accelerator`. If `"auto"` and `accelerator` is not determined to be `"cpu"`, then
-    `devices` will be set to the first available device."""
+    `accelerator`. If set to `"auto"` and `accelerator` is not determined to be `"cpu"`,
+    then `devices` will be set to the first available device."""
 
 param_device = """\
 device
     The device to use. Can be set to a non-negative index (`int` or `str`) or `"auto"`
-    for automatic selection based on the chosen accelerator. If `"auto"` and
+    for automatic selection based on the chosen accelerator. If set to `"auto"` and
     `accelerator` is not determined to be `"cpu"`, then `device` will be set to the
     first available device."""
 
