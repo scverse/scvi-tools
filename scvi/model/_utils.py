@@ -1,17 +1,101 @@
 import logging
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union
 
+import jax
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
+from lightning.pytorch.trainer.connectors.accelerator_connector import (
+    _AcceleratorConnector,
+)
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi.data import AnnDataManager
+from scvi.utils._docstrings import devices_dsp
+from scvi.utils._exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
+
+
+@devices_dsp.dedent
+def parse_device_args(
+    use_gpu: Optional[Union[str, int, bool]] = None,
+    accelerator: str = "auto",
+    devices: Union[int, List[int], str] = "auto",
+    return_device: Optional[Literal["torch", "jax"]] = None,
+    validate_single_device: bool = False,
+):
+    """Parses device-related arguments.
+
+    Parameters
+    ----------
+    %(param_use_gpu)s
+    %(param_accelerator)s
+    %(param_devices)s
+    %(param_return_device)s
+    %(param_validate_single_device)s
+    """
+    if use_gpu is not None:
+        warnings.warn(
+            "`use_gpu` is deprecated in v1.0 and will be removed in v1.1. Please use "
+            "`accelerator` and `devices` instead.",
+            DeprecationWarning,
+        )
+        return parse_use_gpu_arg(
+            use_gpu=use_gpu, return_device=return_device == "torch"
+        )
+
+    valid = [None, "torch", "jax"]
+    if return_device not in valid:
+        raise InvalidParameterError(
+            param="return_device", value=return_device, valid=valid
+        )
+
+    _validate_single_device = validate_single_device and devices != "auto"
+    cond1 = isinstance(devices, list) and len(devices) > 1
+    cond2 = isinstance(devices, str) and "," in devices
+    cond3 = devices == -1
+    if _validate_single_device and (cond1 or cond2 or cond3):
+        raise ValueError("Only a single device can be specified for `device`.")
+
+    connector = _AcceleratorConnector(accelerator=accelerator, devices=devices)
+    _accelerator = connector._accelerator_flag
+    _devices = connector._devices_flag
+
+    if _accelerator in ["tpu", "ipu", "hpu"]:
+        warnings.warn(
+            f"The selected accelerator `{_accelerator}` has not been extensively ",
+            "tested in scvi-tools. Please report any issues in the GitHub repo.",
+            UserWarning,
+        )
+
+    # get the first device index
+    if isinstance(_devices, list):
+        device_idx = _devices[0]
+    elif isinstance(_devices, str) and "," in _devices:
+        device_idx = _devices.split(",")[0]
+    else:
+        device_idx = _devices
+
+    # auto device should not use multiple devices for non-cpu accelerators
+    if devices == "auto" and _accelerator != "cpu":
+        _devices = [device_idx]
+
+    if return_device == "torch":
+        device = torch.device("cpu")
+        if _accelerator != "cpu":
+            device = torch.device(f"{_accelerator}:{device_idx}")
+        return _accelerator, _devices, device
+    elif return_device == "jax":
+        device = jax.devices("cpu")[0]
+        if _accelerator != "cpu":
+            device = jax.devices(_accelerator)[device_idx]
+        return _accelerator, _devices, device
+
+    return _accelerator, _devices
 
 
 def parse_use_gpu_arg(
@@ -48,6 +132,7 @@ def parse_use_gpu_arg(
     if (use_gpu is None and not gpu_available) or (use_gpu is False):
         accelerator = "cpu"
         device = torch.device("cpu")
+        lightning_devices = "auto"
     elif (use_gpu is None and gpu_available) or (use_gpu is True):
         current = torch.cuda.current_device() if cuda_available else "mps"
         if current != "mps":
