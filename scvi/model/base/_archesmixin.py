@@ -29,7 +29,7 @@ class ArchesMixin:
     """Universal scArches implementation."""
 
     @classmethod
-    @devices_dsp
+    @devices_dsp.dedent
     def load_query_data(
         cls,
         adata: AnnData,
