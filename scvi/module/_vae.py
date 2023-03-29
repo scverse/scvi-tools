@@ -86,6 +86,10 @@ class VAE(BaseMinifiedModeModuleClass):
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
+    extra_encoder_kwargs
+        Extra keyword arguments passed into :class:`~scvi.nn.Encoder`.
+    extra_decoder_kwargs
+        Extra keyword arguments passed into :class:`~scvi.nn.DecoderSCVI`.
     """
 
     def __init__(
@@ -114,6 +118,8 @@ class VAE(BaseMinifiedModeModuleClass):
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
         var_activation: Optional[Callable] = None,
+        extra_encoder_kwargs: Optional[dict] = None,
+        extra_decoder_kwargs: Optional[dict] = None,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -167,6 +173,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
         cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
         encoder_cat_list = cat_list if encode_covariates else None
+        _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.z_encoder = Encoder(
             n_input_encoder,
             n_latent,
@@ -180,6 +187,7 @@ class VAE(BaseMinifiedModeModuleClass):
             use_layer_norm=use_layer_norm_encoder,
             var_activation=var_activation,
             return_dist=True,
+            **_extra_encoder_kwargs,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         self.l_encoder = Encoder(
@@ -194,9 +202,11 @@ class VAE(BaseMinifiedModeModuleClass):
             use_layer_norm=use_layer_norm_encoder,
             var_activation=var_activation,
             return_dist=True,
+            **_extra_encoder_kwargs,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         n_input_decoder = n_latent + n_continuous_cov
+        _extra_decoder_kwargs = extra_decoder_kwargs or {}
         self.decoder = DecoderSCVI(
             n_input_decoder,
             n_input,
@@ -207,6 +217,7 @@ class VAE(BaseMinifiedModeModuleClass):
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softplus" if use_size_factor_key else "softmax",
+            **_extra_decoder_kwargs,
         )
 
     def _get_inference_input(

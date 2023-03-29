@@ -91,6 +91,14 @@ class TOTALVAE(BaseModuleClass):
     library_log_vars
         1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
+    use_batch_norm
+        Whether to use batch norm in layers.
+    use_layer_norm
+        Whether to use layer norm in layers.
+    extra_encoder_kwargs
+        Extra keyword arguments passed into :class:`~scvi.nn.EncoderTOTALVI`.
+    extra_decoder_kwargs
+        Extra keyword arguments passed into :class:`~scvi.nn.DecoderTOTALVI`.
     """
 
     def __init__(
@@ -124,6 +132,8 @@ class TOTALVAE(BaseModuleClass):
         library_log_vars: Optional[np.ndarray] = None,
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        extra_encoder_kwargs: Optional[dict] = None,
+        extra_decoder_kwargs: Optional[dict] = None,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -217,6 +227,7 @@ class TOTALVAE(BaseModuleClass):
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
         cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
         encoder_cat_list = cat_list if encode_covariates else None
+        _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.encoder = EncoderTOTALVI(
             n_input_encoder,
             n_latent,
@@ -227,7 +238,9 @@ class TOTALVAE(BaseModuleClass):
             distribution=latent_distribution,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
+            **_extra_encoder_kwargs,
         )
+        _extra_decoder_kwargs = extra_decoder_kwargs or {}
         self.decoder = DecoderTOTALVI(
             n_latent + n_continuous_cov,
             n_input_genes,
@@ -239,6 +252,7 @@ class TOTALVAE(BaseModuleClass):
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softplus" if use_size_factor_key else "softmax",
+            **_extra_decoder_kwargs,
         )
 
     def get_sample_dispersion(
