@@ -578,10 +578,10 @@ def synthetic_iid(
     -------
     :class:`~anndata.AnnData` with the following fields:
 
-    `.obs["batch"]`: Categorical batch labels in the format `batch_{i}`.
-    `.obs["labels"]`: Categorical cell type labels in the format `label_{i}`.
-    `.obsm["protein_expression"]`: Protein expression matrix.
-    `.uns["protein_names"]`: Array of protein names.
+    * `.obs["batch"]`: Categorical batch labels in the format `batch_{i}`.
+    * `.obs["labels"]`: Categorical cell type labels in the format `label_{i}`.
+    * `.obsm["protein_expression"]`: Protein expression matrix.
+    * `.uns["protein_names"]`: Array of protein names.
 
     Examples
     --------
