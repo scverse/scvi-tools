@@ -147,7 +147,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 :::{tab-item} Model
 
-A Model class inherits :class:`~scvi.model.base.BaseModelClass` and is the user-facing object for interacting with a module.
+A Model class inherits {class}`~scvi.model.base.BaseModelClass` and is the user-facing object for interacting with a module.
 The model has a `train` method that learns the parameters of the module, and also contains methods
 for users to retrieve information from the module, like the latent representation of cells in a VAE.
 Conventionally, the post-inference model methods should not store data into the AnnData object, but
