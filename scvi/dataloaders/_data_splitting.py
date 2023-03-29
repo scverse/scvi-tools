@@ -1,3 +1,4 @@
+import logging
 from math import ceil, floor
 from typing import Dict, List, Optional, Union
 
@@ -19,59 +20,150 @@ from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
+from scvi.utils._exceptions import InvalidParameterError
+
+logger = logging.getLogger(__name__)
 
 
 def validate_data_split(
-    n_samples: int, train_size: float, validation_size: Optional[float] = None
+    n_obs: int,
+    train_size: Optional[float],
+    validation_size: Optional[float],
+    train_indices: Optional[List[int]],
+    validation_indices: Optional[List[int]],
 ):
-    """Check data splitting parameters and return n_train and n_val.
+    """Validate data splitting parameters.
 
     Parameters
     ----------
-    n_samples
-        Number of samples to split
+    n_obs
+        Number of observations in the dataset.
     train_size
-        Size of train set. Need to be: 0 < train_size <= 1.
+        Fraction of the dataset for the training set.
     validation_size
-        Size of validation set. Need to be 0 <= validation_size < 1
+        Fraction of the dataset for the validation set. If `None`, the validation set
+        will be of size `1 - train_size`.
+    train_indices
+        Indices of the training set. Cannot be set if `train_size` is not `None`.
+    validation_indices
+        Indices of the validation set. Cannot be set if `validation_size` is not `None`.
+        Set to the remaining indices if `train_indices` is not `None`. If the union of
+        the two sets is not the full set of indices, the remaining indices are used for
+        the test set.
+
+    Returns
+    -------
+    The size of the training, validation, and test sets as a tuple if `train_size` is
+    not `None`, otherwise the indices of the training, validation, and test sets as a
+    tuple if `train_indices` is not `None`.
     """
-    if train_size > 1.0 or train_size <= 0.0:
-        raise ValueError("Invalid train_size. Must be: 0 < train_size <= 1")
+    if train_size is None and train_indices is None:
+        raise ValueError("Either `train_size` or `train_indices` must be specified.")
+    if train_size is not None and train_indices is not None:
+        raise ValueError("`train_size` and `train_indices` cannot both be specified.")
 
-    n_train = ceil(train_size * n_samples)
-
-    if validation_size is None:
-        n_val = n_samples - n_train
-    elif validation_size >= 1.0 or validation_size < 0.0:
-        raise ValueError("Invalid validation_size. Must be 0 <= validation_size < 1")
-    elif (train_size + validation_size) > 1:
-        raise ValueError("train_size + validation_size must be between 0 and 1")
-    else:
-        n_val = floor(n_samples * validation_size)
-
-    if n_train == 0:
+    if train_size is None and validation_size is not None:
         raise ValueError(
-            "With n_samples={}, train_size={} and validation_size={}, the "
-            "resulting train set will be empty. Adjust any of the "
-            "aforementioned parameters.".format(n_samples, train_size, validation_size)
+            "`train_size` must be specified if `validation_size` is specified."
+        )
+    if train_indices is None and validation_indices is not None:
+        raise ValueError(
+            "`train_indices` must be specified if `validation_indices` is specified."
         )
 
-    return n_train, n_val
+    if train_size is not None:
+        if train_size > 1.0 or train_size <= 0.0:
+            raise InvalidParameterError(
+                "train_size",
+                train_size,
+                additional_message="`train_size` must be between 0 and 1.",
+            )
+
+        n_train = ceil(train_size * n_obs)
+
+        if validation_size is None:
+            n_val = n_obs - n_train
+        elif validation_size >= 1.0 or validation_size < 0.0:
+            raise InvalidParameterError(
+                "validation_size",
+                validation_size,
+                additional_message="`validation_size` must be between 0 and 1.",
+            )
+        elif (train_size + validation_size) > 1:
+            raise InvalidParameterError(
+                "train_size + validation_size",
+                train_size + validation_size,
+                additional_message="`train_size + validation_size` must be between 0 and 1.",
+            )
+        else:
+            n_val = floor(n_obs * validation_size)
+
+        n_test = n_obs - n_train - n_val
+
+        logging.info(
+            f"Using {n_train} observations for training, {n_val} for validation "
+            f"and {n_test} for testing."
+        )
+        return n_train, n_val, n_test
+
+    if train_indices is not None:
+        train_indices = np.array(train_indices)
+        if validation_indices is not None:
+            validation_indices = np.array(validation_indices)
+
+        if np.amax(train_indices) >= n_obs or np.amin(train_indices) < 0:
+            raise InvalidParameterError(
+                "train_indices",
+                train_indices,
+                additional_message="`train_indices` contains invalid indices.",
+            )
+
+        if validation_indices is None:
+            validation_indices = np.setdiff1d(np.arange(n_obs), train_indices)
+        elif np.amax(validation_indices) >= n_obs or np.amin(validation_indices) < 0:
+            raise InvalidParameterError(
+                "validation_indices",
+                validation_indices,
+                additional_message="`validation_indices` contains invalid indices.",
+            )
+
+        union_indices = np.union1d(train_indices, validation_indices)
+        test_indices = np.setdiff1d(np.arange(n_obs), union_indices)
+
+        logging.info(
+            f"Using {len(train_indices)} observations for training, "
+            f"{len(validation_indices)} for validation and {len(test_indices)} for "
+            "testing."
+        )
+
+        return train_indices, validation_indices, test_indices
 
 
 class DataSplitter(pl.LightningDataModule):
-    """Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
+    """Creates :class:`~scvi.data.AnnDataLoader` objects for train/validation/test sets.
 
-    If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
+    The test split is only created if `train_size + validation_size  < 1` or if the
+    union of `train_indices` and `validation_indices` is not the full set of indices.
 
     Parameters
     ----------
     adata_manager
         :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
-        float, or None (default is 0.9)
+        Fraction of the dataset for the training set.
     validation_size
-        float, or None (default is None)
+        Fraction of the dataset for the validation set. If `None`, the validation set
+        will be of size `1 - train_size`.
+    train_indices
+        Indices of the training set. Ignored if `train_size` is not `None`.
+    validation_indices
+        Indices of the validation set. Ignored if `validation_size` is not `None`. Set
+        to the remaining indices if `train_indices` is not `None`. If the union of the
+        two sets is not the full set of indices, the remaining indices are used for the
+        test set.
+    shuffle
+        Whether or not to shuffle the data before splitting. Ignored if `train_indices`
+        is not `None`.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
@@ -93,70 +185,102 @@ class DataSplitter(pl.LightningDataModule):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        train_size: float = 0.9,
+        train_size: Optional[float] = 0.9,
         validation_size: Optional[float] = None,
+        train_indices: Optional[List[int]] = None,
+        validation_indices: Optional[List[int]] = None,
+        shuffle: bool = True,
         pin_memory: bool = False,
         **kwargs,
     ):
         super().__init__()
         self.adata_manager = adata_manager
-        self.train_size = float(train_size)
-        self.validation_size = validation_size
+
+        self.train_size = None
+        self.validation_size = None
+        self.test_size = None
+        self.train_indices = None
+        self.validation_indices = None
+        self.test_indices = None
+        self.shuffle = shuffle
+
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
 
-        self.n_train, self.n_val = validate_data_split(
-            self.adata_manager.adata.n_obs, self.train_size, self.validation_size
+        splits = validate_data_split(
+            adata_manager.adata.n_obs,
+            train_size,
+            validation_size,
+            train_indices,
+            validation_indices,
         )
 
-    def setup(self, stage: Optional[str] = None):
-        """Split indices in train/test/val sets."""
-        n_train = self.n_train
-        n_val = self.n_val
-        random_state = np.random.RandomState(seed=settings.seed)
-        permutation = random_state.permutation(self.adata_manager.adata.n_obs)
-        self.val_idx = permutation[:n_val]
-        self.train_idx = permutation[n_val : (n_val + n_train)]
-        self.test_idx = permutation[(n_val + n_train) :]
+        if train_size is not None:
+            self.n_train, self.n_validation, self.n_test = splits
+        else:
+            self.train_indices, self.validation_indices, self.test_indices = splits
+            self.n_train, self.n_validation, self.n_test = (
+                len(self.train_indices),
+                len(self.validation_indices),
+                len(self.test_indices),
+            )
 
-    def train_dataloader(self):
-        """Create train data loader."""
-        return AnnDataLoader(
+    def setup(self, stage: Optional[str] = None):
+        """Assign indices to train/validation/test splits if necessary."""
+        if self.train_indices is not None:
+            return
+
+        all_indices = np.arange(self.adata_manager.adata.n_obs)
+        if self.shuffle:
+            random_state = np.random.default_rng(seed=settings.seed)
+            all_indices = random_state.permutation(all_indices)
+
+        self._train_dataloader = AnnDataLoader(
             self.adata_manager,
-            indices=self.train_idx,
+            indices=all_indices[: self.n_train],
             shuffle=True,
             drop_last=False,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
 
-    def val_dataloader(self):
-        """Create validation data loader."""
-        if len(self.val_idx) > 0:
-            return AnnDataLoader(
-                self.adata_manager,
-                indices=self.val_idx,
-                shuffle=False,
-                drop_last=False,
-                pin_memory=self.pin_memory,
-                **self.data_loader_kwargs,
-            )
-        else:
-            pass
+        n_val_train = self.n_train + self.n_validation
+        self._validation_dataloader = None
+        self._test_dataloader = None
 
-    def test_dataloader(self):
-        """Create test data loader."""
-        if len(self.test_idx) > 0:
-            return AnnDataLoader(
+        if self.n_validation > 0:
+            self._validation_dataloader = AnnDataLoader(
                 self.adata_manager,
-                indices=self.test_idx,
+                indices=all_indices[self.n_train : n_val_train],
                 shuffle=False,
                 drop_last=False,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
-        else:
-            pass
+        if self.n_test > 0:
+            self._test_dataloader = AnnDataLoader(
+                self.adata_manager,
+                indices=all_indices[n_val_train:],
+                shuffle=False,
+                drop_last=False,
+                pin_memory=self.pin_memory,
+                **self.data_loader_kwargs,
+            )
+
+    @property
+    def train_dataloader(self):
+        """Returns the train split data loader."""
+        return self._train_dataloader
+
+    @property
+    def validation_dataloader(self):
+        """Create validation split data loader."""
+        return self._validation_dataloader
+
+    @property
+    def test_dataloader(self):
+        """Create test split data loader."""
+        return self._test_dataloader
 
 
 class SemiSupervisedDataSplitter(pl.LightningDataModule):
