@@ -12,33 +12,33 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 15 100
+   :widths: 15 25 100
    :header-rows: 1
 
    * - Model
-     - Reference
      - Tasks
+     - Reference
    * - :doc:`/user_guide/models/scvi`
-     - :cite:p:`Lopez18`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
+     - :cite:p:`Lopez18`
    * - :doc:`/user_guide/models/scanvi`
-     - :cite:p:`Xu21`
      - scVI tasks with cell type transfer from reference, seed labeling
+     - :cite:p:`Xu21`
    * - :doc:`/user_guide/models/linearscvi`
-     - :cite:p:`Svensson20`
      - scVI tasks with linear decoder
+     - :cite:p:`Svensson20`
    * - :doc:`/user_guide/models/autozi`
-     - :cite:p:`Clivio19`
      -  for assessing gene-specific levels of zero-inflation in scRNA-seq data
+     - :cite:p:`Clivio19`
    * - :doc:`/user_guide/models/cellassign`
-     - :cite:p:`Zhang19`
      - Marker-based automated annotation
+     - :cite:p:`Zhang19`
    * - :doc:`/user_guide/models/solo`
-     - :cite:p:`Bernstein20`
      - Doublet detection
+     - :cite:p:`Bernstein20`
    * - :doc:`/user_guide/models/scar`
-     - :cite:p:`Sheng22`
      - Ambient RNA removal
+     - :cite:p:`Sheng22`
 
 ```
 
@@ -46,18 +46,18 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 15 100
+   :widths: 15 25 100
    :header-rows: 1
 
    * - Model
-     - Reference
      - Tasks
+     - Reference
    * - :doc:`/user_guide/models/peakvi`
-     - :cite:p:`Ashuach22`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
+     - :cite:p:`Ashuach22`
    * - :doc:`/user_guide/models/scbasset`
-     - :cite:p:`Yuan2022`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, imputation
+     - :cite:p:`Yuan2022`
 ```
 
 ## Multimodal analysis
@@ -66,30 +66,30 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 15 100
+   :widths: 15 100 20
    :header-rows: 1
 
    * - Model
-     - Reference
      - Tasks
+     - Reference
    * - :doc:`/user_guide/models/totalvi`
-     - :cite:p:`GayosoSteier21`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, protein imputation, imputation, normalization of other cell- and sample-level confounding factors
+     - :cite:p:`GayosoSteier21`
 ```
 
 ### Multiome
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 15 100
+   :widths: 15 100 20
    :header-rows: 1
 
    * - Model
-     - Reference
      - Tasks
+     - Reference
    * - :doc:`/user_guide/models/multivi`
-     - :cite:p:`AshuachGabitto21`
      - Integration of paired/unpaired multiome data, missing modality imputation, normalization of other cell- and sample-level confounding factors
+     - :cite:p:`AshuachGabitto21`
 
 ```
 
@@ -97,39 +97,39 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 15 100
+   :widths: 15 100 20
    :header-rows: 1
 
    * - Model
-     - Reference
      - Tasks
+     - Reference
    * - :doc:`/user_guide/models/destvi`
-     - :cite:p:`Lopez21`
      - Multi-resolution deconvolution, cell-type-specific gene expression imputation, comparative analysis
+     - :cite:p:`Lopez21`
    * - :doc:`/user_guide/models/stereoscope`
-     - :cite:p:`Andersson20`
      - Deconvolution
+     - :cite:p:`Andersson20`
    * - :doc:`/user_guide/models/gimvi`
-     - :cite:p:`Lopez19`
      - Imputation of missing spatial genes
+     - :cite:p:`Lopez19`
    * - :doc:`/user_guide/models/tangram`
-     - :cite:p:`Biancalani21`
      - Deconvolution, single cell spatial mapping
+     - :cite:p:`Biancalani21`
 ```
 
 ## General purpose analysis
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 15 100
+   :widths: 15 100 20
    :header-rows: 1
 
    * - Model
-     - Reference
      - Tasks
+     - Reference
    * - :doc:`/user_guide/models/amortizedlda`
-     - :cite:p:`Blei03`
      - Topic modeling
+     - :cite:p:`Blei03`
 
 ```
 
@@ -140,3 +140,46 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 -   {doc}`/user_guide/background/counterfactual_prediction`
 -   {doc}`/user_guide/background/transfer_learning`
 -   {doc}`/user_guide/background/codebase_overview`
+
+## Glossary
+
+::::{tab-set}
+
+:::{tab-item} Model
+
+A Model class inherits :class:`~scvi.model.base.BaseModelClass` and is the user-facing object for interacting with a module.
+The model has a `train` method that learns the parameters of the module, and also contains methods
+for users to retrieve information from the module, like the latent representation of cells in a VAE.
+Conventionally, the post-inference model methods should not store data into the AnnData object, but
+instead return "standard" Python objects, like numpy arrays or pandas dataframes.
+:::
+
+:::{tab-item} Module
+
+A module is the lower-level object that defines a generative model and inference scheme. A module will
+either inherit {class}`~scvi.module.base.BaseModuleClass` or {class}`~scvi.module.base.PyroBaseModuleClass`.
+Consequently, a module can either be implemented with PyTorch alone, or Pyro. In the PyTorch only case, the
+generative process and inference scheme are implemented respectively in the `generative` and `inference` methods,
+while the `loss` method computes the loss, e.g, ELBO in the case of variational inference.
+:::
+::::
+
+::::{tab-set}
+
+:::{tab-item} TrainingPlan
+
+The training plan is a PyTorch Lightning Module that is initialized with a scvi-tools module object.
+It configures the optimizers, defines the training step and validation step, and computes metrics to be
+recorded during training. The training step and validation step are functions that take data, run it through
+the model and return the loss, which will then be used to optimize the model parameters in the Trainer.
+Overall, custom training plans can be used to develop complex inference schemes on top of modules.
+:::
+
+:::{tab-item} Trainer
+
+The {class}`~scvi.train.Trainer` is a lightweight wrapper of the PyTorch Lightning Trainer. It takes as input
+the training plan, a training data loader, and a validation dataloader. It performs the actual training loop, in
+which parameters are optimized, as well as the validation loop to monitor metrics. It automatically handles moving
+data to the correct device (CPU/GPU).
+:::
+::::
