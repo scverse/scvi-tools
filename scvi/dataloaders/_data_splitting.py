@@ -273,13 +273,13 @@ class DataSplitter(pl.LightningDataModule):
         return self._train_dataloader
 
     @property
-    def validation_dataloader(self):
-        """Create validation split data loader."""
+    def val_dataloader(self):
+        """Returns the validation split data loader."""
         return self._validation_dataloader
 
     @property
     def test_dataloader(self):
-        """Create test split data loader."""
+        """Returns the test split data loader."""
         return self._test_dataloader
 
 
