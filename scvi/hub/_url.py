@@ -17,15 +17,18 @@ def validate_url(url: str, raise_error: bool = False) -> bool:
         r"(?:/?|[/?]\S+)$",
         re.IGNORECASE,
     )
-    valid = re.match(regex, url) is not None
-    if not valid and raise_error:
-        raise ValueError(f"Invalid URL format: {url}")
+    if re.match(regex, url) is None:
+        if raise_error:
+            raise ValueError(f"Invalid URL format: {url}")
+        return False
 
     try:
-        requests.get(url)
-    except requests.ConnectionError as e:
+        response = requests.get(url)
+        valid = response.status_code == 200
+    except requests.ConnectionError:
         valid = False
-        if raise_error:
-            raise ValueError(f"Invalid URL: {url}") from e
+
+    if not valid and raise_error:
+        raise ValueError(f"Invalid URL: {url}")
 
     return valid
