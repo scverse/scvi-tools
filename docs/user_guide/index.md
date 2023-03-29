@@ -12,7 +12,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 25 100
+   :widths: 15 100 25
    :header-rows: 1
 
    * - Model
@@ -46,7 +46,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 25 100
+   :widths: 15 100 25
    :header-rows: 1
 
    * - Model
@@ -66,7 +66,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 100 20
+   :widths: 15 100 25
    :header-rows: 1
 
    * - Model
@@ -81,7 +81,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 100 20
+   :widths: 15 100 25
    :header-rows: 1
 
    * - Model
@@ -97,7 +97,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 100 20
+   :widths: 15 100 25
    :header-rows: 1
 
    * - Model
@@ -121,7 +121,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```{eval-rst}
 .. list-table::
-   :widths: 15 100 20
+   :widths: 15 100 25
    :header-rows: 1
 
    * - Model
