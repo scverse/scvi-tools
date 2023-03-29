@@ -28,6 +28,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Switch back to using sphinx autodoc typehints {pr}`1970`.
 -   Disable default seed, run `scvi.settings.seed` after import for reproducibility {pr}`1976`.
 -   Deprecate `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices`, to be removed in v1.1 {pr}`1978`.
+-   Docs organization {pr}`1983`.
 
 #### Removed
 
