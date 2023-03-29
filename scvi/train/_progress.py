@@ -1,6 +1,6 @@
 import logging
 
-from pytorch_lightning.callbacks import ProgressBarBase
+from lightning.pytorch.callbacks import ProgressBar as ProgressBarBase
 
 from scvi.utils import track
 
