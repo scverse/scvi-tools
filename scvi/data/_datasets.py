@@ -543,11 +543,11 @@ def cortex(save_path: str = "data/") -> anndata.AnnData:
 
 
 def synthetic_iid(
-    batch_size: Optional[int] = 200,
-    n_genes: Optional[int] = 100,
-    n_proteins: Optional[int] = 100,
-    n_batches: Optional[int] = 2,
-    n_labels: Optional[int] = 3,
+    batch_size: int = 200,
+    n_genes: int = 100,
+    n_proteins: int = 100,
+    n_batches: int = 2,
+    n_labels: int = 3,
     sparse: bool = False,
     dropout_ratio: float = 0.7,
 ) -> anndata.AnnData:
@@ -559,17 +559,18 @@ def synthetic_iid(
     Parameters
     ----------
     batch_size
-        Number of cells per batch.
+        The number of cells per batch such that the total number of cells is
+        `batch_size` * `n_batches`.
     n_genes
-        Number of genes.
+        The number of genes.
     n_proteins
-        Number of proteins.
+        The number of proteins.
     n_batches
-        Number of batches.
+        The number of batches.
     n_labels
-        Number of cell types.
+        The number of cell types, distributed uniformly across batches.
     sparse
-        Whether to use a sparse matrix.
+        Whether to store the gene expression data as a :class:`scipy.sparse.csr_matrix`.
     dropout_ratio
         The expected percentage of zeros artificially added into the data.
 
@@ -577,10 +578,10 @@ def synthetic_iid(
     -------
     :class:`~anndata.AnnData` with the following fields:
 
-    `.obs["batch"]`: Integer batch labels.
-    `.obs["labels"]`: Integer cell type labels.
+    `.obs["batch"]`: Categorical batch labels in the format `batch_{i}`.
+    `.obs["labels"]`: Categorical cell type labels in the format `label_{i}`.
     `.obsm["protein_expression"]`: Protein expression matrix.
-    `.obs["protein_names"]`: Protein names.
+    `.uns["protein_names"]`: Array of protein names.
 
     Examples
     --------
