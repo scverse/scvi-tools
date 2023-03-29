@@ -23,7 +23,6 @@ for operating over a collection of AnnDataFields and an AnnData object.
 .. autosummary::
    :toctree: reference/
    :nosignatures:
-   :caption: Data Registration
 
    data.AnnDataManager
    data.AnnDataManagerValidationCheck
@@ -69,7 +68,6 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
 .. autosummary::
    :toctree: reference/
    :nosignatures:
-   :caption: Data Loaders
 
    dataloaders.AnnDataLoader
    dataloaders.AnnTorchDataset
@@ -92,7 +90,6 @@ Parameterizable probability distributions.
 .. autosummary::
    :toctree: reference/
    :nosignatures:
-   :caption: Distributions
 
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
@@ -113,7 +110,6 @@ These classes should be used to construct user-facing model classes.
 .. autosummary::
     :toctree: reference/
     :nosignatures:
-    :caption: Model (Base)
 
     model.base.BaseModelClass
     model.base.BaseMinifiedModeModelClass
@@ -141,7 +137,6 @@ Existing module classes with respective generative and inference procedures.
    :toctree: reference/
    :template: class_no_inherited.rst
    :nosignatures:
-   :caption: Module
 
    module.AutoZIVAE
    module.Classifier
@@ -171,7 +166,6 @@ Module classes in the external API with respective generative and inference proc
    :toctree: reference/
    :template: class_no_inherited.rst
    :nosignatures:
-   :caption: External module
 
    external.gimvi.JVAE
    external.cellassign.CellAssignModule
@@ -195,7 +189,6 @@ These classes should be used to construct module classes that define generative 
    :toctree: reference/
    :template: class_no_inherited.rst
    :nosignatures:
-   :caption: Module (Base)
 
    module.base.BaseModuleClass
    module.base.BaseMinifiedModeModuleClass
@@ -219,7 +212,6 @@ Basic neural network building blocks.
    :toctree: reference/
    :template: class_no_inherited.rst
    :nosignatures:
-   :caption: Neural networks
 
    nn.FCLayers
    nn.Encoder
@@ -242,7 +234,6 @@ TrainingPlans define train/test/val optimization steps for modules.
    :toctree: reference/
    :template: class_no_inherited.rst
    :nosignatures:
-   :caption: Train
 
    train.AdversarialTrainingPlan
    train.SemiSupervisedTrainingPlan
@@ -270,7 +261,6 @@ classes allow for new model classes to be easily integrated with the module.
 .. autosummary::
    :toctree: reference/
    :nosignatures:
-   :caption: Model hyperparameter tuning
 
    autotune.TunerManager
    autotune.Tunable
@@ -289,7 +279,6 @@ Utility functions used by scvi-tools.
 .. autosummary::
    :toctree: reference/
    :nosignatures:
-   :caption: Utilities
 
    utils.track
    utils.setup_anndata_dsp
