@@ -549,7 +549,7 @@ def synthetic_iid(
     n_batches: Optional[int] = 2,
     n_labels: Optional[int] = 3,
     sparse: bool = False,
-    noise_ratio: float = 0.7,
+    dropout_ratio: float = 0.7,
 ) -> anndata.AnnData:
     """Synthetic dataset with ZINB distributed RNA and NB distributed protein.
 
@@ -559,24 +559,28 @@ def synthetic_iid(
     Parameters
     ----------
     batch_size
-        Number of cells per batch
+        Number of cells per batch.
     n_genes
-        Number of genes
+        Number of genes.
     n_proteins
-        Number of proteins
+        Number of proteins.
     n_batches
-        Number of batches
+        Number of batches.
     n_labels
-        Number of cell types
+        Number of cell types.
     sparse
-        Whether to use a sparse matrix
+        Whether to use a sparse matrix.
     dropout_ratio
-        The expected percentage of zeros artificially added into the data
+        The expected percentage of zeros artificially added into the data.
+
     Returns
     -------
-    AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``),
-    protein expression (``.obsm["protein_expression"]``) and
-    protein names (``.obs['protein_names']``)
+    :class:`~anndata.AnnData` with the following fields:
+
+    `.obs["batch"]`: Integer batch labels.
+    `.obs["labels"]`: Integer cell type labels.
+    `.obsm["protein_expression"]`: Protein expression matrix.
+    `.obs["protein_names"]`: Protein names.
 
     Examples
     --------
