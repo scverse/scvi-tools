@@ -1,5 +1,7 @@
 import re
 
+import requests
+
 
 def validate_url(url: str, raise_error: bool = False) -> bool:
     """Validates a URL.
@@ -17,6 +19,13 @@ def validate_url(url: str, raise_error: bool = False) -> bool:
     )
     valid = re.match(regex, url) is not None
     if not valid and raise_error:
-        raise ValueError(f"Invalid URL: {url}")
+        raise ValueError(f"Invalid URL format: {url}")
+
+    try:
+        requests.get(url)
+    except requests.ConnectionError as e:
+        valid = False
+        if raise_error:
+            raise ValueError(f"Invalid URL: {url}") from e
 
     return valid
