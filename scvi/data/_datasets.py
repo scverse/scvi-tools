@@ -559,14 +559,14 @@ def synthetic_iid(
     Parameters
     ----------
     batch_size
-        The number of cells per batch such that the total number of cells is
-        `batch_size` * `n_batches`.
+        The number of cells per technical batch such that the total number of cells is
+        `batch_size * n_batches`.
     n_genes
-        The number of genes.
+        The number of genes to generate.
     n_proteins
-        The number of proteins.
+        The number of proteins to generate.
     n_batches
-        The number of batches.
+        The number of batches to generate.
     n_labels
         The number of cell types, distributed uniformly across batches.
     sparse

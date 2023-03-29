@@ -2,8 +2,8 @@ import logging
 
 import numpy as np
 import pandas as pd
-import scipy.sparse as sp_sparse
 from anndata import AnnData
+from scipy.sparse import csr_matrix
 
 logger = logging.getLogger(__name__)
 
@@ -17,27 +17,27 @@ def _generate_synthetic(
     sparse: bool = False,
     dropout_ratio: float = 0.7,
 ) -> AnnData:
-    data = np.random.negative_binomial(5, 0.3, size=(batch_size * n_batches, n_genes))
-    mask = np.random.binomial(
-        n=1, p=dropout_ratio, size=(batch_size * n_batches, n_genes)
-    )
-    data = data * mask  # We put the batch index first
-    labels = np.random.randint(0, n_labels, size=(batch_size * n_batches,))
+    n_obs = batch_size * n_batches
+
+    rna = np.random.negative_binomial(5, 0.3, size=(n_obs, n_genes))
+    mask = np.random.binomial(n=1, p=dropout_ratio, size=(n_obs, n_genes))
+    rna = rna * mask
+    rna = csr_matrix(rna) if sparse else rna
+
+    labels = np.random.randint(0, n_labels, size=(n_obs,))
     labels = np.array(["label_%d" % i for i in labels])
 
     batch = []
     for i in range(n_batches):
         batch += [f"batch_{i}"] * batch_size
 
-    if sparse:
-        data = sp_sparse.csr_matrix(data)
-    adata = AnnData(data)
+    protein = np.random.negative_binomial(5, 0.3, size=(n_obs, n_proteins))
+    protein_names = np.arange(n_proteins).astype(str)
+
+    adata = AnnData(rna)
     adata.obs["batch"] = pd.Categorical(batch)
     adata.obs["labels"] = pd.Categorical(labels)
-
-    # Protein measurements
-    p_data = np.random.negative_binomial(5, 0.3, size=(adata.shape[0], n_proteins))
-    adata.obsm["protein_expression"] = p_data
-    adata.uns["protein_names"] = np.arange(n_proteins).astype(str)
+    adata.obsm["protein_expression"] = protein
+    adata.uns["protein_names"] = protein_names
 
     return adata
