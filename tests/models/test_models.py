@@ -38,7 +38,7 @@ from scvi.model import (
     LinearSCVI,
 )
 from scvi.model.utils import mde
-from scvi.train import TrainingPlan, TrainRunner, JaxAdversarialTrainingPlan
+from scvi.train import JaxAdversarialTrainingPlan, TrainingPlan, TrainRunner
 from scvi.utils import attrdict
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 

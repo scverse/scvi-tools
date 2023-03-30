@@ -5,7 +5,6 @@ from typing import Callable, Dict, Iterable, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
-from flax import struct
 import lightning.pytorch as pl
 import numpy as np
 import optax

@@ -3,6 +3,7 @@ from typing import Optional
 import jax
 import jax.numpy as jnp
 from flax import linen as nn
+
 from scvi.module._jaxvae import Dense
 
 

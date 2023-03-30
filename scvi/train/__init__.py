@@ -3,12 +3,12 @@ from ._trainer import Trainer
 from ._trainingplans import (
     AdversarialTrainingPlan,
     ClassifierTrainingPlan,
+    JaxAdversarialTrainingPlan,
     JaxTrainingPlan,
     LowLevelPyroTrainingPlan,
     PyroTrainingPlan,
     SemiSupervisedTrainingPlan,
     TrainingPlan,
-    JaxAdversarialTrainingPlan,
 )
 from ._trainrunner import TrainRunner
 
