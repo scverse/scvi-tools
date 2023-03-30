@@ -7,6 +7,20 @@ from scvi.module._jaxvae import Dense
 
 
 class FlaxClassifier(nn.Module):
+    """Basic fully-connected NN classifier Flax module.
+
+    Parameters
+    ----------
+    n_labels
+        Numput of outputs dimensions
+    n_hidden
+        Number of hidden nodes in hidden layer
+    n_layers
+        Number of hidden layers
+    logits
+        Return logits or not
+    """
+
     n_labels: int
     n_hidden: int = 32
     n_layers: int = 2
