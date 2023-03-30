@@ -21,20 +21,26 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Changed
 
+-   Use sphinx book theme for documentation {pr}`1673`.
+-   Add an option to specify `dropout_ratio` in {meth}`scvi.data.synthetic_iid` {pr}`1920`.
 -   Update to lightning 2.0 {pr}`1961`
 -   Hyperopt is new default searcher for tuner {pr}`1961`
 -   {class}`scvi.train.AdversarialTrainingPlan` no longer encodes data twice during a training step, instead uses same latent for both optimizers {pr}`1961`, {pr}`1980`
--   Use sphinx book theme for documentation {pr}`1673`.
 -   Switch back to using sphinx autodoc typehints {pr}`1970`.
 -   Disable default seed, run `scvi.settings.seed` after import for reproducibility {pr}`1976`.
 -   Deprecate `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices`, to be removed in v1.1 {pr}`1978`.
 -   Docs organization {pr}`1983`.
+-   Validate training data and code URLs for {class}`scvi.hub.HubMetadata` and {class}`scvi.hub.HubModelCardHelper` {pr}`1985`.
 
 #### Removed
 
--   Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
 -   Remove ability to set up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model`, which was deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1949`.
+-   Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
 -   Remove `drop_last` as an integer from {class}`~scvi.dataloaders.AnnDataLoader`, add typing and code cleanup {pr}`1975`.
+
+#### Added
+
+-   Added {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
 
 ## Version 0.20
 
