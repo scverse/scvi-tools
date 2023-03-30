@@ -38,6 +38,10 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
 -   Remove `drop_last` as an integer from {class}`~scvi.dataloaders.AnnDataLoader`, add typing and code cleanup {pr}`1975`.
 
+#### Added
+
+-   Added {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
+
 ## Version 0.20
 
 ### 0.20.3 (2023-03-21)
