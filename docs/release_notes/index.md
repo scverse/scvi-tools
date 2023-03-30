@@ -36,6 +36,10 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Remove ability to set up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model`, which was deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1949`.
 -   Remove `drop_last` as an integer from {class}`~scvi.dataloaders.AnnDataLoader`, add typing and code cleanup {pr}`1975`.
 
+#### Added
+
+-   Added {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
+
 ## Version 0.20
 
 ### 0.20.3 (2023-03-21)
