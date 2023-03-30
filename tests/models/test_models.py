@@ -190,7 +190,17 @@ def test_jax_scvi_adversarial():
     model = JaxSCVI(adata, n_latent=n_latent)
     model._training_plan_cls = JaxAdversarialTrainingPlan
     model.train(
-        2, train_size=0.5, check_val_every_n_epoch=1, plan_kwargs={"adversarial_classifier":True}
+        2,
+        train_size=0.5,
+        check_val_every_n_epoch=1,
+        plan_kwargs={"adversarial_classifier": True},
+    )
+
+    model.train(
+        2,
+        train_size=0.5,
+        check_val_every_n_epoch=1,
+        plan_kwargs={"adversarial_classifier": True, "scale_adversarial_loss": 1.0},
     )
 
 
