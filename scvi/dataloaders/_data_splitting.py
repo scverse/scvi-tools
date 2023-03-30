@@ -4,8 +4,6 @@ from typing import Dict, List, Optional, Union
 import lightning.pytorch as pl
 import numpy as np
 import torch
-from _docstrings import data_splitting_dsp
-from _utils import validate_data_split
 from torch.utils.data import (
     BatchSampler,
     DataLoader,
@@ -22,6 +20,9 @@ from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
 
+from ._docstrings import data_splitting_dsp
+from ._utils import validate_data_split
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,13 +32,13 @@ class DataSplitter(pl.LightningDataModule):
 
     Parameters
     ----------
-    %(adata_manager)s
-    %(train_size)s
-    %(validation_size)s
-    %(train_indices)s
-    %(validation_indices)s
-    %(shuffle)s
-    %(pin_memory)s
+    %(param_adata_manager)s
+    %(param_train_size)s
+    %(param_validation_size)s
+    %(param_train_indices)s
+    %(param_validation_indices)s
+    %(param_shuffle)s
+    %(param_pin_memory)s
     **kwargs
         Keyword arguments passed into :class:`~scvi.data.AnnDataLoader`.
 
@@ -65,48 +66,24 @@ class DataSplitter(pl.LightningDataModule):
         super().__init__()
         self.adata_manager = adata_manager
 
-        self.train_size = None
-        self.validation_size = None
-        self.test_size = None
-        self.train_indices = None
-        self.validation_indices = None
-        self.test_indices = None
-        self.shuffle = shuffle
-
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
 
-        splits = validate_data_split(
+        (
+            self.train_indices,
+            self.validation_indices,
+            self.test_indices,
+        ) = validate_data_split(
             adata_manager.adata.n_obs,
             train_size,
             validation_size,
             train_indices,
             validation_indices,
+            shuffle,
         )
-
-        if train_size is not None:
-            self.n_train, self.n_validation, self.n_test = splits
-        else:
-            self.train_indices, self.validation_indices, self.test_indices = splits
-            self.n_train, self.n_validation, self.n_test = (
-                len(self.train_indices),
-                len(self.validation_indices),
-                len(self.test_indices),
-            )
 
     def setup(self, stage: Optional[str] = None):
         """Assign indices to train/validation/test splits if necessary."""
-        if self.train_indices is None:
-            all_indices = np.arange(self.adata_manager.adata.n_obs)
-            if self.shuffle:
-                random_state = np.random.default_rng(seed=settings.seed)
-                all_indices = random_state.permutation(all_indices)
-
-            n_val_train = self.n_train + self.n_validation
-            self.train_indices = all_indices[: self.n_train]
-            self.validation_indices = all_indices[self.n_train : n_val_train]
-            self.test_indices = all_indices[n_val_train:]
-
         self._train_dataloader = AnnDataLoader(
             self.adata_manager,
             indices=self.train_indices,
@@ -115,28 +92,22 @@ class DataSplitter(pl.LightningDataModule):
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
-
-        self._validation_dataloader = None
-        self._test_dataloader = None
-
-        if self.n_validation > 0:
-            self._validation_dataloader = AnnDataLoader(
-                self.adata_manager,
-                indices=self.validation_indices,
-                shuffle=False,
-                drop_last=False,
-                pin_memory=self.pin_memory,
-                **self.data_loader_kwargs,
-            )
-        if self.n_test > 0:
-            self._test_dataloader = AnnDataLoader(
-                self.adata_manager,
-                indices=self.test_indices,
-                shuffle=False,
-                drop_last=False,
-                pin_memory=self.pin_memory,
-                **self.data_loader_kwargs,
-            )
+        self._validation_dataloader = AnnDataLoader(
+            self.adata_manager,
+            indices=self.validation_indices,
+            shuffle=False,
+            drop_last=False,
+            pin_memory=self.pin_memory,
+            **self.data_loader_kwargs,
+        )
+        self._test_dataloader = AnnDataLoader(
+            self.adata_manager,
+            indices=self.test_indices,
+            shuffle=False,
+            drop_last=False,
+            pin_memory=self.pin_memory,
+            **self.data_loader_kwargs,
+        )
 
     def train_dataloader(self):
         """Returns the train split data loader."""
@@ -158,12 +129,12 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
     Parameters
     ----------
-    %(adata_manager)s
-    %(train_size)s
-    %(validation_size)s
-    %(train_indices)s
-    %(validation_indices)s
-    %(shuffle)s
+    %(param_adata_manager)s
+    %(param_train_size)s
+    %(param_validation_size)s
+    %(param_train_indices)s
+    %(param_validation_indices)s
+    %(param_shuffle)s
     n_samples_per_label
         Number of subsamples for each label class to sample per epoch.
     %(pin_memory)s
