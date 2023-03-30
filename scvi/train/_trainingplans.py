@@ -1085,7 +1085,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
 
 
 class JaxTrainingPlan(TrainingPlan):
-    """Lightning module task to train Pyro scvi-tools modules.
+    """Lightning module task to train Jax scvi-tools modules.
 
     Parameters
     ----------
@@ -1319,6 +1319,47 @@ class JaxAdversarialTrainingPlan(JaxTrainingPlan):
         adversarial_latent_key: str = "z",
         **loss_kwargs,
     ):
+        """Lightning module task to train Jax scvi-tools modules with adversarial loss option.
+
+        Parameters
+        ----------
+        module
+            An instance of :class:`~scvi.module.base.JaxModuleWraper`.
+        optimizer
+            One of "Adam", "AdamW", or "Custom", which requires a custom
+            optimizer creator callable to be passed via `optimizer_creator`.
+        optimizer_creator
+            A callable returning a :class:`~optax.GradientTransformation`.
+            This allows using any optax optimizer with custom hyperparameters.
+        lr
+            Learning rate used for optimization, when `optimizer_creator` is None.
+        weight_decay
+            Weight decay used in optimization, when `optimizer_creator` is None.
+        eps
+            eps used for optimization, when `optimizer_creator` is None.
+        max_norm
+            Max global norm of gradients for gradient clipping.
+        n_steps_kl_warmup
+            Number of training steps (minibatches) to scale weight on KL divergences from
+            `min_kl_weight` to `max_kl_weight`. Only activated when `n_epochs_kl_warmup` is
+            set to None.
+        n_epochs_kl_warmup
+            Number of epochs to scale weight on KL divergences from `min_kl_weight` to
+            `max_kl_weight`. Overrides `n_steps_kl_warmup` when both are not `None`.
+        adversarial_classifier
+            Whether to use adversarial classifier in the latent space.
+        scale_adversarial_loss
+            Scaling factor on the adversarial components of the loss.
+            By default, adversarial loss is scaled from 1 to 0 following opposite of
+            kl warmup.
+        adversarial_covariate_key
+            Key of the covariate used for adversarial loss.
+        adversarial_latent_key
+            Key of the latent variable used for adversarial loss.
+        **loss_kwargs
+            Keyword args to pass to the loss method of the `module`.
+            `kl_weight` should not be passed here and is handled automatically.
+        """
         super().__init__(
             module=module,
             lr=lr,
