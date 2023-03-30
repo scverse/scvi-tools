@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 # This is to get around lightning import changes
-class _TuneReportCallback(pl.Callback):
+class _TuneReportCallback(TuneReportCallback, pl.Callback):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

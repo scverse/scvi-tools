@@ -42,9 +42,6 @@ from scvi.train import TrainingPlan, TrainRunner, JaxAdversarialTrainingPlan
 from scvi.utils import attrdict
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
-import jax
-jax.config.update("jax_disable_jit", True)
-
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
     "scvi_version": "0.0.0",
