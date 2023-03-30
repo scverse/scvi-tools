@@ -33,6 +33,7 @@ Here we host some published datasets that are useful for benchmarking and testin
    data.seqfishplus
    data.seqfish
    data.smfish
+   data.synthetic_iid
    data.breast_cancer_dataset
    data.mouse_ob_dataset
    data.retina
