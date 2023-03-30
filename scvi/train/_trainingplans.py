@@ -1463,7 +1463,7 @@ class JaxAdversarialTrainingPlan(JaxTrainingPlan):
             )
 
             l_soft = cls_log_probs * cls_target
-            fool_loss = -l_soft.sum(axis=1).mean()
+            fool_loss = -l_soft.sum(axis=1)
 
             loss += fool_loss * scale_adversarial_loss
             loss_output.extra_metrics["adversarial_fool_loss"] = (
@@ -1531,7 +1531,7 @@ class JaxAdversarialTrainingPlan(JaxTrainingPlan):
             cls_target = jax.nn.one_hot(true_cls, n_adv_covariate_classes)
 
             l_soft = cls_log_probs * cls_target
-            loss = -l_soft.sum(axis=1).mean()
+            loss = -l_soft.sum(axis=1)
 
             return loss, (new_adv_model_state,)
 
