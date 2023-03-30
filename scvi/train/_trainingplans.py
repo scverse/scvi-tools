@@ -1415,7 +1415,7 @@ class JaxAdversarialTrainingPlan(JaxTrainingPlan):
             )
             cls_log_probs = jax.nn.log_softmax(cls_logits, axis=-1)
 
-            true_cls = batch[adv_covariate_key]
+            true_cls = batch[adv_covariate_key].flatten()
             one_hot_covariate = jax.nn.one_hot(true_cls, n_adv_covariate_classes)
             cls_target = (jnp.ones_like(one_hot_covariate) - one_hot_covariate) / (
                 n_adv_covariate_classes - 1
@@ -1486,7 +1486,7 @@ class JaxAdversarialTrainingPlan(JaxTrainingPlan):
             )
             cls_log_probs = jax.nn.log_softmax(cls_logits, axis=-1)
 
-            true_cls = batch[adv_covariate_key]
+            true_cls = batch[adv_covariate_key].flatten()
             cls_target = jax.nn.one_hot(true_cls, n_adv_covariate_classes)
 
             l_soft = cls_log_probs * cls_target
