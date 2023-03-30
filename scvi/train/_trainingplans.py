@@ -1367,7 +1367,6 @@ class JaxAdversarialTrainingPlan(JaxTrainingPlan):
     @partial(
         jax.jit,
         static_argnames=(
-            "scale_adversarial_loss",
             "adv_covariate_key",
             "n_adv_covariate_classes",
             "adv_latent_key",
