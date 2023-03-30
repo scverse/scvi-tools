@@ -1479,7 +1479,7 @@ class JaxAdversarialTrainingPlan(JaxTrainingPlan):
             adv_latent = outputs[0][adv_latent_key]
             cls_logits, new_adv_model_state = adv_state.apply_fn(
                 vars_in,
-                adv_latent,
+                jax.lax.stop_gradient(adv_latent),
                 training=True,
                 rngs={"params": adv_rng},
                 mutable=list(adv_state.state.keys()),
