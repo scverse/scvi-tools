@@ -11,6 +11,7 @@ from scvi.data._utils import _is_minified
 from scvi.model.base._utils import _load_saved_files
 
 from ._constants import _SCVI_HUB
+from ._url import validate_url
 from .model_card_template import template
 
 
@@ -74,6 +75,10 @@ class HubMetadata:
             model_cls_name,
             **kwargs,
         )
+
+    def __post_init__(self):
+        if self.training_data_url is not None:
+            validate_url(self.training_data_url, raise_error=True)
 
 
 @dataclass
@@ -148,6 +153,11 @@ class HubModelCardHelper:
 
     def __post_init__(self):
         self.model_card = self._to_model_card()
+
+        if self.training_data_url is not None:
+            validate_url(self.training_data_url, raise_error=True)
+        if self.training_code_url is not None:
+            validate_url(self.training_code_url, raise_error=True)
 
     @classmethod
     def from_dir(
