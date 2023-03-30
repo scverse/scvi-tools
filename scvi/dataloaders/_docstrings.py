@@ -7,7 +7,8 @@ adata_manager
 
 param_n_obs = """\
 n_obs
-    The number of observations in the dataset."""
+    The number of observations in the dataset. Must be `None` if `all_indices` is not
+    `None`."""
 
 param_train_size = """\
 train_size
@@ -20,6 +21,11 @@ validation_size
     validation set will correspond to the remaining data. Must be `None` if `train_size`
     is `None`. If `train_size + validation_size < 1`, the remaining observations
     will be assigned to the test set."""
+
+param_all_indices = """\
+all_indices
+    The indices of all the observations in the dataset. Must be `None` if `n_obs` is not
+    `None`."""
 
 param_train_indices = """\
 train_indices

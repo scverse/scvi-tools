@@ -52,6 +52,8 @@ class DataSplitter(pl.LightningDataModule):
     >>> train_dl = splitter.train_dataloader()
     """
 
+    _data_loader_cls = AnnDataLoader
+
     def __init__(
         self,
         adata_manager: AnnDataManager,
@@ -74,17 +76,17 @@ class DataSplitter(pl.LightningDataModule):
             self.validation_indices,
             self.test_indices,
         ) = validate_data_split(
-            adata_manager.adata.n_obs,
-            train_size,
-            validation_size,
-            train_indices,
-            validation_indices,
-            shuffle,
+            n_obs=adata_manager.adata.n_obs,
+            train_size=train_size,
+            validation_size=validation_size,
+            train_indices=train_indices,
+            validation_indices=validation_indices,
+            shuffle=shuffle,
         )
 
     def setup(self, stage: Optional[str] = None):
         """Assign indices to train/validation/test splits if necessary."""
-        self._train_dataloader = AnnDataLoader(
+        self._train_dataloader = self._data_loader_cls(
             self.adata_manager,
             indices=self.train_indices,
             shuffle=True,
@@ -92,7 +94,7 @@ class DataSplitter(pl.LightningDataModule):
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
-        self._validation_dataloader = AnnDataLoader(
+        self._validation_dataloader = self._data_loader_cls(
             self.adata_manager,
             indices=self.validation_indices,
             shuffle=False,
@@ -100,7 +102,7 @@ class DataSplitter(pl.LightningDataModule):
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
-        self._test_dataloader = AnnDataLoader(
+        self._test_dataloader = self._data_loader_cls(
             self.adata_manager,
             indices=self.test_indices,
             shuffle=False,
@@ -122,7 +124,7 @@ class DataSplitter(pl.LightningDataModule):
         return self._test_dataloader
 
 
-class SemiSupervisedDataSplitter(pl.LightningDataModule):
+class SemiSupervisedDataSplitter(DataSplitter):
     """Creates :class:`~scvi.data.AnnDataLoader` objects for train/validation/test sets.
 
     Preserves the ratio between labeled and unlabeled data between the splits.
@@ -148,8 +150,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     >>> adata = scvi.data.synthetic_iid()
     >>> scvi.model.SCVI.setup_anndata(adata, labels_key="labels")
     >>> adata_manager = scvi.model.SCVI(adata).adata_manager
-    >>> unknown_label = 'label_0'
-    >>> splitter = SemiSupervisedDataSplitter(adata, unknown_label)
+    >>> splitter = SemiSupervisedDataSplitter(adata_manager)
     >>> splitter.setup()
     >>> train_dl = splitter.train_dataloader()
     """
@@ -169,15 +170,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         super().__init__()
         self.adata_manager = adata_manager
 
-        self.train_size = None
-        self.validation_size = None
-        self.test_size = None
-        self.train_indices = None
-        self.validation_indices = None
-        self.test_indices = None
-        self.shuffle = shuffle
-        self.n_samples_per_label = n_samples_per_label
-
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
 
@@ -189,110 +181,51 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             adata_manager.data_registry.labels.attr_name,
             labels_state_registry.original_key,
         ).ravel()
-        self.unlabeled_category = labels_state_registry.unlabeled_category
-        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
-        self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
+        unlabeled_category = labels_state_registry.unlabeled_category
+        unlabled_indices = np.argwhere(labels == unlabeled_category).ravel()
+        labeled_indices = np.argwhere(labels != unlabeled_category).ravel()
 
-    def setup(self, stage: Optional[str] = None):
-        """Split indices in train/test/val sets."""
-        n_labeled_idx = len(self._labeled_indices)
-        n_unlabeled_idx = len(self._unlabeled_indices)
-
-        if n_labeled_idx != 0:
-            n_labeled_train, n_labeled_val = validate_data_split(
-                n_labeled_idx, self.train_size, self.validation_size
+        if len(labeled_indices) != 0:
+            self.data_loader_kwargs.update(
+                {
+                    "n_samples_per_label": n_samples_per_label,
+                }
             )
-            rs = np.random.RandomState(seed=settings.seed)
-            labeled_permutation = rs.choice(
-                self._labeled_indices, len(self._labeled_indices), replace=False
-            )
-            labeled_idx_val = labeled_permutation[:n_labeled_val]
-            labeled_idx_train = labeled_permutation[
-                n_labeled_val : (n_labeled_val + n_labeled_train)
-            ]
-            labeled_idx_test = labeled_permutation[(n_labeled_val + n_labeled_train) :]
-        else:
-            labeled_idx_test = []
-            labeled_idx_train = []
-            labeled_idx_val = []
+            self._data_loader_cls = SemiSupervisedDataLoader
 
-        if n_unlabeled_idx != 0:
-            n_unlabeled_train, n_unlabeled_val = validate_data_split(
-                n_unlabeled_idx, self.train_size, self.validation_size
-            )
-            rs = np.random.RandomState(seed=settings.seed)
-            unlabeled_permutation = rs.choice(
-                self._unlabeled_indices, len(self._unlabeled_indices)
-            )
-            unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]
-            unlabeled_idx_train = unlabeled_permutation[
-                n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
-            ]
-            unlabeled_idx_test = unlabeled_permutation[
-                (n_unlabeled_val + n_unlabeled_train) :
-            ]
-        else:
-            unlabeled_idx_train = []
-            unlabeled_idx_val = []
-            unlabeled_idx_test = []
-
-        indices_train = np.concatenate((labeled_idx_train, unlabeled_idx_train))
-        indices_val = np.concatenate((labeled_idx_val, unlabeled_idx_val))
-        indices_test = np.concatenate((labeled_idx_test, unlabeled_idx_test))
-
-        self.train_idx = indices_train.astype(int)
-        self.val_idx = indices_val.astype(int)
-        self.test_idx = indices_test.astype(int)
-
-        if len(self._labeled_indices) != 0:
-            self.data_loader_class = SemiSupervisedDataLoader
-            dl_kwargs = {
-                "n_samples_per_label": self.n_samples_per_label,
-            }
-        else:
-            self.data_loader_class = AnnDataLoader
-            dl_kwargs = {}
-
-        self.data_loader_kwargs.update(dl_kwargs)
-
-    def train_dataloader(self):
-        """Create the train data loader."""
-        return self.data_loader_class(
-            self.adata_manager,
-            indices=self.train_idx,
-            shuffle=True,
-            drop_last=False,
-            pin_memory=self.pin_memory,
-            **self.data_loader_kwargs,
+        (
+            train_labeled_indices,
+            validation_labeled_indices,
+            test_labeled_indices,
+        ) = validate_data_split(
+            all_indices=labeled_indices,
+            train_size=train_size,
+            validation_size=validation_size,
+            train_indices=train_indices,
+            validation_indices=validation_indices,
+            shuffle=shuffle,
         )
-
-    def val_dataloader(self):
-        """Create the validation data loader."""
-        if len(self.val_idx) > 0:
-            return self.data_loader_class(
-                self.adata_manager,
-                indices=self.val_idx,
-                shuffle=False,
-                drop_last=False,
-                pin_memory=self.pin_memory,
-                **self.data_loader_kwargs,
-            )
-        else:
-            pass
-
-    def test_dataloader(self):
-        """Create the test data loader."""
-        if len(self.test_idx) > 0:
-            return self.data_loader_class(
-                self.adata_manager,
-                indices=self.test_idx,
-                shuffle=False,
-                drop_last=False,
-                pin_memory=self.pin_memory,
-                **self.data_loader_kwargs,
-            )
-        else:
-            pass
+        (
+            train_unlabeled_indices,
+            validation_unlabeled_indices,
+            test_unlabeled_indices,
+        ) = validate_data_split(
+            all_indices=unlabled_indices,
+            train_size=train_size,
+            validation_size=validation_size,
+            train_indices=train_indices,
+            validation_indices=validation_indices,
+            shuffle=shuffle,
+        )
+        self.train_indices = np.union1d(
+            train_labeled_indices, train_unlabeled_indices
+        ).astype(int)
+        self.validation_indices = np.union1d(
+            validation_labeled_indices, validation_unlabeled_indices
+        ).astype(int)
+        self.test_indices = np.union1d(
+            test_labeled_indices, test_unlabeled_indices
+        ).astype(int)
 
 
 @devices_dsp.dedent
