@@ -18,7 +18,6 @@ from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_device_args
-from scvi.utils._docstrings import devices_dsp
 
 from ._docstrings import data_splitting_dsp
 from ._utils import validate_data_split
@@ -28,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 @data_splitting_dsp.dedent
 class DataSplitter(pl.LightningDataModule):
-    """Creates :class:`~scvi.data.AnnDataLoader` objects for train/validation/test sets.
+    """Creates dataloaders for train/validation/test splits.
 
     Parameters
     ----------
@@ -125,7 +124,7 @@ class DataSplitter(pl.LightningDataModule):
 
 
 class SemiSupervisedDataSplitter(DataSplitter):
-    """Creates :class:`~scvi.data.AnnDataLoader` objects for train/validation/test sets.
+    """Creates dataloaders for train/validation/test splits.
 
     Preserves the ratio between labeled and unlabeled data between the splits.
 
@@ -228,31 +227,25 @@ class SemiSupervisedDataSplitter(DataSplitter):
         ).astype(int)
 
 
-@devices_dsp.dedent
+@data_splitting_dsp
 class DeviceBackedDataSplitter(DataSplitter):
-    """Creates loaders for data that is already on device, e.g., GPU.
+    """Creates dataloaders for train/validation/test splits.
 
-    If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
+    Used for data that is already on a device (e.g. GPU).
 
     Parameters
     ----------
-    adata_manager
-        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
-    train_size
-        float, or None (default is 0.9)
-    validation_size
-        float, or None (default is None)
+    %(param_adata_manager)s
+    %(param_train_size)s
+    %(param_validation_size)s
+    %(param_train_indices)s
+    %(param_validation_indices)s
+    %(param_shuffle)s
+    %(param_pin_memory)s
     %(param_accelerator)s
     %(param_device)s
-    pin_memory
-        Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
-    shuffle
-        if ``True``, shuffles indices before sampling for training set
-    shuffle_test_val
-        Shuffle test and validation indices.
-    batch_size
-        batch size of each iteration. If `None`, do not minibatch
+    **kwargs
+        Keyword arguments passed into :class:`~scvi.data.AnnDataLoader`.
 
     Examples
     --------
@@ -267,28 +260,31 @@ class DeviceBackedDataSplitter(DataSplitter):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        train_size: float = 1.0,
+        train_size: Optional[float] = 0.9,
         validation_size: Optional[float] = None,
+        train_indices: Optional[List[int]] = None,
+        validation_indices: Optional[List[int]] = None,
+        shuffle: bool = True,
+        pin_memory: bool = False,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
-        pin_memory: bool = False,
-        shuffle: bool = False,
-        shuffle_test_val: bool = False,
-        batch_size: Optional[int] = None,
         **kwargs,
     ):
         super().__init__(
             adata_manager=adata_manager,
             train_size=train_size,
             validation_size=validation_size,
+            train_indices=train_indices,
+            validation_indices=validation_indices,
+            shuffle=shuffle,
             pin_memory=pin_memory,
             **kwargs,
         )
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.shuffle_test_val = shuffle_test_val
         _, _, self.device = parse_device_args(
-            accelerator=accelerator, devices=device, return_device="torch"
+            accelerator=accelerator,
+            devices=device,
+            return_device="torch",
+            validate_single_device=True,
         )
 
     def setup(self, stage: Optional[str] = None):

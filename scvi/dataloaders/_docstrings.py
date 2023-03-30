@@ -1,5 +1,7 @@
 from docrep import DocstringProcessor
 
+from scvi.utils._docstrings import param_accelerator, param_device
+
 param_adata_manager = """\
 adata_manager
     :class:`~scvi.data.AnnDataManager` object that has been created via a model's
@@ -58,4 +60,7 @@ data_splitting_dsp = DocstringProcessor(
     param_train_indices=param_train_indices,
     param_validation_indices=param_validation_indices,
     param_shuffle=param_shuffle,
+    param_pin_memory=param_pin_memory,
+    param_accelerator=param_accelerator,
+    param_device=param_device,
 )
