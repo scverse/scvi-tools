@@ -2,6 +2,9 @@ from docrep import DocstringProcessor
 
 from scvi.utils._docstrings import param_accelerator, param_device
 
+summary = """\
+Creates train, validation, and test split dataloaders."""
+
 param_adata_manager = """\
 adata_manager
     :class:`~scvi.data.AnnDataManager` object that has been created via a model's
@@ -48,12 +51,35 @@ shuffle
 
 param_pin_memory = """\
 pin_memory
-    Whether to copy tensors into device-pinned memory before returning them. Passed
-    into :class:`~scvi.data.AnnDataLoader`. Will take priority over the value of
+    Whether to copy tensors into non-paged main memory before returning them. Passed
+    into :class:`~scvi.data.AnnDataLoader`. Equivalent to setting
     `scvi.settings.dl_pin_memory_gpu_training`."""
+
+param_n_samples_per_label = """\
+n_samples_per_label
+    Number of subsamples for each label class to sample per epoch."""
+
+param_train_dataloader_kwargs = """\
+train_dataloader_kwargs
+    Keyword arguments passed into the training dataloader, an instance of
+    :class:`~scvi.data.AnnDataLoader` if there is no labeled data or
+    :class:`~scvi.data.SemiSupervisedDataLoader` if there is labeled data."""
+
+param_validation_dataloader_kwargs = """\
+validation_dataloader_kwargs
+    Keyword arguments passed into the validation dataloader, an instance of
+    :class:`~scvi.data.AnnDataLoader` if there is no labeled data or
+    :class:`~scvi.data.SemiSupervisedDataLoader` if there is labeled data."""
+
+param_test_dataloader_kwargs = """\
+test_dataloader_kwargs
+    Keyword arguments passed into the test dataloader, an instance of
+    :class:`~scvi.data.AnnDataLoader` if there is no labeled data or
+    :class:`~scvi.data.SemiSupervisedDataLoader` if there is labeled data."""
 
 
 data_splitting_dsp = DocstringProcessor(
+    summary=summary,
     param_n_obs=param_n_obs,
     param_train_size=param_train_size,
     param_validation_size=param_validation_size,
@@ -61,6 +87,7 @@ data_splitting_dsp = DocstringProcessor(
     param_validation_indices=param_validation_indices,
     param_shuffle=param_shuffle,
     param_pin_memory=param_pin_memory,
+    param_n_samples_per_label=param_n_samples_per_label,
     param_accelerator=param_accelerator,
     param_device=param_device,
 )

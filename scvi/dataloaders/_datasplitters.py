@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 @data_splitting_dsp.dedent
 class DataSplitter(pl.LightningDataModule):
-    """Creates dataloaders for train/validation/test splits.
+    """%(summary)s
 
     Parameters
     ----------
@@ -38,8 +38,9 @@ class DataSplitter(pl.LightningDataModule):
     %(param_validation_indices)s
     %(param_shuffle)s
     %(param_pin_memory)s
-    **kwargs
-        Keyword arguments passed into :class:`~scvi.data.AnnDataLoader`.
+    %(param_train_dataloader_kwargs)s
+    %(param_validation_dataloader_kwargs)s
+    %(param_test_dataloader_kwargs)s
 
     Examples
     --------
@@ -62,19 +63,34 @@ class DataSplitter(pl.LightningDataModule):
         validation_indices: Optional[List[int]] = None,
         shuffle: bool = True,
         pin_memory: bool = False,
-        **kwargs,
+        train_dataloader_kwargs: Optional[Dict] = None,
+        validation_dataloader_kwargs: Optional[Dict] = None,
+        test_dataloader_kwargs: Optional[Dict] = None,
     ):
         super().__init__()
         self.adata_manager = adata_manager
+        pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
 
-        self.data_loader_kwargs = kwargs
-        self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
+        self.train_dataloader_kwargs = {
+            "shuffle": True,
+            "drop_last": False,
+            "pin_memory": pin_memory,
+        }
+        self.train_dataloader_kwargs.update(train_dataloader_kwargs or {})
+        self.validation_dataloader_kwargs = {
+            "shuffle": False,
+            "drop_last": False,
+            "pin_memory": pin_memory,
+        }
+        self.validation_dataloader_kwargs.update(validation_dataloader_kwargs or {})
+        self.test_dataloader_kwargs = {
+            "shuffle": False,
+            "drop_last": False,
+            "pin_memory": pin_memory,
+        }
+        self.test_dataloader_kwargs.update(test_dataloader_kwargs or {})
 
-        (
-            self.train_indices,
-            self.validation_indices,
-            self.test_indices,
-        ) = validate_data_split(
+        self.indices = validate_data_split(
             n_obs=adata_manager.adata.n_obs,
             train_size=train_size,
             validation_size=validation_size,
@@ -87,27 +103,18 @@ class DataSplitter(pl.LightningDataModule):
         """Assign indices to train/validation/test splits if necessary."""
         self._train_dataloader = self._data_loader_cls(
             self.adata_manager,
-            indices=self.train_indices,
-            shuffle=True,
-            drop_last=False,
-            pin_memory=self.pin_memory,
-            **self.data_loader_kwargs,
+            indices=self.indices.train,
+            **self.train_dataloader_kwargs,
         )
         self._validation_dataloader = self._data_loader_cls(
             self.adata_manager,
-            indices=self.validation_indices,
-            shuffle=False,
-            drop_last=False,
-            pin_memory=self.pin_memory,
-            **self.data_loader_kwargs,
+            indices=self.indices.validation,
+            **self.validation_dataloader_kwargs,
         )
         self._test_dataloader = self._data_loader_cls(
             self.adata_manager,
-            indices=self.test_indices,
-            shuffle=False,
-            drop_last=False,
-            pin_memory=self.pin_memory,
-            **self.data_loader_kwargs,
+            indices=self.indices.test,
+            **self.test_dataloader_kwargs,
         )
 
     def train_dataloader(self):
@@ -123,8 +130,9 @@ class DataSplitter(pl.LightningDataModule):
         return self._test_dataloader
 
 
+@data_splitting_dsp.dedent
 class SemiSupervisedDataSplitter(DataSplitter):
-    """Creates dataloaders for train/validation/test splits.
+    """%(summary)s
 
     Preserves the ratio between labeled and unlabeled data between the splits.
 
@@ -136,13 +144,11 @@ class SemiSupervisedDataSplitter(DataSplitter):
     %(param_train_indices)s
     %(param_validation_indices)s
     %(param_shuffle)s
-    n_samples_per_label
-        Number of subsamples for each label class to sample per epoch.
+    %(n_samples_per_label)s
     %(pin_memory)s
-    **kwargs
-        Keyword arguments passed into :class:`~scvi.data.AnnDataLoader` if there is no
-        labeled data or :class:`~scvi.data.SemiSupervisedDataLoader` if there is labeled
-        data.
+    %(param_train_dataloader_kwargs)s
+    %(param_validation_dataloader_kwargs)s
+    %(param_test_dataloader_kwargs)s
 
     Examples
     --------
@@ -164,20 +170,29 @@ class SemiSupervisedDataSplitter(DataSplitter):
         shuffle: bool = True,
         n_samples_per_label: Optional[int] = None,
         pin_memory: bool = False,
-        **kwargs,
+        train_dataloader_kwargs: Optional[Dict] = None,
+        validation_dataloader_kwargs: Optional[Dict] = None,
+        test_dataloader_kwargs: Optional[Dict] = None,
     ):
-        super().__init__()
-        self.adata_manager = adata_manager
+        super().__init__(
+            adata_manager,
+            train_size=train_size,
+            validation_size=validation_size,
+            train_indices=train_indices,
+            validation_indices=validation_indices,
+            shuffle=shuffle,
+            pin_memory=pin_memory,
+            train_dataloader_kwargs=train_dataloader_kwargs,
+            validation_dataloader_kwargs=validation_dataloader_kwargs,
+            test_dataloader_kwargs=test_dataloader_kwargs,
+        )
 
-        self.data_loader_kwargs = kwargs
-        self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
-
-        labels_state_registry = adata_manager.get_state_registry(
+        labels_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         )
         labels = get_anndata_attribute(
-            adata_manager.adata,
-            adata_manager.data_registry.labels.attr_name,
+            self.adata_manager.adata,
+            self.adata_manager.data_registry.labels.attr_name,
             labels_state_registry.original_key,
         ).ravel()
         unlabeled_category = labels_state_registry.unlabeled_category
@@ -185,18 +200,14 @@ class SemiSupervisedDataSplitter(DataSplitter):
         labeled_indices = np.argwhere(labels != unlabeled_category).ravel()
 
         if len(labeled_indices) != 0:
-            self.data_loader_kwargs.update(
-                {
-                    "n_samples_per_label": n_samples_per_label,
-                }
-            )
+            self.train_dataloader_kwargs["n_samples_per_label"] = n_samples_per_label
+            self.validation_dataloader_kwargs[
+                "n_samples_per_label"
+            ] = n_samples_per_label
+            self.test_dataloader_kwargs["n_samples_per_label"] = n_samples_per_label
             self._data_loader_cls = SemiSupervisedDataLoader
 
-        (
-            train_labeled_indices,
-            validation_labeled_indices,
-            test_labeled_indices,
-        ) = validate_data_split(
+        labeled_indices = validate_data_split(
             all_indices=labeled_indices,
             train_size=train_size,
             validation_size=validation_size,
@@ -204,11 +215,7 @@ class SemiSupervisedDataSplitter(DataSplitter):
             validation_indices=validation_indices,
             shuffle=shuffle,
         )
-        (
-            train_unlabeled_indices,
-            validation_unlabeled_indices,
-            test_unlabeled_indices,
-        ) = validate_data_split(
+        unlabeled_indices = validate_data_split(
             all_indices=unlabled_indices,
             train_size=train_size,
             validation_size=validation_size,
@@ -216,22 +223,15 @@ class SemiSupervisedDataSplitter(DataSplitter):
             validation_indices=validation_indices,
             shuffle=shuffle,
         )
-        self.train_indices = np.union1d(
-            train_labeled_indices, train_unlabeled_indices
-        ).astype(int)
-        self.validation_indices = np.union1d(
-            validation_labeled_indices, validation_unlabeled_indices
-        ).astype(int)
-        self.test_indices = np.union1d(
-            test_labeled_indices, test_unlabeled_indices
-        ).astype(int)
+
+        self.indices = labeled_indices + unlabeled_indices
 
 
 @data_splitting_dsp
 class DeviceBackedDataSplitter(DataSplitter):
-    """Creates dataloaders for train/validation/test splits.
+    """%(summary)s
 
-    Used for data that is already on a device (e.g. GPU).
+    Moves data to the device specified by `accelerator` and `device`.
 
     Parameters
     ----------
@@ -241,11 +241,12 @@ class DeviceBackedDataSplitter(DataSplitter):
     %(param_train_indices)s
     %(param_validation_indices)s
     %(param_shuffle)s
-    %(param_pin_memory)s
     %(param_accelerator)s
     %(param_device)s
-    **kwargs
-        Keyword arguments passed into :class:`~scvi.data.AnnDataLoader`.
+    %(param_pin_memory)s
+    %(param_train_dataloader_kwargs)s
+    %(param_validation_dataloader_kwargs)s
+    %(param_test_dataloader_kwargs)s
 
     Examples
     --------
@@ -265,20 +266,24 @@ class DeviceBackedDataSplitter(DataSplitter):
         train_indices: Optional[List[int]] = None,
         validation_indices: Optional[List[int]] = None,
         shuffle: bool = True,
-        pin_memory: bool = False,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
-        **kwargs,
+        pin_memory: bool = False,
+        train_dataloader_kwargs: Optional[Dict] = None,
+        validation_dataloader_kwargs: Optional[Dict] = None,
+        test_dataloader_kwargs: Optional[Dict] = None,
     ):
         super().__init__(
-            adata_manager=adata_manager,
+            adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             train_indices=train_indices,
             validation_indices=validation_indices,
             shuffle=shuffle,
             pin_memory=pin_memory,
-            **kwargs,
+            train_dataloader_kwargs=train_dataloader_kwargs,
+            validation_dataloader_kwargs=validation_dataloader_kwargs,
+            test_dataloader_kwargs=test_dataloader_kwargs,
         )
         _, _, self.device = parse_device_args(
             accelerator=accelerator,

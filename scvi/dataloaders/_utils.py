@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from math import ceil, floor
 from typing import List, Optional, Tuple
 
@@ -10,6 +11,39 @@ from scvi.utils._exceptions import InvalidParameterError
 from ._docstrings import data_splitting_dsp
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SplitIndices:
+    """Dataclass for storing the indices of the data split.
+
+    Enforces that the indices are unique and supports addition.
+
+    Parameters
+    ----------
+    train
+        Indices of the training set.
+    validation
+        Indices of the validation set.
+    test
+        Indices of the test set.
+    """
+
+    train: List[int]
+    validation: List[int]
+    test: List[int]
+
+    def __post_init__(self):
+        self.train = np.array(self.train, dtype=int)
+        self.validation = np.array(self.validation, dtype=int)
+        self.test = np.array(self.test, dtype=int)
+
+    def __add__(self, other):
+        return SplitIndices(
+            train=np.union1d(self.train, other.train),
+            validation=np.union1d(self.validation, other.validation),
+            test=np.union1d(self.test, other.test),
+        )
 
 
 def _validate_data_split_sizes(
@@ -110,7 +144,7 @@ def validate_data_split(
     train_indices: Optional[List[int]],
     validation_indices: Optional[List[int]],
     shuffle,
-):
+) -> SplitIndices:
     """Validate data splitting parameters.
 
     Parameters
@@ -175,4 +209,6 @@ def validate_data_split(
         "testing."
     )
 
-    return train_indices, validation_indices, test_indices
+    return SplitIndices(
+        train=train_indices, validation=validation_indices, test=test_indices
+    )
