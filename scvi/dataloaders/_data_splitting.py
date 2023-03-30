@@ -1,10 +1,11 @@
 import logging
-from math import ceil, floor
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import lightning.pytorch as pl
 import numpy as np
 import torch
+from _docstrings import data_splitting_dsp
+from _utils import validate_data_split
 from torch.utils.data import (
     BatchSampler,
     DataLoader,
@@ -20,172 +21,25 @@ from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
-from scvi.utils._exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
 
 
-def _validate_data_split_sizes(
-    n_obs: int,
-    train_size: float,
-    validation_size: Optional[float],
-) -> Tuple[int, int, int]:
-    if train_size > 1.0 or train_size <= 0.0:
-        raise InvalidParameterError(
-            "train_size",
-            train_size,
-            additional_message="`train_size` must be between 0 and 1.",
-        )
-
-    n_train = ceil(train_size * n_obs)
-
-    if validation_size is None:
-        n_val = n_obs - n_train
-    elif validation_size >= 1.0 or validation_size < 0.0:
-        raise InvalidParameterError(
-            "validation_size",
-            validation_size,
-            additional_message="`validation_size` must be between 0 and 1.",
-        )
-    elif (train_size + validation_size) > 1:
-        raise InvalidParameterError(
-            "train_size + validation_size",
-            train_size + validation_size,
-            additional_message="`train_size + validation_size` must be between 0 and 1.",
-        )
-    else:
-        n_val = floor(n_obs * validation_size)
-
-    n_test = n_obs - n_train - n_val
-
-    logging.info(
-        f"Using {n_train} observations for training, {n_val} for validation "
-        f"and {n_test} for testing."
-    )
-    return n_train, n_val, n_test
-
-
-def _validate_data_split_indices(
-    n_obs: int,
-    train_indices: List[int],
-    validation_indices: Optional[List[int]],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    train_indices = np.array(train_indices)
-    if validation_indices is not None:
-        validation_indices = np.array(validation_indices)
-
-    if np.amax(train_indices) >= n_obs or np.amin(train_indices) < 0:
-        raise InvalidParameterError(
-            "train_indices",
-            train_indices,
-            additional_message="`train_indices` contains invalid indices.",
-        )
-
-    if validation_indices is None:
-        validation_indices = np.setdiff1d(np.arange(n_obs), train_indices)
-    elif np.amax(validation_indices) >= n_obs or np.amin(validation_indices) < 0:
-        raise InvalidParameterError(
-            "validation_indices",
-            validation_indices,
-            additional_message="`validation_indices` contains invalid indices.",
-        )
-
-    union_indices = np.union1d(train_indices, validation_indices)
-    test_indices = np.setdiff1d(np.arange(n_obs), union_indices)
-
-    logging.info(
-        f"Using {len(train_indices)} observations for training, "
-        f"{len(validation_indices)} for validation and {len(test_indices)} for "
-        "testing."
-    )
-
-    return train_indices, validation_indices, test_indices
-
-
-def validate_data_split(
-    n_obs: int,
-    train_size: Optional[float],
-    validation_size: Optional[float],
-    train_indices: Optional[List[int]],
-    validation_indices: Optional[List[int]],
-):
-    """Validate data splitting parameters.
-
-    Parameters
-    ----------
-    n_obs
-        Number of observations in the dataset.
-    train_size
-        Fraction of the dataset for the training set.
-    validation_size
-        Fraction of the dataset for the validation set. If `None`, the validation set
-        will be of size `1 - train_size`.
-    train_indices
-        Indices of the training set. Cannot be set if `train_size` is not `None`.
-    validation_indices
-        Indices of the validation set. Cannot be set if `validation_size` is not `None`.
-        Set to the remaining indices if `train_indices` is not `None`. If the union of
-        the two sets is not the full set of indices, the remaining indices are used for
-        the test set.
-
-    Returns
-    -------
-    The size of the training, validation, and test sets as a tuple if `train_size` is
-    not `None`, otherwise the indices of the training, validation, and test sets as a
-    tuple if `train_indices` is not `None`.
-    """
-    if train_size is None and train_indices is None:
-        raise ValueError("Either `train_size` or `train_indices` must be specified.")
-    if train_size is not None and train_indices is not None:
-        raise ValueError("`train_size` and `train_indices` cannot both be specified.")
-
-    if train_size is None and validation_size is not None:
-        raise ValueError(
-            "`train_size` must be specified if `validation_size` is specified."
-        )
-    if train_indices is None and validation_indices is not None:
-        raise ValueError(
-            "`train_indices` must be specified if `validation_indices` is specified."
-        )
-
-    if train_size is not None:
-        return _validate_data_split_sizes(n_obs, train_size, validation_size)
-    else:
-        return _validate_data_split_indices(n_obs, train_indices, validation_indices)
-
-
+@data_splitting_dsp.dedent
 class DataSplitter(pl.LightningDataModule):
     """Creates :class:`~scvi.data.AnnDataLoader` objects for train/validation/test sets.
 
-    The test split is only created if `train_size + validation_size  < 1` or if the
-    union of `train_indices` and `validation_indices` is not the full set of indices.
-
     Parameters
     ----------
-    adata_manager
-        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
-    train_size
-        Fraction of the dataset for the training set.
-    validation_size
-        Fraction of the dataset for the validation set. If `None`, the validation set
-        will be of size `1 - train_size`.
-    train_indices
-        Indices of the training set. Ignored if `train_size` is not `None`.
-    validation_indices
-        Indices of the validation set. Ignored if `validation_size` is not `None`. Set
-        to the remaining indices if `train_indices` is not `None`. If the union of the
-        two sets is not the full set of indices, the remaining indices are used for the
-        test set.
-    shuffle
-        Whether or not to shuffle the data before splitting. Ignored if `train_indices`
-        is not `None`.
-    pin_memory
-        Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+    %(adata_manager)s
+    %(train_size)s
+    %(validation_size)s
+    %(train_indices)s
+    %(validation_indices)s
+    %(shuffle)s
+    %(pin_memory)s
     **kwargs
-        Keyword args for data loader. If adata has labeled data, data loader
-        class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
-        else data loader class is :class:`~scvi.dataloaders.AnnDataLoader`.
+        Keyword arguments passed into :class:`~scvi.data.AnnDataLoader`.
 
     Examples
     --------
@@ -242,31 +96,33 @@ class DataSplitter(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
         """Assign indices to train/validation/test splits if necessary."""
-        if self.train_indices is not None:
-            return
+        if self.train_indices is None:
+            all_indices = np.arange(self.adata_manager.adata.n_obs)
+            if self.shuffle:
+                random_state = np.random.default_rng(seed=settings.seed)
+                all_indices = random_state.permutation(all_indices)
 
-        all_indices = np.arange(self.adata_manager.adata.n_obs)
-        if self.shuffle:
-            random_state = np.random.default_rng(seed=settings.seed)
-            all_indices = random_state.permutation(all_indices)
+            n_val_train = self.n_train + self.n_validation
+            self.train_indices = all_indices[: self.n_train]
+            self.validation_indices = all_indices[self.n_train : n_val_train]
+            self.test_indices = all_indices[n_val_train:]
 
         self._train_dataloader = AnnDataLoader(
             self.adata_manager,
-            indices=all_indices[: self.n_train],
+            indices=self.train_indices,
             shuffle=True,
             drop_last=False,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
 
-        n_val_train = self.n_train + self.n_validation
         self._validation_dataloader = None
         self._test_dataloader = None
 
         if self.n_validation > 0:
             self._validation_dataloader = AnnDataLoader(
                 self.adata_manager,
-                indices=all_indices[self.n_train : n_val_train],
+                indices=self.validation_indices,
                 shuffle=False,
                 drop_last=False,
                 pin_memory=self.pin_memory,
@@ -275,7 +131,7 @@ class DataSplitter(pl.LightningDataModule):
         if self.n_test > 0:
             self._test_dataloader = AnnDataLoader(
                 self.adata_manager,
-                indices=all_indices[n_val_train:],
+                indices=self.test_indices,
                 shuffle=False,
                 drop_last=False,
                 pin_memory=self.pin_memory,
@@ -296,29 +152,25 @@ class DataSplitter(pl.LightningDataModule):
 
 
 class SemiSupervisedDataSplitter(pl.LightningDataModule):
-    """Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
+    """Creates :class:`~scvi.data.AnnDataLoader` objects for train/validation/test sets.
 
-    If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
-    The ratio between labeled and unlabeled data in adata will be preserved
-    in the train/test/val sets.
+    Preserves the ratio between labeled and unlabeled data between the splits.
 
     Parameters
     ----------
-    adata_manager
-        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
-    train_size
-        float, or None (default is 0.9)
-    validation_size
-        float, or None (default is None)
+    %(adata_manager)s
+    %(train_size)s
+    %(validation_size)s
+    %(train_indices)s
+    %(validation_indices)s
+    %(shuffle)s
     n_samples_per_label
-        Number of subsamples for each label class to sample per epoch
-    pin_memory
-        Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+        Number of subsamples for each label class to sample per epoch.
+    %(pin_memory)s
     **kwargs
-        Keyword args for data loader. If adata has labeled data, data loader
-        class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
-        else data loader class is :class:`~scvi.dataloaders.AnnDataLoader`.
+        Keyword arguments passed into :class:`~scvi.data.AnnDataLoader` if there is no
+        labeled data or :class:`~scvi.data.SemiSupervisedDataLoader` if there is labeled
+        data.
 
     Examples
     --------
@@ -334,18 +186,29 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        train_size: float = 0.9,
+        train_size: Optional[float] = 0.9,
         validation_size: Optional[float] = None,
+        train_indices: Optional[List[int]] = None,
+        validation_indices: Optional[List[int]] = None,
+        shuffle: bool = True,
         n_samples_per_label: Optional[int] = None,
         pin_memory: bool = False,
         **kwargs,
     ):
         super().__init__()
         self.adata_manager = adata_manager
-        self.train_size = float(train_size)
-        self.validation_size = validation_size
-        self.data_loader_kwargs = kwargs
+
+        self.train_size = None
+        self.validation_size = None
+        self.test_size = None
+        self.train_indices = None
+        self.validation_indices = None
+        self.test_indices = None
+        self.shuffle = shuffle
         self.n_samples_per_label = n_samples_per_label
+
+        self.data_loader_kwargs = kwargs
+        self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
 
         labels_state_registry = adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
@@ -358,9 +221,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.unlabeled_category = labels_state_registry.unlabeled_category
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
-
-        self.data_loader_kwargs = kwargs
-        self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
