@@ -1,4 +1,3 @@
-import pdb
 from collections import OrderedDict
 from functools import partial
 from inspect import signature
@@ -521,7 +520,7 @@ class AdversarialTrainingPlan(TrainingPlan):
     def loss_adversarial_classifier(self, z, batch_index, predict_true_class=True):
         """Loss for adversarial classifier."""
         n_classes = self.n_output_classifier
-        cls_logits = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
+        cls_log_probs = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
 
         if predict_true_class:
             cls_target = one_hot(batch_index, n_classes)
@@ -533,7 +532,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 ~one_hot_batch.bool(), torch.ones_like(one_hot_batch) / (n_classes - 1)
             )
 
-        l_soft = cls_logits * cls_target
+        l_soft = cls_log_probs * cls_target
         loss = -l_soft.sum(dim=1).mean()
 
         return loss
@@ -1414,14 +1413,15 @@ class JaxAdversarialTrainingPlan(JaxTrainingPlan):
                 rngs={"params": adv_rng},
                 mutable=list(adv_state.state.keys()),
             )
-            true_cls = batch[adv_covariate_key]
+            cls_log_probs = jax.nn.log_softmax(cls_logits, axis=-1)
 
+            true_cls = batch[adv_covariate_key]
             one_hot_covariate = jax.nn.one_hot(true_cls, n_adv_covariate_classes)
             cls_target = (jnp.ones_like(one_hot_covariate) - one_hot_covariate) / (
                 n_adv_covariate_classes - 1
             )
 
-            l_soft = cls_logits * cls_target
+            l_soft = cls_log_probs * cls_target
             fool_loss = -l_soft.sum(axis=1).mean()
 
             loss += fool_loss * scale_adversarial_loss
@@ -1484,11 +1484,12 @@ class JaxAdversarialTrainingPlan(JaxTrainingPlan):
                 rngs={"params": adv_rng},
                 mutable=list(adv_state.state.keys()),
             )
-            true_cls = batch[adv_covariate_key]
+            cls_log_probs = jax.nn.log_softmax(cls_logits, axis=-1)
 
+            true_cls = batch[adv_covariate_key]
             cls_target = jax.nn.one_hot(true_cls, n_adv_covariate_classes)
 
-            l_soft = cls_logits * cls_target
+            l_soft = cls_log_probs * cls_target
             loss = -l_soft.sum(axis=1).mean()
 
             return loss, (new_adv_model_state,)
