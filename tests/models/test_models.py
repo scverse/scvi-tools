@@ -38,7 +38,7 @@ from scvi.model import (
     LinearSCVI,
 )
 from scvi.model.utils import mde
-from scvi.train import TrainingPlan, TrainRunner
+from scvi.train import TrainingPlan, TrainRunner, JaxAdversarialTrainingPlan
 from scvi.utils import attrdict
 from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
@@ -177,6 +177,21 @@ def test_jax_scvi_save_load(save_path):
 
     z2 = model.get_latent_representation()
     np.testing.assert_array_equal(z1, z2)
+
+
+def test_jax_scvi_adversarial():
+    n_latent = 5
+
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+    model = JaxSCVI(adata, n_latent=n_latent)
+    model._training_plan_cls = JaxAdversarialTrainingPlan
+    model.train(
+        2, train_size=0.5, check_val_every_n_epoch=1, plan_kwargs={"adversarial_classifier":True}
+    )
 
 
 def test_scvi(save_path):

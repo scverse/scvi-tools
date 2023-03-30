@@ -1,3 +1,4 @@
+import pdb
 from collections import OrderedDict
 from functools import partial
 from inspect import signature
@@ -5,6 +6,7 @@ from typing import Callable, Dict, Iterable, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
+from flax import struct
 import lightning.pytorch as pl
 import numpy as np
 import optax
@@ -15,7 +17,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import REGISTRY_KEYS
 from scvi.autotune._types import Tunable, TunableMixin
-from scvi.module import Classifier
+from scvi.module import Classifier, FlaxClassifier
 from scvi.module.base import (
     BaseModuleClass,
     JaxBaseModuleClass,
@@ -1297,3 +1299,257 @@ class JaxTrainingPlan(TrainingPlan):
 
     def forward(self, *args, **kwargs):
         pass
+
+
+class JaxAdversarialTrainingPlan(JaxTrainingPlan):
+    def __init__(
+        self,
+        module: JaxBaseModuleClass,
+        *,
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
+        optimizer_creator: Optional[JaxOptimizerCreator] = None,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        eps: float = 0.01,
+        max_norm: Optional[float] = None,
+        n_steps_kl_warmup: Union[int, None] = None,
+        n_epochs_kl_warmup: Union[int, None] = 400,
+        adversarial_classifier: Union[bool, FlaxClassifier] = False,
+        scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
+        adversarial_covariate_key: str = REGISTRY_KEYS.BATCH_KEY,
+        adversarial_latent_key: str = "z",
+        **loss_kwargs,
+    ):
+        super().__init__(
+            module=module,
+            lr=lr,
+            weight_decay=weight_decay,
+            eps=eps,
+            optimizer=optimizer,
+            optimizer_creator=optimizer_creator,
+            n_steps_kl_warmup=n_steps_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            max_norm=max_norm,
+            **loss_kwargs,
+        )
+        self.scale_adversarial_loss = scale_adversarial_loss
+        if adversarial_classifier is True:
+            self.n_output_classifier = getattr(
+                self.module, f"n_{adversarial_covariate_key}"
+            )
+            self.adversarial_classifier = FlaxClassifier(
+                n_labels=self.n_output_classifier,
+                logits=True,
+            )
+        elif adversarial_classifier is False:
+            self.adversarial_classifier = None
+        else:
+            self.adversarial_classifier = adversarial_classifier
+        self.scale_adversarial_loss = scale_adversarial_loss
+        self.adversarial_covariate_key = adversarial_covariate_key
+        self.adversarial_latent_key = adversarial_latent_key
+        self.module.adversarial_train_state = None
+
+    def set_adversarial_train_state(self, params, state=None):
+        """Set the state of the module."""
+        if self.module.adversarial_train_state is not None:
+            return
+        optimizer = self.get_optimizer_creator()()
+        train_state = TrainStateWithState.create(
+            apply_fn=self.adversarial_classifier.apply,
+            params=params,
+            tx=optimizer,
+            state=state,
+        )
+        self.module.adversarial_train_state = train_state
+
+    @staticmethod
+    @partial(
+        jax.jit,
+        static_argnames=(
+            "scale_adversarial_loss",
+            "adv_covariate_key",
+            "n_adv_covariate_classes",
+            "adv_latent_key",
+        ),
+    )
+    def jit_training_step(
+        state: TrainStateWithState,
+        adv_state: Optional[TrainStateWithState],
+        scale_adversarial_loss: float,
+        adv_covariate_key: str,
+        n_adv_covariate_classes: int,
+        adv_latent_key: str,
+        batch: Dict[str, np.ndarray],
+        rngs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        """Jit training step."""
+        if adv_state is None:
+            return super().jit_training_step(
+                state=state,
+                batch=batch,
+                rngs=rngs,
+                **kwargs,
+            )
+
+        rngs["params"], adv_rng = jax.random.split(rngs["params"])
+
+        def loss_fn(params):
+            # state can't be passed here
+            vars_in = {"params": params, **state.state}
+            outputs, new_model_state = state.apply_fn(
+                vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs
+            )
+
+            loss_output = outputs[2]
+            loss = loss_output.loss
+
+            # Compute adversarial "fool" loss
+            vars_in = {"params": adv_state.params, **adv_state.state}
+            adv_latent = outputs[0][adv_latent_key]
+            cls_logits, _ = adv_state.apply_fn(
+                vars_in,
+                adv_latent,
+                training=True,
+                rngs={"params": adv_rng},
+                mutable=list(adv_state.state.keys()),
+            )
+            true_cls = batch[adv_covariate_key]
+
+            one_hot_covariate = jax.nn.one_hot(true_cls, n_adv_covariate_classes)
+            cls_target = (jnp.ones_like(one_hot_covariate) - one_hot_covariate) / (
+                n_adv_covariate_classes - 1
+            )
+
+            l_soft = cls_logits * cls_target
+            fool_loss = -l_soft.sum(axis=1).mean()
+
+            loss += fool_loss * scale_adversarial_loss
+            loss_output.extra_metrics["adversarial_fool_loss"] = (
+                fool_loss * scale_adversarial_loss
+            )
+
+            return loss, (loss_output, new_model_state)
+
+        (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(
+            loss_fn, has_aux=True
+        )(state.params)
+        new_state = state.apply_gradients(grads=grads, state=new_model_state)
+        return new_state, loss, loss_output
+
+    @staticmethod
+    @partial(
+        jax.jit,
+        static_argnames=(
+            "adv_covariate_key",
+            "n_adv_covariate_classes",
+            "adv_latent_key",
+        ),
+    )
+    def jit_adversarial_training_step(
+        state: TrainStateWithState,
+        adv_state: Optional[TrainStateWithState],
+        adv_covariate_key: str,
+        n_adv_covariate_classes: int,
+        adv_latent_key: str,
+        batch: Dict[str, np.ndarray],
+        rngs: Dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        """Jit training step."""
+        if adv_state is None:
+            return super().jit_training_step(
+                state=state,
+                batch=batch,
+                rngs=rngs,
+                **kwargs,
+            )
+
+        rngs["params"], adv_rng = jax.random.split(rngs["params"])
+
+        def loss_fn(adv_params):
+            # state can't be passed here
+            vars_in = {"params": state.params, **state.state}
+            outputs, _ = state.apply_fn(
+                vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs
+            )
+
+            # Compute adversarial classifier update loss
+            vars_in = {"params": adv_params, **adv_state.state}
+            adv_latent = outputs[0][adv_latent_key]
+            cls_logits, new_adv_model_state = adv_state.apply_fn(
+                vars_in,
+                adv_latent,
+                training=True,
+                rngs={"params": adv_rng},
+                mutable=list(adv_state.state.keys()),
+            )
+            true_cls = batch[adv_covariate_key]
+
+            cls_target = jax.nn.one_hot(true_cls, n_adv_covariate_classes)
+
+            l_soft = cls_logits * cls_target
+            loss = -l_soft.sum(axis=1).mean()
+
+            return loss, (new_adv_model_state,)
+
+        (loss, (new_adv_model_state,)), grads = jax.value_and_grad(
+            loss_fn, has_aux=True
+        )(adv_state.params)
+
+        new_adv_state = adv_state.apply_gradients(
+            grads=grads, state=new_adv_model_state
+        )
+        return new_adv_state, loss
+
+    def training_step(self, batch, batch_idx):
+        """Training step for Jax."""
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        self.module.train()
+        self.module.train_state, _, loss_output = self.jit_training_step(
+            self.module.train_state,
+            self.module.adversarial_train_state,
+            self.scale_adversarial_loss
+            if self.scale_adversarial_loss != "auto"
+            else 1 - self.kl_weight,
+            self.adversarial_covariate_key,
+            self.n_output_classifier,
+            self.adversarial_latent_key,
+            batch,
+            self.module.rngs,
+            loss_kwargs=self.loss_kwargs,
+        )
+        loss_output = jax.tree_util.tree_map(
+            lambda x: torch.tensor(jax.device_get(x)),
+            loss_output,
+        )
+        # TODO: Better way to get batch size
+        self.log(
+            "train_loss",
+            loss_output.loss,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+            prog_bar=True,
+        )
+        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+
+        if self.adversarial_classifier is not None:
+            (
+                self.module.adversarial_train_state,
+                _,
+            ) = self.jit_adversarial_training_step(
+                self.module.train_state,
+                self.module.adversarial_train_state,
+                self.adversarial_covariate_key,
+                self.n_output_classifier,
+                self.adversarial_latent_key,
+                batch,
+                self.module.rngs,
+                loss_kwargs=self.loss_kwargs,
+            )
+
+        # Update the dummy optimizer to update the global step
+        _opt = self.optimizers()
+        _opt.step()

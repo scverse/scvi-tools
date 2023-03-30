@@ -9,6 +9,7 @@ from ._scanvae import SCANVAE
 from ._totalvae import TOTALVAE
 from ._vae import LDVAE, VAE
 from ._vaec import VAEC
+from ._jaxclassifier import FlaxClassifier
 
 __all__ = [
     "VAE",
@@ -23,4 +24,5 @@ __all__ = [
     "MULTIVAE",
     "AmortizedLDAPyroModule",
     "JaxVAE",
+    "FlaxClassifier",
 ]

@@ -161,6 +161,23 @@ class JaxModuleInit(Callback):
             dl = trainer.datamodule.train_dataloader()
         else:
             dl = self.dataloader
-        module_init = module.init(module.rngs, next(iter(dl)))
-        state, params = module_init.pop("params")
-        pl_module.set_train_state(params, state)
+        is_adversarial = getattr(pl_module, "adversarial_classifier", None)
+
+        if not is_adversarial:
+            module_init = module.init(module.rngs, next(iter(dl)))
+            state, params = module_init.pop("params")
+            pl_module.set_train_state(params, state)
+        else:
+            module_out, module_init = module.init_with_output(
+                module.rngs, next(iter(dl))
+            )
+            state, params = module_init.pop("params")
+            pl_module.set_train_state(params, state)
+
+            adversarial_latent_key = pl_module.adversarial_latent_key
+            adversarial_latent = module_out[0][adversarial_latent_key]
+            adv_module_init = pl_module.adversarial_classifier.init(
+                module.rngs, adversarial_latent, training=True
+            )
+            adv_state, adv_params = adv_module_init.pop("params")
+            pl_module.set_adversarial_train_state(adv_params, adv_state)

@@ -8,6 +8,7 @@ from ._trainingplans import (
     PyroTrainingPlan,
     SemiSupervisedTrainingPlan,
     TrainingPlan,
+    JaxAdversarialTrainingPlan,
 )
 from ._trainrunner import TrainRunner
 
@@ -24,4 +25,5 @@ __all__ = [
     "SaveBestState",
     "JaxModuleInit",
     "JaxTrainingPlan",
+    "JaxAdversarialTrainingPlan",
 ]
