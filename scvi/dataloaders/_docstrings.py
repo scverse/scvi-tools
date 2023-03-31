@@ -88,6 +88,9 @@ data_splitting_dsp = DocstringProcessor(
     param_shuffle=param_shuffle,
     param_pin_memory=param_pin_memory,
     param_n_samples_per_label=param_n_samples_per_label,
+    param_train_dataloader_kwargs=param_train_dataloader_kwargs,
+    param_validation_dataloader_kwargs=param_validation_dataloader_kwargs,
+    param_test_dataloader_kwargs=param_test_dataloader_kwargs,
     param_accelerator=param_accelerator,
     param_device=param_device,
 )

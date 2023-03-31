@@ -7,7 +7,6 @@ import torch
 from torch.utils.data import (
     BatchSampler,
     DataLoader,
-    Dataset,
     RandomSampler,
     SequentialSampler,
 )
@@ -15,10 +14,10 @@ from torch.utils.data import (
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
-from scvi.dataloaders._ann_dataloader import AnnDataLoader
-from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_device_args
 
+from ._dataloaders import AnnDataLoader, SemiSupervisedDataLoader
+from ._datasets import DeviceBackedDataset
 from ._docstrings import data_splitting_dsp
 from ._utils import validate_data_split
 
@@ -337,7 +336,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         """Create a dataloader from a tensor dict."""
         if tensor_dict is None:
             return None
-        dataset = _DeviceBackedDataset(tensor_dict)
+        dataset = DeviceBackedDataset(tensor_dict)
         bs = self.batch_size if self.batch_size is not None else len(dataset)
         sampler_cls = SequentialSampler if not shuffle else RandomSampler
         sampler = BatchSampler(
@@ -358,19 +357,3 @@ class DeviceBackedDataSplitter(DataSplitter):
     def val_dataloader(self):
         """Create the validation data loader."""
         return self._make_dataloader(self.val_tensor_dict, self.shuffle_test_val)
-
-
-class _DeviceBackedDataset(Dataset):
-    def __init__(self, tensor_dict: Dict[str, torch.Tensor]):
-        self.data = tensor_dict
-
-    def __getitem__(self, idx: List[int]) -> Dict[str, torch.Tensor]:
-        return_dict = {}
-        for key, value in self.data.items():
-            return_dict[key] = value[idx]
-
-        return return_dict
-
-    def __len__(self):
-        for _, value in self.data.items():
-            return len(value)

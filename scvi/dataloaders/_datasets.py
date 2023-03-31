@@ -4,6 +4,7 @@ from typing import Dict, List, Union
 import h5py
 import numpy as np
 import pandas as pd
+import torch
 from anndata._core.sparse_dataset import SparseDataset
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
@@ -155,3 +156,19 @@ class AnnTorchDataset(Dataset):
 
     def __len__(self):
         return self.adata_manager.adata.shape[0]
+
+
+class DeviceBackedDataset(Dataset):
+    def __init__(self, tensor_dict: Dict[str, torch.Tensor]):
+        self.data = tensor_dict
+
+    def __getitem__(self, idx: List[int]) -> Dict[str, torch.Tensor]:
+        return_dict = {}
+        for key, value in self.data.items():
+            return_dict[key] = value[idx]
+
+        return return_dict
+
+    def __len__(self):
+        for _, value in self.data.items():
+            return len(value)
