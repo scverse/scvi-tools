@@ -18,13 +18,13 @@ from scvi.model._utils import parse_device_args
 
 from ._dataloaders import AnnDataLoader, SemiSupervisedDataLoader
 from ._datasets import DeviceBackedDataset
-from ._docstrings import data_splitting_dsp
+from ._docstrings import dataloaders_dsp
 from ._utils import validate_data_split
 
 logger = logging.getLogger(__name__)
 
 
-@data_splitting_dsp.dedent
+@dataloaders_dsp.dedent
 class DataSplitter(pl.LightningDataModule):
     """%(summary)s
 
@@ -129,7 +129,7 @@ class DataSplitter(pl.LightningDataModule):
         return self._test_dataloader
 
 
-@data_splitting_dsp.dedent
+@dataloaders_dsp.dedent
 class SemiSupervisedDataSplitter(DataSplitter):
     """%(summary)s
 
@@ -226,7 +226,7 @@ class SemiSupervisedDataSplitter(DataSplitter):
         self.indices = labeled_indices + unlabeled_indices
 
 
-@data_splitting_dsp
+@dataloaders_dsp.dedent
 class DeviceBackedDataSplitter(DataSplitter):
     """%(summary)s
 

@@ -78,7 +78,7 @@ test_dataloader_kwargs
     :class:`~scvi.data.SemiSupervisedDataLoader` if there is labeled data."""
 
 
-data_splitting_dsp = DocstringProcessor(
+dataloaders_dsp = DocstringProcessor(
     summary=summary,
     param_n_obs=param_n_obs,
     param_train_size=param_train_size,
