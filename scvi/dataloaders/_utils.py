@@ -137,12 +137,12 @@ def _make_data_split(
 @dataloaders_dsp.dedent
 def validate_data_split(
     *,
-    n_obs: Optional[int],
-    all_indices: Optional[List[int]],
-    train_size: Optional[float],
-    validation_size: Optional[float],
-    train_indices: Optional[List[int]],
-    validation_indices: Optional[List[int]],
+    n_obs: Optional[int] = None,
+    all_indices: Optional[List[int]] = None,
+    train_size: Optional[float] = None,
+    validation_size: Optional[float] = None,
+    train_indices: Optional[List[int]] = None,
+    validation_indices: Optional[List[int]] = None,
     shuffle,
 ) -> SplitIndices:
     """Validate data splitting parameters.
@@ -186,7 +186,9 @@ def validate_data_split(
 
     if train_size is not None:
         n_train, n_validation, n_test = _validate_data_split_sizes(
-            n_obs=n_obs, train_size=train_size, validation_size=validation_size
+            all_indices=all_indices,
+            train_size=train_size,
+            validation_size=validation_size,
         )
         train_indices, validation_indices, test_indices = _make_data_split(
             all_indices=all_indices,

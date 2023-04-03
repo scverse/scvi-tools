@@ -60,21 +60,9 @@ param_n_samples_per_label = """\
 n_samples_per_label
     Number of subsamples for each label class to sample per epoch."""
 
-param_train_dataloader_kwargs = """\
+param_dataloader_kwargs = """\
 train_dataloader_kwargs
-    Keyword arguments passed into the training dataloader, an instance of
-    :class:`~scvi.data.AnnDataLoader` if there is no labeled data or
-    :class:`~scvi.data.SemiSupervisedDataLoader` if there is labeled data."""
-
-param_validation_dataloader_kwargs = """\
-validation_dataloader_kwargs
-    Keyword arguments passed into the validation dataloader, an instance of
-    :class:`~scvi.data.AnnDataLoader` if there is no labeled data or
-    :class:`~scvi.data.SemiSupervisedDataLoader` if there is labeled data."""
-
-param_test_dataloader_kwargs = """\
-test_dataloader_kwargs
-    Keyword arguments passed into the test dataloader, an instance of
+    Keyword arguments passed into the dataloaders, an instance of
     :class:`~scvi.data.AnnDataLoader` if there is no labeled data or
     :class:`~scvi.data.SemiSupervisedDataLoader` if there is labeled data."""
 
@@ -89,9 +77,7 @@ dataloaders_dsp = DocstringProcessor(
     param_shuffle=param_shuffle,
     param_pin_memory=param_pin_memory,
     param_n_samples_per_label=param_n_samples_per_label,
-    param_train_dataloader_kwargs=param_train_dataloader_kwargs,
-    param_validation_dataloader_kwargs=param_validation_dataloader_kwargs,
-    param_test_dataloader_kwargs=param_test_dataloader_kwargs,
+    param_dataloader_kwargs=param_dataloader_kwargs,
     param_accelerator=param_accelerator,
     param_device=param_device,
 )

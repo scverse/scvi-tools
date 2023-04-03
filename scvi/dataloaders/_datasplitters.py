@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 import lightning.pytorch as pl
 import numpy as np
@@ -33,10 +33,7 @@ class DataSplitter(pl.LightningDataModule):
     %(param_validation_indices)s
     %(param_shuffle)s
     %(param_pin_memory)s
-    %(param_train_dataloader_kwargs)s
-    %(param_validation_dataloader_kwargs)s
-    %(param_test_dataloader_kwargs)s
-
+    %(param_dataloader_kwargs)s
     Examples
     --------
     >>> adata = scvi.data.synthetic_iid()
@@ -58,9 +55,7 @@ class DataSplitter(pl.LightningDataModule):
         validation_indices: Optional[List[int]] = None,
         shuffle: bool = True,
         pin_memory: bool = False,
-        train_dataloader_kwargs: Optional[Dict] = None,
-        validation_dataloader_kwargs: Optional[Dict] = None,
-        test_dataloader_kwargs: Optional[Dict] = None,
+        **dataloader_kwargs,
     ):
         super().__init__()
         self.adata_manager = adata_manager
@@ -71,19 +66,19 @@ class DataSplitter(pl.LightningDataModule):
             "drop_last": False,
             "pin_memory": pin_memory,
         }
-        self.train_dataloader_kwargs.update(train_dataloader_kwargs or {})
+        self.train_dataloader_kwargs.update(dataloader_kwargs or {})
         self.validation_dataloader_kwargs = {
             "shuffle": False,
             "drop_last": False,
             "pin_memory": pin_memory,
         }
-        self.validation_dataloader_kwargs.update(validation_dataloader_kwargs or {})
+        self.validation_dataloader_kwargs.update(dataloader_kwargs or {})
         self.test_dataloader_kwargs = {
             "shuffle": False,
             "drop_last": False,
             "pin_memory": pin_memory,
         }
-        self.test_dataloader_kwargs.update(test_dataloader_kwargs or {})
+        self.test_dataloader_kwargs.update(dataloader_kwargs or {})
 
         self.indices = validate_data_split(
             n_obs=adata_manager.adata.n_obs,
@@ -141,9 +136,7 @@ class SemiSupervisedDataSplitter(DataSplitter):
     %(param_shuffle)s
     %(n_samples_per_label)s
     %(pin_memory)s
-    %(param_train_dataloader_kwargs)s
-    %(param_validation_dataloader_kwargs)s
-    %(param_test_dataloader_kwargs)s
+    %(param_dataloader_kwargs)s
 
     Examples
     --------
@@ -165,9 +158,7 @@ class SemiSupervisedDataSplitter(DataSplitter):
         shuffle: bool = True,
         n_samples_per_label: Optional[int] = None,
         pin_memory: bool = False,
-        train_dataloader_kwargs: Optional[Dict] = None,
-        validation_dataloader_kwargs: Optional[Dict] = None,
-        test_dataloader_kwargs: Optional[Dict] = None,
+        **dataloader_kwargs,
     ):
         super().__init__(
             adata_manager,
@@ -177,9 +168,7 @@ class SemiSupervisedDataSplitter(DataSplitter):
             validation_indices=validation_indices,
             shuffle=shuffle,
             pin_memory=pin_memory,
-            train_dataloader_kwargs=train_dataloader_kwargs,
-            validation_dataloader_kwargs=validation_dataloader_kwargs,
-            test_dataloader_kwargs=test_dataloader_kwargs,
+            **dataloader_kwargs,
         )
 
         labels_state_registry = self.adata_manager.get_state_registry(
@@ -239,9 +228,7 @@ class DeviceBackedDataSplitter(DataSplitter):
     %(param_accelerator)s
     %(param_device)s
     %(param_pin_memory)s
-    %(param_train_dataloader_kwargs)s
-    %(param_validation_dataloader_kwargs)s
-    %(param_test_dataloader_kwargs)s
+    %(param_dataloader_kwargs)s
 
     Examples
     --------
@@ -266,9 +253,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
         pin_memory: bool = False,
-        train_dataloader_kwargs: Optional[Dict] = None,
-        validation_dataloader_kwargs: Optional[Dict] = None,
-        test_dataloader_kwargs: Optional[Dict] = None,
+        **dataloader_kwargs,
     ):
         _, _, self.device = parse_device_args(
             accelerator=accelerator,
@@ -285,9 +270,7 @@ class DeviceBackedDataSplitter(DataSplitter):
             shuffle=shuffle,
             pin_memory=pin_memory,
             pin_memory_device=self.device,
-            train_dataloader_kwargs=train_dataloader_kwargs,
-            validation_dataloader_kwargs=validation_dataloader_kwargs,
-            test_dataloader_kwargs=test_dataloader_kwargs,
+            **dataloader_kwargs,
         )
 
     def setup(self, stage: Optional[str] = None):
