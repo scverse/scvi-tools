@@ -271,7 +271,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             labels == self.unlabeled_category_
         ).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
-        self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
+        self._code_to_label = dict(enumerate(self._label_mapping))
 
     def predict(
         self,
