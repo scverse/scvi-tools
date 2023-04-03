@@ -16,6 +16,7 @@ from torch.utils.data import (
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
+from scvi.model._utils import parse_device_args
 
 from ._datasets import AnnTorchDataset, DeviceBackedDataset
 
@@ -262,15 +263,25 @@ class DeviceBackedDataLoader(DataLoader):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        device: torch.device,
         shuffle: bool = False,
         indices: Union[Sequence[int], Sequence[bool]] = None,
-        batch_size: int = 128,
+        batch_size: Optional[int] = None,
         data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
         drop_last: bool = False,
         iter_ndarray: bool = False,
+        accelerator: str = "auto",
+        device: Union[int, str] = "auto",
         **kwargs,
     ):
+        _, _, device = parse_device_args(
+            accelerator=accelerator,
+            devices=device,
+            return_device="torch",
+            validate_single_device=True,
+        )
+        if indices is None:
+            return
+
         tensor_dict = self._get_tensor_dict(
             adata_manager, indices, device, data_and_attributes, **kwargs
         )
@@ -285,6 +296,7 @@ class DeviceBackedDataLoader(DataLoader):
         super().__init__(dataset, sampler=sampler, batch_size=None)
 
     def _get_tensor_dict(
+        self,
         adata_manager: AnnDataManager,
         indices: Union[Sequence[int], Sequence[bool]],
         device: torch.device,
@@ -300,8 +312,8 @@ class DeviceBackedDataLoader(DataLoader):
             indices=indices,
             batch_size=len(indices),
             shuffle=False,
-            pin_memory=kwargs.pop("pin_memory", False),
-            data_and_attributes=data_and_attributes**kwargs,
+            data_and_attributes=data_and_attributes,
+            **kwargs,
         )
         batch = next(iter(dl))
 

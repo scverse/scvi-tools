@@ -1,7 +1,7 @@
 from typing import Any, List, Optional
 
 
-class InvalidParameterError(Exception):
+class InvalidParameterError(ValueError):
     """Exception raised for invalid arguments."""
 
     def __init__(

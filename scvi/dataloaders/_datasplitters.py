@@ -7,7 +7,6 @@ import numpy as np
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
-from scvi.model._utils import parse_device_args
 
 from ._dataloaders import (
     AnnDataLoader,
@@ -255,12 +254,6 @@ class DeviceBackedDataSplitter(DataSplitter):
         pin_memory: bool = False,
         **dataloader_kwargs,
     ):
-        _, _, self.device = parse_device_args(
-            accelerator=accelerator,
-            devices=device,
-            return_device="torch",
-            validate_single_device=True,
-        )
         super().__init__(
             adata_manager,
             train_size=train_size,
@@ -269,27 +262,31 @@ class DeviceBackedDataSplitter(DataSplitter):
             validation_indices=validation_indices,
             shuffle=shuffle,
             pin_memory=pin_memory,
-            pin_memory_device=self.device,
             **dataloader_kwargs,
         )
+        self.accelerator = accelerator
+        self.device = device
 
     def setup(self, stage: Optional[str] = None):
         """Assign indices to train/validation/test splits if necessary."""
         self._train_dataloader = self._data_loader_cls(
             self.adata_manager,
-            self.device,
             indices=self.indices.train,
+            accelerator=self.accelerator,
+            device=self.device,
             **self.train_dataloader_kwargs,
         )
         self._validation_dataloader = self._data_loader_cls(
             self.adata_manager,
-            self.device,
             indices=self.indices.validation,
+            accelerator=self.accelerator,
+            device=self.device,
             **self.validation_dataloader_kwargs,
         )
         self._test_dataloader = self._data_loader_cls(
             self.adata_manager,
-            self.device,
             indices=self.indices.test,
+            accelerator=self.accelerator,
+            device=self.device,
             **self.test_dataloader_kwargs,
         )
