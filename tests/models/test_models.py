@@ -878,9 +878,11 @@ def test_data_splitter():
     ds.setup()
     # check the number of indices
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
-    n_train_idx = len(ds.train_idx)
-    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
-    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
+    n_train_idx = len(ds.indices.train)
+    n_validation_idx = (
+        len(ds.indices.validation) if ds.indices.validation is not None else 0
+    )
+    n_test_idx = len(ds.indices.test) if ds.indices.test is not None else 0
 
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.4)
@@ -892,9 +894,11 @@ def test_data_splitter():
     ds.setup()
     # check the number of indices
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
-    n_train_idx = len(ds.train_idx)
-    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
-    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
+    n_train_idx = len(ds.indices.train)
+    n_validation_idx = (
+        len(ds.indices.validation) if ds.indices.validation is not None else 0
+    )
+    n_test_idx = len(ds.indices.test) if ds.indices.test is not None else 0
 
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.4)
@@ -963,9 +967,11 @@ def test_semisupervised_data_splitter():
     ds.setup()
     # check the number of indices
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
-    n_train_idx = len(ds.train_idx)
-    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
-    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
+    n_train_idx = len(ds.indices.train)
+    n_validation_idx = (
+        len(ds.indices.validation) if ds.indices.validation is not None else 0
+    )
+    n_test_idx = len(ds.indices.test) if ds.indices.test is not None else 0
 
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.9)
@@ -979,9 +985,11 @@ def test_semisupervised_data_splitter():
     _, _, _ = ds.train_dataloader(), ds.val_dataloader(), ds.test_dataloader()
 
     # check the number of indices
-    n_train_idx = len(ds.train_idx)
-    n_validation_idx = len(ds.val_idx) if ds.val_idx is not None else 0
-    n_test_idx = len(ds.test_idx) if ds.test_idx is not None else 0
+    n_train_idx = len(ds.indices.train)
+    n_validation_idx = (
+        len(ds.indices.validation) if ds.indices.validation is not None else 0
+    )
+    n_test_idx = len(ds.indices.test) if ds.indices.test is not None else 0
     assert n_train_idx + n_validation_idx + n_test_idx == a.n_obs
     assert np.isclose(n_train_idx / a.n_obs, 0.9, rtol=0.05)
     assert np.isclose(n_validation_idx / a.n_obs, 0.1, rtol=0.05)
@@ -991,9 +999,9 @@ def test_semisupervised_data_splitter():
     labelled_idx = np.where(a.obs["labels"] != unknown_label)[0]
     unlabelled_idx = np.where(a.obs["labels"] == unknown_label)[0]
     # labeled training idx
-    labeled_train_idx = [i for i in ds.train_idx if i in labelled_idx]
+    labeled_train_idx = [i for i in ds.indices.train if i in labelled_idx]
     # unlabeled training idx
-    unlabeled_train_idx = [i for i in ds.train_idx if i in unlabelled_idx]
+    unlabeled_train_idx = [i for i in ds.indices.train if i in unlabelled_idx]
     n_labeled_idx = len(labelled_idx)
     n_unlabeled_idx = len(unlabelled_idx)
     # labeled vs unlabeled ratio in adata

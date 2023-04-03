@@ -4,6 +4,7 @@ from itertools import cycle
 from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
+import torch
 from torch.utils.data import (
     BatchSampler,
     DataLoader,
@@ -16,7 +17,7 @@ from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 
-from ._datasets import AnnTorchDataset
+from ._datasets import AnnTorchDataset, DeviceBackedDataset
 
 logger = logging.getLogger(__name__)
 
@@ -29,20 +30,20 @@ class AnnDataLoader(DataLoader):
     adata_manager
         :class:`~scvi.data.AnnDataManager` object with a registered AnnData object.
     shuffle
-        Whether the data should be shuffled
+        Whether the data should be shuffled.
     indices
-        The indices of the observations in the adata to load
+        The indices of the observations in the adata to load.
     batch_size
-        minibatch size to load each iteration
+        minibatch size to load each iteration.
     data_and_attributes
         Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
         and value equal to desired numpy loading type (later made into torch tensor) or list of
         such keys. A list can be used to subset to certain keys in the event that more tensors than
         needed have been registered. If ``None``, defaults to all registered data.
     iter_ndarray
-        Whether to iterate over numpy arrays instead of torch tensors
+        Whether to iterate over numpy arrays instead of torch tensors.
     data_loader_kwargs
-        Keyword arguments for :class:`~torch.utils.data.DataLoader`
+        Keyword arguments for :class:`~torch.utils.data.DataLoader`.
     """
 
     def __init__(
@@ -253,3 +254,53 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
                 sample_idx.append(label_subset)
         sample_idx = np.concatenate(sample_idx)
         return sample_idx
+
+    class DeviceBackedDataLoader(DataLoader):
+        """DataLoader for loading device-backed tensors."""
+
+        def __init__(
+            self,
+            adata_manager: AnnDataManager,
+            device: torch.device,
+            shuffle: bool = False,
+            indices: Union[Sequence[int], Sequence[bool]] = None,
+            batch_size: int = 128,
+            data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
+            drop_last: bool = False,
+            iter_ndarray: bool = False,
+            **kwargs,
+        ):
+            tensor_dict = self._get_tensor_dict(
+                adata_manager, indices, device, **kwargs
+            )
+            dataset = DeviceBackedDataset(tensor_dict)
+            batch_size = batch_size or len(dataset)
+            sampler_cls = RandomSampler if shuffle else SequentialSampler
+            sampler = BatchSampler(
+                sampler=sampler_cls(dataset),
+                batch_size=batch_size,
+                drop_last=kwargs.pop("drop_last", False),
+            )
+            super().__init__(dataset, sampler=sampler, batch_size=None)
+
+        def _get_tensor_dict(
+            adata_manager: AnnDataManager,
+            indices: Union[Sequence[int], Sequence[bool]],
+            device: torch.device,
+            **kwargs,
+        ) -> Dict[str, torch.Tensor]:
+            """Get tensor dict for a given set of indices."""
+            if len(indices) is None or len(indices) == 0:
+                return
+
+            dl = AnnDataLoader(
+                adata_manager,
+                indices=indices,
+                batch_size=len(indices),
+                shuffle=False,
+                pin_memory=kwargs.pop("pin_memory", False),
+                **kwargs,
+            )
+            batch = next(iter(dl))
+
+            return {k: v.to(device) for k, v in batch.items()}

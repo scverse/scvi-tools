@@ -47,7 +47,7 @@ class TrainRunner:
     --------
     >>> # Following code should be within a subclass of BaseModelClass
     >>> data_splitter = DataSplitter(self.adata)
-    >>> training_plan = TrainingPlan(self.module, len(data_splitter.train_idx))
+    >>> training_plan = TrainingPlan(self.module, len(data_splitter.indices.train))
     >>> runner = TrainRunner(
     >>>     self,
     >>>     training_plan=trianing_plan,
@@ -99,9 +99,9 @@ class TrainRunner:
         self._update_history()
 
         # data splitter only gets these attrs after fit
-        self.model.train_indices = self.data_splitter.train_idx
-        self.model.test_indices = self.data_splitter.test_idx
-        self.model.validation_indices = self.data_splitter.val_idx
+        self.model.train_indices = self.data_splitter.indices.train
+        self.model.test_indices = self.data_splitter.indices.test
+        self.model.validation_indices = self.data_splitter.indices.validation
 
         self.model.module.eval()
         self.model.is_trained_ = True

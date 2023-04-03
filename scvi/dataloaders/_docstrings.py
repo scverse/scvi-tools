@@ -51,8 +51,9 @@ shuffle
 
 param_pin_memory = """\
 pin_memory
-    Whether to copy tensors into non-paged main memory before returning them. Passed
-    into :class:`~scvi.data.AnnDataLoader`. Equivalent to setting
+    Whether to copy tensors into page-locked memory before returning them, which enables
+    faster data transfer to CUDA-enabled GPUs. Passed into
+    :class:`~scvi.data.AnnDataLoader`. Equivalent to setting
     `scvi.settings.dl_pin_memory_gpu_training`."""
 
 param_n_samples_per_label = """\

@@ -3,21 +3,17 @@ from typing import Dict, List, Optional, Union
 
 import lightning.pytorch as pl
 import numpy as np
-import torch
-from torch.utils.data import (
-    BatchSampler,
-    DataLoader,
-    RandomSampler,
-    SequentialSampler,
-)
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.model._utils import parse_device_args
 
-from ._dataloaders import AnnDataLoader, SemiSupervisedDataLoader
-from ._datasets import DeviceBackedDataset
+from ._dataloaders import (
+    AnnDataLoader,
+    DeviceBackedDataLoader,
+    SemiSupervisedDataLoader,
+)
 from ._docstrings import dataloaders_dsp
 from ._utils import validate_data_split
 
@@ -257,6 +253,8 @@ class DeviceBackedDataSplitter(DataSplitter):
     >>> train_dl = splitter.train_dataloader()
     """
 
+    _data_loader_cls = DeviceBackedDataLoader
+
     def __init__(
         self,
         adata_manager: AnnDataManager,
@@ -272,6 +270,12 @@ class DeviceBackedDataSplitter(DataSplitter):
         validation_dataloader_kwargs: Optional[Dict] = None,
         test_dataloader_kwargs: Optional[Dict] = None,
     ):
+        _, _, self.device = parse_device_args(
+            accelerator=accelerator,
+            devices=device,
+            return_device="torch",
+            validate_single_device=True,
+        )
         super().__init__(
             adata_manager,
             train_size=train_size,
@@ -280,80 +284,29 @@ class DeviceBackedDataSplitter(DataSplitter):
             validation_indices=validation_indices,
             shuffle=shuffle,
             pin_memory=pin_memory,
+            pin_memory_device=self.device,
             train_dataloader_kwargs=train_dataloader_kwargs,
             validation_dataloader_kwargs=validation_dataloader_kwargs,
             test_dataloader_kwargs=test_dataloader_kwargs,
         )
-        _, _, self.device = parse_device_args(
-            accelerator=accelerator,
-            devices=device,
-            return_device="torch",
-            validate_single_device=True,
-        )
 
     def setup(self, stage: Optional[str] = None):
-        """Create the train, validation, and test indices."""
-        super().setup()
-
-        if self.shuffle is False:
-            self.train_idx = np.sort(self.train_idx)
-            self.val_idx = (
-                np.sort(self.val_idx) if len(self.val_idx) > 0 else self.val_idx
-            )
-            self.test_idx = (
-                np.sort(self.test_idx) if len(self.test_idx) > 0 else self.test_idx
-            )
-
-        self.train_tensor_dict = self._get_tensor_dict(
-            self.train_idx, device=self.device
+        """Assign indices to train/validation/test splits if necessary."""
+        self._train_dataloader = self._data_loader_cls(
+            self.adata_manager,
+            self.device,
+            indices=self.indices.train,
+            **self.train_dataloader_kwargs,
         )
-        self.test_tensor_dict = self._get_tensor_dict(self.test_idx, device=self.device)
-        self.val_tensor_dict = self._get_tensor_dict(self.val_idx, device=self.device)
-
-    def _get_tensor_dict(self, indices, device):
-        """Get tensor dict for a given set of indices."""
-        if len(indices) is not None and len(indices) > 0:
-            dl = AnnDataLoader(
-                self.adata_manager,
-                indices=indices,
-                batch_size=len(indices),
-                shuffle=False,
-                pin_memory=self.pin_memory,
-                **self.data_loader_kwargs,
-            )
-            # will only have one minibatch
-            for batch in dl:
-                tensor_dict = batch
-
-            for k, v in tensor_dict.items():
-                tensor_dict[k] = v.to(device)
-
-            return tensor_dict
-        else:
-            return None
-
-    def _make_dataloader(self, tensor_dict: Dict[str, torch.Tensor], shuffle):
-        """Create a dataloader from a tensor dict."""
-        if tensor_dict is None:
-            return None
-        dataset = DeviceBackedDataset(tensor_dict)
-        bs = self.batch_size if self.batch_size is not None else len(dataset)
-        sampler_cls = SequentialSampler if not shuffle else RandomSampler
-        sampler = BatchSampler(
-            sampler=sampler_cls(dataset),
-            batch_size=bs,
-            drop_last=False,
+        self._validation_dataloader = self._data_loader_cls(
+            self.adata_manager,
+            self.device,
+            indices=self.indices.validation,
+            **self.validation_dataloader_kwargs,
         )
-        return DataLoader(dataset, sampler=sampler, batch_size=None)
-
-    def train_dataloader(self):
-        """Create the train data loader."""
-        return self._make_dataloader(self.train_tensor_dict, self.shuffle)
-
-    def test_dataloader(self):
-        """Create the test data loader."""
-        return self._make_dataloader(self.test_tensor_dict, self.shuffle_test_val)
-
-    def val_dataloader(self):
-        """Create the validation data loader."""
-        return self._make_dataloader(self.val_tensor_dict, self.shuffle_test_val)
+        self._test_dataloader = self._data_loader_cls(
+            self.adata_manager,
+            self.device,
+            indices=self.indices.test,
+            **self.test_dataloader_kwargs,
+        )

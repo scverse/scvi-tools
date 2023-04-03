@@ -224,9 +224,9 @@ class GIMVI(VAEMixin, BaseModelClass):
             val = ds.val_dataloader()
             val_dls.append(val)
             val.mode = i
-            self.train_indices_.append(ds.train_idx)
-            self.test_indices_.append(ds.test_idx)
-            self.validation_indices_.append(ds.val_idx)
+            self.train_indices_.append(ds.indices.train)
+            self.test_indices_.append(ds.indices.test)
+            self.validation_indices_.append(ds.indices.validation)
         train_dl = TrainDL(train_dls)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
