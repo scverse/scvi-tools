@@ -27,7 +27,7 @@ class Classifier(nn.Module):
     activation_fn
         Valid activation function from torch.nn
     **kwargs
-        Keyword arguments passed into :class:`~scvi.nn.FCLayers`
+        Keyword arguments passed into :class:`~scvi.nn.FCLayers`.
     """
 
     def __init__(
