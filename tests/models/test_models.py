@@ -325,7 +325,7 @@ def test_scvi(save_path):
 
     # test mismatched categories raises ValueError
     adata2 = synthetic_iid()
-    adata2.obs.labels.cat.rename_categories(["a", "b", "c"], inplace=True)
+    adata2.obs.labels.cat.rename_categories(["a", "b", "c"])
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
 
@@ -1257,13 +1257,13 @@ def test_totalvi(save_path):
 
     # test that we catch incorrect mappings
     adata2 = synthetic_iid()
-    adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"], inplace=True)
+    adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"])
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
 
     # test that same mapping different order is okay
     adata2 = synthetic_iid()
-    adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"], inplace=True)
+    adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"])
     model.get_elbo(adata2)  # should automatically transfer setup
 
     # test that we catch missing proteins
