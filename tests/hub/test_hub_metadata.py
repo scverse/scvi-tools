@@ -1,6 +1,7 @@
 import os
 
 import pytest
+
 import scvi
 from scvi.hub import HubMetadata, HubModelCardHelper
 
@@ -14,7 +15,7 @@ def prep_model():
 
 
 def test_hub_metadata(request, save_path):
-    hm = HubMetadata("0.17.4", "0.8.0")
+    hm = HubMetadata("0.17.4", "0.8.0", "SCVI")
     assert hm.scvi_version == "0.17.4"
     assert hm.anndata_version == "0.8.0"
     assert hm.training_data_url is None
@@ -23,6 +24,7 @@ def test_hub_metadata(request, save_path):
     d = {
         "scvi_version": "0.15.4",
         "anndata_version": "0.8.1",
+        "model_cls_name": "SCVI",
         "training_data_url": None,
         "model_parent_module": "bar",
     }
@@ -56,6 +58,13 @@ def test_hub_metadata(request, save_path):
     assert hm.anndata_version == "0.9.0"
     assert hm.training_data_url is None
     assert hm.model_parent_module == "foo"
+
+
+def test_hub_metadata_invalid_url():
+    with pytest.raises(ValueError):
+        HubMetadata(
+            "0.17.4", "0.8.0", "SCVI", training_data_url="https//invalid_url.org/"
+        )
 
 
 def test_hub_modelcardhelper(request, save_path):

@@ -5,9 +5,10 @@ import anndata
 import numpy as np
 import pandas as pd
 import pytest
-import scvi
 from scipy import sparse
 from scipy.sparse.csr import csr_matrix
+
+import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import _constants, synthetic_iid
 from scvi.data.fields import ObsmField, ProteinObsmField
@@ -449,7 +450,10 @@ def test_anntorchdataset_getitem(adata):
     bd = AnnTorchDataset(adata_manager)
     all_registered_tensors = list(adata_manager.data_registry.keys())
     np.testing.assert_array_equal(all_registered_tensors, list(bd[1].keys()))
-    assert bd[1][REGISTRY_KEYS.X_KEY].shape[0] == bd.adata_manager.summary_stats.n_vars
+    assert bd[1][REGISTRY_KEYS.X_KEY].shape == (
+        1,
+        bd.adata_manager.summary_stats.n_vars,
+    )
 
 
 def test_anntorchdataset_numpy(adata):

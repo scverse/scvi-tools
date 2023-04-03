@@ -2,7 +2,13 @@ import os
 
 import numpy as np
 from scipy import sparse
-from scvi.data import add_dna_sequence, poisson_gene_selection, synthetic_iid
+
+from scvi.data import (
+    add_dna_sequence,
+    poisson_gene_selection,
+    reads_to_fragments,
+    synthetic_iid,
+)
 
 
 def test_poisson_gene_selection():
@@ -43,3 +49,22 @@ def test_add_dna_sequence():
     assert "dna_sequence" in adata.varm.keys()
     assert "dna_code" in adata.varm.keys()
     assert adata.varm["dna_code"].values.shape[1] == seq_len
+
+
+def test_reads_to_fragments():
+    adata = synthetic_iid()
+    reads_to_fragments(adata)
+
+    assert "fragments" in adata.layers.keys()
+
+    adata = synthetic_iid()
+    adata.X = sparse.csr_matrix(adata.X)
+    reads_to_fragments(adata)
+
+    assert "fragments" in adata.layers.keys()
+
+    adata = synthetic_iid()
+    adata.layers["reads"] = adata.X
+    reads_to_fragments(adata, read_layer="reads")
+
+    assert "fragments" in adata.layers.keys()

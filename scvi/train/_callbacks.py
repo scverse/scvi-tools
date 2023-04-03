@@ -2,12 +2,12 @@ import warnings
 from copy import deepcopy
 from typing import Optional, Tuple
 
+import lightning.pytorch as pl
 import numpy as np
-import pytorch_lightning as pl
 import torch
-from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.utilities import rank_zero_info
+from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
+from lightning.pytorch.utilities import rank_zero_info
 
 from scvi.dataloaders import AnnDataLoader
 
@@ -20,7 +20,7 @@ class SubSampleLabels(Callback):
 
     def on_train_epoch_start(self, trainer, pl_module):
         """Subsample labels at the beginning of each epoch."""
-        trainer.train_dataloader.loaders.resample_labels()
+        trainer.train_dataloader.resample_labels()
         super().on_train_epoch_start(trainer, pl_module)
 
 

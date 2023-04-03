@@ -1,5 +1,5 @@
 import logging
-from typing import Literal, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -12,6 +12,7 @@ from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +59,14 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 400,
         lr: float = 0.01,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 1,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -77,9 +81,9 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -103,6 +107,8 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
@@ -205,7 +211,6 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: RNAStereoscope,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
-        layer: Optional[str] = None,
         **model_kwargs,
     ):
         """Alternate constructor for exploiting a pre-trained model on RNA-seq data.
@@ -219,12 +224,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         prior_weight
             how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
             procedure, "minibatch" is the procedure implemented in Stereoscope.
-        layer
-            if not `None`, uses this as the key in `adata.layers` for raw count data.
         **model_kwargs
             Keyword args for :class:`~scvi.external.SpatialDeconv`
         """
-        cls.setup_anndata(st_adata, layer=layer)
         return cls(
             st_adata,
             sc_model.module.get_params(),
@@ -279,11 +281,14 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         px_scale = self.module.get_ct_specific_expression(torch.tensor(ind_y)[:, None])
         return np.array(px_scale.cpu())
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 400,
         lr: float = 0.01,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
         **kwargs,
@@ -296,9 +301,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         batch_size
             Minibatch size to use during training.
         plan_kwargs
@@ -317,6 +322,8 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             train_size=1,
             validation_size=None,
             batch_size=batch_size,

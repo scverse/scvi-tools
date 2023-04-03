@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+
 from scvi.data import synthetic_iid
 
 

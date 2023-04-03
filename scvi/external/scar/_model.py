@@ -64,6 +64,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         in the case of unflitered genes.
     **model_kwargs
         Keyword args for :class:`~scvi_external.SCAR`
+
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
@@ -163,9 +164,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_layer)s
-        %(param_batch_key)s
-        %(param_labels_key)s
         %(param_size_factor_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
@@ -295,8 +295,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Returns
         -------
-        x_denoised : :py:class:`torch.Tensor`
-            tensor with shape (n_cells, n_genes)
+        tensor with shape (n_cells, n_genes)
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(adata=adata, batch_size=batch_size)

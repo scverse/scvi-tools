@@ -2,6 +2,7 @@ from functools import partial
 
 import numpy as np
 import pytest
+
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
 from scvi.model.base._differential import (
