@@ -153,7 +153,6 @@ def validate_data_split(
     %(param_all_indices)s
     %(param_train_size)s
     %(param_validation_size)s
-    %(param_all_indices)s
     %(param_train_indices)s
     %(param_validation_indices)s
 

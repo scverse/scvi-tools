@@ -271,7 +271,9 @@ class DeviceBackedDataLoader(DataLoader):
         iter_ndarray: bool = False,
         **kwargs,
     ):
-        tensor_dict = self._get_tensor_dict(adata_manager, indices, device, **kwargs)
+        tensor_dict = self._get_tensor_dict(
+            adata_manager, indices, device, data_and_attributes, **kwargs
+        )
         dataset = DeviceBackedDataset(tensor_dict)
         batch_size = batch_size or len(dataset)
         sampler_cls = RandomSampler if shuffle else SequentialSampler
@@ -286,6 +288,7 @@ class DeviceBackedDataLoader(DataLoader):
         adata_manager: AnnDataManager,
         indices: Union[Sequence[int], Sequence[bool]],
         device: torch.device,
+        data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]],
         **kwargs,
     ) -> Dict[str, torch.Tensor]:
         """Get tensor dict for a given set of indices."""
@@ -298,7 +301,7 @@ class DeviceBackedDataLoader(DataLoader):
             batch_size=len(indices),
             shuffle=False,
             pin_memory=kwargs.pop("pin_memory", False),
-            **kwargs,
+            data_and_attributes=data_and_attributes**kwargs,
         )
         batch = next(iter(dl))
 
