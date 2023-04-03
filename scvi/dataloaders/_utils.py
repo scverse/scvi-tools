@@ -8,7 +8,7 @@ import numpy as np
 from scvi import settings
 from scvi.utils._exceptions import InvalidParameterError
 
-from ._docstrings import data_splitting_dsp
+from ._docstrings import dataloaders_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +134,7 @@ def _make_data_split(
     return train_indices, validation_indices, test_indices
 
 
-@data_splitting_dsp.dedent
+@dataloaders_dsp.dedent
 def validate_data_split(
     *,
     n_obs: Optional[int],
