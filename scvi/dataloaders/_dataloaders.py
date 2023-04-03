@@ -255,52 +255,51 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         sample_idx = np.concatenate(sample_idx)
         return sample_idx
 
-    class DeviceBackedDataLoader(DataLoader):
-        """DataLoader for loading device-backed tensors."""
 
-        def __init__(
-            self,
-            adata_manager: AnnDataManager,
-            device: torch.device,
-            shuffle: bool = False,
-            indices: Union[Sequence[int], Sequence[bool]] = None,
-            batch_size: int = 128,
-            data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
-            drop_last: bool = False,
-            iter_ndarray: bool = False,
+class DeviceBackedDataLoader(DataLoader):
+    """DataLoader for loading device-backed tensors."""
+
+    def __init__(
+        self,
+        adata_manager: AnnDataManager,
+        device: torch.device,
+        shuffle: bool = False,
+        indices: Union[Sequence[int], Sequence[bool]] = None,
+        batch_size: int = 128,
+        data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
+        drop_last: bool = False,
+        iter_ndarray: bool = False,
+        **kwargs,
+    ):
+        tensor_dict = self._get_tensor_dict(adata_manager, indices, device, **kwargs)
+        dataset = DeviceBackedDataset(tensor_dict)
+        batch_size = batch_size or len(dataset)
+        sampler_cls = RandomSampler if shuffle else SequentialSampler
+        sampler = BatchSampler(
+            sampler=sampler_cls(dataset),
+            batch_size=batch_size,
+            drop_last=kwargs.pop("drop_last", False),
+        )
+        super().__init__(dataset, sampler=sampler, batch_size=None)
+
+    def _get_tensor_dict(
+        adata_manager: AnnDataManager,
+        indices: Union[Sequence[int], Sequence[bool]],
+        device: torch.device,
+        **kwargs,
+    ) -> Dict[str, torch.Tensor]:
+        """Get tensor dict for a given set of indices."""
+        if len(indices) is None or len(indices) == 0:
+            return
+
+        dl = AnnDataLoader(
+            adata_manager,
+            indices=indices,
+            batch_size=len(indices),
+            shuffle=False,
+            pin_memory=kwargs.pop("pin_memory", False),
             **kwargs,
-        ):
-            tensor_dict = self._get_tensor_dict(
-                adata_manager, indices, device, **kwargs
-            )
-            dataset = DeviceBackedDataset(tensor_dict)
-            batch_size = batch_size or len(dataset)
-            sampler_cls = RandomSampler if shuffle else SequentialSampler
-            sampler = BatchSampler(
-                sampler=sampler_cls(dataset),
-                batch_size=batch_size,
-                drop_last=kwargs.pop("drop_last", False),
-            )
-            super().__init__(dataset, sampler=sampler, batch_size=None)
+        )
+        batch = next(iter(dl))
 
-        def _get_tensor_dict(
-            adata_manager: AnnDataManager,
-            indices: Union[Sequence[int], Sequence[bool]],
-            device: torch.device,
-            **kwargs,
-        ) -> Dict[str, torch.Tensor]:
-            """Get tensor dict for a given set of indices."""
-            if len(indices) is None or len(indices) == 0:
-                return
-
-            dl = AnnDataLoader(
-                adata_manager,
-                indices=indices,
-                batch_size=len(indices),
-                shuffle=False,
-                pin_memory=kwargs.pop("pin_memory", False),
-                **kwargs,
-            )
-            batch = next(iter(dl))
-
-            return {k: v.to(device) for k, v in batch.items()}
+        return {k: v.to(device) for k, v in batch.items()}
