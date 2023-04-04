@@ -1,4 +1,3 @@
-import copy
 import logging
 from itertools import cycle
 from typing import Dict, List, Optional, Sequence, Union
@@ -17,39 +16,35 @@ from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 
 from ._datasets import AnnTorchDataset
+from ._docstrings import dataloader_dsp
 
 logger = logging.getLogger(__name__)
 
 
+@dataloader_dsp.dedent
 class AnnDataLoader(DataLoader):
-    """DataLoader for loading tensors from AnnData objects.
+    """%(summary)s
 
     Parameters
     ----------
-    adata_manager
-        :class:`~scvi.data.AnnDataManager` object with a registered AnnData object.
-    shuffle
-        Whether the data should be shuffled.
-    indices
-        The indices of the observations in the adata to load.
-    batch_size
-        minibatch size to load each iteration.
-    data_and_attributes
-        Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
-        and value equal to desired numpy loading type (later made into torch tensor) or list of
-        such keys. A list can be used to subset to certain keys in the event that more tensors than
-        needed have been registered. If ``None``, defaults to all registered data.
-    iter_ndarray
-        Whether to iterate over numpy arrays instead of torch tensors.
-    data_loader_kwargs
-        Keyword arguments for :class:`~torch.utils.data.DataLoader`.
+    %(param_adata_manager)s
+    %(param_indices)s
+    %(param_shuffle)s
+    %(param_batch_size)s
+    %(param_data_and_attributes)s
+    %(param_drop_last)s
+    %(param_iter_ndarray)s
+    %(param_accelerator)s
+    %(param_device)s
+    %(param_device_backed)s
+    %(param_kwargs)s
     """
 
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        shuffle: bool = False,
         indices: Union[Sequence[int], Sequence[bool]] = None,
+        shuffle: bool = False,
         batch_size: int = 128,
         data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
         drop_last: bool = False,
@@ -57,67 +52,60 @@ class AnnDataLoader(DataLoader):
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
         device_backed: bool = False,
-        **data_loader_kwargs,
+        **kwargs,
     ):
-        self._full_dataset = AnnTorchDataset(
+        dataset = AnnTorchDataset(
             adata_manager,
             getitem_tensors=data_and_attributes,
             accelerator=accelerator,
             device=device,
             device_backed=device_backed,
         )
-
         if indices is None:
-            indices = np.arange(len(self._full_dataset))
+            indices = np.arange(len(dataset))
         else:
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
             indices = np.asarray(indices)
-        self.indices = indices
 
-        # This is a lazy subset, it just remaps indices
-        self.dataset = Subset(self._full_dataset, indices=self.indices)
-        sampler_cls = SequentialSampler if not shuffle else RandomSampler
+        subset = Subset(dataset, indices=indices)  # lazy subset, remaps indices
+        sampler = SequentialSampler(subset) if not shuffle else RandomSampler(subset)
         sampler = BatchSampler(
-            sampler=sampler_cls(self.dataset),
+            sampler=sampler,
             batch_size=batch_size,
             drop_last=drop_last,
         )
-        self.data_loader_kwargs = copy.deepcopy(data_loader_kwargs)
-        # do not touch batch size here, sampler gives batched indices
-        # This disables PyTorch automatic batching
-        self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
 
+        update_kwargs = {
+            "sampler": sampler,
+            "batch_size": None,  # disables torch automatic batching
+        }
         if iter_ndarray:
-            self.data_loader_kwargs.update({"collate_fn": _dummy_collate})
+            update_kwargs["collate_fn"] = lambda x: x
+        kwargs.update(update_kwargs)
 
-        super().__init__(self.dataset, **self.data_loader_kwargs)
-
-
-def _dummy_collate(b: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
-    """Dummy collate to have dataloader return numpy ndarrays."""
-    return b
+        super().__init__(subset, **kwargs)
 
 
+@dataloader_dsp.dedent
 class ConcatDataLoader(DataLoader):
-    """DataLoader that supports a list of list of indices to load.
+    """%(summary)s
+
+    Supports loading a list of list of indices.
 
     Parameters
     ----------
-    adata_manager
-        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
-    indices_list
-        List where each element is a list of indices in the adata to load
-    shuffle
-        Whether the data should be shuffled
-    batch_size
-        minibatch size to load each iteration
-    data_and_attributes
-        Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
-        and value equal to desired numpy loading type (later made into torch tensor).
-        If ``None``, defaults to all registered data.
-    data_loader_kwargs
-        Keyword arguments for :class:`~torch.utils.data.DataLoader`
+    %(param_adata_manager)s
+    %(param_indices_list)s
+    %(param_shuffle)s
+    %(param_batch_size)s
+    %(param_data_and_attributes)s
+    %(param_drop_last)s
+    %(param_iter_ndarray)s
+    %(param_accelerator)s
+    %(param_device)s
+    %(param_device_backed)s
+    %(param_kwargs)s
     """
 
     def __init__(
@@ -128,24 +116,34 @@ class ConcatDataLoader(DataLoader):
         batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,
         drop_last: Union[bool, int] = False,
-        **data_loader_kwargs,
+        iter_ndarray: bool = False,
+        accelerator: str = "auto",
+        device: Union[int, str] = "auto",
+        device_backed: bool = False,
+        **kwargs,
     ):
         self.dataloaders = []
+        n_obs_dls = []
+
         for indices in indices_list:
-            self.dataloaders.append(
-                AnnDataLoader(
-                    adata_manager,
-                    indices=indices,
-                    shuffle=shuffle,
-                    batch_size=batch_size,
-                    data_and_attributes=data_and_attributes,
-                    drop_last=drop_last,
-                    **data_loader_kwargs,
-                )
+            dl = AnnDataLoader(
+                adata_manager,
+                indices=indices,
+                shuffle=shuffle,
+                batch_size=batch_size,
+                data_and_attributes=data_and_attributes,
+                drop_last=drop_last,
+                iter_ndarray=iter_ndarray,
+                accelerator=accelerator,
+                device=device,
+                device_backed=device_backed,
+                **kwargs,
             )
-        lens = [len(dl) for dl in self.dataloaders]
-        self.largest_dl = self.dataloaders[np.argmax(lens)]
-        super().__init__(self.largest_dl, **data_loader_kwargs)
+            self.dataloaders.append(dl)
+            n_obs_dls.append(len(dl))
+
+        self.largest_dl = self.dataloaders[np.argmax(n_obs_dls)]
+        super().__init__(self.largest_dl, **kwargs)
 
     def __len__(self):
         return len(self.largest_dl)
@@ -163,40 +161,42 @@ class ConcatDataLoader(DataLoader):
         return zip(*iter_list)
 
 
+@dataloader_dsp.dedent
 class SemiSupervisedDataLoader(ConcatDataLoader):
-    """DataLoader that supports semisupervised training.
+    """%(summary)s
+
+    Supports loading labeled and unlabeled data.
 
     Parameters
     ----------
-    adata_manager
-        :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
-    n_samples_per_label
-        Number of subsamples for each label class to sample per epoch. By default, there
-        is no label subsampling.
-    indices
-        The indices of the observations in the adata to load
-    shuffle
-        Whether the data should be shuffled
-    batch_size
-        minibatch size to load each iteration
-    data_and_attributes
-        Dictionary with keys representing keys in data registry (`adata_manager.data_registry`)
-        and value equal to desired numpy loading type (later made into torch tensor).
-        If `None`, defaults to all registered data.
-    data_loader_kwargs
-        Keyword arguments for :class:`~torch.utils.data.DataLoader`
+    %(param_adata_manager)s
+    %(param_indices)s
+    %(param_n_samples_per_label)s
+    %(param_shuffle)s
+    %(param_batch_size)s
+    %(param_data_and_attributes)s
+    %(param_drop_last)s
+    %(param_iter_ndarray)s
+    %(param_accelerator)s
+    %(param_device)s
+    %(param_device_backed)s
+    %(param_kwargs)s
     """
 
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        n_samples_per_label: Optional[int] = None,
         indices: Optional[List[int]] = None,
+        n_samples_per_label: Optional[int] = None,
         shuffle: bool = False,
         batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,
         drop_last: Union[bool, int] = False,
-        **data_loader_kwargs,
+        iter_ndarray: bool = False,
+        accelerator: str = "auto",
+        device: Union[int, str] = "auto",
+        device_backed: bool = False,
+        **kwargs,
     ):
         adata = adata_manager.adata
         if indices is None:
@@ -234,7 +234,11 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             batch_size=batch_size,
             data_and_attributes=data_and_attributes,
             drop_last=drop_last,
-            **data_loader_kwargs,
+            iter_ndarray=iter_ndarray,
+            accelerator=accelerator,
+            device=device,
+            device_backed=device_backed,
+            **kwargs,
         )
 
     def resample_labels(self):
