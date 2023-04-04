@@ -131,7 +131,7 @@ def test_totalvi_incorrect_mapping(save_path):
     adata2 = synthetic_iid()
     protein_adata2 = synthetic_iid(n_genes=50)
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
-    adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"], inplace=True)
+    adata2.obs.batch = adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"])
     with pytest.raises(ValueError):
         model.get_elbo(mdata2)
 
@@ -150,7 +150,7 @@ def test_totalvi_reordered_mapping(save_path):
     adata2 = synthetic_iid()
     protein_adata2 = synthetic_iid(n_genes=50)
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
-    adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"], inplace=True)
+    adata2.obs.batch = adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"])
     model.get_elbo(mdata2)
 
 
