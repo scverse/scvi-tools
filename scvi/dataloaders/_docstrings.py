@@ -69,9 +69,11 @@ train_dataloader_kwargs
 
 dataloaders_dsp = DocstringProcessor(
     summary=summary,
+    param_adata_manager=param_adata_manager,
     param_n_obs=param_n_obs,
     param_train_size=param_train_size,
     param_validation_size=param_validation_size,
+    param_all_indices=param_all_indices,
     param_train_indices=param_train_indices,
     param_validation_indices=param_validation_indices,
     param_shuffle=param_shuffle,

@@ -21,7 +21,6 @@ from scvi.data._download import _download
 from scvi.dataloaders import (
     AnnDataLoader,
     DataSplitter,
-    DeviceBackedDataSplitter,
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
@@ -939,7 +938,7 @@ def test_device_backed_data_splitter():
     model = SCVI(a, n_latent=5)
     adata_manager = model.adata_manager
     # test leaving validataion_size empty works
-    ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0)
+    ds = DataSplitter(adata_manager, train_size=1.0, device_backed=True)
     ds.setup()
     train_dl = ds.train_dataloader()
     ds.val_dataloader()

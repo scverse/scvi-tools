@@ -10,7 +10,6 @@ from scvi.data._utils import get_anndata_attribute
 
 from ._dataloaders import (
     AnnDataLoader,
-    DeviceBackedDataLoader,
     SemiSupervisedDataLoader,
 )
 from ._docstrings import dataloaders_dsp
@@ -53,6 +52,9 @@ class DataSplitter(pl.LightningDataModule):
         train_indices: Optional[List[int]] = None,
         validation_indices: Optional[List[int]] = None,
         shuffle: bool = True,
+        accelerator: str = "auto",
+        device: Union[int, str] = "auto",
+        device_backed: bool = False,
         pin_memory: bool = False,
         **dataloader_kwargs,
     ):
@@ -87,22 +89,34 @@ class DataSplitter(pl.LightningDataModule):
             validation_indices=validation_indices,
             shuffle=shuffle,
         )
+        self.accelerator = accelerator
+        self.device = device
+        self.device_backed = device_backed
 
     def setup(self, stage: Optional[str] = None):
         """Assign indices to train/validation/test splits if necessary."""
         self._train_dataloader = self._data_loader_cls(
             self.adata_manager,
             indices=self.indices.train,
+            accelerator=self.accelerator,
+            device=self.device,
+            device_backed=self.device_backed,
             **self.train_dataloader_kwargs,
         )
         self._validation_dataloader = self._data_loader_cls(
             self.adata_manager,
             indices=self.indices.validation,
+            accelerator=self.accelerator,
+            device=self.device,
+            device_backed=self.device_backed,
             **self.validation_dataloader_kwargs,
         )
         self._test_dataloader = self._data_loader_cls(
             self.adata_manager,
             indices=self.indices.test,
+            accelerator=self.accelerator,
+            device=self.device,
+            device_backed=self.device_backed,
             **self.test_dataloader_kwargs,
         )
 
@@ -133,8 +147,8 @@ class SemiSupervisedDataSplitter(DataSplitter):
     %(param_train_indices)s
     %(param_validation_indices)s
     %(param_shuffle)s
-    %(n_samples_per_label)s
-    %(pin_memory)s
+    %(param_n_samples_per_label)s
+    %(param_pin_memory)s
     %(param_dataloader_kwargs)s
 
     Examples
@@ -208,85 +222,3 @@ class SemiSupervisedDataSplitter(DataSplitter):
         )
 
         self.indices = labeled_indices + unlabeled_indices
-
-
-@dataloaders_dsp.dedent
-class DeviceBackedDataSplitter(DataSplitter):
-    """%(summary)s
-
-    Moves data to the device specified by `accelerator` and `device`.
-
-    Parameters
-    ----------
-    %(param_adata_manager)s
-    %(param_train_size)s
-    %(param_validation_size)s
-    %(param_train_indices)s
-    %(param_validation_indices)s
-    %(param_shuffle)s
-    %(param_accelerator)s
-    %(param_device)s
-    %(param_pin_memory)s
-    %(param_dataloader_kwargs)s
-
-    Examples
-    --------
-    >>> adata = scvi.data.synthetic_iid()
-    >>> scvi.model.SCVI.setup_anndata(adata)
-    >>> adata_manager = scvi.model.SCVI(adata).adata_manager
-    >>> splitter = DeviceBackedDataSplitter(adata)
-    >>> splitter.setup()
-    >>> train_dl = splitter.train_dataloader()
-    """
-
-    _data_loader_cls = DeviceBackedDataLoader
-
-    def __init__(
-        self,
-        adata_manager: AnnDataManager,
-        train_size: Optional[float] = 0.9,
-        validation_size: Optional[float] = None,
-        train_indices: Optional[List[int]] = None,
-        validation_indices: Optional[List[int]] = None,
-        shuffle: bool = True,
-        accelerator: str = "auto",
-        device: Union[int, str] = "auto",
-        pin_memory: bool = False,
-        **dataloader_kwargs,
-    ):
-        super().__init__(
-            adata_manager,
-            train_size=train_size,
-            validation_size=validation_size,
-            train_indices=train_indices,
-            validation_indices=validation_indices,
-            shuffle=shuffle,
-            pin_memory=pin_memory,
-            **dataloader_kwargs,
-        )
-        self.accelerator = accelerator
-        self.device = device
-
-    def setup(self, stage: Optional[str] = None):
-        """Assign indices to train/validation/test splits if necessary."""
-        self._train_dataloader = self._data_loader_cls(
-            self.adata_manager,
-            indices=self.indices.train,
-            accelerator=self.accelerator,
-            device=self.device,
-            **self.train_dataloader_kwargs,
-        )
-        self._validation_dataloader = self._data_loader_cls(
-            self.adata_manager,
-            indices=self.indices.validation,
-            accelerator=self.accelerator,
-            device=self.device,
-            **self.validation_dataloader_kwargs,
-        )
-        self._test_dataloader = self._data_loader_cls(
-            self.adata_manager,
-            indices=self.indices.test,
-            accelerator=self.accelerator,
-            device=self.device,
-            **self.test_dataloader_kwargs,
-        )

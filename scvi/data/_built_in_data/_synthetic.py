@@ -34,7 +34,7 @@ def _generate_synthetic(
     protein = np.random.negative_binomial(5, 0.3, size=(n_obs, n_proteins))
     protein_names = np.arange(n_proteins).astype(str)
 
-    adata = AnnData(rna)
+    adata = AnnData(rna, dtype=np.float32)
     adata.obs["batch"] = pd.Categorical(batch)
     adata.obs["labels"] = pd.Categorical(labels)
     adata.obsm["protein_expression"] = protein

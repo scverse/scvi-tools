@@ -7,7 +7,7 @@ from lightning.pytorch.callbacks import Callback
 from pyro import poutine
 
 from scvi import settings
-from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
+from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.model._utils import parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
@@ -137,23 +137,15 @@ class PyroSviTrainMixin:
         if lr is not None and "optim" not in plan_kwargs.keys():
             plan_kwargs.update({"optim_kwargs": {"lr": lr}})
 
-        if batch_size is None:
-            # use data splitter which moves data to GPU once
-            data_splitter = DeviceBackedDataSplitter(
-                self.adata_manager,
-                train_size=train_size,
-                validation_size=validation_size,
-                batch_size=batch_size,
-                accelerator=accelerator,
-                device=device,
-            )
-        else:
-            data_splitter = self._data_splitter_cls(
-                self.adata_manager,
-                train_size=train_size,
-                validation_size=validation_size,
-                batch_size=batch_size,
-            )
+        data_splitter = DataSplitter(
+            self.adata_manager,
+            train_size=train_size,
+            validation_size=validation_size,
+            batch_size=batch_size,
+            accelerator=accelerator,
+            device=device,
+            device_backed=batch_size is None,
+        )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"

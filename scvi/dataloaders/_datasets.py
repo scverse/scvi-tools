@@ -11,6 +11,7 @@ from torch.utils.data import Dataset
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
+from scvi.model._utils import parse_device_args
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,9 @@ class AnnTorchDataset(Dataset):
         self,
         adata_manager: AnnDataManager,
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
+        accelerator: str = "auto",
+        device: Union[int, str] = "auto",
+        device_backed: bool = False,
     ):
         if adata_manager.adata is None:
             raise ValueError(
@@ -60,6 +64,15 @@ class AnnTorchDataset(Dataset):
                         f"{key} required for model but not registered with AnnDataManager."
                     )
         self.getitem_tensors = getitem_tensors
+
+        _, _, self.device = parse_device_args(
+            accelerator=accelerator,
+            devices=device,
+            return_device="torch",
+            validate_single_device=True,
+        )
+        self.device_backed = device_backed
+
         self._setup_getitem()
         self._set_data_attr()
 
@@ -73,10 +86,14 @@ class AnnTorchDataset(Dataset):
 
         Reduces number of times anndata needs to be accessed
         """
-        self.data = {
-            key: self.adata_manager.get_from_registry(key)
-            for key, _ in self.attributes_and_types.items()
-        }
+        data = {}
+        for key, _ in self.attributes_and_types.items():
+            val = self.adata_manager.get_from_registry(key)
+            if self.device_backed:
+                val = torch.as_tensor(val, device=self.device)
+            data[key] = val
+
+        self.data = data
 
     def _setup_getitem(self):
         """Sets up the __getitem__ function used by PyTorch.
@@ -128,6 +145,8 @@ class AnnTorchDataset(Dataset):
                 sliced_data = sliced_data.astype(dtype)
             elif isinstance(cur_data, np.ndarray):
                 sliced_data = cur_data[idx].astype(dtype)
+            elif isinstance(cur_data, torch.Tensor):
+                sliced_data = cur_data[idx]
             elif isinstance(cur_data, pd.DataFrame):
                 sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
             elif issparse(cur_data):
@@ -156,19 +175,3 @@ class AnnTorchDataset(Dataset):
 
     def __len__(self):
         return self.adata_manager.adata.shape[0]
-
-
-class DeviceBackedDataset(Dataset):
-    def __init__(self, tensor_dict: Dict[str, torch.Tensor]):
-        self.data = tensor_dict
-
-    def __getitem__(self, idx: List[int]) -> Dict[str, torch.Tensor]:
-        return_dict = {}
-        for key, value in self.data.items():
-            return_dict[key] = value[idx]
-
-        return return_dict
-
-    def __len__(self):
-        for _, value in self.data.items():
-            return len(value)

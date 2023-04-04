@@ -21,6 +21,7 @@ class UnsupervisedTrainingMixin:
         use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
+        device_backed: bool = False,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -65,6 +66,9 @@ class UnsupervisedTrainingMixin:
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
+            accelerator=accelerator,
+            device=devices,
+            device_backed=device_backed,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
