@@ -35,6 +35,7 @@ from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 from ._scvi import SCVI
 from .base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
@@ -47,8 +48,7 @@ logger = logging.getLogger(__name__)
 
 
 class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
-    """
-    Single-cell annotation using variational inference :cite:p:`Xu21`.
+    """Single-cell annotation using variational inference :cite:p:`Xu21`.
 
     Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 
@@ -182,8 +182,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         adata: Optional[AnnData] = None,
         **scanvi_kwargs,
     ):
-        """
-        Initialize scanVI model with weights from pretrained :class:`~scvi.model.SCVI` model.
+        """Initialize scanVI model with weights from pretrained :class:`~scvi.model.SCVI` model.
 
         Parameters
         ----------
@@ -239,7 +238,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
                 "A `labels_key` is necessary as the SCVI model was initialized without one."
             )
         if scvi_labels_key is None:
-            scvi_setup_args.update(dict(labels_key=labels_key))
+            scvi_setup_args.update({"labels_key": labels_key})
         cls.setup_anndata(
             adata,
             unlabeled_category=unlabeled_category,
@@ -281,8 +280,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         soft: bool = False,
         batch_size: Optional[int] = None,
     ) -> Union[np.ndarray, pd.DataFrame]:
-        """
-        Return cell label predictions.
+        """Return cell label predictions.
 
         Parameters
         ----------
@@ -339,6 +337,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             )
             return pred
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: Optional[int] = None,
@@ -348,11 +347,12 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
@@ -372,9 +372,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
             Minibatch size to use during training.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         plan_kwargs
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -403,7 +403,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             validation_size=validation_size,
             n_samples_per_label=n_samples_per_label,
             batch_size=batch_size,
-            use_gpu=use_gpu,
         )
         training_plan = SemiSupervisedTrainingPlan(self.module, **plan_kwargs)
         if "callbacks" in trainer_kwargs.keys():
@@ -417,6 +416,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             check_val_every_n_epoch=check_val_every_n_epoch,
             **trainer_kwargs,
         )
@@ -436,8 +437,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         continuous_covariate_keys: Optional[List[str]] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------
@@ -512,8 +512,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
     ):
-        """
-        Minifies the model's adata.
+        """Minifies the model's adata.
 
         Minifies the adata, and registers new anndata fields: latent qzm, latent qzv, adata uns
         containing minified-adata type, and library size.

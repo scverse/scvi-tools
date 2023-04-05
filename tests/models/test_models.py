@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import torch
 from flax import linen as nn
-from pytorch_lightning.callbacks import LearningRateMonitor
+from lightning.pytorch.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
@@ -171,7 +171,7 @@ def test_jax_scvi_save_load(save_path):
     model = JaxSCVI.load(save_path, adata=adata)
     assert "batch" in model.adata_manager.data_registry
     assert model.adata_manager.data_registry.batch == attrdict(
-        dict(attr_name="obs", attr_key="_scvi_batch")
+        {"attr_name": "obs", "attr_key": "_scvi_batch"}
     )
     assert model.is_trained is True
 
@@ -325,7 +325,7 @@ def test_scvi(save_path):
 
     # test mismatched categories raises ValueError
     adata2 = synthetic_iid()
-    adata2.obs.labels.cat.rename_categories(["a", "b", "c"], inplace=True)
+    adata2.obs.labels = adata2.obs.labels.cat.rename_categories(["a", "b", "c"])
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
 
@@ -572,7 +572,7 @@ def test_saving_and_loading(save_path):
         model = cls.load(save_path, adata=adata, prefix=prefix)
         assert "batch" in model.adata_manager.data_registry
         assert model.adata_manager.data_registry.batch == attrdict(
-            dict(attr_name="obs", attr_key="_scvi_batch")
+            {"attr_name": "obs", "attr_key": "_scvi_batch"}
         )
 
         z2 = model.get_latent_representation()
@@ -619,7 +619,7 @@ def test_saving_and_loading(save_path):
     model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
     assert model.adata_manager.data_registry.batch == attrdict(
-        dict(attr_name="obs", attr_key="_scvi_batch")
+        {"attr_name": "obs", "attr_key": "_scvi_batch"}
     )
 
     ab2 = model.get_alphas_betas()
@@ -656,7 +656,7 @@ def test_saving_and_loading(save_path):
     model = SCANVI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
     assert model.adata_manager.data_registry.batch == attrdict(
-        dict(attr_name="obs", attr_key="_scvi_batch")
+        {"attr_name": "obs", "attr_key": "_scvi_batch"}
     )
 
     p2 = model.predict()
@@ -818,26 +818,32 @@ def test_backed_anndata_scvi(save_path):
     model.get_elbo()
 
 
-def test_ann_dataloader():
-    a = scvi.data.synthetic_iid()
+@pytest.mark.parametrize(
+    "data", [scvi.data.synthetic_iid(200), scvi.data.synthetic_iid(200, sparse=True)]
+)
+def test_ann_dataloader(data):
     adata_manager = generic_setup_adata_manager(
-        a, batch_key="batch", labels_key="labels"
+        data, batch_key="batch", labels_key="labels"
     )
 
     # test that batch sampler drops the last batch if it has less than 3 cells
-    assert a.n_obs == 400
-    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=3)
-    assert len(adl) == 2
-    for _i, _ in enumerate(adl):
-        pass
-    assert _i == 1
-    adl = AnnDataLoader(adata_manager, batch_size=398, drop_last=3)
+    assert data.n_obs == 400
+    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=True)
     assert len(adl) == 1
     for _i, _ in enumerate(adl):
         pass
     assert _i == 0
-    with pytest.raises(ValueError):
-        AnnDataLoader(adata_manager, batch_size=1, drop_last=2)
+    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=False)
+    assert len(adl) == 2
+    for _i, _ in enumerate(adl):
+        pass
+    assert _i == 1
+    adl = AnnDataLoader(adata_manager, batch_size=399, drop_last=False)
+    assert len(adl) == 2
+    for _i, loaded_data in enumerate(adl):
+        loaded_data
+    assert _i == 1
+    assert loaded_data["X"].shape[0] == 1
 
 
 def test_semisupervised_dataloader():
@@ -929,7 +935,7 @@ def test_device_backed_data_splitter():
     model = SCVI(a, n_latent=5)
     adata_manager = model.adata_manager
     # test leaving validataion_size empty works
-    ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0, use_gpu=None)
+    ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0)
     ds.setup()
     train_dl = ds.train_dataloader()
     ds.val_dataloader()
@@ -1124,7 +1130,7 @@ def test_autozi():
             dispersion=disp_zi,
             zero_inflation=disp_zi,
         )
-        autozivae.train(1, plan_kwargs=dict(lr=1e-2), check_val_every_n_epoch=1)
+        autozivae.train(1, plan_kwargs={"lr": 1e-2}, check_val_every_n_epoch=1)
         assert len(autozivae.history["elbo_train"]) == 1
         assert len(autozivae.history["elbo_validation"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)
@@ -1140,7 +1146,7 @@ def test_autozi():
             zero_inflation=disp_zi,
             use_observed_lib_size=False,
         )
-        autozivae.train(1, plan_kwargs=dict(lr=1e-2), check_val_every_n_epoch=1)
+        autozivae.train(1, plan_kwargs={"lr": 1e-2}, check_val_every_n_epoch=1)
         assert hasattr(autozivae.module, "library_log_means") and hasattr(
             autozivae.module, "library_log_vars"
         )
@@ -1238,39 +1244,26 @@ def test_totalvi(save_path):
 
     # test automatic transfer_anndata_setup
     adata = synthetic_iid()
+    # no protein names so we test our auto generation
     TOTALVI.setup_anndata(
         adata,
         batch_key="batch",
         protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
     )
     model = TOTALVI(adata)
+    model.train(1, train_size=0.5)
     adata2 = synthetic_iid()
     model.get_elbo(adata2)
 
     # test that we catch incorrect mappings
-    adata = synthetic_iid()
-    TOTALVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
-    )
     adata2 = synthetic_iid()
-    adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"], inplace=True)
+    adata2.obs.batch = adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"])
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
 
     # test that same mapping different order is okay
-    adata = synthetic_iid()
-    TOTALVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
-    )
     adata2 = synthetic_iid()
-    adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"], inplace=True)
+    adata2.obs.batch = adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"])
     model.get_elbo(adata2)  # should automatically transfer setup
 
     # test that we catch missing proteins
@@ -1622,5 +1615,5 @@ def test_early_stopping():
         labels_key="labels",
     )
     model = SCVI(adata)
-    model.train(n_epochs, early_stopping=True, plan_kwargs=dict(lr=0))
+    model.train(n_epochs, early_stopping=True, plan_kwargs={"lr": 0})
     assert len(model.history["elbo_train"]) < n_epochs

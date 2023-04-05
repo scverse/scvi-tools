@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import torch
@@ -18,13 +18,13 @@ from scvi.model.base import (
 )
 from scvi.module import VAEC
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
 
 class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez21`.
+    """Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez21`.
 
     Parameters
     ----------
@@ -97,8 +97,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     def get_vamp_prior(
         self, adata: Optional[AnnData] = None, p: int = 10
     ) -> np.ndarray:
-        r"""
-        Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
+        r"""Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
 
         Parameters
         ----------
@@ -195,19 +194,21 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         return mean_vprior, var_vprior, mp_vprior
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 300,
         lr: float = 0.001,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 1,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using MAP inference.
+        """Trains the model using MAP inference.
 
         Parameters
         ----------
@@ -215,9 +216,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -241,6 +242,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
@@ -257,8 +260,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

@@ -12,11 +12,9 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
-from scvi._utils import _doc_params
-from scvi.utils import unsupported_if_adata_minified
-from scvi.utils._docstrings import doc_differential_expression
+from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
+from scvi.utils import de_dsp, unsupported_if_adata_minified
 
-from .._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from ._utils import _de_core
 
 logger = logging.getLogger(__name__)
@@ -27,7 +25,7 @@ class RNASeqMixin:
 
     def _get_transform_batch_gen_kwargs(self, batch):
         if "transform_batch" in inspect.signature(self.module.generative).parameters:
-            return dict(transform_batch=batch)
+            return {"transform_batch": batch}
         else:
             raise NotImplementedError(
                 "Transforming batches is not implemented for this model."
@@ -47,8 +45,7 @@ class RNASeqMixin:
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Union[np.ndarray, pd.DataFrame]:
-        r"""
-        Returns the normalized (decoded) gene expression.
+        r"""Returns the normalized (decoded) gene expression.
 
         This is denoted as :math:`\rho_n` in the scVI paper.
 
@@ -128,7 +125,7 @@ class RNASeqMixin:
             per_batch_exprs = []
             for batch in transform_batch:
                 generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
-                inference_kwargs = dict(n_samples=n_samples)
+                inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs=inference_kwargs,
@@ -162,9 +159,7 @@ class RNASeqMixin:
         else:
             return exprs
 
-    @_doc_params(
-        doc_differential_expression=doc_differential_expression,
-    )
+    @de_dsp.dedent
     def differential_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -184,17 +179,27 @@ class RNASeqMixin:
         silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
-        \
-
-        A unified method for differential expression analysis.
-
+        r"""A unified method for differential expression analysis.
 
         Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -309,8 +314,7 @@ class RNASeqMixin:
         rna_size_factor: int = 1000,
         transform_batch: Optional[Sequence[int]] = None,
     ) -> np.ndarray:
-        """
-        Return samples from an adjusted posterior predictive.
+        """Return samples from an adjusted posterior predictive.
 
         Parameters
         ----------
@@ -341,7 +345,7 @@ class RNASeqMixin:
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
             generative_kwargs = self._get_transform_batch_gen_kwargs(transform_batch)
-            inference_kwargs = dict(n_samples=n_samples)
+            inference_kwargs = {"n_samples": n_samples}
             _, generative_outputs = self.module.forward(
                 tensors=tensors,
                 inference_kwargs=inference_kwargs,
@@ -389,8 +393,7 @@ class RNASeqMixin:
         transform_batch: Optional[Sequence[Union[Number, str]]] = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
     ) -> pd.DataFrame:
-        """
-        Generate gene-gene correlation matrix using scvi uncertainty and expression.
+        """Generate gene-gene correlation matrix using scvi uncertainty and expression.
 
         Parameters
         ----------
@@ -471,8 +474,7 @@ class RNASeqMixin:
         give_mean: Optional[bool] = False,
         batch_size: Optional[int] = None,
     ) -> Dict[str, np.ndarray]:
-        r"""
-        Estimates for the parameters of the likelihood :math:`p(x \mid z)`
+        r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`.
 
         Parameters
         ----------
@@ -498,7 +500,7 @@ class RNASeqMixin:
         mean_list = []
         dispersion_list = []
         for tensors in scdl:
-            inference_kwargs = dict(n_samples=n_samples)
+            inference_kwargs = {"n_samples": n_samples}
             _, generative_outputs = self.module.forward(
                 tensors=tensors,
                 inference_kwargs=inference_kwargs,
@@ -550,8 +552,7 @@ class RNASeqMixin:
         give_mean: bool = True,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
-        r"""
-        Returns the latent library size for each cell.
+        r"""Returns the latent library size for each cell.
 
         This is denoted as :math:`\ell_n` in the scVI paper.
 

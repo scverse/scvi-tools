@@ -146,14 +146,14 @@ class JaxVAE(JaxBaseModuleClass):
         )
 
     @property
-    def required_rngs(self):  # noqa: D102
+    def required_rngs(self):
         return ("params", "dropout", "z")
 
     def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
         """Get input for inference."""
         x = tensors[REGISTRY_KEYS.X_KEY]
 
-        input_dict = dict(x=x)
+        input_dict = {"x": x}
         return input_dict
 
     def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
@@ -166,7 +166,7 @@ class JaxVAE(JaxBaseModuleClass):
         sample_shape = () if n_samples == 1 else (n_samples,)
         z = qz.rsample(z_rng, sample_shape=sample_shape)
 
-        return dict(qz=qz, z=z)
+        return {"qz": qz, "z": z}
 
     def _get_generative_input(
         self,
@@ -178,11 +178,11 @@ class JaxVAE(JaxBaseModuleClass):
         z = inference_outputs["z"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        input_dict = dict(
-            x=x,
-            z=z,
-            batch_index=batch_index,
-        )
+        input_dict = {
+            "x": x,
+            "z": z,
+            "batch_index": batch_index,
+        }
         return input_dict
 
     def generative(self, x, z, batch_index) -> dict:
@@ -201,7 +201,7 @@ class JaxVAE(JaxBaseModuleClass):
         else:
             px = dist.Poisson(mu)
 
-        return dict(px=px, rho=rho)
+        return {"px": px, "rho": rho}
 
     def loss(
         self,

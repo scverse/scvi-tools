@@ -2,9 +2,9 @@ import sys
 import warnings
 from typing import List, Literal, Optional, Union
 
-import pytorch_lightning as pl
-from pytorch_lightning.accelerators import Accelerator
-from pytorch_lightning.loggers import Logger
+import lightning.pytorch as pl
+from lightning.pytorch.accelerators import Accelerator
+from lightning.pytorch.loggers import Logger
 
 from scvi import settings
 from scvi.autotune._types import Tunable, TunableMixin
@@ -16,8 +16,7 @@ from ._trainingplans import PyroTrainingPlan
 
 
 class Trainer(TunableMixin, pl.Trainer):
-    """
-    Lightweight wrapper of Pytorch Lightning Trainer.
+    """Lightweight wrapper of Pytorch Lightning Trainer.
 
     Appropriate defaults are set for scvi-tools models, as well as callbacks like
     EarlyStopping, with parameters accessible here.
@@ -51,7 +50,7 @@ class Trainer(TunableMixin, pl.Trainer):
         Whether to enable or disable the model summarization.
     early_stopping
         Whether to perform early stopping with respect to the validation set. This
-        automatically adds a :class:`~pytorch_lightning.callbacks.early_stopping.EarlyStopping`
+        automatically adds a :class:`~lightning.pytorch.callbacks.early_stopping.EarlyStopping`
         instance. A custom instance can be passed by using the callbacks argument and
         setting this to `False`.
     early_stopping_monitor
@@ -78,11 +77,6 @@ class Trainer(TunableMixin, pl.Trainer):
         If `True`, defaults to the default pytorch lightning logger.
     log_every_n_steps
         How often to log within steps. This does not affect epoch-level logging.
-    replace_sampler_ddp
-        Explicitly enables or disables sampler replacement. If `True`, by default it will
-        add shuffle=True for train sampler and shuffle=False for val/test sampler. If you
-        want to customize it,  you can set replace_sampler_ddp=False and add your own
-        distributed sampler.
     **kwargs
         Other keyword args for :class:`~pytorch_lightning.trainer.Trainer`
     """
@@ -110,7 +104,6 @@ class Trainer(TunableMixin, pl.Trainer):
         simple_progress_bar: bool = True,
         logger: Union[Optional[Logger], bool] = None,
         log_every_n_steps: int = 10,
-        replace_sampler_ddp: bool = True,
         **kwargs,
     ):
         if default_root_dir is None:
@@ -155,7 +148,6 @@ class Trainer(TunableMixin, pl.Trainer):
             enable_model_summary=enable_model_summary,
             logger=logger,
             log_every_n_steps=log_every_n_steps,
-            replace_sampler_ddp=replace_sampler_ddp,
             enable_progress_bar=enable_progress_bar,
             **kwargs,
         )

@@ -12,8 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseUnsField(BaseAnnDataField):
-    """
-    An abstract AnnDataField for .uns attributes in the AnnData data structure.
+    """An abstract AnnDataField for .uns attributes in the AnnData data structure.
 
     Parameters
     ----------
@@ -40,19 +39,19 @@ class BaseUnsField(BaseAnnDataField):
         self._is_empty = uns_key is None
 
     @property
-    def registry_key(self) -> str:  # noqa: D102
+    def registry_key(self) -> str:
         return self._registry_key
 
     @property
-    def attr_name(self) -> str:  # noqa: D102
+    def attr_name(self) -> str:
         return self._attr_name
 
     @property
-    def attr_key(self) -> str:  # noqa: D102
+    def attr_key(self) -> str:
         return self._attr_key
 
     @property
-    def is_empty(self) -> bool:  # noqa: D102
+    def is_empty(self) -> bool:
         return self._is_empty
 
 

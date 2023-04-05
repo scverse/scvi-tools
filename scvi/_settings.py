@@ -1,10 +1,11 @@
 import logging
 import os
+import warnings
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal, Optional, Union
 
 import torch
-from pytorch_lightning import seed_everything
+from lightning.pytorch import seed_everything
 from rich.console import Console
 from rich.logging import RichHandler
 
@@ -12,8 +13,7 @@ scvi_logger = logging.getLogger("scvi")
 
 
 class ScviConfig:
-    """
-    Config manager for scvi-tools.
+    """Config manager for scvi-tools.
 
     Examples
     --------
@@ -52,10 +52,10 @@ class ScviConfig:
         verbosity: int = logging.INFO,
         progress_bar_style: Literal["rich", "tqdm"] = "tqdm",
         batch_size: int = 128,
-        seed: int = 0,
+        seed: Optional[int] = None,
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
-        dl_pin_memory_gpu_training: bool = False,
+        dl_pin_memory_gpu_training: bool = False,  # TODO: remove in v1.1
         jax_preallocate_gpu_memory: bool = False,
     ):
         self.seed = seed
@@ -65,15 +65,16 @@ class ScviConfig:
         self.progress_bar_style = progress_bar_style
         self.logging_dir = logging_dir
         self.dl_num_workers = dl_num_workers
-        self.dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
+        self.dl_pin_memory_gpu_training = (
+            dl_pin_memory_gpu_training  # TODO: remove in 1.1
+        )
         self._num_threads = None
         self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
         self.verbosity = verbosity
 
     @property
     def batch_size(self) -> int:
-        """
-        Minibatch size for loading data into the model.
+        """Minibatch size for loading data into the model.
 
         This is only used after a model is trained. Trainers have specific
         `batch_size` parameters.
@@ -82,8 +83,7 @@ class ScviConfig:
 
     @batch_size.setter
     def batch_size(self, batch_size: int):
-        """
-        Minibatch size for loading data into the model.
+        """Minibatch size for loading data into the model.
 
         This is only used after a model is trained. Trainers have specific
         `batch_size` parameters.
@@ -108,6 +108,11 @@ class ScviConfig:
     @dl_pin_memory_gpu_training.setter
     def dl_pin_memory_gpu_training(self, dl_pin_memory_gpu_training: int):
         """Set `pin_memory` in data loaders when using a GPU for training."""
+        warnings.warn(
+            "Setting `dl_pin_memory_gpu_training` is deprecated in v1.0 and will be "
+            "removed in v1.1. Please pass in `pin_memory` to the data loaders instead.",
+            DeprecationWarning,
+        )
         self._dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
 
     @property
@@ -146,12 +151,18 @@ class ScviConfig:
         return self._seed
 
     @seed.setter
-    def seed(self, seed: int):
+    def seed(self, seed: Union[int, None] = None):
         """Random seed for torch and numpy."""
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        seed_everything(seed)
-        self._seed = seed
+        if seed is None:
+            self._seed = None
+            warnings.warn(
+                "Since v1.0.0, scvi-tools no longer uses a random seed by default. Run `scvi.settings.seed = 0` to reproduce results from previous versions."
+            )
+        else:
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+            seed_everything(seed)
+            self._seed = seed
 
     @property
     def verbosity(self) -> int:
@@ -160,8 +171,7 @@ class ScviConfig:
 
     @verbosity.setter
     def verbosity(self, level: Union[str, int]):
-        """
-        Sets logging configuration for scvi based on chosen level of verbosity.
+        """Sets logging configuration for scvi based on chosen level of verbosity.
 
         If "scvi" logger has no StreamHandler, add one.
         Else, set its level to `level`.
@@ -189,8 +199,7 @@ class ScviConfig:
             scvi_logger.setLevel(level)
 
     def reset_logging_handler(self):
-        """
-        Resets "scvi" log handler to a basic RichHandler().
+        """Resets "scvi" log handler to a basic RichHandler().
 
         This is useful if piping outputs to a file.
         """
@@ -202,8 +211,7 @@ class ScviConfig:
 
     @property
     def jax_preallocate_gpu_memory(self):
-        """
-        Jax GPU memory allocation settings.
+        """Jax GPU memory allocation settings.
 
         If False, Jax will ony preallocate GPU memory it needs.
         If float in (0, 1), Jax will preallocate GPU memory to that

@@ -1,12 +1,13 @@
 import logging
 import warnings
-from typing import Optional
+from typing import List, Optional, Union
 
 import jax
 import numpy as np
 
 from scvi.dataloaders import DataSplitter
 from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
+from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -18,26 +19,29 @@ class JaxTrainingMixin:
     _training_plan_cls = JaxTrainingPlan
     _train_runner_cls = TrainRunner
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: Optional[bool] = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        use_gpu
-            Whether or not to use GPU resources. If None, will use GPU if available.
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -76,11 +80,9 @@ class JaxTrainingMixin:
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            # for pinning memory only
-            use_gpu=False,
             iter_ndarray=True,
         )
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
         self.training_plan = self._training_plan_cls(self.module, **plan_kwargs)
         if "callbacks" not in trainer_kwargs.keys():
@@ -97,7 +99,8 @@ class JaxTrainingMixin:
                 training_plan=self.training_plan,
                 data_splitter=data_splitter,
                 max_epochs=max_epochs,
-                use_gpu=False,
+                accelerator="cpu",
+                devices="auto",
                 **trainer_kwargs,
             )
             runner()

@@ -1,5 +1,5 @@
 import logging
-from typing import Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 
 import numpy as np
 import torch
@@ -12,13 +12,13 @@ from scvi.external.scbasset._module import REGISTRY_KEYS, ScBassetModule
 from scvi.model.base import BaseModelClass
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
 
 class SCBASSET(BaseModelClass):
-    """
-    Reimplementation of ScBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
+    """Reimplementation of ScBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
 
     This implementation is EXPERIMENTAL. We are working to measure the performance of this model
     compared to the original.
@@ -74,11 +74,14 @@ class SCBASSET(BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 1000,
         lr: float = 0.01,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -89,8 +92,7 @@ class SCBASSET(BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
@@ -98,9 +100,9 @@ class SCBASSET(BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -126,12 +128,12 @@ class SCBASSET(BaseModelClass):
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        custom_plan_kwargs = dict(
-            optimizer="Custom",
-            optimizer_creator=lambda p: torch.optim.Adam(
+        custom_plan_kwargs = {
+            "optimizer": "Custom",
+            "optimizer_creator": lambda p: torch.optim.Adam(
                 p, lr=lr, betas=(0.95, 0.9995)
             ),
-        )
+        }
         if plan_kwargs is not None:
             custom_plan_kwargs.update(plan_kwargs)
 
@@ -140,7 +142,6 @@ class SCBASSET(BaseModelClass):
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            use_gpu=use_gpu,
             # We don't want to dataload the batch ids into the module
             data_and_attributes={
                 REGISTRY_KEYS.X_KEY: np.float32,
@@ -165,14 +166,15 @@ class SCBASSET(BaseModelClass):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             **trainer_kwargs,
         )
         return runner()
 
     @torch.inference_mode()
     def get_latent_representation(self) -> np.ndarray:
-        """
-        Returns the latent representation of the cells.
+        """Returns the latent representation of the cells.
 
         Returns
         -------
@@ -182,8 +184,7 @@ class SCBASSET(BaseModelClass):
 
     @torch.inference_mode()
     def get_cell_bias(self) -> np.ndarray:
-        """
-        Returns the cell-specific bias term.
+        """Returns the cell-specific bias term.
 
         Returns
         -------
@@ -201,8 +202,7 @@ class SCBASSET(BaseModelClass):
         batch_key: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

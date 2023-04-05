@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -15,6 +15,7 @@ from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
 from scvi.model.base import BaseModelClass
 from scvi.train import JaxTrainingPlan
 from scvi.utils import setup_anndata_dsp, track
+from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +25,7 @@ def _asarray(x: np.ndarray, device: Device) -> jnp.ndarray:
 
 
 class Tangram(BaseModelClass):
-    """
-    Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell RNA-seq data to spatial data.
+    """Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell RNA-seq data to spatial data.
 
     Currently the "cells" and "constrained" modes are implemented.
 
@@ -111,8 +111,7 @@ class Tangram(BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     def get_mapper_matrix(self) -> np.ndarray:
-        """
-        Return the mapping matrix.
+        """Return the mapping matrix.
 
         Returns
         -------
@@ -122,23 +121,25 @@ class Tangram(BaseModelClass):
             jax.nn.softmax(self.module.params["mapper_unconstrained"], axis=1)
         )
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 1000,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         lr: float = 0.1,
         plan_kwargs: Optional[dict] = None,
     ):
-        """
-        Train the model.
+        """Train the model.
 
         Parameters
         ----------
         max_epochs
             Number of passes through the dataset.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         lr
             Optimiser learning rate (default optimiser is :class:`~pyro.optim.ClippedAdam`).
             Specifying optimiser via plan_kwargs overrides this choice of lr.
@@ -203,8 +204,7 @@ class Tangram(BaseModelClass):
         modalities: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

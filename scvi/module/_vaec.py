@@ -14,8 +14,7 @@ torch.backends.cudnn.benchmark = True
 
 # Conditional VAE model
 class VAEC(BaseModuleClass):
-    """
-    Conditional Variational auto-encoder model.
+    """Conditional Variational auto-encoder model.
 
     This is an implementation of the CondSCVI model
 
@@ -105,10 +104,10 @@ class VAEC(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
 
-        input_dict = dict(
-            x=x,
-            y=y,
-        )
+        input_dict = {
+            "x": x,
+            "y": y,
+        }
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs):
@@ -125,8 +124,7 @@ class VAEC(BaseModuleClass):
 
     @auto_move_data
     def inference(self, x, y, n_samples=1):
-        """
-        High level inference method.
+        """High level inference method.
 
         Runs the inference (encoder) model.
         """
@@ -144,7 +142,7 @@ class VAEC(BaseModuleClass):
                 (n_samples, library.size(0), library.size(1))
             )
 
-        outputs = dict(z=z, qz=qz, library=library)
+        outputs = {"z": z, "qz": qz, "library": library}
         return outputs
 
     @auto_move_data
@@ -154,7 +152,7 @@ class VAEC(BaseModuleClass):
         px_scale = self.px_decoder(h)
         px_rate = library * px_scale
         px = NegativeBinomial(px_rate, logits=self.px_r)
-        return dict(px=px)
+        return {"px": px}
 
     def loss(
         self,
@@ -188,8 +186,7 @@ class VAEC(BaseModuleClass):
         tensors,
         n_samples=1,
     ) -> np.ndarray:
-        r"""
-        Generate observation samples from the posterior predictive distribution.
+        r"""Generate observation samples from the posterior predictive distribution.
 
         The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
 
@@ -205,7 +202,7 @@ class VAEC(BaseModuleClass):
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        inference_kwargs = dict(n_samples=n_samples)
+        inference_kwargs = {"n_samples": n_samples}
         generative_outputs = self.forward(
             tensors,
             inference_kwargs=inference_kwargs,

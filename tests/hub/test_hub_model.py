@@ -31,7 +31,7 @@ def test_hub_model_init(request, save_path):
     assert str(e.value) == "No metadata found"
 
     # metadata, no model card
-    hm = HubMetadata("0.17.4", "0.8.0")
+    hm = HubMetadata("0.17.4", "0.8.0", "SCVI")
     with pytest.raises(ValueError) as e:
         HubModel(test_save_path, metadata=hm)
     assert str(e.value) == "No model card found"
@@ -74,7 +74,7 @@ def test_hub_model_load(request, save_path):
     test_save_path = os.path.join(save_path, request.node.name)
     model.save(test_save_path, overwrite=True, save_anndata=True)
 
-    hm = HubMetadata("0.17.4", "0.8.0")
+    hm = HubMetadata("0.17.4", "0.8.0", "SCVI")
     hmch = HubModelCardHelper.from_dir(
         test_save_path,
         license_info="cc-by-4.0",
@@ -115,7 +115,7 @@ def test_hub_model_large_training_adata(request, save_path):
     test_save_path = os.path.join(save_path, request.node.name)
     model.save(test_save_path, overwrite=True)
 
-    hm = HubMetadata("0.17.4", "0.8.0", training_data_url=training_data_url)
+    hm = HubMetadata("0.17.4", "0.8.0", "SCVI", training_data_url=training_data_url)
     hmch = HubModelCardHelper.from_dir(
         test_save_path,
         license_info="cc-by-4.0",
@@ -144,7 +144,7 @@ def test_hub_model_pull_from_hf(save_path):
     hmo = HubModel.pull_from_huggingface_hub(
         repo_name="scvi-tools/MODEL-FOR-UNIT-TESTING-1"
     )
-    assert hmo.metadata == HubMetadata("0.17.0", "0.8.0")
+    assert hmo.metadata == HubMetadata("0.17.0", "0.8.0", "SCVI")
     assert hmo.model_card.content == "---\nlicense: cc-by-4.0\n---\n"
     assert isinstance(hmo.model, scvi.model.SCVI)
     assert isinstance(hmo.model.module, scvi.module.VAE)

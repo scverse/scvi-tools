@@ -28,6 +28,7 @@ from ._preprocessing import (
     organize_cite_seq_10x,
     organize_multiome_anndatas,
     poisson_gene_selection,
+    reads_to_fragments,
 )
 from ._read import read_10x_atac, read_10x_multiome
 
@@ -63,5 +64,6 @@ __all__ = [
     "organize_multiome_anndatas",
     "pbmc_seurat_v4_cite_seq",
     "add_dna_sequence",
+    "reads_to_fragments",
     "cellxgene",
 ]

@@ -33,17 +33,16 @@ class BaseArrayLikeField(BaseAnnDataField):
         self._attr_name = None
 
     @property
-    def registry_key(self) -> str:  # noqa: D102
+    def registry_key(self) -> str:
         return self._registry_key
 
     @property
-    def attr_name(self) -> str:  # noqa: D102
+    def attr_name(self) -> str:
         return self._attr_name
 
 
 class ArrayLikeField(BaseArrayLikeField):
-    """
-    An AnnDataField for an .obsm or .varm field in the AnnData data structure.
+    """An AnnDataField for an .obsm or .varm field in the AnnData data structure.
 
     In addition to creating a reference to the .obsm or .varm field, stores the column
     keys for the obsm or varm field in a more accessible .uns attribute.
@@ -94,11 +93,11 @@ class ArrayLikeField(BaseArrayLikeField):
         self.count_stat_key = f"n_{self.registry_key}"
 
     @property
-    def attr_key(self) -> str:  # noqa: D102
+    def attr_key(self) -> str:
         return self._attr_key
 
     @property
-    def is_empty(self) -> bool:  # noqa: D102
+    def is_empty(self) -> bool:
         return False
 
     def validate_field(self, adata: AnnData) -> None:
@@ -116,8 +115,7 @@ class ArrayLikeField(BaseArrayLikeField):
             )
 
     def _setup_column_names(self, adata: AnnData) -> Union[list, np.ndarray]:
-        """
-        Returns a list or NumPy array of column names that will be used for the relevant .obsm data.
+        """Returns a list or NumPy array of column names that will be used for the relevant .obsm data.
 
         If the ``colnames_uns_key`` was specified, then the columns stored in that
         field will be returned. Otherwise, if the stored data is a pandas dataframe, then
@@ -201,8 +199,7 @@ MuDataVarmField = MuDataWrapper(VarmField)
 
 
 class BaseJointField(BaseArrayLikeField):
-    """
-    An abstract AnnDataField for a collection of .obs or .var fields in the AnnData data structure.
+    """An abstract AnnDataField for a collection of .obs or .var fields in the AnnData data structure.
 
     Creates an .obsm or .varm field containing each .obs or .var field to be referenced as a whole a model.
 
@@ -249,11 +246,11 @@ class BaseJointField(BaseArrayLikeField):
         attr[self.attr_key] = source[self.attr_keys].copy()
 
     @property
-    def attr_name(self) -> str:  # noqa: D102
+    def attr_name(self) -> str:
         return self._attr_name
 
     @property
-    def source_attr_name(self) -> str:  # noqa: D102
+    def source_attr_name(self) -> str:
         return self._source_attr_name
 
     @property
@@ -262,17 +259,16 @@ class BaseJointField(BaseArrayLikeField):
         return self._attr_keys
 
     @property
-    def attr_key(self) -> str:  # noqa: D102
+    def attr_key(self) -> str:
         return self._attr_key
 
     @property
-    def is_empty(self) -> bool:  # noqa: D102
+    def is_empty(self) -> bool:
         return self._is_empty
 
 
 class NumericalJointField(BaseJointField):
-    """
-    An AnnDataField for a collection of numerical .obs or .var fields in the AnnData data structure.
+    """An AnnDataField for a collection of numerical .obs or .var fields in the AnnData data structure.
 
     Creates an .obsm or .varm field containing each .obs or .var field to be referenced as a whole a model.
 
@@ -360,8 +356,7 @@ MuDataNumericalJointVarField = MuDataWrapper(NumericalJointVarField)
 
 
 class CategoricalJointField(BaseJointField):
-    """
-    An AnnDataField for a collection of categorical .obs or .var fields in the AnnData data structure.
+    """An AnnDataField for a collection of categorical .obs or .var fields in the AnnData data structure.
 
     Creates an .obsm or .varm field compiling the given .obs or .var fields. The model
     will reference the compiled data as a whole.
@@ -391,7 +386,7 @@ class CategoricalJointField(BaseJointField):
 
     def _default_mappings_dict(self) -> dict:
         return {
-            self.MAPPINGS_KEY: dict(),
+            self.MAPPINGS_KEY: {},
             self.FIELD_KEYS_KEY: [],
             self.N_CATS_PER_KEY: [],
         }
@@ -409,7 +404,7 @@ class CategoricalJointField(BaseJointField):
                 f"generated .{self.attr_name} field.",
             )
 
-        categories = dict()
+        categories = {}
         df = getattr(adata, self.attr_name)[self.attr_key]
         for key in self.attr_keys:
             categorical_dtype = (

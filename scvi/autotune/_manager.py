@@ -6,6 +6,7 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import Any, Callable, List, Optional, Tuple
 
+import lightning.pytorch as pl
 import rich
 from chex import dataclass
 
@@ -29,6 +30,12 @@ from ._utils import in_notebook
 logger = logging.getLogger(__name__)
 
 
+# This is to get around lightning import changes
+class _TuneReportCallback(TuneReportCallback, pl.Callback):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
 @dataclass
 class TuneAnalysis:
     """Dataclass for storing results from a tuning experiment."""
@@ -42,8 +49,7 @@ class TuneAnalysis:
 
 
 class TunerManager:
-    """
-    Internal manager for validation of inputs from :class:`~scvi.autotune.ModelTuner`.
+    """Internal manager for validation of inputs from :class:`~scvi.autotune.ModelTuner`.
 
     Parameters
     ----------
@@ -79,8 +85,7 @@ class TunerManager:
 
     @staticmethod
     def _get_registry(model_cls: BaseModelClass) -> dict:
-        """
-        Returns the model class's registry of tunable hyperparameters and metrics.
+        """Returns the model class's registry of tunable hyperparameters and metrics.
 
         For a given model class, checks whether a `_tunables` class property has been
         defined. If so, iterates through the attribute to recursively discover tunable
@@ -390,7 +395,7 @@ class TunerManager:
             model_kwargs, train_kwargs = self._get_search_space(search_space)
             getattr(model_cls, setup_method_name)(adata, **setup_kwargs)
             model = model_cls(adata, **model_kwargs)
-            monitor = TuneReportCallback(metric, on="validation_end")
+            monitor = _TuneReportCallback(metric, on="validation_end")
             model.train(
                 max_epochs=max_epochs,
                 use_gpu=use_gpu,
@@ -452,7 +457,7 @@ class TunerManager:
         max_epochs = max_epochs or 100  # TODO: better default
         scheduler = scheduler or "asha"
         scheduler_kwargs = scheduler_kwargs or {}
-        searcher = searcher or "random"
+        searcher = searcher or "hyperopt"
         searcher_kwargs = searcher_kwargs or {}
         resources = resources or {}
 
@@ -544,8 +549,7 @@ class TunerManager:
     def _view_registry(
         self, show_additional_info: bool = False, show_resources: bool = False
     ) -> None:
-        """
-        Displays a summary of the model class's registry and available resources.
+        """Displays a summary of the model class's registry and available resources.
 
         Parameters
         ----------

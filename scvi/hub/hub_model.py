@@ -17,7 +17,6 @@ from scvi.data import cellxgene
 from scvi.data._download import _download
 from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
-from scvi.model.base._utils import _load_saved_files
 
 from ._constants import _SCVI_HUB
 
@@ -25,8 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class HubModel:
-    """
-    Provides functionality to interact with the scvi-hub backed by `huggingface <https://huggingface.co/models>`_.
+    """Provides functionality to interact with the scvi-hub backed by `huggingface <https://huggingface.co/models>`_.
 
     Parameters
     ----------
@@ -94,8 +92,7 @@ class HubModel:
     def push_to_huggingface_hub(
         self, repo_name: str, repo_token: str, repo_create: bool
     ):
-        """
-        Push this model to huggingface.
+        """Push this model to huggingface.
 
         If the dataset is too large to upload to huggingface, this will raise an
         exception prompting the user to upload the data elsewhere. Otherwise, the
@@ -155,8 +152,7 @@ class HubModel:
         revision: Optional[str] = None,
         **kwargs,
     ):
-        """
-        Download the given model repo from huggingface.
+        """Download the given model repo from huggingface.
 
         The model, its card, data, metadata are downloaded to a cached location on disk
         selected by huggingface and an instance of this class is created with that info
@@ -217,8 +213,7 @@ class HubModel:
 
     @property
     def model(self) -> Type[BaseModelClass]:
-        """
-        Returns the model object for this hub model.
+        """Returns the model object for this hub model.
 
         If the model has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.load_model`.
         Otherwise, it will simply return the loaded model.
@@ -229,8 +224,7 @@ class HubModel:
 
     @property
     def adata(self) -> Optional[AnnData]:
-        """
-        Returns the data for this model.
+        """Returns the data for this model.
 
         If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_adata`.
         Otherwise, it will simply return the loaded data.
@@ -241,8 +235,7 @@ class HubModel:
 
     @property
     def large_training_adata(self) -> Optional[AnnData]:
-        """
-        Returns the training data for this model, which might be too large to reside within the hub model.
+        """Returns the training data for this model, which might be too large to reside within the hub model.
 
         If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_large_training_adata`,
         which will attempt to download from the source url. Otherwise, it will simply return the loaded data.
@@ -255,22 +248,20 @@ class HubModel:
         self,
         adata: Optional[AnnData] = None,
     ):
-        """
-        Loads the model.
+        """Loads the model.
 
         Parameters
         ----------
         adata
-            The data to  load the model with, if not None. If None, we'll try to load the model using the data
+            The data to load the model with, if not None. If None, we'll try to load the model using the data
             at ``self._adata_path``. If that file does not exist, we'll try to load the model using
             :meth:`~scvi.hub.HubModel.large_training_adata`. If that does not exist either, we'll error out.
         """
         logger.info("Loading model...")
         # get the class name for this model (e.g. TOTALVI)
-        attr_dict, _, _, _ = _load_saved_files(self._local_dir, load_adata=False)
-        cls_name = attr_dict["registry_"]["model_name"]
+        model_cls_name = self.metadata.model_cls_name
         python_module = importlib.import_module(self.metadata.model_parent_module)
-        model_cls = getattr(python_module, cls_name)
+        model_cls = getattr(python_module, model_cls_name)
         if adata is not None or os.path.isfile(self._adata_path):
             self._model = model_cls.load(os.path.dirname(self._model_path), adata=adata)
         else:
@@ -298,8 +289,7 @@ class HubModel:
             logger.info("No data found on disk. Skipping...")
 
     def read_large_training_adata(self):
-        """
-        Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op
+        """Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op.
 
         Notes
         -----

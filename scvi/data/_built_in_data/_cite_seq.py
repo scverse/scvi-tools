@@ -12,8 +12,7 @@ def _load_pbmcs_10x_cite_seq(
     save_path: str = "data/",
     protein_join: str = "inner",
 ):
-    """
-    Filtered PBMCs from 10x Genomics profiled with RNA and protein.
+    """Filtered PBMCs from 10x Genomics profiled with RNA and protein.
 
     Datasets were filtered for doublets and other outliers as in
     https://github.com/YosefLab/totalVI_reproducibility/blob/master/data/data_filtering_scripts/pbmc_10k/pbmc_10k.py
@@ -69,8 +68,7 @@ def _load_spleen_lymph_cite_seq(
     protein_join: str = "inner",
     remove_outliers: bool = True,
 ):
-    """
-    Immune cells from the murine spleen and lymph nodes :cite:p:`GayosoSteier21`.
+    """Immune cells from the murine spleen and lymph nodes :cite:p:`GayosoSteier21`.
 
     This dataset was used throughout the totalVI manuscript, and named SLN-all.
 

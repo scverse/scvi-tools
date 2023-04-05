@@ -2,7 +2,7 @@ import io
 import logging
 import warnings
 from contextlib import redirect_stdout
-from typing import Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,7 @@ from scvi.module import Classifier
 from scvi.module.base import auto_move_data
 from scvi.train import ClassifierTrainingPlan, LoudEarlyStopping, TrainRunner
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,7 @@ LABELS_KEY = "_solo_doub_sim"
 
 
 class SOLO(BaseModelClass):
-    """
-    Doublet detection in scRNA-seq :cite:p:`Bernstein20`.
+    """Doublet detection in scRNA-seq :cite:p:`Bernstein20`.
 
     Most users will initialize the model using the class method
     :meth:`~scvi.external.SOLO.from_scvi_model`, which takes as
@@ -100,8 +100,7 @@ class SOLO(BaseModelClass):
         doublet_ratio: int = 2,
         **classifier_kwargs,
     ):
-        """
-        Instantiate a SOLO model from an scvi model.
+        """Instantiate a SOLO model from an scvi model.
 
         Parameters
         ----------
@@ -253,11 +252,14 @@ class SOLO(BaseModelClass):
 
         return doublets_ad
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 400,
         lr: float = 1e-3,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -267,8 +269,7 @@ class SOLO(BaseModelClass):
         early_stopping_min_delta: float = 0.0,
         **kwargs,
     ):
-        """
-        Trains the model.
+        """Trains the model.
 
         Parameters
         ----------
@@ -276,9 +277,9 @@ class SOLO(BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -325,14 +326,13 @@ class SOLO(BaseModelClass):
             n_cells = self.adata.n_obs
             max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
         data_splitter = DataSplitter(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            use_gpu=use_gpu,
         )
         training_plan = ClassifierTrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
@@ -341,6 +341,8 @@ class SOLO(BaseModelClass):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             **kwargs,
         )
         return runner()
@@ -349,8 +351,7 @@ class SOLO(BaseModelClass):
     def predict(
         self, soft: bool = True, include_simulated_doublets: bool = False
     ) -> pd.DataFrame:
-        """
-        Return doublet predictions.
+        """Return doublet predictions.
 
         Parameters
         ----------
@@ -405,8 +406,7 @@ class SOLO(BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

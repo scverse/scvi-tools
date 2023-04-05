@@ -9,7 +9,6 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 
 from scvi._constants import REGISTRY_KEYS
-from scvi._utils import _doc_params
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -24,7 +23,7 @@ from scvi.model._utils import (
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import PEAKVAE
 from scvi.train._callbacks import SaveBestState
-from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
+from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin
 from .base._utils import _de_core
@@ -33,8 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Peak Variational Inference :cite:p:`Ashuach22`.
+    """Peak Variational Inference :cite:p:`Ashuach22`.
 
     Parameters
     ----------
@@ -146,11 +144,14 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 500,
         lr: float = 1e-4,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -165,8 +166,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using amortized variational inference.
+        """Trains the model using amortized variational inference.
 
         Parameters
         ----------
@@ -174,9 +174,9 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of passes through the dataset.
         lr
             Learning rate for optimization.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -211,14 +211,14 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        update_dict = dict(
-            lr=lr,
-            weight_decay=weight_decay,
-            eps=eps,
-            n_epochs_kl_warmup=n_epochs_kl_warmup,
-            n_steps_kl_warmup=n_steps_kl_warmup,
-            optimizer="AdamW",
-        )
+        update_dict = {
+            "lr": lr,
+            "weight_decay": weight_decay,
+            "eps": eps,
+            "n_epochs_kl_warmup": n_epochs_kl_warmup,
+            "n_steps_kl_warmup": n_steps_kl_warmup,
+            "optimizer": "AdamW",
+        }
         if plan_kwargs is not None:
             plan_kwargs.update(update_dict)
         else:
@@ -234,6 +234,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             max_epochs=max_epochs,
             train_size=train_size,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             validation_size=validation_size,
             early_stopping=early_stopping,
             early_stopping_monitor="reconstruction_loss_validation",
@@ -251,8 +253,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         indices: Sequence[int] = None,
         batch_size: int = 128,
     ) -> Dict[str, np.ndarray]:
-        """
-        Return library size factors.
+        """Return library size factors.
 
         Parameters
         ----------
@@ -303,8 +304,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         batch_size: int = 128,
         return_numpy: bool = False,
     ) -> Union[pd.DataFrame, np.ndarray, csr_matrix]:
-        """
-        Impute the full accessibility matrix.
+        """Impute the full accessibility matrix.
 
         Returns a matrix of accessibility probabilities for each cell and genomic region in the input
         (for return matrix A, A[i,j] is the probability that region j is accessible in cell i).
@@ -369,8 +369,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         imputed = []
         for tensors in post:
-            get_generative_input_kwargs = dict(transform_batch=transform_batch[0])
-            generative_kwargs = dict(use_z_mean=use_z_mean)
+            get_generative_input_kwargs = {"transform_batch": transform_batch[0]}
+            generative_kwargs = {"use_z_mean": use_z_mean}
             inference_outputs, generative_outputs = self.module.forward(
                 tensors=tensors,
                 get_generative_input_kwargs=get_generative_input_kwargs,
@@ -410,9 +410,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 columns=adata.var_names[region_mask],
             )
 
-    @_doc_params(
-        doc_differential_expression=doc_differential_expression,
-    )
+    @de_dsp.dedent
     def differential_accessibility(
         self,
         adata: Optional[AnnData] = None,
@@ -433,7 +431,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\
+        r"""\.
 
         A unified method for differential accessibility analysis.
 
@@ -441,7 +439,21 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         two_sided
             Whether to perform a two-sided test, or a one-sided test.
         **kwargs
@@ -543,8 +555,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

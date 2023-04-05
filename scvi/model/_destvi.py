@@ -1,6 +1,6 @@
 import logging
 from collections import OrderedDict
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -14,13 +14,13 @@ from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
 
 class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez21`. Most users will use the alternate constructor (see example).
+    """Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez21`. Most users will use the alternate constructor (see example).
 
     Parameters
     ----------
@@ -106,8 +106,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         l1_reg: float = 0.0,
         **module_kwargs,
     ):
-        """
-        Alternate constructor for exploiting a pre-trained model on a RNA-seq dataset.
+        """Alternate constructor for exploiting a pre-trained model on a RNA-seq dataset.
 
         Parameters
         ----------
@@ -161,8 +160,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> pd.DataFrame:
-        """
-        Returns the estimated cell type proportion for the spatial data.
+        """Returns the estimated cell type proportion for the spatial data.
 
         Shape is n_cells x n_labels OR n_cells x (n_labels + 1) if keep_noise.
 
@@ -215,8 +213,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         batch_size: Optional[int] = None,
         return_numpy: bool = False,
     ) -> Union[np.ndarray, Dict[str, pd.DataFrame]]:
-        """
-        Returns the estimated cell-type specific latent space for the spatial data.
+        """Returns the estimated cell-type specific latent space for the spatial data.
 
         Parameters
         ----------
@@ -268,8 +265,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
     ) -> pd.DataFrame:
-        r"""
-        Return the scaled parameter of the NB for every spot in queried cell types.
+        r"""Return the scaled parameter of the NB for every spot in queried cell types.
 
         Parameters
         ----------
@@ -310,11 +306,14 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             index_names = index_names[indices]
         return pd.DataFrame(data=data, columns=column_names, index=index_names)
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 2000,
         lr: float = 0.003,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 1.0,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -322,8 +321,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs: Optional[dict] = None,
         **kwargs,
     ):
-        """
-        Trains the model using MAP inference.
+        """Trains the model using MAP inference.
 
         Parameters
         ----------
@@ -331,9 +329,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -360,6 +358,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         super().train(
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
@@ -375,8 +375,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         layer: Optional[str] = None,
         **kwargs,
     ):
-        """
-        %(summary)s.
+        """%(summary)s.
 
         Parameters
         ----------

@@ -5,8 +5,7 @@ from ._manager import TunerManager
 
 
 class ModelTuner:
-    """
-    Automated and scalable hyperparameter tuning for scvi-tools models.
+    """Automated and scalable hyperparameter tuning for scvi-tools models.
 
     Wraps a :class:`~ray.tune.Tuner` instance attached to a scvi-tools model class.
     Note: this API is in beta and is subject to change in future releases.
@@ -32,8 +31,7 @@ class ModelTuner:
         self._manager = TunerManager(model_cls)
 
     def fit(self, adata: AnnOrMuData, **kwargs) -> None:
-        """
-        Run a specified hyperparameter sweep for the associated model class.
+        """Run a specified hyperparameter sweep for the associated model class.
 
         Parameters
         ----------
@@ -76,8 +74,8 @@ class ModelTuner:
         searcher
             Ray Tune search algorithm to use. One of the following:
 
-            * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator` (default)
-            * ``"hyperopt"``: :class:`~ray.tune.hyperopt.HyperOptSearch`
+            * ``"hyperopt"``: :class:`~ray.tune.hyperopt.HyperOptSearch` (default)
+            * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
         searcher_kwargs
             Keyword arguments to pass to the search algorithm.
         reporter
@@ -112,7 +110,7 @@ class ModelTuner:
         results = tuner.fit()
         return self._manager._get_analysis(results, config)
 
-    def info(self, **kwargs) -> None:  # noqa: D102
+    def info(self, **kwargs) -> None:
         self._manager._view_registry(**kwargs)
 
     info.__doc__ = TunerManager._view_registry.__doc__

@@ -7,9 +7,8 @@ from jax import random
 def device_selecting_PRNGKey(use_cpu: bool = True) -> Callable:
     """Returns a PRNGKey that is either on CPU or GPU."""
     # if key is generated on CPU, model params will be on CPU
-    # we have to pay the price of a JIT compilation though
     if use_cpu is True:
-        key = jax.jit(lambda i: random.PRNGKey(i), backend="cpu")
+        key = lambda i: jax.device_put(random.PRNGKey(i), jax.devices("cpu")[0])
     else:
         # dummy function
         def key(i: int):

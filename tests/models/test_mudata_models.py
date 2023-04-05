@@ -18,7 +18,7 @@ def test_totalvi(save_path):
     TOTALVI.setup_mudata(
         mdata,
         batch_key="batch",
-        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
+        modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
 
     n_obs = mdata.n_obs
@@ -71,7 +71,7 @@ def test_totalvi(save_path):
     TOTALVI.setup_mudata(
         mdata2,
         batch_key="batch",
-        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
+        modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
     norm_exp = model.get_normalized_expression(mdata2, indices=[1, 2, 3])
     assert norm_exp[0].shape == (3, adata2.n_vars)
@@ -108,7 +108,7 @@ def test_totalvi_auto_transfer(save_path):
     TOTALVI.setup_mudata(
         mdata,
         batch_key="batch",
-        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
+        modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
     model = TOTALVI(mdata)
     adata2 = synthetic_iid()
@@ -125,13 +125,13 @@ def test_totalvi_incorrect_mapping(save_path):
     TOTALVI.setup_mudata(
         mdata,
         batch_key="batch",
-        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
+        modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
     model = TOTALVI(mdata)
     adata2 = synthetic_iid()
     protein_adata2 = synthetic_iid(n_genes=50)
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
-    adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"], inplace=True)
+    adata2.obs.batch = adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"])
     with pytest.raises(ValueError):
         model.get_elbo(mdata2)
 
@@ -144,13 +144,13 @@ def test_totalvi_reordered_mapping(save_path):
     TOTALVI.setup_mudata(
         mdata,
         batch_key="batch",
-        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
+        modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
     model = TOTALVI(mdata)
     adata2 = synthetic_iid()
     protein_adata2 = synthetic_iid(n_genes=50)
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
-    adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"], inplace=True)
+    adata2.obs.batch = adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"])
     model.get_elbo(mdata2)
 
 
@@ -165,7 +165,7 @@ def test_totalvi_missing_proteins(save_path):
     TOTALVI.setup_mudata(
         mdata,
         batch_key="batch",
-        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
+        modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
     model = TOTALVI(mdata)
     assert model.module.protein_batch_mask is not None
@@ -183,7 +183,7 @@ def test_totalvi_model_library_size(save_path):
     TOTALVI.setup_mudata(
         mdata,
         batch_key="batch",
-        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
+        modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
 
     n_latent = 10
@@ -207,12 +207,12 @@ def test_totalvi_size_factor():
         mdata,
         batch_key="batch",
         size_factor_key="size_factor",
-        modalities=dict(
-            rna_layer="rna",
-            batch_key="rna",
-            protein_layer="protein",
-            size_factor_key="rna",
-        ),
+        modalities={
+            "rna_layer": "rna",
+            "batch_key": "rna",
+            "protein_layer": "protein",
+            "size_factor_key": "rna",
+        },
     )
 
     n_latent = 10
@@ -240,7 +240,7 @@ def test_totalvi_saving_and_loading(save_path):
     TOTALVI.setup_mudata(
         mdata,
         batch_key="batch",
-        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
+        modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
     model = TOTALVI(mdata)
     model.train(1, train_size=0.2)
@@ -275,7 +275,7 @@ def test_totalvi_saving_and_loading(save_path):
     model = TOTALVI.load(save_path, adata=mdata)
     assert scvi.REGISTRY_KEYS.BATCH_KEY in model.adata_manager.data_registry
     assert model.adata_manager.data_registry.batch == attrdict(
-        dict(mod_key="rna", attr_name="obs", attr_key="_scvi_batch")
+        {"mod_key": "rna", "attr_name": "obs", "attr_key": "_scvi_batch"}
     )
 
     z2 = model.get_latent_representation()
@@ -292,5 +292,5 @@ def test_totalvi_saving_and_loading(save_path):
     TOTALVI.setup_mudata(
         mdata2,
         batch_key="batch",
-        modalities=dict(rna_layer="rna", batch_key="rna", protein_layer="protein"),
+        modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )

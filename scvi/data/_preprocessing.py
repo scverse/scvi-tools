@@ -1,15 +1,18 @@
 import logging
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import anndata
 import numpy as np
 import pandas as pd
 import torch
+from scipy.sparse import issparse
 
 from scvi._decorators import dependencies
+from scvi.model._utils import parse_device_args
 from scvi.utils import track
+from scvi.utils._docstrings import devices_dsp
 
 from ._utils import _check_nonnegative_integers
 
@@ -17,21 +20,22 @@ logger = logging.getLogger(__name__)
 
 
 @torch.inference_mode()
+@devices_dsp.dedent
 def poisson_gene_selection(
     adata,
     layer: Optional[str] = None,
     n_top_genes: int = 4000,
-    use_gpu: bool = True,
+    use_gpu: Optional[Union[str, int, bool]] = None,
+    accelerator: str = "auto",
+    device: Union[int, str] = "auto",
     subset: bool = False,
     inplace: bool = True,
     n_samples: int = 10000,
     batch_key: str = None,
     silent: bool = False,
     minibatch_size: int = 5000,
-    **kwargs,
 ) -> Optional[pd.DataFrame]:
-    """
-    Rank and select genes based on the enrichment of zero counts.
+    """Rank and select genes based on the enrichment of zero counts.
 
     Enrichment is considered by comparing data to a Poisson count model.
     This is based on M3Drop: https://github.com/tallulandrews/M3Drop
@@ -49,8 +53,9 @@ def poisson_gene_selection(
         If provided, use `adata.layers[layer]` for expression values instead of `adata.X`.
     n_top_genes
         How many variable genes to select.
-    use_gpu
-        Whether to use GPU
+    %(param_use_gpu)s
+    %(param_accelerator)s
+    %(param_device)s
     subset
         Inplace subset to highly-variable genes if `True` otherwise merely indicate
         highly variable genes.
@@ -92,7 +97,13 @@ def poisson_gene_selection(
     if _check_nonnegative_integers(data) is False:
         raise ValueError("`poisson_gene_selection` expects " "raw count data.")
 
-    use_gpu = use_gpu and torch.cuda.is_available()
+    _, _, device = parse_device_args(
+        use_gpu=use_gpu,
+        accelerator=accelerator,
+        devices=device,
+        return_device="torch",
+        validate_single_device=True,
+    )
 
     if batch_key is None:
         batch_info = pd.Categorical(np.zeros(adata.shape[0], dtype=int))
@@ -108,22 +119,19 @@ def poisson_gene_selection(
 
         # Calculate empirical statistics.
         sum_0 = np.asarray(data.sum(0)).ravel()
-        scaled_means = torch.from_numpy(sum_0 / sum_0.sum())
-        if use_gpu is True:
-            scaled_means = scaled_means.cuda()
-        dev = scaled_means.device
-        total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(dev)
+        scaled_means = torch.from_numpy(sum_0 / sum_0.sum()).to(device)
+        total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(device)
 
         observed_fraction_zeros = torch.from_numpy(
             np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel()
-        ).to(dev)
+        ).to(device)
 
         # Calculate probability of zero for a Poisson model.
         # Perform in batches to save memory.
         minibatch_size = min(total_counts.shape[0], minibatch_size)
         n_batches = total_counts.shape[0] // minibatch_size
 
-        expected_fraction_zeros = torch.zeros(scaled_means.shape, device=dev)
+        expected_fraction_zeros = torch.zeros(scaled_means.shape, device=device)
 
         for i in range(n_batches):
             total_counts_batch = total_counts[
@@ -144,7 +152,7 @@ def poisson_gene_selection(
         observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
         expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
-        extra_zeros = torch.zeros(expected_fraction_zeros.shape, device=dev)
+        extra_zeros = torch.zeros(expected_fraction_zeros.shape, device=device)
         for _ in track(
             range(n_samples),
             description="Sampling from binomial...",
@@ -164,9 +172,6 @@ def poisson_gene_selection(
         del expected_fraction_zeros
         del observed_fraction_zeros
         del extra_zeros
-
-        if use_gpu:
-            torch.cuda.empty_cache()
 
         prob_zero_enrichments.append(prob_zero_enrichment.reshape(1, -1))
         obs_frac_zeross.append(obs_frac_zeros.reshape(1, -1))
@@ -236,8 +241,7 @@ def poisson_gene_selection(
 def organize_cite_seq_10x(
     adata: anndata.AnnData, copy: bool = False
 ) -> Optional[anndata.AnnData]:
-    """
-    Organize anndata object loaded from 10x for scvi models.
+    """Organize anndata object loaded from 10x for scvi models.
 
     Parameters
     ----------
@@ -288,8 +292,7 @@ def organize_multiome_anndatas(
     atac_anndata: Optional[anndata.AnnData] = None,
     modality_key: str = "modality",
 ) -> anndata.AnnData:
-    """
-    Concatenate multiome and single-modality input anndata objects.
+    """Concatenate multiome and single-modality input anndata objects.
 
     These anndata objects should already have been preprocessed so that both single-modality
     objects use a subset of the features used in the multiome object. The feature names (index of
@@ -383,8 +386,7 @@ def add_dna_sequence(
     sequence_varm_key: str = "dna_sequence",
     code_varm_key: str = "dna_code",
 ) -> None:
-    """
-    Add DNA sequence to AnnData object.
+    """Add DNA sequence to AnnData object.
 
     Uses genomepy under the hood to download the genome.
 
@@ -457,3 +459,34 @@ def add_dna_sequence(
     sequence_df = pd.concat(seq_dfs, axis=0).loc[adata.var_names]
     adata.varm[sequence_varm_key] = sequence_df
     adata.varm[code_varm_key] = sequence_df.applymap(_dna_to_code)
+
+
+def reads_to_fragments(
+    adata: anndata.AnnData,
+    read_layer: Optional[str] = None,
+    fragment_layer: str = "fragments",
+) -> None:
+    """Convert scATAC-seq read counts to appoximate fragment counts.
+
+    Parameters
+    ----------
+    adata
+        AnnData object that contains read counts.
+    read_layer
+        Key in`.layer` that the read counts are stored in.
+    fragment_layer
+        Key in`.layer` that the fragment counts will be stored in.
+
+    Returns
+    -------
+    Adds layer with fragment counts in `.layers[fragment_layer]`.
+    """
+    adata.layers[fragment_layer] = (
+        adata.layers[read_layer].copy() if read_layer else adata.X.copy()
+    )
+    if issparse(adata.layers[fragment_layer]):
+        adata.layers[fragment_layer].data = np.ceil(
+            adata.layers[fragment_layer].data / 2
+        )
+    else:
+        adata.layers[fragment_layer] = np.ceil(adata.layers[fragment_layer] / 2)
