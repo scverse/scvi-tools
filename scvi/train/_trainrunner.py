@@ -6,6 +6,7 @@ import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
 
+from scvi import settings
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
@@ -115,7 +116,10 @@ class TrainRunner:
             # if not using the default logger (e.g., tensorboard)
             if not isinstance(self.model.history_, dict):
                 warnings.warn(
-                    "Training history cannot be updated. Logger can be accessed from model.trainer.logger"
+                    "Training history cannot be updated. Logger can be accessed from "
+                    "`model.trainer.logger`",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
                 return
             else:
