@@ -162,7 +162,7 @@ class ScviConfig:
                 "Since v1.0.0, scvi-tools no longer uses a random seed by default. Run "
                 "`scvi.settings.seed = 0` to reproduce results from previous versions.",
                 UserWarning,
-                stacklevel=self.stacklevel,
+                stacklevel=self.warnings_stacklevel,
             )
         else:
             torch.backends.cudnn.deterministic = True

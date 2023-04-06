@@ -40,7 +40,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Added
 
--   Added {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
+-   Add {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
+-   Add default `stacklevel` for `warnings` in `scvi.settings` {pr}`1971`.
 
 ## Version 0.20
 
