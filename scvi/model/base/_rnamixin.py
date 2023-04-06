@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.utils import de_dsp, unsupported_if_adata_minified
@@ -109,7 +109,10 @@ class RNASeqMixin:
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
                 warnings.warn(
-                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                    "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` "
+                    "is`False`, returning an `np.ndarray`.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             return_numpy = True
         if library_size == "latent":

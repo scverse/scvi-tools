@@ -13,6 +13,7 @@ from anndata import AnnData
 from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
 from rich.markdown import Markdown
 
+from scvi import settings
 from scvi.data import cellxgene
 from scvi.data._download import _download
 from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper
@@ -172,7 +173,9 @@ class HubModel:
         """
         if revision is None:
             warnings.warn(
-                "No revision was passed, so the default (latest) revision will be used."
+                "No revision was passed, so the default (latest) revision will be used.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         snapshot_folder = snapshot_download(
             repo_id=repo_name,

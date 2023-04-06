@@ -7,7 +7,7 @@ import torch
 from anndata import AnnData
 from sklearn.cluster import KMeans
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model.base import (
@@ -116,7 +116,10 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         """
         if self.is_trained_ is False:
             warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
+                "Trying to query inferred values from an untrained model. Please train "
+                "the model first.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
 
         adata = self._validate_anndata(adata)

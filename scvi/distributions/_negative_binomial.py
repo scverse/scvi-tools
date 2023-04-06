@@ -17,6 +17,8 @@ from torch.distributions.utils import (
     probs_to_logits,
 )
 
+from scvi import settings
+
 
 def log_zinb_positive(
     x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, pi: torch.Tensor, eps=1e-8
@@ -365,6 +367,7 @@ class NegativeBinomial(Distribution):
                 warnings.warn(
                     "The value argument must be within the support of the distribution",
                     UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
 
         return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps)
@@ -476,6 +479,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
             warnings.warn(
                 "The value argument must be within the support of the distribution",
                 UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         return log_zinb_positive(value, self.mu, self.theta, self.zi_logits, eps=1e-08)
 
@@ -576,6 +580,7 @@ class NegativeBinomialMixture(Distribution):
             warnings.warn(
                 "The value argument must be within the support of the distribution",
                 UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         return log_mixture_nb(
             value,

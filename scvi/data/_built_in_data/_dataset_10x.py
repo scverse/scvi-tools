@@ -7,6 +7,7 @@ from typing import Tuple
 
 import numpy as np
 
+from scvi import settings
 from scvi.data._download import _download
 
 logger = logging.getLogger(__name__)
@@ -91,9 +92,17 @@ def _load_dataset_10x(
     # form data url and filename unless manual override
     if dataset_name is not None:
         if url is not None:
-            warnings.warn("dataset_name provided, manual url is disregarded.")
+            warnings.warn(
+                "dataset_name provided, manual url is disregarded.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
         if filename is not None:
-            warnings.warn("dataset_name provided, manual filename is disregarded.")
+            warnings.warn(
+                "dataset_name provided, manual filename is disregarded.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
         group = dataset_to_group[dataset_name]
         url_skeleton = group_to_url_skeleton[group]
 

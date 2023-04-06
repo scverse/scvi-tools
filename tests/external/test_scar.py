@@ -18,7 +18,7 @@ def test_scar():
     model.get_marginal_ll(n_mc_samples=5)
     model.get_reconstruction_error()
     model.get_denoised_counts(adata, n_samples=1)
-    model.history
+    _ = model.history
 
     # tests __repr__
     print(model)

@@ -17,6 +17,7 @@ try:
 except ImportError:
     pass
 
+from scvi import settings
 from scvi._decorators import dependencies
 from scvi._types import AnnOrMuData
 from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
@@ -80,6 +81,7 @@ class TunerManager:
             warnings.warn(
                 f"No default search space available for {model_cls.__name__}.",
                 UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         return DEFAULTS.get(model_cls, {})
 
@@ -234,6 +236,7 @@ class TunerManager:
                     "Please see available metrics with `ModelTuner.info()`. "
                     "Ignoring metric.",
                     UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
                 continue
             _metrics[m] = registry_metrics[m]
