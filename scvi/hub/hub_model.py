@@ -202,6 +202,11 @@ class HubModel:
         return ""
 
     @property
+    def local_dir(self) -> str:
+        """The local directory where the data and pre-trained model reside."""
+        return self._local_dir
+
+    @property
     def metadata(self) -> HubMetadata:
         """The metadata for this model."""
         return self._metadata
