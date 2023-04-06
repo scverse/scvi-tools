@@ -31,6 +31,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Deprecate `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices`, to be removed in v1.1 {pr}`1978`.
 -   Docs organization {pr}`1983`.
 -   Validate training data and code URLs for {class}`scvi.hub.HubMetadata` and {class}`scvi.hub.HubModelCardHelper` {pr}`1985`.
+-   Expose `local_dir` as a public property in {class}`scvi.hub.HubModel` {pr}`1994`.
 
 #### Removed
 
