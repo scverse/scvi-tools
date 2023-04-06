@@ -113,7 +113,7 @@ class ScviConfig:
         warnings.warn(
             "Setting `dl_pin_memory_gpu_training` is deprecated in v1.0 and will be "
             "removed in v1.1. Please pass in `pin_memory` to the data loaders instead.",
-            DeprecationWarning,
+            UserWarning,
             stacklevel=self.warnings_stacklevel,
         )
         self._dl_pin_memory_gpu_training = dl_pin_memory_gpu_training

@@ -42,7 +42,7 @@ def parse_device_args(
         warnings.warn(
             "`use_gpu` is deprecated in v1.0 and will be removed in v1.1. Please use "
             "`accelerator` and `devices` instead.",
-            DeprecationWarning,
+            UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
         return parse_use_gpu_arg(
