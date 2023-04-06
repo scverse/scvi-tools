@@ -11,7 +11,7 @@ from lightning.pytorch.trainer.connectors.accelerator_connector import (
     _AcceleratorConnector,
 )
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.utils._docstrings import devices_dsp
@@ -43,6 +43,7 @@ def parse_device_args(
             "`use_gpu` is deprecated in v1.0 and will be removed in v1.1. Please use "
             "`accelerator` and `devices` instead.",
             DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
         return parse_use_gpu_arg(
             use_gpu=use_gpu, return_device=return_device == "torch"
@@ -70,6 +71,7 @@ def parse_device_args(
             f"The selected accelerator `{_accelerator}` has not been extensively ",
             "tested in scvi-tools. Please report any issues in the GitHub repo.",
             UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
 
     # get the first device index
@@ -370,7 +372,9 @@ def _init_library_size(
         if np.ma.is_masked(masked_log_sum):
             warnings.warn(
                 "This dataset has some empty cells, this might fail inference."
-                "Data should be filtered with `scanpy.pp.filter_cells()`"
+                "Data should be filtered with `scanpy.pp.filter_cells()`",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
 
         log_counts = masked_log_sum.filled(0)

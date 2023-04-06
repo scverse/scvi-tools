@@ -21,6 +21,7 @@ except ImportError:
 from mudata import MuData
 from pandas.api.types import CategoricalDtype
 
+from scvi import settings
 from scvi._types import AnnOrMuData, MinifiedDataType
 
 from . import _constants
@@ -117,7 +118,9 @@ def _verify_and_correct_data_format(
     )
     if sp_sparse.isspmatrix(data) and (data.getformat() != "csr"):
         warnings.warn(
-            "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization."
+            "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
     elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
         logger.debug(
@@ -172,7 +175,9 @@ def _make_column_categorical(
         warnings.warn(
             "Category {} in adata.obs['{}'] has fewer than 3 cells. Models may not train properly.".format(
                 category, alternate_column_key
-            )
+            ),
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
 
     return mapping

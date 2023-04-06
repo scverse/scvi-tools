@@ -57,6 +57,7 @@ class ScviConfig:
         dl_num_workers: int = 0,
         dl_pin_memory_gpu_training: bool = False,  # TODO: remove in v1.1
         jax_preallocate_gpu_memory: bool = False,
+        warnings_stacklevel: int = 2,
     ):
         self.seed = seed
         self.batch_size = batch_size
@@ -71,6 +72,7 @@ class ScviConfig:
         self._num_threads = None
         self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
         self.verbosity = verbosity
+        self.warnings_stacklevel = warnings_stacklevel
 
     @property
     def batch_size(self) -> int:
@@ -112,6 +114,7 @@ class ScviConfig:
             "Setting `dl_pin_memory_gpu_training` is deprecated in v1.0 and will be "
             "removed in v1.1. Please pass in `pin_memory` to the data loaders instead.",
             DeprecationWarning,
+            stacklevel=self.warnings_stacklevel,
         )
         self._dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
 
@@ -156,7 +159,10 @@ class ScviConfig:
         if seed is None:
             self._seed = None
             warnings.warn(
-                "Since v1.0.0, scvi-tools no longer uses a random seed by default. Run `scvi.settings.seed = 0` to reproduce results from previous versions."
+                "Since v1.0.0, scvi-tools no longer uses a random seed by default. Run "
+                "`scvi.settings.seed = 0` to reproduce results from previous versions.",
+                UserWarning,
+                stacklevel=self.stacklevel,
             )
         else:
             torch.backends.cudnn.deterministic = True
@@ -197,6 +203,16 @@ class ScviConfig:
             scvi_logger.addHandler(ch)
         else:
             scvi_logger.setLevel(level)
+
+    @property
+    def warnings_stacklevel(self) -> int:
+        """Stacklevel for warnings."""
+        return self._warnings_stacklevel
+
+    @warnings_stacklevel.setter
+    def warnings_stacklevel(self, stacklevel: int):
+        """Stacklevel for warnings."""
+        self._warnings_stacklevel = stacklevel
 
     def reset_logging_handler(self):
         """Resets "scvi" log handler to a basic RichHandler().

@@ -9,7 +9,7 @@ import torch
 from anndata import AnnData
 from torch.utils.data import DataLoader
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
@@ -520,9 +520,11 @@ class GIMVI(VAEMixin, BaseModelClass):
             user_var_names = adata.var_names.astype(str)
             if not np.array_equal(saved_var_names, user_var_names):
                 warnings.warn(
-                    "var_names for adata passed in does not match var_names of "
-                    "adata used to train the model. For valid results, the vars "
-                    "need to be the same and in the same order as the adata used to train the model."
+                    "var_names for adata passed in does not match var_names of adata "
+                    "used to train the model. For valid results, the vars need to be the"
+                    "same and in the same order as the adata used to train the model.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
 
         registries = attr_dict.pop("registries_")
