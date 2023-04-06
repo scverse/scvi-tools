@@ -2,6 +2,7 @@ import shutil
 from distutils.dir_util import copy_tree
 
 import pytest
+import torch
 
 import scvi
 
@@ -26,6 +27,12 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Run tests that are optional.",
+    )
+    parser.addoption(
+        "--cuda",
+        action="store_true",
+        default=False,
+        help="Run tests that require a CUDA device and CUDA-suppored installations.",
     )
 
 
@@ -52,6 +59,14 @@ def pytest_collection_modifyitems(config, items):
         if not run_optional and ("optional" in item.keywords):
             item.add_marker(skip_optional)
 
+    run_cuda = config.getoption("--cuda")
+    skip_cuda = pytest.mark.skip(reason="need --cuda option to run")
+    for item in items:
+        # All tests marked with `pytest.mark.cuda` get skipped unless
+        # `--cuda` passed
+        if not run_cuda and ("cuda" in item.keywords):
+            item.add_marker(skip_cuda)
+
 
 @pytest.fixture(scope="session")
 def save_path(tmpdir_factory):
@@ -73,3 +88,9 @@ def synthetic_adata():
 def model_fit(request):
     """Docstring for model_fit."""
     return request.config.getoption("--model_fit")
+
+
+@pytest.fixture(scope="session")
+def cuda():
+    """Docstring for cuda."""
+    return torch.cuda.is_available()
