@@ -59,6 +59,7 @@ class ScviConfig:
         jax_preallocate_gpu_memory: bool = False,
         warnings_stacklevel: int = 2,
     ):
+        self.warnings_stacklevel = warnings_stacklevel
         self.seed = seed
         self.batch_size = batch_size
         if progress_bar_style not in ["rich", "tqdm"]:
@@ -72,7 +73,6 @@ class ScviConfig:
         self._num_threads = None
         self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
         self.verbosity = verbosity
-        self.warnings_stacklevel = warnings_stacklevel
 
     @property
     def batch_size(self) -> int:
