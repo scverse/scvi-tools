@@ -9,6 +9,7 @@ from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
 
+from scvi import settings
 from scvi.dataloaders import AnnDataLoader
 
 
@@ -95,9 +96,10 @@ class SaveBestState(Callback):
 
             if current is None:
                 warnings.warn(
-                    f"Can save best module state only with {self.monitor} available,"
-                    " skipping.",
+                    f"Can save best module state only with {self.monitor} available, "
+                    "skipping.",
                     RuntimeWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             else:
                 if isinstance(current, torch.Tensor):

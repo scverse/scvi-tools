@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
@@ -211,8 +211,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         for k, v in {**non_kwargs, **kwargs}.items():
             if k in scanvi_kwargs.keys():
                 warnings.warn(
-                    f"Ignoring param '{k}' as it was already passed in to "
-                    + f"pretrained scvi model with value {v}."
+                    f"Ignoring param '{k}' as it was already passed in to pretrained "
+                    f"SCVI model with value {v}.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
                 del scanvi_kwargs[k]
 
@@ -271,7 +273,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             labels == self.unlabeled_category_
         ).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
-        self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
+        self._code_to_label = dict(enumerate(self._label_mapping))
 
     def predict(
         self,

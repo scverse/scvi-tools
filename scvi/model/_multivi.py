@@ -11,7 +11,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
@@ -991,7 +991,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
                 warnings.warn(
-                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                    "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` is "
+                    "`False`, returning an `np.ndarray`.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             return_numpy = True
         if indices is None:

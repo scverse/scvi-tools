@@ -430,7 +430,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         """
         if not self.is_trained_:
             if warn:
-                warnings.warn(message)
+                warnings.warn(
+                    message, UserWarning, stacklevel=settings.warnings_stacklevel
+                )
             else:
                 raise RuntimeError(message)
 

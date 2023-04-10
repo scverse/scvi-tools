@@ -10,7 +10,7 @@ import torch
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.model._utils import parse_device_args
@@ -126,7 +126,10 @@ class ArchesMixin:
         version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
             warnings.warn(
-                "Query integration should be performed using models trained with version >= 0.8"
+                "Query integration should be performed using models trained with "
+                "version >= 0.8",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
 
         model.to_device(device)
@@ -210,8 +213,10 @@ class ArchesMixin:
         logger.info(f"Found {ratio * 100}% reference vars in query data.")
         if ratio < MIN_VAR_NAME_RATIO:
             warnings.warn(
-                f"Query data contains less than {MIN_VAR_NAME_RATIO:.0%} of reference var names. "
-                "This may result in poor performance."
+                f"Query data contains less than {MIN_VAR_NAME_RATIO:.0%} of reference "
+                "var names. This may result in poor performance.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         genes_to_add = var_names.difference(adata.var_names)
         needs_padding = len(genes_to_add) > 0

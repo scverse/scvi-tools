@@ -10,7 +10,7 @@ import torch
 from anndata import AnnData
 from mudata import MuData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager, fields
 from scvi.data._utils import _check_nonnegative_integers
@@ -126,7 +126,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 + "Reinitialize the model with `override_missing_proteins=True`,"
                 + "to override this behavior."
             )
-            warnings.warn(msg, UserWarning)
+            warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
             self._use_adversarial_classifier = True
         else:
             batch_mask = None
@@ -448,7 +448,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
                 warnings.warn(
-                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                    "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` "
+                    "is `False`, returning an `np.ndarray`.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             return_numpy = True
 
@@ -604,7 +607,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
                 warnings.warn(
-                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                    "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` "
+                    "is `False`, returning an `np.ndarray`.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             return_numpy = True
         if indices is None:
@@ -1074,7 +1080,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             is_nonneg_int = _check_nonnegative_integers(pro_exp)
             if not is_nonneg_int:
                 warnings.warn(
-                    "Make sure the registered protein expression in anndata contains unnormalized count data."
+                    "Make sure the registered protein expression in anndata contains "
+                    "unnormalized count data.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
         else:
             raise ValueError("No protein data found, please setup or transfer anndata")
