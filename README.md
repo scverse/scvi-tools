@@ -75,7 +75,7 @@ Please be sure to install a version of [PyTorch](https://pytorch.org/) that is c
 
 # Reference
 
-If you use `scvi-tools` in your work, please cite the `scvi-tools` publication as follows:
+If you use `scvi-tools` in your work, please cite
 
 > **A Python library for probabilistic analysis of single-cell omics data**
 >
