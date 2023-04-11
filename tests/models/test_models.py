@@ -840,7 +840,7 @@ def test_ann_dataloader(data):
     adl = AnnDataLoader(adata_manager, batch_size=399, drop_last=False)
     assert len(adl) == 2
     for _i, loaded_data in enumerate(adl):
-        loaded_data
+        _ = loaded_data
     assert _i == 1
     assert loaded_data["X"].shape[0] == 1
 

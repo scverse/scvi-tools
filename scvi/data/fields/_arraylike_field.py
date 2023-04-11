@@ -8,6 +8,7 @@ import rich
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
+from scvi import settings
 from scvi.data import _constants
 from scvi.data._utils import (
     _check_nonnegative_integers,
@@ -111,7 +112,9 @@ class ArrayLikeField(BaseArrayLikeField):
         if self.is_count_data and not _check_nonnegative_integers(array_data):
             warnings.warn(
                 f"adata.{self.attr_name}['{self.attr_key}'] does not contain "
-                "unnormalized count data. Are you sure this is what you want?"
+                "unnormalized count data. Are you sure this is what you want?",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
 
     def _setup_column_names(self, adata: AnnData) -> Union[list, np.ndarray]:

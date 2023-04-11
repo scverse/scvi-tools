@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
@@ -430,4 +430,5 @@ def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):
         warnings.warn(
             "Solo should only be trained on one lane of data using `restrict_to_batch`. Performance may suffer.",
             UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
