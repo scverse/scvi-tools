@@ -1,33 +1,36 @@
 import logging
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import h5py
 import numpy as np
 import pandas as pd
 import torch
 from anndata._core.sparse_dataset import SparseDataset
-from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.model._utils import parse_device_args
 
+from ._docstrings import dataset_dsp
+from ._utils import slice_and_convert
+
 logger = logging.getLogger(__name__)
 
+ArrayLike = Union[np.ndarray, pd.DataFrame, h5py.Dataset, SparseDataset]
 
+
+@dataset_dsp.dedent
 class AnnTorchDataset(Dataset):
-    """Extension of torch dataset to get tensors from AnnData.
+    """%(summary)s
 
     Parameters
     ----------
-    adata_manager
-        :class:`~scvi.data.AnnDataManager` object with a registered AnnData object.
-    getitem_tensors
-        Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
-        and value equal to desired numpy loading type (later made into torch tensor) or list of
-        such keys. A list can be used to subset to certain keys in the event that more tensors than
-        needed have been registered. If ``None``, defaults to all registered data.
+    %(param_adata_manager)s
+    %(param_getitem_tensors)s
+    %(param_accelerator)s
+    %(param_device)s
+    %(param_device_backed)s
 
     Examples
     --------
@@ -40,30 +43,17 @@ class AnnTorchDataset(Dataset):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        getitem_tensors: Union[List[str], Dict[str, type]] = None,
+        getitem_tensors: Optional[Union[List[str], Dict[str, type]]] = None,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
         device_backed: bool = False,
     ):
         if adata_manager.adata is None:
             raise ValueError(
-                "Please run register_fields() on your AnnDataManager object first."
+                "Please run `register_fields` on your `AnnDataManager` first."
             )
         self.adata_manager = adata_manager
-        self.is_backed = adata_manager.adata.isbacked
-        self.attributes_and_types = None
-        if getitem_tensors is not None:
-            data_registry = adata_manager.data_registry
-            for key in (
-                getitem_tensors.keys()
-                if isinstance(getitem_tensors, dict)
-                else getitem_tensors
-            ):
-                if key not in data_registry.keys():
-                    raise ValueError(
-                        f"{key} required for model but not registered with AnnDataManager."
-                    )
-        self.getitem_tensors = getitem_tensors
+        self.attributes_and_types = getitem_tensors
 
         _, _, self.device = parse_device_args(
             accelerator=accelerator,
@@ -72,106 +62,91 @@ class AnnTorchDataset(Dataset):
             validate_single_device=True,
         )
         self.device_backed = device_backed
-
-        self._setup_getitem()
-        self._set_data_attr()
+        self.backed_adata = adata_manager.adata.isbacked
 
     @property
     def registered_keys(self):
         """Returns the keys of the mappings in scvi data registry."""
         return self.adata_manager.data_registry.keys()
 
-    def _set_data_attr(self):
-        """Sets data attribute.
+    @property
+    def attributes_and_types(self) -> dict:
+        """Returns the attributes and types to be loaded by `__getitem__`."""
+        return self._attributes_and_types
 
-        Reduces number of times anndata needs to be accessed
-        """
-        data = {}
-        for key, _ in self.attributes_and_types.items():
-            val = self.adata_manager.get_from_registry(key)
-            if self.device_backed:
-                val = torch.as_tensor(val, device=self.device)
-            data[key] = val
-
-        self.data = data
-
-    def _setup_getitem(self):
-        """Sets up the __getitem__ function used by PyTorch.
-
-        By default, getitem will return every single item registered in the scvi data registry
-        and will attempt to infer the correct type. np.float32 for continuous values, otherwise np.int64.
-
-        If you want to specify which specific tensors to return you can pass in a List of keys from
-        the scvi data registry. If you want to speficy specific tensors to return as well as their
-        associated types, then you can pass in a dictionary with their type.
-        """
-        registered_keys = self.registered_keys
-        getitem_tensors = self.getitem_tensors
-        if isinstance(getitem_tensors, List):
-            keys = getitem_tensors
-            keys_to_type = {key: np.float32 for key in keys}
-        elif isinstance(getitem_tensors, Dict):
-            keys = getitem_tensors.keys()
-            keys_to_type = getitem_tensors
-        elif getitem_tensors is None:
-            keys = registered_keys
-            keys_to_type = {key: np.float32 for key in keys}
-        else:
+    @attributes_and_types.setter
+    def attributes_and_types(self, value: Optional[Union[List[str], Dict[str, type]]]):
+        """Sets the attributes and types to be loaded by `__getitem__`."""
+        if not isinstance(value, (list, dict, type(None))):
             raise ValueError(
-                "getitem_tensors invalid type. Expected: List[str] or Dict[str, type] or None"
+                "`getitem_tensors` invalid type, expected a `list`, `dict`, or `None`."
             )
-        for key in keys:
-            if key not in registered_keys:
-                raise KeyError(f"{key} not in data_registry")
+        if value is not None:
+            for key in value:
+                if key in self.registered_keys:
+                    continue
+                raise ValueError(
+                    f"{key} required for the model but not registered with "
+                    "`AnnDataManager`."
+                )
+        else:
+            value = self.registered_keys
 
-        self.attributes_and_types = keys_to_type
+        if isinstance(value, list):
+            value = {key: np.float32 for key in value}
 
-    def __getitem__(self, idx: List[int]) -> Dict[str, np.ndarray]:
-        """Get tensors in dictionary from anndata at idx."""
-        data_numpy = {}
+        self._attributes_and_types = value
 
-        if self.is_backed and not isinstance(idx, int):
-            # need to sort idxs for h5py datasets
-            idx = np.sort(idx)
+    @property
+    def data(self):
+        """Sets the data attribute of the dataset."""
+        if hasattr(self, "_data"):
+            return self._data
+
+        data = {}
         for key, dtype in self.attributes_and_types.items():
-            cur_data = self.data[key]
-            # for backed anndata
-            if isinstance(cur_data, h5py.Dataset) or isinstance(
-                cur_data, SparseDataset
-            ):
-                sliced_data = cur_data[idx]
-                if issparse(sliced_data):
-                    sliced_data = sliced_data.toarray()
-                sliced_data = sliced_data.astype(dtype)
-            elif isinstance(cur_data, np.ndarray):
-                sliced_data = cur_data[idx].astype(dtype)
-            elif isinstance(cur_data, torch.Tensor):
-                sliced_data = cur_data[idx]
-            elif isinstance(cur_data, pd.DataFrame):
-                sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
-            elif issparse(cur_data):
-                sliced_data = cur_data[idx].toarray().astype(dtype)
-            # for minified  anndata, we need this because we can have a string
-            # cur_data, which is the value of the MINIFY_TYPE_KEY in adata.uns,
-            # used to record the type data minification
-            # TODO: Adata manager should have a list of which fields it will load
-            elif isinstance(cur_data, str) and key == REGISTRY_KEYS.MINIFY_TYPE_KEY:
+            _data = self.adata_manager.get_from_registry(key)
+
+            if self.device_backed and key != REGISTRY_KEYS.MINIFY_TYPE_KEY:
+                _data = slice_and_convert(_data, dtype=dtype)
+                _data = torch.from_numpy(_data).to(self.device)
+
+            data[key] = _data
+
+        self._data = data
+        return self._data
+
+    def __getitem__(
+        self, indices: Union[List[int], int]
+    ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
+        """Slice data attributes at the specified indices."""
+        indices = [indices] if isinstance(indices, np.integer) else indices
+        indices = (
+            np.sort(indices) if self.backed_adata else indices
+        )  # need to sort idxs for h5py datasets
+
+        sliced_data = {}
+        for key, dtype in self.attributes_and_types.items():
+            data = self.data[key]
+
+            if isinstance(data, torch.Tensor):
+                # if data is a torch tensor, we assume it is device backed
+                data = data[indices]
+            elif key == REGISTRY_KEYS.MINIFY_TYPE_KEY:
+                # for minified  anndata, we need this because we can have a string
+                # cur_data, which is the value of the MINIFY_TYPE_KEY in adata.uns,
+                # used to record the type data minification
+                # TODO: Adata manager should have a list of which fields it will load
                 continue
             else:
-                raise TypeError(f"{key} is not a supported type")
-            # Make a row vector if only one element is selected
-            # this is because our dataloader disables automatic batching
-            # Normally, this would be handled by the default collate fn
-            if isinstance(idx, int) or len(idx) == 1:
-                sliced_data = sliced_data.reshape(1, -1)
-            data_numpy[key] = sliced_data
+                data = slice_and_convert(data, indices, dtype)
 
-        return data_numpy
+            # add singleton dimension since automatic batching is disabled
+            if len(indices) == 1:
+                data = data.reshape(1, -1)
+            sliced_data[key] = data
 
-    def get_data(self, scvi_data_key: str):
-        """Get the tensor associated with a key."""
-        tensors = self.__getitem__(idx=list(range(self.__len__())))
-        return tensors[scvi_data_key]
+        return sliced_data
 
     def __len__(self):
         return self.adata_manager.adata.shape[0]

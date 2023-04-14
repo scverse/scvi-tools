@@ -1,4 +1,5 @@
 import logging
+import warnings
 from itertools import cycle
 from typing import Dict, List, Optional, Sequence, Union
 
@@ -7,11 +8,12 @@ from torch.utils.data import (
     BatchSampler,
     DataLoader,
     RandomSampler,
+    Sampler,
     SequentialSampler,
     Subset,
 )
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 
@@ -29,11 +31,13 @@ class AnnDataLoader(DataLoader):
     ----------
     %(param_adata_manager)s
     %(param_indices)s
+    %(param_sampler)s
     %(param_shuffle)s
     %(param_batch_size)s
     %(param_data_and_attributes)s
     %(param_drop_last)s
     %(param_iter_ndarray)s
+    %(param_pin_memory)s
     %(param_accelerator)s
     %(param_device)s
     %(param_device_backed)s
@@ -44,11 +48,13 @@ class AnnDataLoader(DataLoader):
         self,
         adata_manager: AnnDataManager,
         indices: Union[Sequence[int], Sequence[bool]] = None,
+        sampler: Optional[Sampler] = None,
         shuffle: bool = False,
         batch_size: int = 128,
         data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
         drop_last: bool = False,
         iter_ndarray: bool = False,
+        pin_memory: bool = False,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
         device_backed: bool = False,
@@ -68,23 +74,41 @@ class AnnDataLoader(DataLoader):
                 indices = np.where(indices)[0].ravel()
             indices = np.asarray(indices)
 
-        subset = Subset(dataset, indices=indices)  # lazy subset, remaps indices
-        sampler = SequentialSampler(subset) if not shuffle else RandomSampler(subset)
-        sampler = BatchSampler(
+        if pin_memory and device_backed:
+            warnings.warn(
+                "Cannot set `pin_memory=True` when `device_backed=True`. "
+                "Setting `pin_memory=False`.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+
+        if iter_ndarray:
+            if "collate_fn" in kwargs:
+                raise ValueError("Cannot set `collate_fn` when `iter_ndarray=True`. ")
+            kwargs["collate_fn"] = lambda x: x
+
+        dataset = Subset(dataset, indices=indices)  # lazy subset, remaps indices
+
+        if sampler is None:
+            sampler = RandomSampler(dataset) if shuffle else SequentialSampler(dataset)
+            sampler = BatchSampler(
+                sampler=sampler,
+                batch_size=batch_size,
+                drop_last=drop_last,
+            )
+            batch_size = None  # disables torch automatic batching
+            shuffle = False
+            drop_last = False
+
+        super().__init__(
+            dataset,
             sampler=sampler,
             batch_size=batch_size,
+            shuffle=shuffle,
             drop_last=drop_last,
+            pin_memory=pin_memory,
+            **kwargs,
         )
-
-        update_kwargs = {
-            "sampler": sampler,
-            "batch_size": None,  # disables torch automatic batching
-        }
-        if iter_ndarray:
-            update_kwargs["collate_fn"] = lambda x: x
-        kwargs.update(update_kwargs)
-
-        super().__init__(subset, **kwargs)
 
 
 @dataloader_dsp.dedent
@@ -149,11 +173,11 @@ class ConcatDataLoader(DataLoader):
         return len(self.largest_dl)
 
     def __iter__(self):
-        """Iter method for concat data loader.
+        """Iterate over the dataloaders.
 
-        Will iter over the dataloader with the most data while cycling through
-        the data in the other dataloaders. The order of data in returned iter_list
-        is the same as indices_list.
+        Iterates over the dataloader with the most data while cycling through the data
+        in the other datalaoders. The order of data returned is the same as that
+        passed in `indices_list`.
         """
         iter_list = [
             cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders

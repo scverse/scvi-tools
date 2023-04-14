@@ -1,16 +1,22 @@
 import logging
 from dataclasses import dataclass
 from math import ceil, floor
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
+from anndata._core.sparse_dataset import SparseDataset
+from h5py import Dataset
+from pandas import DataFrame
+from scipy.sparse import issparse
+from torch import Tensor
 
 from scvi import settings
 from scvi.utils._exceptions import InvalidParameterError
 
-from ._docstrings import dataloaders_dsp
+from ._docstrings import datasplitter_dsp
 
 logger = logging.getLogger(__name__)
+ArrayLike = Union[np.ndarray, DataFrame, Dataset, SparseDataset, Tensor]
 
 
 @dataclass
@@ -134,7 +140,7 @@ def _make_data_split(
     return train_indices, validation_indices, test_indices
 
 
-@dataloaders_dsp.dedent
+@datasplitter_dsp.dedent
 def validate_data_split(
     *,
     n_obs: Optional[int] = None,
@@ -213,3 +219,31 @@ def validate_data_split(
     return SplitIndices(
         train=train_indices, validation=validation_indices, test=test_indices
     )
+
+
+def slice_and_convert(
+    data: ArrayLike,
+    indices: Optional[List[int]] = None,
+    dtype: Optional[str] = None,
+) -> np.ndarray:
+    """Slices and converts to the specified numpy dtype."""
+    indices = indices or np.arange(len(data))
+
+    if isinstance(data, Dataset) or isinstance(data, SparseDataset):
+        _data = data[indices]
+        if issparse(_data):
+            _data = _data.toarray()
+    elif isinstance(data, np.ndarray):
+        _data = data[indices]
+    elif isinstance(data, DataFrame):
+        _data = data.iloc[indices, :].to_numpy()
+    elif issparse(data):
+        _data = data[indices].toarray()
+    else:
+        raise InvalidParameterError(
+            param="data", value=data.__class__.__name__, valid=ArrayLike
+        )
+
+    if dtype is None:
+        return _data
+    return _data.astype(dtype)

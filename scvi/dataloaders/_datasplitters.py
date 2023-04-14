@@ -12,13 +12,13 @@ from ._dataloaders import (
     AnnDataLoader,
     SemiSupervisedDataLoader,
 )
-from ._docstrings import dataloaders_dsp
+from ._docstrings import datasplitter_dsp
 from ._utils import validate_data_split
 
 logger = logging.getLogger(__name__)
 
 
-@dataloaders_dsp.dedent
+@datasplitter_dsp.dedent
 class DataSplitter(pl.LightningDataModule):
     """%(summary)s
 
@@ -31,7 +31,7 @@ class DataSplitter(pl.LightningDataModule):
     %(param_validation_indices)s
     %(param_shuffle)s
     %(param_pin_memory)s
-    %(param_dataloader_kwargs)s
+    %(param_kwargs)s
     Examples
     --------
     >>> adata = scvi.data.synthetic_iid()
@@ -133,7 +133,7 @@ class DataSplitter(pl.LightningDataModule):
         return self._test_dataloader
 
 
-@dataloaders_dsp.dedent
+@datasplitter_dsp.dedent
 class SemiSupervisedDataSplitter(DataSplitter):
     """%(summary)s
 
@@ -149,7 +149,7 @@ class SemiSupervisedDataSplitter(DataSplitter):
     %(param_shuffle)s
     %(param_n_samples_per_label)s
     %(param_pin_memory)s
-    %(param_dataloader_kwargs)s
+    %(param_kwargs)s
 
     Examples
     --------
