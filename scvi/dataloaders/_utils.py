@@ -227,7 +227,7 @@ def slice_and_convert(
     dtype: Optional[str] = None,
 ) -> np.ndarray:
     """Slices and converts to the specified numpy dtype."""
-    indices = indices or np.arange(len(data))
+    indices = np.arange(len(data)) if indices is None else indices
 
     if isinstance(data, Dataset) or isinstance(data, SparseDataset):
         _data = data[indices]

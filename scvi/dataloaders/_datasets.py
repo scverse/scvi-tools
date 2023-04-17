@@ -1,11 +1,8 @@
 import logging
 from typing import Dict, List, Optional, Union
 
-import h5py
 import numpy as np
-import pandas as pd
 import torch
-from anndata._core.sparse_dataset import SparseDataset
 from torch.utils.data import Dataset
 
 from scvi._constants import REGISTRY_KEYS
@@ -16,8 +13,6 @@ from ._docstrings import dataset_dsp
 from ._utils import slice_and_convert
 
 logger = logging.getLogger(__name__)
-
-ArrayLike = Union[np.ndarray, pd.DataFrame, h5py.Dataset, SparseDataset]
 
 
 @dataset_dsp.dedent
@@ -63,6 +58,7 @@ class AnnTorchDataset(Dataset):
         )
         self.device_backed = device_backed
         self.backed_adata = adata_manager.adata.isbacked
+        _ = self.data  # loads data from adata
 
     @property
     def registered_keys(self):
@@ -75,7 +71,7 @@ class AnnTorchDataset(Dataset):
         return self._attributes_and_types
 
     @attributes_and_types.setter
-    def attributes_and_types(self, value: Optional[Union[List[str], Dict[str, type]]]):
+    def attributes_and_types(self, value: Optional[Union[list, dict]]):
         """Sets the attributes and types to be loaded by `__getitem__`."""
         if not isinstance(value, (list, dict, type(None))):
             raise ValueError(
@@ -98,7 +94,7 @@ class AnnTorchDataset(Dataset):
         self._attributes_and_types = value
 
     @property
-    def data(self):
+    def data(self) -> dict:
         """Sets the data attribute of the dataset."""
         if hasattr(self, "_data"):
             return self._data
@@ -120,10 +116,12 @@ class AnnTorchDataset(Dataset):
         self, indices: Union[List[int], int]
     ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
         """Slice data attributes at the specified indices."""
-        indices = [indices] if isinstance(indices, np.integer) else indices
-        indices = (
-            np.sort(indices) if self.backed_adata else indices
-        )  # need to sort idxs for h5py datasets
+        if isinstance(indices, slice):
+            indices = np.arange(*indices.indices(len(self)))
+        elif isinstance(indices, int) or isinstance(indices, np.integer):
+            indices = [indices]
+        if self.backed_adata:
+            indices = np.sort(indices)  # need to sort idxs for h5py datasets
 
         sliced_data = {}
         for key, dtype in self.attributes_and_types.items():
