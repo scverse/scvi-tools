@@ -88,6 +88,13 @@ class AnnTorchDataset(Dataset):
         else:
             value = self.registered_keys
 
+        if isinstance(value, dict):
+            for key, dtype in value.items():
+                if not isinstance(dtype, type):
+                    raise ValueError(
+                        f"`{key}` must have a valid `type` as its value, not {dtype}."
+                    )
+
         if isinstance(value, list):
             value = {key: np.float32 for key in value}
 
@@ -113,15 +120,27 @@ class AnnTorchDataset(Dataset):
         return self._data
 
     def __getitem__(
-        self, indices: Union[List[int], int]
+        self, indices: Union[list, int]
     ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
         """Slice data attributes at the specified indices."""
         if isinstance(indices, slice):
             indices = np.arange(*indices.indices(len(self)))
         elif isinstance(indices, int) or isinstance(indices, np.integer):
-            indices = [indices]
+            indices = np.array([indices])
+        elif isinstance(indices, np.ndarray):
+            indices = indices.astype(int)
+        elif isinstance(indices, list):
+            indices = np.array(indices)
+        else:
+            raise TypeError(
+                "`indices` must be a `slice`, `int`, `np.ndarray`, or `list`."
+            )
+
         if self.backed_adata:
             indices = np.sort(indices)  # need to sort idxs for h5py datasets
+
+        if np.amax(indices) >= len(self):
+            raise IndexError("`indices` contains elements out of range.")
 
         sliced_data = {}
         for key, dtype in self.attributes_and_types.items():

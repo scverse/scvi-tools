@@ -227,17 +227,20 @@ def slice_and_convert(
     dtype: Optional[str] = None,
 ) -> np.ndarray:
     """Slices and converts to the specified numpy dtype."""
-    indices = np.arange(len(data)) if indices is None else indices
-
-    if isinstance(data, Dataset) or isinstance(data, SparseDataset):
+    if isinstance(data, Dataset):
+        indices = np.arange(len(data)) if indices is None else indices
         _data = data[indices]
-        if issparse(_data):
-            _data = _data.toarray()
+    elif isinstance(data, SparseDataset):
+        indices = np.arange(data.shape[0]) if indices is None else indices
+        _data = data[indices].toarray()
     elif isinstance(data, np.ndarray):
+        indices = np.arange(len(data)) if indices is None else indices
         _data = data[indices]
     elif isinstance(data, DataFrame):
+        indices = np.arange(len(data)) if indices is None else indices
         _data = data.iloc[indices, :].to_numpy()
     elif issparse(data):
+        indices = np.arange(data.shape[0]) if indices is None else indices
         _data = data[indices].toarray()
     else:
         raise InvalidParameterError(
