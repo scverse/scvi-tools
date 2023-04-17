@@ -42,7 +42,6 @@ jobs:
             - name: Install test dependencies
               run: |
                   python -m pip install --upgrade pip wheel
-                  pip install codecov
             - name: Install dependencies
               run: |
                   pip install ".[dev,pymde,autotune,hub]"
