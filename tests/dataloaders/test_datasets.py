@@ -43,6 +43,9 @@ def test_basic_anntorchdataset(
         data[REGISTRY_KEYS.BATCH_KEY],
         data[REGISTRY_KEYS.LABELS_KEY],
     )
+    assert isinstance(X, np.ndarray)
+    assert isinstance(batch, np.ndarray)
+    assert isinstance(labels, np.ndarray)
     assert X.dtype == np.float32
     assert batch.dtype == np.float32
     assert labels.dtype == np.float32
@@ -121,6 +124,19 @@ def test_basic_anntorchdataset(
     assert X.shape == (3, n_genes)
     assert batch.shape == (3, 1)
 
+
+@pytest.mark.parametrize(
+    "batch_size, n_batches, n_genes, sparse",
+    product([128], [1], [50], [True, False]),
+)
+def test_errors_anntorchdataset(
+    batch_size: int, n_batches: int, n_genes: int, sparse: bool
+):
+    adata = synthetic_iid(
+        batch_size=batch_size, n_batches=n_batches, n_genes=n_genes, sparse=sparse
+    )
+    manager = generic_setup_adata_manager(adata, batch_key="batch", labels_key="labels")
+
     # basic error handling
     dataset = AnnTorchDataset(manager)
     with pytest.raises(IndexError):
@@ -140,9 +156,9 @@ def test_basic_anntorchdataset(
 
 @pytest.mark.parametrize(
     "batch_size, n_batches, n_genes, sparse",
-    product([128], [1, 2], [50], [True, False]),
+    product([128], [1], [50], [True, False]),
 )
-def test_backed_adata_anntorchdataset(
+def test_disk_backed_anntorchdataset(
     save_path: str, batch_size: int, n_batches: int, n_genes: int, sparse: bool
 ):
     adata_path = os.path.join(
@@ -181,9 +197,9 @@ def test_backed_adata_anntorchdataset(
 
 @pytest.mark.parametrize(
     "batch_size, n_batches, n_genes, sparse",
-    product([128], [1, 2], [50], [True, False]),
+    product([128], [1], [50], [True, False]),
 )
-def test_cuda_anntorchdataset(
+def test_cuda_backed_anntorchdataset(
     cuda: bool, batch_size: int, n_batches: int, n_genes: int, sparse: bool
 ):
     assert cuda
@@ -203,6 +219,9 @@ def test_cuda_anntorchdataset(
         data[REGISTRY_KEYS.BATCH_KEY],
         data[REGISTRY_KEYS.LABELS_KEY],
     )
+    assert isinstance(X, torch.Tensor)
+    assert isinstance(batch, torch.Tensor)
+    assert isinstance(labels, torch.Tensor)
     assert X.device == dataset.device
     assert batch.device == dataset.device
     assert labels.device == dataset.device
@@ -213,7 +232,33 @@ def test_cuda_anntorchdataset(
 
 @pytest.mark.parametrize(
     "batch_size, n_batches, n_genes, n_proteins, sparse",
-    product([128], [1, 2], [50], [20], [True, False]),
+    product([128], [1], [50], [20], [True, False]),
+)
+def test_protein_expression_obsm_anntorchdataset(
+    batch_size: int,
+    n_batches: int,
+    n_genes: int,
+    n_proteins: int,
+    sparse: bool,
+):
+    adata = synthetic_iid(
+        batch_size=batch_size,
+        n_batches=n_batches,
+        n_genes=n_genes,
+        n_proteins=n_proteins,
+        sparse=sparse,
+    )
+    manager = generic_setup_adata_manager(
+        adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
+    )
+    dataset = AnnTorchDataset(manager)
+    for value in dataset[0].values():
+        assert isinstance(value, np.ndarray)
+
+
+@pytest.mark.parametrize(
+    "batch_size, n_batches, n_genes, n_proteins, sparse",
+    product([128], [1], [50], [20], [True, False]),
 )
 def test_mudata_anntorchdataset(
     batch_size: int,

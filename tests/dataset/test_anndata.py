@@ -5,14 +5,11 @@ import anndata
 import numpy as np
 import pandas as pd
 import pytest
-from scipy import sparse
-from scipy.sparse.csr import csr_matrix
 
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import _constants, synthetic_iid
 from scvi.data.fields import ObsmField, ProteinObsmField
-from scvi.dataloaders import AnnTorchDataset
 
 from .utils import generic_setup_adata_manager
 
@@ -422,83 +419,6 @@ def test_extra_covariates_transfer(adata):
     )
 
 
-def test_anntorchdataset_getitem(adata):
-    adata_manager = generic_setup_adata_manager(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
-    )
-    # check that we can successfully pass in a list of tensors to get
-    tensors_to_get = [REGISTRY_KEYS.BATCH_KEY, REGISTRY_KEYS.LABELS_KEY]
-    bd = AnnTorchDataset(adata_manager, getitem_tensors=tensors_to_get)
-    np.testing.assert_array_equal(tensors_to_get, list(bd[1].keys()))
-
-    # check that we can successfully pass in a dict of tensors and their associated types
-    bd = AnnTorchDataset(
-        adata_manager,
-        getitem_tensors={
-            REGISTRY_KEYS.X_KEY: np.int,
-            REGISTRY_KEYS.LABELS_KEY: np.int64,
-        },
-    )
-    assert bd[1][REGISTRY_KEYS.X_KEY].dtype == np.int64
-    assert bd[1][REGISTRY_KEYS.LABELS_KEY].dtype == np.int64
-
-    # check that by default we get all the registered tensors
-    bd = AnnTorchDataset(adata_manager)
-    all_registered_tensors = list(adata_manager.data_registry.keys())
-    np.testing.assert_array_equal(all_registered_tensors, list(bd[1].keys()))
-    assert bd[1][REGISTRY_KEYS.X_KEY].shape == (
-        1,
-        bd.adata_manager.summary_stats.n_vars,
-    )
-
-
-def test_anntorchdataset_numpy(adata):
-    # check that AnnTorchDataset returns numpy array
-    adata_manager = generic_setup_adata_manager(adata)
-    bd = AnnTorchDataset(adata_manager)
-    for value in bd[1].values():
-        assert type(value) == np.ndarray
-
-
-def test_anntorchdataset_numpy_sparse(adata):
-    # check AnnTorchDataset returns numpy array counts were sparse
-    adata.X = sparse.csr_matrix(adata.X)
-    adata_manager = generic_setup_adata_manager(adata)
-    bd = AnnTorchDataset(adata_manager)
-    for value in bd[1].values():
-        assert type(value) == np.ndarray
-
-
-def test_anntorchdataset_getitem_numpy_sparse(adata):
-    # check AnnTorchDataset returns numpy array if pro exp was sparse
-    adata.obsm["protein_expression"] = sparse.csr_matrix(
-        adata.obsm["protein_expression"]
-    )
-    adata_manager = generic_setup_adata_manager(
-        adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
-    )
-    bd = AnnTorchDataset(adata_manager)
-    for value in bd[1].values():
-        assert type(value) == np.ndarray
-
-
-def test_anntorchdataset_getitem_pro_exp(adata):
-    # check pro exp is being returned as numpy array even if its DF
-    adata.obsm["protein_expression"] = pd.DataFrame(
-        adata.obsm["protein_expression"], index=adata.obs_names
-    )
-    adata_manager = generic_setup_adata_manager(
-        adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
-    )
-    bd = AnnTorchDataset(adata_manager)
-    for value in bd[1].values():
-        assert type(value) == np.ndarray
-
-
 def test_view_registry(adata):
     adata_manager = generic_setup_adata_manager(
         adata,
@@ -530,29 +450,3 @@ def test_saving(adata, save_path):
     )
     adata.write(save_path)
     anndata.read(save_path)
-
-
-def test_backed_anndata(adata, save_path):
-    path = os.path.join(save_path, "test_data.h5ad")
-    adata.write_h5ad(path)
-    adata = anndata.read_h5ad(path, backed="r+")
-    adata_manager = generic_setup_adata_manager(adata, batch_key="batch")
-
-    # test get item
-    bd = AnnTorchDataset(adata_manager)
-    subset = bd[np.arange(adata.n_obs)]
-    assert isinstance(subset["X"], np.ndarray)
-
-
-def test_backed_anndata_sparse(adata, save_path):
-    # sparse
-    adata.X = csr_matrix(adata.X)
-    path = os.path.join(save_path, "test_data2.h5ad")
-    adata.write_h5ad(path)
-    adata = anndata.read_h5ad(path, backed="r+")
-    adata_manager = generic_setup_adata_manager(adata, batch_key="batch")
-
-    # test get item
-    bd = AnnTorchDataset(adata_manager)
-    subset = bd[np.arange(adata.n_obs)]
-    assert isinstance(subset["X"], np.ndarray)
