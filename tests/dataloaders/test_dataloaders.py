@@ -54,6 +54,11 @@ def test_drop_last_anndataloader(
     assert len(dl) == (n_batches - 1)
     dl = AnnDataLoader(manager, batch_size=batch_size + 1, drop_last=False)
     assert len(dl) == n_batches
+    for i, batch in enumerate(iter(dl)):
+        if i < n_batches - 1:
+            assert batch[REGISTRY_KEYS.X_KEY].shape[0] == batch_size + 1
+        else:
+            assert batch[REGISTRY_KEYS.X_KEY].shape[0] == batch_size - (n_batches - 1)
 
     # test drop_last with custom sampler
     sampler = SequentialSampler(AnnTorchDataset(manager))
