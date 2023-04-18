@@ -81,10 +81,15 @@ class AnnDataLoader(DataLoader):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
+            pin_memory = False
 
         if iter_ndarray:
+            if device_backed:
+                raise ValueError(
+                    "Cannot set `iter_ndarray=True` when `device_backed=True`."
+                )
             if "collate_fn" in kwargs:
-                raise ValueError("Cannot set `collate_fn` when `iter_ndarray=True`. ")
+                raise ValueError("Cannot set `collate_fn` when `iter_ndarray=True`.")
             kwargs["collate_fn"] = lambda x: x
 
         dataset = Subset(dataset, indices=indices)  # lazy subset, remaps indices
@@ -96,7 +101,8 @@ class AnnDataLoader(DataLoader):
                 batch_size=batch_size,
                 drop_last=drop_last,
             )
-            batch_size = None  # disables torch automatic batching
+            # disables torch automatic batching
+            batch_size = None
             shuffle = False
             drop_last = False
 
@@ -223,10 +229,8 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         **kwargs,
     ):
         adata = adata_manager.adata
-        if indices is None:
-            indices = np.arange(adata.n_obs)
-
-        self.indices = np.asarray(indices)
+        indices = np.arange(adata.n_obs) if indices is None else indices
+        indices = np.asarray(indices)
 
         if len(self.indices) == 0:
             return None

@@ -210,7 +210,7 @@ def test_cuda_backed_anntorchdataset(
     manager = generic_setup_adata_manager(adata, batch_key="batch", labels_key="labels")
 
     # test init
-    dataset = AnnTorchDataset(manager, device_backed=True)
+    dataset = AnnTorchDataset(manager, accelerator="cuda", device_backed=True)
     assert hasattr(dataset, "data")  # data should be loaded on init
     assert len(dataset) == n_batches * batch_size
     data = dataset[0]
@@ -222,9 +222,9 @@ def test_cuda_backed_anntorchdataset(
     assert isinstance(X, torch.Tensor)
     assert isinstance(batch, torch.Tensor)
     assert isinstance(labels, torch.Tensor)
-    assert X.device == dataset.device
-    assert batch.device == dataset.device
-    assert labels.device == dataset.device
+    assert X.device.type == "cuda"
+    assert batch.device.type == "cuda"
+    assert labels.device.type == "cuda"
     assert X.dtype == torch.float32
     assert batch.dtype == torch.float32
     assert labels.dtype == torch.float32
