@@ -525,11 +525,9 @@ class AdversarialTrainingPlan(TrainingPlan):
             cls_target = one_hot(batch_index, n_classes)
         else:
             one_hot_batch = one_hot(batch_index, n_classes)
-            cls_target = torch.zeros_like(one_hot_batch)
             # place zeroes where true label is
-            cls_target.masked_scatter_(
-                ~one_hot_batch.bool(), torch.ones_like(one_hot_batch) / (n_classes - 1)
-            )
+            cls_target = (~one_hot_batch.bool()).float()
+            cls_target = cls_target / (n_classes - 1)
 
         l_soft = cls_logits * cls_target
         loss = -l_soft.sum(dim=1).mean()
