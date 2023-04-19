@@ -8,8 +8,13 @@ from torch.utils.data import SequentialSampler
 
 from scvi import REGISTRY_KEYS
 from scvi.data import synthetic_iid
-from scvi.dataloaders import AnnDataLoader, AnnTorchDataset, ConcatDataLoader
-from tests.dataset.utils import generic_setup_adata_manager
+from scvi.dataloaders import (
+    AnnDataLoader,
+    AnnTorchDataset,
+    ConcatDataLoader,
+    SemiSupervisedDataLoader,
+)
+from tests.dataset.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 
 @pytest.mark.parametrize(
@@ -136,27 +141,26 @@ def test_cuda_backed_anndataloader(
         assert value.device.type == "cuda"
 
 
+# TODO: Add disk backed, mudata tests
+
+
 @pytest.mark.parametrize(
-    "batch_size, n_batches, n_genes, n_labels, sparse",
-    product([128], [1, 2], [50], [0, 1, 2, 3], [True, False]),
+    "batch_size, n_batches, n_genes, sparse",
+    product([128], [1, 2], [50], [True, False]),
 )
 def test_basic_concatdataloader(
-    batch_size: int, n_batches: int, n_genes: int, n_labels: int, sparse: bool
+    batch_size: int, n_batches: int, n_genes: int, sparse: bool
 ):
     adata = synthetic_iid(
         batch_size=batch_size,
         n_batches=n_batches,
         n_genes=n_genes,
-        n_labels=n_labels,
         sparse=sparse,
     )
-    labels_key = "labels" if n_labels > 0 else None
-    manager = generic_setup_adata_manager(
-        adata, batch_key="batch", labels_key=labels_key
-    )
+    manager = generic_setup_adata_manager(adata, batch_key="batch", labels_key="labels")
     n_obs = adata.n_obs
 
-    # one list of indices, works the same as AnnDataLoader except needing to index
+    # one list of indices, works the same as AnnDataLoader except needing to index batch
     indices_list = [np.arange(0, n_obs // 2)]
     dl = ConcatDataLoader(manager, indices_list, batch_size=10, drop_last=True)
     assert len(dl) == floor((n_obs / 2) / 10)  # floor since drop_last=True
@@ -213,7 +217,7 @@ def test_basic_concatdataloader(
     dl = ConcatDataLoader(manager, indices_list, batch_size=batch_size, drop_last=False)
     assert len(dl) == ceil((n_obs * (5 / 8)) / batch_size)  # ceil since drop_last=False
 
-    # test that smaller batches cycle correctly, expected cycling:
+    # test that smaller dataloaders cycle correctly, expected cycling:
     # dl1: [0][0][0][0][0]
     # dl2: [1][2][1][2][1]
     # dl3: [3][4][5][6][7]
@@ -238,3 +242,59 @@ def test_basic_concatdataloader(
 
         prev_prev_batch = prev_batch
         prev_batch = batch
+
+
+@pytest.mark.parametrize(
+    "batch_size, n_batches, n_genes, n_labels, sparse",
+    product([128], [1, 2], [50], [0, 1, 2, 3], [True, False]),
+)
+def test_basic_semisuperviseddataloader(
+    batch_size: int, n_batches: int, n_genes: int, n_labels: int, sparse: bool
+):
+    adata = synthetic_iid(
+        batch_size=batch_size,
+        n_batches=n_batches,
+        n_genes=n_genes,
+        n_labels=n_labels,
+        sparse=sparse,
+    )
+    labels_key = "labels" if n_labels > 0 else None
+    unlabeled_category = "label_0" if n_labels > 2 else None
+    label_counts = None
+    if labels_key is not None:
+        label_counts = adata.obs[labels_key].value_counts().to_dict()
+    manager = scanvi_setup_adata_manager(
+        adata, unlabeled_category=unlabeled_category, labels_key=labels_key
+    )
+    n_obs = adata.n_obs
+    n_labeled = 0
+    if labels_key is not None:
+        n_labeled = sum([v for k, v in label_counts.items() if k != unlabeled_category])
+
+    dl = SemiSupervisedDataLoader(manager, batch_size=128, drop_last=True)
+    assert len(dl) == floor(n_obs / 128)  # floor since drop_last=True
+    if labels_key is not None and n_labeled < 128:
+        with pytest.raises(StopIteration):
+            _ = next(iter(dl))
+    else:
+        batch = next(iter(dl))
+        assert len(batch) == 2
+
+    dl = SemiSupervisedDataLoader(manager, batch_size=128, drop_last=False)
+    assert len(dl) == ceil(n_obs / 128)  # ceil since drop_last=False
+    batch = next(iter(dl))
+    _, labeled_obs = batch
+    if labels_key is not None and n_labeled < 128:
+        print(labeled_obs)
+        assert labeled_obs[REGISTRY_KEYS.X_KEY].shape[0] == n_labeled
+
+
+@pytest.mark.parametrize(
+    "batch_size, n_batches, n_genes, n_labels, sparse",
+    product([128], [1, 2], [50], [0, 1, 2, 3], [True, False]),
+)
+def test_n_samples_per_label_semisuperviseddataloader(
+    batch_size: int, n_batches: int, n_genes: int, n_labels: int, sparse: bool
+):
+    # TODO
+    pass

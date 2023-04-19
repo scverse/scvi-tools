@@ -114,6 +114,7 @@ dataloader_dsp = DocstringProcessor(
     param_data_and_attributes=param_data_and_attributes,
     param_drop_last=param_drop_last,
     param_iter_ndarray=param_iter_ndarray,
+    param_seed=param_seed,
     param_accelerator=param_accelerator,
     param_device=param_device,
     param_device_backed=param_device_backed,

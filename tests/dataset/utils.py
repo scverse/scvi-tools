@@ -81,18 +81,24 @@ def generic_setup_adata_manager(
 
 def scanvi_setup_adata_manager(
     adata: AnnData,
-    unlabeled_category: str,
+    layer: Optional[str] = None,
+    unlabeled_category: Optional[str] = None,
     batch_key: Optional[str] = None,
     labels_key: Optional[str] = None,
 ) -> AnnDataManager:
     setup_args = locals()
     setup_args.pop("adata")
     setup_method_args = {_MODEL_NAME_KEY: "TestModel", _SETUP_ARGS_KEY: setup_args}
-    anndata_fields = [
-        CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-        LabelsWithUnlabeledObsField(
+    if unlabeled_category is None:
+        labels_field = CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key)
+    else:
+        labels_field = LabelsWithUnlabeledObsField(
             REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
-        ),
+        )
+    anndata_fields = [
+        LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+        CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+        labels_field,
     ]
     adata_manager = AnnDataManager(
         fields=anndata_fields, setup_method_args=setup_method_args
