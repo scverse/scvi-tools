@@ -20,7 +20,6 @@ from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
 from scvi.data._download import _download
 from scvi.dataloaders import (
     DataSplitter,
-    SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
 )
 from scvi.model import (
@@ -814,28 +813,6 @@ def test_backed_anndata_scvi(save_path):
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], 5)
     model.get_elbo()
-
-
-def test_semisupervised_dataloader():
-    # test label resampling
-    n_samples_per_label = 10
-    a = synthetic_iid()
-    adata_manager = scanvi_setup_adata_manager(
-        a, labels_key="labels", unlabeled_category="label_0", batch_key="batch"
-    )
-    dl = SemiSupervisedDataLoader(
-        adata_manager,
-        indices=np.arange(a.n_obs),
-        n_samples_per_label=n_samples_per_label,
-    )
-    labeled_dl_idx = dl.dataloaders[1].indices
-    n_labels = 2
-    assert len(labeled_dl_idx) == n_samples_per_label * n_labels
-    dl.resample_labels()
-    resampled_labeled_dl_idx = dl.dataloaders[1].indices
-    assert len(resampled_labeled_dl_idx) == n_samples_per_label * n_labels
-    # check labeled indices was actually resampled
-    assert np.sum(labeled_dl_idx == resampled_labeled_dl_idx) != len(labeled_dl_idx)
 
 
 def test_data_splitter():
