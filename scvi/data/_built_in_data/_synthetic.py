@@ -24,8 +24,10 @@ def _generate_synthetic(
     rna = rna * mask
     rna = csr_matrix(rna) if sparse else rna
 
-    labels = np.random.randint(0, n_labels, size=(n_obs,))
-    labels = np.array(["label_%d" % i for i in labels])
+    labels = None
+    if n_labels > 0:
+        labels = np.random.randint(0, n_labels, size=(n_obs,))
+        labels = np.array(["label_%d" % i for i in labels])
 
     batch = []
     for i in range(n_batches):
@@ -36,7 +38,8 @@ def _generate_synthetic(
 
     adata = AnnData(rna, dtype=np.float32)
     adata.obs["batch"] = pd.Categorical(batch)
-    adata.obs["labels"] = pd.Categorical(labels)
+    if labels is not None:
+        adata.obs["labels"] = pd.Categorical(labels)
     adata.obsm["protein_expression"] = protein
     adata.uns["protein_names"] = protein_names
 
