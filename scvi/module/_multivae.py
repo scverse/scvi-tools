@@ -1050,10 +1050,7 @@ def get_reconstruction_loss_protein(y, py_, pro_batch_mask_minibatch=None):
     reconst_loss_protein_full = -py_conditional.log_prob(y)
 
     if pro_batch_mask_minibatch is not None:
-        temp_pro_loss_full = torch.zeros_like(reconst_loss_protein_full)
-        temp_pro_loss_full.masked_scatter_(
-            pro_batch_mask_minibatch.bool(), reconst_loss_protein_full
-        )
+        temp_pro_loss_full = pro_batch_mask_minibatch.bool() * reconst_loss_protein_full
         rl_protein = temp_pro_loss_full.sum(dim=-1)
     else:
         rl_protein = reconst_loss_protein_full.sum(dim=-1)
