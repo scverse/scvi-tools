@@ -31,12 +31,6 @@ from ._utils import in_notebook
 logger = logging.getLogger(__name__)
 
 
-# This is to get around lightning import changes
-class _TuneReportCallback(TuneReportCallback, pl.Callback):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
 @dataclass
 class TuneAnalysis:
     """Dataclass for storing results from a tuning experiment."""
@@ -398,7 +392,11 @@ class TunerManager:
             model_kwargs, train_kwargs = self._get_search_space(search_space)
             getattr(model_cls, setup_method_name)(adata, **setup_kwargs)
             model = model_cls(adata, **model_kwargs)
-            monitor = _TuneReportCallback(metric, on="validation_end")
+            # This is to get around lightning import changes
+            callback_cls = type(
+                "_TuneReportCallback", (TuneReportCallback, pl.Callback), {}
+            )
+            monitor = callback_cls(metric, on="validation_end")
             model.train(
                 max_epochs=max_epochs,
                 use_gpu=use_gpu,
