@@ -250,3 +250,19 @@ def slice_and_convert(
     if dtype is None:
         return _data
     return _data.astype(dtype)
+
+
+def convert_to_np_array(
+    x: Union[list, int, slice, np.ndarray], n: Optional[int] = None
+) -> np.ndarray:
+    if isinstance(x, (int, np.integer)):
+        x = np.array([x])
+    elif isinstance(x, list):
+        x = np.array(x)
+    elif isinstance(x, slice):
+        if n is None:
+            raise ValueError("`n` must be specified if `x` is a `slice`.")
+        x = np.arange(*x.indices(n))
+    elif not isinstance(x, np.ndarray):
+        raise TypeError("`x` must be a `slice`, `int`, `np.ndarray`, or `list`.")
+    return x

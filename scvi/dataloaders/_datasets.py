@@ -120,22 +120,9 @@ class AnnTorchDataset(Dataset):
         return self._data
 
     def __getitem__(
-        self, indices: Union[list, int]
+        self, indices: Union[list, int, slice]
     ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
         """Slice data attributes at the specified indices."""
-        if isinstance(indices, slice):
-            indices = np.arange(*indices.indices(len(self)))
-        elif isinstance(indices, int) or isinstance(indices, np.integer):
-            indices = np.array([indices])
-        elif isinstance(indices, np.ndarray):
-            indices = indices.astype(int)
-        elif isinstance(indices, list):
-            indices = np.array(indices)
-        else:
-            raise TypeError(
-                "`indices` must be a `slice`, `int`, `np.ndarray`, or `list`."
-            )
-
         if self.backed_adata:
             indices = np.sort(indices)  # need to sort idxs for h5py datasets
 

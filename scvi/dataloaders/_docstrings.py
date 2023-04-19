@@ -27,7 +27,8 @@ data_and_attributes
 param_device_backed = """\
 device_backed
     If `True`, the data will be loaded into the device specified by `accelerator` and
-    `device` prior to training. This can speed up training, but requires more memory."""
+    `device` prior to training. This can speed up training, but it is only recommended
+    if the entire data fits in device memory."""
 
 dataset_dsp = DocstringProcessor(
     summary=dataset_summary,
@@ -40,6 +41,11 @@ dataset_dsp = DocstringProcessor(
 
 dataloader_summary = """\
 A :class:`~torch.utils.data.DataLoader` that loads from :class:`~anndata.AnnData`."""
+
+param_dataset = """\
+dataset
+    The :class:`~torch.utils.data.Dataset` to load from. Cannot be set if `adata_manager`
+    is set. Must be set if `adata_manager` is not set."""
 
 param_indices = """\
 indices
@@ -68,7 +74,8 @@ batch_size
 
 param_n_samples_per_label = """\
 n_samples_per_label
-    Number of subsamples for each label class to sample per epoch."""
+    The size of the subset to sample from each set of unique labels per training epoch.
+    If `None`, the dataloader will sample from all labeled observations in each epoch."""
 
 param_drop_last = """\
 drop_last
@@ -78,6 +85,10 @@ drop_last
 param_iter_ndarray = """\
 iter_ndarray
     If `True`, the dataloader will iterate over the data as a numpy array."""
+
+param_seed = """\
+seed
+    Random seed for the resampling generator."""
 
 param_pin_memory = """\
 pin_memory
@@ -93,6 +104,7 @@ param_dataloader_kwargs = """\
 dataloader_dsp = DocstringProcessor(
     summary=dataloader_summary,
     param_adata_manager=param_adata_manager,
+    param_dataset=param_dataset,
     param_indices=param_indices,
     param_indices_list=param_indices_list,
     param_sampler=param_sampler,

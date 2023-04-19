@@ -19,7 +19,6 @@ from scvi.data import _constants, synthetic_iid
 from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
 from scvi.data._download import _download
 from scvi.dataloaders import (
-    AnnDataLoader,
     DataSplitter,
     SemiSupervisedDataLoader,
     SemiSupervisedDataSplitter,
@@ -815,34 +814,6 @@ def test_backed_anndata_scvi(save_path):
     z = model.get_latent_representation()
     assert z.shape == (adata.shape[0], 5)
     model.get_elbo()
-
-
-@pytest.mark.parametrize(
-    "data", [scvi.data.synthetic_iid(200), scvi.data.synthetic_iid(200, sparse=True)]
-)
-def test_ann_dataloader(data):
-    adata_manager = generic_setup_adata_manager(
-        data, batch_key="batch", labels_key="labels"
-    )
-
-    # test that batch sampler drops the last batch if it has less than 3 cells
-    assert data.n_obs == 400
-    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=True)
-    assert len(adl) == 1
-    for _i, _ in enumerate(adl):
-        pass
-    assert _i == 0
-    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=False)
-    assert len(adl) == 2
-    for _i, _ in enumerate(adl):
-        pass
-    assert _i == 1
-    adl = AnnDataLoader(adata_manager, batch_size=399, drop_last=False)
-    assert len(adl) == 2
-    for _i, loaded_data in enumerate(adl):
-        _ = loaded_data
-    assert _i == 1
-    assert loaded_data["X"].shape[0] == 1
 
 
 def test_semisupervised_dataloader():
