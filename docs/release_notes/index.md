@@ -27,6 +27,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Fixed
 
 -   Fix creation of minified adata by copying original uns dict {pr}`2000`. This issue arises with anndata>=0.9.0.
+-   Fix {class}`scvi.model.TOTALVI` {class}`scvi.model.MULTIVI` handling of missing protein values {pr}`2009`.
 
 #### Changed
 
