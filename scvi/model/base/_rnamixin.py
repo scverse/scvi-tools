@@ -47,7 +47,9 @@ class RNASeqMixin:
         zs: torch.Tensor,
         max_cells: int = 128,
         truncation: bool = True,
-    ):
+        n_mc_samples=500,
+        n_mc_samples_per_pass=250,
+    ) -> np.ndarray:
         """Computes importance weights for the given samples.
 
         Parameters
@@ -59,17 +61,22 @@ class RNASeqMixin:
         distributions :
             Dictionary of distributions associated with `indices`.
         zs :
-            Samples assiciated with `indices`.
+            Samples associated with `indices`.
         max_cells :
-            Maximum number of cells used to estimated the importance weights, by default 500
+            Maximum number of cells used to estimated the importance weights
         truncation :
-            Whether importance weights should be truncated, by default True
+            Whether importance weights should be truncated. If True, the importance weights are
+            truncated as described in Ionides et al, 2008.
+        n_mc_samples :
+            Number of Monte Carlo samples to use for estimating the importance weights, by default 500
+        n_mc_samples_per_pass :
+            Number of Monte Carlo samples to use for each pass, by default 250
         """
         device = self.device
         log_pz = db.Normal(0, 1).log_prob(zs).sum(dim=-1)
         all_cell_indices = np.arange(len(indices))
         anchor_cells = (
-            np.random.choice(np.arange(len(indices)), size=max_cells, replace=False)
+            np.random.choice(all_cell_indices, size=max_cells, replace=False)
             if len(indices) > max_cells
             else all_cell_indices
         )
@@ -78,8 +85,8 @@ class RNASeqMixin:
             adata,
             indices=indices[anchor_cells],
             observation_specific=True,
-            n_mc_samples=500,
-            n_mc_samples_per_pass=250,
+            n_mc_samples=n_mc_samples,
+            n_mc_samples_per_pass=n_mc_samples_per_pass,
         )
         mask = torch.tensor(anchor_cells)
         qz_anchor = subset_distribution(
@@ -219,7 +226,7 @@ class RNASeqMixin:
             scaling = library_size
 
         store_distributions = weights == "importance"
-        if store_distributions & len(transform_batch) > 1:
+        if store_distributions and len(transform_batch) > 1:
             raise NotImplementedError(
                 "Importance weights cannot be computed when expression levels are averaged across batches."
             )
@@ -307,11 +314,10 @@ class RNASeqMixin:
         fdr_target: float = 0.05,
         silent: bool = False,
         weights: Optional[Literal["uniform", "importance"]] = "uniform",
-        filter_outlier_cells: bool = True,
+        filter_outlier_cells: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\.
-        A unified method for differential expression analysis.
+        r"""A unified method for differential expression analysis.
 
         Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
 

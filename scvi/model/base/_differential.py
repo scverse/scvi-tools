@@ -12,6 +12,7 @@ from sklearn.mixture import GaussianMixture
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
+from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +27,19 @@ class DifferentialComputation:
     Parameters
     ----------
     model_fn
-        Function in model API to get values from.
+        Callable in model API to get values from.
+    representation_fn
+        Callable providing latent representations, e.g., :meth:`~scvi.model.SCVI.get_latent_representation`, for scVI.
     adata_manager
         AnnDataManager created by :meth:`~scvi.model.SCVI.setup_anndata`.
     """
 
-    def __init__(self, model_fn, representation_fn, adata_manager):
+    def __init__(
+        self,
+        model_fn: Callable,
+        representation_fn: Callable,
+        adata_manager: AnnDataManager,
+    ):
         self.adata_manager = adata_manager
         self.adata = adata_manager.adata
         self.model_fn = model_fn
@@ -48,8 +56,8 @@ class DifferentialComputation:
             idx_filt = EllipticEnvelope().fit_predict(reps)
             idx_filt = idx_filt == 1
         except ValueError:
-            logger.warning("Could not properly estimate Cov!, using all samples")
-            idx_filt = np.ones(reps.shape[0], dtype=bool)
+            warnings.warn("Could not properly estimate Cov!, using all samples")
+            return selection
         idx_filt = selection[idx_filt]
         return idx_filt
 
@@ -457,7 +465,7 @@ class DifferentialComputation:
             px_scales = px_scales.mean(0)
         return {"scale": px_scales, "batch": batch_ids}
 
-    def process_selection(self, selection: Union[List[bool], np.ndarray]):
+    def process_selection(self, selection: Union[List[bool], np.ndarray]) -> np.ndarray:
         """If selection is a mask, convert it to indices."""
         selection = np.asarray(selection)
         if selection.dtype is np.dtype("bool"):

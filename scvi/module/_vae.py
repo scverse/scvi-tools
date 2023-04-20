@@ -1,4 +1,5 @@
 """Main module."""
+import warnings
 from typing import Callable, Iterable, Literal, Optional
 
 import numpy as np
@@ -567,7 +568,11 @@ class VAE(BaseMinifiedModeModuleClass):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         to_sum = []
-
+        if n_mc_samples_per_pass > n_mc_samples:
+            warnings.warn(
+                "Number of chunks is larger than the total number of samples, setting it to the number of samples"
+            )
+            n_mc_samples_per_pass = n_mc_samples
         n_passes = int(np.ceil(n_mc_samples / n_mc_samples_per_pass))
         for _ in range(n_passes):
             # Distribution parameters and sampled variables
