@@ -9,20 +9,19 @@ import pandas as pd
 import torch
 import torch.distributions as db
 from anndata import AnnData
+from pyro.distributions.util import deep_to
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi._utils import _doc_params
+from scvi.distributions._utils import DistributionsConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.module.base._decorators import _move_data_to_device
 from scvi.utils import unsupported_if_adata_minified
 from scvi.utils._docstrings import doc_differential_expression
 
 from ._utils import (
-    DistributionsConcatenator,
     _de_core,
-    move_distribution,
-    subset_distribution,
 )
 
 logger = logging.getLogger(__name__)
@@ -97,7 +96,7 @@ class RNASeqMixin:
         )  # n_samples, n_cells, n_anchors
 
         log_px_z = []
-        distributions_px = move_distribution(distributions["px"], device)
+        distributions_px = deep_to(distributions["px"], device=device)
         scdl_anchor = self._make_data_loader(
             adata=adata, indices=indices[anchor_cells], batch_size=1
         )
