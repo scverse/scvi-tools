@@ -11,14 +11,12 @@ import torch.distributions as db
 from anndata import AnnData
 from pyro.distributions.util import deep_to
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
-from scvi._utils import _doc_params
 from scvi.distributions._utils import DistributionsConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.module.base._decorators import _move_data_to_device
-from scvi.utils import unsupported_if_adata_minified
-from scvi.utils._docstrings import doc_differential_expression
+from scvi.utils import de_dsp, unsupported_if_adata_minified
 
 from ._utils import (
     _de_core,
@@ -214,7 +212,10 @@ class RNASeqMixin:
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
                 warnings.warn(
-                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                    "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` "
+                    "is`False`, returning an `np.ndarray`.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             return_numpy = True
         if library_size == "latent":
@@ -292,9 +293,7 @@ class RNASeqMixin:
         else:
             return exprs
 
-    @_doc_params(
-        doc_differential_expression=doc_differential_expression,
-    )
+    @de_dsp.dedent
     def differential_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -322,7 +321,21 @@ class RNASeqMixin:
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 

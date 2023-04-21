@@ -6,6 +6,7 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import Any, Callable, List, Optional, Tuple
 
+import lightning.pytorch as pl
 import rich
 from chex import dataclass
 
@@ -16,6 +17,7 @@ try:
 except ImportError:
     pass
 
+from scvi import settings
 from scvi._decorators import dependencies
 from scvi._types import AnnOrMuData
 from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
@@ -73,6 +75,7 @@ class TunerManager:
             warnings.warn(
                 f"No default search space available for {model_cls.__name__}.",
                 UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         return DEFAULTS.get(model_cls, {})
 
@@ -227,6 +230,7 @@ class TunerManager:
                     "Please see available metrics with `ModelTuner.info()`. "
                     "Ignoring metric.",
                     UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
                 continue
             _metrics[m] = registry_metrics[m]
@@ -388,7 +392,11 @@ class TunerManager:
             model_kwargs, train_kwargs = self._get_search_space(search_space)
             getattr(model_cls, setup_method_name)(adata, **setup_kwargs)
             model = model_cls(adata, **model_kwargs)
-            monitor = TuneReportCallback(metric, on="validation_end")
+            # This is to get around lightning import changes
+            callback_cls = type(
+                "_TuneReportCallback", (TuneReportCallback, pl.Callback), {}
+            )
+            monitor = callback_cls(metric, on="validation_end")
             model.train(
                 max_epochs=max_epochs,
                 use_gpu=use_gpu,
@@ -450,7 +458,7 @@ class TunerManager:
         max_epochs = max_epochs or 100  # TODO: better default
         scheduler = scheduler or "asha"
         scheduler_kwargs = scheduler_kwargs or {}
-        searcher = searcher or "random"
+        searcher = searcher or "hyperopt"
         searcher_kwargs = searcher_kwargs or {}
         resources = resources or {}
 

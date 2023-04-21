@@ -60,6 +60,13 @@ def test_hub_metadata(request, save_path):
     assert hm.model_parent_module == "foo"
 
 
+def test_hub_metadata_invalid_url():
+    with pytest.raises(ValueError):
+        HubMetadata(
+            "0.17.4", "0.8.0", "SCVI", training_data_url="https//invalid_url.org/"
+        )
+
+
 def test_hub_modelcardhelper(request, save_path):
     model = prep_model()
 

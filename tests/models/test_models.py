@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 import torch
 from flax import linen as nn
-from pytorch_lightning.callbacks import LearningRateMonitor
+from lightning.pytorch.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
@@ -326,7 +326,7 @@ def test_scvi(save_path):
 
     # test mismatched categories raises ValueError
     adata2 = synthetic_iid()
-    adata2.obs.labels.cat.rename_categories(["a", "b", "c"], inplace=True)
+    adata2.obs.labels = adata2.obs.labels.cat.rename_categories(["a", "b", "c"])
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
 
@@ -829,26 +829,32 @@ def test_backed_anndata_scvi(save_path):
     model.get_elbo()
 
 
-def test_ann_dataloader():
-    a = scvi.data.synthetic_iid()
+@pytest.mark.parametrize(
+    "data", [scvi.data.synthetic_iid(200), scvi.data.synthetic_iid(200, sparse=True)]
+)
+def test_ann_dataloader(data):
     adata_manager = generic_setup_adata_manager(
-        a, batch_key="batch", labels_key="labels"
+        data, batch_key="batch", labels_key="labels"
     )
 
     # test that batch sampler drops the last batch if it has less than 3 cells
-    assert a.n_obs == 400
-    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=3)
-    assert len(adl) == 2
-    for _i, _ in enumerate(adl):
-        pass
-    assert _i == 1
-    adl = AnnDataLoader(adata_manager, batch_size=398, drop_last=3)
+    assert data.n_obs == 400
+    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=True)
     assert len(adl) == 1
     for _i, _ in enumerate(adl):
         pass
     assert _i == 0
-    with pytest.raises(ValueError):
-        AnnDataLoader(adata_manager, batch_size=1, drop_last=2)
+    adl = AnnDataLoader(adata_manager, batch_size=397, drop_last=False)
+    assert len(adl) == 2
+    for _i, _ in enumerate(adl):
+        pass
+    assert _i == 1
+    adl = AnnDataLoader(adata_manager, batch_size=399, drop_last=False)
+    assert len(adl) == 2
+    for _i, loaded_data in enumerate(adl):
+        _ = loaded_data
+    assert _i == 1
+    assert loaded_data["X"].shape[0] == 1
 
 
 def test_semisupervised_dataloader():
@@ -940,7 +946,7 @@ def test_device_backed_data_splitter():
     model = SCVI(a, n_latent=5)
     adata_manager = model.adata_manager
     # test leaving validataion_size empty works
-    ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0, use_gpu=None)
+    ds = DeviceBackedDataSplitter(adata_manager, train_size=1.0)
     ds.setup()
     train_dl = ds.train_dataloader()
     ds.val_dataloader()
@@ -1262,13 +1268,13 @@ def test_totalvi(save_path):
 
     # test that we catch incorrect mappings
     adata2 = synthetic_iid()
-    adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"], inplace=True)
+    adata2.obs.batch = adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"])
     with pytest.raises(ValueError):
         model.get_elbo(adata2)
 
     # test that same mapping different order is okay
     adata2 = synthetic_iid()
-    adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"], inplace=True)
+    adata2.obs.batch = adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"])
     model.get_elbo(adata2)  # should automatically transfer setup
 
     # test that we catch missing proteins

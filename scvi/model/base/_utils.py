@@ -12,6 +12,7 @@ import pandas as pd
 import torch
 from anndata import AnnData, read
 
+from scvi import settings
 from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
 from scvi.utils import track
@@ -138,9 +139,11 @@ def _validate_var_names(adata, source_var_names):
     user_var_names = adata.var_names.astype(str)
     if not np.array_equal(source_var_names, user_var_names):
         warnings.warn(
-            "var_names for adata passed in does not match var_names of "
-            "adata used to train the model. For valid results, the vars "
-            "need to be the same and in the same order as the adata used to train the model."
+            "var_names for adata passed in does not match var_names of adata used to "
+            "train the model. For valid results, the vars need to be the same and in "
+            "the same order as the adata used to train the model.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
 
 

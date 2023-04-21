@@ -1,60 +1,95 @@
 from docrep import DocstringProcessor
 
-doc_differential_expression = """\
+de_adata = """\
 adata
     AnnData object with equivalent structure to initial AnnData.
-    If None, defaults to the AnnData object used to initialize the model.
+    If None, defaults to the AnnData object used to initialize the model."""
+de_groupby = """\
 groupby
-    The key of the observations grouping to consider.
+    The key of the observations grouping to consider."""
+de_group1 = """\
 group1
     Subset of groups, e.g. [`'g1'`, `'g2'`, `'g3'`], to which comparison
-    shall be restricted, or all groups in `groupby` (default).
+    shall be restricted, or all groups in `groupby` (default)."""
+de_group2 = """\
 group2
     If `None`, compare each group in `group1` to the union of the rest of the groups
-    in `groupby`. If a group identifier, compare with respect to this group.
+    in `groupby`. If a group identifier, compare with respect to this group."""
+de_idx1 = """\
 idx1
     `idx1` and `idx2` can be used as an alternative to the AnnData keys.
     Custom identifier for `group1` that can be of three sorts: (1) a boolean mask,
     (2) indices, or (3) a string. If it is a string, then it will query indices that
     verifies conditions on `adata.obs`, as described in :meth:`pandas.DataFrame.query`
     If `idx1` is not `None`, this option overrides `group1`
-    and `group2`.
+    and `group2`."""
+de_idx2 = """\
 idx2
     Custom identifier for `group2` that has the same
     properties as `idx1`.
     By default, includes all cells not specified in
-    `idx1`.
+    `idx1`."""
+de_mode = """\
 mode
-    Method for differential expression. See user guide for full explanation.
+    Method for differential expression. See user guide for full explanation."""
+de_delta = """\
 delta
     specific case of region inducing differential expression.
     In this case, we suppose that :math:`R \\setminus [-\\delta, \\delta]` does not induce differential expression
-    (change model default case).
+    (change model default case)."""
+de_batch_size = """\
 batch_size
-    Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+    Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`."""
+de_all_stats = """\
 all_stats
-    Concatenate count statistics (e.g., mean expression group 1) to DE results.
+    Concatenate count statistics (e.g., mean expression group 1) to DE results."""
+de_batch_correction = """\
 batch_correction
-    Whether to correct for batch effects in DE inference.
+    Whether to correct for batch effects in DE inference."""
+de_batchid1 = """\
 batchid1
     Subset of categories from `batch_key` registered in ``setup_anndata``,
     e.g. [`'batch1'`, `'batch2'`, `'batch3'`], for `group1`. Only used if `batch_correction` is `True`, and
-    by default all categories are used.
+    by default all categories are used."""
+de_batchid2 = """\
 batchid2
     Same as `batchid1` for group2. `batchid2` must either have null intersection with `batchid1`,
     or be exactly equal to `batchid1`. When the two sets are exactly equal, cells are compared by
     decoding on the same batch. When sets have null intersection, cells from `group1` and `group2`
-    are decoded on each group in `group1` and `group2`, respectively.
+    are decoded on each group in `group1` and `group2`, respectively."""
+de_fdr_target = """\
 fdr_target
-    Tag features as DE based on posterior expected false discovery rate.
+    Tag features as DE based on posterior expected false discovery rate."""
+de_silent = """\
 silent
-    If True, disables the progress bar. Default: False.
+    If True, disables the progress bar. Default: False."""
+de_importance_sampling = """\
 importance_sampling
-    Whether to use importance sampling to compute normalized gene expression.
+    Whether to use importance sampling to compute normalized gene expression."""
+de_fn_kwargs = """\
 fn_kwargs
     Additional kwargs for the normalized gene expression estimation.
-    Only applies if `importance_sampling` is True.
-"""
+    Only applies if `importance_sampling` is True."""
+
+de_dsp = DocstringProcessor(
+    de_adata=de_adata,
+    de_groupby=de_groupby,
+    de_group1=de_group1,
+    de_group2=de_group2,
+    de_idx1=de_idx1,
+    de_idx2=de_idx2,
+    de_mode=de_mode,
+    de_delta=de_delta,
+    de_batch_size=de_batch_size,
+    de_all_stats=de_all_stats,
+    de_batch_correction=de_batch_correction,
+    de_batchid1=de_batchid1,
+    de_batchid2=de_batchid2,
+    de_fdr_target=de_fdr_target,
+    de_silent=de_silent,
+    de_importance_sampling=de_importance_sampling,
+    de_fn_kwargs=de_fn_kwargs,
+)
 
 
 summary = """\
@@ -143,4 +178,53 @@ setup_anndata_dsp = DocstringProcessor(
     param_modalities=param_modalities,
     param_copy=param_copy,
     returns=returns,
+)
+
+
+param_use_gpu = """\
+use_gpu
+    Use default GPU if available (if `True`), or index of GPU to use (if `int`), or name
+    of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in `use_gpu!=None`
+    will override `accelerator` and `devices` arguments. This argument is deprecated in
+    v1.0 and will be removed in v1.1. Please use `accelerator` and `devices` instead."""  # TODO: remove in v1.1
+
+param_accelerator = """\
+accelerator
+    Supports passing different accelerator types `("cpu", "gpu", "tpu", "ipu", "hpu",
+    "mps, "auto")` as well as custom accelerator instances."""
+
+param_devices = """\
+devices
+    The devices to use. Can be set to a non-negative index (`int` or `str`), a sequence
+    of device indices (`list` or comma-separated `str`), the value `-1` to indicate all
+    available devices, or `"auto"` for automatic selection based on the chosen
+    `accelerator`. If set to `"auto"` and `accelerator` is not determined to be `"cpu"`,
+    then `devices` will be set to the first available device."""
+
+param_device = """\
+device
+    The device to use. Can be set to a non-negative index (`int` or `str`) or `"auto"`
+    for automatic selection based on the chosen accelerator. If set to `"auto"` and
+    `accelerator` is not determined to be `"cpu"`, then `device` will be set to the
+    first available device."""
+
+param_return_device = """\
+return_device
+    Returns the first or only device as determined by `accelerator` and `devices`.
+    Depending on the value, will either return a PyTorch device (`"torch"`), a Jax
+    device (`"jax"`), or neither (`None`)."""
+
+param_validate_single_device = """\
+validate_single_device
+    Validates that `devices` is set to a single device if `device!="auto"` and throws
+    an error if not."""
+
+
+devices_dsp = DocstringProcessor(
+    param_use_gpu=param_use_gpu,  # TODO: remove in v1.1
+    param_accelerator=param_accelerator,
+    param_devices=param_devices,
+    param_device=param_device,
+    param_return_device=param_return_device,
+    param_validate_single_device=param_validate_single_device,
 )

@@ -9,16 +9,17 @@ import torch
 from anndata import AnnData
 from torch.utils.data import DataLoader
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import _init_library_size, parse_use_gpu_arg
+from scvi.model._utils import _init_library_size, parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 from ._module import JVAE
 from ._task import GIMVITrainingPlan
@@ -156,10 +157,13 @@ class GIMVI(VAEMixin, BaseModelClass):
         ).format(n_latent, n_inputs, total_genes, n_batches, generative_distributions)
         self.init_params_ = self._get_init_params(locals())
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 200,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         kappa: int = 5,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
@@ -174,9 +178,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         kappa
             Scaling parameter for the discriminator loss.
         train_size
@@ -192,12 +196,17 @@ class GIMVI(VAEMixin, BaseModelClass):
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        accelerator, lightning_devices, device = parse_use_gpu_arg(use_gpu)
+        accelerator, devices, device = parse_device_args(
+            use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
+            return_device="torch",
+        )
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
             accelerator=accelerator,
-            devices=lightning_devices,
+            devices=devices,
             **kwargs,
         )
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
@@ -208,7 +217,6 @@ class GIMVI(VAEMixin, BaseModelClass):
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
-                use_gpu=use_gpu,
             )
             ds.setup()
             train_dls.append(ds.train_dataloader())
@@ -437,12 +445,15 @@ class GIMVI(VAEMixin, BaseModelClass):
         )
 
     @classmethod
+    @devices_dsp.dedent
     def load(
         cls,
         dir_path: str,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        device: Union[int, str] = "auto",
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):
@@ -460,9 +471,9 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata_spatial
             AnnData organized in the same way as data used to train model.
             If None, will check for and load anndata saved with the model.
-        use_gpu
-            Load model on default GPU if available (if None or True),
-            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_device)s
         prefix
             Prefix of saved file names.
         backup_url
@@ -477,7 +488,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         >>> vae = GIMVI.load(adata_seq, adata_spatial, save_path)
         >>> vae.get_latent_representation()
         """
-        _, _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_device_args(
+            use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=device,
+            return_device="torch",
+        )
 
         (
             attr_dict,
@@ -504,9 +520,11 @@ class GIMVI(VAEMixin, BaseModelClass):
             user_var_names = adata.var_names.astype(str)
             if not np.array_equal(saved_var_names, user_var_names):
                 warnings.warn(
-                    "var_names for adata passed in does not match var_names of "
-                    "adata used to train the model. For valid results, the vars "
-                    "need to be the same and in the same order as the adata used to train the model."
+                    "var_names for adata passed in does not match var_names of adata "
+                    "used to train the model. For valid results, the vars need to be the"
+                    "same and in the same order as the adata used to train the model.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
 
         registries = attr_dict.pop("registries_")

@@ -1,13 +1,14 @@
 import logging
 import warnings
-from typing import Optional, Union
+from typing import List, Optional, Union
 
+import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
-import pytorch_lightning as pl
 
+from scvi import settings
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
-from scvi.model._utils import parse_use_gpu_arg
+from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
 
@@ -29,8 +30,17 @@ class TrainRunner:
     max_epochs
         max_epochs to train for
     use_gpu
-        Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        Use default GPU if available (if `True`), or index of GPU to use (if int), or name
+        of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in `use_gpu != None`
+        will override `accelerator` and `devices` arguments. This argument is deprecated in
+        v1.0 and will be removed in v1.1. Please use `accelerator` and `devices` instead.
+    accelerator
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
+        "mps, "auto") as well as custom accelerator instances.
+    devices
+        The devices to use. Can be set to a positive number (int or str), a sequence of
+        device indices (list or str), the value -1 to indicate all available devices should
+        be used, or "auto" for automatic selection based on the chosen accelerator.
     trainer_kwargs
         Extra kwargs for :class:`~scvi.train.Trainer`
 
@@ -56,12 +66,19 @@ class TrainRunner:
         data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
         max_epochs: int,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         **trainer_kwargs,
     ):
         self.training_plan = training_plan
         self.data_splitter = data_splitter
         self.model = model
-        accelerator, lightning_devices, device = parse_use_gpu_arg(use_gpu)
+        accelerator, lightning_devices, device = parse_device_args(
+            use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
+            return_device="torch",
+        )
         self.accelerator = accelerator
         self.lightning_devices = lightning_devices
         self.device = device
@@ -99,7 +116,10 @@ class TrainRunner:
             # if not using the default logger (e.g., tensorboard)
             if not isinstance(self.model.history_, dict):
                 warnings.warn(
-                    "Training history cannot be updated. Logger can be accessed from model.trainer.logger"
+                    "Training history cannot be updated. Logger can be accessed from "
+                    "`model.trainer.logger`",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
                 return
             else:

@@ -1,5 +1,5 @@
 """Main module."""
-import warnings
+import logging
 from typing import Callable, Iterable, Literal, Optional
 
 import numpy as np
@@ -17,6 +17,8 @@ from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
+
+logger = logging.getLogger(__name__)
 
 
 class VAE(BaseMinifiedModeModuleClass):
@@ -566,14 +568,14 @@ class VAE(BaseMinifiedModeModuleClass):
         tensors,
         n_mc_samples,
         observation_specific=False,
-        n_mc_samples_per_pass=50,
+        n_mc_samples_per_pass=1,
     ):
         """Computes the marginal log likelihood of the model."""
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         to_sum = []
         if n_mc_samples_per_pass > n_mc_samples:
-            warnings.warn(
+            logger.warn(
                 "Number of chunks is larger than the total number of samples, setting it to the number of samples"
             )
             n_mc_samples_per_pass = n_mc_samples

@@ -10,9 +10,8 @@ import torch
 from anndata import AnnData
 from mudata import MuData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
-from scvi._utils import _doc_params
 from scvi.data import AnnDataManager, fields
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
@@ -25,7 +24,7 @@ from scvi.model._utils import (
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
-from scvi.utils._docstrings import doc_differential_expression, setup_anndata_dsp
+from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
@@ -127,7 +126,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 + "Reinitialize the model with `override_missing_proteins=True`,"
                 + "to override this behavior."
             )
-            warnings.warn(msg, UserWarning)
+            warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
             self._use_adversarial_classifier = True
         else:
             batch_mask = None
@@ -192,11 +191,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: Optional[int] = None,
         lr: float = 4e-3,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 256,
@@ -217,9 +219,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Number of passes through the dataset.
         lr
             Learning rate for optimization.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -285,7 +287,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            use_gpu=use_gpu,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
         runner = self._train_runner_cls(
@@ -294,6 +295,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             early_stopping=early_stopping,
             check_val_every_n_epoch=check_val_every_n_epoch,
             **kwargs,
@@ -445,7 +448,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
                 warnings.warn(
-                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                    "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` "
+                    "is `False`, returning an `np.ndarray`.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             return_numpy = True
 
@@ -601,7 +607,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
                 warnings.warn(
-                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                    "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` "
+                    "is `False`, returning an `np.ndarray`.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             return_numpy = True
         if indices is None:
@@ -686,9 +695,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         joint = np.concatenate([rna, protein], axis=1)
         return joint
 
-    @_doc_params(
-        doc_differential_expression=doc_differential_expression,
-    )
+    @de_dsp.dedent
     def differential_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -712,16 +719,27 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         include_protein_background: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\.
-
-        A unified method for differential expression analysis.
-
+        r"""A unified method for differential expression analysis.
 
         Implements `"vanilla"` DE :cite:p:`Lopez18`. and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         protein_prior_count
             Prior count added to protein expression before LFC computation
         scale_protein
@@ -1063,7 +1081,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             is_nonneg_int = _check_nonnegative_integers(pro_exp)
             if not is_nonneg_int:
                 warnings.warn(
-                    "Make sure the registered protein expression in anndata contains unnormalized count data."
+                    "Make sure the registered protein expression in anndata contains "
+                    "unnormalized count data.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
         else:
             raise ValueError("No protein data found, please setup or transfer anndata")

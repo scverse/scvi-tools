@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
@@ -35,6 +35,7 @@ from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 from ._scvi import SCVI
 from .base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
@@ -210,8 +211,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         for k, v in {**non_kwargs, **kwargs}.items():
             if k in scanvi_kwargs.keys():
                 warnings.warn(
-                    f"Ignoring param '{k}' as it was already passed in to "
-                    + f"pretrained scvi model with value {v}."
+                    f"Ignoring param '{k}' as it was already passed in to pretrained "
+                    f"SCVI model with value {v}.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
                 del scanvi_kwargs[k]
 
@@ -270,7 +273,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             labels == self.unlabeled_category_
         ).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
-        self._code_to_label = {i: l for i, l in enumerate(self._label_mapping)}
+        self._code_to_label = dict(enumerate(self._label_mapping))
 
     def predict(
         self,
@@ -336,6 +339,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             )
             return pred
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: Optional[int] = None,
@@ -345,6 +349,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -368,9 +374,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         batch_size
             Minibatch size to use during training.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         plan_kwargs
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -399,7 +405,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             validation_size=validation_size,
             n_samples_per_label=n_samples_per_label,
             batch_size=batch_size,
-            use_gpu=use_gpu,
         )
         training_plan = SemiSupervisedTrainingPlan(self.module, **plan_kwargs)
         if "callbacks" in trainer_kwargs.keys():
@@ -413,6 +418,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             check_val_every_n_epoch=check_val_every_n_epoch,
             **trainer_kwargs,
         )

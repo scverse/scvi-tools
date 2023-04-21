@@ -25,9 +25,10 @@ from scvi.data._constants import (
 )
 from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
 from scvi.dataloaders import AnnDataLoader
-from scvi.model._utils import parse_use_gpu_arg
+from scvi.model._utils import parse_device_args
 from scvi.model.base._utils import _load_legacy_saved_files
 from scvi.utils import attrdict, setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
@@ -429,7 +430,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         """
         if not self.is_trained_:
             if warn:
-                warnings.warn(message)
+                warnings.warn(
+                    message, UserWarning, stacklevel=settings.warnings_stacklevel
+                )
             else:
                 raise RuntimeError(message)
 
@@ -586,11 +589,14 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         )
 
     @classmethod
+    @devices_dsp.dedent
     def load(
         cls,
         dir_path: str,
         adata: Optional[AnnOrMuData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        device: Union[int, str] = "auto",
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
     ):
@@ -605,9 +611,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             It is not necessary to run setup_anndata,
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
-        use_gpu
-            Load model on default GPU if available (if None or True),
-            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_device)s
         prefix
             Prefix of saved file names.
         backup_url
@@ -623,7 +629,13 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         >>> model.get_....
         """
         load_adata = adata is None
-        _, _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_device_args(
+            use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=device,
+            return_device="torch",
+            validate_single_device=True,
+        )
 
         (
             attr_dict,

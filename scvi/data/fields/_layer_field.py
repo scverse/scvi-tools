@@ -5,7 +5,7 @@ import numpy as np
 import rich
 from anndata import AnnData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import _constants
 from scvi.data._utils import (
     _check_nonnegative_integers,
@@ -89,7 +89,9 @@ class LayerField(BaseAnnDataField):
             )
             warnings.warn(
                 f"{logger_data_loc} does not contain unnormalized count data. "
-                "Are you sure this is what you want?"
+                "Are you sure this is what you want?",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
 
     def register_field(self, adata: AnnData) -> dict:

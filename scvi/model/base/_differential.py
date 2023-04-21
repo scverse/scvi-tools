@@ -10,7 +10,7 @@ from scipy.sparse import issparse
 from sklearn.covariance import EllipticEnvelope
 from sklearn.mixture import GaussianMixture
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
 
@@ -56,7 +56,7 @@ class DifferentialComputation:
             idx_filt = EllipticEnvelope().fit_predict(reps)
             idx_filt = idx_filt == 1
         except ValueError:
-            warnings.warn("Could not properly estimate Cov!, using all samples")
+            logger.warn("Could not properly estimate Cov!, using all samples")
             return selection
         idx_filt = selection[idx_filt]
         return idx_filt
@@ -267,8 +267,10 @@ class DifferentialComputation:
             if len(set(batchid1_vals).intersection(set(batchid2_vals))) >= 1:
                 warnings.warn(
                     "Batchids of cells groups 1 and 2 are different but have an non-null "
-                    "intersection. Specific handling of such situations is not implemented "
-                    "yet and batch correction is not trustworthy."
+                    "intersection. Specific handling of such situations is not "
+                    "implemented yet and batch correction is not trustworthy.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             scales_1, scales_2 = pairs_sampler(
                 scales_batches_1["scale"],
@@ -433,13 +435,18 @@ class DifferentialComputation:
             n_samples = n_samples_per_cell * len(selection)
         if (n_samples_per_cell is not None) and (n_samples is not None):
             warnings.warn(
-                "n_samples and n_samples_per_cell were provided. Ignoring n_samples_per_cell"
+                "`n_samples` and `n_samples_per_cell` were provided. Ignoring "
+                "`n_samples_per_cell`",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         n_samples = int(n_samples / len(batchid))
         if n_samples == 0:
             warnings.warn(
-                "very small sample size, please consider increasing `n_samples`"
-            )
+                "very small sample size, please consider increasing `n_samples`",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            ),
             n_samples = 2
 
         selection = self.process_selection(selection)
