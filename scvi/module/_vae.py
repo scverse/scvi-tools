@@ -562,7 +562,11 @@ class VAE(BaseMinifiedModeModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def marginal_ll(
-        self, tensors, n_mc_samples, observation_specific=False, n_mc_samples_per_pass=1
+        self,
+        tensors,
+        n_mc_samples,
+        observation_specific=False,
+        n_mc_samples_per_pass=50,
     ):
         """Computes the marginal log likelihood of the model."""
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
