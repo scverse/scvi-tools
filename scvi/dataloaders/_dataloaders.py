@@ -75,6 +75,11 @@ class AnnDataLoader(DataLoader):
                 device=device,
                 device_backed=device_backed,
             )
+        elif data_and_attributes is not None and isinstance(dataset, AnnTorchDataset):
+            raise ValueError(
+                "Cannot set `data_and_attributes` when `dataset` is an `AnnTorchDataset`."
+                " Set `getitem_tensors` when instantiating the `AnnTorchDataset`."
+            )
 
         if indices is None:
             indices = np.arange(len(dataset))
@@ -82,8 +87,11 @@ class AnnDataLoader(DataLoader):
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
             indices = np.asarray(indices)
-            if len(indices) == 0:
-                raise ValueError("`indices` must contain at least one index.")
+        if np.amax(indices) >= len(dataset):
+            raise ValueError(
+                f"Max index {np.amax(indices)} is greater than the dataset length "
+                "{len(dataset)}."
+            )
 
         if pin_memory and device_backed:
             warnings.warn(
@@ -112,7 +120,7 @@ class AnnDataLoader(DataLoader):
                 batch_size=batch_size,
                 drop_last=drop_last,
             )
-            # disables torch automatic batching
+        if isinstance(sampler, BatchSampler):
             batch_size = None
             shuffle = False
             drop_last = False
@@ -211,7 +219,7 @@ class ConcatDataLoader(DataLoader):
 
     @indices_list.setter
     def indices_list(self, value: list):
-        """Sets the list of indices."""
+        """Sets the list of indices and creates the dataloaders."""
         dataloaders = []
         for indices in value:
             # passing in the same dataset to all dataloaders ensures that if there are
@@ -224,15 +232,10 @@ class ConcatDataLoader(DataLoader):
 
         self._indices_list = value
         self._dataloaders = dataloaders
-        _ = len(self)  # recompute length
 
     def __len__(self):
         """Returns the length of the largest dataloader."""
-        if hasattr(self, "_length"):
-            return self._length
-
-        self._length = max([len(dl) for dl in self.dataloaders])
-        return self._length
+        return max([len(dl) for dl in self.dataloaders])
 
     def __iter__(self):
         """Iterate over the dataloaders.
@@ -297,13 +300,9 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
                 "Must have labels in the data registry for `SemiSupervisedDataLoader`."
             )
 
-        if indices is None:
-            indices = np.arange(adata_manager.adata.n_obs)
-        seed = seed or settings.seed
-
         super().__init__(
             adata_manager,
-            indices_list=[indices],  # dummy indices_list as it needs to be set later
+            indices_list=[[]],  # dummy indices_list as it needs to be set later
             sampler=sampler,
             shuffle=shuffle,
             batch_size=batch_size,
@@ -317,8 +316,11 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             **kwargs,
         )
 
+        if indices is None:
+            indices = np.arange(adata_manager.adata.n_obs)
+
         self.indices = indices
-        self.generator = np.random.default_rng(seed=seed)
+        self.generator = np.random.default_rng(seed=seed or settings.seed)
         self.n_samples_per_label = n_samples_per_label
         self.resample_labels()
 
@@ -329,12 +331,13 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
     @n_samples_per_label.setter
     def n_samples_per_label(self, value: int):
-        if hasattr(self, "_n_samples_per_label") and self._n_samples_per_label != value:
-            # if the value is changed, resample the labels
-            self.resample_labels()
-
         if value is not None:
-            min_n_samples = min(self.labeled_indices.values())
+            if value < 1:
+                raise ValueError("`n_samples_per_label` must be greater than 0.")
+
+            min_n_samples = min(
+                [len(indices) for indices in self.labeled_indices.values()]
+            )
             if value > min_n_samples:
                 warnings.warn(
                     "n_samples_per_label` is greater than the number of samples in the "
@@ -343,7 +346,11 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
                     UserWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )
+
+        prev_value = getattr(self, "_n_samples_per_label", None)
         self._n_samples_per_label = value
+        if prev_value != value:
+            self.resample_labels()
 
     @property
     def labeled_indices(self) -> dict:
@@ -358,12 +365,17 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             self._adata_manager.data_registry.labels.attr_name,
             labels_state_registry.original_key,
         ).ravel()[self.indices]
+        unlabeled_category = getattr(labels_state_registry, "unlabeled_category", None)
+
+        unique_labels = np.unique(labels)
+        if len(unique_labels) <= 2:
+            raise ValueError(
+                "Must have more than one unique label to use `SemiSupervisedDataLoader`."
+            )
 
         indices = {}
-        for label in np.unique(labels):
-            if hasattr(labels_state_registry, "unlabeled_category") and (
-                label == labels_state_registry.unlabeled_category
-            ):
+        for label in unique_labels:
+            if label == unlabeled_category:
                 continue
             locs = self.indices[np.where(labels == label)[0]]
             indices[label] = locs

@@ -252,17 +252,21 @@ def slice_and_convert(
     return _data.astype(dtype)
 
 
-def convert_to_np_array(
-    x: Union[list, int, slice, np.ndarray], n: Optional[int] = None
+def validate_indices(
+    indices: Union[list, int, slice, np.ndarray], n: Optional[int] = None
 ) -> np.ndarray:
-    if isinstance(x, (int, np.integer)):
-        x = np.array([x])
-    elif isinstance(x, list):
-        x = np.array(x)
-    elif isinstance(x, slice):
+    """Convert indices to a numpy array of indices."""
+    if isinstance(indices, (int, np.integer)):
+        indices = np.array([indices])
+    elif isinstance(indices, list):
+        indices = np.array(indices)
+    elif isinstance(indices, slice):
         if n is None:
-            raise ValueError("`n` must be specified if `x` is a `slice`.")
-        x = np.arange(*x.indices(n))
-    elif not isinstance(x, np.ndarray):
-        raise TypeError("`x` must be a `slice`, `int`, `np.ndarray`, or `list`.")
-    return x
+            raise ValueError("`n` must be specified if `indices` is a `slice`.")
+        indices = np.arange(*indices.indices(n))
+    elif isinstance(indices, np.ndarray):
+        indices = indices.astype(int)
+    else:
+        raise TypeError("`indices` must be a `slice`, `int`, `np.ndarray`, or `list`.")
+
+    return indices

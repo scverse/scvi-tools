@@ -1,5 +1,4 @@
 import os
-from itertools import product
 
 import anndata
 import mudata
@@ -16,269 +15,236 @@ from tests.dataset.utils import (
 )
 
 
-@pytest.mark.parametrize(
-    "batch_size, n_batches, n_genes, sparse",
-    product([128], [1, 2], [50], [True, False]),
-)
-def test_basic_anntorchdataset(
-    batch_size: int, n_batches: int, n_genes: int, sparse: bool
-):
-    adata = synthetic_iid(
-        batch_size=batch_size, n_batches=n_batches, n_genes=n_genes, sparse=sparse
-    )
+def test_init_anntorchdataset():
+    adata = synthetic_iid()
     manager = generic_setup_adata_manager(adata, batch_key="batch", labels_key="labels")
 
-    # test init
     dataset = AnnTorchDataset(manager)
-    assert hasattr(dataset, "data")  # data should be loaded on init
-    assert len(dataset) == n_batches * batch_size
-    attr_and_types = {k: np.float32 for k in manager.data_registry}
-    assert dataset.attributes_and_types == attr_and_types
+    assert len(dataset) == adata.n_obs
 
-    # getitem_tensors default
-    ## single index
+    ########################################
+    assert hasattr(dataset, "data")
+    assert isinstance(dataset.data, dict)
+    assert all([isinstance(key, str) for key in dataset.data.keys()])
+    assert all([isinstance(val, np.ndarray) for val in dataset.data.values()])
+    ########################################
+
+    ########################################
+    assert hasattr(dataset, "attributes_and_types")
+    assert isinstance(dataset.attributes_and_types, dict)
+    assert all([isinstance(key, str) for key in dataset.attributes_and_types.keys()])
+    assert all([isinstance(val, type) for val in dataset.attributes_and_types.values()])
+    ########################################
+
+
+def test_getitem_tensors_anntorchdataset():
+    adata = synthetic_iid()
+    manager = generic_setup_adata_manager(adata, batch_key="batch", labels_key="labels")
+
+    ########################################
+    # default getitem_tensors
+    getitem_tensors = None
+    dataset = AnnTorchDataset(manager, getitem_tensors=getitem_tensors)
+    expected_keys = [
+        REGISTRY_KEYS.X_KEY,
+        REGISTRY_KEYS.BATCH_KEY,
+        REGISTRY_KEYS.LABELS_KEY,
+    ]
     data = dataset[0]
-    X, batch, labels = (
-        data[REGISTRY_KEYS.X_KEY],
-        data[REGISTRY_KEYS.BATCH_KEY],
-        data[REGISTRY_KEYS.LABELS_KEY],
-    )
+    assert isinstance(data, dict)
+    assert all([(key in expected_keys) for key in data.keys()])
+    ########################################
+
+    ########################################
+    # getitem_tensors list
+    getitem_tensors = [REGISTRY_KEYS.X_KEY, REGISTRY_KEYS.BATCH_KEY]
+    dataset = AnnTorchDataset(manager, getitem_tensors=getitem_tensors)
+    expected_keys = [REGISTRY_KEYS.X_KEY, REGISTRY_KEYS.BATCH_KEY]
+    data = dataset[0]
+    assert isinstance(data, dict)
+    assert all([(key in expected_keys) for key in data.keys()])
+    X, batch = data[REGISTRY_KEYS.X_KEY], data[REGISTRY_KEYS.BATCH_KEY]
     assert isinstance(X, np.ndarray)
     assert isinstance(batch, np.ndarray)
-    assert isinstance(labels, np.ndarray)
     assert X.dtype == np.float32
     assert batch.dtype == np.float32
-    assert labels.dtype == np.float32
-    assert X.shape == (1, n_genes)  # single observation should be a row vector
-    assert batch.shape == (1, 1)
-    assert labels.shape == (1, 1)
-    ## slice
-    data = dataset[:10]
-    X, batch, labels = (
-        data[REGISTRY_KEYS.X_KEY],
-        data[REGISTRY_KEYS.BATCH_KEY],
-        data[REGISTRY_KEYS.LABELS_KEY],
-    )
-    assert X.shape == (10, n_genes)
-    assert batch.shape == (10, 1)
-    assert labels.shape == (10, 1)
-    ## list of indices
-    data = dataset[[1, 0, 99]]
-    X, batch, labels = (
-        data[REGISTRY_KEYS.X_KEY],
-        data[REGISTRY_KEYS.BATCH_KEY],
-        data[REGISTRY_KEYS.LABELS_KEY],
-    )
-    assert X.shape == (3, n_genes)
-    assert batch.shape == (3, 1)
-    assert labels.shape == (3, 1)
+    ## invalid key
+    getitem_tensors = [REGISTRY_KEYS.X_KEY, "invalid_key"]
+    with pytest.raises(ValueError):
+        _ = AnnTorchDataset(manager, getitem_tensors=getitem_tensors)
+    ########################################
 
-    # getitem_tensors with list
-    dataset = AnnTorchDataset(
-        manager, getitem_tensors=[REGISTRY_KEYS.X_KEY, REGISTRY_KEYS.BATCH_KEY]
-    )
-    assert dataset.attributes_and_types == {
-        REGISTRY_KEYS.X_KEY: np.float32,
-        REGISTRY_KEYS.BATCH_KEY: np.float32,
-    }
-    ## single index
-    data = dataset[0]
-    X, batch = data[REGISTRY_KEYS.X_KEY], data[REGISTRY_KEYS.BATCH_KEY]
-    assert X.dtype == np.float32
-    assert batch.dtype == np.float32
-    assert X.shape == (1, n_genes)  # single observation should be a row vector
-    assert batch.shape == (1, 1)
-    ## slice
-    data = dataset[:10]
-    X, batch = data[REGISTRY_KEYS.X_KEY], data[REGISTRY_KEYS.BATCH_KEY]
-    assert X.shape == (10, n_genes)
-    assert batch.shape == (10, 1)
-    ## list of indices
-    data = dataset[[1, 0, 99]]
-    X, batch = data[REGISTRY_KEYS.X_KEY], data[REGISTRY_KEYS.BATCH_KEY]
-    assert X.shape == (3, n_genes)
-    assert batch.shape == (3, 1)
-
-    # getitem_tensors with dict
+    ########################################
+    # getitem_tensors dict
     getitem_tensors = {
-        REGISTRY_KEYS.X_KEY: np.float64,
-        REGISTRY_KEYS.BATCH_KEY: np.int32,
+        REGISTRY_KEYS.X_KEY: np.float32,
+        REGISTRY_KEYS.BATCH_KEY: np.int64,
     }
     dataset = AnnTorchDataset(manager, getitem_tensors=getitem_tensors)
-    assert dataset.attributes_and_types == getitem_tensors
-    ## single index
+    expected_keys = [REGISTRY_KEYS.X_KEY, REGISTRY_KEYS.BATCH_KEY]
     data = dataset[0]
+    assert isinstance(data, dict)
+    assert all([(key in expected_keys) for key in data.keys()])
     X, batch = data[REGISTRY_KEYS.X_KEY], data[REGISTRY_KEYS.BATCH_KEY]
-    assert X.dtype == np.float64
-    assert batch.dtype == np.int32
-    assert X.shape == (1, n_genes)  # single observation should be a row vector
-    assert batch.shape == (1, 1)
-    ## slice
-    data = dataset[:10]
-    X, batch = data[REGISTRY_KEYS.X_KEY], data[REGISTRY_KEYS.BATCH_KEY]
-    assert X.shape == (10, n_genes)
-    assert batch.shape == (10, 1)
-    ## list of indices
-    data = dataset[[1, 0, 99]]
-    X, batch = data[REGISTRY_KEYS.X_KEY], data[REGISTRY_KEYS.BATCH_KEY]
-    assert X.shape == (3, n_genes)
-    assert batch.shape == (3, 1)
+    assert isinstance(X, np.ndarray)
+    assert isinstance(batch, np.ndarray)
+    assert X.dtype == np.float32
+    assert batch.dtype == np.int64
+    ## invalid key
+    getitem_tensors = {
+        REGISTRY_KEYS.X_KEY: np.float32,
+        "invalid_key": np.int64,
+    }
+    with pytest.raises(ValueError):
+        _ = AnnTorchDataset(manager, getitem_tensors=getitem_tensors)
+    ## invalid type
+    getitem_tensors = {
+        REGISTRY_KEYS.X_KEY: np.float32,
+        REGISTRY_KEYS.BATCH_KEY: "invalid_type",
+    }
+    with pytest.raises(ValueError):
+        _ = AnnTorchDataset(manager, getitem_tensors=getitem_tensors)
+    ########################################
 
 
-@pytest.mark.parametrize(
-    "batch_size, n_batches, n_genes, sparse",
-    product([128], [1], [50], [True, False]),
-)
-def test_errors_anntorchdataset(
-    batch_size: int, n_batches: int, n_genes: int, sparse: bool
+@pytest.mark.parametrize("sparse", [True, False])
+def test_getitem_anntorchdataset(
+    sparse: bool, batch_size: int = 64, n_batches: int = 2, n_genes: int = 25
 ):
     adata = synthetic_iid(
         batch_size=batch_size, n_batches=n_batches, n_genes=n_genes, sparse=sparse
     )
-    manager = generic_setup_adata_manager(adata, batch_key="batch", labels_key="labels")
+    manager = generic_setup_adata_manager(adata, batch_key="batch")
 
-    # basic error handling
     dataset = AnnTorchDataset(manager)
+
+    def _check_data(data: dict):
+        X, batch = data[REGISTRY_KEYS.X_KEY], data[REGISTRY_KEYS.BATCH_KEY]
+        assert X.shape[0] == batch.shape[0]
+        assert X.ndim == 2
+        assert batch.ndim == 2
+        assert X.shape[1] == n_genes
+        assert batch.shape[1] == 1
+
+    ########################################
+    # getitem single integer index
+    for i in range(len(dataset)):
+        _check_data(dataset[i])
+    for i in range(-len(dataset), 0):
+        _check_data(dataset[i])
+    ## invalid index
     with pytest.raises(IndexError):
-        _ = dataset[1000]
+        _ = dataset[len(dataset)]
+    ########################################
 
-    with pytest.raises(ValueError):
-        _ = AnnTorchDataset(manager, getitem_tensors=["not_a_key"])
+    ########################################
+    # getitem list
+    indices = [0, 1, 2]
+    _check_data(dataset[indices])
+    indices = [3, 2, 1]
+    _check_data(dataset[indices])
+    ## invalid index
+    indices = [0, 1, 2, len(dataset)]
+    with pytest.raises(IndexError):
+        _ = dataset[indices]
+    ########################################
 
-    with pytest.raises(ValueError):
-        _ = AnnTorchDataset(manager, getitem_tensors={"not_a_key": np.float32})
+    ########################################
+    # getitem np.ndarray
+    indices = np.array([0, 1, 2])
+    _check_data(dataset[indices])
+    indices = np.array([3, 2, 1])
+    _check_data(dataset[indices])
+    ## invalid index
+    indices = np.array([0, 1, 2, len(dataset)])
+    with pytest.raises(IndexError):
+        _ = dataset[indices]
 
-    with pytest.raises(ValueError):
-        _ = AnnTorchDataset(
-            manager, getitem_tensors={REGISTRY_KEYS.X_KEY: "not_a_dtype"}
-        )
+    ########################################
+    # getitem slice
+    _check_data(dataset[:3])
+    _check_data(dataset[3:])
+    _check_data(dataset[3:10])
+    _check_data(dataset[3:10:2])
+    ########################################
 
 
-@pytest.mark.parametrize(
-    "batch_size, n_batches, n_genes, sparse",
-    product([128], [1], [50], [True, False]),
-)
-def test_disk_backed_anntorchdataset(
-    save_path: str, batch_size: int, n_batches: int, n_genes: int, sparse: bool
-):
+@pytest.mark.parametrize("sparse", [True, False])
+def test_disk_backed_anntorchdataset(save_path: str, sparse: bool):
+    adata = synthetic_iid(sparse=sparse)
     adata_path = os.path.join(
-        save_path, f"adata_{batch_size}_{n_batches}_{sparse}.h5ad"
-    )
-    adata = synthetic_iid(
-        batch_size=batch_size, n_batches=n_batches, n_genes=n_genes, sparse=sparse
+        save_path, f"disk_backed_anntorchdataset_adata_{sparse}.h5ad"
     )
     adata.write(adata_path)
     del adata
 
     adata = anndata.read_h5ad(adata_path, backed="r")
+    manager = generic_setup_adata_manager(adata, batch_key="batch", labels_key="labels")
+
+    dataset = AnnTorchDataset(manager)
+    expected_keys = [
+        REGISTRY_KEYS.X_KEY,
+        REGISTRY_KEYS.BATCH_KEY,
+        REGISTRY_KEYS.LABELS_KEY,
+    ]
+
+    ########################################
     assert adata.isbacked
+    assert hasattr(dataset, "data")
+    assert isinstance(dataset.data, dict)
+    assert all([key in expected_keys for key in dataset.data.keys()])
+    ########################################
+
+
+@pytest.mark.parametrize("sparse", [True, False])
+def test_cuda_backed_anntorchdataset(cuda: bool, sparse: bool):
+    adata = synthetic_iid(sparse=sparse)
     manager = generic_setup_adata_manager(adata, batch_key="batch", labels_key="labels")
 
-    # test init
-    dataset = AnnTorchDataset(manager)
-    assert hasattr(dataset, "data")  # data should be loaded on init
-    assert len(dataset) == n_batches * batch_size
-
-    # getitem_tensors default
-    ## single index
-    data = dataset[0]
-    X, batch, labels = (
-        data[REGISTRY_KEYS.X_KEY],
-        data[REGISTRY_KEYS.BATCH_KEY],
-        data[REGISTRY_KEYS.LABELS_KEY],
-    )
-    assert X.dtype == np.float32
-    assert batch.dtype == np.float32
-    assert labels.dtype == np.float32
-    assert X.shape == (1, n_genes)  # single observation should be a row vector
-    assert batch.shape == (1, 1)
-    assert labels.shape == (1, 1)
-
-
-@pytest.mark.parametrize(
-    "batch_size, n_batches, n_genes, sparse",
-    product([128], [1], [50], [True, False]),
-)
-def test_cuda_backed_anntorchdataset(
-    cuda: bool, batch_size: int, n_batches: int, n_genes: int, sparse: bool
-):
-    assert cuda
-
-    adata = synthetic_iid(
-        batch_size=batch_size, n_batches=n_batches, n_genes=n_genes, sparse=sparse
-    )
-    manager = generic_setup_adata_manager(adata, batch_key="batch", labels_key="labels")
-
-    # test init
     dataset = AnnTorchDataset(manager, accelerator="cuda", device_backed=True)
-    assert hasattr(dataset, "data")  # data should be loaded on init
-    assert len(dataset) == n_batches * batch_size
-    data = dataset[0]
-    X, batch, labels = (
-        data[REGISTRY_KEYS.X_KEY],
-        data[REGISTRY_KEYS.BATCH_KEY],
-        data[REGISTRY_KEYS.LABELS_KEY],
-    )
-    assert isinstance(X, torch.Tensor)
-    assert isinstance(batch, torch.Tensor)
-    assert isinstance(labels, torch.Tensor)
-    assert X.device.type == "cuda"
-    assert batch.device.type == "cuda"
-    assert labels.device.type == "cuda"
-    assert X.dtype == torch.float32
-    assert batch.dtype == torch.float32
-    assert labels.dtype == torch.float32
+    expected_keys = [
+        REGISTRY_KEYS.X_KEY,
+        REGISTRY_KEYS.BATCH_KEY,
+        REGISTRY_KEYS.LABELS_KEY,
+    ]
+
+    ########################################
+    assert hasattr(dataset, "data")
+    assert dataset.device.type == "cuda"
+    assert isinstance(dataset.data, dict)
+    assert all([key in expected_keys for key in dataset.data.keys()])
+    assert all([isinstance(value, torch.Tensor) for value in dataset.data.values()])
+    assert all([value.device.type == "cuda" for value in dataset.data.values()])
+    ########################################
 
 
-@pytest.mark.parametrize(
-    "batch_size, n_batches, n_genes, n_proteins, sparse",
-    product([128], [1], [50], [20], [True, False]),
-)
-def test_protein_expression_obsm_anntorchdataset(
-    batch_size: int,
-    n_batches: int,
-    n_genes: int,
-    n_proteins: int,
-    sparse: bool,
-):
-    adata = synthetic_iid(
-        batch_size=batch_size,
-        n_batches=n_batches,
-        n_genes=n_genes,
-        n_proteins=n_proteins,
-        sparse=sparse,
-    )
+def test_obsm_anntorchdataset(n_proteins: int = 20):
+    adata = synthetic_iid(n_proteins=n_proteins)
     manager = generic_setup_adata_manager(
-        adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        protein_expression_obsm_key="protein_expression",
     )
+
     dataset = AnnTorchDataset(manager)
-    for value in dataset[0].values():
-        assert isinstance(value, np.ndarray)
+    expected_keys = [
+        REGISTRY_KEYS.X_KEY,
+        REGISTRY_KEYS.BATCH_KEY,
+        REGISTRY_KEYS.LABELS_KEY,
+        REGISTRY_KEYS.PROTEIN_EXP_KEY,
+    ]
+
+    ########################################
+    assert all([key in expected_keys for key in dataset.data.keys()])
+    assert dataset.data[REGISTRY_KEYS.PROTEIN_EXP_KEY].shape[0] == adata.n_obs
+    assert dataset.data[REGISTRY_KEYS.PROTEIN_EXP_KEY].shape[1] == n_proteins
+    ########################################
 
 
-@pytest.mark.parametrize(
-    "batch_size, n_batches, n_genes, n_proteins, sparse",
-    product([128], [1], [50], [20], [True, False]),
-)
-def test_mudata_anntorchdataset(
-    batch_size: int,
-    n_batches: int,
-    n_genes: int,
-    n_proteins: int,
-    sparse: bool,
-):
-    adata = synthetic_iid(
-        batch_size=batch_size,
-        n_batches=n_batches,
-        n_genes=n_genes,
-        sparse=sparse,
-    )
-    bdata = synthetic_iid(
-        batch_size=batch_size,
-        n_batches=n_batches,
-        n_genes=n_proteins,
-        sparse=sparse,
-    )
+def test_mudata_anntorchdataset():
+    adata = synthetic_iid()
+    bdata = synthetic_iid()
     mdata = mudata.MuData({"rna": adata, "protein": bdata})
     manager = generic_setup_mudata_manager(
         mdata,
@@ -290,9 +256,15 @@ def test_mudata_anntorchdataset(
         protein_expression_layer=None,
     )
 
-    # test init
     dataset = AnnTorchDataset(manager)
-    assert hasattr(dataset, "data")  # data should be loaded on init
-    assert len(dataset) == n_batches * batch_size
-    attr_and_types = {k: np.float32 for k in manager.data_registry}
-    assert dataset.attributes_and_types == attr_and_types
+    expected_keys = [
+        REGISTRY_KEYS.X_KEY,
+        REGISTRY_KEYS.BATCH_KEY,
+        REGISTRY_KEYS.PROTEIN_EXP_KEY,
+    ]
+
+    ########################################
+    assert all([key in expected_keys for key in dataset.data.keys()])
+    assert dataset.data[REGISTRY_KEYS.PROTEIN_EXP_KEY].shape[0] == adata.n_obs
+    assert dataset.data[REGISTRY_KEYS.PROTEIN_EXP_KEY].shape[1] == bdata.n_vars
+    ########################################

@@ -10,7 +10,7 @@ from scvi.data import AnnDataManager
 from scvi.model._utils import parse_device_args
 
 from ._docstrings import dataset_dsp
-from ._utils import slice_and_convert
+from ._utils import slice_and_convert, validate_indices
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,11 @@ class AnnTorchDataset(Dataset):
             raise ValueError(
                 "Please run `register_fields` on your `AnnDataManager` first."
             )
+        if device_backed and adata_manager.adata.isbacked:
+            raise ValueError(
+                "Cannot use `device_backed=True` when the `AnnData` object is backed."
+            )
+
         self.adata_manager = adata_manager
         self.attributes_and_types = getitem_tensors
 
@@ -123,6 +128,7 @@ class AnnTorchDataset(Dataset):
         self, indices: Union[list, int, slice]
     ) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
         """Slice data attributes at the specified indices."""
+        indices = validate_indices(indices, len(self))
         if self.backed_adata:
             indices = np.sort(indices)  # need to sort idxs for h5py datasets
 
