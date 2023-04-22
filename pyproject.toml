@@ -82,6 +82,9 @@ autotune = [
 pymde = ["pymde"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub", "genomepy"]
 hub = ["huggingface_hub"]
+regseq = [
+    "biopython>=1.81",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ['scvi']

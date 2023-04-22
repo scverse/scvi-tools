@@ -1,3 +1,4 @@
+import logging
 from typing import Callable, Dict, NamedTuple, Optional
 
 import numpy as np
@@ -6,6 +7,9 @@ import torchmetrics
 from torch import nn
 
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 class _REGISTRY_KEYS_NT(NamedTuple):
@@ -62,6 +66,7 @@ class _ConvBlock(nn.Module):
         batch_norm: bool = True,
         dropout: float = 0.0,
         activation_fn: Optional[Callable] = None,
+        ceil_mode: bool = True,
     ):
         super().__init__()
         self.conv = nn.Conv1d(
@@ -73,7 +78,7 @@ class _ConvBlock(nn.Module):
         )
         self.batch_norm = _BatchNorm(out_channels) if batch_norm else nn.Identity()
         self.pool = (
-            nn.MaxPool1d(pool_size, padding=(pool_size - 1) // 2, ceil_mode=True)
+            nn.MaxPool1d(pool_size, padding=(pool_size - 1) // 2, ceil_mode=ceil_mode)
             if pool_size is not None
             else nn.Identity()
         )
@@ -273,6 +278,8 @@ class ScBassetModule(BaseModuleClass):
             batch_norm=batch_norm,
             pool_size=1,
         )
+        # NOTE: Bottleneck here assumes that seq_len=1334 and n_repeat_blocks_tower=6
+        # seq_len and tower size are fixed by the in_features shape
         self.bottleneck = _DenseBlock(
             in_features=n_filters_pre_bottleneck * 7,
             out_features=n_bottleneck_layer,
@@ -291,17 +298,31 @@ class ScBassetModule(BaseModuleClass):
     @auto_move_data
     def inference(self, dna_code: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Inference method for the model."""
+        # NOTE: `seq_len` assumed to be a fixed 1334
+        # This differs from the 1344 length used in the original implementation.
         # input shape: (batch_size, seq_length)
         # output shape: (batch_size, 4, seq_length)
         h = nn.functional.one_hot(dna_code, num_classes=4).permute(0, 2, 1).float()
         h, _ = self.stochastic_rc(h)
         h = self.stochastic_shift(h)
+        # input shape: (batch_size, 4, seq_length)
+        # output shape: (batch_size, n_filters_stem, seq_length//3)
+        # `stem` contains a max_pool1d by 3. For 1344 input, now 448
         h = self.stem(h)
+        # output shape: (batch_size, n_filters_tower, seq_length//(3*2**6))
+        # `tower` contains 6 (default) `max_pool1d` by 2
+        # for 1344 input, now 7
         h = self.tower(h)
+        # output shape: (batch_size, n_filters_pre_bottleneck=1, seq_length//(3*2**6))
+        # `bottleneck` is a filter k=1 conv with no pooling
+        # for 1344 input, now [batch_size, 1, 7]
         h = self.pre_bottleneck(h)
         # flatten the input
+        # output shape: (batch_size, n_filters_pre_bottleneck * (seq_length//(3*2**6)))
+        # for 1344 input, now [batch_size, 7]
         h = h.view(h.shape[0], -1)
         # Regions by bottleneck layer dim
+        # output shape: (batch_size, n_bottleneck_layer)
         h = self.bottleneck(h)
         h = _GELU()(h)
         return {"region_embedding": h}

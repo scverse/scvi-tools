@@ -1,9 +1,12 @@
 import logging
-from typing import List, Literal, Optional, Union
+from pathlib import Path
+from typing import List, Literal, Optional, Tuple, Union
+from urllib.request import urlretrieve
 
 import numpy as np
 import torch
 from anndata import AnnData
+from Bio import SeqIO
 
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalVarField, LayerField, ObsmField
@@ -45,6 +48,14 @@ class SCBASSET(BaseModelClass):
     >>> model.train()
     >>> adata.varm["X_scbasset"] = model.get_latent_representation()
     """
+
+    MOTIF_URLS = {
+        "human": (
+            "https://storage.googleapis.com/scbasset_tutorial_data/Homo_sapiens_motif_fasta.tar.gz",
+            "Homo_sapiens_motif_fasta",
+        ),
+    }
+    DEFAULT_MOTIF_DIR = "./scbasset_motifs/"
 
     def __init__(
         self,
@@ -191,6 +202,193 @@ class SCBASSET(BaseModelClass):
         bias (n_cells,)
         """
         return self.module.cell_bias.cpu().numpy()
+
+    @classmethod
+    def _download_motifs(cls, genome: str, motif_dir: str) -> None:
+        """Download a set of motifs injected into peaks"""
+        logger.info(f"Downloading motif set to: {motif_dir}")
+        # download the motif set
+        url_name = cls.MOTIF_URLS.get(genome, None)  # (url, dir_name)
+        if url_name is None:
+            raise ValueError(f"{genome} is not a supported motif set.")
+        urlretrieve(url_name[0], filename=Path(motif_dir, f"{genome}_motifs.tar.gz"))
+        # untar it
+        import tarfile
+
+        def rename_members(tarball):
+            """Rename files in the tarball to remove the top level folder"""
+            for member in tarball.getmembers():
+                if member.path.startswith(url_name[1]):
+                    member.path = member.path.replace(url_name[1] + "/", "")
+                    yield member
+
+        # importing the "tarfile" module
+        tarball = tarfile.open(Path(motif_dir, f"{genome}_motifs.tar.gz"))
+        tarball.extractall(path=motif_dir, members=rename_members(tarball))
+        tarball.close()
+
+        # `motif_dir` now has `shuffled_peaks_motifs` as a subdir and
+        # `shuffled_peaks.fasta` as a root level file.
+        logger.info("Download and extraction complete.")
+        return
+
+    def _get_motif_library(
+        self, tf: str, genome: str = "human", motif_dir: str = None
+    ) -> Tuple[List[str], List[str]]:
+        """Load sequences with a TF motif injected from a pre-computed library
+
+        Parameters
+        ----------
+        tf : str
+            name of the transcription factor motif to load. Must be present in a
+            pre-computed library.
+        genome : str, optional
+            species name for the motif injection procedure. Currently, only "human"
+            is supported.
+        motif_dir : str, optional
+            path for the motif library. Will download if not already present.
+
+        Returns
+        -------
+        motif_seqs : List[str]
+            list of sequences with an injected motif.
+        bg_seqs : List[str]
+            dinucleotide shuffled background sequences.
+        """
+        if motif_dir is None:
+            motif_dir = self.DEFAULT_MOTIF_DIR
+
+        # ensure input is a `Path` object
+        motif_dir = Path(motif_dir)
+        if not Path(motif_dir, "shuffled_peaks.fasta").exists():
+            motif_dir.mkdir(exist_ok=True, parents=True)
+            self._download_motifs(genome=genome, motif_dir=motif_dir)
+
+        fasta_files = motif_dir.glob("shuffled_peaks_motifs/*.fasta")
+        tf_names = [f.stem for f in fasta_files]
+        if tf not in tf_names:
+            msg = f"{tf} is not found as a motif in the library."
+            raise ValueError(msg)
+
+        # load the motifs
+        tf_motif_path = Path(motif_dir, "shuffled_peaks_motifs", f"{tf}.fasta")
+        motif_seqs = list(SeqIO.parse(tf_motif_path, "fasta"))
+        motif_seqs = [str(i.seq) for i in motif_seqs]
+
+        bg_seqs_path = Path(motif_dir, "shuffled_peaks.fasta")
+        bg_seqs = list(SeqIO.parse(bg_seqs_path, "fasta"))
+        bg_seqs = [str(i.seq) for i in bg_seqs]
+        return motif_seqs, bg_seqs
+
+    @torch.inference_mode()
+    def get_tf_activity(
+        self,
+        tf: str,
+        genome: str = "human",
+        motif_dir: str = None,
+        lib_size_norm: bool = True,
+    ) -> np.ndarray:
+        """Infer transcription factor activity using a motif injection procedure.
+
+        Parameters
+        ----------
+        tf : str
+            transcription factor name. must be provided in the relevant motif repository.
+        genome : str, optional
+            species name for the motif injection procedure. Currently, only "human"
+            is supported.
+        motif_dir : str, optional
+            path for the motif library. Will download if not already present.
+        depth_norm : bool, optional
+            normalize accessibility scores for library size by *substracting* the
+            cell bias term from each accessibility score prior to comparing motif
+            scores to background scores.
+
+        Returns
+        -------
+        tf_score : np.ndarray
+            [cells,] TF activity scores.
+        genome : str, optional
+            species name for the motif injection procedure. Currently, only "human"
+            is supported.
+        motif_dir : str, optional
+            path for the motif library. Will download if not already present.
+
+        Notes
+        -----
+        scBasset infers TF activities by injecting known TF motifs into a
+        shuffled dinucleotide sequence and computing the change in accessibility
+        predicted between the injected motif and a randomized background
+        sequence. See :cite:p:`Yuan2022` for details. We modeled this function
+        off the original implementation in `scbasset`.
+
+        https://github.com/calico/scBasset/blob/9a3294c240d849cdac62682e324bc5f4836bb744/scbasset/utils.py#L453
+        """
+        # check for a library of FASTA sequences corresponding to motifs and
+        # download if none is found
+        # `motif_library` is a List of str sequences where each char is in "ACTGN".
+        # `bg_seqs` is the same, but background sequences rather than motif injected
+        motif_seqs, bg_seqs = self._get_motif_library(
+            tf=tf, genome=genome, motif_dir=motif_dir
+        )
+
+        # SCBASSET.module.inference(...) takes `dna_code: torch.Tensor` as input
+        # where `dna_code` is [batch_size, seq_length] and each value is [0,1,2,3]
+        # where [0: A, 1: C, 2: G, 3: T].
+        def _seq2arr(x: str):
+            a = np.zeros(len(x)) - 1
+            for i in range(len(x)):
+                a[i] = "ACGT".index(x[i])
+            return a
+
+        # [batch_size, seq_length]
+        motif_codes = np.stack([_seq2arr(s) for s in motif_seqs], axis=0)
+        motif_codes = torch.from_numpy(motif_codes).long()
+        bg_codes = np.stack([_seq2arr(s) for s in bg_seqs], axis=0)
+        bg_codes = torch.from_numpy(bg_codes).long()
+
+        # NOTE: The below modification is added due to a difference between the original
+        # and `scvi-tools` implementation of scBasset.
+        # `scvi-tools` uses a fixed length of 1334, but the original model used a fixed length of 1344.
+        # This is because the `MaxPool1d` operations in the `scvi-tools` implementation
+        # use `ceil_mode=True` by default, yielding the expected bottleneck shape of
+        # (batch_size, 7) for inputs of 1334, NOT 1344. If `ceil_mode=False` is used instead
+        # we would reproduce the original scBasset paper.
+        #
+        # Here, we crop the motifs to make the original libraries compatabible with the
+        # `scvi-tools` implementation.
+        n_diff = (
+            motif_codes.shape[1]
+            - self.adata_manager.get_from_registry(REGISTRY_KEYS.DNA_CODE_KEY).shape[1]
+        )
+        n_cut = n_diff // 2
+        motif_codes = motif_codes[:, n_cut:-n_cut]
+        bg_codes = bg_codes[:, n_cut:-n_cut]
+
+        # forward passes, output is [n_seqs, n_latent=32]
+        motif_rep = self.module.inference(dna_code=motif_codes)
+        bg_rep = self.module.inference(dna_code=bg_codes)
+        # final accessibility prediction
+        motif_accessibility = self.module.generative(
+            region_embedding=motif_rep["region_embedding"]
+        )["reconstruction_logits"]
+        bg_accessibility = self.module.generative(
+            region_embedding=bg_rep["region_embedding"]
+        )["reconstruction_logits"]
+        if lib_size_norm:
+            # substract the cell bias term so that scores are agnostic to the
+            # library size of each observation
+            motif_accessibility = motif_accessibility - self.module.cell_bias
+            bg_accessibility = bg_accessibility - self.module.cell_bias
+
+        # compute the difference in activity between the motif and background
+        # sequences
+        # after means, arr is activity by cell, shape [cells,]
+        motif_activity = motif_accessibility.mean(0) - bg_accessibility.mean(0)
+        motif_activity = motif_activity.detach().cpu().numpy()
+        # z-score the activity
+        tf_score = (motif_activity - motif_activity.mean()) / motif_activity.std()
+        return tf_score
 
     @classmethod
     @setup_anndata_dsp.dedent
