@@ -259,8 +259,8 @@ class RNASeqMixin:
                 exp_ *= scaling
                 per_batch_exprs.append(exp_[None].cpu())
                 if store_distributions:
-                    px_store.store_distribution(generative_outputs["px"])
                     qz_store.store_distribution(inference_outputs["qz"])
+                    px_store.store_distribution(generative_outputs["px"])
 
             zs.append(inference_outputs["z"].cpu())
             per_batch_exprs = torch.cat(per_batch_exprs, dim=0).mean(0).numpy()
@@ -277,9 +277,9 @@ class RNASeqMixin:
             if (weights is None) or weights == "uniform":
                 p = None
             else:
-                # distributions = dist_store.get_concatenated_distributions()
                 qz = qz_store.get_concatenated_distributions(axis=0)
-                px = px_store.get_concatenated_distributions(axis=1)
+                x_axis = 0 if n_samples == 1 else 1
+                px = px_store.get_concatenated_distributions(axis=x_axis)
                 p = self._get_importance_weights(
                     adata,
                     indices,
