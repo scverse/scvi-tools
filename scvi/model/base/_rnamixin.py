@@ -13,7 +13,7 @@ from pyro.distributions.util import deep_to
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
-from scvi.distributions._utils import DistributionsConcatenator, subset_distribution
+from scvi.distributions._utils import DistributionConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.module.base._decorators import _move_data_to_device
 from scvi.utils import de_dsp, unsupported_if_adata_minified
@@ -40,7 +40,8 @@ class RNASeqMixin:
         self,
         adata: Optional[AnnData],
         indices: Optional[Sequence[int]],
-        distributions: dict,
+        qz: db.Distribution,
+        px: db.Distribution,
         zs: torch.Tensor,
         max_cells: int = 128,
         truncation: bool = True,
@@ -57,6 +58,10 @@ class RNASeqMixin:
             Indices of cells in adata to use.
         distributions
             Dictionary of distributions associated with `indices`.
+        qz
+            Variational posterior distributions of the cells, aligned with `indices`.
+        px
+            Count distributions of the cells, aligned with `indices`.
         zs
             Samples associated with `indices`.
         max_cells
@@ -68,6 +73,11 @@ class RNASeqMixin:
             Number of Monte Carlo samples to use for estimating the importance weights, by default 500
         n_mc_samples_per_pass
             Number of Monte Carlo samples to use for each pass, by default 250
+
+        Returns
+        -------
+        importance_weights
+            Numpy array containing importance weights aligned with the provided `indices`.
         """
         device = self.device
         log_pz = db.Normal(0, 1).log_prob(zs).sum(dim=-1)
@@ -86,15 +96,13 @@ class RNASeqMixin:
             n_mc_samples_per_pass=n_mc_samples_per_pass,
         )
         mask = torch.tensor(anchor_cells)
-        qz_anchor = subset_distribution(
-            distributions["qz"], mask, 0
-        )  # n_anchors, n_latent
+        qz_anchor = subset_distribution(qz, mask, 0)  # n_anchors, n_latent
         log_qz = qz_anchor.log_prob(zs.unsqueeze(-2)).sum(
             dim=-1
         )  # n_samples, n_cells, n_anchors
 
         log_px_z = []
-        distributions_px = deep_to(distributions["px"], device=device)
+        distributions_px = deep_to(px, device=device)
         scdl_anchor = self._make_data_loader(
             adata=adata, indices=indices[anchor_cells], batch_size=1
         )
@@ -233,7 +241,8 @@ class RNASeqMixin:
 
         exprs = []
         zs = []
-        dist_store = DistributionsConcatenator()
+        qz_store = DistributionConcatenator()
+        px_store = DistributionConcatenator()
         for tensors in scdl:
             per_batch_exprs = []
             for batch in transform_batch:
@@ -250,12 +259,8 @@ class RNASeqMixin:
                 exp_ *= scaling
                 per_batch_exprs.append(exp_[None].cpu())
                 if store_distributions:
-                    dist_store.store_distributions(
-                        {
-                            **inference_outputs,
-                            **generative_outputs,
-                        }
-                    )
+                    px_store.store_distribution(generative_outputs["px"])
+                    qz_store.store_distribution(inference_outputs["qz"])
 
             zs.append(inference_outputs["z"].cpu())
             per_batch_exprs = torch.cat(per_batch_exprs, dim=0).mean(0).numpy()
@@ -272,12 +277,15 @@ class RNASeqMixin:
             if (weights is None) or weights == "uniform":
                 p = None
             else:
-                distributions = dist_store.get_concatenated_distributions()
+                # distributions = dist_store.get_concatenated_distributions()
+                qz = qz_store.get_concatenated_distributions(axis=0)
+                px = px_store.get_concatenated_distributions(axis=1)
                 p = self._get_importance_weights(
                     adata,
                     indices,
-                    distributions,
-                    zs,
+                    qz=qz,
+                    px=px,
+                    zs=zs,
                 )
             ind_ = np.random.choice(n_samples_, n_samples_overall, p=p, replace=True)
             exprs = exprs[ind_]
