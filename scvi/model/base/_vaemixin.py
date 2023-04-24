@@ -53,7 +53,7 @@ class VAEMixin:
         indices: Optional[Sequence[int]] = None,
         n_mc_samples: int = 1000,
         batch_size: Optional[int] = None,
-        observation_specific: Optional[bool] = False,
+        return_mean: Optional[bool] = True,
         **kwargs,
     ) -> Union[torch.Tensor, float]:
         """Return the marginal LL for the data.
@@ -72,9 +72,9 @@ class VAEMixin:
             Number of Monte Carlo samples to use for marginal LL estimation.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        observation_specific
-            If true, return the marginal log likelihood for each observation.
-            Otherwise, return the mean marginal log likelihood.
+        return_mean
+            If False, return the marginal log likelihood for each observation.
+            Otherwise, return the mmean arginal log likelihood.
         """
         adata = self._validate_anndata(adata)
         if indices is None:
@@ -92,11 +92,11 @@ class VAEMixin:
                     self.module.marginal_ll(
                         tensors,
                         n_mc_samples=n_mc_samples,
-                        observation_specific=observation_specific,
+                        return_mean=return_mean,
                         **kwargs,
                     )
                 )
-            if observation_specific:
+            if not return_mean:
                 return torch.cat(log_lkl, 0)
             else:
                 return np.mean(log_lkl)

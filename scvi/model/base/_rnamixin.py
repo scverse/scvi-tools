@@ -36,7 +36,7 @@ class RNASeqMixin:
                 "Transforming batches is not implemented for this model."
             )
 
-    def get_importance_weights(
+    def _get_importance_weights(
         self,
         adata: Optional[AnnData],
         indices: Optional[Sequence[int]],
@@ -44,29 +44,29 @@ class RNASeqMixin:
         zs: torch.Tensor,
         max_cells: int = 128,
         truncation: bool = True,
-        n_mc_samples=500,
-        n_mc_samples_per_pass=250,
+        n_mc_samples: int = 500,
+        n_mc_samples_per_pass: int = 250,
     ) -> np.ndarray:
         """Computes importance weights for the given samples.
 
         Parameters
         ----------
-        adata :
+        adata
             Data to use for computing importance weights.
-        indices :
+        indices
             Indices of cells in adata to use.
-        distributions :
+        distributions
             Dictionary of distributions associated with `indices`.
-        zs :
+        zs
             Samples associated with `indices`.
-        max_cells :
+        max_cells
             Maximum number of cells used to estimated the importance weights
-        truncation :
+        truncation
             Whether importance weights should be truncated. If True, the importance weights are
             truncated as described in Ionides et al, 2008.
-        n_mc_samples :
+        n_mc_samples
             Number of Monte Carlo samples to use for estimating the importance weights, by default 500
-        n_mc_samples_per_pass :
+        n_mc_samples_per_pass
             Number of Monte Carlo samples to use for each pass, by default 250
         """
         device = self.device
@@ -81,7 +81,7 @@ class RNASeqMixin:
         log_px = self.get_marginal_ll(
             adata,
             indices=indices[anchor_cells],
-            observation_specific=True,
+            return_mean=False,
             n_mc_samples=n_mc_samples,
             n_mc_samples_per_pass=n_mc_samples_per_pass,
         )
@@ -250,7 +250,7 @@ class RNASeqMixin:
                 exp_ *= scaling
                 per_batch_exprs.append(exp_[None].cpu())
                 if store_distributions:
-                    dist_store.add_distributions(
+                    dist_store.store_distributions(
                         {
                             **inference_outputs,
                             **generative_outputs,
@@ -273,7 +273,7 @@ class RNASeqMixin:
                 p = None
             else:
                 distributions = dist_store.get_concatenated_distributions()
-                p = self.get_importance_weights(
+                p = self._get_importance_weights(
                     adata,
                     indices,
                     distributions,

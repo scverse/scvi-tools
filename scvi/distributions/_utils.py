@@ -25,8 +25,14 @@ class DistributionsConcatenator:
     def __init__(self):
         self.storage = {}
 
-    def add_distributions(self, forward_outputs: dict):
-        """Add a dictionary of distributions to the concatenator."""
+    def store_distributions(self, forward_outputs: dict):
+        """Add a dictionary of distributions to the concatenator.
+
+        Parameters
+        ----------
+        forward_outputs:
+            Dictionary of tensors and distributions, typically the output of a `forward` pass.
+        """
         for key, potential_distribution in forward_outputs.items():
             if isinstance(potential_distribution, torch.distributions.Distribution):
                 if key not in self.storage:

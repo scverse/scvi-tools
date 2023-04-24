@@ -443,36 +443,6 @@ class VAE(BaseMinifiedModeModuleClass):
             "pz": pz,
         }
 
-    @auto_move_data
-    def estimate_likelihood(
-        self, tensors: dict, z: torch.Tensor, library: torch.Tensor = None
-    ):
-        """Estimate the likelihood of the data under the model.
-
-        Useful to compute the likelihood of the data under specific latent codes.
-        """
-        n_posterior_samples, n_cells, _ = z.shape
-        if library is None:
-            inference_inputs = self._get_inference_input(tensors)
-            library = (
-                torch.log(tensors[REGISTRY_KEYS.X_KEY].sum(1, keepdims=True))
-                if self.use_observed_lib_size
-                else self.inference(**inference_inputs)["ql"].loc.squeeze(0)
-            )
-            library = library.unsqueeze(0).expand(n_posterior_samples, n_cells, 1)
-        inference_outputs = {
-            "z": z,
-            "library": library,
-        }
-        gen_ins = self._get_generative_input(
-            tensors=tensors, inference_outputs=inference_outputs
-        )
-        return (
-            -self.generative(**gen_ins)["px"]
-            .log_prob(tensors[REGISTRY_KEYS.X_KEY])
-            .sum(-1)
-        )
-
     def loss(
         self,
         tensors,
@@ -567,10 +537,22 @@ class VAE(BaseMinifiedModeModuleClass):
         self,
         tensors,
         n_mc_samples,
-        observation_specific=False,
+        return_mean=False,
         n_mc_samples_per_pass=1,
     ):
-        """Computes the marginal log likelihood of the model."""
+        """Computes the marginal log likelihood of the model.
+
+        Parameters
+        ----------
+        tensors
+            Dict of input tensors, typically corresponding to the items of the data loader.
+        n_mc_samples
+            Number of Monte Carlo samples to use for the estimation of the marginal log likelihood.
+        return_mean
+            Whether to return the mean of marginal likelihoods over cells.
+        n_mc_samples_per_pass
+            Number of Monte Carlo samples to use per pass. This is useful to avoid memory issues.
+        """
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         to_sum = []
@@ -621,8 +603,8 @@ class VAE(BaseMinifiedModeModuleClass):
             to_sum.append(log_prob_sum)
         to_sum = torch.cat(to_sum, dim=0)
         batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(n_mc_samples)
-        if not observation_specific:
-            batch_log_lkl = torch.sum(batch_log_lkl).item()
+        if return_mean:
+            batch_log_lkl = torch.mean(batch_log_lkl).item()
         else:
             batch_log_lkl = batch_log_lkl.cpu()
         return batch_log_lkl

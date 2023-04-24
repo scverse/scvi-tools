@@ -56,7 +56,10 @@ class DifferentialComputation:
             idx_filt = EllipticEnvelope().fit_predict(reps)
             idx_filt = idx_filt == 1
         except ValueError:
-            logger.warn("Could not properly estimate Cov!, using all samples")
+            warnings.warn(
+                "Could not properly estimate Cov!, using all samples",
+                stacklevel=settings.warnings_stacklevel,
+            )
             return selection
         idx_filt = selection[idx_filt]
         return idx_filt
