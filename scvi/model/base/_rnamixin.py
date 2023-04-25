@@ -160,11 +160,6 @@ class RNASeqMixin:
         r"""Returns the normalized (decoded) gene expression.
 
         This is denoted as :math:`\rho_n` in the scVI paper.
-        This function has two modes of operation:
-        If `n_samples` is provided or if `return_mean` is True,
-        this method returns a 3d tensor of shape (n_samples, n_cells, n_genes).
-        Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
-        of shape (n_samples_overall, n_genes).
 
         Parameters
         ----------
@@ -206,6 +201,11 @@ class RNASeqMixin:
         -------
         If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        This function has two modes of operation:
+        If `n_samples` is provided or if `return_mean` is True,
+        this method returns a 3d tensor of shape (n_samples, n_cells, n_genes).
+        Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
+        of shape (n_samples_overall, n_genes).
         """
         adata = self._validate_anndata(adata)
 
