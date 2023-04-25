@@ -298,8 +298,7 @@ class ScBassetModule(BaseModuleClass):
     @auto_move_data
     def inference(self, dna_code: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Inference method for the model."""
-        # NOTE: `seq_len` assumed to be a fixed 1334
-        # This differs from the 1344 length used in the original implementation.
+        # NOTE: `seq_len` assumed to be a fixed 1344 as in the original implementation.
         # input shape: (batch_size, seq_length)
         # output shape: (batch_size, 4, seq_length)
         h = nn.functional.one_hot(dna_code, num_classes=4).permute(0, 2, 1).float()
