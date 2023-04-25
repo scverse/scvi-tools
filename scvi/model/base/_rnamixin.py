@@ -50,6 +50,10 @@ class RNASeqMixin:
     ) -> np.ndarray:
         """Computes importance weights for the given samples.
 
+        This method computes importance weights for every latent code in `zs` as a way to
+        encourage latent codes providing high likelihoods across many cells in the considered
+        subpopulation.
+
         Parameters
         ----------
         adata
@@ -68,7 +72,8 @@ class RNASeqMixin:
             Maximum number of cells used to estimated the importance weights
         truncation
             Whether importance weights should be truncated. If True, the importance weights are
-            truncated as described in Ionides et al, 2008.
+            truncated as described in :cite:p:`ionides2008`. In particular, the provided value
+            is used to threshold importance weights as a way to reduce the variance of the estimator.
         n_mc_samples
             Number of Monte Carlo samples to use for estimating the importance weights, by default 500
         n_mc_samples_per_pass
@@ -78,6 +83,10 @@ class RNASeqMixin:
         -------
         importance_weights
             Numpy array containing importance weights aligned with the provided `indices`.
+
+        Notes
+        -----
+            This method assumes a normal prior on the latent space.
         """
         device = self.device
         log_pz = db.Normal(0, 1).log_prob(zs).sum(dim=-1)
