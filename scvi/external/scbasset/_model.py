@@ -1,14 +1,16 @@
 import logging
 from pathlib import Path
 from typing import List, Literal, Optional, Tuple, Union
-from urllib.request import urlretrieve
 
 import numpy as np
+import pandas as pd
 import torch
 from anndata import AnnData
-from Bio import SeqIO
 
+from scvi._decorators import dependencies
 from scvi.data import AnnDataManager
+from scvi.data._download import _download
+from scvi.data._preprocessing import _dna_to_code
 from scvi.data.fields import CategoricalVarField, LayerField, ObsmField
 from scvi.dataloaders import DataSplitter
 from scvi.external.scbasset._module import REGISTRY_KEYS, ScBassetModule
@@ -211,7 +213,7 @@ class SCBASSET(BaseModelClass):
         url_name = cls.MOTIF_URLS.get(genome, None)  # (url, dir_name)
         if url_name is None:
             raise ValueError(f"{genome} is not a supported motif set.")
-        urlretrieve(url_name[0], filename=Path(motif_dir, f"{genome}_motifs.tar.gz"))
+        _download(url_name[0], save_path=motif_dir, filename=f"{genome}_motifs.tar.gz")
         # untar it
         import tarfile
 
@@ -232,29 +234,32 @@ class SCBASSET(BaseModelClass):
         logger.info("Download and extraction complete.")
         return
 
+    @dependencies("Bio")
     def _get_motif_library(
-        self, tf: str, genome: str = "human", motif_dir: str = None
+        self, tf: str, genome: str = "human", motif_dir: Optional[str] = None
     ) -> Tuple[List[str], List[str]]:
         """Load sequences with a TF motif injected from a pre-computed library
 
         Parameters
         ----------
-        tf : str
+        tf
             name of the transcription factor motif to load. Must be present in a
             pre-computed library.
-        genome : str, optional
+        genome
             species name for the motif injection procedure. Currently, only "human"
             is supported.
-        motif_dir : str, optional
+        motif_dir
             path for the motif library. Will download if not already present.
 
         Returns
         -------
-        motif_seqs : List[str]
+        motif_seqs
             list of sequences with an injected motif.
-        bg_seqs : List[str]
+        bg_seqs
             dinucleotide shuffled background sequences.
         """
+        from Bio import SeqIO
+
         if motif_dir is None:
             motif_dir = self.DEFAULT_MOTIF_DIR
 
@@ -285,34 +290,32 @@ class SCBASSET(BaseModelClass):
         self,
         tf: str,
         genome: str = "human",
-        motif_dir: str = None,
-        lib_size_norm: bool = True,
+        motif_dir: Optional[str] = None,
+        lib_size_norm: Optional[bool] = True,
+        batch_size: int = 256,
     ) -> np.ndarray:
         """Infer transcription factor activity using a motif injection procedure.
 
         Parameters
         ----------
-        tf : str
+        tf
             transcription factor name. must be provided in the relevant motif repository.
-        genome : str, optional
+        genome
             species name for the motif injection procedure. Currently, only "human"
             is supported.
-        motif_dir : str, optional
+        motif_dir
             path for the motif library. Will download if not already present.
-        depth_norm : bool, optional
+        lib_size_norm
             normalize accessibility scores for library size by *substracting* the
             cell bias term from each accessibility score prior to comparing motif
             scores to background scores.
+        batch_size
+            minibatch size for TF activity inference.
 
         Returns
         -------
-        tf_score : np.ndarray
+        tf_score
             [cells,] TF activity scores.
-        genome : str, optional
-            species name for the motif injection procedure. Currently, only "human"
-            is supported.
-        motif_dir : str, optional
-            path for the motif library. Will download if not already present.
 
         Notes
         -----
@@ -326,7 +329,7 @@ class SCBASSET(BaseModelClass):
         """
         # check for a library of FASTA sequences corresponding to motifs and
         # download if none is found
-        # `motif_library` is a List of str sequences where each char is in "ACTGN".
+        # `motif_seqs` is a List of str sequences where each char is in "ACTGN".
         # `bg_seqs` is the same, but background sequences rather than motif injected
         motif_seqs, bg_seqs = self._get_motif_library(
             tf=tf, genome=genome, motif_dir=motif_dir
@@ -335,17 +338,11 @@ class SCBASSET(BaseModelClass):
         # SCBASSET.module.inference(...) takes `dna_code: torch.Tensor` as input
         # where `dna_code` is [batch_size, seq_length] and each value is [0,1,2,3]
         # where [0: A, 1: C, 2: G, 3: T].
-        def _seq2arr(x: str):
-            a = np.zeros(len(x)) - 1
-            for i in range(len(x)):
-                a[i] = "ACGT".index(x[i])
-            return a
-
+        motif_codes = pd.DataFrame([list(s) for s in motif_seqs]).applymap(_dna_to_code)
+        bg_codes = pd.DataFrame([list(s) for s in bg_seqs]).applymap(_dna_to_code)
         # [batch_size, seq_length]
-        motif_codes = np.stack([_seq2arr(s) for s in motif_seqs], axis=0)
-        motif_codes = torch.from_numpy(motif_codes).long()
-        bg_codes = np.stack([_seq2arr(s) for s in bg_seqs], axis=0)
-        bg_codes = torch.from_numpy(bg_codes).long()
+        motif_codes = torch.from_numpy(np.array(motif_codes)).long()
+        bg_codes = torch.from_numpy(np.array(bg_codes)).long()
 
         # NOTE: The below modification is added due to a difference between the original
         # and `scvi-tools` implementation of scBasset.
@@ -361,25 +358,24 @@ class SCBASSET(BaseModelClass):
             motif_codes.shape[1]
             - self.adata_manager.get_from_registry(REGISTRY_KEYS.DNA_CODE_KEY).shape[1]
         )
-        n_cut = n_diff // 2
-        motif_codes = motif_codes[:, n_cut:-n_cut]
-        bg_codes = bg_codes[:, n_cut:-n_cut]
+        if n_diff > 0:
+            n_cut = n_diff // 2
+            motif_codes = motif_codes[:, n_cut:-n_cut]
+            bg_codes = bg_codes[:, n_cut:-n_cut]
 
-        # forward passes, output is [n_seqs, n_latent=32]
-        motif_rep = self.module.inference(dna_code=motif_codes)
-        bg_rep = self.module.inference(dna_code=bg_codes)
-        # final accessibility prediction
-        motif_accessibility = self.module.generative(
-            region_embedding=motif_rep["region_embedding"]
-        )["reconstruction_logits"]
-        bg_accessibility = self.module.generative(
-            region_embedding=bg_rep["region_embedding"]
-        )["reconstruction_logits"]
+        motif_accessibility = self.module._get_accessibility(
+            dna_codes=motif_codes,
+            batch_size=batch_size,
+        )
+        bg_accessibility = self.module._get_accessibility(
+            dna_codes=bg_codes,
+            batch_size=batch_size,
+        )
         if lib_size_norm:
             # substract the cell bias term so that scores are agnostic to the
             # library size of each observation
-            motif_accessibility = motif_accessibility - self.module.cell_bias
-            bg_accessibility = bg_accessibility - self.module.cell_bias
+            motif_accessibility = motif_accessibility - self.module.cell_bias.data
+            bg_accessibility = bg_accessibility - self.module.cell_bias.data
 
         # compute the difference in activity between the motif and background
         # sequences

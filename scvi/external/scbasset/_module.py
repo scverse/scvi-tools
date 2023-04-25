@@ -66,7 +66,7 @@ class _ConvBlock(nn.Module):
         batch_norm: bool = True,
         dropout: float = 0.0,
         activation_fn: Optional[Callable] = None,
-        ceil_mode: bool = True,
+        ceil_mode: bool = False,
     ):
         super().__init__()
         self.conv = nn.Conv1d(
@@ -278,7 +278,7 @@ class ScBassetModule(BaseModuleClass):
             batch_norm=batch_norm,
             pool_size=1,
         )
-        # NOTE: Bottleneck here assumes that seq_len=1334 and n_repeat_blocks_tower=6
+        # NOTE: Bottleneck here assumes that seq_len=1344 and n_repeat_blocks_tower=6
         # seq_len and tower size are fixed by the in_features shape
         self.bottleneck = _DenseBlock(
             in_features=n_filters_pre_bottleneck * 7,
@@ -336,6 +336,30 @@ class ScBassetModule(BaseModuleClass):
         input_dict = {"region_embedding": region_embedding}
 
         return input_dict
+
+    def _get_accessibility(
+        self,
+        dna_codes: torch.Tensor,
+        batch_size: int,
+    ) -> torch.Tensor:
+        """Perform minibatch inference of accessibility scores."""
+        accessibility = torch.zeros(
+            size=(
+                dna_codes.shape[0],
+                self.cell_bias.shape[0],
+            )
+        )
+        n_batches = accessibility.shape[0] // batch_size + 1
+        for batch in range(n_batches):
+            batch_codes = dna_codes[batch * batch_size : (batch + 1) * batch_size]
+            # forward passes, output is dict(region_embedding=np.ndarray: [n_seqs, n_latent=32])
+            motif_rep = self.inference(dna_code=batch_codes)
+            # output is dict(reconstruction_logits=np.ndarray: [n_seqs, n_cells])
+            batch_acc = self.generative(region_embedding=motif_rep["region_embedding"])[
+                "reconstruction_logits"
+            ]
+            accessibility[batch * batch_size : (batch + 1) * batch_size] = batch_acc
+        return accessibility
 
     def generative(self, region_embedding: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Generative method for the model."""

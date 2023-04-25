@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -12,7 +11,7 @@ _DNA_CODE_KEY = "code"
 def _get_adata(sparse=False):
     dataset1 = synthetic_iid(batch_size=100, sparse=sparse).transpose()
     dataset1.X = (dataset1.X > 0).astype(float)
-    dataset1.obsm[_DNA_CODE_KEY] = np.random.randint(0, 3, size=(dataset1.n_obs, 1334))
+    dataset1.obsm[_DNA_CODE_KEY] = np.random.randint(0, 3, size=(dataset1.n_obs, 1344))
     return dataset1
 
 
@@ -40,18 +39,16 @@ def test_scbasset_batch():
     assert hasattr(model.module, "batch_ids")
 
 
-def test_scbasset_motif_download():
+def test_scbasset_motif_download(save_path):
     # get a temporary directory name
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        motif_dir = tmpdirname
-        SCBASSET._download_motifs(genome="human", motif_dir=motif_dir)
+    SCBASSET._download_motifs(genome="human", motif_dir=save_path)
 
-        assert Path(motif_dir, "shuffled_peaks.fasta").exists()
-        assert Path(motif_dir, "shuffled_peaks_motifs", "MYOD1.fasta").exists()
+    assert Path(save_path, "shuffled_peaks.fasta").exists()
+    assert Path(save_path, "shuffled_peaks_motifs", "MYOD1.fasta").exists()
     return
 
 
-def test_scbasset_tf():
+def test_scbasset_tf(save_path):
     adata = _get_adata()
     SCBASSET.setup_anndata(
         adata,
@@ -61,16 +58,14 @@ def test_scbasset_tf():
     # model.train(max_epochs=2, early_stopping=True)
     model.is_trained = True
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        motif_dir = tmpdirname
-        motif_seqs, bg_seqs = model._get_motif_library(
-            tf="MYOD1", motif_dir=motif_dir, genome="human"
-        )
+    motif_seqs, bg_seqs = model._get_motif_library(
+        tf="MYOD1", motif_dir=save_path, genome="human"
+    )
 
-        model.get_tf_activity(
-            tf="MYOD1", motif_dir=motif_dir, genome="human", lib_size_norm=True
-        )
-        model.get_tf_activity(
-            tf="MYOD1", motif_dir=motif_dir, genome="human", lib_size_norm=False
-        )
+    model.get_tf_activity(
+        tf="MYOD1", motif_dir=save_path, genome="human", lib_size_norm=True
+    )
+    model.get_tf_activity(
+        tf="MYOD1", motif_dir=save_path, genome="human", lib_size_norm=False
+    )
     return
