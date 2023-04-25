@@ -371,17 +371,21 @@ class SCBASSET(BaseModelClass):
             dna_codes=bg_codes,
             batch_size=batch_size,
         )
+        # move to CPU
+        motif_accessibility = motif_accessibility.detach().cpu()
+        bg_accessibility = bg_accessibility.detach().cpu()
         if lib_size_norm:
             # substract the cell bias term so that scores are agnostic to the
             # library size of each observation
-            motif_accessibility = motif_accessibility - self.module.cell_bias.data
-            bg_accessibility = bg_accessibility - self.module.cell_bias.data
+            bias = self.module.cell_bias.detach().cpu()
+            motif_accessibility = motif_accessibility - bias
+            bg_accessibility = bg_accessibility - bias
 
         # compute the difference in activity between the motif and background
         # sequences
         # after means, arr is activity by cell, shape [cells,]
         motif_activity = motif_accessibility.mean(0) - bg_accessibility.mean(0)
-        motif_activity = motif_activity.detach().cpu().numpy()
+        motif_activity = motif_activity.numpy()
         # z-score the activity
         tf_score = (motif_activity - motif_activity.mean()) / motif_activity.std()
         return tf_score
