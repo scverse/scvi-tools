@@ -9,7 +9,6 @@ from torch import nn
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 class _REGISTRY_KEYS_NT(NamedTuple):
