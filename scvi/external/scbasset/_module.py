@@ -340,7 +340,7 @@ class ScBassetModule(BaseModuleClass):
     def _get_accessibility(
         self,
         dna_codes: torch.Tensor,
-        batch_size: int,
+        batch_size: int = None,
     ) -> torch.Tensor:
         """Perform minibatch inference of accessibility scores."""
         accessibility = torch.zeros(
@@ -349,7 +349,12 @@ class ScBassetModule(BaseModuleClass):
                 self.cell_bias.shape[0],
             )
         )
-        n_batches = accessibility.shape[0] // batch_size + 1
+        if batch_size is None:
+            # no minibatching
+            batch_size = dna_codes.shape[0]
+        n_batches = accessibility.shape[0] // batch_size + int(
+            (accessibility.shape[0] % batch_size) > 0
+        )
         for batch in range(n_batches):
             batch_codes = dna_codes[batch * batch_size : (batch + 1) * batch_size]
             # forward passes, output is dict(region_embedding=np.ndarray: [n_seqs, n_latent=32])
