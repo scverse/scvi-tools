@@ -84,6 +84,7 @@ tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "p
 hub = ["huggingface_hub"]
 regseq = [
     "biopython>=1.81",
+    "genomepy",
 ]
 
 [tool.hatch.build.targets.wheel]
