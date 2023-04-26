@@ -103,7 +103,7 @@ class TunerManager:
 
         def _cls_to_tunable_type(cls: Any) -> str:
             for tunable_type, cls_list in TUNABLE_TYPES.items():
-                if any([issubclass(cls, c) for c in cls_list]):
+                if any(issubclass(cls, c) for c in cls_list):
                     return tunable_type
             return None
 
