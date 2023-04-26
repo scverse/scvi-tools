@@ -1,3 +1,4 @@
+import pytest
 from pathlib import Path
 
 import numpy as np
@@ -38,7 +39,7 @@ def test_scbasset_batch():
     model.get_latent_representation()
     assert hasattr(model.module, "batch_ids")
 
-
+@pytest.mark.internet
 def test_scbasset_motif_download(save_path):
     # get a temporary directory name
     SCBASSET._download_motifs(genome="human", motif_dir=save_path)
@@ -47,7 +48,7 @@ def test_scbasset_motif_download(save_path):
     assert Path(save_path, "shuffled_peaks_motifs", "MYOD1.fasta").exists()
     return
 
-
+@pytest.mark.internet
 def test_scbasset_tf(save_path):
     adata = _get_adata()
     SCBASSET.setup_anndata(
