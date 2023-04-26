@@ -1,7 +1,7 @@
-import pytest
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from scvi.data import synthetic_iid
 from scvi.external import SCBASSET
@@ -39,6 +39,7 @@ def test_scbasset_batch():
     model.get_latent_representation()
     assert hasattr(model.module, "batch_ids")
 
+
 @pytest.mark.internet
 def test_scbasset_motif_download(save_path):
     # get a temporary directory name
@@ -47,6 +48,7 @@ def test_scbasset_motif_download(save_path):
     assert Path(save_path, "shuffled_peaks.fasta").exists()
     assert Path(save_path, "shuffled_peaks_motifs", "MYOD1.fasta").exists()
     return
+
 
 @pytest.mark.internet
 def test_scbasset_tf(save_path):
