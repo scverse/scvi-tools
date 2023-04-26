@@ -344,24 +344,24 @@ class SCBASSET(BaseModelClass):
         motif_codes = torch.from_numpy(np.array(motif_codes)).long()
         bg_codes = torch.from_numpy(np.array(bg_codes)).long()
 
-        # NOTE: The below modification is added due to a difference between the original
-        # and `scvi-tools` implementation of scBasset.
-        # `scvi-tools` uses a fixed length of 1334, but the original model used a fixed length of 1344.
-        # This is because the `MaxPool1d` operations in the `scvi-tools` implementation
-        # use `ceil_mode=True` by default, yielding the expected bottleneck shape of
-        # (batch_size, 7) for inputs of 1334, NOT 1344. If `ceil_mode=False` is used instead
-        # we would reproduce the original scBasset paper.
-        #
-        # Here, we crop the motifs to make the original libraries compatabible with the
-        # `scvi-tools` implementation.
-        n_diff = (
-            motif_codes.shape[1]
-            - self.adata_manager.get_from_registry(REGISTRY_KEYS.DNA_CODE_KEY).shape[1]
-        )
+        # NOTE: SCBASSET uses a fixed size of 1344 bp. If motifs from a different source
+        # than the above are used, we may need to truncate to match the model size.
+        # We should be cautious about doing this, so we throw a warning to the user.
+        model_input_size = self.adata_manager.get_from_registry(
+            REGISTRY_KEYS.DNA_CODE_KEY
+        ).shape[1]
+        n_diff = motif_codes.shape[1] - model_input_size
         if n_diff > 0:
             n_cut = n_diff // 2
+            logger.warning(
+                f"Motif size {motif_codes.shape[1]} != model input size {model_input_size}."
+                f" Trimming {n_cut} from each side."
+            )
             motif_codes = motif_codes[:, n_cut:-n_cut]
             bg_codes = bg_codes[:, n_cut:-n_cut]
+        if n_diff < 0:
+            msg = f"Motif sizes {motif_codes.shape[1]} < model size {model_input_size}"
+            raise ValueError(msg)
 
         motif_accessibility = self.module._get_accessibility(
             dna_codes=motif_codes,
