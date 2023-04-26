@@ -23,6 +23,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Add {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
 -   Add default `stacklevel` for `warnings` in `scvi.settings` {pr}`1971`.
+-   Add scBasset motif injection procedure {pr}`2010`.
 
 #### Fixed
 
@@ -42,6 +43,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Docs organization {pr}`1983`.
 -   Validate training data and code URLs for {class}`scvi.hub.HubMetadata` and {class}`scvi.hub.HubModelCardHelper` {pr}`1985`.
 -   Expose `local_dir` as a public property in {class}`scvi.hub.HubModel` {pr}`1994`.
+-   Use {func}`anndata.concat` internally inside {meth}`scvi.external.SOLO.from_scvi_model` {pr}`2013`.
 
 #### Removed
 
