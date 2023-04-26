@@ -202,6 +202,9 @@ class SOLO(BaseModelClass):
             )
             doublet_adata.obs[LABELS_KEY] = "doublet"
 
+            # cast to string to fix anndata concat bug
+            latent_adata.var_names = latent_adata.var_names.astype(str)
+            doublet_adata.var_names = doublet_adata.var_names.astype(str)
             full_adata = latent_adata.concatenate(doublet_adata)
             cls.setup_anndata(full_adata, labels_key=LABELS_KEY)
         return cls(full_adata, **classifier_kwargs)
