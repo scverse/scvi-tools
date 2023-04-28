@@ -25,13 +25,13 @@ jobs:
             fail-fast: false
             matrix:
                 include:
-                  - os: ubuntu-latest
-                    python: "3.8"
-                  - os: ubuntu-latest
-                    python: "3.10"
-                  - os: ubuntu-latest
-                    python: "3.10"
-                    pip-flags: "--pre"
+                    - os: ubuntu-latest
+                      python: "3.8"
+                    - os: ubuntu-latest
+                      python: "3.10"
+                    - os: ubuntu-latest
+                      python: "3.10"
+                      pip-flags: "--pre"
 
         env:
             OS: ${{ matrix.os }}
