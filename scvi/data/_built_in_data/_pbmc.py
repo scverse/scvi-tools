@@ -86,7 +86,7 @@ def _load_pbmc_dataset(
             subset_cells += [dict_barcodes[barcode]]
     adata = adata[np.asarray(subset_cells), :].copy()
     idx_metadata = np.asarray(
-        [not barcode.endswith("11") for barcode in barcodes_metadata], dtype=np.bool
+        [not barcode.endswith("11") for barcode in barcodes_metadata], dtype=bool
     )
     genes_to_keep = list(
         de_metadata["ENSG"].values
