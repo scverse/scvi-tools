@@ -9,6 +9,10 @@ on:
     pull_request:
         branches: [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x]
 
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
 jobs:
     test:
         runs-on: ${{ matrix.os }}
@@ -20,38 +24,37 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                python: ["3.8", "3.9", "3.10", "3.11"]
-                os: [ubuntu-latest]
-
+                include:
+                    - os: ubuntu-latest
+                      python: "3.8"
+                    - os: ubuntu-latest
+                      python: "3.9"
+                    - os: ubuntu-latest
+                      python: "3.10"
+                    - os: ubuntu-latest
+                      python: "3.10"
+                      pip-flags: "--pre"
+                    - os: ubuntu-latest
+                      python: "3.11"
+                      
         env:
             OS: ${{ matrix.os }}
             PYTHON: ${{ matrix.python }}
 
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v3
             - name: Set up Python ${{ matrix.python }}
-              uses: actions/setup-python@v2
+              uses: actions/setup-python@v4
               with:
                   python-version: ${{ matrix.python }}
-
-            - name: Get pip cache dir
-              id: pip-cache-dir
-              run: |
-                  echo "::set-output name=dir::$(pip cache dir)"
-            - name: Restore pip cache
-              uses: actions/cache@v2
-              with:
-                  path: ${{ steps.pip-cache-dir.outputs.dir }}
-                  key: pip-${{ runner.os }}-${{ env.pythonLocation }}-${{ hashFiles('**/pyproject.toml') }}
-                  restore-keys: |
-                      pip-${{ runner.os }}-${{ env.pythonLocation }}-
+                  cache: "pip"
+                  cache-dependency-path: "**/pyproject.toml"
             - name: Install test dependencies
               run: |
                   python -m pip install --upgrade pip wheel
-                  pip install codecov
             - name: Install dependencies
               run: |
-                  pip install ".[dev,pymde,autotune,hub]"
+                  pip install ${{ matrix.pip-flags }} ".[dev,pymde,autotune,hub]"
             - name: Test
               env:
                   MPLBACKEND: agg
@@ -60,7 +63,4 @@ jobs:
               run: |
                   pytest -v --cov --color=yes
             - name: Upload coverage
-              env:
-                  CODECOV_NAME: ${{ matrix.python }}-${{ matrix.os }}
-              run: |
-                  codecov --required --flags=unittests
+              uses: codecov/codecov-action@v3

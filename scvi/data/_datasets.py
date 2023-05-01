@@ -20,7 +20,6 @@ from ._built_in_data._loom import (
     _load_retina,
 )
 from ._built_in_data._pbmc import _load_pbmc_dataset, _load_purified_pbmc_dataset
-from ._built_in_data._seqfish import _load_seqfish, _load_seqfishplus
 from ._built_in_data._smfish import _load_smfish
 from ._built_in_data._synthetic import _generate_synthetic
 
@@ -177,61 +176,6 @@ def smfish(
         save_path=save_path,
         use_high_level_cluster=use_high_level_cluster,
     )
-
-
-def seqfishplus(
-    save_path: str = "data/",
-    tissue_region="subventricular cortex",
-) -> anndata.AnnData:
-    """seqFISH+ of cortex, subventricular zone and olfactory bulb of mouse brain.
-
-    seqFISH+ can image mRNAs for 10,000 genes in single cells—with high accuracy and
-    sub-diffraction-limit resolution—in the cortex, subventricular zone
-    and olfactory bulb of mouse brain
-
-    Parameters
-    ----------
-    save_path
-        Location to use when saving/loading the data.
-    tissue_region
-        Region of the mouse brain, Either "subventricular cortex" or "olfactory bulb"
-
-    Returns
-    -------
-    AnnData with batch info (``.obs['batch']``), label info (``.obs['labels']``),
-    spatial info (``.obs['X']``, ``.obs['Y']``)
-
-    Examples
-    --------
-    >>> import scvi
-    >>> adata = scvi.data.seqfishplus()
-    """
-    return _load_seqfishplus(
-        save_path=save_path,
-        tissue_region=tissue_region,
-    )
-
-
-def seqfish(
-    save_path: str = "data/",
-) -> anndata.AnnData:
-    """Seqfish dataset.
-
-    Parameters
-    ----------
-    save_path
-        Location to use when saving/loading the data.
-
-    Returns
-    -------
-    AnnData with batch info (``.obs['batch']``) and label info (``.obs['labels']``)
-
-    Examples
-    --------
-    >>> import scvi
-    >>> adata = scvi.data.seqfish()
-    """
-    return _load_seqfish(save_path=save_path)
 
 
 def purified_pbmc_dataset(

@@ -375,7 +375,7 @@ def _dna_to_code(nt: str) -> int:
 @dependencies("genomepy")
 def add_dna_sequence(
     adata: anndata.AnnData,
-    seq_len: int = 1334,
+    seq_len: int = 1344,
     genome_name: str = "hg38",
     genome_dir: Optional[Path] = None,
     genome_provider: Optional[str] = None,

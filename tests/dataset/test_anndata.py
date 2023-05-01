@@ -439,7 +439,7 @@ def test_anntorchdataset_getitem(adata):
     bd = AnnTorchDataset(
         adata_manager,
         getitem_tensors={
-            REGISTRY_KEYS.X_KEY: np.int,
+            REGISTRY_KEYS.X_KEY: np.int64,
             REGISTRY_KEYS.LABELS_KEY: np.int64,
         },
     )

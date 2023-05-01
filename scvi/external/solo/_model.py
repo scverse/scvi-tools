@@ -4,6 +4,7 @@ import warnings
 from contextlib import redirect_stdout
 from typing import List, Optional, Sequence, Union
 
+import anndata
 import numpy as np
 import pandas as pd
 import torch
@@ -202,7 +203,7 @@ class SOLO(BaseModelClass):
             )
             doublet_adata.obs[LABELS_KEY] = "doublet"
 
-            full_adata = latent_adata.concatenate(doublet_adata)
+            full_adata = anndata.concat([latent_adata, doublet_adata])
             cls.setup_anndata(full_adata, labels_key=LABELS_KEY)
         return cls(full_adata, **classifier_kwargs)
 
