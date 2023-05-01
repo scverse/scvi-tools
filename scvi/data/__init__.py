@@ -43,8 +43,6 @@ __all__ = [
     "synthetic_iid",
     "pbmc_dataset",
     "cortex",
-    "seqfish",
-    "seqfishplus",
     "smfish",
     "breast_cancer_dataset",
     "mouse_ob_dataset",
