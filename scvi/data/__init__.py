@@ -16,8 +16,6 @@ from ._datasets import (
     prefrontalcortex_starmap,
     purified_pbmc_dataset,
     retina,
-    seqfish,
-    seqfishplus,
     smfish,
     spleen_lymph_cite_seq,
     synthetic_iid,
