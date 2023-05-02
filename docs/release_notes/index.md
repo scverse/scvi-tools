@@ -51,6 +51,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
 -   Remove `drop_last` as an integer from {class}`~scvi.dataloaders.AnnDataLoader`, add typing and code cleanup {pr}`1975`.
 -   Remove seqfish and seqfish plus datasets {pr}`2017`.
+-   Remove support for Python 3.8 (NEP 29) {pr}`2021`.
 
 ## Version 0.20
 
