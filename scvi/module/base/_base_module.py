@@ -120,11 +120,6 @@ class LossOutput:
         """Keys for extra metrics."""
         return self.extra_metrics.keys()
 
-    @property
-    def extra_tensors_keys(self) -> Iterable[str]:
-        """Keys for extra tensors."""
-        return self.extra_tensors.keys()
-
     def _as_dict(self, attr_name: str):
         attr = getattr(self, attr_name)
         if isinstance(attr, dict):
