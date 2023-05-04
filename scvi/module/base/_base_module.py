@@ -74,6 +74,7 @@ class LossOutput:
     reconstruction_loss: LossRecord | None = None
     kl_local: LossRecord | None = None
     kl_global: LossRecord | None = None
+    classification: dict[str, Tensor] | None = field(default_factory=dict)
     extra_metrics: dict[str, Tensor] | None = field(default_factory=dict)
     n_obs_minibatch: int | None = None
     reconstruction_loss_sum: Tensor = field(default=None, init=False)
@@ -106,6 +107,15 @@ class LossOutput:
             rec_loss = self.reconstruction_loss
             self.n_obs_minibatch = list(rec_loss.values())[0].shape[0]
 
+        if len(self.classification) > 0:
+            assert "true_labels" in self.classification
+            assert "predicted_labels" in self.classification
+            assert "num_classes" in self.classification
+
+            y = self.classification["true_labels"]
+            y_hat = self.classification["predicted_labels"]
+            assert y.shape == y_hat.shape
+
     @staticmethod
     def dict_sum(dictionary: dict[str, Tensor] | Tensor):
         """Sum over elements of a dictionary."""
@@ -118,6 +128,11 @@ class LossOutput:
     def extra_metrics_keys(self) -> Iterable[str]:
         """Keys for extra metrics."""
         return self.extra_metrics.keys()
+
+    @property
+    def extra_tensors_keys(self) -> Iterable[str]:
+        """Keys for extra tensors."""
+        return self.extra_tensors.keys()
 
     def _as_dict(self, attr_name: str):
         attr = getattr(self, attr_name)

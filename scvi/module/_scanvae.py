@@ -189,7 +189,13 @@ class SCANVAE(VAE):
             )
 
     @auto_move_data
-    def classify(self, x, batch_index=None, cont_covs=None, cat_covs=None):
+    def classify(
+        self,
+        x: torch.Tensor,
+        batch_index: Optional[torch.Tensor] = None,
+        cont_covs: Optional[torch.Tensor] = None,
+        cat_covs: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """Classify cells into cell types."""
         if self.log_variational:
             x = torch.log(1 + x)
@@ -222,8 +228,8 @@ class SCANVAE(VAE):
 
     @auto_move_data
     def classification_loss(self, labelled_dataset):
-        x = labelled_dataset[REGISTRY_KEYS.X_KEY]
-        y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]
+        x = labelled_dataset[REGISTRY_KEYS.X_KEY]  # (n_obs, n_vars)
+        y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = (
@@ -234,13 +240,18 @@ class SCANVAE(VAE):
         cat_covs = (
             labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
         )
+        classification = self.classify(
+            x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
+        )  # (n_obs, n_labels)
         classification_loss = F.cross_entropy(
-            self.classify(
-                x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
-            ),
+            classification,
             y.view(-1).long(),
         )
-        return classification_loss
+        return {
+            "classification_loss": classification_loss,
+            "classification": torch.argmax(classification, dim=-1, keepdim=True),
+            "labels": y,
+        }
 
     def loss(
         self,
@@ -335,13 +346,22 @@ class SCANVAE(VAE):
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
 
         if labelled_tensors is not None:
-            classifier_loss = self.classification_loss(labelled_tensors)
-            loss += classifier_loss * classification_ratio
+            classifier_output = self.classification_loss(labelled_tensors)
+            classification_loss = classifier_output["classification_loss"]
+            classification = classifier_output["classification"]
+            labels = classifier_output["labels"]
+
+            loss += classification_loss * classification_ratio
             return LossOutput(
                 loss=loss,
                 reconstruction_loss=reconst_loss,
                 kl_local=kl_divergence,
-                extra_metrics={"classification_loss": classifier_loss},
+                extra_metrics={"classification_loss": classification_loss},
+                classification={
+                    "predicted_labels": classification,
+                    "true_labels": labels,
+                    "num_classes": self.n_labels,
+                },
             )
         return LossOutput(
             loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence

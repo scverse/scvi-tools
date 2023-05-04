@@ -12,6 +12,7 @@ import pyro
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torchmetrics import Accuracy, F1Score
 
 from scvi import REGISTRY_KEYS
 from scvi.autotune._types import Tunable, TunableMixin
@@ -707,6 +708,26 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
+
+    def compute_and_log_metrics(
+        self, loss_output: LossOutput, metrics: Dict[str, ElboMetric], mode: str
+    ):
+        """Computes and logs metrics."""
+        super().compute_and_log_metrics(loss_output, metrics, mode)
+        if loss_output.classification is not None:
+            y = loss_output.classification["true_labels"]
+            y_hat = loss_output.classification["predicted_labels"]
+            num_classes = loss_output.classification["num_classes"]
+
+            accuracy = Accuracy(task="multiclass", num_classes=num_classes).to(
+                y_hat.device
+            )(y_hat, y)
+            f1 = F1Score(task="multiclass", num_classes=num_classes).to(y_hat.device)(
+                y_hat, y
+            )
+
+            self.log("accuracy", accuracy)
+            self.log("f1", f1)
 
     def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
