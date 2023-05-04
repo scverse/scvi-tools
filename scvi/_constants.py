@@ -26,7 +26,6 @@ class _METRIC_KEYS_NT(NamedTuple):
     CROSS_ENTROPY_KEY: str = "cross_entropy"
     TRUE_LABELS_KEY: str = "true_labels"
     LOGITS_KEY: str = "logits"
-    N_CLASSES_KEY: str = "n_classes"
 
 
 REGISTRY_KEYS = _REGISTRY_KEYS_NT()

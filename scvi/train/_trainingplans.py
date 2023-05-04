@@ -648,6 +648,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     ----------
     module
         A module instance from class ``BaseModuleClass``.
+    n_classes
+        The number of classes in the labeled dataset.
     classification_ratio
         Weight of the classification_loss in loss function
     lr
@@ -679,6 +681,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def __init__(
         self,
         module: BaseModuleClass,
+        n_classes: int,
         *,
         classification_ratio: int = 50,
         lr: float = 1e-3,
@@ -708,6 +711,14 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
+        self.initialize_metrics(n_classes)
+
+    def initialize_metrics(self, n_classes: int):
+        """Initialize metrics."""
+        kwargs = {"task": "multiclass", "num_classes": n_classes}
+        self.accuracy_fn = Accuracy(**kwargs)
+        self.f1_fn = F1Score(**kwargs)
+        self.auroc_fn = AUROC(**kwargs)
 
     def compute_and_log_metrics(
         self, loss_output: LossOutput, metrics: Dict[str, ElboMetric], mode: str
@@ -723,17 +734,10 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         true_labels = loss_output.classification[METRIC_KEYS.TRUE_LABELS_KEY]
         logits = loss_output.classification[METRIC_KEYS.LOGITS_KEY]
         predicted_labels = torch.argmax(logits, dim=-1, keepdim=True)
-        n_classes = loss_output.classification[METRIC_KEYS.N_CLASSES_KEY]
 
-        accuracy = Accuracy(task="multiclass", num_classes=n_classes).to(logits.device)(
-            predicted_labels, true_labels
-        )
-        f1 = F1Score(task="multiclass", num_classes=n_classes).to(logits.device)(
-            predicted_labels, true_labels
-        )
-        auroc = AUROC(task="multiclass", num_classes=n_classes).to(logits.device)(
-            logits, true_labels.view(-1).long()
-        )
+        accuracy = self.accuracy_fn(predicted_labels, true_labels)
+        f1 = self.f1_fn(predicted_labels, true_labels)
+        auroc = self.auroc_fn(logits, true_labels.view(-1).long())
 
         self.log(f"{mode}_{METRIC_KEYS.CROSS_ENTROPY_KEY}", ce_loss)
         self.log(f"{mode}_{METRIC_KEYS.ACCURACY_KEY}", accuracy)
@@ -1081,6 +1085,11 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
     def forward(self, *args, **kwargs):
         """Passthrough to the module's forward function."""
         return self.module(*args, **kwargs)
+
+    def compute_and_log_metrics(
+        self, loss_output: LossOutput, metrics: Dict[str, ElboMetric], mode: str
+    ):
+        assert loss_output.classification != {}
 
     def training_step(self, batch, batch_idx):
         """Training step for classifier training."""

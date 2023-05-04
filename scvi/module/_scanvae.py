@@ -248,10 +248,9 @@ class SCANVAE(VAE):
             y.view(-1).long(),
         )
         return {
-            METRIC_KEYS.CROSS_ENTROPY_KEY: ce_loss,
-            METRIC_KEYS.TRUE_LABELS_KEY: y,
-            METRIC_KEYS.LOGITS_KEY: logits,
-            METRIC_KEYS.N_CLASSES_KEY: self.n_labels,
+            METRIC_KEYS.CROSS_ENTROPY_KEY: ce_loss.detach().cpu(),
+            METRIC_KEYS.TRUE_LABELS_KEY: y.detach().cpu(),
+            METRIC_KEYS.LOGITS_KEY: logits.detach().cpu(),
         }
 
     def loss(
