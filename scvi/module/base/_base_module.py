@@ -107,15 +107,6 @@ class LossOutput:
             rec_loss = self.reconstruction_loss
             self.n_obs_minibatch = list(rec_loss.values())[0].shape[0]
 
-        if len(self.classification) > 0:
-            assert "true_labels" in self.classification
-            assert "predicted_labels" in self.classification
-            assert "num_classes" in self.classification
-
-            y = self.classification["true_labels"]
-            y_hat = self.classification["predicted_labels"]
-            assert y.shape == y_hat.shape
-
     @staticmethod
     def dict_sum(dictionary: dict[str, Tensor] | Tensor):
         """Sum over elements of a dictionary."""

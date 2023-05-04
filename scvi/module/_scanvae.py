@@ -6,7 +6,7 @@ from torch.distributions import Categorical, Normal
 from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
-from scvi import REGISTRY_KEYS
+from scvi import METRIC_KEYS, REGISTRY_KEYS
 from scvi.autotune._types import Tunable
 from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import Decoder, Encoder
@@ -240,17 +240,18 @@ class SCANVAE(VAE):
         cat_covs = (
             labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
         )
-        classification = self.classify(
+        logits = self.classify(
             x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
         )  # (n_obs, n_labels)
-        classification_loss = F.cross_entropy(
-            classification,
+        ce_loss = F.cross_entropy(
+            logits,
             y.view(-1).long(),
         )
         return {
-            "classification_loss": classification_loss,
-            "classification": torch.argmax(classification, dim=-1, keepdim=True),
-            "labels": y,
+            METRIC_KEYS.CROSS_ENTROPY_KEY: ce_loss,
+            METRIC_KEYS.TRUE_LABELS_KEY: y,
+            METRIC_KEYS.LOGITS_KEY: logits,
+            METRIC_KEYS.N_CLASSES_KEY: self.n_labels,
         }
 
     def loss(
@@ -310,18 +311,20 @@ class SCANVAE(VAE):
                 "kl_divergence_l": kl_divergence_l,
             }
             if labelled_tensors is not None:
-                classifier_loss = self.classification_loss(labelled_tensors)
-                loss += classifier_loss * classification_ratio
+                classification = self.classification_loss(labelled_tensors)
+                loss += (
+                    classification[METRIC_KEYS.CROSS_ENTROPY_KEY] * classification_ratio
+                )
                 return LossOutput(
                     loss=loss,
                     reconstruction_loss=reconst_loss,
                     kl_local=kl_locals,
                     extra_metrics={
-                        "classification_loss": classifier_loss,
                         "n_labelled_tensors": labelled_tensors[
                             REGISTRY_KEYS.X_KEY
                         ].shape[0],
                     },
+                    classification=classification,
                 )
             return LossOutput(
                 loss=loss,
@@ -346,22 +349,14 @@ class SCANVAE(VAE):
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
 
         if labelled_tensors is not None:
-            classifier_output = self.classification_loss(labelled_tensors)
-            classification_loss = classifier_output["classification_loss"]
-            classification = classifier_output["classification"]
-            labels = classifier_output["labels"]
+            classification = self.classification_loss(labelled_tensors)
 
-            loss += classification_loss * classification_ratio
+            loss += classification[METRIC_KEYS.CROSS_ENTROPY_KEY] * classification_ratio
             return LossOutput(
                 loss=loss,
                 reconstruction_loss=reconst_loss,
                 kl_local=kl_divergence,
-                extra_metrics={"classification_loss": classification_loss},
-                classification={
-                    "predicted_labels": classification,
-                    "true_labels": labels,
-                    "num_classes": self.n_labels,
-                },
+                classification=classification,
             )
         return LossOutput(
             loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence

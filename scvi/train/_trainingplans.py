@@ -12,9 +12,9 @@ import pyro
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchmetrics import Accuracy, F1Score
+from torchmetrics import AUROC, Accuracy, F1Score
 
-from scvi import REGISTRY_KEYS
+from scvi import METRIC_KEYS, REGISTRY_KEYS
 from scvi.autotune._types import Tunable, TunableMixin
 from scvi.module import Classifier
 from scvi.module.base import (
@@ -714,20 +714,29 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     ):
         """Computes and logs metrics."""
         super().compute_and_log_metrics(loss_output, metrics, mode)
-        if loss_output.classification is not None:
-            y = loss_output.classification["true_labels"]
-            y_hat = loss_output.classification["predicted_labels"]
-            num_classes = loss_output.classification["num_classes"]
 
-            accuracy = Accuracy(task="multiclass", num_classes=num_classes).to(
-                y_hat.device
-            )(y_hat, y)
-            f1 = F1Score(task="multiclass", num_classes=num_classes).to(y_hat.device)(
-                y_hat, y
-            )
+        # no labeled observations in minibatch
+        if loss_output.classification == {}:
+            return
 
-            self.log("accuracy", accuracy)
-            self.log("f1", f1)
+        true_labels = loss_output.classification[METRIC_KEYS.TRUE_LABELS_KEY]
+        logits = loss_output.classification[METRIC_KEYS.LOGITS_KEY]
+        predicted_labels = torch.argmax(logits, dim=-1, keepdim=True)
+        n_classes = loss_output.classification[METRIC_KEYS.N_CLASSES_KEY]
+
+        accuracy = Accuracy(task="multiclass", num_classes=n_classes).to(logits.device)(
+            predicted_labels, true_labels
+        )
+        f1 = F1Score(task="multiclass", num_classes=n_classes).to(logits.device)(
+            predicted_labels, true_labels
+        )
+        auroc = AUROC(task="multiclass", num_classes=n_classes).to(logits.device)(
+            logits, true_labels.view(-1).long()
+        )
+
+        self.log(f"{mode}_{METRIC_KEYS.ACCURACY_KEY}", accuracy)
+        self.log(f"{mode}_{METRIC_KEYS.F1_SCORE_KEY}", f1)
+        self.log(f"{mode}_{METRIC_KEYS.AUROC_KEY}", auroc)
 
     def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
