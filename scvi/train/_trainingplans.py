@@ -719,6 +719,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         if loss_output.classification == {}:
             return
 
+        ce_loss = loss_output.classification[METRIC_KEYS.CROSS_ENTROPY_KEY]
         true_labels = loss_output.classification[METRIC_KEYS.TRUE_LABELS_KEY]
         logits = loss_output.classification[METRIC_KEYS.LOGITS_KEY]
         predicted_labels = torch.argmax(logits, dim=-1, keepdim=True)
@@ -734,6 +735,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             logits, true_labels.view(-1).long()
         )
 
+        self.log(f"{mode}_{METRIC_KEYS.CROSS_ENTROPY_KEY}", ce_loss)
         self.log(f"{mode}_{METRIC_KEYS.ACCURACY_KEY}", accuracy)
         self.log(f"{mode}_{METRIC_KEYS.F1_SCORE_KEY}", f1)
         self.log(f"{mode}_{METRIC_KEYS.AUROC_KEY}", auroc)
