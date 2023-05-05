@@ -1046,6 +1046,8 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
     ----------
     classifier
         A model instance from :class:`~scvi.module.Classifier`.
+    n_classes
+        The number of classes in the labeled dataset.
     lr
         Learning rate used for optimization.
     weight_decay
@@ -1089,6 +1091,8 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
             raise UserWarning(
                 "classifier should return logits when using CrossEntropyLoss."
             )
+
+        self.initialize_metrics(n_classes)
 
     def initialize_metrics(self, n_classes: int):
         """Initialize metrics."""

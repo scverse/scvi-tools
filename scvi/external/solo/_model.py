@@ -83,9 +83,10 @@ class SOLO(BaseModelClass):
         # about non count data
         super().__init__(adata)
 
+        self.n_labels = 2
         self.module = Classifier(
             n_input=self.summary_stats.n_vars,
-            n_labels=2,
+            n_labels=self.n_labels,
             logits=True,
             **classifier_kwargs,
         )
@@ -335,7 +336,9 @@ class SOLO(BaseModelClass):
             validation_size=validation_size,
             batch_size=batch_size,
         )
-        training_plan = ClassifierTrainingPlan(self.module, **plan_kwargs)
+        training_plan = ClassifierTrainingPlan(
+            self.module, self.n_labels, **plan_kwargs
+        )
         runner = TrainRunner(
             self,
             training_plan=training_plan,
