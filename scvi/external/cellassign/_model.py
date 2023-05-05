@@ -163,7 +163,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         batch_size
             Minibatch size to use during training.
         plan_kwargs
-            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`.
         early_stopping
             Adds callback for early stopping on validation_loss
         early_stopping_patience
