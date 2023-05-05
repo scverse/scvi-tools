@@ -323,6 +323,8 @@ class DecoderSCVI(nn.Module):
         Whether to use layer norm in layers
     scale_activation
         Activation layer to use for px_scale_decoder
+    **kwargs
+        Keyword args for :class:`~scvi.nn.FCLayers`.
     """
 
     def __init__(
@@ -336,6 +338,7 @@ class DecoderSCVI(nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         scale_activation: Literal["softmax", "softplus"] = "softmax",
+        **kwargs,
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -348,6 +351,7 @@ class DecoderSCVI(nn.Module):
             inject_covariates=inject_covariates,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
+            **kwargs,
         )
 
         # mean gamma
@@ -422,6 +426,7 @@ class LinearDecoderSCVI(nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         bias: bool = False,
+        **kwargs,
     ):
         super().__init__()
 
@@ -436,6 +441,7 @@ class LinearDecoderSCVI(nn.Module):
             use_layer_norm=use_layer_norm,
             bias=bias,
             dropout_rate=0,
+            **kwargs,
         )
 
         # dropout
@@ -449,6 +455,7 @@ class LinearDecoderSCVI(nn.Module):
             use_layer_norm=use_layer_norm,
             bias=bias,
             dropout_rate=0,
+            **kwargs,
         )
 
     def forward(
@@ -556,6 +563,7 @@ class MultiEncoder(nn.Module):
         n_cat_list: Iterable[int] = None,
         dropout_rate: float = 0.1,
         return_dist: bool = False,
+        **kwargs,
     ):
         super().__init__()
 
@@ -569,6 +577,7 @@ class MultiEncoder(nn.Module):
                     n_hidden=n_hidden,
                     dropout_rate=dropout_rate,
                     use_batch_norm=True,
+                    **kwargs,
                 )
                 for i in range(n_heads)
             ]
@@ -581,6 +590,7 @@ class MultiEncoder(nn.Module):
             n_layers=n_layers_shared,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            **kwargs,
         )
 
         self.mean_encoder = nn.Linear(n_hidden, n_output)
@@ -614,6 +624,7 @@ class MultiDecoder(nn.Module):
         n_layers_shared: int = 1,
         n_cat_list: Iterable[int] = None,
         dropout_rate: float = 0.2,
+        **kwargs,
     ):
         super().__init__()
 
@@ -627,6 +638,7 @@ class MultiDecoder(nn.Module):
                 n_hidden=n_hidden_conditioned,
                 dropout_rate=dropout_rate,
                 use_batch_norm=True,
+                **kwargs,
             )
             n_in = n_out
         else:
@@ -642,6 +654,7 @@ class MultiDecoder(nn.Module):
                 n_hidden=n_hidden_shared,
                 dropout_rate=dropout_rate,
                 use_batch_norm=True,
+                **kwargs,
             )
             n_in = n_hidden_shared
         else:
