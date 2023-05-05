@@ -33,7 +33,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Changed
 
 -   Use sphinx book theme for documentation {pr}`1673`.
--   {class}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` now outputs 3-d {class}`sparse.GCXS` matrices.
+-   {class}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` now outputs 3-d {class}`sparse.GCXS` matrices {pr}`1902`.
 -   Add an option to specify `dropout_ratio` in {meth}`scvi.data.synthetic_iid` {pr}`1920`.
 -   Update to lightning 2.0 {pr}`1961`
 -   Hyperopt is new default searcher for tuner {pr}`1961`
