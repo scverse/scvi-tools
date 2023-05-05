@@ -53,7 +53,7 @@ dependencies = [
     "numpyro",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
-    "sparse",
+    "sparse>=0.14.0",
 ]
 
 
