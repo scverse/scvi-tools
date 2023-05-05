@@ -33,6 +33,7 @@ class LibrarySizeEncoder(torch.nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = True,
         deep_inject_covariates: bool = False,
+        **kwargs,
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -46,6 +47,7 @@ class LibrarySizeEncoder(torch.nn.Module):
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
             inject_covariates=deep_inject_covariates,
+            **kwargs,
         )
         self.output = torch.nn.Sequential(
             torch.nn.Linear(n_hidden, 1), torch.nn.LeakyReLU()

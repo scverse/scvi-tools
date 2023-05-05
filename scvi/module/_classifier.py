@@ -26,6 +26,8 @@ class Classifier(nn.Module):
         Whether to use layer norm in layers
     activation_fn
         Valid activation function from torch.nn
+    **kwargs
+        Keyword arguments passed into :class:`~scvi.nn.FCLayers`.
     """
 
     def __init__(
@@ -39,6 +41,7 @@ class Classifier(nn.Module):
         use_batch_norm: bool = True,
         use_layer_norm: bool = False,
         activation_fn: nn.Module = nn.ReLU,
+        **kwargs,
     ):
         super().__init__()
         self.logits = logits
@@ -52,6 +55,7 @@ class Classifier(nn.Module):
                 use_batch_norm=use_batch_norm,
                 use_layer_norm=use_layer_norm,
                 activation_fn=activation_fn,
+                **kwargs,
             ),
             nn.Linear(n_hidden, n_labels),
         ]
