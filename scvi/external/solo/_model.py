@@ -4,12 +4,13 @@ import warnings
 from contextlib import redirect_stdout
 from typing import List, Optional, Sequence, Union
 
+import anndata
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
@@ -202,7 +203,7 @@ class SOLO(BaseModelClass):
             )
             doublet_adata.obs[LABELS_KEY] = "doublet"
 
-            full_adata = latent_adata.concatenate(doublet_adata)
+            full_adata = anndata.concat([latent_adata, doublet_adata])
             cls.setup_anndata(full_adata, labels_key=LABELS_KEY)
         return cls(full_adata, **classifier_kwargs)
 
@@ -430,4 +431,5 @@ def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):
         warnings.warn(
             "Solo should only be trained on one lane of data using `restrict_to_batch`. Performance may suffer.",
             UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )

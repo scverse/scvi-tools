@@ -8,7 +8,7 @@ name = "scvi-tools"
 version = "0.20.3"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = {file = "LICENSE"}
 authors = [
     {name = "The scvi-tools development team"},
@@ -23,7 +23,6 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Operating System :: MacOS :: MacOS X",
@@ -43,7 +42,6 @@ dependencies = [
     "pandas>=1.0",
     "scipy",
     "scikit-learn>=0.21.2",
-    "openpyxl>=3.0",
     "rich>=12.0.0",
     "h5py>=2.9.0",
     "torch>=1.8.0",
@@ -60,7 +58,7 @@ dependencies = [
 
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "pytest-cov", "flake8", "codecov", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde", "genomepy"]
+dev = ["black", "pytest", "pytest-cov", "flake8", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde", "genomepy"]
 docs = [
   "sphinx>=4.1",
   "ipython",
@@ -83,6 +81,10 @@ autotune = [
 pymde = ["pymde"]
 tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub", "genomepy"]
 hub = ["huggingface_hub"]
+regseq = [
+    "biopython>=1.81",
+    "genomepy",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ['scvi']

@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 import torch
 from torch.distributions import Normal
@@ -30,10 +32,16 @@ class VAEC(BaseModuleClass):
         Dimensionality of the latent space
     n_layers
         Number of hidden layers used for encoder and decoder NNs
-    dropout_rate
-        Dropout rate for the encoder and decoder neural network
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
+    ct_weight
+        Multiplicative weight for cell type specific latent space.
+    dropout_rate
+        Dropout rate for the encoder and decoder neural network.
+    extra_encoder_kwargs
+        Keyword arguments passed into :class:`~scvi.nn.Encoder`.
+    extra_decoder_kwargs
+        Keyword arguments passed into :class:`~scvi.nn.FCLayers`.
     """
 
     def __init__(
@@ -46,7 +54,8 @@ class VAEC(BaseModuleClass):
         log_variational: bool = True,
         ct_weight: np.ndarray = None,
         dropout_rate: Tunable[float] = 0.05,
-        **module_kwargs,
+        extra_encoder_kwargs: Optional[dict] = None,
+        extra_decoder_kwargs: Optional[dict] = None,
     ):
         super().__init__()
         self.dispersion = "gene"
@@ -65,6 +74,7 @@ class VAEC(BaseModuleClass):
         self.px_r = torch.nn.Parameter(torch.randn(n_input))
 
         # z encoder goes from the n_input-dimensional data to an n_latent-d
+        _extra_encoder_kwargs = {}
         self.z_encoder = Encoder(
             n_input,
             n_latent,
@@ -76,9 +86,11 @@ class VAEC(BaseModuleClass):
             use_batch_norm=False,
             use_layer_norm=True,
             return_dist=True,
+            **_extra_encoder_kwargs,
         )
 
         # decoder goes from n_latent-dimensional space to n_input-d data
+        _extra_decoder_kwargs = {}
         self.decoder = FCLayers(
             n_in=n_latent,
             n_out=n_hidden,
@@ -89,6 +101,7 @@ class VAEC(BaseModuleClass):
             inject_covariates=True,
             use_batch_norm=False,
             use_layer_norm=True,
+            **_extra_decoder_kwargs,
         )
         self.px_decoder = torch.nn.Sequential(
             torch.nn.Linear(n_hidden, n_input), torch.nn.Softplus()

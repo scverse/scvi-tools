@@ -30,8 +30,6 @@ Here we host some published datasets that are useful for benchmarking and testin
    data.brainlarge_dataset
    data.pbmc_dataset
    data.cortex
-   data.seqfishplus
-   data.seqfish
    data.smfish
    data.synthetic_iid
    data.breast_cancer_dataset

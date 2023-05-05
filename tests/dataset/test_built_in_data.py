@@ -38,21 +38,6 @@ class TestLoomDataset(TestCase):
         unsupervised_training_one_epoch(gene_dataset)
 
 
-class TestSeqfishDataset(TestCase):
-    def test_populate(self):
-        dataset = scvi.data.seqfish(save_path="tests/data")
-        unsupervised_training_one_epoch(dataset)
-
-
-class TestSeqFishPlusDataset(TestCase):
-    def test_populate(self):
-        for tissue_region in ["subventricular cortex", "olfactory bulb"]:
-            dataset = scvi.data.seqfishplus(
-                tissue_region=tissue_region, save_path="tests/data"
-            )
-            unsupervised_training_one_epoch(dataset)
-
-
 class TestSyntheticDataset(TestCase):
     def test_iid(self):
         dataset = scvi.data.synthetic_iid(batch_size=10, n_genes=10)

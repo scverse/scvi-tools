@@ -17,6 +17,7 @@ try:
 except ImportError:
     pass
 
+from scvi import settings
 from scvi._decorators import dependencies
 from scvi._types import AnnOrMuData
 from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
@@ -28,12 +29,6 @@ from ._types import TunableMeta
 from ._utils import in_notebook
 
 logger = logging.getLogger(__name__)
-
-
-# This is to get around lightning import changes
-class _TuneReportCallback(TuneReportCallback, pl.Callback):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 
 @dataclass
@@ -80,6 +75,7 @@ class TunerManager:
             warnings.warn(
                 f"No default search space available for {model_cls.__name__}.",
                 UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         return DEFAULTS.get(model_cls, {})
 
@@ -107,7 +103,7 @@ class TunerManager:
 
         def _cls_to_tunable_type(cls: Any) -> str:
             for tunable_type, cls_list in TUNABLE_TYPES.items():
-                if any([issubclass(cls, c) for c in cls_list]):
+                if any(issubclass(cls, c) for c in cls_list):
                     return tunable_type
             return None
 
@@ -234,6 +230,7 @@ class TunerManager:
                     "Please see available metrics with `ModelTuner.info()`. "
                     "Ignoring metric.",
                     UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
                 continue
             _metrics[m] = registry_metrics[m]
@@ -395,7 +392,11 @@ class TunerManager:
             model_kwargs, train_kwargs = self._get_search_space(search_space)
             getattr(model_cls, setup_method_name)(adata, **setup_kwargs)
             model = model_cls(adata, **model_kwargs)
-            monitor = _TuneReportCallback(metric, on="validation_end")
+            # This is to get around lightning import changes
+            callback_cls = type(
+                "_TuneReportCallback", (TuneReportCallback, pl.Callback), {}
+            )
+            monitor = callback_cls(metric, on="validation_end")
             model.train(
                 max_epochs=max_epochs,
                 use_gpu=use_gpu,
