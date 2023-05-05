@@ -23,7 +23,7 @@ class _METRIC_KEYS_NT(NamedTuple):
     ACCURACY_KEY: str = "accuracy"
     F1_SCORE_KEY: str = "f1_score"
     AUROC_KEY: str = "auroc"
-    CROSS_ENTROPY_KEY: str = "cross_entropy"
+    CLASSIFICATION_LOSS_KEY: str = "classification_loss"
     TRUE_LABELS_KEY: str = "true_labels"
     LOGITS_KEY: str = "logits"
 

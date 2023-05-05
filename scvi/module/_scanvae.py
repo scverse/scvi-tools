@@ -6,7 +6,7 @@ from torch.distributions import Categorical, Normal
 from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
-from scvi import METRIC_KEYS, REGISTRY_KEYS
+from scvi import REGISTRY_KEYS
 from scvi.autotune._types import Tunable
 from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import Decoder, Encoder
@@ -247,11 +247,7 @@ class SCANVAE(VAE):
             logits,
             y.view(-1).long(),
         )
-        return {
-            METRIC_KEYS.CROSS_ENTROPY_KEY: ce_loss.detach().cpu(),
-            METRIC_KEYS.TRUE_LABELS_KEY: y.detach().cpu(),
-            METRIC_KEYS.LOGITS_KEY: logits.detach().cpu(),
-        }
+        return ce_loss, y, logits
 
     def loss(
         self,
@@ -310,20 +306,22 @@ class SCANVAE(VAE):
                 "kl_divergence_l": kl_divergence_l,
             }
             if labelled_tensors is not None:
-                classification = self.classification_loss(labelled_tensors)
-                loss += (
-                    classification[METRIC_KEYS.CROSS_ENTROPY_KEY] * classification_ratio
+                ce_loss, true_labels, logits = self.classification_loss(
+                    labelled_tensors
                 )
+                loss += ce_loss * classification_ratio
                 return LossOutput(
                     loss=loss,
                     reconstruction_loss=reconst_loss,
                     kl_local=kl_locals,
+                    classification_loss=ce_loss,
+                    true_labels=true_labels,
+                    logits=logits,
                     extra_metrics={
                         "n_labelled_tensors": labelled_tensors[
                             REGISTRY_KEYS.X_KEY
                         ].shape[0],
                     },
-                    classification=classification,
                 )
             return LossOutput(
                 loss=loss,
@@ -348,14 +346,16 @@ class SCANVAE(VAE):
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
 
         if labelled_tensors is not None:
-            classification = self.classification_loss(labelled_tensors)
+            ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)
 
-            loss += classification[METRIC_KEYS.CROSS_ENTROPY_KEY] * classification_ratio
+            loss += ce_loss * classification_ratio
             return LossOutput(
                 loss=loss,
                 reconstruction_loss=reconst_loss,
                 kl_local=kl_divergence,
-                classification=classification,
+                classification_loss=ce_loss,
+                true_labels=true_labels,
+                logits=logits,
             )
         return LossOutput(
             loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence

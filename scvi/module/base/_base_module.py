@@ -52,6 +52,12 @@ class LossOutput:
     kl_global
         Global KL divergence term. Should be one dimensional with one value. If a tensor, converted to
         a dictionary with key "kl_global" and value as tensor.
+    classification_loss
+        Classification loss.
+    logits
+        Logits for classification.
+    true_labels
+        True labels for classification.
     extra_metrics
         Additional metrics can be passed as arrays/tensors or dictionaries of
         arrays/tensors.
@@ -74,7 +80,9 @@ class LossOutput:
     reconstruction_loss: LossRecord | None = None
     kl_local: LossRecord | None = None
     kl_global: LossRecord | None = None
-    classification: dict[str, Tensor] | None = field(default_factory=dict)
+    classification_loss: LossRecord | None = None
+    logits: Tensor | None = None
+    true_labels: Tensor | None = None
     extra_metrics: dict[str, Tensor] | None = field(default_factory=dict)
     n_obs_minibatch: int | None = None
     reconstruction_loss_sum: Tensor = field(default=None, init=False)
@@ -106,6 +114,14 @@ class LossOutput:
         if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
             rec_loss = self.reconstruction_loss
             self.n_obs_minibatch = list(rec_loss.values())[0].shape[0]
+
+        if self.classification_loss is not None and (
+            self.logits is None or self.true_labels is None
+        ):
+            raise ValueError(
+                "Must provide `logits` and `true_labels` if `classification_loss` is "
+                "provided."
+            )
 
     @staticmethod
     def dict_sum(dictionary: dict[str, Tensor] | Tensor):
