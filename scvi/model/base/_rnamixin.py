@@ -6,6 +6,7 @@ from typing import Dict, Iterable, Literal, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
+import sparse
 import torch
 import torch.distributions as db
 from anndata import AnnData
@@ -405,8 +406,9 @@ class RNASeqMixin:
         n_samples: int = 1,
         gene_list: Optional[Sequence[str]] = None,
         batch_size: Optional[int] = None,
-    ) -> np.ndarray:
-        r"""Generate observation samples from the posterior predictive distribution.
+    ) -> sparse.GCXS:
+        r"""
+        Generate observation samples from the posterior predictive distribution.
 
         The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
 
@@ -455,11 +457,11 @@ class RNASeqMixin:
             )
             if gene_list is not None:
                 samples = samples[:, gene_mask, ...]
-            x_new.append(samples)
+            x_new.append(sparse.GCXS.from_numpy(samples.numpy()))
 
-        x_new = torch.cat(x_new)  # Shape (n_cells, n_genes, n_samples)
+        x_new = sparse.concatenate(x_new)  # Shape (n_cells, n_genes, n_samples)
 
-        return x_new.numpy()
+        return x_new
 
     @torch.inference_mode()
     def _get_denoised_samples(

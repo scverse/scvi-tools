@@ -33,6 +33,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Changed
 
 -   Use sphinx book theme for documentation {pr}`1673`.
+-   {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` now outputs 3-d {class}`sparse.GCXS` matrices {pr}`1902`.
 -   Add an option to specify `dropout_ratio` in {meth}`scvi.data.synthetic_iid` {pr}`1920`.
 -   Update to lightning 2.0 {pr}`1961`
 -   Hyperopt is new default searcher for tuner {pr}`1961`
@@ -42,6 +43,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Deprecate `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices`, to be removed in v1.1 {pr}`1978`.
 -   Docs organization {pr}`1983`.
 -   Validate training data and code URLs for {class}`scvi.hub.HubMetadata` and {class}`scvi.hub.HubModelCardHelper` {pr}`1985`.
+-   Keyword arguments for encoders and decoders can now be passed in from the model level {pr}`1986`.
 -   Expose `local_dir` as a public property in {class}`scvi.hub.HubModel` {pr}`1994`.
 -   Use {func}`anndata.concat` internally inside {meth}`scvi.external.SOLO.from_scvi_model` {pr}`2013`.
 
