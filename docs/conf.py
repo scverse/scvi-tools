@@ -126,6 +126,7 @@ intersphinx_mapping = {
     "mudata": ("https://mudata.readthedocs.io/en/latest/", None),
     "ray": ("https://docs.ray.io/en/latest/", None),
     "huggingface_hub": ("https://huggingface.co/docs/huggingface_hub/main/en", None),
+    "sparse": ("https://sparse.pydata.org/en/stable/", None),
 }
 
 # -- Options for HTML output -------------------------------------------

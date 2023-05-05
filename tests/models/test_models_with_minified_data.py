@@ -401,7 +401,7 @@ def test_scvi_with_minified_adata_posterior_predictive_sample():
     )
     assert sample_new.shape == (3, 2)
 
-    np.testing.assert_array_equal(sample_new, sample_orig)
+    np.testing.assert_array_equal(sample_new.todense(), sample_orig.todense())
 
 
 def test_scvi_with_minified_adata_get_feature_correlation_matrix():
