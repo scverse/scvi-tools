@@ -1,5 +1,7 @@
 import pytest
 
+import scvi
+from scvi import METRIC_KEYS
 from scvi.model import SCVI, JaxSCVI
 from scvi.train import JaxTrainingPlan, TrainingPlan
 from scvi.train._trainingplans import _compute_kl_weight
@@ -77,3 +79,23 @@ def test_loss_args(synthetic_adata):
     for arg in loss_args:
         assert arg in tp._loss_args
         assert arg in jax_tp._loss_args
+
+
+def test_semisupervisedtrainingplan_metrics():
+    adata = scvi.data.synthetic_iid(n_labels=3)
+    scvi.model.SCANVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        unlabeled_category="label_0",
+        batch_key="batch",
+    )
+    model = scvi.model.SCANVI(adata)
+    model.train(max_epochs=1, check_val_every_n_epoch=1)
+
+    for mode in ["train", "validation"]:
+        for metric in [
+            METRIC_KEYS.ACCURACY_KEY,
+            METRIC_KEYS.F1_SCORE_KEY,
+            METRIC_KEYS.CLASSIFICATION_LOSS_KEY,
+        ]:
+            assert f"{mode}_{metric}" in model.history_

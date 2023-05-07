@@ -745,11 +745,27 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.auroc(logits, true_labels.view(-1).long())
 
         self.log_with_mode(
-            METRIC_KEYS.CLASSIFICATION_LOSS_KEY, classification_loss, mode
+            METRIC_KEYS.CLASSIFICATION_LOSS_KEY,
+            classification_loss,
+            mode,
+            on_step=False,
+            on_epoch=True,
         )
-        self.log_with_mode(METRIC_KEYS.ACCURACY_KEY, self.accuracy, mode)
-        self.log_with_mode(METRIC_KEYS.F1_SCORE_KEY, self.f1, mode)
-        self.log_with_mode(METRIC_KEYS.AUROC_KEY, self.auroc, mode)
+        self.log_with_mode(
+            METRIC_KEYS.ACCURACY_KEY,
+            self.accuracy,
+            mode,
+            on_step=False,
+            on_epoch=True,
+        )
+        self.log_with_mode(
+            METRIC_KEYS.F1_SCORE_KEY,
+            self.f1,
+            mode,
+            on_step=False,
+            on_epoch=True,
+        )
+        # currently not logging auroc due to accumulation error
 
     def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
