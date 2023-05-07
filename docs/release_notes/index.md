@@ -29,6 +29,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Fix creation of minified adata by copying original uns dict {pr}`2000`. This issue arises with anndata>=0.9.0.
 -   Fix {class}`scvi.model.TOTALVI` {class}`scvi.model.MULTIVI` handling of missing protein values {pr}`2009`.
+-   Fix bug in {meth}`scvi.distributions.NegativeBinomialMixture.sample` where `theta` and `mu` arguments were switched around {pr}`2024`.
 
 #### Changed
 
