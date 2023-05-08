@@ -47,6 +47,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Keyword arguments for encoders and decoders can now be passed in from the model level {pr}`1986`.
 -   Expose `local_dir` as a public property in {class}`scvi.hub.HubModel` {pr}`1994`.
 -   Use {func}`anndata.concat` internally inside {meth}`scvi.external.SOLO.from_scvi_model` {pr}`2013`.
+-   {class}`scvi.train.SemiSupervisedTrainingPlan` and {class}`scvi.train.ClassifierTrainingPlan` now log accuracy,
+    F1 score, and AUROC metrics {pr}`2023`.
 
 #### Removed
 
