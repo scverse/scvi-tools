@@ -16,4 +16,17 @@ class _REGISTRY_KEYS_NT(NamedTuple):
     OBSERVED_LIB_SIZE: str = "observed_lib_size"
 
 
+class _METRIC_KEYS_NT(NamedTuple):
+    TRAINING_KEY: str = "training"
+    VALIDATION_KEY: str = "validation"
+    # classification
+    ACCURACY_KEY: str = "accuracy"
+    F1_SCORE_KEY: str = "f1_score"
+    AUROC_KEY: str = "auroc"
+    CLASSIFICATION_LOSS_KEY: str = "classification_loss"
+    TRUE_LABELS_KEY: str = "true_labels"
+    LOGITS_KEY: str = "logits"
+
+
 REGISTRY_KEYS = _REGISTRY_KEYS_NT()
+METRIC_KEYS = _METRIC_KEYS_NT()

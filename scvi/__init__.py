@@ -3,7 +3,7 @@
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
 
-from ._constants import REGISTRY_KEYS
+from ._constants import METRIC_KEYS, REGISTRY_KEYS
 from ._settings import settings
 
 # this import needs to come after prior imports to prevent circular import
@@ -24,6 +24,7 @@ scvi_logger.propagate = False
 __all__ = [
     "settings",
     "REGISTRY_KEYS",
+    "METRIC_KEYS",
     "autotune",
     "data",
     "model",

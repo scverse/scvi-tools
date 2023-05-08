@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from functools import partial
 from inspect import signature
-from typing import Callable, Dict, Iterable, Literal, Optional, Union
+from typing import Any, Callable, Dict, Iterable, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -12,8 +12,9 @@ import pyro
 import torch
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torchmetrics import AUROC, Accuracy, F1Score
 
-from scvi import REGISTRY_KEYS
+from scvi import METRIC_KEYS, REGISTRY_KEYS
 from scvi.autotune._types import Tunable, TunableMixin
 from scvi.module import Classifier
 from scvi.module.base import (
@@ -647,6 +648,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     ----------
     module
         A module instance from class ``BaseModuleClass``.
+    n_classes
+        The number of classes in the labeled dataset.
     classification_ratio
         Weight of the classification_loss in loss function
     lr
@@ -678,6 +681,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def __init__(
         self,
         module: BaseModuleClass,
+        n_classes: int,
         *,
         classification_ratio: int = 50,
         lr: float = 1e-3,
@@ -707,6 +711,61 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
+        self.initialize_metrics(n_classes)
+
+    def initialize_metrics(self, n_classes: int):
+        """Initialize metrics."""
+        kwargs = {"task": "multiclass", "num_classes": n_classes}
+        self.accuracy = Accuracy(**kwargs)
+        self.f1 = F1Score(**kwargs)
+        self.auroc = AUROC(**kwargs)
+
+    def log_with_mode(self, key: str, value: Any, mode: str, **kwargs):
+        """Log with mode."""
+        # TODO: Include this with a base training plan
+        self.log(f"{mode}_{key}", value, **kwargs)
+
+    def compute_and_log_metrics(
+        self, loss_output: LossOutput, metrics: Dict[str, ElboMetric], mode: str
+    ):
+        """Computes and logs metrics."""
+        super().compute_and_log_metrics(loss_output, metrics, mode)
+
+        # no labeled observations in minibatch
+        if loss_output.classification_loss is None:
+            return
+
+        classification_loss = loss_output.classification_loss
+        true_labels = loss_output.true_labels
+        logits = loss_output.logits
+        predicted_labels = torch.argmax(logits, dim=-1, keepdim=True)
+
+        self.accuracy(predicted_labels, true_labels)
+        self.f1(predicted_labels, true_labels)
+        self.auroc(logits, true_labels.view(-1).long())
+
+        self.log_with_mode(
+            METRIC_KEYS.CLASSIFICATION_LOSS_KEY,
+            classification_loss,
+            mode,
+            on_step=False,
+            on_epoch=True,
+        )
+        self.log_with_mode(
+            METRIC_KEYS.ACCURACY_KEY,
+            self.accuracy,
+            mode,
+            on_step=False,
+            on_epoch=True,
+        )
+        self.log_with_mode(
+            METRIC_KEYS.F1_SCORE_KEY,
+            self.f1,
+            mode,
+            on_step=False,
+            on_epoch=True,
+        )
+        # currently not logging auroc due to accumulation error
 
     def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
@@ -1003,6 +1062,8 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
     ----------
     classifier
         A model instance from :class:`~scvi.module.Classifier`.
+    n_classes
+        The number of classes in the labeled dataset.
     lr
         Learning rate used for optimization.
     weight_decay
@@ -1022,6 +1083,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
     def __init__(
         self,
         classifier: BaseModuleClass,
+        n_classes: int,
         *,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
@@ -1046,9 +1108,49 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
                 "classifier should return logits when using CrossEntropyLoss."
             )
 
+        self.initialize_metrics(n_classes)
+
+    def initialize_metrics(self, n_classes: int):
+        """Initialize metrics."""
+        kwargs = {"task": "multiclass", "num_classes": n_classes}
+        self.accuracy = Accuracy(**kwargs)
+        self.f1 = F1Score(**kwargs)
+        self.auroc = AUROC(**kwargs)
+
     def forward(self, *args, **kwargs):
         """Passthrough to the module's forward function."""
         return self.module(*args, **kwargs)
+
+    def log_with_mode(self, key: str, value: Any, mode: str, **kwargs):
+        """Log with mode."""
+        # TODO: Include this with a base training plan
+        self.log(f"{mode}_{key}", value, **kwargs)
+
+    def compute_and_log_metrics(
+        self, loss_output: LossOutput, metrics: Dict[str, ElboMetric], mode: str
+    ):
+        """Computes and logs metrics."""
+        if loss_output.classification_loss is None:
+            raise ValueError(
+                "`classification_loss` must be provided in `LossOutput` for "
+                "`ClassifierTrainingPlan`."
+            )
+
+        classification_loss = loss_output.classification_loss
+        true_labels = loss_output.true_labels
+        logits = loss_output.logits
+        predicted_labels = torch.argmax(logits, dim=-1, keepdim=True)
+
+        self.accuracy(predicted_labels, true_labels)
+        self.f1(predicted_labels, true_labels)
+        self.auroc(logits, true_labels.view(-1).long())
+
+        self.log_with_mode(
+            METRIC_KEYS.CLASSIFICATION_LOSS_KEY, classification_loss, mode
+        )
+        self.log_with_mode(METRIC_KEYS.ACCURACY_KEY, self.accuracy, mode)
+        self.log_with_mode(METRIC_KEYS.F1_SCORE_KEY, self.f1, mode)
+        self.log_with_mode(METRIC_KEYS.AUROC_KEY, self.auroc, mode)
 
     def training_step(self, batch, batch_idx):
         """Training step for classifier training."""
