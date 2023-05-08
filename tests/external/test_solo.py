@@ -59,11 +59,12 @@ def test_solo_from_scvi_errors():
         ["a", "b", "c"], size=(adata.n_obs, 1)
     )
 
-    # no error
-    SCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    # no batch key, restrict_to_batch
+    SCVI.setup_anndata(adata, labels_key="labels")
     model = SCVI(adata)
     model.train(max_epochs=1)
-    _ = SOLO.from_scvi_model(model)
+    with pytest.raises(ValueError):
+        _ = SOLO.from_scvi_model(model, restrict_to_batch="batch_0")
 
     # continuous covariate
     SCVI.setup_anndata(

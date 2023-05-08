@@ -107,16 +107,17 @@ class SOLO(BaseModelClass):
         Parameters
         ----------
         scvi_model
-            Pre-trained model of :class:`~scvi.model.SCVI`. The
-            adata object used to initialize this model should have only
-            been setup with count data, and optionally a `batch_key`;
-            i.e., no extra covariates or labels, etc.
+            Pre-trained :class:`~scvi.model.SCVI` model. The AnnData object used to
+            initialize this model should have only been setup with count data, and
+            optionally a `batch_key`. Extra categorical and continuous covariates are
+            currenty unsupported.
         adata
-            Optional anndata to use that is compatible with scvi_model.
+            Optional AnnData to use that is compatible with `scvi_model`.
         restrict_to_batch
-            Batch category in `batch_key` used to setup adata for scvi_model
-            to restrict Solo model to. This allows to train a Solo model on
-            one batch of a scvi_model that was trained on multiple batches.
+            Batch category to restrict the SOLO model to if `scvi_model` was set up with
+            a `batch_key`. This allows the model to be trained on the subset of cells
+            belonging to `restrict_to_batch` when `scvi_model` was trained on multiple
+            batches. If `None`, all cells are used.
         doublet_ratio
             Ratio of generated doublets to produce relative to number of
             cells in adata or length of indices, if not `None`.
@@ -129,12 +130,14 @@ class SOLO(BaseModelClass):
         """
         _validate_scvi_model(scvi_model, restrict_to_batch=restrict_to_batch)
         orig_adata_manager = scvi_model.adata_manager
-        orig_batch_key = orig_adata_manager.get_state_registry(
+        orig_batch_key_registry = orig_adata_manager.get_state_registry(
             REGISTRY_KEYS.BATCH_KEY
-        ).original_key
-        orig_labels_key = orig_adata_manager.get_state_registry(
+        )
+        orig_labels_key_registry = orig_adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
-        ).original_key
+        )
+        orig_batch_key = orig_batch_key_registry.original_key
+        orig_labels_key = orig_labels_key_registry.original_key
 
         if len(orig_adata_manager.get_state_registry(REGISTRY_KEYS.CONT_COVS_KEY)) > 0:
             raise ValueError(
@@ -145,6 +148,19 @@ class SOLO(BaseModelClass):
             raise ValueError(
                 "Initializing a SOLO model from SCVI with registered categorical "
                 "covariates is currently unsupported."
+            )
+        scvi_trained_with_batch = len(orig_batch_key_registry.categorical_mapping) > 1
+        if not scvi_trained_with_batch and restrict_to_batch is not None:
+            raise ValueError(
+                "Cannot specify `restrict_to_batch` when initializing a SOLO model from SCVI "
+                "not trained with multiple batches."
+            )
+        if scvi_trained_with_batch > 1 and restrict_to_batch is None:
+            warnings.warn(
+                "`restrict_to_batch` not specified but `scvi_model` was trained with "
+                "multiple batches. Doublets will be simulated using the first batch.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
 
         if adata is not None:
@@ -184,9 +200,7 @@ class SOLO(BaseModelClass):
         )
 
         # Create dummy labels column set to first label in adata (does not affect inference).
-        dummy_label = orig_adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        ).categorical_mapping[0]
+        dummy_label = orig_labels_key_registry.categorical_mapping[0]
         doublet_adata.obs[orig_labels_key] = dummy_label
 
         # if model is using observed lib size, needs to get lib sample
