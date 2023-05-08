@@ -136,6 +136,17 @@ class SOLO(BaseModelClass):
             REGISTRY_KEYS.LABELS_KEY
         ).original_key
 
+        if len(orig_adata_manager.get_state_registry(REGISTRY_KEYS.CONT_COVS_KEY)) > 0:
+            raise ValueError(
+                "Initializing a SOLO model from SCVI with registered continuous "
+                "covariates is currently unsupported."
+            )
+        if len(orig_adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)) > 0:
+            raise ValueError(
+                "Initializing a SOLO model from SCVI with registered categorical "
+                "covariates is currently unsupported."
+            )
+
         if adata is not None:
             adata_manager = orig_adata_manager.transfer_fields(adata)
             cls.register_manager(adata_manager)
@@ -165,7 +176,11 @@ class SOLO(BaseModelClass):
         # if scvi wasn't trained with batch correction having the
         # zeros here does nothing.
         doublet_adata.obs[orig_batch_key] = (
-            restrict_to_batch if restrict_to_batch is not None else 0
+            restrict_to_batch
+            if restrict_to_batch is not None
+            else orig_adata_manager.get_state_registry(
+                REGISTRY_KEYS.BATCH_KEY
+            ).categorical_mapping[0]
         )
 
         # Create dummy labels column set to first label in adata (does not affect inference).
