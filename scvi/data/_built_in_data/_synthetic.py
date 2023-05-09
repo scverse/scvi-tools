@@ -46,12 +46,13 @@ def _generate_synthetic(
         accessibility = accessibility * mask
         accessibility = csr_matrix(accessibility) if sparse else accessibility
 
-    batch = np.random.choice([f"batch_{i}" for i in range(n_batches)], size=(n_obs,))
+    batch = []
+    for i in range(n_batches):
+        batch += [f"batch_{i}"] * batch_size
 
     if n_labels > 0:
-        labels = np.random.choice(
-            [f"label_{i}" for i in range(n_labels)], size=(n_obs,)
-        )
+        labels = np.random.randint(0, n_labels, size=(n_obs,))
+        labels = np.array([f"label_{i}" for i in labels])
 
     adata = AnnData(rna, dtype=np.float32)
     if return_mudata:
