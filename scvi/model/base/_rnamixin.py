@@ -87,7 +87,7 @@ class RNASeqMixin:
 
         Notes
         -----
-            This method assumes a normal prior on the latent space.
+        This method assumes a normal prior on the latent space.
         """
         device = self.device
         log_pz = db.Normal(0, 1).log_prob(zs).sum(dim=-1)
@@ -200,11 +200,11 @@ class RNASeqMixin:
 
         Returns
         -------
-        If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
-        Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
-        This function has two modes of operation:
-        If `n_samples` is provided or if `return_mean` is True,
+        If `n_samples` is provided and `return_mean` is False,
         this method returns a 3d tensor of shape (n_samples, n_cells, n_genes).
+        If `n_samples` is provided and `return_mean` is True, it returns a 2d tensor
+        of shape (n_cells, n_genes).
+        In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
         of shape (n_samples_overall, n_genes).
         """
