@@ -46,15 +46,16 @@ def _generate_synthetic(
         accessibility = accessibility * mask
         accessibility = csr_matrix(accessibility) if sparse else accessibility
 
+    batch = np.random.choice([f"batch_{i}" for i in range(n_batches)], size=(n_obs,))
+
     if n_labels > 0:
         labels = np.random.choice(
             [f"label_{i}" for i in range(n_labels)], size=(n_obs,)
         )
 
-    batch = np.random.choice([f"batch_{i}" for i in range(n_batches)], size=(n_obs,))
-
+    adata = AnnData(rna, dtype=np.float32)
     if return_mudata:
-        mod_dict = {rna_key: AnnData(rna, dtype=np.float32)}
+        mod_dict = {rna_key: adata}
 
         if n_proteins > 0:
             protein_adata = AnnData(protein, dtype=np.float32)
@@ -65,7 +66,6 @@ def _generate_synthetic(
 
         adata = MuData(mod_dict)
     else:
-        adata = AnnData(rna, dtype=np.float32)
         if n_proteins > 0:
             adata.obsm[protein_expression_key] = protein
             adata.uns[protein_names_key] = protein_names
@@ -73,6 +73,7 @@ def _generate_synthetic(
             adata.obsm[accessibility_key] = accessibility
 
     adata.obs[batch_key] = pd.Categorical(batch)
-    adata.obs[labels_key] = pd.Categorical(labels)
+    if n_labels > 0:
+        adata.obs[labels_key] = pd.Categorical(labels)
 
     return adata
