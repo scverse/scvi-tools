@@ -172,6 +172,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
         self.was_pretrained = False
+        self.n_labels = n_labels
 
     @classmethod
     def from_scvi_model(
@@ -406,7 +407,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             n_samples_per_label=n_samples_per_label,
             batch_size=batch_size,
         )
-        training_plan = SemiSupervisedTrainingPlan(self.module, **plan_kwargs)
+        training_plan = SemiSupervisedTrainingPlan(
+            self.module, self.n_labels, **plan_kwargs
+        )
         if "callbacks" in trainer_kwargs.keys():
             trainer_kwargs["callbacks"].concatenate(sampler_callback)
         else:
