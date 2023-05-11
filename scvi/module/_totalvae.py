@@ -695,7 +695,7 @@ class TOTALVAE(BaseModuleClass):
 
     @torch.inference_mode()
     @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples):
+    def marginal_ll(self, tensors, n_mc_samples, return_mean: bool = True):
         """Computes the marginal log likelihood of the data under the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -752,5 +752,6 @@ class TOTALVAE(BaseModuleClass):
             to_sum[:, i] = log_prob_sum
 
         batch_log_lkl = torch.logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
-        log_lkl = torch.sum(batch_log_lkl).item()
+        if return_mean:
+            log_lkl = torch.mean(batch_log_lkl).item()
         return log_lkl

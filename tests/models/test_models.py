@@ -319,6 +319,7 @@ def test_scvi(save_path):
         labels_key="labels",
     )
     model = SCVI(adata)
+    model.train(1, train_size=0.5)
     adata2 = adata.copy()
     model.get_elbo(adata2)
     assert adata.uns[_constants._SCVI_UUID_KEY] != adata2.uns[_constants._SCVI_UUID_KEY]
@@ -332,11 +333,21 @@ def test_scvi(save_path):
     # test differential expression
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(
+        groupby="labels", group1="label_1", weights="importance"
+    )
+    model.differential_expression(
         groupby="labels", group1="label_1", group2="label_2", mode="change"
     )
     model.differential_expression(groupby="labels")
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
     model.differential_expression(idx1=[0, 1, 2])
+
+    model2 = SCVI(adata, use_observed_lib_size=False)
+    model2.train(1)
+    model2.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model2.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
 
     # transform batch works with all different types
     a = synthetic_iid()
@@ -1617,3 +1628,28 @@ def test_early_stopping():
     model = SCVI(adata)
     model.train(n_epochs, early_stopping=True, plan_kwargs={"lr": 0})
     assert len(model.history["elbo_train"]) < n_epochs
+
+
+def test_de_features():
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    model.train(1)
+
+    model.differential_expression(
+        groupby="labels",
+        pseudocounts=1e-4,
+    )
+    model.differential_expression(
+        groupby="labels",
+        weights="importance",
+    )
+    model.differential_expression(
+        groupby="labels",
+        delta=0.5,
+        weights="importance",
+    )
