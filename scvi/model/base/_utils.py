@@ -197,6 +197,7 @@ def _prepare_obs(
 def _de_core(
     adata_manager,
     model_fn,
+    representation_fn,
     groupby,
     group1,
     group2,
@@ -235,7 +236,7 @@ def _de_core(
         groupby = temp_key
 
     df_results = []
-    dc = DifferentialComputation(model_fn, adata_manager)
+    dc = DifferentialComputation(model_fn, representation_fn, adata_manager)
     for g1 in track(
         group1,
         description="DE...",

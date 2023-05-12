@@ -7,10 +7,12 @@ import numpy as np
 import pandas as pd
 import torch
 from scipy.sparse import issparse
+from sklearn.covariance import EllipticEnvelope
 from sklearn.mixture import GaussianMixture
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
+from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +27,42 @@ class DifferentialComputation:
     Parameters
     ----------
     model_fn
-        Function in model API to get values from.
+        Callable in model API to get values from.
+    representation_fn
+        Callable providing latent representations, e.g., :meth:`~scvi.model.SCVI.get_latent_representation`, for scVI.
     adata_manager
         AnnDataManager created by :meth:`~scvi.model.SCVI.setup_anndata`.
     """
 
-    def __init__(self, model_fn, adata_manager):
+    def __init__(
+        self,
+        model_fn: Callable,
+        representation_fn: Callable,
+        adata_manager: AnnDataManager,
+    ):
         self.adata_manager = adata_manager
         self.adata = adata_manager.adata
         self.model_fn = model_fn
+        self.representation_fn = representation_fn
+
+    def filter_outlier_cells(self, selection: Union[List[bool], np.ndarray]):
+        """Filters out cells that are outliers in the representation space."""
+        selection = self.process_selection(selection)
+        reps = self.representation_fn(
+            self.adata,
+            indices=selection,
+        )
+        try:
+            idx_filt = EllipticEnvelope().fit_predict(reps)
+            idx_filt = idx_filt == 1
+        except ValueError:
+            warnings.warn(
+                "Could not properly estimate Cov!, using all samples",
+                stacklevel=settings.warnings_stacklevel,
+            )
+            return selection
+        idx_filt = selection[idx_filt]
+        return idx_filt
 
     def get_bayes_factors(
         self,
@@ -173,6 +202,10 @@ class DifferentialComputation:
         #     )
         eps = 1e-8
         # Normalized means sampling for both populations
+        if self.representation_fn is not None:
+            idx1 = self.filter_outlier_cells(idx1)
+            idx2 = self.filter_outlier_cells(idx2)
+
         scales_batches_1 = self.scale_sampler(
             selection=idx1,
             batchid=batchid1,
@@ -419,16 +452,7 @@ class DifferentialComputation:
             ),
             n_samples = 2
 
-        # Selection of desired cells for sampling
-        if selection is None:
-            raise ValueError("selections should be a list of cell subsets indices")
-        selection = np.asarray(selection)
-        if selection.dtype is np.dtype("bool"):
-            if len(selection) < self.adata.shape[0]:
-                raise ValueError("Mask must be same length as adata.")
-            selection = np.asarray(np.where(selection)[0].ravel())
-
-        # Sampling loop
+        selection = self.process_selection(selection)
         px_scales = []
         batch_ids = []
         for batch_idx in batchid:
@@ -450,6 +474,15 @@ class DifferentialComputation:
         if give_mean:
             px_scales = px_scales.mean(0)
         return {"scale": px_scales, "batch": batch_ids}
+
+    def process_selection(self, selection: Union[List[bool], np.ndarray]) -> np.ndarray:
+        """If selection is a mask, convert it to indices."""
+        selection = np.asarray(selection)
+        if selection.dtype is np.dtype("bool"):
+            if len(selection) < self.adata.shape[0]:
+                raise ValueError("Mask must be same length as adata.")
+            selection = np.asarray(np.where(selection)[0].ravel())
+        return selection
 
 
 def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
