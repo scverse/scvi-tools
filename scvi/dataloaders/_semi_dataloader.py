@@ -93,10 +93,10 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         self.dataloaders[1] = AnnDataLoader(
             self.adata_manager,
             indices=labelled_idx,
-            shuffle=self.shuffle,
-            batch_size=self.batch_size,
+            shuffle=self._shuffle,
+            batch_size=self._batch_size,
             data_and_attributes=self.data_and_attributes,
-            drop_last=self.drop_last,
+            drop_last=self._drop_last,
         )
 
     def subsample_labels(self):

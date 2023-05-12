@@ -716,9 +716,10 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def initialize_metrics(self, n_classes: int):
         """Initialize metrics."""
         kwargs = {"task": "multiclass", "num_classes": n_classes}
-        self.accuracy = Accuracy(**kwargs)
-        self.f1 = F1Score(**kwargs)
-        self.auroc = AUROC(**kwargs)
+        self.train_accuracy = Accuracy(**kwargs)
+        self.train_f1 = F1Score(**kwargs)
+        self.val_accuracy = Accuracy(**kwargs)
+        self.val_f1 = F1Score(**kwargs)
 
     def log_with_mode(self, key: str, value: Any, mode: str, **kwargs):
         """Log with mode."""
@@ -740,9 +741,15 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         logits = loss_output.logits
         predicted_labels = torch.argmax(logits, dim=-1, keepdim=True)
 
-        self.accuracy(predicted_labels, true_labels)
-        self.f1(predicted_labels, true_labels)
-        self.auroc(logits, true_labels.view(-1).long())
+        if mode == "train":
+            accuracy = self.train_accuracy
+            f1 = self.train_f1
+        else:
+            accuracy = self.val_accuracy
+            f1 = self.val_f1
+
+        accuracy(predicted_labels, true_labels)
+        f1(predicted_labels, true_labels)
 
         self.log_with_mode(
             METRIC_KEYS.CLASSIFICATION_LOSS_KEY,
@@ -750,20 +757,23 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             mode,
             on_step=False,
             on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
         )
         self.log_with_mode(
             METRIC_KEYS.ACCURACY_KEY,
-            self.accuracy,
+            accuracy,
             mode,
             on_step=False,
             on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
         )
         self.log_with_mode(
             METRIC_KEYS.F1_SCORE_KEY,
-            self.f1,
+            f1,
             mode,
             on_step=False,
             on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
         )
         # currently not logging auroc due to accumulation error
 

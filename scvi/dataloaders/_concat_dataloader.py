@@ -42,10 +42,10 @@ class ConcatDataLoader(DataLoader):
     ):
         self.adata_manager = adata_manager
         self.dataloader_kwargs = data_loader_kwargs
-        self.shuffle = shuffle
-        self.batch_size = batch_size
         self.data_and_attributes = data_and_attributes
-        self.drop_last = drop_last
+        self._shuffle = shuffle
+        self._batch_size = batch_size
+        self._drop_last = drop_last
 
         self.dataloaders = []
         for indices in indices_list:
