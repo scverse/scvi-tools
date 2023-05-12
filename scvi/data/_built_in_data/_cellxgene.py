@@ -1,9 +1,18 @@
 import os
+import re
 from typing import Optional, Union
 
 from anndata import AnnData, read_h5ad
 
 from scvi._decorators import dependencies
+
+
+def _parse_dataset_id(url: str):
+    match = re.search(r"/e/(.+)", url)
+    if match:
+        return match.group(1).split(".")[0]
+    else:
+        raise ValueError(f"Could not parse dataset id from url {url}")
 
 
 @dependencies("cellxgene_census")
@@ -34,10 +43,7 @@ def _load_cellxgene_dataset(
     """
     from cellxgene_census import download_source_h5ad
 
-    # get the dataset id from the url and remove .cxg
-    split_url = url.split("/")
-    dataset_id = split_url[-2] if split_url[-1] == "" else split_url[-1]
-    dataset_id = dataset_id.split(".")[0]
+    dataset_id = _parse_dataset_id(url)
 
     if filename is None:
         filename = f"{dataset_id}.h5ad"
