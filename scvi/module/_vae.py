@@ -1,4 +1,5 @@
 """Main module."""
+import logging
 from typing import Callable, Iterable, Literal, Optional
 
 import numpy as np
@@ -16,6 +17,8 @@ from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
+
+logger = logging.getLogger(__name__)
 
 
 class VAE(BaseMinifiedModeModuleClass):
@@ -305,7 +308,12 @@ class VAE(BaseMinifiedModeModuleClass):
 
     @auto_move_data
     def _regular_inference(
-        self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1
+        self,
+        x,
+        batch_index,
+        cont_covs=None,
+        cat_covs=None,
+        n_samples=1,
     ):
         """High level inference method.
 
@@ -456,7 +464,7 @@ class VAE(BaseMinifiedModeModuleClass):
         """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
-            dim=1
+            dim=-1
         )
         if not self.use_observed_lib_size:
             kl_divergence_l = kl(
@@ -536,16 +544,40 @@ class VAE(BaseMinifiedModeModuleClass):
 
     @torch.inference_mode()
     @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples):
-        """Computes the marginal log likelihood of the model."""
-        sample_batch = tensors[REGISTRY_KEYS.X_KEY]
+    def marginal_ll(
+        self,
+        tensors,
+        n_mc_samples,
+        return_mean=False,
+        n_mc_samples_per_pass=1,
+    ):
+        """Computes the marginal log likelihood of the model.
+
+        Parameters
+        ----------
+        tensors
+            Dict of input tensors, typically corresponding to the items of the data loader.
+        n_mc_samples
+            Number of Monte Carlo samples to use for the estimation of the marginal log likelihood.
+        return_mean
+            Whether to return the mean of marginal likelihoods over cells.
+        n_mc_samples_per_pass
+            Number of Monte Carlo samples to use per pass. This is useful to avoid memory issues.
+        """
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        to_sum = torch.zeros(sample_batch.size()[0], n_mc_samples)
-
-        for i in range(n_mc_samples):
+        to_sum = []
+        if n_mc_samples_per_pass > n_mc_samples:
+            logger.warn(
+                "Number of chunks is larger than the total number of samples, setting it to the number of samples"
+            )
+            n_mc_samples_per_pass = n_mc_samples
+        n_passes = int(np.ceil(n_mc_samples / n_mc_samples_per_pass))
+        for _ in range(n_passes):
             # Distribution parameters and sampled variables
-            inference_outputs, _, losses = self.forward(tensors)
+            inference_outputs, _, losses = self.forward(
+                tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass}
+            )
             qz = inference_outputs["qz"]
             ql = inference_outputs["ql"]
             z = inference_outputs["z"]
@@ -579,11 +611,14 @@ class VAE(BaseMinifiedModeModuleClass):
 
                 log_prob_sum += p_l - q_l_x
 
-            to_sum[:, i] = log_prob_sum
-
-        batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
-        log_lkl = torch.sum(batch_log_lkl).item()
-        return log_lkl
+            to_sum.append(log_prob_sum)
+        to_sum = torch.cat(to_sum, dim=0)
+        batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(n_mc_samples)
+        if return_mean:
+            batch_log_lkl = torch.mean(batch_log_lkl).item()
+        else:
+            batch_log_lkl = batch_log_lkl.cpu()
+        return batch_log_lkl
 
 
 class LDVAE(VAE):
