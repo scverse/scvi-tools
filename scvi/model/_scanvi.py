@@ -99,6 +99,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
     """
 
     _module_cls = SCANVAE
+    _training_plan_cls = SemiSupervisedTrainingPlan
 
     def __init__(
         self,
@@ -412,13 +413,17 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             n_samples_per_label=n_samples_per_label,
             batch_size=batch_size,
         )
-        training_plan = SemiSupervisedTrainingPlan(
+        training_plan = self._training_plan_cls(
             self.module, self.n_labels, **plan_kwargs
         )
         if "callbacks" in trainer_kwargs.keys():
             trainer_kwargs["callbacks"].concatenate(sampler_callback)
         else:
             trainer_kwargs["callbacks"] = sampler_callback
+
+        # if n_samples_per_label is not None:
+        #     # TODO: Find a cleaner way to do this in the dataloader
+        #     trainer_kwargs["reload_dataloaders_every_n_epochs"] = 1
 
         runner = TrainRunner(
             self,
