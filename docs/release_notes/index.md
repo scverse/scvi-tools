@@ -24,6 +24,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
 -   Add default `stacklevel` for `warnings` in `scvi.settings` {pr}`1971`.
 -   Add scBasset motif injection procedure {pr}`2010`.
+-   Add importance sampling based differential expression procedure {pr}`1872`.
 
 #### Fixed
 
@@ -49,6 +50,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Use {func}`anndata.concat` internally inside {meth}`scvi.external.SOLO.from_scvi_model` {pr}`2013`.
 -   {class}`scvi.train.SemiSupervisedTrainingPlan` and {class}`scvi.train.ClassifierTrainingPlan` now log accuracy,
     F1 score, and AUROC metrics {pr}`2023`.
+-   Switch to cellxgene census for backend for cellxgene data function {pr}`2030`.
 
 #### Removed
 

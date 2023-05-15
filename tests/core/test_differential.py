@@ -61,11 +61,27 @@ def test_differential_computation(save_path):
     model.train(1)
 
     model_fn = partial(model.get_normalized_expression, return_numpy=True)
-    dc = DifferentialComputation(model_fn, model.adata_manager)
-
+    rep_fn = model.get_latent_representation
+    dc = DifferentialComputation(model_fn, rep_fn, model.adata_manager)
     cell_idx1 = np.asarray(adata.obs.labels == "label_1")
     cell_idx2 = ~cell_idx1
+    dc.get_bayes_factors(cell_idx1, cell_idx2, mode="vanilla", use_permutation=True)
+    res = dc.get_bayes_factors(
+        cell_idx1, cell_idx2, mode="change", use_permutation=False
+    )
 
+    model_fn = partial(
+        model.get_normalized_expression,
+        weights="importance",
+        return_numpy=True,
+    )
+    dc = DifferentialComputation(
+        model_fn,
+        rep_fn,
+        model.adata_manager,
+    )
+    cell_idx1 = np.asarray(adata.obs.labels == "label_1")
+    cell_idx2 = ~cell_idx1
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="vanilla", use_permutation=True)
     res = dc.get_bayes_factors(
         cell_idx1, cell_idx2, mode="change", use_permutation=False
@@ -136,6 +152,7 @@ def test_differential_computation(save_path):
     )
     a.obs["test"] = [0] * 200 + [1] * 200
     model = SCVI(a)
+    model.train(1)
     model.differential_expression(groupby="test", group1=0)
 
     # test that string but not as categorical work
@@ -147,4 +164,5 @@ def test_differential_computation(save_path):
     )
     a.obs["test"] = ["0"] * 200 + ["1"] * 200
     model = SCVI(a)
+    model.train(1)
     model.differential_expression(groupby="test", group1="0")

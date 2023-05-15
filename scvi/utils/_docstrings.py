@@ -63,6 +63,13 @@ fdr_target
 de_silent = """\
 silent
     If True, disables the progress bar. Default: False."""
+de_importance_sampling = """\
+importance_sampling
+    Whether to use importance sampling to compute normalized gene expression."""
+de_fn_kwargs = """\
+fn_kwargs
+    Additional kwargs for the normalized gene expression estimation.
+    Only applies if `importance_sampling` is True."""
 
 de_dsp = DocstringProcessor(
     de_adata=de_adata,
@@ -80,6 +87,8 @@ de_dsp = DocstringProcessor(
     de_batchid2=de_batchid2,
     de_fdr_target=de_fdr_target,
     de_silent=de_silent,
+    de_importance_sampling=de_importance_sampling,
+    de_fn_kwargs=de_fn_kwargs,
 )
 
 
