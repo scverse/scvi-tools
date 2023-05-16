@@ -1,5 +1,6 @@
 from anndata import read_csv, read_h5ad, read_loom, read_text
 
+from ._anntorchdataset import AnnTorchDataset
 from ._datasets import (
     annotation_simulation,
     brainlarge_dataset,
@@ -31,6 +32,7 @@ from ._preprocessing import (
 from ._read import read_10x_atac, read_10x_multiome
 
 __all__ = [
+    "AnnTorchDataset",
     "AnnDataManagerValidationCheck",
     "AnnDataManager",
     "poisson_gene_selection",

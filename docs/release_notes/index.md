@@ -26,6 +26,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add scBasset motif injection procedure {pr}`2010`.
 -   Add importance sampling based differential expression procedure {pr}`1872`.
 -   Add option to generate {class}`mudata.MuData` in {meth}`scvi.data.synthetic_iid` {pr}`2028`.
+-   Add {meth}`scvi.data.AnnDataManager.create_torch_dataset` and expose custom sampler ability {pr}`2036`.
 
 #### Fixed
 
