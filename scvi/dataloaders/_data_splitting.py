@@ -72,6 +72,8 @@ class DataSplitter(pl.LightningDataModule):
         float, or None (default is 0.9)
     validation_size
         float, or None (default is None)
+    shuffle
+        Whether to shuffle indices before splitting.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
@@ -95,6 +97,7 @@ class DataSplitter(pl.LightningDataModule):
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        shuffle: bool = True,
         pin_memory: bool = False,
         **kwargs,
     ):
@@ -102,6 +105,7 @@ class DataSplitter(pl.LightningDataModule):
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
+        self.shuffle = shuffle
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
 
@@ -113,11 +117,15 @@ class DataSplitter(pl.LightningDataModule):
         """Split indices in train/test/val sets."""
         n_train = self.n_train
         n_val = self.n_val
-        random_state = np.random.RandomState(seed=settings.seed)
-        permutation = random_state.permutation(self.adata_manager.adata.n_obs)
-        self.val_idx = permutation[:n_val]
-        self.train_idx = permutation[n_val : (n_val + n_train)]
-        self.test_idx = permutation[(n_val + n_train) :]
+        indices = np.arange(self.adata_manager.adata.n_obs)
+
+        if self.shuffle:
+            random_state = np.random.RandomState(seed=settings.seed)
+            indices = random_state.permutation(indices)
+
+        self.val_idx = indices[:n_val]
+        self.train_idx = indices[n_val : (n_val + n_train)]
+        self.test_idx = indices[(n_val + n_train) :]
 
     def train_dataloader(self):
         """Create train data loader."""
