@@ -7,6 +7,7 @@ from torch.utils.data import (
     BatchSampler,
     DataLoader,
     RandomSampler,
+    Sampler,
     SequentialSampler,
 )
 
@@ -28,6 +29,10 @@ class AnnDataLoader(DataLoader):
         The indices of the observations in the adata to load
     batch_size
         minibatch size to load each iteration
+    sampler
+        Defines the strategy to draw samples from the dataset. Can be any Iterable with __len__ implemented.
+        If specified, shuffle must not be specified. By default, we use a custom sampler that is designed to
+        get a minibatch of data with one call to __getitem__.
     data_and_attributes
         Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
         and value equal to desired numpy loading type (later made into torch tensor) or list of
@@ -45,6 +50,7 @@ class AnnDataLoader(DataLoader):
         shuffle: bool = False,
         indices: Union[Sequence[int], Sequence[bool]] = None,
         batch_size: int = 128,
+        sampler: Optional[Sampler] = None,
         data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
         drop_last: bool = False,
         iter_ndarray: bool = False,
@@ -60,16 +66,18 @@ class AnnDataLoader(DataLoader):
         self.dataset = adata_manager.create_torch_dataset(
             indices=indices, data_and_attributes=data_and_attributes
         )
-        sampler_cls = SequentialSampler if not shuffle else RandomSampler
-        sampler = BatchSampler(
-            sampler=sampler_cls(self.dataset),
-            batch_size=batch_size,
-            drop_last=drop_last,
-        )
         self.data_loader_kwargs = copy.deepcopy(data_loader_kwargs)
-        # do not touch batch size here, sampler gives batched indices
-        # This disables PyTorch automatic batching
-        self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
+        if sampler is None:
+            sampler_cls = SequentialSampler if not shuffle else RandomSampler
+            sampler = BatchSampler(
+                sampler=sampler_cls(self.dataset),
+                batch_size=batch_size,
+                drop_last=drop_last,
+            )
+            # do not touch batch size here, sampler gives batched indices
+            # This disables PyTorch automatic batching, which is necessary
+            # for fast access to sparse matrices
+            self.data_loader_kwargs.update({"sampler": sampler, "batch_size": None})
 
         if iter_ndarray:
             self.data_loader_kwargs.update({"collate_fn": _dummy_collate})
