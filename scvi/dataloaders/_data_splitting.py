@@ -73,7 +73,8 @@ class DataSplitter(pl.LightningDataModule):
     validation_size
         float, or None (default is None)
     shuffle
-        Whether to shuffle indices before splitting.
+        Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+        sequential order of the data according to `validation_size` and `train_size` percentages.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
