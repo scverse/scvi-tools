@@ -12,8 +12,7 @@ from torch.utils.data import (
 )
 
 from scvi.data import AnnDataManager
-
-from ._anntorchdataset import AnnTorchDataset
+from scvi.data._anntorchdataset import AnnTorchDataset
 
 logger = logging.getLogger(__name__)
 
