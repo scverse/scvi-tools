@@ -5,6 +5,7 @@ import anndata
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 from scipy import sparse
 from scipy.sparse.csr import csr_matrix
 
@@ -460,6 +461,9 @@ def test_anntorchdataset_from_manager(adata):
     adata_manager = generic_setup_adata_manager(adata)
     bd = adata_manager.create_torch_dataset()
     assert isinstance(bd, AnnTorchDataset)
+
+    bd = adata_manager.create_torch_dataset(indices=np.arange(adata.n_obs))
+    assert isinstance(bd, torch.utils.data.Subset)
 
 
 def test_anntorchdataset_numpy(adata):
