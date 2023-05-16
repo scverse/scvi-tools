@@ -93,6 +93,8 @@ class DataSplitter(pl.LightningDataModule):
     >>> train_dl = splitter.train_dataloader()
     """
 
+    data_loader_cls = AnnDataLoader
+
     def __init__(
         self,
         adata_manager: AnnDataManager,
@@ -130,7 +132,7 @@ class DataSplitter(pl.LightningDataModule):
 
     def train_dataloader(self):
         """Create train data loader."""
-        return AnnDataLoader(
+        return self.data_loader_cls(
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
@@ -142,7 +144,7 @@ class DataSplitter(pl.LightningDataModule):
     def val_dataloader(self):
         """Create validation data loader."""
         if len(self.val_idx) > 0:
-            return AnnDataLoader(
+            return self.data_loader_cls(
                 self.adata_manager,
                 indices=self.val_idx,
                 shuffle=False,
@@ -156,7 +158,7 @@ class DataSplitter(pl.LightningDataModule):
     def test_dataloader(self):
         """Create test data loader."""
         if len(self.test_idx) > 0:
-            return AnnDataLoader(
+            return self.data_loader_cls(
                 self.adata_manager,
                 indices=self.test_idx,
                 shuffle=False,

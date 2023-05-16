@@ -5,14 +5,14 @@ import anndata
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 from scipy import sparse
 from scipy.sparse.csr import csr_matrix
 
 import scvi
 from scvi import REGISTRY_KEYS
-from scvi.data import _constants, synthetic_iid
+from scvi.data import AnnTorchDataset, _constants, synthetic_iid
 from scvi.data.fields import ObsmField, ProteinObsmField
-from scvi.dataloaders import AnnTorchDataset
 
 from .utils import generic_setup_adata_manager
 
@@ -454,6 +454,16 @@ def test_anntorchdataset_getitem(adata):
         1,
         bd.adata_manager.summary_stats.n_vars,
     )
+
+
+def test_anntorchdataset_from_manager(adata):
+    # check that AnnTorchDataset returns numpy array
+    adata_manager = generic_setup_adata_manager(adata)
+    bd = adata_manager.create_torch_dataset()
+    assert isinstance(bd, AnnTorchDataset)
+
+    bd = adata_manager.create_torch_dataset(indices=np.arange(adata.n_obs))
+    assert isinstance(bd, torch.utils.data.Subset)
 
 
 def test_anntorchdataset_numpy(adata):
