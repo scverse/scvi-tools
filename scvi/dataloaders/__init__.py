@@ -1,4 +1,4 @@
-# for backwards compatibility
+# for backwards compatibility, this was moved to scvi.data
 from scvi.data import AnnTorchDataset
 
 from ._ann_dataloader import AnnDataLoader
