@@ -8,11 +8,9 @@ from torch.utils.data import (
     DataLoader,
     RandomSampler,
     SequentialSampler,
-    Subset,
 )
 
 from scvi.data import AnnDataManager
-from scvi.data._anntorchdataset import AnnTorchDataset
 
 logger = logging.getLogger(__name__)
 
@@ -52,19 +50,16 @@ class AnnDataLoader(DataLoader):
         iter_ndarray: bool = False,
         **data_loader_kwargs,
     ):
-        self._full_dataset = AnnTorchDataset(
-            adata_manager, getitem_tensors=data_and_attributes
-        )
         if indices is None:
-            indices = np.arange(len(self._full_dataset))
+            indices = np.arange(len(self.adata_manager.adata))
         else:
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
             indices = np.asarray(indices)
         self.indices = indices
-
-        # This is a lazy subset, it just remaps indices
-        self.dataset = Subset(self._full_dataset, indices=self.indices)
+        self.dataset = adata_manager.create_torch_dataset(
+            indices=indices, data_and_attributes=data_and_attributes
+        )
         sampler_cls = SequentialSampler if not shuffle else RandomSampler
         sampler = BatchSampler(
             sampler=sampler_cls(self.dataset),
