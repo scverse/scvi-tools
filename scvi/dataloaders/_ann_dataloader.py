@@ -57,7 +57,7 @@ class AnnDataLoader(DataLoader):
         **data_loader_kwargs,
     ):
         if indices is None:
-            indices = np.arange(len(self.adata_manager.adata))
+            indices = np.arange(adata_manager.adata.shape[0])
         else:
             if hasattr(indices, "dtype") and indices.dtype is np.dtype("bool"):
                 indices = np.where(indices)[0].ravel()
