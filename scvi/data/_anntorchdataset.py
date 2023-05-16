@@ -39,7 +39,7 @@ class AnnTorchDataset(Dataset):
 
     def __init__(
         self,
-        adata_manager: AnnDataManager,
+        adata_manager: "AnnDataManager",
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
     ):
         if adata_manager.adata is None:
