@@ -72,7 +72,7 @@ class DataSplitter(pl.LightningDataModule):
         float, or None (default is 0.9)
     validation_size
         float, or None (default is None)
-    shuffle
+    shuffle_set_split
         Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
         sequential order of the data according to `validation_size` and `train_size` percentages.
     pin_memory
@@ -98,7 +98,7 @@ class DataSplitter(pl.LightningDataModule):
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
-        shuffle: bool = True,
+        shuffle_set_split: bool = True,
         pin_memory: bool = False,
         **kwargs,
     ):
@@ -106,7 +106,7 @@ class DataSplitter(pl.LightningDataModule):
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
-        self.shuffle = shuffle
+        self.shuffle_set_split = shuffle_set_split
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
 
@@ -120,7 +120,7 @@ class DataSplitter(pl.LightningDataModule):
         n_val = self.n_val
         indices = np.arange(self.adata_manager.adata.n_obs)
 
-        if self.shuffle:
+        if self.shuffle_set_split:
             random_state = np.random.RandomState(seed=settings.seed)
             indices = random_state.permutation(indices)
 

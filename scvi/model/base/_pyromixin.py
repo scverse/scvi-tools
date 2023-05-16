@@ -90,6 +90,7 @@ class PyroSviTrainMixin:
         device: Union[int, str] = "auto",
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
         early_stopping: bool = False,
         lr: Optional[float] = None,
@@ -112,6 +113,9 @@ class PyroSviTrainMixin:
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training. If `None`, no minibatching occurs and all
             data is copied to device (e.g., GPU).
@@ -152,6 +156,7 @@ class PyroSviTrainMixin:
                 self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
+                shuffle_set_split=shuffle_set_split,
                 batch_size=batch_size,
             )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
