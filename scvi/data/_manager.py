@@ -344,6 +344,7 @@ class AnnDataManager:
         """
         dataset = AnnTorchDataset(self, getitem_tensors=data_and_attributes)
         if indices is not None:
+            # This is a lazy subset, it just remaps indices
             dataset = Subset(dataset, indices)
         return dataset
 
