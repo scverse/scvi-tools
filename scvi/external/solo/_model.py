@@ -338,7 +338,7 @@ class SOLO(BaseModelClass):
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
-            shuffle=shuffle_set_split,
+            shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
         )
         training_plan = ClassifierTrainingPlan(
