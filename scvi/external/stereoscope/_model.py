@@ -69,6 +69,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         devices: Union[int, List[int], str] = "auto",
         train_size: float = 1,
         validation_size: Optional[float] = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
         **kwargs,
@@ -89,6 +90,9 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         plan_kwargs
@@ -111,6 +115,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             devices=devices,
             train_size=train_size,
             validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
             plan_kwargs=plan_kwargs,
             **kwargs,
@@ -289,6 +294,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
         plan_kwargs: Optional[dict] = None,
         **kwargs,
@@ -304,6 +310,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         plan_kwargs
@@ -326,6 +335,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             devices=devices,
             train_size=1,
             validation_size=None,
+            shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
             plan_kwargs=plan_kwargs,
             **kwargs,

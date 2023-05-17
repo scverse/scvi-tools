@@ -72,6 +72,9 @@ class DataSplitter(pl.LightningDataModule):
         float, or None (default is 0.9)
     validation_size
         float, or None (default is None)
+    shuffle_set_split
+        Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+        sequential order of the data according to `validation_size` and `train_size` percentages.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
@@ -97,6 +100,7 @@ class DataSplitter(pl.LightningDataModule):
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        shuffle_set_split: bool = True,
         pin_memory: bool = False,
         **kwargs,
     ):
@@ -104,6 +108,7 @@ class DataSplitter(pl.LightningDataModule):
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
+        self.shuffle_set_split = shuffle_set_split
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
 
@@ -115,11 +120,15 @@ class DataSplitter(pl.LightningDataModule):
         """Split indices in train/test/val sets."""
         n_train = self.n_train
         n_val = self.n_val
-        random_state = np.random.RandomState(seed=settings.seed)
-        permutation = random_state.permutation(self.adata_manager.adata.n_obs)
-        self.val_idx = permutation[:n_val]
-        self.train_idx = permutation[n_val : (n_val + n_train)]
-        self.test_idx = permutation[(n_val + n_train) :]
+        indices = np.arange(self.adata_manager.adata.n_obs)
+
+        if self.shuffle_set_split:
+            random_state = np.random.RandomState(seed=settings.seed)
+            indices = random_state.permutation(indices)
+
+        self.val_idx = indices[:n_val]
+        self.train_idx = indices[n_val : (n_val + n_train)]
+        self.test_idx = indices[(n_val + n_train) :]
 
     def train_dataloader(self):
         """Create train data loader."""
@@ -176,6 +185,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         float, or None (default is 0.9)
     validation_size
         float, or None (default is None)
+    shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
     n_samples_per_label
         Number of subsamples for each label class to sample per epoch
     pin_memory
@@ -202,6 +214,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        shuffle_set_split: bool = True,
         n_samples_per_label: Optional[int] = None,
         pin_memory: bool = False,
         **kwargs,
@@ -210,6 +223,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
+        self.shuffle_set_split = shuffle_set_split
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
@@ -237,10 +251,14 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             n_labeled_train, n_labeled_val = validate_data_split(
                 n_labeled_idx, self.train_size, self.validation_size
             )
-            rs = np.random.RandomState(seed=settings.seed)
-            labeled_permutation = rs.choice(
-                self._labeled_indices, len(self._labeled_indices), replace=False
-            )
+
+            labeled_permutation = self._labeled_indices
+            if self.shuffle_set_split:
+                rs = np.random.RandomState(seed=settings.seed)
+                labeled_permutation = rs.choice(
+                    self._labeled_indices, len(self._labeled_indices), replace=False
+                )
+
             labeled_idx_val = labeled_permutation[:n_labeled_val]
             labeled_idx_train = labeled_permutation[
                 n_labeled_val : (n_labeled_val + n_labeled_train)
@@ -255,10 +273,14 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             n_unlabeled_train, n_unlabeled_val = validate_data_split(
                 n_unlabeled_idx, self.train_size, self.validation_size
             )
-            rs = np.random.RandomState(seed=settings.seed)
-            unlabeled_permutation = rs.choice(
-                self._unlabeled_indices, len(self._unlabeled_indices)
-            )
+
+            unlabeled_permutation = self._unlabeled_indices
+            if self.shuffle_set_split:
+                rs = np.random.RandomState(seed=settings.seed)
+                unlabeled_permutation = rs.choice(
+                    self._unlabeled_indices, len(self._unlabeled_indices)
+                )
+
             unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]
             unlabeled_idx_train = unlabeled_permutation[
                 n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
