@@ -220,4 +220,3 @@ This will upload `scvi-tools` to PyPI. It's advised to use the automated release
 
 `scvi-tools` is available on conda-forge channel. Typically, a PR will be automatically created once a new PyPI release is made ([example](https://github.com/conda-forge/scvi-tools-feedstock/pull/32)).
 This automated PR might need changes if dependencies have changed. In that case, create a fork of the scvi-tools feedstock [repo] on GitHub and follow instructions in the README there.
-
