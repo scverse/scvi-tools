@@ -340,7 +340,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             self.loss_kwargs.update({"kl_weight": kl_weight})
             self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        self.log("train_loss", scvi_loss.loss, on_epoch=True)
+        self.log("train_loss", scvi_loss.loss, on_epoch=True, prog_bar=True)
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
         return scvi_loss.loss
 
@@ -563,7 +563,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
             loss += fool_loss * kappa
 
-        self.log("train_loss", loss, on_epoch=True)
+        self.log("train_loss", loss, on_epoch=True, prog_bar=True)
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
         opt1.zero_grad()
         self.manual_backward(loss)
@@ -791,6 +791,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             loss,
             on_epoch=True,
             batch_size=loss_output.n_obs_minibatch,
+            prog_bar=True,
         )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
         return loss
@@ -914,7 +915,7 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
             elbo += out["loss"]
             n += 1
         elbo /= n
-        self.log("elbo_train", elbo, prog_bar=True)
+        self.log("elbo_train", elbo)
         self.training_step_outputs.clear()
 
     def configure_optimizers(self):
@@ -1156,7 +1157,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
         """Training step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
-        self.log("train_loss", loss, on_epoch=True)
+        self.log("train_loss", loss, on_epoch=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
