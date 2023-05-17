@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Union
+from typing import TYPE_CHECKING, Dict, List, Union
 
 import h5py
 import numpy as np
@@ -9,7 +9,9 @@ from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
 from scvi._constants import REGISTRY_KEYS
-from scvi.data import AnnDataManager
+
+if TYPE_CHECKING:
+    from ._manager import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +39,7 @@ class AnnTorchDataset(Dataset):
 
     def __init__(
         self,
-        adata_manager: AnnDataManager,
+        adata_manager: "AnnDataManager",
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
     ):
         if adata_manager.adata is None:
