@@ -28,6 +28,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add option to generate {class}`mudata.MuData` in {meth}`scvi.data.synthetic_iid` {pr}`2028`.
 -   Add option for disabling shuffling prior to splitting data in {class}`scvi.dataloaders.DataSplitter` {pr}`2037`.
 -   Add {meth}`scvi.data.AnnDataManager.create_torch_dataset` and expose custom sampler ability {pr}`2036`.
+-   Filter Jax undetected GPU warnings {pr}`2044`.
 -   Raise warning if MPS backend is selected for PyTorch, see https://github.com/pytorch/pytorch/issues/77764 {pr}`2045`.
 
 #### Fixed
