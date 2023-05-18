@@ -915,7 +915,7 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
             elbo += out["loss"]
             n += 1
         elbo /= n
-        self.log("elbo_train", elbo)
+        self.log("elbo_train", elbo, prog_bar=True)
         self.training_step_outputs.clear()
 
     def configure_optimizers(self):
