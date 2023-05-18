@@ -65,6 +65,8 @@ class BaseModelMetaClass(ABCMeta):
 class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models."""
 
+    _data_loader_cls = AnnDataLoader
+
     def __init__(self, adata: Optional[AnnOrMuData] = None):
         # check if the given adata is minified and check if the model being created
         # supports minified-data mode (i.e. inherits from the abstract BaseMinifiedModeModelClass).
@@ -94,7 +96,6 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         self.test_indices_ = None
         self.validation_indices_ = None
         self.history_ = None
-        self._data_loader_cls = AnnDataLoader
 
     @property
     def adata(self) -> AnnOrMuData:
