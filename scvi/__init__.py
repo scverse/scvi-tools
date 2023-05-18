@@ -2,6 +2,7 @@
 
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
+import warnings
 
 from ._constants import METRIC_KEYS, REGISTRY_KEYS
 from ._settings import settings
@@ -20,6 +21,9 @@ test_var = "test"
 # Jax sets the root logger, this prevents double output.
 scvi_logger = logging.getLogger("scvi")
 scvi_logger.propagate = False
+
+# ignore Jax GPU warnings
+warnings.filterwarnings("ignore", message="No GPU/TPU found, falling back to CPU.")
 
 __all__ = [
     "settings",
