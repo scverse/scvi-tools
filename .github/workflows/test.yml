@@ -5,9 +5,9 @@ name: scvi-tools
 
 on:
     push:
-        branches: [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x]
+        branches: [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x]
     pull_request:
-        branches: [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x]
+        branches: [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x]
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}

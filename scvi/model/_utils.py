@@ -74,6 +74,15 @@ def parse_device_args(
             stacklevel=settings.warnings_stacklevel,
         )
 
+    if _accelerator == "mps":
+        warnings.warn(
+            "The accelerator has been set to `mps`. Please note that not all PyTorch ",
+            "operations are supported with this backend. Refer to ",
+            "https://github.com/pytorch/pytorch/issues/77764 for more details.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
     # get the first device index
     if isinstance(_devices, list):
         device_idx = _devices[0]
