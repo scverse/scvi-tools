@@ -6,16 +6,14 @@ from scvi import REGISTRY_KEYS
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
     def __init__(self, *args, **kwargs):
-        self.labels_to_indices = kwargs.pop("labels_to_indices")
         self.n_samples_per_label = kwargs.pop("n_samples_per_label")
-
-        self.current_epoch_labeled_indices = None
+        self.epoch_to_labeled_indices = {}
 
         super().__init__(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
         _, labeled_tensors = batch
-        labels, _ = (
+        labels, indices = (
             labeled_tensors[REGISTRY_KEYS.LABELS_KEY].cpu().numpy(),
             labeled_tensors[REGISTRY_KEYS.BATCH_KEY].cpu().numpy(),
         )
@@ -24,6 +22,25 @@ class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
 
         _, counts = np.unique(labels, return_counts=True)
         assert np.all(counts == self.n_samples_per_label)
+
+        # new epoch
+        if self.current_epoch not in self.epoch_to_labeled_indices:
+            self.epoch_to_labeled_indices[self.current_epoch] = []
+
+            prev_epoch = self.current_epoch - 1
+            prev_prev_epoch = self.current_epoch - 2
+
+            # check previous two epochs have different labeled indices
+            if (
+                prev_epoch in self.epoch_to_labeled_indices
+                and prev_prev_epoch in self.epoch_to_labeled_indices
+            ):
+                prev_indices = self.epoch_to_labeled_indices[prev_epoch]
+                prev_prev_indices = self.epoch_to_labeled_indices[prev_prev_epoch]
+
+                assert len(np.setdiff1d(prev_indices, prev_prev_indices)) > 0
+
+        self.epoch_to_labeled_indices[self.current_epoch] += indices.squeeze().tolist()
 
         return super().training_step(batch, batch_idx)
 
@@ -38,16 +55,10 @@ def test_semisuperviseddataloader_subsampling(
         batch_size=batch_size, n_batches=n_batches, n_labels=n_labels
     )
     adata.obs["indices"] = np.arange(adata.n_obs)
-    labels_to_indices = {}
-    for index, label in adata.obs[["indices", "labels"]].values:
-        if label not in labels_to_indices:
-            labels_to_indices[label] = []
-        labels_to_indices[label].append(index)
 
     scvi.model.SCANVI._training_plan_cls = TestSemiSupervisedTrainingPlan
     plan_kwargs = {
         "n_samples_per_label": n_samples_per_label,
-        "labels_to_indices": labels_to_indices,
     }
     scvi.model.SCANVI.setup_anndata(
         adata,
@@ -57,7 +68,7 @@ def test_semisuperviseddataloader_subsampling(
     )
     model = scvi.model.SCANVI(adata)
     model.train(
-        max_epochs=2,
+        max_epochs=10,
         batch_size=batch_size // 2,
         n_samples_per_label=n_samples_per_label,
         plan_kwargs=plan_kwargs,

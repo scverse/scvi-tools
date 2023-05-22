@@ -421,10 +421,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         else:
             trainer_kwargs["callbacks"] = sampler_callback
 
-        # if n_samples_per_label is not None:
-        #     # TODO: Find a cleaner way to do this in the dataloader
-        #     trainer_kwargs["reload_dataloaders_every_n_epochs"] = 1
-
         runner = TrainRunner(
             self,
             training_plan=training_plan,
