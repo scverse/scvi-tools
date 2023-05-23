@@ -56,6 +56,7 @@ def test_semisuperviseddataloader_subsampling(
     )
     adata.obs["indices"] = np.arange(adata.n_obs)
 
+    original_training_plan_cls = scvi.model.SCANVI._training_plan_cls
     scvi.model.SCANVI._training_plan_cls = TestSemiSupervisedTrainingPlan
     plan_kwargs = {
         "n_samples_per_label": n_samples_per_label,
@@ -73,3 +74,5 @@ def test_semisuperviseddataloader_subsampling(
         n_samples_per_label=n_samples_per_label,
         plan_kwargs=plan_kwargs,
     )
+
+    scvi.model.SCANVI._training_plan_cls = original_training_plan_cls
