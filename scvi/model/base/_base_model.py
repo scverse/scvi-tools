@@ -336,6 +336,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             _assign_adata_uuid(adata, overwrite=True)
             adata_manager = self.adata_manager.transfer_fields(adata)
             self._register_manager_for_instance(adata_manager)
+            self.regsiter_manager(adata_manager)
 
         return adata_manager
 
@@ -436,9 +437,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
                 "Input AnnData not setup with scvi-tools. "
                 + "attempting to transfer AnnData setup"
             )
-            self._register_manager_for_instance(
-                self.adata_manager.transfer_fields(adata)
-            )
+            adata_manager = self.adata_manager.transfer_fields(adata)
+            self._register_manager_for_instance(adata_manager)
+            self.register_manager(adata_manager)
         else:
             # Case where correct AnnDataManager is found, replay registration as necessary.
             adata_manager.validate()
