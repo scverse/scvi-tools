@@ -336,7 +336,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             _assign_adata_uuid(adata, overwrite=True)
             adata_manager = self.adata_manager.transfer_fields(adata)
             self._register_manager_for_instance(adata_manager)
-            self.regsiter_manager(adata_manager)
+            self.register_manager(adata_manager)
 
         return adata_manager
 
