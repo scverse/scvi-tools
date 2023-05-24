@@ -1,1 +1,3 @@
-from ._ppc import PPC
+from ._ppc import PosteriorPredictiveCheck
+
+__all__ = ["PosteriorPredictiveCheck"]
