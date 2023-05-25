@@ -225,7 +225,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         instance_manager_store[adata_id] = adata_manager
 
     def deregister_manager(self, adata_manager: Optional[AnnDataManager] = None):
-        """Deregisters an :class:`~scvi.data.AnnDataManager` instance with this model instance.
+        """Deregisters an :class:`~scvi.data.AnnDataManager` instance with this model instance and class.
 
         If `adata_manager` is `None`, deregisters all :class:`~scvi.data.AnnDataManager` instances
         in both the class and instance-specific manager stores, except for the current
@@ -235,16 +235,25 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         instance_manager_store = self._per_instance_manager_store[self.id]
 
         if adata_manager is None:
-            manager_ids_to_clear = list(cls_manager_store.keys())
+            instance_managers_to_clear = list(instance_manager_store.keys())
+            cls_managers_to_clear = list(cls_manager_store.keys())
         else:
-            manager_ids_to_clear = [adata_manager.adata_uuid]
+            instance_managers_to_clear = [adata_manager.adata_uuid]
+            if adata_manager.adata_uuid in cls_manager_store:
+                cls_managers_to_clear = [adata_manager.adata_uuid]
+            else:
+                cls_managers_to_clear = []
 
-        for manager_id in manager_ids_to_clear:
+        for manager_id in instance_managers_to_clear:
             if adata_manager is None and manager_id == self.adata_manager.adata_uuid:
                 # don't clear the current manager by default
                 continue
-            if manager_id in instance_manager_store:
-                del instance_manager_store[manager_id]
+            del instance_manager_store[manager_id]
+
+        for manager_id in cls_managers_to_clear:
+            if adata_manager is None and manager_id == self.adata_manager.adata_uuid:
+                # don't clear the current manager by default
+                continue
             del cls_manager_store[manager_id]
 
     @classmethod
@@ -336,7 +345,6 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             _assign_adata_uuid(adata, overwrite=True)
             adata_manager = self.adata_manager.transfer_fields(adata)
             self._register_manager_for_instance(adata_manager)
-            self.register_manager(adata_manager)
 
         return adata_manager
 
@@ -437,9 +445,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
                 "Input AnnData not setup with scvi-tools. "
                 + "attempting to transfer AnnData setup"
             )
-            adata_manager = self.adata_manager.transfer_fields(adata)
-            self._register_manager_for_instance(adata_manager)
-            self.register_manager(adata_manager)
+            self._register_manager_for_instance(
+                self.adata_manager.transfer_fields(adata)
+            )
         else:
             # Case where correct AnnDataManager is found, replay registration as necessary.
             adata_manager.validate()
