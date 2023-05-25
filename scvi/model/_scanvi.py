@@ -77,6 +77,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
+    linear_classifier
+        If `True`, uses a :class:`~scvi.module.LinearClassifier` instead of
+        a :class:`~scvi.module.Classifier`.
     **model_kwargs
         Keyword args for :class:`~scvi.module.SCANVAE`
 
@@ -110,6 +113,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        linear_classifier: bool = False,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -152,6 +156,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
+            linear_classifier=linear_classifier,
             **scanvae_model_kwargs,
         )
         self.module.minified_data_type = self.minified_data_type

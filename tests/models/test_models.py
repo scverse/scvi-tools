@@ -1112,6 +1112,18 @@ def test_scanvi(save_path):
     scanvi_model.train(1)
 
 
+def test_linear_classifier_scanvi():
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(
+        adata,
+        "labels",
+        "label_0",
+        batch_key="batch",
+    )
+    model = SCANVI(adata, linear_classifier=True)
+    model.train(max_epochs=1)
+
+
 def test_linear_scvi(save_path):
     adata = synthetic_iid()
     adata = adata[:, :10].copy()

@@ -67,3 +67,14 @@ class Classifier(nn.Module):
     def forward(self, x):
         """Forward computation."""
         return self.classifier(x)
+
+
+class LinearClassifier(nn.Module):
+    """Basic linear classifier."""
+
+    def __init__(self, n_input: int, n_labels: int):
+        super().__init__()
+        self.module = nn.Sequential(nn.Linear(n_input, n_labels), nn.Softmax(dim=-1))
+
+    def forward(self, x):
+        return self.module(x)
