@@ -125,7 +125,7 @@ class SCANVAE(VAE):
         use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
 
         self.n_labels = n_labels
-        if linear_classifier:
+        if not linear_classifier:
             # Classifier takes n_latent as input
             cls_parameters = {
                 "n_layers": n_layers,
