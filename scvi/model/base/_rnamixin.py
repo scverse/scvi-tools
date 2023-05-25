@@ -44,7 +44,7 @@ class RNASeqMixin:
         qz: db.Distribution,
         px: db.Distribution,
         zs: torch.Tensor,
-        max_cells: int = 128,
+        max_cells: int = 1024,
         truncation: bool = False,
         n_mc_samples: int = 500,
         n_mc_samples_per_pass: int = 250,
