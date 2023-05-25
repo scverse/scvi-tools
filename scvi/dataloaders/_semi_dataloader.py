@@ -6,6 +6,7 @@ from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 
+from ._ann_dataloader import AnnDataLoader
 from ._concat_dataloader import ConcatDataLoader
 
 
@@ -89,7 +90,14 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         # self.dataloaders[0] iterates over full_indices
         # self.dataloaders[1] iterates over the labelled_indices
         # change the indices of the labelled set
-        self.dataloaders[1].indices = labelled_idx
+        self.dataloaders[1] = AnnDataLoader(
+            self.adata_manager,
+            indices=labelled_idx,
+            shuffle=self._shuffle,
+            batch_size=self._batch_size,
+            data_and_attributes=self.data_and_attributes,
+            drop_last=self._drop_last,
+        )
 
     def subsample_labels(self):
         """Subsamples each label class by taking up to n_samples_per_label samples per class."""
