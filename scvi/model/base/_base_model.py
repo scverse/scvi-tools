@@ -238,23 +238,24 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             instance_managers_to_clear = list(instance_manager_store.keys())
             cls_managers_to_clear = list(cls_manager_store.keys())
         else:
+            cls_managers_to_clear = [adata_manager.adata_uuid]
             instance_managers_to_clear = [adata_manager.adata_uuid]
-            if adata_manager.adata_uuid in cls_manager_store:
-                cls_managers_to_clear = [adata_manager.adata_uuid]
-            else:
-                cls_managers_to_clear = []
-
-        for manager_id in instance_managers_to_clear:
-            if adata_manager is None and manager_id == self.adata_manager.adata_uuid:
-                # don't clear the current manager by default
-                continue
-            del instance_manager_store[manager_id]
 
         for manager_id in cls_managers_to_clear:
-            if adata_manager is None and manager_id == self.adata_manager.adata_uuid:
+            if (
+                adata_manager is None and manager_id == self.adata_manager.adata_uuid
+            ) or (manager_id not in cls_manager_store):
                 # don't clear the current manager by default
                 continue
             del cls_manager_store[manager_id]
+
+        for manager_id in instance_managers_to_clear:
+            if (
+                adata_manager is None and manager_id == self.adata_manager.adata_uuid
+            ) or (manager_id not in instance_manager_store):
+                # don't clear the current manager by default
+                continue
+            del instance_manager_store[manager_id]
 
     @classmethod
     def _get_most_recent_anndata_manager(
