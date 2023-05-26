@@ -333,7 +333,7 @@ class RNASeqMixin:
         silent: bool = False,
         weights: Optional[Literal["uniform", "importance"]] = "uniform",
         filter_outlier_cells: bool = False,
-        importance_weighting_kwargs=None,
+        importance_weighting_kwargs: Optional[dict] = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
