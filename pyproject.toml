@@ -5,7 +5,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "0.20.3"
+version = "1.0.0b0"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -58,7 +58,22 @@ dependencies = [
 
 
 [project.optional-dependencies]
-dev = ["black", "pytest", "pytest-cov", "flake8", "scanpy>=1.6", "loompy>=3.0.6", "jupyter", "nbformat", "nbconvert", "pre-commit", "isort", "pymde", "genomepy"]
+dev = [
+    "black",
+    "pytest",
+    "pytest-cov",
+    "flake8",
+    "scanpy>=1.6",
+    "loompy>=3.0.6",
+    "jupyter",
+    "nbformat",
+    "nbconvert",
+    "pre-commit",
+    "ruff",
+    "pymde",
+    "genomepy",
+    "cellxgene-census"
+]
 docs = [
   "sphinx>=4.1",
   "ipython",
@@ -85,6 +100,7 @@ regseq = [
     "biopython>=1.81",
     "genomepy",
 ]
+census = ["cellxgene-census"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['scvi']

@@ -99,6 +99,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
     """
 
     _module_cls = SCANVAE
+    _training_plan_cls = SemiSupervisedTrainingPlan
 
     def __init__(
         self,
@@ -348,6 +349,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         check_val_every_n_epoch: Optional[int] = None,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
         use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
@@ -373,6 +375,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         %(param_use_gpu)s
@@ -404,10 +409,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             adata_manager=self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
             n_samples_per_label=n_samples_per_label,
             batch_size=batch_size,
         )
-        training_plan = SemiSupervisedTrainingPlan(
+        training_plan = self._training_plan_cls(
             self.module, self.n_labels, **plan_kwargs
         )
         if "callbacks" in trainer_kwargs.keys():

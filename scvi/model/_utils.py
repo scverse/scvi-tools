@@ -68,8 +68,17 @@ def parse_device_args(
 
     if _accelerator in ["tpu", "ipu", "hpu"]:
         warnings.warn(
-            f"The selected accelerator `{_accelerator}` has not been extensively ",
+            f"The selected accelerator `{_accelerator}` has not been extensively "
             "tested in scvi-tools. Please report any issues in the GitHub repo.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
+    if _accelerator == "mps":
+        warnings.warn(
+            "The accelerator has been set to `mps`. Please note that not all PyTorch "
+            "operations are supported with this backend. Refer to "
+            "https://github.com/pytorch/pytorch/issues/77764 for more details.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
