@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+import pytest
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
@@ -68,6 +69,9 @@ def test_deregister_manager():
     assert adata_manager.adata_uuid in class_manager_store
     assert bdata_manager.adata_uuid not in class_manager_store
 
+    with pytest.raises(ValueError):
+        model.deregister_manager(bdata)
+
     # deregister with argument
     TestModelClass.setup_anndata(adata)
     TestModelClass.setup_anndata(bdata)
@@ -75,11 +79,16 @@ def test_deregister_manager():
     adata_manager = model._get_most_recent_anndata_manager(adata)
     bdata_manager = model._get_most_recent_anndata_manager(bdata)
 
-    model.deregister_manager(adata_manager)
+    model.deregister_manager(adata)
     instance_manager_store = TestModelClass._per_instance_manager_store[model.id]
     class_manager_store = model._setup_adata_manager_store
     assert adata_manager.adata_uuid not in instance_manager_store
     assert adata_manager.adata_uuid not in class_manager_store
     assert bdata_manager.adata_uuid in class_manager_store
-    model.deregister_manager(bdata_manager)
+    model.deregister_manager(bdata)
     assert bdata_manager.adata_uuid not in class_manager_store
+
+    with pytest.raises(ValueError):
+        model.deregister_manager(adata)
+    with pytest.raises(ValueError):
+        model.deregister_manager(bdata)
