@@ -13,4 +13,5 @@ notebooks/linear_decoder
 notebooks/AutoZI_tutorial
 notebooks/cellassign_tutorial
 notebooks/amortized_lda
+notebooks/scVI_DE_worm
 ```
