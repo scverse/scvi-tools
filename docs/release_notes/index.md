@@ -32,6 +32,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Log training loss through Lightning's progress bar {pr}`2043`.
 -   Filter Jax undetected GPU warnings {pr}`2044`.
 -   Raise warning if MPS backend is selected for PyTorch, see https://github.com/pytorch/pytorch/issues/77764 {pr}`2045`.
+-   Add `deregister_manager` function to {class}`scvi.model.base.BaseModelClass`, allowing to clear
+    {class}`scvi.data.AnnDataManager` instances from memory {pr}`2060`.
 -   Add option to use a linear classifier in {class}`scvi.model.SCANVI` {pr}`2063`.
 
 #### Fixed

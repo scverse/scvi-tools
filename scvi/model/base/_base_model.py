@@ -224,6 +224,42 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         instance_manager_store = self._per_instance_manager_store[self.id]
         instance_manager_store[adata_id] = adata_manager
 
+    def deregister_manager(self, adata: Optional[AnnData] = None):
+        """Deregisters the :class:`~scvi.data.AnnDataManager` instance associated with `adata`.
+
+        If `adata` is `None`, deregisters all :class:`~scvi.data.AnnDataManager` instances
+        in both the class and instance-specific manager stores, except for the one associated
+        with this model instance.
+        """
+        cls_manager_store = self._setup_adata_manager_store
+        instance_manager_store = self._per_instance_manager_store[self.id]
+
+        if adata is None:
+            instance_managers_to_clear = list(instance_manager_store.keys())
+            cls_managers_to_clear = list(cls_manager_store.keys())
+        else:
+            adata_manager = self._get_most_recent_anndata_manager(adata, required=True)
+            cls_managers_to_clear = [adata_manager.adata_uuid]
+            instance_managers_to_clear = [adata_manager.adata_uuid]
+
+        for adata_id in cls_managers_to_clear:
+            # don't clear the current manager by default
+            is_current_adata = (
+                adata is None and adata_id == self.adata_manager.adata_uuid
+            )
+            if is_current_adata or adata_id not in cls_manager_store:
+                continue
+            del cls_manager_store[adata_id]
+
+        for adata_id in instance_managers_to_clear:
+            # don't clear the current manager by default
+            is_current_adata = (
+                adata is None and adata_id == self.adata_manager.adata_uuid
+            )
+            if is_current_adata or adata_id not in instance_manager_store:
+                continue
+            del instance_manager_store[adata_id]
+
     @classmethod
     def _get_most_recent_anndata_manager(
         cls, adata: AnnOrMuData, required: bool = False
