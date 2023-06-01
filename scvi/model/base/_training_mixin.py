@@ -1,7 +1,7 @@
 from typing import List, Optional, Union
 
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import get_default_max_epochs
+from scvi.model._utils import get_max_epochs_heuristic
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp
 
@@ -58,7 +58,7 @@ class UnsupervisedTrainingMixin:
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            max_epochs = get_default_max_epochs(self.adata.n_obs)
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 

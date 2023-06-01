@@ -20,7 +20,7 @@ from scvi.model._utils import (
     _get_var_names_from_manager,
     _init_library_size,
     cite_seq_raw_counts_properties,
-    get_default_max_epochs,
+    get_max_epochs_heuristic,
 )
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE
@@ -282,7 +282,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             plan_kwargs = update_dict
 
         if max_epochs is None:
-            max_epochs = get_default_max_epochs(self.adata.n_obs)
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 

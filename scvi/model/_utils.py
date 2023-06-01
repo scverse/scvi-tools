@@ -20,8 +20,30 @@ from scvi.utils._exceptions import InvalidParameterError
 logger = logging.getLogger(__name__)
 
 
-def get_default_max_epochs(n_obs: int, k: int = 400):
-    max_epochs = int(np.min([round((20000 / n_obs) * k), k]))
+def get_max_epochs_heuristic(
+    n_obs: int, epochs_cap: int = 400, decay_at_n_obs: int = 20000
+) -> int:
+    """Compute a heuristic for the default number of maximum epochs.
+
+    If `n_obs <= decay_at_n_obs`, the number of maximum epochs is set to
+    `epochs_cap`. Otherwise, the number of maximum epochs decays according to
+    `(decay_at_n_obs / n_obs) * epochs_cap`, with a minimum of 1.
+
+    Parameters
+    ----------
+    n_obs
+        Number of observations in the dataset.
+    epochs_cap
+        Maximum number of epochs for the heuristic.
+    decay_at_n_obs
+        Number of observations at which the number of epochs starts decaying for the
+        heuristic.
+
+    Returns
+    -------
+    Heuristic for the default number of maximum epochs.
+    """
+    max_epochs = int(np.min([round((decay_at_n_obs / n_obs) * epochs_cap), epochs_cap]))
     max_epochs = max(max_epochs, 1)
 
     if max_epochs == 1:

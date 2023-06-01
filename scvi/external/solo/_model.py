@@ -15,7 +15,7 @@ from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
-from scvi.model._utils import get_default_max_epochs
+from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass
 from scvi.module import Classifier
 from scvi.module.base import auto_move_data
@@ -359,7 +359,7 @@ class SOLO(BaseModelClass):
             kwargs["check_val_every_n_epoch"] = 1
 
         if max_epochs is None:
-            max_epochs = get_default_max_epochs(self.adata.n_obs)
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
