@@ -50,7 +50,7 @@ dependencies = [
     "pyro-ppl>=1.6.0",
     "tqdm>=4.56.0",
     "scikit-learn>=0.21.2",
-    "numpyro",
+    "numpyro>=0.12.1",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
     "sparse>=0.14.0",
