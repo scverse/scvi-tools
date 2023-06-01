@@ -21,6 +21,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Added
 
+-   Add {class}`scvi.criticism.PosteriorPredictiveCheck` for model evaluation {pr}`2058`.
 -   Add {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
 -   Add default `stacklevel` for `warnings` in `scvi.settings` {pr}`1971`.
 -   Add scBasset motif injection procedure {pr}`2010`.
