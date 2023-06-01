@@ -42,6 +42,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Fix {class}`scvi.model.TOTALVI` {class}`scvi.model.MULTIVI` handling of missing protein values {pr}`2009`.
 -   Fix bug in {meth}`scvi.distributions.NegativeBinomialMixture.sample` where `theta` and `mu` arguments were switched around {pr}`2024`.
 -   Fix bug in {meth}`scvi.dataloaders.SemiSupervisedDataLoader.resample_labels` where the labeled dataloader was not being reinitialized on subsample {pr}`2032`.
+-   Fix typo in {class}`scvi.model.JaxSCVI` example snippet {pr}`2075`.
 
 #### Changed
 
