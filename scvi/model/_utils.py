@@ -20,6 +20,21 @@ from scvi.utils._exceptions import InvalidParameterError
 logger = logging.getLogger(__name__)
 
 
+def get_default_max_epochs(n_obs: int, k: int = 400):
+    max_epochs = int(np.min([round((20000 / n_obs) * k), k]))
+    max_epochs = max(max_epochs, 1)
+
+    if max_epochs == 1:
+        warnings.warn(
+            "The default number of maximum epochs has been set to 1 due to the. "
+            "number of observations. Pass in `max_epochs` to override this behavior.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
+    return max_epochs
+
+
 @devices_dsp.dedent
 def parse_device_args(
     use_gpu: Optional[Union[str, int, bool]] = None,

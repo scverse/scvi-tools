@@ -3,9 +3,9 @@ import warnings
 from typing import List, Optional, Union
 
 import jax
-import numpy as np
 
 from scvi.dataloaders import DataSplitter
+from scvi.model._utils import get_default_max_epochs
 from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp
 
@@ -62,8 +62,7 @@ class JaxTrainingMixin:
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
+            max_epochs = get_default_max_epochs(self.adata.n_obs)
 
         if use_gpu is None or use_gpu is True:
             try:

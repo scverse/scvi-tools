@@ -1,8 +1,7 @@
 from typing import List, Optional, Union
 
-import numpy as np
-
 from scvi.dataloaders import DataSplitter
+from scvi.model._utils import get_default_max_epochs
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp
 
@@ -58,9 +57,8 @@ class UnsupervisedTrainingMixin:
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        n_cells = self.adata.n_obs
         if max_epochs is None:
-            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
+            max_epochs = get_default_max_epochs(self.adata.n_obs)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 

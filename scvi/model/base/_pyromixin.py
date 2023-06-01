@@ -8,7 +8,7 @@ from pyro import poutine
 
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
-from scvi.model._utils import parse_device_args
+from scvi.model._utils import get_default_max_epochs, parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
 from scvi.utils._docstrings import devices_dsp
@@ -134,8 +134,7 @@ class PyroSviTrainMixin:
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            n_obs = self.adata.n_obs
-            max_epochs = int(np.min([round((20000 / n_obs) * 1000), 1000]))
+            max_epochs = get_default_max_epochs(self.adata.n_obs, k=1000)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
         if lr is not None and "optim" not in plan_kwargs.keys():

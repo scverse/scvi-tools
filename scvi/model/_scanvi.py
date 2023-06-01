@@ -29,7 +29,7 @@ from scvi.data.fields import (
     StringUnsField,
 )
 from scvi.dataloaders import SemiSupervisedDataSplitter
-from scvi.model._utils import _init_library_size
+from scvi.model._utils import _init_library_size, get_default_max_epochs
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
@@ -390,8 +390,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
+            max_epochs = get_default_max_epochs(self.adata.n_obs)
 
             if self.was_pretrained:
                 max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))
