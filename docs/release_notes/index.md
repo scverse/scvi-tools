@@ -35,6 +35,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add `deregister_manager` function to {class}`scvi.model.base.BaseModelClass`, allowing to clear
     {class}`scvi.data.AnnDataManager` instances from memory {pr}`2060`.
 -   Add lower bound 0.12.1 for Numpyro dependency {pr}`2078`.
+-   Add new section in scBasset tutorial for motif scoring {pr}`2079`.
 
 #### Fixed
 
