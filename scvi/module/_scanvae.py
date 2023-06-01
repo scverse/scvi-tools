@@ -11,7 +11,7 @@ from scvi.autotune._types import Tunable
 from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import Decoder, Encoder
 
-from ._classifier import Classifier, LinearClassifier
+from ._classifier import Classifier
 from ._utils import broadcast_labels
 from ._vae import VAE
 
@@ -63,8 +63,7 @@ class SCANVAE(VAE):
     use_labels_groups
         Whether to use the label groups
     linear_classifier
-        If `True`, uses a :class:`~scvi.module.LinearClassifier` instead of
-        a :class:`~scvi.module.Classifier`.
+        If `True`, uses a single linear layer for classification instead of
     classifier_parameters
         Keyword arguments passed into :class:`~scvi.module.Classifier`.
     use_batch_norm
@@ -125,23 +124,20 @@ class SCANVAE(VAE):
         use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
 
         self.n_labels = n_labels
-        if not linear_classifier:
-            # Classifier takes n_latent as input
-            cls_parameters = {
-                "n_layers": n_layers,
-                "n_hidden": n_hidden,
-                "dropout_rate": dropout_rate,
-            }
-            cls_parameters.update(classifier_parameters)
-            self.classifier = Classifier(
-                n_latent,
-                n_labels=n_labels,
-                use_batch_norm=use_batch_norm_encoder,
-                use_layer_norm=use_layer_norm_encoder,
-                **cls_parameters,
-            )
-        else:
-            self.classifier = LinearClassifier(n_latent, n_labels)
+        # Classifier takes n_latent as input
+        cls_parameters = {
+            "n_layers": n_layers,
+            "n_hidden": n_hidden,
+            "dropout_rate": dropout_rate,
+        }
+        cls_parameters.update(classifier_parameters)
+        self.classifier = Classifier(
+            n_latent,
+            n_labels=n_labels,
+            use_batch_norm=use_batch_norm_encoder,
+            use_layer_norm=use_layer_norm_encoder,
+            **cls_parameters,
+        )
 
         self.encoder_z2_z1 = Encoder(
             n_latent,

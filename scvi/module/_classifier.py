@@ -45,20 +45,27 @@ class Classifier(nn.Module):
     ):
         super().__init__()
         self.logits = logits
-        layers = [
-            FCLayers(
-                n_in=n_input,
-                n_out=n_hidden,
-                n_layers=n_layers,
-                n_hidden=n_hidden,
-                dropout_rate=dropout_rate,
-                use_batch_norm=use_batch_norm,
-                use_layer_norm=use_layer_norm,
-                activation_fn=activation_fn,
-                **kwargs,
-            ),
-            nn.Linear(n_hidden, n_labels),
-        ]
+        layers = []
+
+        if n_hidden > 0 and n_layers > 0:
+            layers.append(
+                FCLayers(
+                    n_in=n_input,
+                    n_out=n_hidden,
+                    n_layers=n_layers,
+                    n_hidden=n_hidden,
+                    dropout_rate=dropout_rate,
+                    use_batch_norm=use_batch_norm,
+                    use_layer_norm=use_layer_norm,
+                    activation_fn=activation_fn,
+                    **kwargs,
+                )
+            )
+        else:
+            n_hidden = n_input
+
+        layers.append(nn.Linear(n_hidden, n_labels))
+
         if not logits:
             layers.append(nn.Softmax(dim=-1))
 
@@ -67,14 +74,3 @@ class Classifier(nn.Module):
     def forward(self, x):
         """Forward computation."""
         return self.classifier(x)
-
-
-class LinearClassifier(nn.Module):
-    """Basic linear classifier."""
-
-    def __init__(self, n_input: int, n_labels: int):
-        super().__init__()
-        self.module = nn.Sequential(nn.Linear(n_input, n_labels), nn.Softmax(dim=-1))
-
-    def forward(self, x):
-        return self.module(x)
