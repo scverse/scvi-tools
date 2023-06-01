@@ -34,6 +34,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Raise warning if MPS backend is selected for PyTorch, see https://github.com/pytorch/pytorch/issues/77764 {pr}`2045`.
 -   Add `deregister_manager` function to {class}`scvi.model.base.BaseModelClass`, allowing to clear
     {class}`scvi.data.AnnDataManager` instances from memory {pr}`2060`.
+-   Add new section in scBasset tutorial for motif scoring {pr}`2079`.
 
 #### Fixed
 
