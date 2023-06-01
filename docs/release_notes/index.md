@@ -21,6 +21,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Added
 
+-   Add {class}`scvi.criticism.PosteriorPredictiveCheck` for model evaluation {pr}`2058`.
 -   Add {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
 -   Add default `stacklevel` for `warnings` in `scvi.settings` {pr}`1971`.
 -   Add scBasset motif injection procedure {pr}`2010`.
@@ -36,6 +37,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     {class}`scvi.data.AnnDataManager` instances from memory {pr}`2060`.
 -   Add option to use a linear classifier in {class}`scvi.model.SCANVI` {pr}`2063`.
 -   Add lower bound 0.12.1 for Numpyro dependency {pr}`2078`.
+-   Add new section in scBasset tutorial for motif scoring {pr}`2079`.
 
 #### Fixed
 
