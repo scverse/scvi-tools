@@ -48,8 +48,9 @@ def get_max_epochs_heuristic(
 
     if max_epochs == 1:
         warnings.warn(
-            "The default number of maximum epochs has been set to 1 due to the. "
-            "number of observations. Pass in `max_epochs` to override this behavior.",
+            "The default number of maximum epochs has been set to 1 due to the large"
+            "number of observations. Pass in `max_epochs` to the `train` function in "
+            "order to override this behavior.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
