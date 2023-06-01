@@ -78,8 +78,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
     linear_classifier
-        If `True`, uses a :class:`~scvi.module.LinearClassifier` instead of
-        a :class:`~scvi.module.Classifier`.
+        If `True`, uses a single linear layer for classification instead of a
+        multi-layer perceptron.
     **model_kwargs
         Keyword args for :class:`~scvi.module.SCANVAE`
 

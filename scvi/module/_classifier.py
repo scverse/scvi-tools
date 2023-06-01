@@ -11,11 +11,13 @@ class Classifier(nn.Module):
     n_input
         Number of input dimensions
     n_hidden
-        Number of hidden nodes in hidden layer
+        Number of nodes in hidden layer(s). If `0`, the classifier only consists of a
+        single linear layer.
     n_labels
         Numput of outputs dimensions
     n_layers
-        Number of hidden layers
+        Number of hidden layers. If `0`, the classifier only consists of a single
+        linear layer.
     dropout_rate
         dropout_rate for nodes
     logits
