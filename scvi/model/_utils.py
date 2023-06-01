@@ -32,18 +32,18 @@ def get_max_epochs_heuristic(
     Parameters
     ----------
     n_obs
-        Number of observations in the dataset.
+        The number of observations in the dataset.
     epochs_cap
-        Maximum number of epochs for the heuristic.
+        The maximum number of epochs for the heuristic.
     decay_at_n_obs
-        Number of observations at which the number of epochs starts decaying for the
-        heuristic.
+        The number of observations at which the heuristic starts decaying.
 
     Returns
     -------
-    Heuristic for the default number of maximum epochs.
+    `int`
+        A heuristic for the default number of maximum epochs.
     """
-    max_epochs = int(np.min([round((decay_at_n_obs / n_obs) * epochs_cap), epochs_cap]))
+    max_epochs = min(round((decay_at_n_obs / n_obs) * epochs_cap), epochs_cap)
     max_epochs = max(max_epochs, 1)
 
     if max_epochs == 1:
