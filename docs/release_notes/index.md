@@ -65,6 +65,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   {class}`scvi.train.SemiSupervisedTrainingPlan` and {class}`scvi.train.ClassifierTrainingPlan` now log accuracy,
     F1 score, and AUROC metrics {pr}`2023`.
 -   Switch to cellxgene census for backend for cellxgene data function {pr}`2030`.
+-   Change default `max_cells` and `truncation` in {meth}`scvi.model.base.RNASeqMixin._get_importance_weights` {pr}`2090`.
 
 #### Removed
 
