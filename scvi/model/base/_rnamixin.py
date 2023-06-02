@@ -44,8 +44,8 @@ class RNASeqMixin:
         qz: db.Distribution,
         px: db.Distribution,
         zs: torch.Tensor,
-        max_cells: int = 128,
-        truncation: bool = True,
+        max_cells: int = 1024,
+        truncation: bool = False,
         n_mc_samples: int = 500,
         n_mc_samples_per_pass: int = 250,
     ) -> np.ndarray:
@@ -157,6 +157,7 @@ class RNASeqMixin:
         batch_size: Optional[int] = None,
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
+        **importance_weighting_kwargs,
     ) -> Union[np.ndarray, pd.DataFrame]:
         r"""Returns the normalized (decoded) gene expression.
 
@@ -197,6 +198,8 @@ class RNASeqMixin:
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
             gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
             Otherwise, it defaults to `True`.
+        importance_weighting_kwargs
+            Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
 
         Returns
         -------
@@ -296,6 +299,7 @@ class RNASeqMixin:
                     qz=qz,
                     px=px,
                     zs=zs,
+                    **importance_weighting_kwargs,
                 )
             ind_ = np.random.choice(n_samples_, n_samples_overall, p=p, replace=True)
             exprs = exprs[ind_]
@@ -331,6 +335,7 @@ class RNASeqMixin:
         silent: bool = False,
         weights: Optional[Literal["uniform", "importance"]] = "uniform",
         filter_outlier_cells: bool = False,
+        importance_weighting_kwargs: Optional[dict] = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -354,6 +359,12 @@ class RNASeqMixin:
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
+        weights
+            Weights to use for sampling. If `None`, defaults to `"uniform"`.
+        filter_outlier_cells
+            Whether to filter outlier cells with :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
+        importance_weighting_kwargs
+            Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -363,12 +374,14 @@ class RNASeqMixin:
         """
         adata = self._validate_anndata(adata)
         col_names = adata.var_names
+        importance_weighting_kwargs = importance_weighting_kwargs or {}
         model_fn = partial(
             self.get_normalized_expression,
             return_numpy=True,
             n_samples=1,
             batch_size=batch_size,
             weights=weights,
+            **importance_weighting_kwargs,
         )
         representation_fn = (
             self.get_latent_representation if filter_outlier_cells else None
