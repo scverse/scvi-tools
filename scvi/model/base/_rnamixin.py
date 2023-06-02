@@ -362,7 +362,7 @@ class RNASeqMixin:
         weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
         filter_outlier_cells
-            Whether to filter outlier cells with :meth:`~scvi.model.base.DifferentialComputation.filter_outliter_cells`.
+            Whether to filter outlier cells with :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         importance_weighting_kwargs
             Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
         **kwargs
