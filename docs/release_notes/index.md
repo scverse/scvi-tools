@@ -66,6 +66,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   {class}`scvi.train.SemiSupervisedTrainingPlan` and {class}`scvi.train.ClassifierTrainingPlan` now log accuracy,
     F1 score, and AUROC metrics {pr}`2023`.
 -   Switch to cellxgene census for backend for cellxgene data function {pr}`2030`.
+-   Refactor heuristic for default `max_epochs` as a separate function {meth}`scvi.model._utils.get_max_epochs_heuristic` {pr}`2083`.
 
 #### Removed
 
