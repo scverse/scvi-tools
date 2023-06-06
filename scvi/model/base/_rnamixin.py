@@ -432,7 +432,8 @@ class RNASeqMixin:
             :class:`~anndata.AnnData` object used to initialize the model. If `None`,
             defaults to the latter.
         indices
-            Indices of observations in `adata` to use. If `None`, all observations are used.
+            Indices of the observations in `adata` to use. If `None`, all observations
+            are used.
         n_samples
             Number of samples to generate from the posterior predictive distribution
             for each observation.
