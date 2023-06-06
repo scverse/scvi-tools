@@ -428,21 +428,25 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            :class:`~anndata.AnnData` object with an equivalent structure to the
+            :class:`~anndata.AnnData` object used to initialize the model. If `None`,
+            defaults to the latter.
         indices
-            Indices of cells in adata to use. If `None`, all cells are used.
+            Indices of observations in `adata` to use. If `None`, all observations are used.
         n_samples
-            Number of samples for each cell.
+            Number of samples to generate from the posterior predictive distribution
+            for each observation.
         gene_list
-            Names of genes of interest.
+            Names of genes of interest to subset on. If `None`, all genes are used.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for loading and sampling from the posterior predictive
+            distribution. If `None`, defaults to :attr:`~scvi.settings.batch_size`.
 
         Returns
         -------
-        x_new : :py:class:`torch.Tensor`
-            tensor with shape (n_cells, n_genes, n_samples)
+        :class:`~sparse.GCXS`
+            Sparse matrix with shape `(n_obs, n_vars, n_samples)` of samples from the
+            posterior predictive distribution.
         """
         if self.module.gene_likelihood not in ["zinb", "nb", "poisson"]:
             raise ValueError("Invalid gene_likelihood.")
