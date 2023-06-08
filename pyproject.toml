@@ -5,7 +5,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.0.0b0"
+version = "1.0.0"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -50,10 +50,11 @@ dependencies = [
     "pyro-ppl>=1.6.0",
     "tqdm>=4.56.0",
     "scikit-learn>=0.21.2",
-    "numpyro",
+    "numpyro>=0.12.1",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
     "sparse>=0.14.0",
+    "xarray>=2023.2.0",
 ]
 
 
