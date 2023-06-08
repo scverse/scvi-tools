@@ -89,7 +89,7 @@ docs = [
 ]
 autotune = [
   "hyperopt>=0.2",
-  "ray[tune]>=2.4.0",
+  "ray[tune]>=2.5.0",
   "ipython",
   "scib-metrics>=0.3",
 ]
