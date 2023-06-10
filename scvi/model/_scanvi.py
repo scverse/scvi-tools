@@ -444,7 +444,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         cls,
         adata: AnnData,
         labels_key: str,
-        unlabeled_category: Union[str, int, float],
+        unlabeled_category: Optional[Union[str, int, float]] = None,
         layer: Optional[str] = None,
         batch_key: Optional[str] = None,
         size_factor_key: Optional[str] = None,
@@ -457,9 +457,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         Parameters
         ----------
         %(param_adata)s
+        %(param_labels_key)s
+        %(param_unlabeled_category)s
         %(param_layer)s
         %(param_batch_key)s
-        %(param_labels_key)s
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s

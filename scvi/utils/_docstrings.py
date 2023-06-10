@@ -122,6 +122,11 @@ labels_key
     key in `adata.obs` for label information. Categories will automatically be converted into integer
     categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data."""
 
+param_unlabeled_category = """\
+unlabeled_category
+    Value in `adata.obs[labels_key]` that indicates unlabeled observations. If `None`,
+    assumes all observations are labeled."""
+
 param_size_factor_key = """\
 size_factor_key
     key in `adata.obs` for size factor information. Instead of using library size as a size factor, the provided

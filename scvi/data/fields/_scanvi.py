@@ -27,7 +27,7 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         Value assigned to unlabeled cells.
     """
 
-    UNLABELED_CATEGORY = "unlabeled_category"
+    UNLABELED_CATEGORY_KEY = "unlabeled_category"
 
     def __init__(
         self,
@@ -42,6 +42,16 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         self, adata: AnnData, mapping: np.ndarray
     ) -> dict:
         labels = self._get_original_column(adata)
+
+        if self._unlabeled_category is None:
+            if self.UNLABELED_CATEGORY_KEY in labels:
+                raise ValueError(
+                    f"`adata.obs[{self._original_attr_key}]` contains the value "
+                    f"`'{self.UNLABELED_CATEGORY_KEY}'`, which is reserved for the "
+                    "dummy unlabeled category. Please rename or pass in the "
+                    "`unlabeled_category` argument."
+                )
+            self._unlabeled_category = self.UNLABELED_CATEGORY_KEY
 
         if self._unlabeled_category in labels:
             unlabeled_idx = np.where(mapping == self._unlabeled_category)
@@ -65,7 +75,7 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         return {
             self.CATEGORICAL_MAPPING_KEY: mapping,
             self.ORIGINAL_ATTR_KEY: self._original_attr_key,
-            self.UNLABELED_CATEGORY: self._unlabeled_category,
+            self.UNLABELED_CATEGORY_KEY: self._unlabeled_category,
         }
 
     def register_field(self, adata: AnnData) -> dict:
