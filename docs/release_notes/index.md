@@ -11,6 +11,11 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ### 1.1.0 (2023-MM-DD)
 
+#### Changed
+
+-   Change `unlabeled_category` from a positional to an optional keyword argument in {meth}`scvi.model.SCANVI.setup_anndata`
+    such that the default behavior is to assume all observations are labeled {pr}`2094`.
+
 #### Removed
 
 -   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
