@@ -44,6 +44,7 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         labels = self._get_original_column(adata)
 
         if self._unlabeled_category is None:
+            # default behavior assumes all observations are labeled
             if self.UNLABELED_CATEGORY_KEY in labels:
                 raise ValueError(
                     f"`adata.obs[{self._original_attr_key}]` contains the value "
@@ -51,6 +52,7 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
                     "dummy unlabeled category. Please rename or pass in the "
                     "`unlabeled_category` argument."
                 )
+            # set unlabeled category to dummy value
             self._unlabeled_category = self.UNLABELED_CATEGORY_KEY
 
         if self._unlabeled_category in labels:
