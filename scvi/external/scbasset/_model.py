@@ -166,7 +166,7 @@ class SCBASSET(BaseModelClass):
                 REGISTRY_KEYS.X_KEY: np.float32,
                 REGISTRY_KEYS.DNA_CODE_KEY: np.int64,
             },
-            distributed_sample=use_distributed_sampler(
+            distributed_sampler=use_distributed_sampler(
                 trainer_kwargs.get("strategy", None)
             ),
         )
