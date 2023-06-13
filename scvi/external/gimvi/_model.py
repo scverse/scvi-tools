@@ -15,7 +15,11 @@ from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import _init_library_size, parse_device_args
+from scvi.model._utils import (
+    _init_library_size,
+    parse_device_args,
+    use_distributed_sampler,
+)
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
 from scvi.utils import setup_anndata_dsp
@@ -222,6 +226,9 @@ class GIMVI(VAEMixin, BaseModelClass):
                 validation_size=validation_size,
                 batch_size=batch_size,
                 shuffle_set_split=shuffle_set_split,
+                distributed_sampler=use_distributed_sampler(
+                    kwargs.get("strategy", None)
+                ),
             )
             ds.setup()
             train_dls.append(ds.train_dataloader())

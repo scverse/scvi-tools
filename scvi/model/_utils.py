@@ -7,6 +7,7 @@ import jax
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
+from lightning.pytorch.strategies import DDPStrategy, Strategy
 from lightning.pytorch.trainer.connectors.accelerator_connector import (
     _AcceleratorConnector,
 )
@@ -18,6 +19,17 @@ from scvi.utils._docstrings import devices_dsp
 from scvi.utils._exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
+
+
+def use_distributed_sampler(strategy: Union[str, Strategy]) -> bool:
+    """Return whether to use a distributed sampler.
+
+    Currently only supports DDP.
+    """
+    if isinstance(strategy, str):
+        # ["ddp", "ddp_spawn", "ddp_find_unused_parameters_true"]
+        return "ddp" in strategy
+    return isinstance(strategy, DDPStrategy)
 
 
 def get_max_epochs_heuristic(

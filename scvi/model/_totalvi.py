@@ -21,6 +21,7 @@ from scvi.model._utils import (
     _init_library_size,
     cite_seq_raw_counts_properties,
     get_max_epochs_heuristic,
+    use_distributed_sampler,
 )
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE
@@ -292,6 +293,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
         runner = self._train_runner_cls(
