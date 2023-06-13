@@ -23,12 +23,14 @@ def test_batchdistributedsampler_init(
         batch_size=batch_size,
         shuffle=True,
         drop_last=True,
+        drop_dataset_tail=True,
     )
     assert sampler.batch_size == batch_size
     assert sampler.rank == 0
     assert sampler.num_replicas == 1
     assert sampler.shuffle
-    assert sampler.drop_last
+    assert sampler.drop_last_batch  # drop_last
+    assert sampler.drop_last  # drop_dataset_tail
 
 
 @pytest.mark.parametrize("drop_last", [True, False])

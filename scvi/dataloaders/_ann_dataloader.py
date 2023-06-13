@@ -39,6 +39,11 @@ class AnnDataLoader(DataLoader):
         If `True`, drops the last incomplete batch, if the dataset size is not divisible
         by `batch_size`. If `False` and the size of dataset is not divisible by
         `batch_size`, then the last batch will be smaller.
+    drop_dataset_tail
+        If `True`, then the sampler will drop the tail of `dataset` to make it evenly
+        divisible across the number of replicas. If `False`, the sampler will add extra
+        indices to make the data evenly divisible across the number of replicas. Only
+        relevant if `distributed_sampler` is `True`.
     data_and_attributes
         Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
         and value equal to desired numpy loading type (later made into torch tensor) or list of
@@ -67,6 +72,7 @@ class AnnDataLoader(DataLoader):
         shuffle: bool = False,
         sampler: Optional[Sampler] = None,
         drop_last: bool = False,
+        drop_dataset_tail: bool = False,
         data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
         iter_ndarray: bool = False,
         distributed_sampler: bool = False,
@@ -100,8 +106,9 @@ class AnnDataLoader(DataLoader):
                 sampler = BatchDistributedSampler(
                     self.dataset,
                     batch_size=batch_size,
-                    shuffle=shuffle,
                     drop_last=drop_last,
+                    drop_dataset_tail=drop_dataset_tail,
+                    shuffle=shuffle,
                 )
             # do not touch batch size here, sampler gives batched indices
             # This disables PyTorch automatic batching, which is necessary
