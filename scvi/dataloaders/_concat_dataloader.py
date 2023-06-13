@@ -62,6 +62,7 @@ class ConcatDataLoader(DataLoader):
             )
         lens = [len(dl) for dl in self.dataloaders]
         self.largest_dl = self.dataloaders[np.argmax(lens)]
+        data_loader_kwargs.pop("distributed_sampler", None)
         super().__init__(self.largest_dl, **data_loader_kwargs)
 
     def __len__(self):
