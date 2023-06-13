@@ -38,12 +38,20 @@ class BatchDistributedSampler(DistributedSampler):
     ):
         super().__init__(dataset, drop_last=drop_dataset_tail, **kwargs)
         self.batch_size = batch_size
-        self.drop_last_batch = drop_last
+        self.drop_last_batch = drop_last  # drop_last already defined in parent
 
     def __iter__(self):
-        """Based on :meth:`~torch.utils.data.BatchSampler.__iter__`."""
+        """Iterates over a subset of indices from the dataset.
+
+        Based on :meth:`~torch.utils.data.BatchSampler.__iter__`.
+
+        Notes
+        -----
+        `super().__iter__()` iterates over a subset of the dataset based on the current
+        `rank` and `num_replicas`.
+        """
+        sampler_iter = super().__iter__()
         if self.drop_last_batch:
-            sampler_iter = super().__iter__()
             while True:
                 try:
                     batch = [next(sampler_iter) for _ in range(self.batch_size)]
@@ -53,7 +61,7 @@ class BatchDistributedSampler(DistributedSampler):
         else:
             batch = [0] * self.batch_size
             idx_in_batch = 0
-            for idx in super().__iter__():
+            for idx in sampler_iter:
                 batch[idx_in_batch] = idx
                 idx_in_batch += 1
                 if idx_in_batch == self.batch_size:
