@@ -11,6 +11,10 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ### 1.1.0 (2023-MM-DD)
 
+#### Added
+
+-   Add {class}`scvi.dataloaders.BatchDistributedSampler` for distributed training {pr}`2102`.
+
 #### Removed
 
 -   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
