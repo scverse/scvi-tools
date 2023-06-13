@@ -69,7 +69,7 @@ class AnnDataLoader(DataLoader):
         drop_last: bool = False,
         data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
         iter_ndarray: bool = False,
-        distributed_sampler: bool = True,
+        distributed_sampler: bool = False,
         **kwargs,
     ):
         if indices is None:
