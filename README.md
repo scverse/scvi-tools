@@ -84,6 +84,7 @@ Create a branch for local development
 git checkout -b {your-branch-name}
 ```
 
+I you want to use a GPU, make sure to create a workspace with a GPU in *Abstra*.
 Please be sure to install a version of [PyTorch](https://pytorch.org/) that is compatible with your GPU (if applicable).
 
 # Resources
