@@ -45,18 +45,41 @@ We recommend checking out the [skeleton
 repository](https://github.com/scverse/simple-scvi) as a
 starting point for developing and deploying new models with scvi-tools.
 
-# Basic installation
-
-For conda,
-
-```
-conda install scvi-tools -c conda-forge
-```
-
-and for pip,
+# Basic installation [Abstra]
+Clone repository
 
 ```
-pip install scvi-tools
+git clone https://github.com/owkin/deepdeconv # https
+git clone git@github.com:owkin/deepdeconv.git # ssh
+```
+
+Create an environment and install scvi-tools locally
+
+```
+conda create -n deepdeconv python=.3.9
+conda activate deepdeconv
+cd deepdeconv
+# install library in editable mode
+pip install -e ".[dev,docs,tutorials]"
+```
+
+To confirm that scvi-tools was succesfully installed
+
+```
+pip show scvi-tools
+```
+
+Create an ipykernel so you can use your environment with a Jupyter notebook
+
+
+```
+python -m ipykernel install --user --name=scvi-tools-dev
+```
+
+Create a branch for local development
+
+```
+git checkout -b {your-branch-name}
 ```
 
 Please be sure to install a version of [PyTorch](https://pytorch.org/) that is compatible with your GPU (if applicable).
