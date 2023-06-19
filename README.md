@@ -61,6 +61,8 @@ conda activate deepdeconv
 cd deepdeconv
 # install library in editable mode
 pip install -e ".[dev,docs,tutorials]"
+# Install additional requirements
+pip install -r requirements.txt
 ```
 
 To confirm that scvi-tools was succesfully installed
@@ -73,7 +75,7 @@ Create an ipykernel so you can use your environment with a Jupyter notebook
 
 
 ```
-python -m ipykernel install --user --name=scvi-tools-dev
+python -m ipykernel install --user --name=deepdeconv
 ```
 
 Create a branch for local development
