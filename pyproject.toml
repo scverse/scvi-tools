@@ -38,7 +38,7 @@ dependencies = [
     "jax>=0.4.4",
     "jaxlib>=0.4.3",
     "optax",
-    "numpy>=1.17.0",
+    "numpy>=1.21.0",
     "pandas>=1.0",
     "scipy",
     "scikit-learn>=0.21.2",
@@ -90,7 +90,7 @@ docs = [
 ]
 autotune = [
   "hyperopt>=0.2",
-  "ray[tune]>=2.2.0",
+  "ray[tune]>=2.5.0",
   "ipython",
   "scib-metrics>=0.3",
 ]
