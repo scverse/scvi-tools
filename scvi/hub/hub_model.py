@@ -255,6 +255,8 @@ class HubModel:
     def load_model(
         self,
         adata: Optional[AnnData] = None,
+        accelerator: str = "cpu",
+        device: Union[int, str] = "auto",
     ):
         """Loads the model.
 
@@ -271,7 +273,12 @@ class HubModel:
         python_module = importlib.import_module(self.metadata.model_parent_module)
         model_cls = getattr(python_module, model_cls_name)
         if adata is not None or os.path.isfile(self._adata_path):
-            self._model = model_cls.load(os.path.dirname(self._model_path), adata=adata)
+            self._model = model_cls.load(
+                os.path.dirname(self._model_path),
+                adata=adata,
+                accelerator=accelerator,
+                device=device,
+            )
         else:
             # in this case, we must download the large training adata if it exists in the model card; otherwise,
             # we error out. Note that the call below faults in self.large_training_adata if it is None
@@ -286,6 +293,8 @@ class HubModel:
                 self._model = model_cls.load(
                     os.path.dirname(self._model_path),
                     adata=self.large_training_adata,
+                    accelerator=accelerator,
+                    device=device,
                 )
 
     def read_adata(self):

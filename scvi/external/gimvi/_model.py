@@ -457,7 +457,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        accelerator: str = "auto",
+        accelerator: str = "cpu",
         device: Union[int, str] = "auto",
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
