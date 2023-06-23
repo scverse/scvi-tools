@@ -17,10 +17,11 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 1.0
 
-### 1.0.0 (2023-MM-DD)
+### 1.0.0 (2023-06-02)
 
 #### Added
 
+-   Add {class}`scvi.criticism.PosteriorPredictiveCheck` for model evaluation {pr}`2058`.
 -   Add {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
 -   Add default `stacklevel` for `warnings` in `scvi.settings` {pr}`1971`.
 -   Add scBasset motif injection procedure {pr}`2010`.
@@ -34,6 +35,9 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Raise warning if MPS backend is selected for PyTorch, see https://github.com/pytorch/pytorch/issues/77764 {pr}`2045`.
 -   Add `deregister_manager` function to {class}`scvi.model.base.BaseModelClass`, allowing to clear
     {class}`scvi.data.AnnDataManager` instances from memory {pr}`2060`.
+-   Add option to use a linear classifier in {class}`scvi.model.SCANVI` {pr}`2063`.
+-   Add lower bound 0.12.1 for Numpyro dependency {pr}`2078`.
+-   Add new section in scBasset tutorial for motif scoring {pr}`2079`.
 
 #### Fixed
 
@@ -41,6 +45,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Fix {class}`scvi.model.TOTALVI` {class}`scvi.model.MULTIVI` handling of missing protein values {pr}`2009`.
 -   Fix bug in {meth}`scvi.distributions.NegativeBinomialMixture.sample` where `theta` and `mu` arguments were switched around {pr}`2024`.
 -   Fix bug in {meth}`scvi.dataloaders.SemiSupervisedDataLoader.resample_labels` where the labeled dataloader was not being reinitialized on subsample {pr}`2032`.
+-   Fix typo in {class}`scvi.model.JaxSCVI` example snippet {pr}`2075`.
 
 #### Changed
 
@@ -61,6 +66,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   {class}`scvi.train.SemiSupervisedTrainingPlan` and {class}`scvi.train.ClassifierTrainingPlan` now log accuracy,
     F1 score, and AUROC metrics {pr}`2023`.
 -   Switch to cellxgene census for backend for cellxgene data function {pr}`2030`.
+-   Change default `max_cells` and `truncation` in {meth}`scvi.model.base.RNASeqMixin._get_importance_weights` {pr}`2064`.
+-   Refactor heuristic for default `max_epochs` as a separate function {meth}`scvi.model._utils.get_max_epochs_heuristic` {pr}`2083`.
 
 #### Removed
 

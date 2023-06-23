@@ -1112,6 +1112,24 @@ def test_scanvi(save_path):
     scanvi_model.train(1)
 
 
+def test_linear_classifier_scanvi(n_latent: int = 10, n_labels: int = 5):
+    adata = synthetic_iid(n_labels=n_labels)
+    SCANVI.setup_anndata(
+        adata,
+        "labels",
+        "label_0",
+        batch_key="batch",
+    )
+    model = SCANVI(adata, linear_classifier=True, n_latent=n_latent)
+
+    assert len(model.module.classifier.classifier) == 2  # linear layer + softmax
+    assert isinstance(model.module.classifier.classifier[0], torch.nn.Linear)
+    assert model.module.classifier.classifier[0].in_features == n_latent
+    assert model.module.classifier.classifier[0].out_features == n_labels - 1
+
+    model.train(max_epochs=1)
+
+
 def test_linear_scvi(save_path):
     adata = synthetic_iid()
     adata = adata[:, :10].copy()

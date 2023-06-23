@@ -126,17 +126,23 @@ Using the functionality that `scvi-tools` provides, users can download pre-train
 from this platform, and model generators can upload their own pre-trained `scvi-tools` models to this platform.
 
 ```{eval-rst}
-.. currentmodule:: scvi
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   hub.HubMetadata
+   hub.HubModelCardHelper
+   hub.HubModel
 ```
+
+## Model criticism
 
 ```{eval-rst}
 .. autosummary::
    :toctree: reference/
    :nosignatures:
 
-   scvi.hub.HubMetadata
-   scvi.hub.HubModelCardHelper
-   scvi.hub.HubModel
+   criticism.PosteriorPredictiveCheck
 ```
 
 ## Utilities
