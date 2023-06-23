@@ -11,6 +11,10 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ### 1.1.0 (2023-MM-DD)
 
+#### Changed
+
+-   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model` and set default to `"cpu"` {pr}`2107`.
+
 #### Removed
 
 -   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
