@@ -18,6 +18,7 @@ from scvi.data import cellxgene
 from scvi.data._download import _download
 from scvi.hub.hub_metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
+from scvi.utils._docstrings import devices_dsp
 
 from ._constants import _SCVI_HUB
 
@@ -252,6 +253,7 @@ class HubModel:
             self.read_large_training_adata()
         return self._large_training_adata
 
+    @devices_dsp.dedent
     def load_model(
         self,
         adata: Optional[AnnData] = None,
@@ -266,6 +268,8 @@ class HubModel:
             The data to load the model with, if not None. If None, we'll try to load the model using the data
             at ``self._adata_path``. If that file does not exist, we'll try to load the model using
             :meth:`~scvi.hub.HubModel.large_training_adata`. If that does not exist either, we'll error out.
+        %(param_accelerator)s
+        %(param_device)s
         """
         logger.info("Loading model...")
         # get the class name for this model (e.g. TOTALVI)
