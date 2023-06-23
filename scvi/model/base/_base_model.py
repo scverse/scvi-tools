@@ -717,6 +717,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         model.to_device(device)
         model.module.eval()
         model._validate_anndata(adata)
+
+        logger.info(f"Loaded model into device: {device}")
+
         return model
 
     @classmethod
