@@ -34,6 +34,8 @@ jobs:
                       pip-flags: "--pre"
                     - os: ubuntu-latest
                       python: "3.11"
+                    - os: windows-latest
+                      python: "3.9"
 
         env:
             OS: ${{ matrix.os }}
