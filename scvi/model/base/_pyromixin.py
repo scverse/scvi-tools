@@ -85,7 +85,6 @@ class PyroSviTrainMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
         train_size: float = 0.9,
@@ -105,7 +104,6 @@ class PyroSviTrainMixin:
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         train_size
@@ -174,7 +172,6 @@ class PyroSviTrainMixin:
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=device,
             **trainer_kwargs,
@@ -358,7 +355,6 @@ class PyroSampleMixin:
     @devices_dsp.dedent
     def _posterior_samples_minibatch(
         self,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
         batch_size: Optional[int] = None,
@@ -371,7 +367,6 @@ class PyroSampleMixin:
 
         Parameters
         ----------
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         batch_size
@@ -384,7 +379,6 @@ class PyroSampleMixin:
         samples = {}
 
         _, _, device = parse_device_args(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=device,
             return_device="torch",
@@ -470,7 +464,6 @@ class PyroSampleMixin:
         self,
         num_samples: int = 1000,
         return_sites: Optional[list] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
         batch_size: Optional[int] = None,
@@ -489,7 +482,6 @@ class PyroSampleMixin:
             Number of posterior samples to generate.
         return_sites
             List of variables for which to generate posterior samples, defaults to all variables.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         batch_size
@@ -525,7 +517,6 @@ class PyroSampleMixin:
         """
         # sample using minibatches (if full data, data is moved to GPU only once anyway)
         samples = self._posterior_samples_minibatch(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             device=device,
             batch_size=batch_size,

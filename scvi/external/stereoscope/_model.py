@@ -64,7 +64,6 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 0.01,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         train_size: float = 1,
@@ -82,7 +81,6 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -110,7 +108,6 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             plan_kwargs = update_dict
         super().train(
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             train_size=train_size,
@@ -291,7 +288,6 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 0.01,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         shuffle_set_split: bool = True,
@@ -307,7 +303,6 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         shuffle_set_split
@@ -330,7 +325,6 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             plan_kwargs = update_dict
         super().train(
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             train_size=1,

@@ -631,7 +631,6 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         cls,
         dir_path: str,
         adata: Optional[AnnOrMuData] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
         prefix: Optional[str] = None,
@@ -648,7 +647,6 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             It is not necessary to run setup_anndata,
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         prefix
@@ -667,7 +665,6 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         """
         load_adata = adata is None
         _, _, device = parse_device_args(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=device,
             return_device="torch",

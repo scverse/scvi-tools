@@ -12,6 +12,7 @@ from mudata import MuData
 
 from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
+from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import JaxTrainingPlan
 from scvi.utils import setup_anndata_dsp, track
@@ -125,7 +126,6 @@ class Tangram(BaseModelClass):
     def train(
         self,
         max_epochs: int = 1000,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         lr: float = 0.1,
@@ -137,7 +137,6 @@ class Tangram(BaseModelClass):
         ----------
         max_epochs
             Number of passes through the dataset.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         lr
@@ -158,20 +157,22 @@ class Tangram(BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
-        device = jax.devices("cpu")[0]
-        if use_gpu is None or use_gpu is True:
-            try:
-                device = jax.devices("gpu")[0]
-                self.module.to(device)
-                logger.info(
-                    "Jax module moved to GPU. "
-                    "Note: Pytorch lightning will show GPU is not being used for the Trainer."
-                )
-            except RuntimeError:
-                logger.debug("No GPU available to Jax.")
-        else:
+
+        device = parse_device_args(
+            accelerator,
+            devices,
+            return_device="jax",
+            validate_single_device=True,
+        )
+        try:
             self.module.to(device)
-            logger.info("Jax module moved to CPU.")
+            logger.info(
+                f"Jax module moved to {device}."
+                "Note: Pytorch lightning will show GPU is not being used for the Trainer."
+            )
+        except RuntimeError:
+            logger.debug("No GPU available to Jax.")
+
         tensor_dict = self._get_tensor_dict(device=device)
         training_plan = JaxTrainingPlan(self.module, **plan_kwargs)
         module_init = self.module.init(self.module.rngs, tensor_dict)

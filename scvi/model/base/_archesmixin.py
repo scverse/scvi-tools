@@ -35,7 +35,6 @@ class ArchesMixin:
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
         unfrozen: bool = False,
@@ -60,7 +59,6 @@ class ArchesMixin:
         inplace_subset_query_vars
             Whether to subset and rearrange query vars inplace based on vars used to
             train reference model.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         unfrozen
@@ -79,7 +77,6 @@ class ArchesMixin:
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
         _, _, device = parse_device_args(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=device,
             return_device="torch",

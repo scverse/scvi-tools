@@ -311,7 +311,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 2000,
         lr: float = 0.003,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         train_size: float = 1.0,
@@ -330,7 +329,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -361,7 +359,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             plan_kwargs = update_dict
         super().train(
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             train_size=train_size,
