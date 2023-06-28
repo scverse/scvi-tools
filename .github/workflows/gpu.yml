@@ -22,6 +22,12 @@ jobs:
 
         steps:
             - uses: actions/checkout@v3
+            - name: Initialize current shell
+              run: |
+                  eval "$(micromamba shell hook --shell=)"
+            - name: Activate current shell
+              run: |
+                  micromamba activate
             - name: Create environment
               run: |
                   micromamba create -n gpu-test python=3.11 -c conda-forge
