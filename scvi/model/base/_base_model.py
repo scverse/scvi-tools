@@ -770,17 +770,17 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             model_save_path,
         )
 
-    def __repr__(
-        self,
-    ):
+    @property
+    def summary_string(self):
+        """Summary string of the model."""
         summary_string = self._model_summary_string
         summary_string += "\nTraining status: {}".format(
             "Trained" if self.is_trained_ else "Not Trained"
         )
-        summary_string += "\nModel's adata is minified?: {}".format(
-            hasattr(self, "minified_data_type") and self.minified_data_type is not None
-        )
-        rich.print(summary_string)
+        return summary_string
+
+    def __repr__(self):
+        rich.print(self.summary_string)
         return ""
 
     @classmethod
@@ -913,3 +913,12 @@ class BaseMinifiedModeModelClass(BaseModelClass):
         # We set the adata attribute of the model as this will update self.registry_
         # and self.adata_manager with the new adata manager
         self.adata = minified_adata
+
+    @property
+    def summary_string(self):
+        """Summary string of the model."""
+        summary_string = super().summary_string
+        summary_string += "\nModel's adata is minified?: {}".format(
+            hasattr(self, "minified_data_type") and self.minified_data_type is not None
+        )
+        return summary_string
