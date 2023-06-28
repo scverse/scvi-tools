@@ -16,7 +16,9 @@ on:
 jobs:
     test:
         runs-on: [self-hosted, Linux, X64, CUDA]
-        container: mambaorg/micromamba:jammy-cuda-11.8.0
+        container:
+            image: mambaorg/micromamba:jammy-cuda-11.8.0
+            options: --user root
 
         steps:
             - uses: actions/checkout@v3
