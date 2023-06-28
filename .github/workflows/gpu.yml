@@ -15,7 +15,7 @@ on:
 
 jobs:
     test:
-        runs-on: gaming-gpu
+        runs-on: [self-hosted, linux, X64, CUDA]
         container: jammy-cuda-11.8.0
 
         steps:
