@@ -1,0 +1,52 @@
+name: test-gpu
+
+on:
+    workflow_dispatch:
+        inputs:
+            logLevel:
+                description: "Log level"
+                required: true
+                default: "warning"
+                type: choice
+                options:
+                    - info
+                    - warning
+                    - debug
+
+jobs:
+    test:
+        runs-on: gaming-gpu
+        container: jammy-cuda-11.8.0
+
+        steps:
+            - uses: actions/checkout@v3
+            - name: Set up Python 3.11
+              uses: actions/setup-python@v4
+              with:
+                  python-version: 3.11
+                  cache: "pip"
+                  cache-dependency-path: "**/pyproject.toml"
+            - name: Install test dependencies
+              run: |
+                  python -m pip install --upgrade pip wheel
+            - name: Create environment
+              run: |
+                  mamba create env -n gpu-test python=3.11
+            - name: Activate environment
+              run: |
+                  mamba activate gpu-test
+            - name: Install torch cuda dependencies
+              run: |
+                  mamba install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+            - name: Install jax cuda dependencies
+              run: |
+                  mamba install jax jaxlib -c conda-forge
+            - name: Test
+              env:
+                  MPLBACKEND: agg
+                  PLATFORM: ubuntu
+                  DISPLAY: :42
+              run: |
+                  pytest -v --cov --color=yes --cuda
+            - name: Upload coverage
+              uses: codecov/codecov-action@v3
