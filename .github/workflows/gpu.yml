@@ -24,16 +24,16 @@ jobs:
             - uses: actions/checkout@v3
             - name: Create environment
               run: |
-                  mamba create env -n gpu-test python=3.11
+                  micromamba create env -n gpu-test python=3.11
             - name: Activate environment
               run: |
-                  mamba activate gpu-test
+                  micromamba activate gpu-test
             - name: Install torch cuda dependencies
               run: |
-                  mamba install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+                  micromamba install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
             - name: Install jax cuda dependencies
               run: |
-                  mamba install jax jaxlib -c conda-forge
+                  micromamba install jax jaxlib -c conda-forge
             - name: Test
               env:
                   MPLBACKEND: agg
