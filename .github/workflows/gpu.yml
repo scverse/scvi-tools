@@ -24,7 +24,7 @@ jobs:
             - uses: actions/checkout@v3
             - name: Create environment
               run: |
-                  micromamba create -n gpu-test python=3.11
+                  micromamba create -n gpu-test python=3.11 -c conda-forge
             - name: Activate environment
               run: |
                   micromamba activate gpu-test
