@@ -15,7 +15,7 @@ on:
 
 jobs:
     test:
-        runs-on: [self-hosted, linux, X64, CUDA]
+        runs-on: [self-hosted, Linux, X64, CUDA]
         container: jammy-cuda-11.8.0
 
         steps:
