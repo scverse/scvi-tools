@@ -1,36 +1,61 @@
-name: test-gpu
+name: test-linux-cuda
 
 on:
     workflow_dispatch:
         inputs:
-            logLevel:
-                description: "Log level"
+            ubuntu-version:
+                description: Ubuntu version
                 required: true
-                default: "warning"
+                default: latest
+                type: string
+
+            mamba-version:
+                description: Mamba version
+                required: true
+                default: latest
+                type: string
+
+            python-version:
+                description: Python version
+                required: true
+                default: "3.11"
                 type: choice
                 options:
-                    - info
-                    - warning
-                    - debug
+                    - "3.9"
+                    - "3.10"
+                    - "3.11"
+
+            cuda-version:
+                description: CUDA major version
+                required: true
+                default: "11"
+                type: choice
+                options:
+                    - "11"
+                    - "12"
 
 jobs:
     test:
         runs-on: [self-hosted, Linux, X64, CUDA]
         container:
-            image: martinkim0/scvi-tools:11.8
+            image: martinkim0/scvi-tools:ubuntu-${{ inputs.ubuntu-version }}-mamba-${{ inputs.mamba-version}}-python-${{ inputs.python-version }}-cuda-${{ inputs.cuda-version }}
             options: --user root --gpus all
 
         steps:
-            - uses: actions/checkout@v3
+            - name: Checkout
+              uses: actions/checkout@v3
+
             - name: Install dependencies
               run: |
                   pip install ".[dev,pymde,autotune,hub]"
+
             - name: Test
               env:
                   MPLBACKEND: agg
                   PLATFORM: ubuntu
                   DISPLAY: :42
-              run: |
-                  pytest -v --cov --color=yes --cuda
+                  run: |
+                      pytest -v --cov --color=yes --cuda
+
             - name: Upload coverage
               uses: codecov/codecov-action@v3
