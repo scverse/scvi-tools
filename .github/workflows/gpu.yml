@@ -24,6 +24,9 @@ jobs:
 
         steps:
             - uses: actions/checkout@v3
+            - name: Activate test environment
+              run: |
+                  micromamba activate base
             - name: Install dependencies
               run: |
                   pip install ".[dev,pymde,autotune,hub]"
