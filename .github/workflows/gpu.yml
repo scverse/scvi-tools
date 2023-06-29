@@ -1,0 +1,51 @@
+name: test-gpu
+
+on:
+    workflow_dispatch:
+        inputs:
+            logLevel:
+                description: "Log level"
+                required: true
+                default: "warning"
+                type: choice
+                options:
+                    - info
+                    - warning
+                    - debug
+
+jobs:
+    test:
+        runs-on: [self-hosted, Linux, X64, CUDA]
+        container:
+            image: mambaorg/micromamba:jammy-cuda-11.8.0
+            options: --user root
+
+        steps:
+            - uses: actions/checkout@v3
+            - name: Initialize current shell
+              run: |
+                  eval "$(micromamba shell hook --shell=bash)"
+            - name: Activate current shell
+              run: |
+                  micromamba activate
+            - name: Create environment
+              run: |
+                  micromamba create -n gpu-test python=3.11 -c conda-forge
+            - name: Activate environment
+              run: |
+                  micromamba activate gpu-test
+            - name: Install torch cuda dependencies
+              run: |
+                  micromamba install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+            - name: Install jax cuda dependencies
+              run: |
+                  micromamba install jax jaxlib -c conda-forge
+            - name: Test
+              env:
+                  MPLBACKEND: agg
+                  PLATFORM: ubuntu
+                  DISPLAY: :42
+              run: |
+                  pytest -v --cov --color=yes --cuda
+            - name: Upload coverage
+              uses: codecov/codecov-action@v3
