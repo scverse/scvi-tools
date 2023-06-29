@@ -18,15 +18,10 @@ jobs:
         runs-on: [self-hosted, Linux, X64, CUDA]
         container:
             image: martinkim0/scvi-tools:11.8
-            env:
-                MAMBA_DOCKERFILE_ACTIVATE: 1
             options: --user root --gpus all
 
         steps:
             - uses: actions/checkout@v3
-            - name: Activate test environment
-              run: |
-                  micromamba activate base
             - name: Install dependencies
               run: |
                   pip install ".[dev,pymde,autotune,hub]"
