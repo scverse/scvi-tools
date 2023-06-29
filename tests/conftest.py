@@ -61,8 +61,8 @@ def pytest_collection_modifyitems(config, items):
     run_cuda = config.getoption("--cuda")
     skip_cuda = pytest.mark.skip(reason="need --cuda option to run")
     for item in items:
-        # All tests marked with `pytest.mark.optional` get skipped unless
-        # `--optional` passed
+        # All tests marked with `pytest.mark.cuda` get skipped unless
+        # `--cuda` passed
         if not run_cuda and ("cuda" in item.keywords):
             item.add_marker(skip_cuda)
 
