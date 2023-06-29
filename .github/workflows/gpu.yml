@@ -18,13 +18,9 @@ jobs:
         runs-on: [self-hosted, Linux, X64, CUDA]
         container:
             image: martinkim0/scvi-tools:11.8
-            options: --user root
+            options: --gpus all
 
         steps:
-            - uses: actions/checkout@v3
-            - name: Install test dependencies
-              run: |
-                  pip install ".[dev,pymde,autotune,hub]"
             - name: Test
               env:
                   MPLBACKEND: agg
