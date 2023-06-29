@@ -54,8 +54,8 @@ jobs:
                   MPLBACKEND: agg
                   PLATFORM: ubuntu
                   DISPLAY: :42
-                  run: |
-                      pytest -v --cov --color=yes --cuda
+              run: |
+                  pytest -v --cov --color=yes --cuda
 
             - name: Upload coverage
               uses: codecov/codecov-action@v3
