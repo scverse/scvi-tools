@@ -32,6 +32,7 @@ classifiers = [
 ]
 dependencies = [
     "anndata>=0.7.5",
+    "chex<=0.1.8",
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
@@ -54,7 +55,6 @@ dependencies = [
     "mudata>=0.1.2",
     "sparse>=0.14.0",
     "xarray>=2023.2.0",
-    "chex",
 ]
 
 
