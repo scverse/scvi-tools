@@ -56,7 +56,7 @@ git clone git@github.com:owkin/deepdeconv.git # ssh
 Create an environment and install scvi-tools locally
 
 ```
-conda create -n deepdeconv python=.3.9
+conda create -n deepdeconv python=3.9
 conda activate deepdeconv
 cd deepdeconv
 # install library in editable mode
