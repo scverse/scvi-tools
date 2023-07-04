@@ -17,14 +17,22 @@ MetricCallable = Callable[[BaseModelClass], float]
 
 
 class MetricsCallback(Callback):
-    """Compute metrics during the validation loop and log them to the module's logger.
+    """Computes metrics on validation end and logs them to the logger.
 
     Parameters
     ----------
-    Validation metrics to compute and log. This can be a list of
-    :class:`~scvi.train._callbacks.MetricCallable`s (in which case the name of the
-    function will be used for logging) or a dictionary mapping metric names to
-    :class:`~scvi.train._callbacks.MetricCallable`s.
+    metric_fns
+        Validation metrics to compute and log. One of the following:
+
+        * `:class:`~scvi.train._callbacks.MetricCallable`: A function that takes in a
+            :class:`~scvi.model.base.BaseModelClass` and returns a `float`.
+            The function's `__name__`is used as the logging name.
+
+        * `List[:class:`~scvi.train._callbacks.MetricCallable`]`: Same as above but in
+            a list.
+
+        * `Dict[str, :class:`~scvi.train._callbacks.MetricCallable`]`: Same as above,
+            but the keys are used as the logging names instead.
     """
 
     def __init__(
@@ -55,8 +63,8 @@ class MetricsCallback(Callback):
         """Compute metrics at the end of validation.
 
         Sets the model to trained mode before computing metrics and restores training
-        mode after. Metrics are not logged with a `"validation"` prefix as the metrics
-        are only computed on the validation set.
+        mode thereafter. Metrics are not logged with a `"validation"` prefix as the
+        metrics are only computed on the validation set.
         """
         model = trainer._model  # TODO: Remove with a better way to access model
         model.is_trained = True
