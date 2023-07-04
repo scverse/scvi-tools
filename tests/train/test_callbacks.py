@@ -32,6 +32,7 @@ def test_metricscallback_with_scvi():
     model = scvi.model.SCVI(adata)
 
     def dummy_metric(model: scvi.model.SCVI) -> float:
+        _ = model.get_latent_representation()
         return 0.0
 
     model.train(

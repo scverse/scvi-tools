@@ -59,7 +59,7 @@ class MetricsCallback(Callback):
         are only computed on the validation set.
         """
         model = trainer._model  # TODO: Remove with a better way to access model
-        model.is_trained_ = True  # TODO: Is this always necessary?
+        model.is_trained = True
 
         metrics = {}
         for metric_name, metric_fn in self.metric_fns.items():
@@ -69,7 +69,7 @@ class MetricsCallback(Callback):
         metrics["epoch"] = trainer.current_epoch
 
         pl_module.logger.log_metrics(metrics, trainer.global_step)
-        model.is_trained_ = False
+        model.is_trained = False
 
 
 class SubSampleLabels(Callback):
