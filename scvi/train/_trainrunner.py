@@ -88,6 +88,7 @@ class TrainRunner:
             devices=lightning_devices,
             **trainer_kwargs,
         )
+        self.trainer._model = model
 
     def __call__(self):
         """Run training."""

@@ -1,6 +1,6 @@
 import warnings
 from copy import deepcopy
-from typing import Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import lightning.pytorch as pl
 import numpy as np
@@ -11,6 +11,55 @@ from lightning.pytorch.utilities import rank_zero_info
 
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader
+from scvi.model.base import BaseModelClass
+from scvi.utils._exceptions import InvalidParameterError
+
+MetricCallable = Callable[[BaseModelClass], float]
+
+
+class MetricsCallback(Callback):
+    """Compute metrics at the end of validation.
+
+    Parameters
+    ----------
+    metric_fns
+        Metric functions that take in the model and return `float`.
+    """
+
+    def __init__(
+        self, metric_fns: Union[List[MetricCallable], Dict[str, MetricCallable]]
+    ):
+        super().__init__()
+
+        if not isinstance(metric_fns, (list, dict)):
+            raise InvalidParameterError(
+                "metric_fns",
+                metric_fns.__class__,
+                valid=[list, dict],
+            )
+
+        if not isinstance(metric_fns, dict):
+            metric_fns = {f.__name__: f for f in metric_fns}
+
+        for metric_fn in metric_fns.values():
+            if not callable(metric_fn):
+                raise ValueError("`metric_fns` must be a callable or list of callables")
+
+        self.metric_fns = metric_fns
+
+    def on_validation_end(self, trainer, pl_module):
+        model = trainer._model
+        model.is_trained_ = True
+
+        metrics = {}
+        for metric_name, metric_fn in self.metric_fns.items():
+            metric_value = metric_fn(model)
+            metrics[metric_name] = metric_value
+
+        metrics["epoch"] = trainer.current_epoch
+
+        pl_module.logger.experiment.log_metrics(metrics)
+        model.is_trained_ = False
 
 
 class SubSampleLabels(Callback):
