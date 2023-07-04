@@ -5,7 +5,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.0.0b0"
+version = "1.0.1"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -25,6 +25,7 @@ classifiers = [
   "Natural Language :: English",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
@@ -32,13 +33,13 @@ classifiers = [
 ]
 dependencies = [
     "anndata>=0.7.5",
-    "chex",
+    "chex<=0.1.8",
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
     "jaxlib>=0.4.3",
     "optax",
-    "numpy>=1.17.0",
+    "numpy>=1.21.0",
     "pandas>=1.0",
     "scipy",
     "scikit-learn>=0.21.2",
@@ -50,10 +51,11 @@ dependencies = [
     "pyro-ppl>=1.6.0",
     "tqdm>=4.56.0",
     "scikit-learn>=0.21.2",
-    "numpyro",
+    "numpyro>=0.12.1",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
     "sparse>=0.14.0",
+    "xarray>=2023.2.0",
 ]
 
 
@@ -89,7 +91,7 @@ docs = [
 ]
 autotune = [
   "hyperopt>=0.2",
-  "ray[tune]>=2.2.0",
+  "ray[tune]>=2.5.0",
   "ipython",
   "scib-metrics>=0.3",
 ]

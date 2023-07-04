@@ -62,10 +62,16 @@ class SCANVAE(VAE):
         Label group designations
     use_labels_groups
         Whether to use the label groups
+    linear_classifier
+        If `True`, uses a single linear layer for classification instead of a
+        multi-layer perceptron.
+    classifier_parameters
+        Keyword arguments passed into :class:`~scvi.module.Classifier`.
     use_batch_norm
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
+    linear_classifier
     **vae_kwargs
         Keyword args for :class:`~scvi.module.VAE`
     """
@@ -89,6 +95,7 @@ class SCANVAE(VAE):
         y_prior=None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
+        linear_classifier: bool = False,
         classifier_parameters: Optional[dict] = None,
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
@@ -120,8 +127,8 @@ class SCANVAE(VAE):
         self.n_labels = n_labels
         # Classifier takes n_latent as input
         cls_parameters = {
-            "n_layers": n_layers,
-            "n_hidden": n_hidden,
+            "n_layers": 0 if linear_classifier else n_layers,
+            "n_hidden": 0 if linear_classifier else n_hidden,
             "dropout_rate": dropout_rate,
         }
         cls_parameters.update(classifier_parameters)

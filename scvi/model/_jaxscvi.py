@@ -43,7 +43,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.model.JaxSCVI.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.model.SCVI(adata)
+    >>> vae = scvi.model.JaxSCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     """

@@ -18,6 +18,7 @@ from scvi.data.fields import (
 )
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
+from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
@@ -205,8 +206,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             kwargs["check_val_every_n_epoch"] = 1
 
         if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 

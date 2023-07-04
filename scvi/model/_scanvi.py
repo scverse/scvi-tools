@@ -29,7 +29,7 @@ from scvi.data.fields import (
     StringUnsField,
 )
 from scvi.dataloaders import SemiSupervisedDataSplitter
-from scvi.model._utils import _init_library_size
+from scvi.model._utils import _init_library_size, get_max_epochs_heuristic
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
@@ -77,6 +77,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
+    linear_classifier
+        If `True`, uses a single linear layer for classification instead of a
+        multi-layer perceptron.
     **model_kwargs
         Keyword args for :class:`~scvi.module.SCANVAE`
 
@@ -110,6 +113,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        linear_classifier: bool = False,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -152,6 +156,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
+            linear_classifier=linear_classifier,
             **scanvae_model_kwargs,
         )
         self.module.minified_data_type = self.minified_data_type
@@ -390,8 +395,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
             if self.was_pretrained:
                 max_epochs = int(np.min([10, np.max([2, round(max_epochs / 3.0)])]))

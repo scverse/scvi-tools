@@ -11,11 +11,13 @@ class Classifier(nn.Module):
     n_input
         Number of input dimensions
     n_hidden
-        Number of hidden nodes in hidden layer
+        Number of nodes in hidden layer(s). If `0`, the classifier only consists of a
+        single linear layer.
     n_labels
         Numput of outputs dimensions
     n_layers
-        Number of hidden layers
+        Number of hidden layers. If `0`, the classifier only consists of a single
+        linear layer.
     dropout_rate
         dropout_rate for nodes
     logits
@@ -45,20 +47,27 @@ class Classifier(nn.Module):
     ):
         super().__init__()
         self.logits = logits
-        layers = [
-            FCLayers(
-                n_in=n_input,
-                n_out=n_hidden,
-                n_layers=n_layers,
-                n_hidden=n_hidden,
-                dropout_rate=dropout_rate,
-                use_batch_norm=use_batch_norm,
-                use_layer_norm=use_layer_norm,
-                activation_fn=activation_fn,
-                **kwargs,
-            ),
-            nn.Linear(n_hidden, n_labels),
-        ]
+        layers = []
+
+        if n_hidden > 0 and n_layers > 0:
+            layers.append(
+                FCLayers(
+                    n_in=n_input,
+                    n_out=n_hidden,
+                    n_layers=n_layers,
+                    n_hidden=n_hidden,
+                    dropout_rate=dropout_rate,
+                    use_batch_norm=use_batch_norm,
+                    use_layer_norm=use_layer_norm,
+                    activation_fn=activation_fn,
+                    **kwargs,
+                )
+            )
+        else:
+            n_hidden = n_input
+
+        layers.append(nn.Linear(n_hidden, n_labels))
+
         if not logits:
             layers.append(nn.Softmax(dim=-1))
 

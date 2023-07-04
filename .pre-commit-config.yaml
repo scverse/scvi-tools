@@ -11,7 +11,7 @@ repos:
       hooks:
           - id: black
     - repo: https://github.com/asottile/blacken-docs
-      rev: 1.13.0
+      rev: 1.14.0
       hooks:
           - id: blacken-docs
     - repo: https://github.com/pre-commit/mirrors-prettier
@@ -25,7 +25,7 @@ repos:
             # https://github.com/jupyterlab/jupyterlab/issues/12675
             language_version: "17.9.1"
     - repo: https://github.com/charliermarsh/ruff-pre-commit
-      rev: v0.0.269
+      rev: v0.0.275
       hooks:
           - id: ruff
             args: [--fix, --exit-non-zero-on-fix]
