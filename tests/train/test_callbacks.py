@@ -1,4 +1,29 @@
+import pytest
+
 import scvi
+from scvi.train._callbacks import MetricsCallback
+
+
+def test_metricscallback_init():
+    def dummy_metric(model) -> float:
+        return 0.0
+
+    callback = MetricsCallback(dummy_metric)
+    assert callback.metric_fns == {"dummy_metric": dummy_metric}
+
+    metrics = [dummy_metric]
+    callback = MetricsCallback(metrics)
+    assert callback.metric_fns == {"dummy_metric": dummy_metric}
+
+    metrics = {"dummy_metric": dummy_metric, "dummy_metric2": dummy_metric}
+    callback = MetricsCallback(metrics)
+    assert len(callback.metric_fns) == 2
+
+    with pytest.raises(TypeError):
+        MetricsCallback(0)
+
+    with pytest.raises(TypeError):
+        MetricsCallback([0])
 
 
 def test_metricscallback_with_scvi():

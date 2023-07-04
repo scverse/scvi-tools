@@ -12,7 +12,6 @@ from lightning.pytorch.utilities import rank_zero_info
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
-from scvi.utils._exceptions import InvalidParameterError
 
 MetricCallable = Callable[[BaseModelClass], float]
 
@@ -29,23 +28,26 @@ class MetricsCallback(Callback):
     """
 
     def __init__(
-        self, metric_fns: Union[List[MetricCallable], Dict[str, MetricCallable]]
+        self,
+        metric_fns: Union[
+            MetricCallable, List[MetricCallable], Dict[str, MetricCallable]
+        ],
     ):
         super().__init__()
 
+        if callable(metric_fns):
+            metric_fns = [metric_fns]
+
         if not isinstance(metric_fns, (list, dict)):
-            raise InvalidParameterError(
-                "metric_fns",
-                metric_fns.__class__,
-                valid=[list, dict],
-            )
+            raise TypeError("`metric_fns` must be a `list` or `dict`.")
+
+        values = metric_fns if isinstance(metric_fns, list) else metric_fns.values()
+        for val in values:
+            if not callable(val):
+                raise TypeError("`metric_fns` must contain functions only.")
 
         if not isinstance(metric_fns, dict):
             metric_fns = {f.__name__: f for f in metric_fns}
-
-        for metric_fn in metric_fns.values():
-            if not callable(metric_fn):
-                raise ValueError("`metric_fns` must be a callable or list of callables")
 
         self.metric_fns = metric_fns
 
