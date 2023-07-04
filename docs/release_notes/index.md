@@ -18,6 +18,16 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 1.0
 
+### 1.0.1 (2023-07-04)
+
+#### Added
+
+-   Add support for Python 3.11 {pr}`1977`.
+
+#### Changed
+
+-   Upper bound Chex dependency to 0.1.8 due to NumPy installation conflicts {pr}`2132`.
+
 ### 1.0.0 (2023-06-02)
 
 #### Added
