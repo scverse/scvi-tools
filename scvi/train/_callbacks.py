@@ -18,12 +18,14 @@ MetricCallable = Callable[[BaseModelClass], float]
 
 
 class MetricsCallback(Callback):
-    """Compute metrics at the end of validation.
+    """Compute metrics during the validation loop and log them to the module's logger.
 
     Parameters
     ----------
-    metric_fns
-        Metric functions that take in the model and return `float`.
+    Validation metrics to compute and log. This can be a list of
+    :class:`~scvi.train._callbacks.MetricCallable`s (in which case the name of the
+    function will be used for logging) or a dictionary mapping metric names to
+    :class:`~scvi.train._callbacks.MetricCallable`s.
     """
 
     def __init__(
@@ -48,6 +50,12 @@ class MetricsCallback(Callback):
         self.metric_fns = metric_fns
 
     def on_validation_end(self, trainer, pl_module):
+        """Compute metrics at the end of validation.
+
+        Sets the model to trained mode before computing metrics and restores training
+        mode after. Metrics are not logged with a `"validation"` prefix as the metrics
+        are only computed on the validation set.
+        """
         model = trainer._model
         model.is_trained_ = True
 
@@ -58,7 +66,7 @@ class MetricsCallback(Callback):
 
         metrics["epoch"] = trainer.current_epoch
 
-        pl_module.logger.experiment.log_metrics(metrics)
+        pl_module.logger.log_metrics(metrics, trainer.global_step)
         model.is_trained_ = False
 
 
