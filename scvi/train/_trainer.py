@@ -142,6 +142,13 @@ class Trainer(TunableMixin, pl.Trainer):
             kwargs["callbacks"] += [bar]
 
         if additional_val_metrics is not None:
+            if check_val_every_n_epoch == sys.maxsize:
+                warnings.warn(
+                    "`additional_val_metrics` was passed in but will not be computed "
+                    "because `check_val_every_n_epoch` was not passed in.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
             kwargs["callbacks"].append(MetricsCallback(additional_val_metrics))
 
         if logger is None:
