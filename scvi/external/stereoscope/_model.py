@@ -270,6 +270,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         y
             numpy array containing the list of cell types
+
         Returns
         -------
         gene_expression
