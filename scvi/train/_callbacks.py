@@ -58,8 +58,8 @@ class MetricsCallback(Callback):
         mode after. Metrics are not logged with a `"validation"` prefix as the metrics
         are only computed on the validation set.
         """
-        model = trainer._model
-        model.is_trained_ = True
+        model = trainer._model  # TODO: Remove with a better way to access model
+        model.is_trained_ = True  # TODO: Is this always necessary?
 
         metrics = {}
         for metric_name, metric_fn in self.metric_fns.items():
