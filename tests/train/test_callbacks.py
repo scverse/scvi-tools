@@ -49,3 +49,11 @@ def test_metricscallback_with_scvi():
         additional_val_metrics=[dummy_metric],
     )
     assert "dummy_metric" in model.history
+
+    with pytest.warns(UserWarning):
+        # no validation step
+        model.train(
+            max_epochs=1,
+            check_val_every_n_epoch=None,
+            additional_val_metrics=[dummy_metric],
+        )
