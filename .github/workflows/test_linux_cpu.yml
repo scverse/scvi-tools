@@ -24,16 +24,8 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - os: ubuntu-latest
-                      python: "3.9"
-                    - os: ubuntu-latest
-                      python: "3.10"
-                    - os: ubuntu-latest
-                      python: "3.10"
-                      pip-flags: "--pre"
-                    - os: ubuntu-latest
-                      python: "3.11"
+                os: [ubuntu-latest]
+                python: ["3.9", "3.10", "3.11"]
 
         env:
             OS: ${{ matrix.os }}
@@ -52,7 +44,7 @@ jobs:
                   python -m pip install --upgrade pip wheel
             - name: Install dependencies
               run: |
-                  pip install ${{ matrix.pip-flags }} ".[dev,pymde,autotune,hub]"
+                  pip install ".[dev,pymde,autotune,hub]"
             - name: Test
               env:
                   MPLBACKEND: agg

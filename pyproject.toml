@@ -5,7 +5,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.0.0"
+version = "1.0.1"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -25,6 +25,7 @@ classifiers = [
   "Natural Language :: English",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
@@ -32,7 +33,7 @@ classifiers = [
 ]
 dependencies = [
     "anndata>=0.7.5",
-    "chex",
+    "chex<=0.1.8",
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
