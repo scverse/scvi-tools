@@ -65,10 +65,8 @@ class Trainer(TunableMixin, pl.Trainer):
         In 'min' mode, training will stop when the quantity monitored has stopped decreasing
         and in 'max' mode it will stop when the quantity monitored has stopped increasing.
     additional_val_metrics
-        Additional validation metrics to compute and log. This can be a list of
-        :class:`~scvi.train._callbacks.MetricCallable`s (in which case the name of the
-        function will be used for logging) or a dictionary mapping metric names to
-        :class:`~scvi.train._callbacks.MetricCallable`s.
+        Additional validation metrics to compute and log. See
+        :class:`~scvi.train._callbacks.MetricsCallback` for more details.
     enable_progress_bar
         Whether to enable or disable the progress bar.
     progress_bar_refresh_rate
@@ -105,7 +103,7 @@ class Trainer(TunableMixin, pl.Trainer):
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
         additional_val_metrics: Union[
-            List[MetricCallable], Dict[str, MetricCallable]
+            MetricCallable, List[MetricCallable], Dict[str, MetricCallable]
         ] = None,
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
