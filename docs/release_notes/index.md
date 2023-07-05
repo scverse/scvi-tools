@@ -21,8 +21,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ### Fixed
 
--   Fix link to Scanpy preprocessing in introduction tutorial {pr}`xxxx`.
--   Fix link to Ray Tune search API in autotune tutorial {pr}`xxxx`.
+-   Fix link to Scanpy preprocessing in introduction tutorial {pr}`2154`.
+-   Fix link to Ray Tune search API in autotune tutorial {pr}`2154`.
 
 ### 1.0.1 (2023-07-04)
 
