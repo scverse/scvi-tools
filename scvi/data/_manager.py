@@ -324,6 +324,7 @@ class AnnDataManager:
         self,
         indices: Sequence[int] | Sequence[bool] = None,
         data_and_attributes: list[str] | dict[str, np.dtype] | None = None,
+        transfer_torch_csr: bool = False,
     ) -> AnnTorchDataset:
         """
         Creates a torch dataset from the AnnData object registered with this instance.
@@ -342,7 +343,11 @@ class AnnDataManager:
         -------
         Torch Dataset
         """
-        dataset = AnnTorchDataset(self, getitem_tensors=data_and_attributes)
+        dataset = AnnTorchDataset(
+            self,
+            getitem_tensors=data_and_attributes,
+            transfer_torch_csr=transfer_torch_csr,
+        )
         if indices is not None:
             # This is a lazy subset, it just remaps indices
             dataset = Subset(dataset, indices)

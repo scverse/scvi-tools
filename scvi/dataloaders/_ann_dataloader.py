@@ -54,6 +54,7 @@ class AnnDataLoader(DataLoader):
         data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
         drop_last: bool = False,
         iter_ndarray: bool = False,
+        transfer_torch_csr: bool = False,
         **data_loader_kwargs,
     ):
         if indices is None:
@@ -64,7 +65,9 @@ class AnnDataLoader(DataLoader):
             indices = np.asarray(indices)
         self.indices = indices
         self.dataset = adata_manager.create_torch_dataset(
-            indices=indices, data_and_attributes=data_and_attributes
+            indices=indices,
+            data_and_attributes=data_and_attributes,
+            transfer_torch_csr=transfer_torch_csr,
         )
         self.data_loader_kwargs = copy.deepcopy(data_loader_kwargs)
         if sampler is None:

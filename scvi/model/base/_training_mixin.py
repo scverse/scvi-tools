@@ -23,6 +23,7 @@ class UnsupervisedTrainingMixin:
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         shuffle_set_split: bool = True,
+        transfer_torch_csr: bool = False,
         batch_size: int = 128,
         early_stopping: bool = False,
         plan_kwargs: Optional[dict] = None,
@@ -68,6 +69,7 @@ class UnsupervisedTrainingMixin:
             validation_size=validation_size,
             batch_size=batch_size,
             shuffle_set_split=shuffle_set_split,
+            transfer_torch_csr=transfer_torch_csr,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 

@@ -42,6 +42,7 @@ class AnnTorchDataset(Dataset):
         self,
         adata_manager: "AnnDataManager",
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
+        transfer_torch_csr: bool = False,
     ):
         if adata_manager.adata is None:
             raise ValueError(
@@ -64,6 +65,8 @@ class AnnTorchDataset(Dataset):
         self.getitem_tensors = getitem_tensors
         self._setup_getitem()
         self._set_data_attr()
+
+        self.transfer_torch_csr = transfer_torch_csr
 
     @property
     def registered_keys(self):
@@ -133,14 +136,17 @@ class AnnTorchDataset(Dataset):
             elif isinstance(cur_data, pd.DataFrame):
                 sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
             elif issparse(cur_data):
-                # sliced_data = cur_data[idx].toarray().astype(dtype)
-                sliced_sparse = cur_data[idx]
-                sliced_data = sparse_csr_tensor(
-                    as_tensor(sliced_sparse.indptr),
-                    as_tensor(sliced_sparse.indices),
-                    as_tensor(sliced_sparse.data),
-                    size=sliced_sparse.shape,
-                )
+                # TODO: this should only be the case for csr matrices for now
+                if self.transfer_torch_csr:
+                    sliced_sparse = cur_data[idx]
+                    sliced_data = sparse_csr_tensor(
+                        as_tensor(sliced_sparse.indptr),
+                        as_tensor(sliced_sparse.indices),
+                        as_tensor(sliced_sparse.data),
+                        size=sliced_sparse.shape,
+                    )
+                else:
+                    sliced_data = cur_data[idx].toarray().astype(dtype)
             # for minified  anndata, we need this because we can have a string
             # cur_data, which is the value of the MINIFY_TYPE_KEY in adata.uns,
             # used to record the type data minification

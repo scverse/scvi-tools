@@ -101,6 +101,7 @@ class DataSplitter(pl.LightningDataModule):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         shuffle_set_split: bool = True,
+        transfer_torch_csr: bool = False,
         pin_memory: bool = False,
         **kwargs,
     ):
@@ -109,6 +110,7 @@ class DataSplitter(pl.LightningDataModule):
         self.train_size = float(train_size)
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
+        self.transfer_torch_csr = transfer_torch_csr
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
 
@@ -137,6 +139,7 @@ class DataSplitter(pl.LightningDataModule):
             indices=self.train_idx,
             shuffle=True,
             drop_last=False,
+            transfer_torch_csr=self.transfer_torch_csr,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
@@ -149,6 +152,7 @@ class DataSplitter(pl.LightningDataModule):
                 indices=self.val_idx,
                 shuffle=False,
                 drop_last=False,
+                transfer_torch_csr=self.transfer_torch_csr,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -163,6 +167,7 @@ class DataSplitter(pl.LightningDataModule):
                 indices=self.test_idx,
                 shuffle=False,
                 drop_last=False,
+                transfer_torch_csr=self.transfer_torch_csr,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -170,9 +175,11 @@ class DataSplitter(pl.LightningDataModule):
             pass
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
-        for key, val in batch.items():
-            if isinstance(val, torch.Tensor) and val.layout is torch.sparse_csr:
-                batch[key] = val.to_dense()
+        if self.transfer_torch_csr:
+            for key, val in batch.items():
+                if isinstance(val, torch.Tensor) and val.layout is torch.sparse_csr:
+                    batch[key] = val.to_dense()
+
         return batch
 
 
