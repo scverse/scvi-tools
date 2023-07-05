@@ -32,7 +32,7 @@ def pytest_addoption(parser):
         "--cuda",
         action="store_true",
         default=False,
-        help="Run tests that require a CUDA backend.",
+        help="Run tests that required a CUDA backend.",
     )
 
 

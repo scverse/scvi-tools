@@ -1,6 +1,6 @@
 import warnings
 from copy import deepcopy
-from typing import Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import lightning.pytorch as pl
 import numpy as np
@@ -11,6 +11,73 @@ from lightning.pytorch.utilities import rank_zero_info
 
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader
+from scvi.model.base import BaseModelClass
+
+MetricCallable = Callable[[BaseModelClass], float]
+
+
+class MetricsCallback(Callback):
+    """Computes metrics on validation end and logs them to the logger.
+
+    Parameters
+    ----------
+    metric_fns
+        Validation metrics to compute and log. One of the following:
+
+        * `:class:`~scvi.train._callbacks.MetricCallable`: A function that takes in a
+            :class:`~scvi.model.base.BaseModelClass` and returns a `float`.
+            The function's `__name__`is used as the logging name.
+
+        * `List[:class:`~scvi.train._callbacks.MetricCallable`]`: Same as above but in
+            a list.
+
+        * `Dict[str, :class:`~scvi.train._callbacks.MetricCallable`]`: Same as above,
+            but the keys are used as the logging names instead.
+    """
+
+    def __init__(
+        self,
+        metric_fns: Union[
+            MetricCallable, List[MetricCallable], Dict[str, MetricCallable]
+        ],
+    ):
+        super().__init__()
+
+        if callable(metric_fns):
+            metric_fns = [metric_fns]
+
+        if not isinstance(metric_fns, (list, dict)):
+            raise TypeError("`metric_fns` must be a `list` or `dict`.")
+
+        values = metric_fns if isinstance(metric_fns, list) else metric_fns.values()
+        for val in values:
+            if not callable(val):
+                raise TypeError("`metric_fns` must contain functions only.")
+
+        if not isinstance(metric_fns, dict):
+            metric_fns = {f.__name__: f for f in metric_fns}
+
+        self.metric_fns = metric_fns
+
+    def on_validation_end(self, trainer, pl_module):
+        """Compute metrics at the end of validation.
+
+        Sets the model to trained mode before computing metrics and restores training
+        mode thereafter. Metrics are not logged with a `"validation"` prefix as the
+        metrics are only computed on the validation set.
+        """
+        model = trainer._model  # TODO: Remove with a better way to access model
+        model.is_trained = True
+
+        metrics = {}
+        for metric_name, metric_fn in self.metric_fns.items():
+            metric_value = metric_fn(model)
+            metrics[metric_name] = metric_value
+
+        metrics["epoch"] = trainer.current_epoch
+
+        pl_module.logger.log_metrics(metrics, trainer.global_step)
+        model.is_trained = False
 
 
 class SubSampleLabels(Callback):

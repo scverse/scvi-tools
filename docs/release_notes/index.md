@@ -14,6 +14,9 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 #### Added
 
 -   Add {class}`scvi.dataloaders.BatchDistributedSampler` for distributed training {pr}`2102`.
+-   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to
+    specify additional metrics to compute and log during the validation loop using
+    {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
 
 #### Removed
 
@@ -21,6 +24,13 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Remove deprecated `scvi._compat.Literal` class {pr}`2115`.
 
 ## Version 1.0
+
+### 1.0.2 (2023-07-05)
+
+### Fixed
+
+-   Fix link to Scanpy preprocessing in introduction tutorial {pr}`2154`.
+-   Fix link to Ray Tune search API in autotune tutorial {pr}`2154`.
 
 ### 1.0.1 (2023-07-04)
 
