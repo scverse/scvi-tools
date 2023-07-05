@@ -169,6 +169,12 @@ class DataSplitter(pl.LightningDataModule):
         else:
             pass
 
+    def on_after_batch_transfer(self, batch, dataloader_idx):
+        for key, val in batch.items():
+            if isinstance(val, torch.Tensor) and val.layout is torch.sparse_csr:
+                batch[key] = val.to_dense()
+        return batch
+
 
 class SemiSupervisedDataSplitter(pl.LightningDataModule):
     """Creates data loaders ``train_set``, ``validation_set``, ``test_set``.

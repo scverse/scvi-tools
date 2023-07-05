@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from anndata._core.sparse_dataset import SparseDataset
 from scipy.sparse import issparse
+from torch import as_tensor, sparse_csr_tensor
 from torch.utils.data import Dataset
 
 from scvi._constants import REGISTRY_KEYS
@@ -132,7 +133,14 @@ class AnnTorchDataset(Dataset):
             elif isinstance(cur_data, pd.DataFrame):
                 sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
             elif issparse(cur_data):
-                sliced_data = cur_data[idx].toarray().astype(dtype)
+                # sliced_data = cur_data[idx].toarray().astype(dtype)
+                sliced_sparse = cur_data[idx]
+                sliced_data = sparse_csr_tensor(
+                    as_tensor(sliced_sparse.indptr),
+                    as_tensor(sliced_sparse.indices),
+                    as_tensor(sliced_sparse.data),
+                    size=sliced_sparse.shape,
+                )
             # for minified  anndata, we need this because we can have a string
             # cur_data, which is the value of the MINIFY_TYPE_KEY in adata.uns,
             # used to record the type data minification
