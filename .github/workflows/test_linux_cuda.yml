@@ -1,44 +1,25 @@
 name: test-linux-cuda
 
 on:
+    schedule:
+        - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+
     workflow_dispatch:
-        inputs:
-            ubuntu-version:
-                description: Ubuntu version
-                required: true
-                default: latest
-                type: string
-
-            mamba-version:
-                description: Mamba version
-                required: true
-                default: latest
-                type: string
-
-            python-version:
-                description: Python version
-                required: true
-                default: "3.11"
-                type: choice
-                options:
-                    - "3.9"
-                    - "3.10"
-                    - "3.11"
-
-            cuda-version:
-                description: CUDA major version
-                required: true
-                default: "11"
-                type: choice
-                options:
-                    - "11"
-                    - "12"
 
 jobs:
     test:
         runs-on: [self-hosted, Linux, X64, CUDA]
+
+        strategy:
+            fail-fast: false
+            matrix:
+                ubuntu: [latest]
+                mamba: [latest]
+                python: ["3.11"]
+                cuda: ["11"]
+
         container:
-            image: martinkim0/scvi-tools:ubuntu-${{ inputs.ubuntu-version }}-mamba-${{ inputs.mamba-version}}-python-${{ inputs.python-version }}-cuda-${{ inputs.cuda-version }}
+            image: martinkim0/scvi-tools:ubuntu-${{ matrix.ubuntu }}-mamba-${{ matrix.mamba}}-python-${{ matrix.python }}-cuda-${{ matrix.cuda }}
             options: --user root --gpus all
 
         steps:
