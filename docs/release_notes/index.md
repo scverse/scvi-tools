@@ -11,6 +11,12 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ### 1.1.0 (2023-MM-DD)
 
+#### Added
+
+-   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to
+    specify additional metrics to compute and log during the validation loop using
+    {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
+
 #### Removed
 
 -   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
