@@ -1,6 +1,5 @@
 import logging
 import os
-import warnings
 from pathlib import Path
 from typing import Literal, Optional, Union
 
@@ -34,10 +33,6 @@ class ScviConfig:
     >>> import logging
     >>> scvi.settings.verbosity = logging.INFO
 
-    To set pin memory for GPU training
-
-    >>> scvi.settings.dl_pin_memory_gpu_training = True
-
     To set the number of threads PyTorch will use
 
     >>> scvi.settings.num_threads = 2
@@ -55,7 +50,6 @@ class ScviConfig:
         seed: Optional[int] = None,
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
-        dl_pin_memory_gpu_training: bool = False,  # TODO: remove in v1.1
         jax_preallocate_gpu_memory: bool = False,
         warnings_stacklevel: int = 2,
     ):
@@ -67,9 +61,6 @@ class ScviConfig:
         self.progress_bar_style = progress_bar_style
         self.logging_dir = logging_dir
         self.dl_num_workers = dl_num_workers
-        self.dl_pin_memory_gpu_training = (
-            dl_pin_memory_gpu_training  # TODO: remove in 1.1
-        )
         self._num_threads = None
         self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
         self.verbosity = verbosity
@@ -101,22 +92,6 @@ class ScviConfig:
     def dl_num_workers(self, dl_num_workers: int):
         """Number of workers for PyTorch data loaders (Default is 0)."""
         self._dl_num_workers = dl_num_workers
-
-    @property
-    def dl_pin_memory_gpu_training(self) -> int:
-        """Set `pin_memory` in data loaders when using a GPU for training."""
-        return self._dl_pin_memory_gpu_training
-
-    @dl_pin_memory_gpu_training.setter
-    def dl_pin_memory_gpu_training(self, dl_pin_memory_gpu_training: int):
-        """Set `pin_memory` in data loaders when using a GPU for training."""
-        warnings.warn(
-            "Setting `dl_pin_memory_gpu_training` is deprecated in v1.0 and will be "
-            "removed in v1.1. Please pass in `pin_memory` to the data loaders instead.",
-            UserWarning,
-            stacklevel=self.warnings_stacklevel,
-        )
-        self._dl_pin_memory_gpu_training = dl_pin_memory_gpu_training
 
     @property
     def logging_dir(self) -> Path:
@@ -158,12 +133,6 @@ class ScviConfig:
         """Random seed for torch and numpy."""
         if seed is None:
             self._seed = None
-            warnings.warn(
-                "Since v1.0.0, scvi-tools no longer uses a random seed by default. Run "
-                "`scvi.settings.seed = 0` to reproduce results from previous versions.",
-                UserWarning,
-                stacklevel=self.warnings_stacklevel,
-            )
         else:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
