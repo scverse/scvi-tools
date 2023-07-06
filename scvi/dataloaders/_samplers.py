@@ -16,13 +16,13 @@ class BatchDistributedSampler(DistributedSampler):
         Size of the minibatch for each replica. Thus, the effective batch size is
         `batch_size` * `num_replicas`.
     drop_last
-        If `True`, then the sampler will drop the last batch of data if its size would
-        be less than `batch_size`. If `False`, the sampler will return the last batch
-        of data even if its size would be less than `batch_size`.
+        If `True` and the dataset is not evenly divisible by `batch_size`, the last
+        incomplete batch is dropped. If `False` and the dataset is not evenly divisible
+        by `batch_size`, then the last batch will be smaller than `batch_size`.
     drop_dataset_tail
-        If `True`, then the sampler will drop the tail of `dataset` to make it evenly
-        divisible across the number of replicas. If `False`, the sampler will add extra
-        indices to make the data evenly divisible across the number of replicas.
+        If `True` the sampler will drop the tail of the dataset to make it evenly
+        divisible by the number of replicas. If `False`, then the sampler will add extra
+        indices to make the dataset evenly divisible by the number of replicas.
     **kwargs
         Additional keyword arguments passed into
         :class:`~torch.utils.data.distributed.DistributedSampler`.
