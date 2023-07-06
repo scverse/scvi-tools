@@ -632,7 +632,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         dir_path: str,
         adata: Optional[AnnOrMuData] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        accelerator: str = "cpu",
+        accelerator: str = "auto",
         device: Union[int, str] = "auto",
         prefix: Optional[str] = None,
         backup_url: Optional[str] = None,
@@ -718,7 +718,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         model.module.eval()
         model._validate_anndata(adata)
 
-        logger.info(f"Loaded model into device: {device}")
+        logger.info(f"Loaded model onto device: {device}")
 
         return model
 

@@ -257,7 +257,7 @@ class HubModel:
     def load_model(
         self,
         adata: Optional[AnnData] = None,
-        accelerator: str = "cpu",
+        accelerator: str = "auto",
         device: Union[int, str] = "auto",
     ):
         """Loads the model.
@@ -288,10 +288,10 @@ class HubModel:
             # we error out. Note that the call below faults in self.large_training_adata if it is None
             if self.large_training_adata is None:
                 raise ValueError(
-                    "Could not find any dataset to load the model with.\
-                    Either provide a dataset on disk or a url to download the data in the model card,\
-                    or pass an adata to this method.\
-                    See scvi-tools tutorials for more details."
+                    "Could not find any dataset to load the model with. Either provide "
+                    "a dataset on disk or a url to download the data in the model "
+                    "card, or pass an `adata` to this method. See scvi-tools tutorials "
+                    "for more details."
                 )
             else:
                 self._model = model_cls.load(

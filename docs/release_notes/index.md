@@ -11,10 +11,16 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ### 1.1.0 (2023-MM-DD)
 
--   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model` and set default to `"cpu"` {pr}`2107`.
+#### Added
+
+-   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model `{pr}`2107`.
 -   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to
     specify additional metrics to compute and log during the validation loop using
     {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
+
+#### Changed
+
+-   Default `"mps"` to `"cpu"` when `accelerator="auto"` `{pr}`2107`.
 
 #### Removed
 
