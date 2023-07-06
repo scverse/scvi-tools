@@ -24,6 +24,13 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 1.0
 
+### 1.0.3 (2023-MM-DD)
+
+### Fixed
+
+-   Fix bug in {class}`scvi.model.base.PyroSviTrainMixin` where `training_plan`
+    argument was ignored {pr}`xxxx`.
+
 ### 1.0.2 (2023-07-05)
 
 ### Fixed
