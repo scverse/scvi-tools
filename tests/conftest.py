@@ -27,6 +27,12 @@ def pytest_addoption(parser):
         default=False,
         help="Run tests that are optional.",
     )
+    parser.addoption(
+        "--cuda",
+        action="store_true",
+        default=False,
+        help="Run tests that required a CUDA backend.",
+    )
 
 
 def pytest_configure(config):
@@ -51,6 +57,14 @@ def pytest_collection_modifyitems(config, items):
         # `--optional` passed
         if not run_optional and ("optional" in item.keywords):
             item.add_marker(skip_optional)
+
+    run_cuda = config.getoption("--cuda")
+    skip_cuda = pytest.mark.skip(reason="need --cuda option to run")
+    for item in items:
+        # All tests marked with `pytest.mark.cuda` get skipped unless
+        # `--cuda` passed
+        if not run_cuda and ("cuda" in item.keywords):
+            item.add_marker(skip_cuda)
 
 
 @pytest.fixture(scope="session")
