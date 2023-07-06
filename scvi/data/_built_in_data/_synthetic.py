@@ -1,10 +1,11 @@
 import logging
+from typing import Optional
 
 import numpy as np
 import pandas as pd
+import scipy
 from anndata import AnnData
 from mudata import MuData
-from scipy.sparse import csr_matrix
 
 from scvi._types import AnnOrMuData
 
@@ -19,8 +20,8 @@ def _generate_synthetic(
     n_regions: int,
     n_batches: int,
     n_labels: int,
-    sparse: bool,
     dropout_ratio: float,
+    sparse_format: Optional[str],
     return_mudata: bool,
     batch_key: str = "batch",
     labels_key: str = "labels",
@@ -30,21 +31,26 @@ def _generate_synthetic(
     accessibility_key: str = "accessibility",
 ) -> AnnOrMuData:
     n_obs = batch_size * n_batches
+    _sparse_format = getattr(scipy.sparse, sparse_format, None)
 
     rna = np.random.negative_binomial(5, 0.3, size=(n_obs, n_genes))
     mask = np.random.binomial(n=1, p=dropout_ratio, size=(n_obs, n_genes))
     rna = rna * mask
-    rna = csr_matrix(rna) if sparse else rna
+    if _sparse_format is not None:
+        rna = _sparse_format(rna) if sparse_format else rna
 
     if n_proteins > 0:
         protein = np.random.negative_binomial(5, 0.3, size=(n_obs, n_proteins))
         protein_names = np.arange(n_proteins).astype(str)
+        protein = _sparse_format(protein) if sparse_format else protein
 
     if n_regions > 0:
         accessibility = np.random.negative_binomial(5, 0.3, size=(n_obs, n_regions))
         mask = np.random.binomial(n=1, p=dropout_ratio, size=(n_obs, n_regions))
         accessibility = accessibility * mask
-        accessibility = csr_matrix(accessibility) if sparse else accessibility
+        accessibility = (
+            _sparse_format(accessibility) if sparse_format else accessibility
+        )
 
     batch = []
     for i in range(n_batches):
