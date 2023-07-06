@@ -3,5 +3,3 @@
 ```{bibliography}
 :cited:
 ```
-
-<br>
