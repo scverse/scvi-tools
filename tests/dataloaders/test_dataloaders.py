@@ -81,6 +81,18 @@ def test_semisuperviseddataloader_subsampling(
     scvi.model.SCANVI._training_plan_cls = original_training_plan_cls
 
 
+def test_anndataloader_distributed_sampler_init():
+    adata = scvi.data.synthetic_iid()
+    manager = generic_setup_adata_manager(adata)
+
+    with pytest.raises(ValueError):
+        _ = scvi.dataloaders.AnnDataLoader(
+            manager,
+            sampler="a sampler",
+            distributed_sampler=True,
+        )
+
+
 def multiprocessing_worker(
     rank: int, world_size: int, manager: scvi.data.AnnDataManager, save_path: str
 ):
@@ -92,14 +104,7 @@ def multiprocessing_worker(
         world_size=world_size,
     )
 
-    scvi.dataloaders.AnnDataLoader(manager, distributed_sampler=True)
-
-    with pytest.raises(ValueError):
-        _ = scvi.dataloaders.AnnDataLoader(
-            manager,
-            sampler="a sampler",
-            distributed_sampler=True,
-        )
+    _ = scvi.dataloaders.AnnDataLoader(manager, distributed_sampler=True)
 
 
 def test_anndataloader_distributed_sampler(save_path: str, num_processes: int = 2):
