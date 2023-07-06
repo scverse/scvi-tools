@@ -26,11 +26,13 @@ class AnnDataLoader(DataLoader):
     adata_manager
         :class:`~scvi.data.AnnDataManager` object with a registered AnnData object.
     indices
-        The indices of the observations in the adata to load.
+        The indices of the observations in `adata_manager.adata` to load.
     batch_size
-        minibatch size to load each iteration
+        Minibatch size to load each iteration. If `distributed_sampler` is `True`,
+        refers to the minibatch size per replica. Thus, the effective minibatch
+        size is `batch_size` * `num_replicas`.
     shuffle
-        Whether the data should be shuffled
+        Whether the dataset should be shuffled prior to sampling.
     sampler
         Defines the strategy to draw samples from the dataset. Can be any Iterable with __len__ implemented.
         If specified, shuffle must not be specified. By default, we use a custom sampler that is designed to
@@ -52,7 +54,8 @@ class AnnDataLoader(DataLoader):
     iter_ndarray
         Whether to iterate over numpy arrays instead of torch tensors
     distributed_sampler
-        Whether to use a distributed sampler. If `True`, `sampler` must be `None`.
+        Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as the sampler.
+        If `True`, `sampler` must be `None`.
     **kwargs
         Additional keyword arguments passed into :class:`~torch.utils.data.DataLoader`.
 

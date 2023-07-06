@@ -2,19 +2,19 @@ from torch.utils.data import Dataset, DistributedSampler
 
 
 class BatchDistributedSampler(DistributedSampler):
-    """Sampler that restricts data loading to a subset of the dataset.
+    """Sampler that restricts to loading from a subset of the dataset.
 
-    In contrast to :class:`~torch.utils.data.distributed.DistributedSampler`, this
-    sampler retrieves a minibatch of data with one call to the dataset's
-    `__getitem__` for efficient access to sparse matrices.
+    In contrast to :class:`~torch.utils.data.distributed.DistributedSampler`,
+    retrieves a minibatch of data with one call to the dataset's `__getitem__`
+    for efficient access to sparse data.
 
     Parameters
     ----------
     dataset
-        Dataset used for sampling.
+        :class:`~torch.utils.data.Dataset` instance to sample from.
     batch_size
-        Size of the minibatch for each replica. Thus, the effective batch size is
-        `batch_size` * `num_replicas`.
+        Minibatch size to load each iteration for each replica. Thus, the
+        effective minibatch size is `batch_size` * `num_replicas`.
     drop_last
         If `True` and the dataset is not evenly divisible by `batch_size`, the last
         incomplete batch is dropped. If `False` and the dataset is not evenly divisible
