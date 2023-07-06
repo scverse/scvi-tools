@@ -116,7 +116,7 @@ def test_batchdistributedsampler_drop_last(
         check_samplers(samplers, sampler_batch_size)
 
 
-def test_batchdistributedsampler_non_overlapping(
+def test_batchdistributedsampler_indices(
     batch_size: int = 128,
     n_batches: int = 3,
     num_replicas: int = 2,
@@ -141,3 +141,9 @@ def test_batchdistributedsampler_non_overlapping(
     for i in range(num_replicas):
         for j in range(i + 1, num_replicas):
             assert len(sampler_indices[i].intersection(sampler_indices[j])) == 0
+
+    # check that all indices are covered
+    covered_indices = np.concatenate(
+        [np.array(list(indices)) for indices in sampler_indices]
+    )
+    assert len(covered_indices) == len(dataset)
