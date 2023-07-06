@@ -106,6 +106,8 @@ def multiprocessing_worker(
 
     _ = scvi.dataloaders.AnnDataLoader(manager, distributed_sampler=True)
 
+    return
+
 
 def test_anndataloader_distributed_sampler(save_path: str, num_processes: int = 2):
     adata = scvi.data.synthetic_iid()
