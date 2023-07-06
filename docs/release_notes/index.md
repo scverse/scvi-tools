@@ -17,6 +17,11 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     specify additional metrics to compute and log during the validation loop using
     {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
 
+#### Changed
+
+-   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
+    for increased flexibility over dataset format {pr}`2163`.
+
 #### Removed
 
 -   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
