@@ -110,7 +110,7 @@ class DataSplitter(pl.LightningDataModule):
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
         self.data_loader_kwargs = kwargs
-        self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
+        self.pin_memory = pin_memory
 
         self.n_train, self.n_val = validate_data_split(
             self.adata_manager.adata.n_obs, self.train_size, self.validation_size
@@ -240,7 +240,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
 
         self.data_loader_kwargs = kwargs
-        self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
+        self.pin_memory = pin_memory
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""

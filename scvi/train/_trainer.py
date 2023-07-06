@@ -1,6 +1,6 @@
 import sys
 import warnings
-from typing import List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 import lightning.pytorch as pl
 from lightning.pytorch.accelerators import Accelerator
@@ -9,7 +9,7 @@ from lightning.pytorch.loggers import Logger
 from scvi import settings
 from scvi.autotune._types import Tunable, TunableMixin
 
-from ._callbacks import LoudEarlyStopping
+from ._callbacks import LoudEarlyStopping, MetricCallable, MetricsCallback
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
@@ -64,6 +64,9 @@ class Trainer(TunableMixin, pl.Trainer):
     early_stopping_mode
         In 'min' mode, training will stop when the quantity monitored has stopped decreasing
         and in 'max' mode it will stop when the quantity monitored has stopped increasing.
+    additional_val_metrics
+        Additional validation metrics to compute and log. See
+        :class:`~scvi.train._callbacks.MetricsCallback` for more details.
     enable_progress_bar
         Whether to enable or disable the progress bar.
     progress_bar_refresh_rate
@@ -99,6 +102,9 @@ class Trainer(TunableMixin, pl.Trainer):
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
+        additional_val_metrics: Union[
+            MetricCallable, List[MetricCallable], Dict[str, MetricCallable]
+        ] = None,
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
@@ -132,6 +138,16 @@ class Trainer(TunableMixin, pl.Trainer):
         if simple_progress_bar and enable_progress_bar:
             bar = ProgressBar(refresh_rate=progress_bar_refresh_rate)
             kwargs["callbacks"] += [bar]
+
+        if additional_val_metrics is not None:
+            if check_val_every_n_epoch == sys.maxsize:
+                warnings.warn(
+                    "`additional_val_metrics` was passed in but will not be computed "
+                    "because `check_val_every_n_epoch` was not passed in.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+            kwargs["callbacks"].append(MetricsCallback(additional_val_metrics))
 
         if logger is None:
             logger = SimpleLogger()
