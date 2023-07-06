@@ -1,6 +1,9 @@
 # References
 
-```{eval-rst}
-.. bibliography:: references.bib
-   :cited:
+## Bibliography
+
+Here are some references:
+
+```{bibliography}
+
 ```
