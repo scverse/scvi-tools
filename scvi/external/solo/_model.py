@@ -15,7 +15,7 @@ from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
-from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
+from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass
 from scvi.module import Classifier
 from scvi.module.base import auto_move_data
@@ -369,7 +369,6 @@ class SOLO(BaseModelClass):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
-            distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
         )
         training_plan = ClassifierTrainingPlan(
             self.module, self.n_labels, **plan_kwargs

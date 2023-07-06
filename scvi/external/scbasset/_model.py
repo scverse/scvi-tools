@@ -14,7 +14,6 @@ from scvi.data._preprocessing import _dna_to_code
 from scvi.data.fields import CategoricalVarField, LayerField, ObsmField
 from scvi.dataloaders import DataSplitter
 from scvi.external.scbasset._module import REGISTRY_KEYS, ScBassetModule
-from scvi.model._utils import use_distributed_sampler
 from scvi.model.base import BaseModelClass
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
@@ -166,9 +165,6 @@ class SCBASSET(BaseModelClass):
                 REGISTRY_KEYS.X_KEY: np.float32,
                 REGISTRY_KEYS.DNA_CODE_KEY: np.int64,
             },
-            distributed_sampler=use_distributed_sampler(
-                trainer_kwargs.get("strategy", None)
-            ),
         )
         training_plan = TrainingPlan(self.module, **custom_plan_kwargs)
 

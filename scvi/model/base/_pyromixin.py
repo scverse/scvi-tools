@@ -11,7 +11,6 @@ from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitt
 from scvi.model._utils import (
     get_max_epochs_heuristic,
     parse_device_args,
-    use_distributed_sampler,
 )
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
@@ -161,9 +160,6 @@ class PyroSviTrainMixin:
                 validation_size=validation_size,
                 shuffle_set_split=shuffle_set_split,
                 batch_size=batch_size,
-                distributed_sampler=use_distributed_sampler(
-                    trainer_kwargs.get("strategy", None)
-                ),
             )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 

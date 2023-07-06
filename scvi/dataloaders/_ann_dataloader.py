@@ -36,14 +36,14 @@ class AnnDataLoader(DataLoader):
         If specified, shuffle must not be specified. By default, we use a custom sampler that is designed to
         get a minibatch of data with one call to __getitem__.
     drop_last
-        If `True`, drops the last incomplete batch, if the dataset size is not divisible
-        by `batch_size`. If `False` and the size of dataset is not divisible by
-        `batch_size`, then the last batch will be smaller.
+        If `True` and the dataset is not evenly divisible by `batch_size`, the last
+        incomplete batch is dropped. If `False` and the dataset is not evenly divisible
+        by `batch_size`, then the last batch will be smaller than `batch_size`.
     drop_dataset_tail
-        If `True`, then the sampler will drop the tail of `dataset` to make it evenly
-        divisible across the number of replicas. If `False`, the sampler will add extra
-        indices to make the data evenly divisible across the number of replicas. Only
-        relevant if `distributed_sampler` is `True`.
+        Only used if `distributed_sampler` is `True`. If `True` the sampler will drop
+        the tail of the dataset to make it evenly divisible by the number of replicas.
+        If `False`, then the sampler will add extra indices to make the dataset evenly
+        divisible by the number of replicas.
     data_and_attributes
         Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
         and value equal to desired numpy loading type (later made into torch tensor) or list of
@@ -67,7 +67,7 @@ class AnnDataLoader(DataLoader):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        indices: Optional[List[int]] = None,
+        indices: Optional[Union[List[int], List[bool]]] = None,
         batch_size: int = 128,
         shuffle: bool = False,
         sampler: Optional[Sampler] = None,

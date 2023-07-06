@@ -18,7 +18,7 @@ from scvi.data.fields import (
 )
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
-from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
+from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
@@ -216,7 +216,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             validation_size=validation_size,
             batch_size=batch_size,
             shuffle_set_split=shuffle_set_split,
-            distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
         )
         training_plan = TrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(

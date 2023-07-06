@@ -32,7 +32,6 @@ from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model._utils import (
     _init_library_size,
     get_max_epochs_heuristic,
-    use_distributed_sampler,
 )
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import SCANVAE
@@ -420,9 +419,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             shuffle_set_split=shuffle_set_split,
             n_samples_per_label=n_samples_per_label,
             batch_size=batch_size,
-            distributed_sampler=use_distributed_sampler(
-                trainer_kwargs.get("strategy", None)
-            ),
         )
         training_plan = self._training_plan_cls(
             self.module, self.n_labels, **plan_kwargs
