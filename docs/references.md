@@ -1,11 +1,9 @@
 # References
 
-## Level 1
+```{eval-rst}
+.. only:: html or text
 
-```{bibliography}
-:cited:
+   .. rubric:: References
+
+.. bibliography::
 ```
-
-## Level 2
-
-Some text here.
