@@ -2,7 +2,8 @@ name: test-linux-cpu-prerelease
 
 on:
     schedule:
-        - cron: "30 5 * * *" # run at 5:30 every day
+        - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+    workflow_dispatch:
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
