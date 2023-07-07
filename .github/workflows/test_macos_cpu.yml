@@ -1,12 +1,9 @@
-name: test-linux-cpu
+name: test-macos-cpu
 
 on:
-    push:
-        branches:
-            [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x, 1.1.x]
-    pull_request:
-        branches:
-            [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x, 1.1.x]
+    schedule:
+        - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+    workflow_dispatch:
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,7 +20,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                os: [ubuntu-latest]
+                os: [macos-latest]
                 python: ["3.9", "3.10", "3.11"]
 
         env:

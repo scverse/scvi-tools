@@ -8,6 +8,7 @@ from ._data_splitting import (
     DeviceBackedDataSplitter,
     SemiSupervisedDataSplitter,
 )
+from ._samplers import BatchDistributedSampler
 from ._semi_dataloader import SemiSupervisedDataLoader
 
 __all__ = [

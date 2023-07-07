@@ -1,7 +1,7 @@
 from typing import List, Optional, Union
 
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import get_max_epochs_heuristic
+from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp
 
@@ -66,6 +66,9 @@ class UnsupervisedTrainingMixin:
             validation_size=validation_size,
             batch_size=batch_size,
             shuffle_set_split=shuffle_set_split,
+            distributed_sampler=use_distributed_sampler(
+                trainer_kwargs.get("strategy", None)
+            ),
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 

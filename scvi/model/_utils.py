@@ -7,6 +7,7 @@ import jax
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
+from lightning.pytorch.strategies import DDPStrategy, Strategy
 from lightning.pytorch.trainer.connectors.accelerator_connector import (
     _AcceleratorConnector,
 )
@@ -18,6 +19,17 @@ from scvi.utils._docstrings import devices_dsp
 from scvi.utils._exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
+
+
+def use_distributed_sampler(strategy: Union[str, Strategy]) -> bool:
+    """Return whether to use a distributed sampler.
+
+    Currently only supports DDP.
+    """
+    if isinstance(strategy, str):
+        # ["ddp", "ddp_spawn", "ddp_find_unused_parameters_true"]
+        return "ddp" in strategy
+    return isinstance(strategy, DDPStrategy)
 
 
 def get_max_epochs_heuristic(
@@ -99,9 +111,13 @@ def parse_device_args(
             stacklevel=settings.warnings_stacklevel,
         )
 
+    # auto accelerator should not default to mps
+    if accelerator == "auto" and _accelerator == "mps":
+        _accelerator = "cpu"
+
     if _accelerator == "mps":
         warnings.warn(
-            "The accelerator has been set to `mps`. Please note that not all PyTorch "
+            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
             "operations are supported with this backend. Refer to "
             "https://github.com/pytorch/pytorch/issues/77764 for more details.",
             UserWarning,

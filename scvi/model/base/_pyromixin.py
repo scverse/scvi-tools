@@ -93,7 +93,7 @@ class PyroSviTrainMixin:
         batch_size: int = 128,
         early_stopping: bool = False,
         lr: Optional[float] = None,
-        training_plan: PyroTrainingPlan = PyroTrainingPlan,
+        training_plan: Optional[PyroTrainingPlan] = None,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -156,7 +156,9 @@ class PyroSviTrainMixin:
                 shuffle_set_split=shuffle_set_split,
                 batch_size=batch_size,
             )
-        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
+
+        if training_plan is None:
+            training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
