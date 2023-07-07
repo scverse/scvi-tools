@@ -18,7 +18,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
 -   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model`
     `pr`{2166}.
-    
+
 #### Changed
 
 -   Change `unlabeled_category` from a positional to an optional keyword argument in {meth}`scvi.model.SCANVI.setup_anndata`
