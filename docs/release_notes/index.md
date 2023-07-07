@@ -19,6 +19,11 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model`
     `pr`{2166}.
 
+#### Changed
+
+-   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
+    for increased flexibility over dataset format {pr}`2163`.
+
 #### Removed
 
 -   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
