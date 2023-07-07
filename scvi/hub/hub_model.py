@@ -11,6 +11,7 @@ import anndata
 import rich
 from anndata import AnnData
 from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
+from lightning.pytorch.accelerators import Accelerator
 from rich.markdown import Markdown
 
 from scvi import settings
@@ -255,6 +256,8 @@ class HubModel:
     def load_model(
         self,
         adata: Optional[AnnData] = None,
+        accelerator: Optional[Union[str, Accelerator]] = "auto",
+        device: Optional[Union[str, int]] = "auto",
     ):
         """Loads the model.
 
@@ -264,6 +267,8 @@ class HubModel:
             The data to load the model with, if not None. If None, we'll try to load the model using the data
             at ``self._adata_path``. If that file does not exist, we'll try to load the model using
             :meth:`~scvi.hub.HubModel.large_training_adata`. If that does not exist either, we'll error out.
+        %(param_accelerator)s
+        %(param_device)s
         """
         logger.info("Loading model...")
         # get the class name for this model (e.g. TOTALVI)
@@ -271,21 +276,28 @@ class HubModel:
         python_module = importlib.import_module(self.metadata.model_parent_module)
         model_cls = getattr(python_module, model_cls_name)
         if adata is not None or os.path.isfile(self._adata_path):
-            self._model = model_cls.load(os.path.dirname(self._model_path), adata=adata)
+            self._model = model_cls.load(
+                os.path.dirname(self._model_path),
+                adata=adata,
+                accelerator=accelerator,
+                device=device,
+            )
         else:
             # in this case, we must download the large training adata if it exists in the model card; otherwise,
             # we error out. Note that the call below faults in self.large_training_adata if it is None
             if self.large_training_adata is None:
                 raise ValueError(
-                    "Could not find any dataset to load the model with.\
-                    Either provide a dataset on disk or a url to download the data in the model card,\
-                    or pass an adata to this method.\
-                    See scvi-tools tutorials for more details."
+                    "Could not find any dataset to load the model with. Either provide "
+                    "a dataset on disk or a url to download the data in the model "
+                    "card, or pass an `adata` to this method. See scvi-tools tutorials "
+                    "for more details."
                 )
             else:
                 self._model = model_cls.load(
                     os.path.dirname(self._model_path),
                     adata=self.large_training_adata,
+                    accelerator=accelerator,
+                    device=device,
                 )
 
     def read_adata(self):
