@@ -32,6 +32,11 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Disable the default selection of MPS when `accelerator="auto"` in Lightning {pr}`2167`.
 
+### Fixed
+
+-   Fix bug in {class}`scvi.model.base.PyroSviTrainMixin` where `training_plan`
+    argument is ignored {pr}`2162`.
+
 ### 1.0.2 (2023-07-05)
 
 ### Fixed
