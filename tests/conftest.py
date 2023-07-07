@@ -2,6 +2,7 @@ import shutil
 from distutils.dir_util import copy_tree
 
 import pytest
+import torch
 
 import scvi
 
@@ -87,3 +88,9 @@ def synthetic_adata():
 def model_fit(request):
     """Docstring for model_fit."""
     return request.config.getoption("--model_fit")
+
+
+@pytest.fixture(scope="session")
+def cuda():
+    """Docstring for cuda."""
+    assert torch.cuda.is_available()
