@@ -17,7 +17,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     specify additional metrics to compute and log during the validation loop using
     {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
 -   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model`
-    `pr`{xxxx}.
+    `pr`{2166}.
 
 #### Removed
 
