@@ -29,10 +29,7 @@ from scvi.data.fields import (
     StringUnsField,
 )
 from scvi.dataloaders import SemiSupervisedDataSplitter
-from scvi.model._utils import (
-    _init_library_size,
-    get_max_epochs_heuristic,
-)
+from scvi.model._utils import _init_library_size, get_max_epochs_heuristic
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner

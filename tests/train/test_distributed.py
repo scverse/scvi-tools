@@ -1,6 +1,9 @@
+import pytest
+
 import scvi
 
 
+@pytest.mark.optional
 def test_scvi_train_ddp():
     adata = scvi.data.synthetic_iid()
     scvi.model.SCVI.setup_anndata(adata)
