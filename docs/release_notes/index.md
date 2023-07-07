@@ -17,6 +17,13 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to
     specify additional metrics to compute and log during the validation loop using
     {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
+-   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model`
+    `pr`{2166}.
+
+#### Changed
+
+-   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
+    for increased flexibility over dataset format {pr}`2163`.
 
 #### Removed
 
@@ -24,6 +31,17 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Remove deprecated `scvi._compat.Literal` class {pr}`2115`.
 
 ## Version 1.0
+
+### 1.0.3 (2023-MM-DD)
+
+### Changed
+
+-   Disable the default selection of MPS when `accelerator="auto"` in Lightning {pr}`2167`.
+
+### Fixed
+
+-   Fix bug in {class}`scvi.model.base.PyroSviTrainMixin` where `training_plan`
+    argument is ignored {pr}`2162`.
 
 ### 1.0.2 (2023-07-05)
 

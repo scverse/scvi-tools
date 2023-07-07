@@ -124,9 +124,13 @@ def parse_device_args(
             stacklevel=settings.warnings_stacklevel,
         )
 
+    # auto accelerator should not default to mps
+    if accelerator == "auto" and _accelerator == "mps":
+        _accelerator = "cpu"
+
     if _accelerator == "mps":
         warnings.warn(
-            "The accelerator has been set to `mps`. Please note that not all PyTorch "
+            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
             "operations are supported with this backend. Refer to "
             "https://github.com/pytorch/pytorch/issues/77764 for more details.",
             UserWarning,
