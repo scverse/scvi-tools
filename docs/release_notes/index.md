@@ -13,6 +13,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Added
 
+-   Add {class}`scvi.dataloaders.BatchDistributedSampler` for distributed training {pr}`2102`.
 -   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to
     specify additional metrics to compute and log during the validation loop using
     {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
