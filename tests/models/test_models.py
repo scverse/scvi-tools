@@ -830,7 +830,11 @@ def test_backed_anndata_scvi(save_path):
 
 
 @pytest.mark.parametrize(
-    "data", [scvi.data.synthetic_iid(200), scvi.data.synthetic_iid(200, sparse=True)]
+    "data",
+    [
+        scvi.data.synthetic_iid(200),
+        scvi.data.synthetic_iid(200, sparse_format="csr_array"),
+    ],
 )
 def test_ann_dataloader(data):
     adata_manager = generic_setup_adata_manager(
