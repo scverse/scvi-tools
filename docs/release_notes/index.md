@@ -17,6 +17,12 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 1.0
 
+### 1.0.3 (2023-MM-DD)
+
+### Changed
+
+-   Disable the default selection of MPS when `accelerator="auto"` in Lightning {pr}`2167`.
+
 ### 1.0.2 (2023-07-05)
 
 ### Fixed
