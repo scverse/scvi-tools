@@ -387,7 +387,8 @@ class TunerManager:
             setup_method_name: str,
             setup_kwargs: dict,
             max_epochs: int,
-            use_gpu: bool,
+            accelerator: str,
+            devices: int,
         ) -> None:
             model_kwargs, train_kwargs = self._get_search_space(search_space)
             getattr(model_cls, setup_method_name)(adata, **setup_kwargs)
@@ -399,12 +400,16 @@ class TunerManager:
             monitor = callback_cls(metric, on="validation_end")
             model.train(
                 max_epochs=max_epochs,
-                use_gpu=use_gpu,
+                accelerator=accelerator,
+                devices=devices,
                 check_val_every_n_epoch=1,
                 callbacks=[monitor],
                 enable_progress_bar=False,
                 **train_kwargs,
             )
+
+        accelerator = "gpu" if resources.get("gpu", 0) > 0 else "cpu"
+        devices = resources.get(accelerator, 1)
 
         _wrap_params = tune.with_parameters(
             _trainable,
@@ -414,7 +419,8 @@ class TunerManager:
             setup_method_name=setup_method_name,
             setup_kwargs=setup_kwargs,
             max_epochs=max_epochs,
-            use_gpu=resources.get("gpu", 0) > 0,
+            accelerator=accelerator,
+            devices=devices,
         )
         return tune.with_resources(_wrap_params, resources=resources)
 
