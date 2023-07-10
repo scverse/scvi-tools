@@ -1,13 +1,12 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
-
-name: scvi-tools
+name: test-linux-cpu
 
 on:
     push:
-        branches: [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x]
+        branches:
+            [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x, 1.1.x]
     pull_request:
-        branches: [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x]
+        branches:
+            [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x, 1.1.x]
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,14 +23,8 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - os: ubuntu-latest
-                      python: "3.9"
-                    - os: ubuntu-latest
-                      python: "3.10"
-                    - os: ubuntu-latest
-                      python: "3.10"
-                      pip-flags: "--pre"
+                os: [ubuntu-latest]
+                python: ["3.9", "3.10", "3.11"]
 
         env:
             OS: ${{ matrix.os }}
@@ -50,7 +43,7 @@ jobs:
                   python -m pip install --upgrade pip wheel
             - name: Install dependencies
               run: |
-                  pip install ${{ matrix.pip-flags }} ".[dev,pymde,autotune,hub]"
+                  pip install ".[dev,pymde,autotune,hub]"
             - name: Test
               env:
                   MPLBACKEND: agg

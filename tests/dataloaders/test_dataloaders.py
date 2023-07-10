@@ -1,7 +1,10 @@
 import numpy as np
+import pytest
+import torch
 
 import scvi
 from scvi import REGISTRY_KEYS
+from tests.dataset.utils import generic_setup_adata_manager
 
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
@@ -76,3 +79,44 @@ def test_semisuperviseddataloader_subsampling(
     )
 
     scvi.model.SCANVI._training_plan_cls = original_training_plan_cls
+
+
+def test_anndataloader_distributed_sampler_init():
+    adata = scvi.data.synthetic_iid()
+    manager = generic_setup_adata_manager(adata)
+
+    with pytest.raises(ValueError):
+        _ = scvi.dataloaders.AnnDataLoader(
+            manager,
+            sampler="a sampler",
+            distributed_sampler=True,
+        )
+
+
+def multiprocessing_worker(
+    rank: int, world_size: int, manager: scvi.data.AnnDataManager, save_path: str
+):
+    # initializes the distributed backend that takes care of synchronizing processes
+    torch.distributed.init_process_group(
+        "gloo",  # backend that works on all systems
+        init_method=f"file://{save_path}/dist_file",
+        rank=rank,
+        world_size=world_size,
+    )
+
+    _ = scvi.dataloaders.AnnDataLoader(manager, distributed_sampler=True)
+
+    return
+
+
+@pytest.mark.optional
+def test_anndataloader_distributed_sampler(save_path: str, num_processes: int = 2):
+    adata = scvi.data.synthetic_iid()
+    manager = generic_setup_adata_manager(adata)
+
+    torch.multiprocessing.spawn(
+        multiprocessing_worker,
+        args=(num_processes, manager, save_path),
+        nprocs=num_processes,
+        join=True,
+    )

@@ -495,8 +495,8 @@ def synthetic_iid(
     n_regions: int = 100,
     n_batches: int = 2,
     n_labels: int = 3,
-    sparse: bool = False,
     dropout_ratio: float = 0.7,
+    sparse_format: Optional[str] = None,
     return_mudata: bool = False,
 ) -> AnnOrMuData:
     """Synthetic multimodal dataset.
@@ -526,6 +526,15 @@ def synthetic_iid(
     dropout_ratio
         The expected percentage of zeros artificially added into the data for RNA
         and accessibility data.
+    sparse_format
+        Whether to store RNA, accessibility, and protein data as sparse arrays. One of
+        the following:
+
+        * `None`: Store as a dense :class:`numpy.ndarray`.
+        * `"csr_matrix"`: Store as a :class:`scipy.sparse.csr_matrix`.
+        * `"csc_matrix"`: Store as a :class:`scipy.sparse.csc_matrix`.
+        * `"csr_array"`: Store as a :class:`scipy.sparse.csr_array`.
+        * `"csc_array"`: Store as a :class:`scipy.sparse.csc_array`.
     return_mudata
         Returns a :class:`~mudata.MuData` if `True`, else :class:`~anndata.AnnData`.
 
@@ -564,8 +573,8 @@ def synthetic_iid(
         n_regions=n_regions,
         n_batches=n_batches,
         n_labels=n_labels,
-        sparse=sparse,
         dropout_ratio=dropout_ratio,
+        sparse_format=sparse_format,
         return_mudata=return_mudata,
     )
 

@@ -10,6 +10,7 @@ import numpy as np
 import optax
 import pyro
 import torch
+from lightning.pytorch.strategies.ddp import DDPStrategy
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchmetrics import AUROC, Accuracy, F1Score
@@ -238,6 +239,10 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         self.elbo_val.reset()
 
     @property
+    def use_sync_dist(self):
+        return isinstance(self.trainer.strategy, DDPStrategy)
+
+    @property
     def n_obs_training(self):
         """Number of observations in the training set.
 
@@ -316,6 +321,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             on_step=False,
             on_epoch=True,
             batch_size=n_obs_minibatch,
+            sync_dist=self.use_sync_dist,
         )
 
         # accumlate extra metrics passed to loss recorder
@@ -331,6 +337,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 batch_size=n_obs_minibatch,
+                sync_dist=self.use_sync_dist,
             )
 
     def training_step(self, batch, batch_idx):
@@ -340,7 +347,13 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             self.loss_kwargs.update({"kl_weight": kl_weight})
             self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        self.log("train_loss", scvi_loss.loss, on_epoch=True, prog_bar=True)
+        self.log(
+            "train_loss",
+            scvi_loss.loss,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=self.use_sync_dist,
+        )
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
         return scvi_loss.loss
 
@@ -350,7 +363,12 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         # so when relevant, the actual loss value is rescaled to number
         # of training examples
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        self.log("validation_loss", scvi_loss.loss, on_epoch=True)
+        self.log(
+            "validation_loss",
+            scvi_loss.loss,
+            on_epoch=True,
+            sync_dist=self.use_sync_dist,
+        )
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
     def _optimizer_creator_fn(
