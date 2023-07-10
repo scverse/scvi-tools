@@ -158,7 +158,7 @@ class Tangram(BaseModelClass):
         else:
             plan_kwargs = update_dict
 
-        device = parse_device_args(
+        _, _, device = parse_device_args(
             accelerator,
             devices,
             return_device="jax",

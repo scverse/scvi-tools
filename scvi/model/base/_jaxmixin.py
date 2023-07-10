@@ -60,7 +60,7 @@ class JaxTrainingMixin:
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
-        device = parse_device_args(
+        _, _, device = parse_device_args(
             accelerator,
             devices,
             return_device="jax",
