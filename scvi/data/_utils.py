@@ -9,6 +9,7 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+import torch
 from anndata import AnnData
 from anndata._core.sparse_dataset import SparseDataset
 
@@ -20,6 +21,7 @@ except ImportError:
 
 from mudata import MuData
 from pandas.api.types import CategoricalDtype
+from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
 from scvi import settings
 from scvi._types import AnnOrMuData, MinifiedDataType
@@ -27,6 +29,50 @@ from scvi._types import AnnOrMuData, MinifiedDataType
 from . import _constants
 
 logger = logging.getLogger(__name__)
+
+
+ScipySparse = Union[
+    sp_sparse.csr_matrix, sp_sparse.csc_matrix, sp_sparse.csr_array, sp_sparse.csc_array
+]
+
+
+def convert_scipy_sparse_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
+    """Converts a SciPy sparse data structure to a sparse :class:`~torch.Tensor`.
+
+    :class:`~scipy.sparse.csr_matrix` and :class:`~scipy.sparse.csr_array` are converted
+    to a :class:`~torch.Tensor` constructed with :meth:`~torch.sparse_csr_tensor`, and
+    :class:`~scipy.sparse.csc_matrix` and :class:`~scipy.sparse.csc_array` are converted
+    to a :class:`~torch.Tensor` constructed with :meth:`~torch.sparse_csc_tensor`.
+
+    Parameters
+    ----------
+    x
+        SciPy sparse data structure to convert.
+
+    Returns
+    -------
+    :class:`~torch.Tensor`
+        A sparse tensor equivalent to `x` constructed with
+        :meth:`~torch.sparse_csr_tensor` or :meth:`~torch.sparse_csc_tensor` depending
+        on the input type.
+    """
+    if isinstance(x, (sp_sparse.csr_matrix, sp_sparse.csr_array)):
+        return sparse_csr_tensor(
+            as_tensor(x.indptr),
+            as_tensor(x.indices),
+            as_tensor(x.data),
+        )
+    elif isinstance(x, (sp_sparse.csc_matrix, sp_sparse.csc_array)):
+        return sparse_csc_tensor(
+            as_tensor(x.indptr),
+            as_tensor(x.indices),
+            as_tensor(x.data),
+        )
+    else:
+        raise TypeError(
+            "`x` must be of type `scipy.sparse.csr_matrix`, `scipy.sparse.csr_array`, "
+            "`scipy.sparse.csc_matrix`, or `scipy.sparse.csc_array`."
+        )
 
 
 def get_anndata_attribute(

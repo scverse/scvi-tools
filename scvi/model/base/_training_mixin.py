@@ -23,7 +23,7 @@ class UnsupervisedTrainingMixin:
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         shuffle_set_split: bool = True,
-        transfer_torch_csr: bool = False,
+        load_sparse_tensor: bool = False,
         batch_size: int = 128,
         early_stopping: bool = False,
         plan_kwargs: Optional[dict] = None,
@@ -47,6 +47,11 @@ class UnsupervisedTrainingMixin:
         shuffle_set_split
             Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
             sequential order of the data according to `validation_size` and `train_size` percentages.
+        load_sparse_tensor
+            If `True`, loads :class:`~scvi.data._utils.ScipySparse` in the input AnnData as
+            :class:`~torch.Tensor` with CSR or CSC layout instead of :class:`~numpy.ndarray`.
+            Can lead to significant speedups in data loading, depending on the sparsity of
+            the data.
         batch_size
             Minibatch size to use during training.
         early_stopping
@@ -72,7 +77,7 @@ class UnsupervisedTrainingMixin:
             distributed_sampler=use_distributed_sampler(
                 trainer_kwargs.get("strategy", None)
             ),
-            transfer_torch_csr=transfer_torch_csr,
+            load_sparse_tensor=load_sparse_tensor,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 

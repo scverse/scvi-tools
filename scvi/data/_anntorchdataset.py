@@ -6,13 +6,14 @@ import numpy as np
 import pandas as pd
 from anndata._core.sparse_dataset import SparseDataset
 from scipy.sparse import issparse
-from torch import as_tensor, sparse_csr_tensor
 from torch.utils.data import Dataset
 
 from scvi._constants import REGISTRY_KEYS
 
 if TYPE_CHECKING:
     from ._manager import AnnDataManager
+
+from ._utils import convert_scipy_sparse_to_torch_sparse
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,11 @@ class AnnTorchDataset(Dataset):
         and value equal to desired numpy loading type (later made into torch tensor) or list of
         such keys. A list can be used to subset to certain keys in the event that more tensors than
         needed have been registered. If ``None``, defaults to all registered data.
+    load_sparse_tensor
+        If `True`, loads :class:`~scvi.data._utils.ScipySparse` in the input AnnData as
+        :class:`~torch.Tensor` with CSR or CSC layout instead of :class:`~numpy.ndarray`.
+        Can lead to significant speedups in data loading, depending on the sparsity of
+        the data.
 
     Examples
     --------
@@ -42,7 +48,7 @@ class AnnTorchDataset(Dataset):
         self,
         adata_manager: "AnnDataManager",
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
-        transfer_torch_csr: bool = False,
+        load_sparse_tensor: bool = False,
     ):
         if adata_manager.adata is None:
             raise ValueError(
@@ -66,7 +72,7 @@ class AnnTorchDataset(Dataset):
         self._setup_getitem()
         self._set_data_attr()
 
-        self.transfer_torch_csr = transfer_torch_csr
+        self.load_sparse_tensor = load_sparse_tensor
 
     @property
     def registered_keys(self):
@@ -136,17 +142,11 @@ class AnnTorchDataset(Dataset):
             elif isinstance(cur_data, pd.DataFrame):
                 sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
             elif issparse(cur_data):
-                # TODO: this should only be the case for csr matrices for now
-                if self.transfer_torch_csr:
-                    sliced_sparse = cur_data[idx]
-                    sliced_data = sparse_csr_tensor(
-                        as_tensor(sliced_sparse.indptr),
-                        as_tensor(sliced_sparse.indices),
-                        as_tensor(sliced_sparse.data),
-                        size=sliced_sparse.shape,
-                    )
+                sliced_data = cur_data[idx].astype(dtype)
+                if self.load_sparse_tensor:
+                    sliced_data = convert_scipy_sparse_to_torch_sparse(sliced_data)
                 else:
-                    sliced_data = cur_data[idx].toarray().astype(dtype)
+                    sliced_data = sliced_data.toarray()
             # for minified  anndata, we need this because we can have a string
             # cur_data, which is the value of the MINIFY_TYPE_KEY in adata.uns,
             # used to record the type data minification

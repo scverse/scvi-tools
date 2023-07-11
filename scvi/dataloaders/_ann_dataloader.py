@@ -56,6 +56,11 @@ class AnnDataLoader(DataLoader):
     distributed_sampler
         Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as the sampler.
         If `True`, `sampler` must be `None`.
+    load_sparse_tensor
+        If `True`, loads :class:`~scvi.data._utils.ScipySparse` in the input AnnData as
+        :class:`~torch.Tensor` with CSR or CSC layout instead of :class:`~numpy.ndarray`.
+        Can lead to significant speedups in data loading, depending on the sparsity of
+        the data.
     **kwargs
         Additional keyword arguments passed into :class:`~torch.utils.data.DataLoader`.
 
@@ -79,7 +84,7 @@ class AnnDataLoader(DataLoader):
         data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
         iter_ndarray: bool = False,
         distributed_sampler: bool = False,
-        transfer_torch_csr: bool = False,
+        load_sparse_tensor: bool = False,
         **kwargs,
     ):
         if indices is None:
@@ -92,7 +97,7 @@ class AnnDataLoader(DataLoader):
         self.dataset = adata_manager.create_torch_dataset(
             indices=indices,
             data_and_attributes=data_and_attributes,
-            transfer_torch_csr=transfer_torch_csr,
+            load_sparse_tensor=load_sparse_tensor,
         )
         self.kwargs = copy.deepcopy(kwargs)
 

@@ -324,7 +324,7 @@ class AnnDataManager:
         self,
         indices: Sequence[int] | Sequence[bool] = None,
         data_and_attributes: list[str] | dict[str, np.dtype] | None = None,
-        transfer_torch_csr: bool = False,
+        load_sparse_tensor: bool = False,
     ) -> AnnTorchDataset:
         """
         Creates a torch dataset from the AnnData object registered with this instance.
@@ -338,15 +338,20 @@ class AnnDataManager:
             and value equal to desired numpy loading type (later made into torch tensor) or list of
             such keys. A list can be used to subset to certain keys in the event that more tensors than
             needed have been registered. If ``None``, defaults to all registered data.
+        load_sparse_tensor
+            If `True`, loads :class:`~scvi.data._utils.ScipySparse` in the input AnnData as
+            :class:`~torch.Tensor` with CSR or CSC layout instead of :class:`~numpy.ndarray`.
+            Can lead to significant speedups in data loading, depending on the sparsity of
+            the data.
 
         Returns
         -------
-        Torch Dataset
+        :class:`~scvi.data.AnnTorchDataset`
         """
         dataset = AnnTorchDataset(
             self,
             getitem_tensors=data_and_attributes,
-            transfer_torch_csr=transfer_torch_csr,
+            load_sparse_tensor=load_sparse_tensor,
         )
         if indices is not None:
             # This is a lazy subset, it just remaps indices
