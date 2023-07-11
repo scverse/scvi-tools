@@ -56,7 +56,6 @@ dependencies = [
     "mudata>=0.1.2",
     "sparse>=0.14.0",
     "xarray>=2023.2.0",
-    "pydantic<2.0.0",  # temporary fix until Lightning 2.0.5 is released
 ]
 
 
