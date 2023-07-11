@@ -14,8 +14,12 @@ concurrency:
 jobs:
     test:
         runs-on: ${{ matrix.os }}
+
+        timeout-minutes: 30
+
+        # run if scheduled or pr has the comment 'test linux cpu prelease'
         if: github.event_name == 'schedule' || (github.event.issue.pull_request != '' && contains(github.event.comment.body, 'test linux cpu prerelease'))
-        timeout-minutes: 20
+
         defaults:
             run:
                 shell: bash -e {0} # -e to fail on error
