@@ -7,15 +7,11 @@ from datetime import datetime
 from typing import Any, Callable, List, Optional, Tuple
 
 import lightning.pytorch as pl
+import ray
 import rich
 from chex import dataclass
-
-try:
-    import ray
-    from ray import air, tune
-    from ray.tune.integration.pytorch_lightning import TuneReportCallback
-except ImportError:
-    pass
+from ray import air, tune
+from ray.tune.integration.pytorch_lightning import TuneReportCallback
 
 from scvi import settings
 from scvi._decorators import dependencies
