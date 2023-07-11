@@ -92,7 +92,6 @@ class SCBASSET(BaseModelClass):
         self,
         max_epochs: int = 1000,
         lr: float = 0.01,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
@@ -114,7 +113,6 @@ class SCBASSET(BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -183,7 +181,6 @@ class SCBASSET(BaseModelClass):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             **trainer_kwargs,

@@ -3,9 +3,9 @@
 ```{toctree}
 :maxdepth: 1
 
-notebooks/totalVI
-notebooks/cite_scrna_integration_w_totalVI
-notebooks/totalVI_reference_mapping
-notebooks/totalvi_in_R
-notebooks/MultiVI_tutorial
+notebooks/multimodal/totalVI
+notebooks/multimodal/cite_scrna_integration_w_totalVI
+notebooks/multimodal/totalVI_reference_mapping
+notebooks/multimodal/totalvi_in_R
+notebooks/multimodal/MultiVI_tutorial
 ```

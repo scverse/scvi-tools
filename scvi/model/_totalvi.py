@@ -197,7 +197,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         max_epochs: Optional[int] = None,
         lr: float = 4e-3,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
@@ -221,7 +220,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Number of passes through the dataset.
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -299,7 +297,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             early_stopping=early_stopping,

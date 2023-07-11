@@ -17,7 +17,6 @@ class UnsupervisedTrainingMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
@@ -36,7 +35,6 @@ class UnsupervisedTrainingMixin:
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -90,7 +88,6 @@ class UnsupervisedTrainingMixin:
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             **trainer_kwargs,

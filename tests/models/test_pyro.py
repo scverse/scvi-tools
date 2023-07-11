@@ -188,7 +188,6 @@ def _create_indices_adata_manager(adata: AnnData) -> AnnDataManager:
 
 
 def test_pyro_bayesian_regression_low_level():
-    use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
@@ -197,7 +196,7 @@ def test_pyro_bayesian_regression_low_level():
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        accelerator="gpu" if use_gpu else "cpu",
+        accelerator="auto",
         devices="auto",
         max_epochs=2,
         callbacks=[PyroModelGuideWarmup(train_dl)],
@@ -215,7 +214,6 @@ def test_pyro_bayesian_regression_low_level():
 
 
 def test_pyro_bayesian_regression(save_path):
-    use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
@@ -224,13 +222,11 @@ def test_pyro_bayesian_regression(save_path):
     plan = PyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        accelerator="gpu" if use_gpu else "cpu",
+        accelerator="auto",
         devices="auto",
         max_epochs=2,
     )
     trainer.fit(plan, train_dl)
-    if use_gpu == 1:
-        model.cuda()
 
     # test Predictive
     num_samples = 5
@@ -262,7 +258,7 @@ def test_pyro_bayesian_regression(save_path):
             plan = PyroTrainingPlan(new_model)
             plan.n_obs_training = len(train_dl.indices)
             trainer = Trainer(
-                accelerator="gpu" if use_gpu else "cpu",
+                accelerator="auto",
                 devices="auto",
                 max_steps=1,
             )
@@ -280,7 +276,6 @@ def test_pyro_bayesian_regression(save_path):
 
 
 def test_pyro_bayesian_regression_jit():
-    use_gpu = int(torch.cuda.is_available())
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
@@ -289,7 +284,7 @@ def test_pyro_bayesian_regression_jit():
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        accelerator="gpu" if use_gpu else "cpu",
+        accelerator="auto",
         devices="auto",
         max_epochs=2,
         callbacks=[PyroJitGuideWarmup(train_dl)],
@@ -306,9 +301,6 @@ def test_pyro_bayesian_regression_jit():
         1,
     ]
 
-    if use_gpu == 1:
-        model.cuda()
-
     # test Predictive
     num_samples = 5
     predictive = model.create_predictive(num_samples=num_samples)
@@ -322,7 +314,6 @@ def test_pyro_bayesian_regression_jit():
 
 
 def test_pyro_bayesian_save_load(save_path):
-    use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     BayesianRegressionModel.setup_anndata(adata)
     mod = BayesianRegressionModel(adata)
@@ -330,7 +321,6 @@ def test_pyro_bayesian_save_load(save_path):
         max_epochs=2,
         batch_size=128,
         lr=0.01,
-        use_gpu=use_gpu,
     )
 
     mod.module.cpu()
@@ -354,7 +344,6 @@ def test_pyro_bayesian_save_load(save_path):
 
 
 def test_pyro_bayesian_train_sample_mixin():
-    use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     BayesianRegressionModel.setup_anndata(adata)
     mod = BayesianRegressionModel(adata)
@@ -362,7 +351,6 @@ def test_pyro_bayesian_train_sample_mixin():
         max_epochs=2,
         batch_size=128,
         lr=0.01,
-        use_gpu=use_gpu,
     )
 
     # 100 features
@@ -371,15 +359,12 @@ def test_pyro_bayesian_train_sample_mixin():
     ) == [1, 100]
 
     # test posterior sampling
-    samples = mod.sample_posterior(
-        num_samples=10, use_gpu=use_gpu, batch_size=None, return_samples=True
-    )
+    samples = mod.sample_posterior(num_samples=10, batch_size=None, return_samples=True)
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
 
 
 def test_pyro_bayesian_train_sample_mixin_full_data():
-    use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     BayesianRegressionModel.setup_anndata(adata)
     mod = BayesianRegressionModel(adata)
@@ -387,7 +372,6 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
         max_epochs=2,
         batch_size=None,
         lr=0.01,
-        use_gpu=use_gpu,
     )
 
     # 100 features
@@ -397,14 +381,13 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
 
     # test posterior sampling
     samples = mod.sample_posterior(
-        num_samples=10, use_gpu=use_gpu, batch_size=adata.n_obs, return_samples=True
+        num_samples=10, batch_size=adata.n_obs, return_samples=True
     )
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
 
 
 def test_pyro_bayesian_train_sample_mixin_with_local():
-    use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     BayesianRegressionModel.setup_anndata(adata)
     mod = BayesianRegressionModel(adata, per_cell_weight=True)
@@ -413,7 +396,6 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
         batch_size=128,
         lr=0.01,
         train_size=1,  # does not work when there is a validation set.
-        use_gpu=use_gpu,
     )
 
     # 100
@@ -422,9 +404,7 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
     ) == [1, 100]
 
     # test posterior sampling
-    samples = mod.sample_posterior(
-        num_samples=10, use_gpu=use_gpu, batch_size=None, return_samples=True
-    )
+    samples = mod.sample_posterior(num_samples=10, batch_size=None, return_samples=True)
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
     assert samples["posterior_samples"]["per_cell_weights"].shape == (
@@ -435,7 +415,6 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
 
 
 def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
-    use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     BayesianRegressionModel.setup_anndata(adata)
     mod = BayesianRegressionModel(adata, per_cell_weight=True)
@@ -444,7 +423,6 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
         batch_size=None,
         lr=0.01,
         train_size=1,  # does not work when there is a validation set.
-        use_gpu=use_gpu,
     )
 
     # 100
@@ -454,7 +432,7 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
 
     # test posterior sampling
     samples = mod.sample_posterior(
-        num_samples=10, use_gpu=use_gpu, batch_size=adata.n_obs, return_samples=True
+        num_samples=10, batch_size=adata.n_obs, return_samples=True
     )
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
@@ -568,7 +546,6 @@ class FunctionBasedPyroModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass)
 
 
 def test_function_based_pyro_module():
-    use_gpu = torch.cuda.is_available()
     adata = synthetic_iid()
     FunctionBasedPyroModel.setup_anndata(adata)
     mod = FunctionBasedPyroModel(adata)
@@ -576,7 +553,6 @@ def test_function_based_pyro_module():
         max_epochs=1,
         batch_size=256,
         lr=0.01,
-        use_gpu=use_gpu,
     )
 
 
@@ -592,7 +568,6 @@ def test_lda_model_single_step():
 
 
 def test_lda_model():
-    use_gpu = torch.cuda.is_available()
     n_topics = 5
     adata = synthetic_iid()
 
@@ -605,7 +580,6 @@ def test_lda_model():
         max_epochs=1,
         batch_size=256,
         lr=0.01,
-        use_gpu=use_gpu,
     )
     mod2 = AmortizedLDA(
         adata,
@@ -617,7 +591,6 @@ def test_lda_model():
         max_epochs=1,
         batch_size=256,
         lr=0.01,
-        use_gpu=use_gpu,
     )
 
     mod = AmortizedLDA(adata, n_topics=n_topics)
@@ -625,7 +598,6 @@ def test_lda_model():
         max_epochs=5,
         batch_size=256,
         lr=0.01,
-        use_gpu=use_gpu,
     )
     adata_gbt = mod.get_feature_by_topic().to_numpy()
     assert np.allclose(adata_gbt.sum(axis=0), 1)
@@ -651,7 +623,6 @@ def test_lda_model():
 
 
 def test_lda_model_save_load(save_path):
-    use_gpu = torch.cuda.is_available()
     n_topics = 5
     adata = synthetic_iid()
     AmortizedLDA.setup_anndata(adata)
@@ -660,7 +631,6 @@ def test_lda_model_save_load(save_path):
         max_epochs=5,
         batch_size=256,
         lr=0.01,
-        use_gpu=use_gpu,
     )
     hist_elbo = mod.history_["elbo_train"]
 

@@ -25,7 +25,6 @@ def poisson_gene_selection(
     adata,
     layer: Optional[str] = None,
     n_top_genes: int = 4000,
-    use_gpu: Optional[Union[str, int, bool]] = None,
     accelerator: str = "auto",
     device: Union[int, str] = "auto",
     subset: bool = False,
@@ -53,7 +52,6 @@ def poisson_gene_selection(
         If provided, use `adata.layers[layer]` for expression values instead of `adata.X`.
     n_top_genes
         How many variable genes to select.
-    %(param_use_gpu)s
     %(param_accelerator)s
     %(param_device)s
     subset
@@ -98,7 +96,6 @@ def poisson_gene_selection(
         raise ValueError("`poisson_gene_selection` expects " "raw count data.")
 
     _, _, device = parse_device_args(
-        use_gpu=use_gpu,
         accelerator=accelerator,
         devices=device,
         return_device="torch",

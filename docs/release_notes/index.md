@@ -30,7 +30,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Removed
 
--   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
+-   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator`
+    and `devices` {pr}`2114`.
 -   Remove deprecated `scvi._compat.Literal` class {pr}`2115`.
 
 ## Version 1.0

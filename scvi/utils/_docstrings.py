@@ -181,13 +181,6 @@ setup_anndata_dsp = DocstringProcessor(
 )
 
 
-param_use_gpu = """\
-use_gpu
-    Use default GPU if available (if `True`), or index of GPU to use (if `int`), or name
-    of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in `use_gpu!=None`
-    will override `accelerator` and `devices` arguments. This argument is deprecated in
-    v1.0 and will be removed in v1.1. Please use `accelerator` and `devices` instead."""  # TODO: remove in v1.1
-
 param_accelerator = """\
 accelerator
     Supports passing different accelerator types `("cpu", "gpu", "tpu", "ipu", "hpu",
@@ -221,7 +214,6 @@ validate_single_device
 
 
 devices_dsp = DocstringProcessor(
-    param_use_gpu=param_use_gpu,  # TODO: remove in v1.1
     param_accelerator=param_accelerator,
     param_devices=param_devices,
     param_device=param_device,
