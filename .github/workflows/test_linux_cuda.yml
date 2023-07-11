@@ -10,6 +10,8 @@ jobs:
     test:
         runs-on: [self-hosted, Linux, X64, CUDA]
 
+        timeout-minutes: 30
+
         strategy:
             fail-fast: false
             matrix:
