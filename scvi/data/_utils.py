@@ -39,22 +39,22 @@ ScipySparse = Union[
 def convert_scipy_sparse_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
     """Converts a SciPy sparse data structure to a sparse :class:`~torch.Tensor`.
 
-    :class:`~scipy.sparse.csr_matrix` and :class:`~scipy.sparse.csr_array` are converted
-    to a :class:`~torch.Tensor` constructed with :meth:`~torch.sparse_csr_tensor`, and
-    :class:`~scipy.sparse.csc_matrix` and :class:`~scipy.sparse.csc_array` are converted
-    to a :class:`~torch.Tensor` constructed with :meth:`~torch.sparse_csc_tensor`.
-
     Parameters
     ----------
     x
-        SciPy sparse data structure to convert.
+        SciPy sparse data structure to convert. One of the following:
+
+        * :class:`~scipy.sparse.csr_matrix` and :class:`~scipy.sparse.csr_array`:
+            Converted to a :class:`~torch.Tensor` constructed with
+            :meth:`~torch.sparse_csr_tensor`.
+        * :class:`~scipy.sparse.csc_matrix` and :class:`~scipy.sparse.csc_array`:
+            Converted to a :class:`~torch.Tensor` constructed with
+            :meth:`~torch.sparse_csc_tensor`.
 
     Returns
     -------
     :class:`~torch.Tensor`
-        A sparse tensor equivalent to `x` constructed with
-        :meth:`~torch.sparse_csr_tensor` or :meth:`~torch.sparse_csc_tensor` depending
-        on the input type.
+        A sparse tensor equivalent to `x`.
     """
     if isinstance(x, (sp_sparse.csr_matrix, sp_sparse.csr_array)):
         return sparse_csr_tensor(
