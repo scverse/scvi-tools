@@ -92,7 +92,6 @@ def test_saving_and_loading(save_path):
         save_path,
         adata_seq=adata,
         adata_spatial=adata2,
-        use_gpu=False,
         prefix=prefix,
     )
     z2 = model.get_latent_representation([adata])

@@ -356,7 +356,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         validation_size: Optional[float] = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         plan_kwargs: Optional[dict] = None,
@@ -385,7 +384,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         plan_kwargs
@@ -430,7 +428,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             check_val_every_n_epoch=check_val_every_n_epoch,

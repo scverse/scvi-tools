@@ -964,7 +964,6 @@ def test_device_backed_data_splitter():
         training_plan=training_plan,
         data_splitter=ds,
         max_epochs=1,
-        use_gpu=None,
     )
     runner()
 

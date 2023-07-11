@@ -289,7 +289,6 @@ class SOLO(BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 1e-3,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
@@ -310,7 +309,6 @@ class SOLO(BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -378,7 +376,6 @@ class SOLO(BaseModelClass):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             **kwargs,
