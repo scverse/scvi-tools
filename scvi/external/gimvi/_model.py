@@ -161,7 +161,6 @@ class GIMVI(VAEMixin, BaseModelClass):
     def train(
         self,
         max_epochs: int = 200,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         kappa: int = 5,
@@ -179,7 +178,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         kappa
@@ -201,7 +199,6 @@ class GIMVI(VAEMixin, BaseModelClass):
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         accelerator, devices, device = parse_device_args(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             return_device="torch",
@@ -456,7 +453,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         adata_seq: Optional[AnnData] = None,
         adata_spatial: Optional[AnnData] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
         prefix: Optional[str] = None,
@@ -476,7 +472,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata_spatial
             AnnData organized in the same way as data used to train model.
             If None, will check for and load anndata saved with the model.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         prefix
@@ -494,7 +489,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         >>> vae.get_latent_representation()
         """
         _, _, device = parse_device_args(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=device,
             return_device="torch",

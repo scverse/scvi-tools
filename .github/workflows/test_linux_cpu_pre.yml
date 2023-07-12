@@ -3,6 +3,8 @@ name: test-linux-cpu-prerelease
 on:
     schedule:
         - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+    issue_comment:
+        types: [created] # runs if issue/PR has a specific comment
     workflow_dispatch:
 
 concurrency:
@@ -12,7 +14,12 @@ concurrency:
 jobs:
     test:
         runs-on: ${{ matrix.os }}
-        timeout-minutes: 20
+
+        timeout-minutes: 30
+
+        # run if scheduled or pr has the comment 'test linux cpu prelease'
+        if: github.event_name == 'schedule' || (github.event.issue.pull_request != '' && contains(github.event.comment.body, 'test linux cpu prerelease'))
+
         defaults:
             run:
                 shell: bash -e {0} # -e to fail on error
@@ -21,7 +28,7 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest]
-                python: ["3.9", "3.10", "3.11"]
+                python: ["3.9", "3.10", "3.11", "3.12"]
 
         env:
             OS: ${{ matrix.os }}

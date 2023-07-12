@@ -1,6 +1,5 @@
 from typing import List, Optional
 
-import torch
 from anndata import AnnData
 from mudata import MuData
 
@@ -22,8 +21,6 @@ from scvi.data.fields import (
 )
 from scvi.model import SCVI
 
-use_gpu = torch.cuda.is_available()
-
 
 def unsupervised_training_one_epoch(
     adata: AnnData,
@@ -34,7 +31,7 @@ def unsupervised_training_one_epoch(
     if run_setup_anndata:
         SCVI.setup_anndata(adata, batch_key=batch_key, labels_key=labels_key)
     m = SCVI(adata)
-    m.train(1, train_size=0.4, use_gpu=use_gpu)
+    m.train(1, train_size=0.4)
 
 
 def generic_setup_adata_manager(

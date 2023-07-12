@@ -2,10 +2,8 @@ import logging
 import warnings
 from typing import List, Optional, Union
 
-import jax
-
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import get_max_epochs_heuristic
+from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp
 
@@ -23,7 +21,6 @@ class JaxTrainingMixin:
     def train(
         self,
         max_epochs: Optional[int] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
         devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
@@ -40,7 +37,6 @@ class JaxTrainingMixin:
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -64,19 +60,20 @@ class JaxTrainingMixin:
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
-        if use_gpu is None or use_gpu is True:
-            try:
-                self.module.to(jax.devices("gpu")[0])
-                logger.info(
-                    "Jax module moved to GPU. "
-                    "Note: Pytorch lightning will show GPU is not being used for the Trainer."
-                )
-            except RuntimeError:
-                logger.debug("No GPU available to Jax.")
-        else:
-            cpu_device = jax.devices("cpu")[0]
-            self.module.to(cpu_device)
-            logger.info("Jax module moved to CPU.")
+        _, _, device = parse_device_args(
+            accelerator,
+            devices,
+            return_device="jax",
+            validate_single_device=True,
+        )
+        try:
+            self.module.to(device)
+            logger.info(
+                f"Jax module moved to {device}."
+                "Note: Pytorch lightning will show GPU is not being used for the Trainer."
+            )
+        except RuntimeError:
+            logger.debug("No GPU available to Jax.")
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
