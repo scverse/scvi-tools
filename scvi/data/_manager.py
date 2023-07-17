@@ -339,10 +339,10 @@ class AnnDataManager:
             such keys. A list can be used to subset to certain keys in the event that more tensors than
             needed have been registered. If ``None``, defaults to all registered data.
         load_sparse_tensor
-            If `True`, loads :class:`~scvi.data._utils.ScipySparse` in the input AnnData as
-            :class:`~torch.Tensor` with CSR or CSC layout instead of :class:`~numpy.ndarray`.
-            Can lead to significant speedups in data loading, depending on the sparsity of
-            the data.
+            If `True`, loads a :class:`~scvi.data._utils.ScipySparse` in the input AnnData
+            as a :class:`~torch.Tensor` with CSR or CSC layout instead of
+            :class:`~numpy.ndarray`. Can lead to significant speedups in data loading to,
+            GPUs, depending on the sparsity of the data.
 
         Returns
         -------
