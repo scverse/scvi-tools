@@ -145,6 +145,10 @@ continuous_covariate_keys
     (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
     biologically-relevant factors that you do _not_ want to correct for."""
 
+param_unlabeled_category = """\
+unlabeled_category
+    value in `adata.obs[labels_key]` that indicates unlabeled observations."""
+
 param_modalities = """\
 modalities
     Dictionary mapping parameters to modalities."""
