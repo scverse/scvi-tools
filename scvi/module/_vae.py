@@ -109,7 +109,7 @@ class VAE(BaseMinifiedModeModuleClass):
         dispersion: Tunable[
             Literal["gene", "gene-batch", "gene-label", "gene-cell"]
         ] = "gene",
-        log_variational: bool = True,
+        log_variational: Tunable[bool] = True,
         gene_likelihood: Tunable[Literal["zinb", "nb", "poisson"]] = "zinb",
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
         encode_covariates: Tunable[bool] = False,
@@ -117,10 +117,10 @@ class VAE(BaseMinifiedModeModuleClass):
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
         use_size_factor_key: bool = False,
-        use_observed_lib_size: bool = True,
+        use_observed_lib_size: Tunable[bool] = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
-        var_activation: Optional[Callable] = None,
+        var_activation: Tunable[Callable] = None,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):

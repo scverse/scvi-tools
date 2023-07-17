@@ -122,8 +122,10 @@ class TunerManager:
                 if hasattr(annotation, "__args__"):
                     # e.g. if type is Literal, get its arguments
                     annotation = annotation.__args__
-                else:
+                elif hasattr(annotation, "__name__"):
                     annotation = annotation.__name__
+                else:
+                    annotation = str(annotation)
 
                 tunables[param] = {
                     "tunable_type": tunable_type,
