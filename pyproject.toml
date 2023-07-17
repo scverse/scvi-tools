@@ -33,7 +33,7 @@ classifiers = [
 ]
 dependencies = [
     "anndata>=0.7.5",
-    "chex<=0.1.8",
+    "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
@@ -77,33 +77,42 @@ dev = [
     "cellxgene-census"
 ]
 docs = [
-  "docutils>=0.8,!=0.18.*,!=0.19.*",
-  "sphinx>=4.1",
-  "ipython",
-  "sphinx-book-theme>=1.0.1",
-  "sphinx_copybutton",
-  "sphinx-design",
-  "sphinxext-opengraph",
-  "sphinx-hoverxref",
-  "sphinxcontrib-bibtex>=1.0.0",
-  "myst-parser",
-  "myst-nb",
-  "sphinx-autodoc-typehints",
+    "docutils>=0.8,!=0.18.*,!=0.19.*",  # see https://github.com/scverse/cookiecutter-scverse/pull/205
+    "sphinx>=4.1",
+    "ipython",
+    "sphinx-book-theme>=1.0.1",
+    "sphinx_copybutton",
+    "sphinx-design",
+    "sphinxext-opengraph",
+    "sphinx-hoverxref",
+    "sphinxcontrib-bibtex>=1.0.0",
+    "myst-parser",
+    "myst-nb",
+    "sphinx-autodoc-typehints",
 ]
 autotune = [
-  "hyperopt>=0.2",
-  "ray[tune]>=2.5.0",
-  "ipython",
-  "scib-metrics>=0.3",
+    "hyperopt>=0.2",
+    "ray[tune]>=2.5.0",
+    "ipython",
+    "scib-metrics>=0.3",
 ]
 pymde = ["pymde"]
-tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub", "genomepy"]
+tutorials = [
+    "scanpy",
+    "leidenalg",
+    "python-igraph",
+    "loompy",
+    "scikit-misc",
+    "pynndescent",
+    "scvi-tools[autotune,pymde,regseq,hub]",
+]
 hub = ["huggingface_hub"]
 regseq = [
     "biopython>=1.81",
     "genomepy",
 ]
 census = ["cellxgene-census"]
+all = ["scvi-tools[dev,docs,autotune,pymde,tutorials,hub,regseq,census]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['scvi']
