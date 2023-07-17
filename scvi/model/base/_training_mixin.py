@@ -24,7 +24,6 @@ class UnsupervisedTrainingMixin:
         validation_size: Optional[float] = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
-        batch_size: int = 128,
         batch_size: Tunable[int] = 128,
         early_stopping: bool = False,
         plan_kwargs: Optional[dict] = None,
