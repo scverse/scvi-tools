@@ -33,7 +33,7 @@ classifiers = [
 ]
 dependencies = [
     "anndata>=0.7.5",
-    "chex<=0.1.8",
+    "chex",
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
