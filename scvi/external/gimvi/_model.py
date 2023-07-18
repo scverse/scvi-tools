@@ -405,9 +405,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
-                "{} already exists. Please provide an unexisting directory for saving.".format(
-                    dir_path
-                )
+                f"{dir_path} already exists. Please provide an unexisting directory for saving."
             )
 
         file_name_prefix = prefix or ""
@@ -600,9 +598,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             os.makedirs(output_dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
-                "{} already exists. Please provide an unexisting directory for saving.".format(
-                    dir_path
-                )
+                f"{dir_path} already exists. Please provide an unexisting directory for saving."
             )
 
         file_name_prefix = prefix or ""
