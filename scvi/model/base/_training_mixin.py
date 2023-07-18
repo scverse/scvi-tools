@@ -47,10 +47,9 @@ class UnsupervisedTrainingMixin:
             Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
             sequential order of the data according to `validation_size` and `train_size` percentages.
         load_sparse_tensor
-            If `True`, loads a :class:`~scvi.data._utils.ScipySparse` in the input AnnData
-            as a :class:`~torch.Tensor` with CSR or CSC layout instead of
-            :class:`~numpy.ndarray`. Can lead to significant speedups in data loading to,
-            GPUs, depending on the sparsity of the data.
+            If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
+            :class:`~torch.Tensor`s with the same layout. Can lead to significant
+            speedups in transferring data to GPUs, depending on the sparsity of the data.
         batch_size
             Minibatch size to use during training.
         early_stopping
