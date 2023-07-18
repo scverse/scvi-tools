@@ -1,27 +1,11 @@
 from math import ceil, floor
-from typing import Literal
 
 import numpy as np
 import pytest
-import torch
+from sparse_utils import TestSparseModel
 
 import scvi
 from tests.dataset.utils import generic_setup_adata_manager
-
-
-class TestSparseDataSplitter(scvi.dataloaders.DataSplitter):
-    def __init__(self, *args, expected_sparse_layout: Literal["csr", "csc"], **kwargs):
-        if expected_sparse_layout == "csr":
-            self.expected_sparse_layout = torch.sparse_csr
-        elif expected_sparse_layout == "csc":
-            self.expected_sparse_layout = torch.sparse_csc
-
-        super().__init__(*args, **kwargs)
-
-    def on_after_batch_transfer(self, batch, dataloader_idx):
-        X = batch.get(scvi.REGISTRY_KEYS.X_KEY)
-        assert isinstance(X, torch.Tensor)
-        assert X.layout is self.expected_sparse_layout
 
 
 def test_datasplitter_shuffle():
@@ -60,11 +44,10 @@ def test_datasplitter_shuffle():
 )
 def test_datasplitter_load_sparse_tensor(sparse_format: str):
     adata = scvi.data.synthetic_iid(sparse_format=sparse_format)
-    manager = generic_setup_adata_manager(adata)
-
-    datasplitter = TestSparseDataSplitter(
-        manager, expected_sparse_layout=sparse_format.split("_")[0]
+    TestSparseModel.setup_anndata(adata)
+    model = TestSparseModel(adata)
+    model.train(
+        accelerator="cuda",
+        devices=-1,
+        expected_sparse_layout=sparse_format.split("_")[0],
     )
-    datasplitter.setup()
-    dataloader = datasplitter.train_dataloader()
-    _ = next(iter(dataloader))
