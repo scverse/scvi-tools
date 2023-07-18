@@ -58,7 +58,7 @@ class AnnDataLoader(DataLoader):
         If `True`, `sampler` must be `None`.
     load_sparse_tensor
         If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
-        :class:`~torch.Tensor`s with the same layout. Can lead to significant
+        :class:`~torch.Tensor` with the same layout. Can lead to significant
         speedups in transferring data to GPUs, depending on the sparsity of the data.
     **kwargs
         Additional keyword arguments passed into :class:`~torch.utils.data.DataLoader`.

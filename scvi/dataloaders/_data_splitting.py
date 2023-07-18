@@ -77,7 +77,7 @@ class DataSplitter(pl.LightningDataModule):
         sequential order of the data according to `validation_size` and `train_size` percentages.
     load_sparse_tensor
         If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
-        :class:`~torch.Tensor`s with the same layout. Can lead to significant
+        :class:`~torch.Tensor` with the same layout. Can lead to significant
         speedups in transferring data to GPUs, depending on the sparsity of the data.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed

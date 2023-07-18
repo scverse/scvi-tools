@@ -32,7 +32,7 @@ class AnnTorchDataset(Dataset):
         needed have been registered. If ``None``, defaults to all registered data.
     load_sparse_tensor
         If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
-        :class:`~torch.Tensor`s with the same layout. Can lead to significant
+        :class:`~torch.Tensor` with the same layout. Can lead to significant
         speedups in transferring data to GPUs, depending on the sparsity of the data.
 
     Examples
