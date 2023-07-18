@@ -10,18 +10,30 @@ from scvi.train import TrainRunner
 
 
 class TestSparseDataSplitter(scvi.dataloaders.DataSplitter):
-    def __init__(self, *args, expected_sparse_layout: Literal["csr", "csc"], **kwargs):
+    def __init__(
+        self, *args, expected_sparse_layout: Literal["csr", "csc"] = None, **kwargs
+    ):
         if expected_sparse_layout == "csr":
             self.expected_sparse_layout = torch.sparse_csr
         elif expected_sparse_layout == "csc":
             self.expected_sparse_layout = torch.sparse_csc
+        else:
+            self.expected_sparse_layout = None
 
-        super().__init__(*args, load_sparse_tensor=True, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
         X = batch.get(scvi.REGISTRY_KEYS.X_KEY)
         assert isinstance(X, torch.Tensor)
         assert X.layout is self.expected_sparse_layout
+
+        batch = super().on_after_batch_transfer(batch, dataloader_idx)
+
+        X = batch.get(scvi.REGISTRY_KEYS.X_KEY)
+        assert isinstance(X, torch.Tensor)
+        assert X.layout == torch.strided
+
+        return batch
 
 
 class TestSparseTrainingPlan(scvi.train.TrainingPlan):
@@ -84,7 +96,9 @@ class TestSparseModel(scvi.model.base.BaseModelClass):
         expected_sparse_layout: Literal["csr", "csc"] = None,
     ):
         data_splitter = TestSparseDataSplitter(
-            self.adata_manager, expected_sparse_layout=expected_sparse_layout
+            self.adata_manager,
+            expected_sparse_layout=expected_sparse_layout,
+            load_sparse_tensor=True,
         )
         training_plan = TestSparseTrainingPlan(self.module)
         runner = TrainRunner(
