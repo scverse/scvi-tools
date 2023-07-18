@@ -51,12 +51,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             n_labels=self.n_labels,
             **model_kwargs,
         )
-        self._model_summary_string = (
-            "RNADeconv Model with params: \nn_genes: {}, n_labels: {}"
-        ).format(
-            self.n_genes,
-            self.n_labels,
-        )
+        self._model_summary_string = f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}"
         self.init_params_ = self._get_init_params(locals())
 
     @devices_dsp.dedent
@@ -200,9 +195,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "RNADeconv Model with params: \nn_spots: {}"
-        ).format(
-            st_adata.n_obs,
+            f"RNADeconv Model with params: \nn_spots: {st_adata.n_obs}"
         )
         self.cell_type_mapping = cell_type_mapping
         self.init_params_ = self._get_init_params(locals())
