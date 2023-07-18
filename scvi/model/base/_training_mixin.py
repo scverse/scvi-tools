@@ -1,5 +1,6 @@
 from typing import List, Optional, Union
 
+from scvi.autotune._types import Tunable
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner
@@ -22,7 +23,7 @@ class UnsupervisedTrainingMixin:
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         shuffle_set_split: bool = True,
-        batch_size: int = 128,
+        batch_size: Tunable[int] = 128,
         early_stopping: bool = False,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,

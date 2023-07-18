@@ -105,12 +105,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             **model_kwargs,
         )
-        self._model_summary_string = (
-            "CellAssign Model with params: \nn_genes: {}, n_labels: {}"
-        ).format(
-            self.n_genes,
-            rho.shape[1],
-        )
+        self._model_summary_string = f"CellAssign Model with params: \nn_genes: {self.n_genes}, n_labels: {rho.shape[1]}"
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
