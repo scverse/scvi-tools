@@ -19,13 +19,13 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
 -   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model`
     `pr`{2166}.
--   Added per-group LFC information in the differential_expression method of the {class}`scvi.model.base.PosteriorPredictiveCheck` {pr}`2173`. The summary dataframe can now be accessed at `metrics["diff_exp"]["summary"]` and the per-group LFC at `metrics["diff_exp"]["lfc_per_model_per_group"]`.
+-   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression` method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary` stores the summary dataframe, and the `lfc_per_model_per_group` key stores the per-group LFC.
 
 #### Changed
 
 -   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
     for increased flexibility over dataset format {pr}`2163`.
--   Added per-group LFC information in the differential_expression method of the {class}`scvi.model.base.PosteriorPredictiveCheck` {pr}`2173`. The summary dataframe can now be accessed at `metrics["diff_exp"]["summary"]` and the per-group LFC at `metrics["diff_exp"]["lfc_per_model_per_group"]`.
+-   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression` method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary` stores the summary dataframe, and the `lfc_per_model_per_group` key stores the per-group LFC.
 
 #### Removed
 
@@ -40,7 +40,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 ### Changed
 
 -   Disable the default selection of MPS when `accelerator="auto"` in Lightning {pr}`2167`.
--   Added per-group LFC information in the differential_expression method of the {class}`scvi.model.base.PosteriorPredictiveCheck` {pr}`2173`. The summary dataframe can now be accessed at `metrics["diff_exp"]["summary"]` and the per-group LFC at `metrics["diff_exp"]["lfc_per_model_per_group"]`.
+-   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression` method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary` stores the summary dataframe, and the `lfc_per_model_per_group` key stores the per-group LFC.
 
 ### Fixed
 
