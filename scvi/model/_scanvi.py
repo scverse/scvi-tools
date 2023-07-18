@@ -454,9 +454,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         Parameters
         ----------
         %(param_adata)s
+        %(param_labels_key)s
+        %(param_unlabeled_category)s
         %(param_layer)s
         %(param_batch_key)s
-        %(param_labels_key)s
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s

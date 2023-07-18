@@ -46,6 +46,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Fix bug in {class}`scvi.model.base.PyroSviTrainMixin` where `training_plan`
     argument is ignored {pr}`2162`.
+-   Fix missing docstring for `unlabeled_category` in
+    {class}`scvi.model.SCANVI.setup_anndata` and reorder arguments {pr}`2189`.
 
 ### 1.0.2 (2023-07-05)
 
