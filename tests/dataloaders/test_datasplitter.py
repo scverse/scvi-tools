@@ -1,6 +1,8 @@
 from math import ceil, floor
 
 import numpy as np
+import pytest
+from sparse_utils import TestSparseModel
 
 import scvi
 from tests.dataset.utils import generic_setup_adata_manager
@@ -33,4 +35,18 @@ def test_datasplitter_shuffle():
     np.testing.assert_array_equal(
         datasplitter.test_idx,
         np.arange(n_val + n_train, n_val + n_train + n_test),
+    )
+
+
+@pytest.mark.parametrize(
+    "sparse_format", ["csr_matrix", "csr_array", "csc_matrix", "csc_array"]
+)
+def test_datasplitter_load_sparse_tensor(sparse_format: str):
+    adata = scvi.data.synthetic_iid(sparse_format=sparse_format)
+    TestSparseModel.setup_anndata(adata)
+    model = TestSparseModel(adata)
+    model.train(
+        accelerator="cpu",
+        devices=1,
+        expected_sparse_layout=sparse_format.split("_")[0],
     )
