@@ -103,12 +103,7 @@ class Tangram(BaseModelClass):
             target_count=target_count,
             **model_kwargs,
         )
-        self._model_summary_string = (
-            "TangramMapper Model with params: \nn_obs_sc: {}, n_obs_sp: {}"
-        ).format(
-            self.n_obs_sc,
-            self.n_obs_sp,
-        )
+        self._model_summary_string = f"TangramMapper Model with params: \nn_obs_sc: {self.n_obs_sc}, n_obs_sp: {self.n_obs_sp}"
         self.init_params_ = self._get_init_params(locals())
 
     def get_mapper_matrix(self) -> np.ndarray:
