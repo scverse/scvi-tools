@@ -38,7 +38,6 @@ def test_datasplitter_shuffle():
     )
 
 
-@pytest.mark.cuda
 @pytest.mark.parametrize(
     "sparse_format", ["csr_matrix", "csr_array", "csc_matrix", "csc_array"]
 )
@@ -47,7 +46,7 @@ def test_datasplitter_load_sparse_tensor(sparse_format: str):
     TestSparseModel.setup_anndata(adata)
     model = TestSparseModel(adata)
     model.train(
-        accelerator="cuda",
-        devices=-1,
+        accelerator="cpu",
+        devices=1,
         expected_sparse_layout=sparse_format.split("_")[0],
     )
