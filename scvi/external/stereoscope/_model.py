@@ -194,7 +194,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             prior_weight=prior_weight,
             **model_kwargs,
         )
-        self._model_summary_string = f"RNADeconv Model with params: \nn_spots: {st_adata.n_obs}"
+        self._model_summary_string = (
+            f"RNADeconv Model with params: \nn_spots: {st_adata.n_obs}"
+        )
         self.cell_type_mapping = cell_type_mapping
         self.init_params_ = self._get_init_params(locals())
 
