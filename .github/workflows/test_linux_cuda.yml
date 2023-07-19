@@ -21,7 +21,7 @@ jobs:
                 cuda: ["11"]
 
         container:
-            image: martinkim0/scvi-tools:ubuntu-${{ matrix.ubuntu }}-mamba-${{ matrix.mamba}}-python-${{ matrix.python }}-cuda-${{ matrix.cuda }}
+            image: martinkim0/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}
             options: --user root --gpus all
 
         steps:
@@ -30,7 +30,7 @@ jobs:
 
             - name: Install dependencies
               run: |
-                  pip install ".[dev,pymde,autotune,hub]"
+                  pip install ".[tests]"
 
             - name: Test
               env:

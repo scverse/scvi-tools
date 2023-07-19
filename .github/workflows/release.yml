@@ -9,19 +9,19 @@ jobs:
     release:
         name: Release
         runs-on: ubuntu-latest
+
         steps:
-            # will use ref/SHA that triggered it
             - name: Checkout code
               uses: actions/checkout@v3
 
-            - name: Set up Python 3.9
+            - name: Set up Python 3.11
               uses: actions/setup-python@v4
               with:
-                  python-version: "3.9"
+                  python-version: "3.11"
 
             - name: Install hatch
               run: |
-                  pip install hatch
+                  python -m pip install --upgrade hatch
 
             - name: Build project for distribution
               run: hatch build

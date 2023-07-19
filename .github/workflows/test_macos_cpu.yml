@@ -36,18 +36,22 @@ jobs:
 
         steps:
             - uses: actions/checkout@v3
+
             - name: Set up Python ${{ matrix.python }}
               uses: actions/setup-python@v4
               with:
                   python-version: ${{ matrix.python }}
                   cache: "pip"
                   cache-dependency-path: "**/pyproject.toml"
+
             - name: Install test dependencies
               run: |
                   python -m pip install --upgrade pip wheel
-            - name: Install dependencies
+
+            - name: Install scvi-tools test dependencies
               run: |
-                  pip install ".[dev,pymde,autotune,hub]"
+                  pip install ".[tests]"
+
             - name: Test
               env:
                   MPLBACKEND: agg
@@ -55,5 +59,6 @@ jobs:
                   DISPLAY: :42
               run: |
                   pytest -v --cov --color=yes
+
             - name: Upload coverage
               uses: codecov/codecov-action@v3
