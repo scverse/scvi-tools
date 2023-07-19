@@ -119,18 +119,22 @@ regseq = [
     "biopython>=1.81",
     "genomepy",
 ]
+loompy = [
+    "loompy>=3.0.6",
+]
+scanpy = [
+    "scanpy>=1.6",
+]
 # all optional user functionality
 optional = [
-    "scvi-tools[autotune,census,hub,pymde,regseq]"
+    "scvi-tools[autotune,census,hub,loompy,pymde,regseq,scanpy]"
 ]
 
 # dependencies for all tutorials
 tutorials = [
     "leidenalg",
-    "loompy",
     "pynndescent",
     "python-igraph",
-    "scanpy",
     "scikit-misc",
     "scvi-tools[optional]",
 ]
