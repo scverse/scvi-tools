@@ -60,59 +60,83 @@ dependencies = [
 
 
 [project.optional-dependencies]
-dev = [
-    "black",
+# dependencies for running the test suite
+tests = [
     "pytest",
     "pytest-cov",
+    "scvi-tools[optional]"
+]
+# dependencies for editing and committing code
+editing = [
+    "black",
     "flake8",
-    "scanpy>=1.6",
-    "loompy>=3.0.6",
     "jupyter",
     "nbformat",
     "nbconvert",
     "pre-commit",
     "ruff",
-    "pymde",
-    "genomepy",
-    "cellxgene-census"
 ]
+# dependencies for dev work
+dev = [
+    "scvi-tools[editing,tests]",
+]
+
+# basic docs dependencies
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*",  # see https://github.com/scverse/cookiecutter-scverse/pull/205
-    "sphinx>=4.1",
     "ipython",
+    "myst-nb",
+    "myst-parser",
+    "sphinx>=4.1",
+    "sphinx-autodoc-typehints",
     "sphinx-book-theme>=1.0.1",
     "sphinx_copybutton",
     "sphinx-design",
-    "sphinxext-opengraph",
     "sphinx-hoverxref",
     "sphinxcontrib-bibtex>=1.0.0",
-    "myst-parser",
-    "myst-nb",
-    "sphinx-autodoc-typehints",
+    "sphinxext-opengraph",
 ]
+# docs build dependencies
+docs_build = [
+    "scvi-tools[docs,optional]",
+]
+
+# scvi.autotune dependencies
 autotune = [
     "hyperopt>=0.2",
     "ray[tune]>=2.5.0",
     "ipython",
     "scib-metrics>=0.3",
 ]
-pymde = ["pymde"]
-tutorials = [
-    "scanpy",
-    "leidenalg",
-    "python-igraph",
-    "loompy",
-    "scikit-misc",
-    "pynndescent",
-    "scvi-tools[autotune,pymde,regseq,hub]",
-]
+# scvi.data.cellxgene dependencies
+census = ["cellxgene-census"]
+# scvi.hub dependencies
 hub = ["huggingface_hub"]
+# scvi.model.utils._mde dependencies
+pymde = ["pymde"]
+# scvi.data.add_dna_sequence dependencies
 regseq = [
     "biopython>=1.81",
     "genomepy",
 ]
-census = ["cellxgene-census"]
-all = ["scvi-tools[dev,docs,autotune,pymde,tutorials,hub,regseq,census]"]
+# all optional user functionality
+optional = [
+    "scvi-tools[autotune,census,hub,pymde,regseq]"
+]
+
+# dependencies for all tutorials
+tutorials = [
+    "leidenalg",
+    "loompy",
+    "pynndescent",
+    "python-igraph",
+    "scanpy",
+    "scikit-misc",
+    "scvi-tools[optional]",
+]
+
+# all dependencies
+all = ["scvi-tools[dev,docs_build,optional,tutorials]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['scvi']
