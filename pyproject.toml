@@ -83,21 +83,21 @@ dev = [
 
 # basic docs dependencies
 docs = [
-    "docutils>=0.8,!=0.18.*,!=0.19.*",  # see https://github.com/scverse/cookiecutter-scverse/pull/205
-    "ipython",
-    "myst-nb",
-    "myst-parser",
+    "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
     "sphinx>=4.1",
-    "sphinx-autodoc-typehints",
+    "ipython",
     "sphinx-book-theme>=1.0.1",
     "sphinx_copybutton",
     "sphinx-design",
+    "sphinxext-opengraph",
     "sphinx-hoverxref",
     "sphinxcontrib-bibtex>=1.0.0",
-    "sphinxext-opengraph",
+    "myst-parser",
+    "myst-nb",
+    "sphinx-autodoc-typehints",
 ]
 # docs build dependencies
-docs_build = [
+docsbuild = [
     "scvi-tools[docs,optional]",
 ]
 
@@ -136,7 +136,7 @@ tutorials = [
 ]
 
 # all dependencies
-all = ["scvi-tools[dev,docs_build,optional,tutorials]"]
+all = ["scvi-tools[dev,docs,tutorials]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['scvi']
