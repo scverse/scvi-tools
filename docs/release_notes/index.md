@@ -19,6 +19,9 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
 -   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model`
     `pr`{2166}.
+-   Add `load_sparse_tensor` argument in {class}`scvi.data.AnnTorchDataset` for directly
+    loading SciPy CSR and CSC data structures to their PyTorch counterparts, leading to
+    faster data loading depending on the sparsity of the data {pr}`2158`.
 
 #### Changed
 

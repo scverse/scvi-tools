@@ -56,6 +56,10 @@ class AnnDataLoader(DataLoader):
     distributed_sampler
         Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as the sampler.
         If `True`, `sampler` must be `None`.
+    load_sparse_tensor
+        If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
+        :class:`~torch.Tensor` with the same layout. Can lead to significant
+        speedups in transferring data to GPUs, depending on the sparsity of the data.
     **kwargs
         Additional keyword arguments passed into :class:`~torch.utils.data.DataLoader`.
 
@@ -79,6 +83,7 @@ class AnnDataLoader(DataLoader):
         data_and_attributes: Optional[Union[List[str], Dict[str, np.dtype]]] = None,
         iter_ndarray: bool = False,
         distributed_sampler: bool = False,
+        load_sparse_tensor: bool = False,
         **kwargs,
     ):
         if indices is None:
@@ -89,7 +94,9 @@ class AnnDataLoader(DataLoader):
             indices = np.asarray(indices)
         self.indices = indices
         self.dataset = adata_manager.create_torch_dataset(
-            indices=indices, data_and_attributes=data_and_attributes
+            indices=indices,
+            data_and_attributes=data_and_attributes,
+            load_sparse_tensor=load_sparse_tensor,
         )
         self.kwargs = copy.deepcopy(kwargs)
 

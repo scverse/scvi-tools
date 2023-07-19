@@ -23,6 +23,7 @@ class UnsupervisedTrainingMixin:
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         shuffle_set_split: bool = True,
+        load_sparse_tensor: bool = False,
         batch_size: Tunable[int] = 128,
         early_stopping: bool = False,
         plan_kwargs: Optional[dict] = None,
@@ -45,6 +46,10 @@ class UnsupervisedTrainingMixin:
         shuffle_set_split
             Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
             sequential order of the data according to `validation_size` and `train_size` percentages.
+        load_sparse_tensor
+            If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
+            :class:`~torch.Tensor` with the same layout. Can lead to significant
+            speedups in transferring data to GPUs, depending on the sparsity of the data.
         batch_size
             Minibatch size to use during training.
         early_stopping
@@ -70,6 +75,7 @@ class UnsupervisedTrainingMixin:
             distributed_sampler=use_distributed_sampler(
                 trainer_kwargs.get("strategy", None)
             ),
+            load_sparse_tensor=load_sparse_tensor,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 

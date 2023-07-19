@@ -13,6 +13,8 @@ from scvi._constants import REGISTRY_KEYS
 if TYPE_CHECKING:
     from ._manager import AnnDataManager
 
+from ._utils import convert_scipy_sparse_to_torch_sparse
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,6 +30,10 @@ class AnnTorchDataset(Dataset):
         and value equal to desired numpy loading type (later made into torch tensor) or list of
         such keys. A list can be used to subset to certain keys in the event that more tensors than
         needed have been registered. If ``None``, defaults to all registered data.
+    load_sparse_tensor
+        If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
+        :class:`~torch.Tensor` with the same layout. Can lead to significant
+        speedups in transferring data to GPUs, depending on the sparsity of the data.
 
     Examples
     --------
@@ -41,6 +47,7 @@ class AnnTorchDataset(Dataset):
         self,
         adata_manager: "AnnDataManager",
         getitem_tensors: Union[List[str], Dict[str, type]] = None,
+        load_sparse_tensor: bool = False,
     ):
         if adata_manager.adata is None:
             raise ValueError(
@@ -63,6 +70,8 @@ class AnnTorchDataset(Dataset):
         self.getitem_tensors = getitem_tensors
         self._setup_getitem()
         self._set_data_attr()
+
+        self.load_sparse_tensor = load_sparse_tensor
 
     @property
     def registered_keys(self):
@@ -132,7 +141,11 @@ class AnnTorchDataset(Dataset):
             elif isinstance(cur_data, pd.DataFrame):
                 sliced_data = cur_data.iloc[idx, :].to_numpy().astype(dtype)
             elif issparse(cur_data):
-                sliced_data = cur_data[idx].toarray().astype(dtype)
+                sliced_data = cur_data[idx].astype(dtype)
+                if self.load_sparse_tensor:
+                    sliced_data = convert_scipy_sparse_to_torch_sparse(sliced_data)
+                else:
+                    sliced_data = sliced_data.toarray()
             # for minified  anndata, we need this because we can have a string
             # cur_data, which is the value of the MINIFY_TYPE_KEY in adata.uns,
             # used to record the type data minification
