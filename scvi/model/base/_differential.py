@@ -239,9 +239,7 @@ class DifferentialComputation:
                 m_permutation // n_batches if m_permutation is not None else None
             )
             logger.debug(
-                "Using {} samples per batch for pair matching".format(
-                    n_samples_per_batch
-                )
+                f"Using {n_samples_per_batch} samples per batch for pair matching"
             )
             scales_1 = []
             scales_2 = []

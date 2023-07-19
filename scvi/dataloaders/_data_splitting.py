@@ -75,6 +75,10 @@ class DataSplitter(pl.LightningDataModule):
     shuffle_set_split
         Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
         sequential order of the data according to `validation_size` and `train_size` percentages.
+    load_sparse_tensor
+        If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
+        :class:`~torch.Tensor` with the same layout. Can lead to significant
+        speedups in transferring data to GPUs, depending on the sparsity of the data.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
@@ -101,6 +105,7 @@ class DataSplitter(pl.LightningDataModule):
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         shuffle_set_split: bool = True,
+        load_sparse_tensor: bool = False,
         pin_memory: bool = False,
         **kwargs,
     ):
@@ -109,6 +114,7 @@ class DataSplitter(pl.LightningDataModule):
         self.train_size = float(train_size)
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
+        self.load_sparse_tensor = load_sparse_tensor
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
 
@@ -137,6 +143,7 @@ class DataSplitter(pl.LightningDataModule):
             indices=self.train_idx,
             shuffle=True,
             drop_last=False,
+            load_sparse_tensor=self.load_sparse_tensor,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
@@ -149,6 +156,7 @@ class DataSplitter(pl.LightningDataModule):
                 indices=self.val_idx,
                 shuffle=False,
                 drop_last=False,
+                load_sparse_tensor=self.load_sparse_tensor,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -163,11 +171,22 @@ class DataSplitter(pl.LightningDataModule):
                 indices=self.test_idx,
                 shuffle=False,
                 drop_last=False,
+                load_sparse_tensor=self.load_sparse_tensor,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
         else:
             pass
+
+    def on_after_batch_transfer(self, batch, dataloader_idx):
+        """Converts sparse tensors to dense if necessary."""
+        if self.load_sparse_tensor:
+            for key, val in batch.items():
+                layout = val.layout if isinstance(val, torch.Tensor) else None
+                if layout is torch.sparse_csr or layout is torch.sparse_csc:
+                    batch[key] = val.to_dense()
+
+        return batch
 
 
 class SemiSupervisedDataSplitter(pl.LightningDataModule):
