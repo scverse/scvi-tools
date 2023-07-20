@@ -31,7 +31,10 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
     for increased flexibility over dataset format {pr}`2163`.
--   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression` method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary` stores the summary dataframe, and the `lfc_per_model_per_group` key stores the per-group LFC.
+-   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
+    method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
+    stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
+    per-group LFC.
 
 #### Removed
 
