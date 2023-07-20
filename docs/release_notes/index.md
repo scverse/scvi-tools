@@ -40,7 +40,6 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 ### Changed
 
 -   Disable the default selection of MPS when `accelerator="auto"` in Lightning {pr}`2167`.
--   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression` method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary` stores the summary dataframe, and the `lfc_per_model_per_group` key stores the per-group LFC.
 
 ### Fixed
 
