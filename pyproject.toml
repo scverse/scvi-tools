@@ -33,7 +33,7 @@ classifiers = [
 ]
 dependencies = [
     "anndata>=0.7.5",
-    "chex<=0.1.8",
+    "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
@@ -60,50 +60,63 @@ dependencies = [
 
 
 [project.optional-dependencies]
-dev = [
-    "black",
+tests = [
     "pytest",
     "pytest-cov",
+    "scvi-tools[optional]"
+]  # dependencies for running the test suite
+editing = [
+    "black",
     "flake8",
-    "scanpy>=1.6",
-    "loompy>=3.0.6",
     "jupyter",
     "nbformat",
     "nbconvert",
     "pre-commit",
     "ruff",
-    "pymde",
-    "genomepy",
-    "cellxgene-census"
-]
+]  # dependencies for editing and committing code
+dev = ["scvi-tools[editing,tests]"]  # dependencies for dev work
+
 docs = [
-  "docutils>=0.8,!=0.18.*,!=0.19.*",
-  "sphinx>=4.1",
-  "ipython",
-  "sphinx-book-theme>=1.0.1",
-  "sphinx_copybutton",
-  "sphinx-design",
-  "sphinxext-opengraph",
-  "sphinx-hoverxref",
-  "sphinxcontrib-bibtex>=1.0.0",
-  "myst-parser",
-  "myst-nb",
-  "sphinx-autodoc-typehints",
-]
+    "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
+    "sphinx>=4.1",
+    "ipython",
+    "sphinx-book-theme>=1.0.1",
+    "sphinx_copybutton",
+    "sphinx-design",
+    "sphinxext-opengraph",
+    "sphinx-hoverxref",
+    "sphinxcontrib-bibtex>=1.0.0",
+    "myst-parser",
+    "myst-nb",
+    "sphinx-autodoc-typehints",
+]  # basic docs dependencies
+docsbuild = ["scvi-tools[docs,optional]"]  # docs build dependencies
+
 autotune = [
-  "hyperopt>=0.2",
-  "ray[tune]>=2.5.0",
-  "ipython",
-  "scib-metrics>=0.3",
-]
-pymde = ["pymde"]
-tutorials = ["scanpy", "leidenalg", "python-igraph", "loompy", "scikit-misc", "pynndescent", "pymde", "huggingface_hub", "genomepy"]
-hub = ["huggingface_hub"]
-regseq = [
-    "biopython>=1.81",
-    "genomepy",
-]
-census = ["cellxgene-census"]
+    "hyperopt>=0.2",
+    "ray[tune]>=2.5.0",
+    "ipython",
+    "scib-metrics>=0.3",
+]  # scvi.autotune
+census = ["cellxgene-census"]  # scvi.data.cellxgene
+hub = ["huggingface_hub"]  # scvi.hub dependencies
+pymde = ["pymde"]  # scvi.model.utils.mde dependencies
+regseq = ["biopython>=1.81", "genomepy"]  # scvi.data.add_dna_sequence
+loompy = ["loompy>=3.0.6"]  # read loom
+scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
+optional = [
+    "scvi-tools[autotune,census,hub,loompy,pymde,regseq,scanpy]"
+]  # all optional user functionality
+
+tutorials = [
+    "leidenalg",
+    "pynndescent",
+    "python-igraph",
+    "scikit-misc",
+    "scvi-tools[optional]",
+]  # dependencies for all tutorials
+
+all = ["scvi-tools[dev,docs,tutorials]"]  # all dependencies
 
 [tool.hatch.build.targets.wheel]
 packages = ['scvi']

@@ -19,7 +19,13 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
 -   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model`
     `pr`{2166}.
--   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression` method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary` stores the summary dataframe, and the `lfc_per_model_per_group` key stores the per-group LFC.
+-   Add `load_sparse_tensor` argument in {class}`scvi.data.AnnTorchDataset` for directly
+    loading SciPy CSR and CSC data structures to their PyTorch counterparts, leading to
+    faster data loading depending on the sparsity of the data {pr}`2158`.
+-   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
+    method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
+    stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
+    per-group LFC.
 
 #### Changed
 
