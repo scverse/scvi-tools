@@ -187,7 +187,10 @@ def _create_indices_adata_manager(adata: AnnData) -> AnnDataManager:
     return adata_manager
 
 
-def test_pyro_bayesian_regression_low_level():
+def test_pyro_bayesian_regression_low_level(
+    accelerator: str,
+    devices: list | str | int,
+):
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
@@ -196,8 +199,8 @@ def test_pyro_bayesian_regression_low_level():
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        accelerator="auto",
-        devices="auto",
+        accelerator=accelerator,
+        devices=devices,
         max_epochs=2,
         callbacks=[PyroModelGuideWarmup(train_dl)],
     )
@@ -213,7 +216,9 @@ def test_pyro_bayesian_regression_low_level():
     ]
 
 
-def test_pyro_bayesian_regression(save_path):
+def test_pyro_bayesian_regression(
+    accelerator: str, devices: list | str | int, save_path: str
+):
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
@@ -222,8 +227,8 @@ def test_pyro_bayesian_regression(save_path):
     plan = PyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        accelerator="auto",
-        devices="auto",
+        accelerator=accelerator,
+        devices=devices,
         max_epochs=2,
     )
     trainer.fit(plan, train_dl)
@@ -258,8 +263,8 @@ def test_pyro_bayesian_regression(save_path):
             plan = PyroTrainingPlan(new_model)
             plan.n_obs_training = len(train_dl.indices)
             trainer = Trainer(
-                accelerator="auto",
-                devices="auto",
+                accelerator=accelerator,
+                devices=devices,
                 max_steps=1,
             )
             trainer.fit(plan, train_dl)
@@ -275,7 +280,10 @@ def test_pyro_bayesian_regression(save_path):
     np.testing.assert_array_equal(linear_median_new, linear_median)
 
 
-def test_pyro_bayesian_regression_jit():
+def test_pyro_bayesian_regression_jit(
+    accelerator: str,
+    devices: list | str | int,
+):
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
@@ -284,8 +292,8 @@ def test_pyro_bayesian_regression_jit():
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        accelerator="auto",
-        devices="auto",
+        accelerator=accelerator,
+        devices=devices,
         max_epochs=2,
         callbacks=[PyroJitGuideWarmup(train_dl)],
     )
