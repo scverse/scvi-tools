@@ -379,6 +379,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         prefix: Optional[str] = None,
         overwrite: bool = False,
         save_anndata: bool = False,
+        save_kwargs: dict | None = None,
         **anndata_write_kwargs,
     ):
         """Save the state of the model.
@@ -398,6 +399,8 @@ class GIMVI(VAEMixin, BaseModelClass):
             already exists at `dir_path`, error will be raised.
         save_anndata
             If True, also saves the anndata
+        save_kwargs
+            Keyword arguments passed into :meth:`~torch.save`.
         anndata_write_kwargs
             Kwargs for anndata write function
         """
@@ -409,6 +412,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             )
 
         file_name_prefix = prefix or ""
+        save_kwargs = save_kwargs or {}
 
         seq_adata = self.adatas[0]
         spatial_adata = self.adatas[1]
@@ -442,6 +446,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                 "attr_dict": user_attributes,
             },
             model_save_path,
+            **save_kwargs,
         )
 
     @classmethod
@@ -579,20 +584,23 @@ class GIMVI(VAEMixin, BaseModelClass):
         output_dir_path: str,
         overwrite: bool = False,
         prefix: Optional[str] = None,
+        **save_kwargs,
     ) -> None:
         """Converts a legacy saved GIMVI model (<v0.15.0) to the updated save format.
 
         Parameters
         ----------
-        dir_path
-            Path to directory where legacy model is saved.
-        output_dir_path
-            Path to save converted save files.
-        overwrite
-            Overwrite existing data or not. If ``False`` and directory
-            already exists at ``output_dir_path``, error will be raised.
-        prefix
-            Prefix of saved file names.
+         dir_path
+             Path to directory where legacy model is saved.
+         output_dir_path
+             Path to save converted save files.
+         overwrite
+             Overwrite existing data or not. If ``False`` and directory
+             already exists at ``output_dir_path``, error will be raised.
+         prefix
+             Prefix of saved file names.
+        **save_kwargs
+             Keyword arguments passed into :meth:`~torch.save`.
         """
         if not os.path.exists(output_dir_path) or overwrite:
             os.makedirs(output_dir_path, exist_ok=overwrite)
@@ -631,6 +639,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                 "attr_dict": attr_dict,
             },
             model_save_path,
+            **save_kwargs,
         )
 
     @classmethod

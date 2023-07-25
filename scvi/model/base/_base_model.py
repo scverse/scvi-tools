@@ -560,6 +560,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         prefix: Optional[str] = None,
         overwrite: bool = False,
         save_anndata: bool = False,
+        save_kwargs: dict | None = None,
         **anndata_write_kwargs,
     ):
         """Save the state of the model.
@@ -579,6 +580,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             already exists at `dir_path`, error will be raised.
         save_anndata
             If True, also saves the anndata
+        save_kwargs
+            Keyword arguments passed into :meth:`~torch.save`.
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
@@ -590,6 +593,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             )
 
         file_name_prefix = prefix or ""
+        save_kwargs = save_kwargs or {}
+
         if save_anndata:
             file_suffix = ""
             if isinstance(self.adata, AnnData):
@@ -621,6 +626,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
                 "attr_dict": user_attributes,
             },
             model_save_path,
+            **save_kwargs,
         )
 
     @classmethod
@@ -721,6 +727,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         output_dir_path: str,
         overwrite: bool = False,
         prefix: Optional[str] = None,
+        **save_kwargs,
     ) -> None:
         """Converts a legacy saved model (<v0.15.0) to the updated save format.
 
@@ -735,6 +742,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             already exists at ``output_dir_path``, error will be raised.
         prefix
             Prefix of saved file names.
+        **save_kwargs
+            Keyword arguments passed into :meth:`~torch.save`.
         """
         if not os.path.exists(output_dir_path) or overwrite:
             os.makedirs(output_dir_path, exist_ok=overwrite)
@@ -766,6 +775,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
                 "attr_dict": attr_dict,
             },
             model_save_path,
+            **save_kwargs,
         )
 
     @property
