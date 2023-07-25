@@ -111,7 +111,7 @@ optional = [
 tutorials = [
     "leidenalg",
     "pynndescent",
-    "python-igraph",
+    "igraph",
     "scikit-misc",
     "scvi-tools[optional]",
 ]  # dependencies for all tutorials
