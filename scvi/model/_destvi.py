@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 from collections import OrderedDict
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
@@ -157,8 +159,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     def get_proportions(
         self,
         keep_noise: bool = False,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> pd.DataFrame:
         """Returns the estimated cell type proportion for the spatial data.
 
@@ -209,10 +211,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
 
     def get_gamma(
         self,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
         return_numpy: bool = False,
-    ) -> Union[np.ndarray, Dict[str, pd.DataFrame]]:
+    ) -> np.ndarray | dict[str, pd.DataFrame]:
         """Returns the estimated cell-type specific latent space for the spatial data.
 
         Parameters
@@ -262,8 +264,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     def get_scale_for_ct(
         self,
         label: str,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> pd.DataFrame:
         r"""Return the scaled parameter of the NB for every spot in queried cell types.
 
@@ -312,13 +314,14 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         max_epochs: int = 2000,
         lr: float = 0.003,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 1.0,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
         n_epochs_kl_warmup: int = 200,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **kwargs,
     ):
         """Trains the model using MAP inference.
@@ -343,6 +346,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             Minibatch size to use during training.
         n_epochs_kl_warmup
             number of epochs needed to reach unit kl weight in the elbo
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -365,6 +370,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            datasplitter_kwargs=datasplitter_kwargs,
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
@@ -374,7 +380,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.

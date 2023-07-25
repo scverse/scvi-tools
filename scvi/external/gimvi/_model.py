@@ -169,6 +169,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
+        datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         **kwargs,
     ):
@@ -193,6 +194,8 @@ class GIMVI(VAEMixin, BaseModelClass):
             sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed
             to `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -204,6 +207,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             devices=devices,
             return_device="torch",
         )
+        datasplitter_kwargs = datasplitter_kwargs or {}
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
@@ -220,6 +224,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                 validation_size=validation_size,
                 batch_size=batch_size,
                 shuffle_set_split=shuffle_set_split,
+                **datasplitter_kwargs,
             )
             ds.setup()
             train_dls.append(ds.train_dataloader())
