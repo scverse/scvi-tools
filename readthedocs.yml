@@ -10,10 +10,7 @@ python:
         - method: pip
           path: .
           extra_requirements:
-              - docs
-              - pymde
-              - hub
-              - autotune
+              - docsbuild
 submodules:
     include:
         - "docs/tutorials/notebooks"

@@ -15,13 +15,11 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                ubuntu: [latest]
-                mamba: [latest]
                 python: ["3.11"]
                 cuda: ["11"]
 
         container:
-            image: martinkim0/scvi-tools:ubuntu-${{ matrix.ubuntu }}-mamba-${{ matrix.mamba}}-python-${{ matrix.python }}-cuda-${{ matrix.cuda }}
+            image: martinkim0/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
             options: --user root --gpus all
 
         steps:
@@ -30,7 +28,7 @@ jobs:
 
             - name: Install dependencies
               run: |
-                  pip install ".[dev,pymde,autotune,hub]"
+                  pip install ".[tests]"
 
             - name: Test
               env:
@@ -38,7 +36,7 @@ jobs:
                   PLATFORM: ubuntu
                   DISPLAY: :42
               run: |
-                  pytest -v --cov --color=yes --cuda
+                  pytest -v --cov --color=yes --accelerator cuda --devices auto
 
             - name: Upload coverage
               uses: codecov/codecov-action@v3
