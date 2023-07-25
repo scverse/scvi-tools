@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import logging
-from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -129,12 +130,13 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         max_epochs: int = 400,
         lr: float = 3e-3,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 1024,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         early_stopping: bool = True,
         early_stopping_patience: int = 15,
         early_stopping_min_delta: float = 0.0,
@@ -160,6 +162,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`.
         early_stopping
@@ -177,6 +181,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
+
+        datasplitter_kwargs = datasplitter_kwargs or {}
 
         if "callbacks" in kwargs:
             kwargs["callbacks"] += [ClampCallback()]
@@ -209,6 +215,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             validation_size=validation_size,
             batch_size=batch_size,
             shuffle_set_split=shuffle_set_split,
+            **datasplitter_kwargs,
         )
         training_plan = TrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
@@ -228,10 +235,10 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         adata: AnnData,
         size_factor_key: str,
-        batch_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
-        layer: Optional[str] = None,
+        batch_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
