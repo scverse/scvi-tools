@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from math import ceil, floor
 
 import numpy as np
@@ -41,12 +43,16 @@ def test_datasplitter_shuffle():
 @pytest.mark.parametrize(
     "sparse_format", ["csr_matrix", "csr_array", "csc_matrix", "csc_array"]
 )
-def test_datasplitter_load_sparse_tensor(sparse_format: str):
+def test_datasplitter_load_sparse_tensor(
+    sparse_format: str,
+    accelerator: str,
+    devices: list | str | int,
+):
     adata = scvi.data.synthetic_iid(sparse_format=sparse_format)
     TestSparseModel.setup_anndata(adata)
     model = TestSparseModel(adata)
     model.train(
-        accelerator="cpu",
-        devices=1,
+        accelerator=accelerator,
+        devices=devices,
         expected_sparse_layout=sparse_format.split("_")[0],
     )
