@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 import os
 import warnings
 from itertools import cycle
-from typing import List, Optional, Union
 
 import numpy as np
 import torch
@@ -77,8 +78,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         self,
         adata_seq: AnnData,
         adata_spatial: AnnData,
-        generative_distributions: Optional[List[str]] = None,
-        model_library_size: Optional[List[bool]] = None,
+        generative_distributions: list[str] | None = None,
+        model_library_size: list[bool] | None = None,
         n_latent: int = 10,
         **model_kwargs,
     ):
@@ -162,13 +163,13 @@ class GIMVI(VAEMixin, BaseModelClass):
         self,
         max_epochs: int = 200,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         kappa: int = 5,
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
+        plan_kwargs: dict | None = None,
         **kwargs,
     ):
         """Train the model.
@@ -254,7 +255,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         self.to_device(device)
         self.is_trained_ = True
 
-    def _make_scvi_dls(self, adatas: List[AnnData] = None, batch_size=128):
+    def _make_scvi_dls(self, adatas: list[AnnData] = None, batch_size=128):
         if adatas is None:
             adatas = self.adatas
         post_list = [self._make_data_loader(ad) for ad in adatas]
@@ -266,10 +267,10 @@ class GIMVI(VAEMixin, BaseModelClass):
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adatas: List[AnnData] = None,
+        adatas: list[AnnData] = None,
         deterministic: bool = True,
         batch_size: int = 128,
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         """Return the latent space embedding for each dataset.
 
         Parameters
@@ -307,12 +308,12 @@ class GIMVI(VAEMixin, BaseModelClass):
     @torch.inference_mode()
     def get_imputed_values(
         self,
-        adatas: List[AnnData] = None,
+        adatas: list[AnnData] = None,
         deterministic: bool = True,
         normalized: bool = True,
-        decode_mode: Optional[int] = None,
+        decode_mode: int | None = None,
         batch_size: int = 128,
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         """Return imputed values for all genes for each dataset.
 
         Parameters
@@ -376,7 +377,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     def save(
         self,
         dir_path: str,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         overwrite: bool = False,
         save_anndata: bool = False,
         save_kwargs: dict | None = None,
@@ -454,12 +455,12 @@ class GIMVI(VAEMixin, BaseModelClass):
     def load(
         cls,
         dir_path: str,
-        adata_seq: Optional[AnnData] = None,
-        adata_spatial: Optional[AnnData] = None,
+        adata_seq: AnnData | None = None,
+        adata_spatial: AnnData | None = None,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
-        prefix: Optional[str] = None,
-        backup_url: Optional[str] = None,
+        device: int | str = "auto",
+        prefix: str | None = None,
+        backup_url: str | None = None,
     ):
         """Instantiate a model from the saved output.
 
@@ -583,7 +584,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         output_dir_path: str,
         overwrite: bool = False,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         **save_kwargs,
     ) -> None:
         """Converts a legacy saved GIMVI model (<v0.15.0) to the updated save format.
@@ -647,9 +648,9 @@ class GIMVI(VAEMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
