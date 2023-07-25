@@ -22,16 +22,18 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add `load_sparse_tensor` argument in {class}`scvi.data.AnnTorchDataset` for directly
     loading SciPy CSR and CSC data structures to their PyTorch counterparts, leading to
     faster data loading depending on the sparsity of the data {pr}`2158`.
--   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
+-   Add per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
     method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
     stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
     per-group LFC.
+-   Expose {meth}`torch.save` keyword arguments in {class}`scvi.model.base.BaseModelClass.save`
+    and {class}`scvi.external.GIMVI.save` {pr}`2200`.
 
 #### Changed
 
 -   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
     for increased flexibility over dataset format {pr}`2163`.
--   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
+-   Add per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
     method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
     stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
     per-group LFC.
