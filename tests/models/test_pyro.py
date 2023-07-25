@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import os
-from typing import Optional
 
 import numpy as np
 import pyro
@@ -157,7 +158,7 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
         cls,
         adata: AnnData,
         **kwargs,
-    ) -> Optional[AnnData]:
+    ) -> AnnData | None:
         setup_method_args = cls._get_setup_method_args(**locals())
 
         # add index for each cell (provided to pyro plate for correct minibatching)
@@ -540,7 +541,7 @@ class FunctionBasedPyroModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass)
         cls,
         adata: AnnData,
         **kwargs,
-    ) -> Optional[AnnData]:
+    ) -> AnnData | None:
         setup_method_args = cls._get_setup_method_args(**locals())
 
         anndata_fields = [
