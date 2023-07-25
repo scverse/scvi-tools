@@ -38,7 +38,7 @@ jobs:
                   PLATFORM: ubuntu
                   DISPLAY: :42
               run: |
-                  pytest -v --cov --color=yes --cuda
+                  pytest -v --cov --color=yes --accelerator cuda --devices auto
 
             - name: Upload coverage
               uses: codecov/codecov-action@v3
