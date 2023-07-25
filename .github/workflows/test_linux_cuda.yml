@@ -15,13 +15,11 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                ubuntu: [latest]
-                mamba: [latest]
                 python: ["3.11"]
                 cuda: ["11"]
 
         container:
-            image: martinkim0/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}
+            image: martinkim0/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
             options: --user root --gpus all
 
         steps:
