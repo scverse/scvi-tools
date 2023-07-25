@@ -583,7 +583,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         save_anndata
             If True, also saves the anndata
         save_kwargs
-            Keyword arguments passed into :meth:`~torch.save`.
+            Keyword arguments passed into :func:`~torch.save`.
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
@@ -745,7 +745,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         prefix
             Prefix of saved file names.
         **save_kwargs
-            Keyword arguments passed into :meth:`~torch.save`.
+            Keyword arguments passed into :func:`~torch.save`.
         """
         if not os.path.exists(output_dir_path) or overwrite:
             os.makedirs(output_dir_path, exist_ok=overwrite)
