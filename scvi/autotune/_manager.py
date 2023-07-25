@@ -456,7 +456,7 @@ class TunerManager:
         adata: AnnOrMuData,
         *,
         metric: str | None = None,
-        additional_metrics: list | None = None,
+        additional_metrics: list[str] | None = None,
         search_space: dict | None = None,
         model_kwargs: dict | None = None,
         train_kwargs: dict | None = None,
