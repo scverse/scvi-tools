@@ -28,6 +28,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     per-group LFC.
 -   Expose {meth}`torch.save` keyword arguments in {class}`scvi.model.base.BaseModelClass.save`
     and {class}`scvi.external.GIMVI.save` {pr}`2200`.
+-   Add `model_kwargs` and `train_kwargs` arguments to {meth}`scvi.autotune.ModelTuner.fit` {pr}`2203`.
 
 #### Changed
 
