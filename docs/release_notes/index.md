@@ -60,6 +60,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     argument is ignored {pr}`2162`.
 -   Fix missing docstring for `unlabeled_category` in
     {class}`scvi.model.SCANVI.setup_anndata` and reorder arguments {pr}`2189`.
+-   Fix Pandas 2.0 unpickling error in {meth}`scvi.model.base.BaseModelClas.convert_legacy_save`
+    by switching to {func}`pandas.read_pickle` for the setup dictionary {pr}`2212`.
 
 ### 1.0.2 (2023-07-05)
 
