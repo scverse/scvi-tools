@@ -110,6 +110,7 @@ optional = [
 
 tutorials = [
     "leidenalg",
+    "pooch",
     "pynndescent",
     "igraph",
     "scikit-misc",
