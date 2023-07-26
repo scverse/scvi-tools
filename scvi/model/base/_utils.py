@@ -1,6 +1,5 @@
 import logging
 import os
-import pickle
 import warnings
 from collections.abc import Iterable as IterableClass
 from typing import List, Literal, Optional, Tuple, Union
@@ -36,7 +35,7 @@ def _load_legacy_saved_files(
     var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
 
     with open(setup_dict_path, "rb") as handle:
-        attr_dict = pickle.load(handle)
+        attr_dict = pd.read_pickle(handle)
 
     if load_adata:
         adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
