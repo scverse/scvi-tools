@@ -109,12 +109,17 @@ optional = [
 ]  # all optional user functionality
 
 tutorials = [
+    "cell2location",
     "leidenalg",
+    "muon",
+    "plotnine",
     "pooch",
     "pynndescent",
     "igraph",
     "scikit-misc",
+    "scrublet",
     "scvi-tools[optional]",
+    "squidpy",
 ]  # dependencies for all tutorials
 
 all = ["scvi-tools[dev,docs,tutorials]"]  # all dependencies
