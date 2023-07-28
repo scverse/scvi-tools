@@ -13,6 +13,7 @@ from scipy.stats import pearsonr
 
 from sanity_checks_utils import (
     GROUPS,
+    read_almudena_signature,
     map_hgnc_to_ensg,
     perform_nnls,
     compute_correlations,
@@ -24,8 +25,12 @@ adata = sc.read("/home/owkin/data/cross-tissue/omics/raw/local.h5ad")
 signature_laughney = pd.read_csv(
     "/home/owkin/data/laughney_signature.csv", index_col=0
 ).drop(["Endothelial", "Malignant", "Stroma", "Epithelial"], axis=1)
+signature_almudena = read_almudena_signature(
+    "/home/owkin/project/Almudena/Output/Crosstiss_Immune/CTI.txt"
+)
 # primary cell type categories
 groups = GROUPS["primary_groups"]
+
 
 # %%
 # create cell types
@@ -51,23 +56,28 @@ cell_types_train, cell_types_test = train_test_split(
     random_state=42,
 )
 adata = adata[cell_types_test, :]
-# signature = ... (with train set)
 
 
 # %%
-# map the HGNC notation to ENSG if the signature matrix uses HGNC notation
-mg = mygene.MyGeneInfo()
-genes = mg.querymany(
-    signature_laughney.index,
-    scopes="symbol",
-    fields=["ensembl"],
-    species="human",
-    verbose=False,
-    as_dataframe=True,
-)
-ensg_names = map_hgnc_to_ensg(genes, adata)
-signature = signature_laughney.copy()
-signature.index = ensg_names
+
+signature_choice = "almudena"  # almudena or laughney
+
+if signature_choice == "laughney":
+    # map the HGNC notation to ENSG if the signature matrix uses HGNC notation
+    mg = mygene.MyGeneInfo()
+    genes = mg.querymany(
+        signature_laughney.index,
+        scopes="symbol",
+        fields=["ensembl"],
+        species="human",
+        verbose=False,
+        as_dataframe=True,
+    )
+    ensg_names = map_hgnc_to_ensg(genes, adata)
+    signature = signature_laughney.copy()
+    signature.index = ensg_names
+elif signature_choice == "almudena":
+    signature = signature_almudena.copy()
 
 # intersection between all genes and marker genes
 intersection = list(set(adata.var_names).intersection(signature.index))

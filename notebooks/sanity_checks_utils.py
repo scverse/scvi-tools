@@ -105,6 +105,31 @@ GROUPS = {
 }
 
 
+def read_almudena_signature(path):
+    """Read Almudena's signature matrix. Requires this function because it's a txt file
+    delimited with various delimiters.
+    """
+    signature_almudena = []
+    with open(path, "r") as file:
+        for line in file:
+            temp = []
+            for elem in line.split("\t"):
+                try:
+                    temp.append(float(elem))
+                except:
+                    elem = elem.replace('"', "")
+                    elem = elem.replace("\n", "")
+                    temp.append(elem)
+            signature_almudena.append(temp)
+
+    signature_almudena = pd.DataFrame(signature_almudena).set_index(0)
+    signature_almudena.columns = signature_almudena.iloc[0]
+    signature_almudena = signature_almudena.drop("")
+    signature_almudena.index.name = "Genes"
+    signature_almudena.columns.name = None
+    return signature_almudena
+
+
 def map_hgnc_to_one_ensg(gene_names, adata):
     """
     If a HGNC symbol map to multiple ENSG symbols, choose the one that is in the
