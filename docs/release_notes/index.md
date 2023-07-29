@@ -29,6 +29,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Expose {meth}`torch.save` keyword arguments in {class}`scvi.model.base.BaseModelClass.save`
     and {class}`scvi.external.GIMVI.save` {pr}`2200`.
 -   Add `model_kwargs` and `train_kwargs` arguments to {meth}`scvi.autotune.ModelTuner.fit` {pr}`2203`.
+-   Add `datasplitter_kwargs` to model `train` methods {pr}`2204`.
 
 #### Changed
 
@@ -47,7 +48,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 1.0
 
-### 1.0.3 (2023-MM-DD)
+### 1.0.3 (2023-07-DD)
 
 ### Changed
 
@@ -59,6 +60,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     argument is ignored {pr}`2162`.
 -   Fix missing docstring for `unlabeled_category` in
     {class}`scvi.model.SCANVI.setup_anndata` and reorder arguments {pr}`2189`.
+-   Fix Pandas 2.0 unpickling error in {meth}`scvi.model.base.BaseModelClas.convert_legacy_save`
+    by switching to {func}`pandas.read_pickle` for the setup dictionary {pr}`2212`.
 
 ### 1.0.2 (2023-07-05)
 

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 import warnings
 from copy import deepcopy
-from typing import List, Literal, Optional, Sequence, Union
+from typing import Literal, Sequence
 
 import numpy as np
 import pandas as pd
@@ -185,8 +187,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         cls,
         scvi_model: SCVI,
         unlabeled_category: str,
-        labels_key: Optional[str] = None,
-        adata: Optional[AnnData] = None,
+        labels_key: str | None = None,
+        adata: AnnData | None = None,
         **scanvi_kwargs,
     ):
         """Initialize scanVI model with weights from pretrained :class:`~scvi.model.SCVI` model.
@@ -284,11 +286,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
     def predict(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         soft: bool = False,
-        batch_size: Optional[int] = None,
-    ) -> Union[np.ndarray, pd.DataFrame]:
+        batch_size: int | None = None,
+    ) -> np.ndarray | pd.DataFrame:
         """Return cell label predictions.
 
         Parameters
@@ -349,16 +351,17 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
     @devices_dsp.dedent
     def train(
         self,
-        max_epochs: Optional[int] = None,
-        n_samples_per_label: Optional[float] = None,
-        check_val_every_n_epoch: Optional[int] = None,
+        max_epochs: int | None = None,
+        n_samples_per_label: float | None = None,
+        check_val_every_n_epoch: int | None = None,
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
-        plan_kwargs: Optional[dict] = None,
+        devices: int | list[int] | str = "auto",
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -386,6 +389,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             Minibatch size to use during training.
         %(param_accelerator)s
         %(param_devices)s
+        datasplitter_kwargs
+            Additional keyword arguments passed into
+            :class:`~scvi.dataloaders.SemiSupervisedDataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -401,6 +407,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         logger.info(f"Training for {max_epochs} epochs.")
 
         plan_kwargs = {} if plan_kwargs is None else plan_kwargs
+        datasplitter_kwargs = datasplitter_kwargs or {}
 
         # if we have labeled cells, we want to subsample labels each epoch
         sampler_callback = (
@@ -414,6 +421,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             shuffle_set_split=shuffle_set_split,
             n_samples_per_label=n_samples_per_label,
             batch_size=batch_size,
+            **datasplitter_kwargs,
         )
         training_plan = self._training_plan_cls(
             self.module, self.n_labels, **plan_kwargs
@@ -441,12 +449,12 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         cls,
         adata: AnnData,
         labels_key: str,
-        unlabeled_category: Union[str, int, float],
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
+        unlabeled_category: str | int | float,
+        layer: str | None = None,
+        batch_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -492,7 +500,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
     @staticmethod
     def _get_fields_for_adata_minification(
         minified_data_type: MinifiedDataType,
-    ) -> List[BaseAnnDataField]:
+    ) -> list[BaseAnnDataField]:
         """Return the anndata fields required for adata minification of the given minified_data_type."""
         if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             fields = [

@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from __future__ import annotations
 
 from scvi.autotune._types import Tunable
 from scvi.dataloaders import DataSplitter
@@ -17,16 +17,17 @@ class UnsupervisedTrainingMixin:
     @devices_dsp.dedent
     def train(
         self,
-        max_epochs: Optional[int] = None,
+        max_epochs: int | None = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
         batch_size: Tunable[int] = 128,
         early_stopping: bool = False,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -55,6 +56,8 @@ class UnsupervisedTrainingMixin:
         early_stopping
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -64,7 +67,8 @@ class UnsupervisedTrainingMixin:
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+        plan_kwargs = plan_kwargs or {}
+        datasplitter_kwargs = datasplitter_kwargs or {}
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
@@ -76,6 +80,7 @@ class UnsupervisedTrainingMixin:
                 trainer_kwargs.get("strategy", None)
             ),
             load_sparse_tensor=load_sparse_tensor,
+            **datasplitter_kwargs,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 

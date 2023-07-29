@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
 import warnings
-from typing import List, Optional, Union
 
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
@@ -20,14 +21,15 @@ class JaxTrainingMixin:
     @devices_dsp.dedent
     def train(
         self,
-        max_epochs: Optional[int] = None,
+        max_epochs: int | None = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -51,6 +53,8 @@ class JaxTrainingMixin:
             Minibatch size to use during training.
         lr
             Learning rate to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.JaxTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -75,6 +79,8 @@ class JaxTrainingMixin:
         except RuntimeError:
             logger.debug("No GPU available to Jax.")
 
+        datasplitter_kwargs = datasplitter_kwargs or {}
+
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
@@ -82,6 +88,7 @@ class JaxTrainingMixin:
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
             iter_ndarray=True,
+            **datasplitter_kwargs,
         )
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 

@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import io
 import logging
 import warnings
 from contextlib import redirect_stdout
-from typing import List, Optional, Sequence, Union
+from typing import Sequence
 
 import anndata
 import numpy as np
@@ -98,8 +100,8 @@ class SOLO(BaseModelClass):
     def from_scvi_model(
         cls,
         scvi_model: SCVI,
-        adata: Optional[AnnData] = None,
-        restrict_to_batch: Optional[str] = None,
+        adata: AnnData | None = None,
+        restrict_to_batch: str | None = None,
         doublet_ratio: int = 2,
         **classifier_kwargs,
     ):
@@ -243,7 +245,7 @@ class SOLO(BaseModelClass):
         cls,
         adata_manager: AnnDataManager,
         doublet_ratio: int,
-        indices: Optional[Sequence[int]] = None,
+        indices: Sequence[int] | None = None,
         seed: int = 1,
     ) -> AnnData:
         """Simulate doublets.
@@ -290,12 +292,13 @@ class SOLO(BaseModelClass):
         max_epochs: int = 400,
         lr: float = 1e-3,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         early_stopping: bool = True,
         early_stopping_patience: int = 30,
         early_stopping_min_delta: float = 0.0,
@@ -321,6 +324,8 @@ class SOLO(BaseModelClass):
             sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.ClassifierTrainingPlan`. Keyword arguments passed to
         early_stopping
@@ -340,6 +345,8 @@ class SOLO(BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
+
+        datasplitter_kwargs = datasplitter_kwargs or {}
 
         if early_stopping:
             early_stopping_callback = [
@@ -367,6 +374,7 @@ class SOLO(BaseModelClass):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            **datasplitter_kwargs,
         )
         training_plan = ClassifierTrainingPlan(
             self.module, self.n_labels, **plan_kwargs
@@ -437,8 +445,8 @@ class SOLO(BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        labels_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        labels_key: str | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
