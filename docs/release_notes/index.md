@@ -53,6 +53,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 ### Changed
 
 -   Disable the default selection of MPS when `accelerator="auto"` in Lightning {pr}`2167`.
+-   Change JAX models to use `dict` instead of {class}`flax.core.FrozenDict` according
+    to the Flax migration guide https://github.com/google/flax/discussions/3191 {pr}`2222`.
 
 ### Fixed
 
