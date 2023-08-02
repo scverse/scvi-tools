@@ -2,6 +2,7 @@ import warnings
 from copy import deepcopy
 from typing import Optional, Tuple
 
+import flax
 import lightning.pytorch as pl
 import numpy as np
 import torch
@@ -164,5 +165,5 @@ class JaxModuleInit(Callback):
         else:
             dl = self.dataloader
         module_init = module.init(module.rngs, next(iter(dl)))
-        state, params = module_init.pop("params")
+        state, params = flax.core.pop(module_init, "params")
         pl_module.set_train_state(params, state)
