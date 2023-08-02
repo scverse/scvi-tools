@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import Callable, Dict, Optional, Union
+from typing import Callable
 
 import numpy as np
 import torch
@@ -84,17 +86,18 @@ class PyroSviTrainMixin:
     @devices_dsp.dedent
     def train(
         self,
-        max_epochs: Optional[int] = None,
+        max_epochs: int | None = None,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
+        device: int | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
         early_stopping: bool = False,
-        lr: Optional[float] = None,
-        training_plan: Optional[PyroTrainingPlan] = None,
-        plan_kwargs: Optional[dict] = None,
+        lr: float | None = None,
+        training_plan: PyroTrainingPlan | None = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -125,6 +128,8 @@ class PyroSviTrainMixin:
             Specifying optimiser via plan_kwargs overrides this choice of lr.
         training_plan
             Training plan :class:`~scvi.train.PyroTrainingPlan`.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.PyroTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -138,6 +143,8 @@ class PyroSviTrainMixin:
         if lr is not None and "optim" not in plan_kwargs.keys():
             plan_kwargs.update({"optim_kwargs": {"lr": lr}})
 
+        datasplitter_kwargs = datasplitter_kwargs or {}
+
         if batch_size is None:
             # use data splitter which moves data to GPU once
             data_splitter = DeviceBackedDataSplitter(
@@ -147,6 +154,7 @@ class PyroSviTrainMixin:
                 batch_size=batch_size,
                 accelerator=accelerator,
                 device=device,
+                **datasplitter_kwargs,
             )
         else:
             data_splitter = self._data_splitter_cls(
@@ -155,6 +163,7 @@ class PyroSviTrainMixin:
                 validation_size=validation_size,
                 shuffle_set_split=shuffle_set_split,
                 batch_size=batch_size,
+                **datasplitter_kwargs,
             )
 
         if training_plan is None:
@@ -192,7 +201,7 @@ class PyroSampleMixin:
         self,
         args,
         kwargs,
-        return_sites: Optional[list] = None,
+        return_sites: list | None = None,
         return_observed: bool = False,
     ):
         """Get one sample from posterior distribution.
@@ -249,7 +258,7 @@ class PyroSampleMixin:
         args,
         kwargs,
         num_samples: int = 1000,
-        return_sites: Optional[list] = None,
+        return_sites: list | None = None,
         return_observed: bool = False,
         show_progress: bool = True,
     ):
@@ -358,8 +367,8 @@ class PyroSampleMixin:
     def _posterior_samples_minibatch(
         self,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
-        batch_size: Optional[int] = None,
+        device: int | str = "auto",
+        batch_size: int | None = None,
         **sample_kwargs,
     ):
         """Generate samples of the posterior distribution in minibatches.
@@ -465,13 +474,13 @@ class PyroSampleMixin:
     def sample_posterior(
         self,
         num_samples: int = 1000,
-        return_sites: Optional[list] = None,
+        return_sites: list | None = None,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
-        batch_size: Optional[int] = None,
+        device: int | str = "auto",
+        batch_size: int | None = None,
         return_observed: bool = False,
         return_samples: bool = False,
-        summary_fun: Optional[Dict[str, Callable]] = None,
+        summary_fun: dict[str, Callable] | None = None,
     ):
         """Summarise posterior distribution.
 

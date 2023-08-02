@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Dict, Iterable, List, Literal, Optional, Sequence, Tuple, Union
+from typing import Iterable, Literal, Sequence
 
 import numpy as np
 import pandas as pd
@@ -107,7 +109,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         ] = "protein",
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        empirical_protein_background_prior: Optional[bool] = None,
+        empirical_protein_background_prior: bool | None = None,
         override_missing_proteins: bool = False,
         **model_kwargs,
     ):
@@ -195,21 +197,22 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @devices_dsp.dedent
     def train(
         self,
-        max_epochs: Optional[int] = None,
+        max_epochs: int | None = None,
         lr: float = 4e-3,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 256,
         early_stopping: bool = True,
-        check_val_every_n_epoch: Optional[int] = None,
+        check_val_every_n_epoch: int | None = None,
         reduce_lr_on_plateau: bool = True,
-        n_steps_kl_warmup: Union[int, None] = None,
-        n_epochs_kl_warmup: Union[int, None] = None,
-        adversarial_classifier: Optional[bool] = None,
-        plan_kwargs: Optional[dict] = None,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = None,
+        adversarial_classifier: bool | None = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **kwargs,
     ):
         """Trains the model using amortized variational inference.
@@ -251,6 +254,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Whether to use adversarial classifier in the latent space. This helps mixing when
             there are missing proteins in any of the batches. Defaults to `True` is missing proteins
             are detected.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.AdversarialTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -283,6 +288,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+        datasplitter_kwargs = datasplitter_kwargs or {}
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
@@ -290,6 +296,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            **datasplitter_kwargs,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
         runner = self._train_runner_cls(
@@ -308,10 +315,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @torch.inference_mode()
     def get_latent_library_size(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         give_mean: bool = True,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> np.ndarray:
         r"""Returns the latent library size for each cell.
 
@@ -353,19 +360,19 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata=None,
         indices=None,
-        n_samples_overall: Optional[int] = None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        gene_list: Optional[Sequence[str]] = None,
-        protein_list: Optional[Sequence[str]] = None,
-        library_size: Optional[Union[float, Literal["latent"]]] = 1,
+        n_samples_overall: int | None = None,
+        transform_batch: Sequence[Number | str] | None = None,
+        gene_list: Sequence[str] | None = None,
+        protein_list: Sequence[str] | None = None,
+        library_size: float | Literal["latent"] | None = 1,
         n_samples: int = 1,
         sample_protein_mixing: bool = False,
         scale_protein: bool = False,
         include_protein_background: bool = False,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         return_mean: bool = True,
-        return_numpy: Optional[bool] = None,
-    ) -> Tuple[Union[np.ndarray, pd.DataFrame], Union[np.ndarray, pd.DataFrame]]:
+        return_numpy: bool | None = None,
+    ) -> tuple[np.ndarray | pd.DataFrame, np.ndarray | pd.DataFrame]:
         r"""Returns the normalized gene expression and protein expression.
 
         This is denoted as :math:`\rho_n` in the totalVI paper for genes, and TODO
@@ -546,14 +553,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @torch.inference_mode()
     def get_protein_foreground_probability(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        protein_list: Optional[Sequence[str]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        transform_batch: Sequence[Number | str] | None = None,
+        protein_list: Sequence[str] | None = None,
         n_samples: int = 1,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         return_mean: bool = True,
-        return_numpy: Optional[bool] = None,
+        return_numpy: bool | None = None,
     ):
         r"""Returns the foreground probability for proteins.
 
@@ -673,9 +680,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         adata=None,
         indices=None,
         n_samples_overall=None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
+        transform_batch: Sequence[Number | str] | None = None,
         scale_protein=False,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         sample_protein_mixing=False,
         include_protein_background=False,
         protein_prior_count=0.5,
@@ -700,19 +707,19 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @de_dsp.dedent
     def differential_expression(
         self,
-        adata: Optional[AnnData] = None,
-        groupby: Optional[str] = None,
-        group1: Optional[Iterable[str]] = None,
-        group2: Optional[str] = None,
-        idx1: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
-        idx2: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        adata: AnnData | None = None,
+        groupby: str | None = None,
+        group1: Iterable[str] | None = None,
+        group2: str | None = None,
+        idx1: Sequence[int] | Sequence[bool] | str | None = None,
+        idx2: Sequence[int] | Sequence[bool] | str | None = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         all_stats: bool = True,
         batch_correction: bool = False,
-        batchid1: Optional[Iterable[str]] = None,
-        batchid2: Optional[Iterable[str]] = None,
+        batchid1: Iterable[str] | None = None,
+        batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
         protein_prior_count: float = 0.1,
@@ -801,12 +808,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @torch.inference_mode()
     def posterior_predictive_sample(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         n_samples: int = 1,
-        batch_size: Optional[int] = None,
-        gene_list: Optional[Sequence[str]] = None,
-        protein_list: Optional[Sequence[str]] = None,
+        batch_size: int | None = None,
+        gene_list: Sequence[str] | None = None,
+        protein_list: Sequence[str] | None = None,
     ) -> np.ndarray:
         r"""Generate observation samples from the posterior predictive distribution.
 
@@ -877,7 +884,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_samples: int = 25,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[int] = None,
+        transform_batch: int | None = None,
     ) -> np.ndarray:
         """Return samples from an adjusted posterior predictive.
 
@@ -961,7 +968,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_samples: int = 10,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
+        transform_batch: Sequence[Number | str] | None = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
         log_transform: bool = False,
     ) -> pd.DataFrame:
@@ -1047,12 +1054,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @torch.inference_mode()
     def get_likelihood_parameters(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        n_samples: Optional[int] = 1,
-        give_mean: Optional[bool] = False,
-        batch_size: Optional[int] = None,
-    ) -> Dict[str, np.ndarray]:
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        n_samples: int | None = 1,
+        give_mean: bool | None = False,
+        batch_size: int | None = None,
+    ) -> dict[str, np.ndarray]:
         r"""Estimates for the parameters of the likelihood :math:`p(x, y \mid z)`.
 
         Parameters
@@ -1072,7 +1079,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         raise NotImplementedError
 
     def _validate_anndata(
-        self, adata: Optional[AnnData] = None, copy_if_view: bool = True
+        self, adata: AnnData | None = None, copy_if_view: bool = True
     ):
         adata = super()._validate_anndata(adata=adata, copy_if_view=copy_if_view)
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
@@ -1209,12 +1216,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         cls,
         adata: AnnData,
         protein_expression_obsm_key: str,
-        protein_names_uns_key: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        layer: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
+        protein_names_uns_key: str | None = None,
+        batch_key: str | None = None,
+        layer: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -1274,13 +1281,13 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     def setup_mudata(
         cls,
         mdata: MuData,
-        rna_layer: Optional[str] = None,
-        protein_layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
-        modalities: Optional[Dict[str, str]] = None,
+        rna_layer: str | None = None,
+        protein_layer: str | None = None,
+        batch_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        modalities: dict[str, str] | None = None,
         **kwargs,
     ):
         """%(summary_mdata)s.

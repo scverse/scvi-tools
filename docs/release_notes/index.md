@@ -22,16 +22,20 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add `load_sparse_tensor` argument in {class}`scvi.data.AnnTorchDataset` for directly
     loading SciPy CSR and CSC data structures to their PyTorch counterparts, leading to
     faster data loading depending on the sparsity of the data {pr}`2158`.
--   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
+-   Add per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
     method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
     stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
     per-group LFC.
+-   Expose {meth}`torch.save` keyword arguments in {class}`scvi.model.base.BaseModelClass.save`
+    and {class}`scvi.external.GIMVI.save` {pr}`2200`.
+-   Add `model_kwargs` and `train_kwargs` arguments to {meth}`scvi.autotune.ModelTuner.fit` {pr}`2203`.
+-   Add `datasplitter_kwargs` to model `train` methods {pr}`2204`.
 
 #### Changed
 
 -   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
     for increased flexibility over dataset format {pr}`2163`.
--   Added per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
+-   Add per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
     method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
     stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
     per-group LFC.
@@ -44,7 +48,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 1.0
 
-### 1.0.3 (2023-MM-DD)
+### 1.0.3 (2023-07-DD)
 
 ### Changed
 
@@ -56,6 +60,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     argument is ignored {pr}`2162`.
 -   Fix missing docstring for `unlabeled_category` in
     {class}`scvi.model.SCANVI.setup_anndata` and reorder arguments {pr}`2189`.
+-   Fix Pandas 2.0 unpickling error in {meth}`scvi.model.base.BaseModelClas.convert_legacy_save`
+    by switching to {func}`pandas.read_pickle` for the setup dictionary {pr}`2212`.
 
 ### 1.0.2 (2023-07-05)
 
