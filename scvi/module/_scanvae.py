@@ -202,7 +202,7 @@ class SCANVAE(VAE):
         batch_index: Optional[torch.Tensor] = None,
         cont_covs: Optional[torch.Tensor] = None,
         cat_covs: Optional[torch.Tensor] = None,
-        use_posterior_mean: bool = False,
+        use_posterior_mean: bool = True,
     ) -> torch.Tensor:
         """Classify cells into cell types."""
         if self.log_variational:

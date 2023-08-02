@@ -306,7 +306,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         use_posterior_mean
             If ``True``, uses the mean of the posterior distribution to predict celltype
-            labels. Otherwise, uses the sample from the posterior distribution.
+            labels. Otherwise, samples from the posterior distribution.
         """
         adata = self._validate_anndata(adata)
 
