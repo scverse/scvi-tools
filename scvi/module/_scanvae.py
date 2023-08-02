@@ -202,6 +202,7 @@ class SCANVAE(VAE):
         batch_index: Optional[torch.Tensor] = None,
         cont_covs: Optional[torch.Tensor] = None,
         cat_covs: Optional[torch.Tensor] = None,
+        use_posterior_mean: bool = False,
     ) -> torch.Tensor:
         """Classify cells into cell types."""
         if self.log_variational:
@@ -217,8 +218,8 @@ class SCANVAE(VAE):
             categorical_input = ()
 
         qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-        # We classify using the inferred mean parameter of z_1 in the latent space
-        z = qz.loc
+        z = qz.loc if use_posterior_mean else z
+
         if self.use_labels_groups:
             w_g = self.classifier_groups(z)
             unw_y = self.classifier(z)
