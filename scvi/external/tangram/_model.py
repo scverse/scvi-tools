@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List, Literal, Optional, Union
 
+import flax
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -171,7 +172,7 @@ class Tangram(BaseModelClass):
         tensor_dict = self._get_tensor_dict(device=device)
         training_plan = JaxTrainingPlan(self.module, **plan_kwargs)
         module_init = self.module.init(self.module.rngs, tensor_dict)
-        state, params = module_init.pop("params")
+        state, params = flax.core.pop(module_init, "params")
         training_plan.set_train_state(params, state)
         train_step_fn = JaxTrainingPlan.jit_training_step
         pbar = track(range(max_epochs), style="tqdm", description="Training")
