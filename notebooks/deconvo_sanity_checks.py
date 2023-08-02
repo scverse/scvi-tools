@@ -26,8 +26,8 @@ signature_laughney = pd.read_csv(
     "/home/owkin/data/laughney_signature.csv", index_col=0
 ).drop(["Endothelial", "Malignant", "Stroma", "Epithelial"], axis=1)
 signature_almudena = read_almudena_signature(
-    "/home/owkin/project/Almudena/Output/Crosstiss_Immune/CTI.txt"
-)
+    "/home/owkin/project/Almudena/Output/Crosstiss_Immune_norm/CTI.txt"
+)  # it is the normalised one (using adata.X and not adata.raw.X, to match this code)
 # primary cell type categories
 groups = GROUPS["primary_groups"]
 
