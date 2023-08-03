@@ -206,7 +206,7 @@ class SCANVAE(VAE):
     ) -> torch.Tensor:
         """Classify cells into cell types."""
         if self.log_variational:
-            x = torch.log(1 + x)
+            x = torch.log1p(x)
 
         if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat((x, cont_covs), dim=-1)
