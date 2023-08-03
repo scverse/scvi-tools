@@ -9,11 +9,27 @@
 [![Coverage](https://codecov.io/gh/scverse/scvi-tools/branch/main/graph/badge.svg)](https://codecov.io/gh/scverse/scvi-tools)
 [![Discourse](https://img.shields.io/discourse/posts?color=yellow&logo=discourse&server=https%3A%2F%2Fdiscourse.scverse.org)](https://discourse.scverse.org/)
 [![Chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://scverse.zulipchat.com/)
+[![Powered by NumFOCUS][badge-numfocus]][link-numfocus]
 
 [scvi-tools](https://scvi-tools.org/) (single-cell variational inference
 tools) is a package for probabilistic modeling and analysis of single-cell omics
 data, built on top of [PyTorch](https://pytorch.org) and
 [AnnData](https://anndata.readthedocs.io/en/latest/).
+
+[//]: # "numfocus-fiscal-sponsor-attribution"
+
+scvi-tools is part of the scverse project ([website](https://scverse.org), [governance](https://scverse.org/about/roles)) and is fiscally sponsored by [NumFOCUS](https://numfocus.org/).
+Please consider making a tax-deductible [donation](https://numfocus.org/donate-to-scverse) to help the project pay for developer time, professional services, travel, workshops, and a variety of other needs.
+
+<a href="https://numfocus.org/project/scverse">
+  <img
+    src="https://raw.githubusercontent.com/numfocus/templates/master/images/numfocus-logo.png"
+    width="200"
+  >
+</a>
+
+[badge-numfocus]: https://img.shields.io/badge/powered%20by-NumFOCUS-orange.svg?style=flat&colorA=E1523D&colorB=007D8A
+[link-numfocus]: http://numfocus.org
 
 # Analysis of single-cell omics data
 
