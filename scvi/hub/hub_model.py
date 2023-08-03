@@ -45,8 +45,8 @@ class HubModel:
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/scvi_hub_intro_and_download`
-    2. :doc:`/tutorials/notebooks/scvi_hub_upload_and_large_files`
+    1. :doc:`/tutorials/notebooks/hub/scvi_hub_intro_and_download`
+    2. :doc:`/tutorials/notebooks/hub/scvi_hub_upload_and_large_files`
     """
 
     def __init__(
