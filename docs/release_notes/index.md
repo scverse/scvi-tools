@@ -39,6 +39,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
     stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
     per-group LFC.
+-   `n_hidden` is taking effect in AmortizedLDA.
 
 #### Removed
 
