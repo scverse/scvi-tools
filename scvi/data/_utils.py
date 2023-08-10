@@ -61,12 +61,14 @@ def convert_scipy_sparse_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
             as_tensor(x.indptr),
             as_tensor(x.indices),
             as_tensor(x.data),
+            size=x.shape,
         )
     elif isinstance(x, (sp_sparse.csc_matrix, sp_sparse.csc_array)):
         return sparse_csc_tensor(
             as_tensor(x.indptr),
             as_tensor(x.indices),
             as_tensor(x.data),
+            size=x.shape,
         )
     else:
         raise TypeError(
