@@ -33,6 +33,11 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for
     stochastic prediction of celltype labels {pr}`2224`.
 
+#### Fixed
+
+-   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder` in {class}`scvi.model.AmortizedLDA`
+    {pr}`2229`
+
 #### Changed
 
 -   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
