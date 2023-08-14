@@ -85,9 +85,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/totalVI`
-    2. :doc:`/tutorials/notebooks/cite_scrna_integration_w_totalVI`
-    3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
+    1. :doc:`/tutorials/notebooks/multimodal/totalVI`
+    2. :doc:`/tutorials/notebooks/multimodal/cite_scrna_integration_w_totalVI`
+    3. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
     """
 
     _module_cls = TOTALVAE

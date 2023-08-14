@@ -76,7 +76,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/PeakVI`
+    1. :doc:`/tutorials/notebooks/atac/PeakVI`
     """
 
     _module_cls = PEAKVAE

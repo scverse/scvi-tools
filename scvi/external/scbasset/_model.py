@@ -49,6 +49,13 @@ class SCBASSET(BaseModelClass):
     >>> model = scvi.external.SCBASSET(adata)
     >>> model.train()
     >>> adata.varm["X_scbasset"] = model.get_latent_representation()
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/atac/scbasset`
+    2. :doc:`/tutorials/notebooks/atac/scbasset_batch`
     """
 
     MOTIF_URLS = {
