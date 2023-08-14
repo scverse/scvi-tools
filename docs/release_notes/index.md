@@ -30,6 +30,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     and {class}`scvi.external.GIMVI.save` {pr}`2200`.
 -   Add `model_kwargs` and `train_kwargs` arguments to {meth}`scvi.autotune.ModelTuner.fit` {pr}`2203`.
 -   Add `datasplitter_kwargs` to model `train` methods {pr}`2204`.
+-   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for
+    stochastic prediction of celltype labels {pr}`2224`.
 
 #### Changed
 
