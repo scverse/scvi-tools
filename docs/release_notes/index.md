@@ -33,6 +33,11 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for
     stochastic prediction of celltype labels {pr}`2224`.
 
+#### Fixed
+
+-   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder` in {class}`scvi.model.AmortizedLDA`
+    {pr}`2229`
+
 #### Changed
 
 -   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
@@ -41,6 +46,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
     stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
     per-group LFC.
+-   `n_hidden` is taking effect in AmortizedLDA.
 
 #### Removed
 
