@@ -65,7 +65,14 @@ class BaseModelMetaClass(ABCMeta):
 
 
 class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
-    """Abstract class for scvi-tools models."""
+    """Abstract class for scvi-tools models.
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/dev/model_user_guide`
+    """
 
     _data_loader_cls = AnnDataLoader
 

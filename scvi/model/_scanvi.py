@@ -98,9 +98,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/harmonization`
-    2. :doc:`/tutorials/notebooks/scarches_scvi_tools`
-    3. :doc:`/tutorials/notebooks/seed_labeling`
+    1. :doc:`/tutorials/notebooks/scrna/harmonization`
+    2. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
+    3. :doc:`/tutorials/notebooks/scrna/seed_labeling`
     """
 
     _module_cls = SCANVAE

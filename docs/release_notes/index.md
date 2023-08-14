@@ -50,7 +50,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 1.0
 
-### 1.0.3 (2023-07-DD)
+### 1.0.3 (2023-08-13)
 
 ### Changed
 

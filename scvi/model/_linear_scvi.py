@@ -65,7 +65,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/linear_decoder`
+    1. :doc:`/tutorials/notebooks/scrna/linear_decoder`
     """
 
     _module_cls = LDVAE

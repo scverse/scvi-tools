@@ -90,7 +90,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
     modules.
 
     The following developer tutorial will familiarize you more with training plans
-    and how to use them: :doc:`/tutorials/notebooks/model_user_guide`.
+    and how to use them: :doc:`/tutorials/notebooks/dev/model_user_guide`.
 
     Parameters
     ----------
