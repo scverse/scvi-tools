@@ -89,10 +89,10 @@ class SCVI(
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/api_overview`
-    2. :doc:`/tutorials/notebooks/harmonization`
-    3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
-    4. :doc:`/tutorials/notebooks/scvi_in_R`
+    1. :doc:`/tutorials/notebooks/quick_start/api_overview`
+    2. :doc:`/tutorials/notebooks/scrna/harmonization`
+    3. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
+    4. :doc:`/tutorials/notebooks/scrna/scvi_in_R`
     """
 
     _module_cls = VAE
