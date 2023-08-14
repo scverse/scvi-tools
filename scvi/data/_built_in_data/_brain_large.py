@@ -96,9 +96,7 @@ def _load_brainlarge_file(
             else:
                 matrix = sp_sparse.vstack([matrix, matrix_batch])
             logger.info(
-                "loaded {} / {} cells".format(
-                    i * loading_batch_size + n_cells_batch, n_cells_to_keep
-                )
+                f"loaded {i * loading_batch_size + n_cells_batch} / {n_cells_to_keep} cells"
             )
     logger.info("%d cells subsampled" % matrix.shape[0])
     logger.info("%d genes subsampled" % matrix.shape[1])

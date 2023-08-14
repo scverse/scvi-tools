@@ -51,9 +51,9 @@ def validate_data_split(
 
     if n_train == 0:
         raise ValueError(
-            "With n_samples={}, train_size={} and validation_size={}, the "
+            f"With n_samples={n_samples}, train_size={train_size} and validation_size={validation_size}, the "
             "resulting train set will be empty. Adjust any of the "
-            "aforementioned parameters.".format(n_samples, train_size, validation_size)
+            "aforementioned parameters."
         )
 
     return n_train, n_val
