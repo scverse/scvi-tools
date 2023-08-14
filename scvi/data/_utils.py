@@ -212,8 +212,8 @@ def _make_column_categorical(
     if -1 in unique:
         received_categories = df[column_key].astype("category").cat.categories
         raise ValueError(
-            'Making .obs["{}"] categorical failed. Expected categories: {}. '
-            "Received categories: {}. ".format(column_key, mapping, received_categories)
+            f'Making .obs["{column_key}"] categorical failed. Expected categories: {mapping}. '
+            f"Received categories: {received_categories}. "
         )
     df[alternate_column_key] = codes
 
