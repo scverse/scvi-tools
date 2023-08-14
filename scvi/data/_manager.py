@@ -74,6 +74,10 @@ class AnnDataManager:
     This class is not initialized with a specific AnnData object, but later sets ``self.adata``
     via :meth:`~scvi.data.AnnDataManager.register_fields`. This decouples the generalized
     definition of the scvi-tools interface with the registration of an instance of data.
+
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/dev/data_tutorial`
     """
 
     def __init__(

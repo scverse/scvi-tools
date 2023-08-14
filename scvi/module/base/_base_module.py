@@ -144,7 +144,14 @@ class LossOutput:
 
 
 class BaseModuleClass(TunableMixin, nn.Module):
-    """Abstract class for scvi-tools modules."""
+    """Abstract class for scvi-tools modules.
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/dev/module_user_guide`
+    """
 
     def __init__(
         self,

@@ -86,7 +86,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/AutoZI_tutorial`
+    1. :doc:`/tutorials/notebooks/scrna/AutoZI_tutorial`
     """
 
     _module_cls = AutoZIVAE
