@@ -33,6 +33,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for
     stochastic prediction of celltype labels {pr}`2224`.
 -   Add support for Python 3.10+ type annotations in {class}`scvi.autotune.ModelTuner` {pr}`2239`.
+-   Add support for modeling batch effects with an embedding layer in
+    {class}`scvi.model.SCVI` with argument `use_batch_embedding` {pr}`2240`.
 
 #### Fixed
 
