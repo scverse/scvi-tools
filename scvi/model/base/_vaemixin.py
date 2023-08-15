@@ -225,10 +225,14 @@ class VAEMixin:
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnData object with equivalent structure to initial AnnData. If ``None``, defaults to
+            the AnnData object used to initialize the model.
         batch_keys
+            Keys for batches to return representations for. If ``None``, all batches are used.
 
+        Returns
+        -------
+        Array of batch representations of shape ``(n_batches, batch_embedding_dim)``.
         """
         self._check_if_trained(warn=False)
 
