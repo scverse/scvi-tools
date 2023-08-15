@@ -210,3 +210,15 @@ class VAEMixin:
             if return_dist
             else torch.cat(latent).numpy()
         )
+
+    @torch.inference_mode()
+    def get_batch_representation(self) -> np.ndarray:
+        """Return the batch representations."""
+        self._check_if_trained(warn=False)
+
+        if not hasattr(self.module, "batch_embedding"):
+            raise NotImplementedError(
+                "Module does not have attribute `batch_embedding`."
+            )
+
+        return self.module.batch_embedding.weight.detach().cpu().numpy()

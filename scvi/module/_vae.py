@@ -1,11 +1,10 @@
-"""Main module."""
 import logging
 from typing import Callable, Iterable, Literal, Optional
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import logsumexp
+from torch import logsumexp, nn
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
@@ -71,6 +70,12 @@ class VAE(BaseMinifiedModeModuleClass):
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
+    use_batch_embedding
+        If ``True``, encodes batch indexes using an embedding layer. Otherwise,
+        uses one-hot encodings.
+    batch_embedding_dim
+        If ``use_batch_embedding`` is ``True``, specifies the dimensionality of
+        the batch embedding layer.
     use_batch_norm
         Whether to use batch norm in layers.
     use_layer_norm
@@ -114,6 +119,8 @@ class VAE(BaseMinifiedModeModuleClass):
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
         encode_covariates: Tunable[bool] = False,
         deeply_inject_covariates: Tunable[bool] = True,
+        use_batch_embedding: Tunable[bool] = False,
+        batch_embedding_dim: Tunable[int] = 5,
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
         use_size_factor_key: bool = False,
@@ -165,6 +172,12 @@ class VAE(BaseMinifiedModeModuleClass):
                 " 'gene-label', 'gene-cell'], but input was "
                 "{}.format(self.dispersion)"
             )
+
+        self.batch_embedding = None
+        if use_batch_embedding:
+            self.batch_embedding = nn.Embedding(n_batch, batch_embedding_dim)
+            # fclayers expects size of batch input == n_batch
+            n_batch = batch_embedding_dim
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
@@ -235,6 +248,10 @@ class VAE(BaseMinifiedModeModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
+        if self.batch_embedding is not None:
+            batch_index = batch_index.to(torch.long).flatten()
+            batch_index = self.batch_embedding(batch_index)
+
         if self.minified_data_type is None:
             x = tensors[REGISTRY_KEYS.X_KEY]
             input_dict = {
@@ -278,6 +295,10 @@ class VAE(BaseMinifiedModeModuleClass):
             if size_factor_key in tensors.keys()
             else None
         )
+
+        if self.batch_embedding is not None:
+            batch_index = batch_index.to(torch.long).flatten()
+            batch_index = self.batch_embedding(batch_index)
 
         input_dict = {
             "z": z,
