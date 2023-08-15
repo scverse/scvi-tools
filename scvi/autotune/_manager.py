@@ -113,21 +113,31 @@ class TunerManager:
             # get function kwargs that are tunable
             tunables = {}
             for param, metadata in inspect.signature(func).parameters.items():
-                if not isinstance(metadata.annotation, TunableMeta):
+                cond1 = isinstance(metadata.annotation, TunableMeta)
+                cond2 = "Tunable" in str(
+                    metadata.annotation
+                )  # needed for new type annotation
+                if not cond1 and not cond2:
                     continue
 
                 default_val = None
                 if metadata.default is not inspect.Parameter.empty:
                     default_val = metadata.default
 
-                annotation = metadata.annotation.__args__[0]
-                if hasattr(annotation, "__args__"):
-                    # e.g. if type is Literal, get its arguments
-                    annotation = annotation.__args__
-                elif hasattr(annotation, "__name__"):
-                    annotation = annotation.__name__
+                if cond1:
+                    annotation = metadata.annotation.__args__[0]
+                    if hasattr(annotation, "__args__"):
+                        # e.g. if type is Literal, get its arguments
+                        annotation = annotation.__args__
+                    elif hasattr(annotation, "__name__"):
+                        annotation = annotation.__name__
+                    else:
+                        annotation = str(annotation)
                 else:
-                    annotation = str(annotation)
+                    annotation = metadata.annotation
+                    annotation = annotation[
+                        annotation.find("[") + 1 : annotation.rfind("]")
+                    ]
 
                 tunables[param] = {
                     "tunable_type": tunable_type,
