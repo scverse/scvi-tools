@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import logging
-from typing import Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 import numpy as np
 import torch
 from anndata import AnnData
 
+from scvi import REGISTRY_KEYS
 from scvi.utils import unsupported_if_adata_minified
 
 from ._log_likelihood import compute_elbo, compute_reconstruction_error
@@ -19,9 +22,9 @@ class VAEMixin:
     @unsupported_if_adata_minified
     def get_elbo(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> float:
         """Return the ELBO for the data.
 
@@ -49,13 +52,13 @@ class VAEMixin:
     @unsupported_if_adata_minified
     def get_marginal_ll(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         n_mc_samples: int = 1000,
-        batch_size: Optional[int] = None,
-        return_mean: Optional[bool] = True,
+        batch_size: int | None = None,
+        return_mean: bool = True,
         **kwargs,
-    ) -> Union[torch.Tensor, float]:
+    ) -> torch.Tensor | float:
         """Return the marginal LL for the data.
 
         The computation here is a biased estimator of the marginal log likelihood of the data.
@@ -110,9 +113,9 @@ class VAEMixin:
     @unsupported_if_adata_minified
     def get_reconstruction_error(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> float:
         r"""Return the reconstruction error for the data.
 
@@ -139,13 +142,13 @@ class VAEMixin:
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         give_mean: bool = True,
         mc_samples: int = 5000,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         return_dist: bool = False,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         """Return the latent representation for each cell.
 
         This is typically denoted as :math:`z_n`.
@@ -212,13 +215,39 @@ class VAEMixin:
         )
 
     @torch.inference_mode()
-    def get_batch_representation(self) -> np.ndarray:
-        """Return the batch representations."""
+    def get_batch_representation(
+        self,
+        adata: AnnData | None = None,
+        batch_keys: list[str] | None = None,
+    ) -> np.ndarray:
+        """Return batch representations.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        batch_keys
+
+        """
         self._check_if_trained(warn=False)
 
         if not hasattr(self.module, "batch_embedding"):
-            raise NotImplementedError(
-                "Module does not have attribute `batch_embedding`."
-            )
+            raise NotImplementedError("Model does not support batch embeddings.")
+        if self.module.batch_embedding is None:
+            raise ValueError("Model was not trained with batch embeddings.")
 
-        return self.module.batch_embedding.weight.detach().cpu().numpy()
+        adata = self._validate_anndata(adata)
+        manager = self.get_anndata_manager(adata)
+        batch_state_registry = manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)
+        cat_mapping = batch_state_registry.categorical_mapping
+
+        if batch_keys is None:
+            batch_indexes = np.arange(len(cat_mapping))
+        elif not all((key in cat_mapping) for key in batch_keys):
+            raise ValueError("``batch_keys`` contains keys not present in ``adata``.")
+        else:
+            batch_indexes = np.where(cat_mapping == batch_keys)[0]
+
+        batch_embeddings = self.module.batch_embedding.weight.detach().cpu().numpy()
+        return batch_embeddings[batch_indexes]

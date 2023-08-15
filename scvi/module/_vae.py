@@ -175,6 +175,12 @@ class VAE(BaseMinifiedModeModuleClass):
 
         self.batch_embedding = None
         if use_batch_embedding:
+            if n_batch < 2:
+                raise ValueError(
+                    "`adata` must have more than 1 batch when passing in "
+                    "`use_batch_embedding=True`."
+                )
+
             self.batch_embedding = nn.Embedding(n_batch, batch_embedding_dim)
             # fclayers expects size of batch input == n_batch
             n_batch = batch_embedding_dim
