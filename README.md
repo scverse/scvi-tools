@@ -2,7 +2,7 @@
 
 [![Stars](https://img.shields.io/github/stars/scverse/scvi-tools?logo=GitHub&color=yellow)](https://github.com/scverse/scvi-tools/stargazers)
 [![PyPI](https://img.shields.io/pypi/v/scvi-tools.svg)](https://pypi.org/project/scvi-tools)
-[![PyPIDownloads](https://pepy.tech/badge/scvi-tools)](https://pepy.tech/project/scvi-tools)
+[![PyPIDownloads](https://static.pepy.tech/badge/scvi-tools)](https://pepy.tech/project/scvi-tools)
 [![CondaDownloads](https://img.shields.io/conda/dn/conda-forge/scvi-tools?logo=Anaconda)](https://anaconda.org/conda-forge/scvi-tools)
 [![Docs](https://readthedocs.org/projects/scvi/badge/?version=latest)](https://scvi.readthedocs.io/en/stable/?badge=stable)
 [![Build](https://github.com/scverse/scvi-tools/actions/workflows/build.yml/badge.svg)](https://github.com/scverse/scvi-tools/actions/workflows/build.yml/)
