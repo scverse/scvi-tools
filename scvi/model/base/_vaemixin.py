@@ -149,7 +149,7 @@ class VAEMixin:
         batch_size: int | None = None,
         return_dist: bool = False,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
-        """``EXPERIMENTAL`` Return the latent representation for each cell.
+        """Return the latent representation for each cell.
 
         This is typically denoted as :math:`z_n`.
 
@@ -219,7 +219,7 @@ class VAEMixin:
         self,
         batch_keys: list[str] | None = None,
     ) -> np.ndarray:
-        """Return batch representations.
+        """`EXPERIMENTAL` Return batch representations.
 
         The model must be initialized with ``use_batch_embeddings=True`` and
         trained in order to use this method.

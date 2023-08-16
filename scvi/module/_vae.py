@@ -71,10 +71,10 @@ class VAE(BaseMinifiedModeModuleClass):
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     use_batch_embedding
-        ``EXPERIMENTAL`` If ``True``, encodes batch indexes using an embedding
+        `EXPERIMENTAL` If ``True``, encodes batch indexes using an embedding
         layer. Otherwise, uses one-hot encodings.
     batch_embedding_dim
-        ``EXPERIMENTAL`` If ``use_batch_embedding`` is ``True``, specifies the
+        `EXPERIMENTAL` If ``use_batch_embedding`` is ``True``, specifies the
         dimensionality of the batch embedding layer.
     use_batch_norm
         Whether to use batch norm in layers.
