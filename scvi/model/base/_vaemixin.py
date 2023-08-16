@@ -255,5 +255,5 @@ class VAEMixin:
                 [np.where(cat_mapping == key)[0] for key in batch_keys]
             )
 
-        batch_embeddings = self.module.batch_embedding.weight.detach().cpu().numpy()
+        batch_embeddings = self.module.batch_embedding.weight.cpu().numpy()
         return batch_embeddings[batch_indexes]
