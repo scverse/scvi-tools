@@ -217,16 +217,15 @@ class VAEMixin:
     @torch.inference_mode()
     def get_batch_representation(
         self,
-        adata: AnnData | None = None,
         batch_keys: list[str] | None = None,
     ) -> np.ndarray:
         """Return batch representations.
 
+        The model be initialized with ``use_batch_embeddings=True`` and trained
+        in order to use this method.
+
         Parameters
         ----------
-        adata
-            AnnData object with equivalent structure to initial AnnData. If ``None``, defaults to
-            the AnnData object used to initialize the model.
         batch_keys
             Keys for batches to return representations for. If ``None``, all batches are used.
 
@@ -236,13 +235,15 @@ class VAEMixin:
         """
         self._check_if_trained(warn=False)
 
-        if not hasattr(self.module, "batch_embedding"):
-            raise NotImplementedError("Model does not support batch embeddings.")
-        elif self.module.batch_embedding is None:
-            raise ValueError("Model was not trained with batch embeddings.")
+        if (
+            not hasattr(self.module, "batch_embedding")
+            or self.module.batch_embedding is None
+        ):
+            raise NotImplementedError(
+                "Model does not support or was not trained with batch embeddings."
+            )
 
-        adata = self._validate_anndata(adata)
-        manager = self.get_anndata_manager(adata)
+        manager = self.get_anndata_manager(self.adata)
         batch_state_registry = manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)
         cat_mapping = batch_state_registry.categorical_mapping
 
