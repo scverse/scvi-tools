@@ -221,13 +221,14 @@ class VAEMixin:
     ) -> np.ndarray:
         """Return batch representations.
 
-        The model be initialized with ``use_batch_embeddings=True`` and trained
-        in order to use this method.
+        The model must be initialized with ``use_batch_embeddings=True`` and
+        trained in order to use this method.
 
         Parameters
         ----------
         batch_keys
-            Keys for batches to return representations for. If ``None``, all batches are used.
+            Keys for batches to return representations for. If ``None``,
+            representations for all batches are returned.
 
         Returns
         -------
