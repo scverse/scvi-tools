@@ -238,7 +238,7 @@ class VAEMixin:
 
         if not hasattr(self.module, "batch_embedding"):
             raise NotImplementedError("Model does not support batch embeddings.")
-        if self.module.batch_embedding is None:
+        elif self.module.batch_embedding is None:
             raise ValueError("Model was not trained with batch embeddings.")
 
         adata = self._validate_anndata(adata)
@@ -251,7 +251,9 @@ class VAEMixin:
         elif not all((key in cat_mapping) for key in batch_keys):
             raise ValueError("``batch_keys`` contains keys not present in ``adata``.")
         else:
-            batch_indexes = np.where(cat_mapping == batch_keys)[0]
+            batch_indexes = np.concatenate(
+                [np.where(cat_mapping == key)[0] for key in batch_keys]
+            )
 
         batch_embeddings = self.module.batch_embedding.weight.detach().cpu().numpy()
         return batch_embeddings[batch_indexes]
