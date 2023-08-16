@@ -149,7 +149,7 @@ class VAEMixin:
         batch_size: int | None = None,
         return_dist: bool = False,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
-        """Return the latent representation for each cell.
+        """``EXPERIMENTAL`` Return the latent representation for each cell.
 
         This is typically denoted as :math:`z_n`.
 
