@@ -48,3 +48,5 @@ def test_scvi_batch_embedding(
 
     with pytest.raises(NotImplementedError):
         _ = model_no_batch.get_batch_representation()
+
+    _ = model.get_latent_representation()

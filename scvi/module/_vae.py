@@ -254,10 +254,6 @@ class VAE(BaseMinifiedModeModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
-        if self.batch_embedding is not None:
-            batch_index = batch_index.to(torch.long).flatten()
-            batch_index = self.batch_embedding(batch_index)
-
         if self.minified_data_type is None:
             x = tensors[REGISTRY_KEYS.X_KEY]
             input_dict = {
@@ -301,10 +297,6 @@ class VAE(BaseMinifiedModeModuleClass):
             if size_factor_key in tensors.keys()
             else None
         )
-
-        if self.batch_embedding is not None:
-            batch_index = batch_index.to(torch.long).flatten()
-            batch_index = self.batch_embedding(batch_index)
 
         input_dict = {
             "z": z,
@@ -351,6 +343,10 @@ class VAE(BaseMinifiedModeModuleClass):
             library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
+
+        if self.batch_embedding is not None:
+            batch_index = batch_index.type(torch.long).flatten()
+            batch_index = self.batch_embedding(batch_index)
 
         if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
@@ -414,6 +410,10 @@ class VAE(BaseMinifiedModeModuleClass):
         """Runs the generative model."""
         # TODO: refactor forward function to not rely on y
         # Likelihood distribution
+        if self.batch_embedding is not None:
+            batch_index = batch_index.type(torch.long).flatten()
+            batch_index = self.batch_embedding(batch_index)
+
         if cont_covs is None:
             decoder_input = z
         elif z.dim() != cont_covs.dim():
