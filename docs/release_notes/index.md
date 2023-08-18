@@ -36,8 +36,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Fixed
 
--   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder` in {class}`scvi.model.AmortizedLDA`
-    {pr}`2229`
+-   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder`
+    in {class}`scvi.model.AmortizedLDA` {pr}`2229`
 
 #### Changed
 
@@ -47,7 +47,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
     stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
     per-group LFC.
--   `n_hidden` is taking effect in AmortizedLDA.
+-   Revalidate `devices` when automatically switching from MPS to CPU
+    accelerator in {func}`scvi.model._utils.parse_device_args` {pr}`2247`.
 
 #### Removed
 
