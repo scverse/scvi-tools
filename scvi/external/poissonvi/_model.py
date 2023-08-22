@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, Iterable, List, Literal, Optional, Sequence, Union
+from functools import partial
 
 import numpy as np
 from anndata import AnnData
@@ -19,8 +20,8 @@ from scvi.data.fields import (
     ObsmField,
     StringUnsField,
 )
-from scvi.model import PEAKVI
-from scvi.model._utils import _init_library_size
+
+from scvi.model._utils import _init_library_size, scatac_raw_counts_properties
 from scvi.model.base import (
     RNASeqMixin,
     UnsupervisedTrainingMixin,
@@ -31,7 +32,12 @@ from scvi.model.base import (
 from scvi.module import VAE
 from scvi.train._callbacks import SaveBestState
 from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils._docstrings import devices_dsp, de_dsp
+
+from scvi.model.base._utils import (
+    _de_core,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -170,53 +176,6 @@ class POISSONVI(
         )
         self.init_params_ = self._get_init_params(locals())
 
-    @classmethod
-    @setup_anndata_dsp.dedent
-    def setup_anndata(
-        cls,
-        adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
-        **kwargs,
-    ):
-        """%(summary)s.
-
-        Parameters
-        ----------
-        %(param_adata)s
-        %(param_layer)s
-        %(param_batch_key)s
-        %(param_labels_key)s
-        %(param_size_factor_key)s
-        %(param_cat_cov_keys)s
-        %(param_cont_cov_keys)s
-        """
-        # TODO: where should we check that we are using fragment counts?
-        setup_method_args = cls._get_setup_method_args(**locals())
-        anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            NumericalObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
-        ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
-        adata_manager.register_fields(adata, **kwargs)
-        cls.register_manager(adata_manager)
-
     # to be consitent with PEAKVI training
     @devices_dsp.dedent
     def train(
@@ -342,7 +301,7 @@ class POISSONVI(
         return_mean: bool = True,
         return_numpy: bool = False,
         **importance_weighting_kwargs,
-    ) -> pd.DataFrame | np.ndarray | csr_matrix:
+    ) -> pd.DataFrame | np.ndarray:
         """Returns the normalized accessibility matrix.
 
         Parameters
@@ -397,6 +356,7 @@ class POISSONVI(
         Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
         of shape (n_samples_overall, n_regions).
         """
+        # this is similar to PeakVI's region normalization where we ignore the factor that is learnt per region
         if not normalize_regions:
             region_factors = self.module.decoder.px_scale_decoder[-2].bias
             # set region_factors (bias) to 0
@@ -422,6 +382,7 @@ class POISSONVI(
             self.module.decoder.px_scale_decoder[-2].bias = torch.nn.Parameter(
                 region_factors
             )
+        # TODO: Add option to convert to probabilities
         return accs
 
     @torch.inference_mode()
@@ -434,23 +395,101 @@ class POISSONVI(
         )
         return None
 
-    @torch.inference_mode()
-    def differential_accessibility(self, groupby: str, group1: str, group2: str):
-        """
+    @de_dsp.dedent
+    def differential_accessibility(
+        self,
+        adata: Optional[AnnData] = None,
+        groupby: Optional[str] = None,
+        group1: Optional[Iterable[str]] = None,
+        group2: Optional[str] = None,
+        idx1: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        idx2: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        mode: Literal["vanilla", "change"] = "change",
+        delta: float = 0.25,
+        batch_size: Optional[int] = None,
+        all_stats: bool = True,
+        batch_correction: bool = False,
+        batchid1: Optional[Iterable[str]] = None,
+        batchid2: Optional[Iterable[str]] = None,
+        fdr_target: float = 0.05,
+        silent: bool = False,
+        weights: Optional[Literal["uniform", "importance"]] = "uniform",
+        filter_outlier_cells: bool = False,
+        importance_weighting_kwargs: Optional[dict] = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        r"""A unified method for differential accessibility analysis.
+
+        Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
+
         Parameters
         ----------
-        groupby
-            The key of the observation grouping to consider.
-        group1
-            Name of first group
-        group2
-            Name of second group
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
+        weights
+            Weights to use for sampling. If `None`, defaults to `"uniform"`.
+        filter_outlier_cells
+            Whether to filter outlier cells with :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
+        importance_weighting_kwargs
+            Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+        **kwargs
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------
-        Differential accessibility scores
+        Differential accessibility DataFrame.
         """
-        return self.module.differential_accessibility(groupby, group1, group2)
+        adata = self._validate_anndata(adata)
+        col_names = adata.var_names
+        importance_weighting_kwargs = importance_weighting_kwargs or {}
+        model_fn = partial(
+            self.get_accessibility_estimates,
+            return_numpy=True,
+            n_samples=1,
+            batch_size=batch_size,
+            weights=weights,
+            **importance_weighting_kwargs,
+        )
+        representation_fn = (
+            self.get_latent_representation if filter_outlier_cells else None
+        )
+
+        result = _de_core(
+            self.get_anndata_manager(adata, required=True),
+            model_fn,
+            representation_fn,
+            groupby,
+            group1,
+            group2,
+            idx1,
+            idx2,
+            all_stats,
+            scatac_raw_counts_properties,
+            col_names,
+            mode,
+            batchid1,
+            batchid2,
+            delta,
+            batch_correction,
+            fdr_target,
+            silent,
+            **kwargs,
+        )
+
+        return result
 
     @torch.inference_mode()
     def differential_expression(
@@ -461,3 +500,50 @@ class POISSONVI(
             "differential_expression is not implemented for POISSONVI, please use differential_accessibility"
         )
         return None
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        cls,
+        adata: AnnData,
+        layer: Optional[str] = None,
+        batch_key: Optional[str] = None,
+        labels_key: Optional[str] = None,
+        size_factor_key: Optional[str] = None,
+        categorical_covariate_keys: Optional[List[str]] = None,
+        continuous_covariate_keys: Optional[List[str]] = None,
+        **kwargs,
+    ):
+        """%(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_layer)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        """
+        # TODO: where should we check that we are using fragment counts?
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            NumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
+            ),
+            CategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
+        ]
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
+        adata_manager.register_fields(adata, **kwargs)
+        cls.register_manager(adata_manager)
