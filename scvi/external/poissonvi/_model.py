@@ -3,9 +3,11 @@ from typing import Dict, Iterable, List, Literal, Optional, Sequence, Union
 
 import numpy as np
 from anndata import AnnData
+import pandas as pd
 import torch
 
 from scvi import REGISTRY_KEYS
+from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     BaseAnnDataField,
@@ -323,3 +325,139 @@ class POISSONVI(
             batch_size=batch_size,
             **kwargs,
         )
+
+    @torch.inference_mode()
+    def get_accessibility_estimates(
+        self,
+        adata: AnnData | None = None,
+        indices: Sequence[int] = None,
+        transform_batch: str | int | None = None,
+        region_list: Sequence[str] | None = None,
+        library_size: Union[float, Literal["latent"]] = 1,
+        normalize_regions: bool = False,
+        n_samples: int = 1,
+        n_samples_overall: int = None,
+        weights: Optional[Literal["uniform", "importance"]] = None,
+        batch_size: int = 128,
+        return_mean: bool = True,
+        return_numpy: bool = False,
+        **importance_weighting_kwargs,
+    ) -> pd.DataFrame | np.ndarray | csr_matrix:
+        """Returns the normalized accessibility matrix.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+
+            - None, then real observed batch is used.
+            - int, then batch transform_batch is used.
+        region_list
+            Return frequencies of accessibility for a subset of regions.
+            This can save memory when working with large datasets and few regions are
+            of interest.
+        library_size
+            Scale the accessibility frequencies to a common library size.
+            This allows accessibility counts to be interpreted on a common scale of relevant
+            magnitude. If set to `"latent"`, use the latent library size.
+        normalize_regions
+            Whether to reintroduce region factors to scale the normalized accessibility. This makes
+            the estimates closer to the input, but removes the region-level bias correction. False by
+            default.
+        n_samples
+            Number of posterior samples to use for estimation.
+        n_samples_overall
+            Number of posterior samples to use for estimation. Overrides `n_samples`.
+        weights
+            Weights to use for sampling. If `None`, defaults to `"uniform"`.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
+            region names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
+            Otherwise, it defaults to `True`.
+        importance_weighting_kwargs
+            Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+
+         Returns
+        -------
+        If `n_samples` is provided and `return_mean` is False,
+        this method returns a 3d tensor of shape (n_samples, n_cells, n_regions).
+        If `n_samples` is provided and `return_mean` is True, it returns a 2d tensor
+        of shape (n_cells, n_regions).
+        In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
+        of shape (n_samples_overall, n_regions).
+        """
+        if not normalize_regions:
+            region_factors = self.module.decoder.px_scale_decoder[-2].bias
+            # set region_factors (bias) to 0
+            self.module.decoder.px_scale_decoder[-2].bias = torch.nn.Parameter(
+                torch.zeros_like(region_factors)
+            )
+        accs = super().get_normalized_expression(
+            adata=adata,
+            indices=indices,
+            transform_batch=transform_batch,
+            gene_list=region_list,
+            library_size=library_size,
+            n_samples=n_samples,
+            n_samples_overall=n_samples_overall,
+            weights=weights,
+            batch_size=batch_size,
+            return_mean=return_mean,
+            return_numpy=return_numpy,
+            **importance_weighting_kwargs,
+        )
+        if not normalize_regions:
+            # reset region_factors (bias)
+            self.module.decoder.px_scale_decoder[-2].bias = torch.nn.Parameter(
+                region_factors
+            )
+        return accs
+
+    @torch.inference_mode()
+    def get_normalized_expression(
+        self,
+    ):
+        # Refer to function get_accessibility_estimates
+        print(
+            "get_normalized_expression is not implemented for POISSONVI, please use get_accessibility_estimates"
+        )
+        return None
+
+    @torch.inference_mode()
+    def differential_accessibility(self, groupby: str, group1: str, group2: str):
+        """
+        Parameters
+        ----------
+        groupby
+            The key of the observation grouping to consider.
+        group1
+            Name of first group
+        group2
+            Name of second group
+
+        Returns
+        -------
+        Differential accessibility scores
+        """
+        return self.module.differential_accessibility(groupby, group1, group2)
+
+    @torch.inference_mode()
+    def differential_expression(
+        self,
+    ):
+        # Refer to function differential_accessibility
+        print(
+            "differential_expression is not implemented for POISSONVI, please use differential_accessibility"
+        )
+        return None
