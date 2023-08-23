@@ -138,6 +138,7 @@ MuDataLayerField = MuDataWrapper(LayerField)
 
 class FragmentCountLayerField(LayerField):
     """An AnnDataField for ATAC fragment counts in layer or X attributes in the AnnData data structure.
+
     Checks that fragment counts and not read counts are provided
 
     Parameters
