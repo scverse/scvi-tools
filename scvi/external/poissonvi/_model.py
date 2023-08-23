@@ -47,7 +47,7 @@ class POISSONVI(
     BaseModelClass,
 ):
     """
-    Peak Variational Inference using a Poisson distribution :cite:p:`Martens22`.
+    Peak Variational Inference using a Poisson distribution.
 
     Parameters
     ----------
@@ -91,11 +91,12 @@ class POISSONVI(
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/PeakVI`
+    1. :doc:``
     """
 
     # TODO: change tutorial link
     # TODO: change citation
+
     _module_cls = VAE
 
     def __init__(
@@ -378,7 +379,6 @@ class POISSONVI(
             self.module.decoder.px_scale_decoder[-2].bias = torch.nn.Parameter(
                 region_factors
             )
-        # TODO: Add option to convert to probabilities
         return accs
 
     @torch.inference_mode()
@@ -523,7 +523,6 @@ class POISSONVI(
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
-        # TODO: where should we check that we are using fragment counts?
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             FragmentCountLayerField(REGISTRY_KEYS.X_KEY, layer),
