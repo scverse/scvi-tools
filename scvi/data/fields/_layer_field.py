@@ -10,6 +10,7 @@ from scvi.data import _constants
 from scvi.data._utils import (
     _check_nonnegative_integers,
     _verify_and_correct_data_format,
+    _check_fragment_counts,
 )
 
 from ._base_field import BaseAnnDataField
@@ -133,3 +134,50 @@ class LayerField(BaseAnnDataField):
 
 
 MuDataLayerField = MuDataWrapper(LayerField)
+
+
+class FragmentCountLayerField(LayerField):
+    """An AnnDataField for ATAC fragment counts in layer or X attributes in the AnnData data structure.
+    Checks that fragment counts and not read counts are provided
+
+    Parameters
+    ----------
+    registry_key
+        Key to register field under in data registry.
+    layer
+        Key to access the field in the AnnData layers mapping. If None, uses the data in .X.
+    correct_data_format
+        If True, checks and corrects that the AnnData field is C_CONTIGUOUS and csr
+        if it is dense numpy or sparse respectively.
+    """
+
+    def __init__(
+        self,
+        registry_key: str,
+        layer: Optional[str],
+        correct_data_format: bool = True,
+    ) -> None:
+        super().__init__(
+            registry_key=registry_key,
+            layer=layer,
+            is_count_data=True,
+            correct_data_format=correct_data_format,
+        )
+
+    def validate_field(self, adata: AnnData) -> None:
+        """Validate the field."""
+        super().validate_field(adata)
+        x = self.get_field_data(adata)
+
+        if self.is_count_data and not _check_fragment_counts(x):
+            logger_data_loc = (
+                "adata.X" if self.attr_key is None else f"adata.layers[{self.attr_key}]"
+            )
+            warnings.warn(
+                f"{logger_data_loc} does not contain fragment count data. "
+                "Are you sure this is what you want?. "
+                "Check that your data is not binarized and does not contain read counts. "
+                "You can approximate read counts to fragment counts using scvi.data.reads_to_fragments",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )

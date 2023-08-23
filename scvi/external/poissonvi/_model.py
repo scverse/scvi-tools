@@ -11,14 +11,11 @@ from scvi import REGISTRY_KEYS
 from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
-    BaseAnnDataField,
     CategoricalJointObsField,
     CategoricalObsField,
-    LayerField,
+    FragmentCountLayerField,
     NumericalJointObsField,
     NumericalObsField,
-    ObsmField,
-    StringUnsField,
 )
 
 from scvi.model._utils import _init_library_size, scatac_raw_counts_properties
@@ -81,7 +78,7 @@ class POISSONVI(
         Whether to deeply inject covariates into all layers of the decoder. If False (default),
         covariates will only be included in the input layer.
     **model_kwargs
-        Keyword args for :class:`~scvi.module.POISSONVAE`
+        Keyword args for :class:`~scvi.module.VAE`
 
     Examples
     --------
@@ -99,7 +96,6 @@ class POISSONVI(
 
     # TODO: change tutorial link
     # TODO: change citation
-    # TODO: change model_kwargs docstring
     _module_cls = VAE
 
     def __init__(
@@ -391,7 +387,7 @@ class POISSONVI(
     ):
         # Refer to function get_accessibility_estimates
         print(
-            "get_normalized_expression is not implemented for POISSONVI, please use get_accessibility_estimates"
+            "``get_normalized_expression`` is not implemented for POISSONVI, please use get_accessibility_estimates"
         )
         return None
 
@@ -496,9 +492,10 @@ class POISSONVI(
         self,
     ):
         # Refer to function differential_accessibility
-        print(
-            "differential_expression is not implemented for POISSONVI, please use differential_accessibility"
+        raise ValueError(
+            f"``differential_expression`` is not implemented for {self.__name__}, please use ``{self.__name__}.differential_accessibility``"
         )
+
         return None
 
     @classmethod
@@ -529,7 +526,7 @@ class POISSONVI(
         # TODO: where should we check that we are using fragment counts?
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            FragmentCountLayerField(REGISTRY_KEYS.X_KEY, layer),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             NumericalObsField(

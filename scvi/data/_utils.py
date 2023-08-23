@@ -317,3 +317,37 @@ def _is_minified(adata: Union[AnnData, str]) -> bool:
             return uns_key in read_elem(fp["uns"]).keys()
     else:
         raise TypeError(f"Unsupported type: {type(adata)}")
+
+
+def _check_fragment_counts(
+    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix, h5py.Dataset],
+    n_to_check: int = 100,
+):
+    """Approximately checks values of data to ensure it is fragment count data."""
+    # for backed anndata
+    if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
+        data = data[:100]
+
+    if isinstance(data, np.ndarray):
+        data = data
+    elif issubclass(type(data), sp_sparse.spmatrix):
+        data = data.data
+    elif isinstance(data, pd.DataFrame):
+        data = data.to_numpy()
+    else:
+        raise TypeError("data type not understood")
+
+    ret = True
+    if len(data) != 0:
+        inds = np.random.choice(len(data), size=(n_to_check,))
+        check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
+        non_binary, non_reads = _is_not_fragment_val(check)
+        ret = not (non_reads or non_binary)
+    return ret
+
+
+@jax.jit
+def _is_not_fragment_val(data: jnp.ndarray):
+    non_binary = jnp.logical_not(jnp.any(data > 1))
+    non_reads = jnp.count_nonzero(data == 1) > jnp.count_nonzero(data == 2)
+    return non_binary, non_reads
