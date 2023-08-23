@@ -1,5 +1,4 @@
 from typing import Optional
-import numpy as np
 
 from scvi.data import synthetic_iid
 from scvi.external import POISSONVI

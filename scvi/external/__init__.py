@@ -1,11 +1,11 @@
 from .cellassign import CellAssign
 from .gimvi import GIMVI
+from .poissonvi import POISSONVI
 from .scar import SCAR
 from .scbasset import SCBASSET
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .tangram import Tangram
-from .poissonvi import POISSONVI
 
 __all__ = [
     "SCAR",
