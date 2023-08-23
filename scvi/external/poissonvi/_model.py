@@ -1,14 +1,13 @@
 import logging
-from typing import Dict, Iterable, List, Literal, Optional, Sequence, Union
 from functools import partial
+from typing import Iterable, List, Literal, Optional, Sequence, Union
 
 import numpy as np
-from anndata import AnnData
 import pandas as pd
 import torch
+from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -17,24 +16,21 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-
 from scvi.model._utils import _init_library_size, scatac_raw_counts_properties
 from scvi.model.base import (
+    ArchesMixin,
+    BaseModelClass,
     RNASeqMixin,
     UnsupervisedTrainingMixin,
     VAEMixin,
-    ArchesMixin,
-    BaseModelClass,
+)
+from scvi.model.base._utils import (
+    _de_core,
 )
 from scvi.module import VAE
 from scvi.train._callbacks import SaveBestState
 from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp, de_dsp
-
-from scvi.model.base._utils import (
-    _de_core,
-)
-
+from scvi.utils._docstrings import de_dsp, devices_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +119,7 @@ class POISSONVI(
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         )
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key is None:
+        if use_size_factor_key is not None:
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
             )
@@ -343,7 +339,7 @@ class POISSONVI(
         importance_weighting_kwargs
             Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
 
-         Returns
+        Returns
         -------
         If `n_samples` is provided and `return_mean` is False,
         this method returns a 3d tensor of shape (n_samples, n_cells, n_regions).

@@ -8,9 +8,9 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import _constants
 from scvi.data._utils import (
+    _check_fragment_counts,
     _check_nonnegative_integers,
     _verify_and_correct_data_format,
-    _check_fragment_counts,
 )
 
 from ._base_field import BaseAnnDataField

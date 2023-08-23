@@ -23,7 +23,7 @@ from ._dataframe_field import (
     NumericalObsField,
     NumericalVarField,
 )
-from ._layer_field import LayerField, MuDataLayerField, FragmentCountLayerField
+from ._layer_field import FragmentCountLayerField, LayerField, MuDataLayerField
 from ._mudata import BaseMuDataWrapperClass, MuDataWrapper
 from ._protein import MuDataProteinLayerField, ProteinObsmField
 from ._scanvi import LabelsWithUnlabeledObsField
