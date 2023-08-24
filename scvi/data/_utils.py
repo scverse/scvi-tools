@@ -60,7 +60,7 @@ def registry_key_to_default_dtype(key: str) -> type:
         raise KeyError(f"Invalid registry key: {key}")
 
 
-def convert_scipy_sparse_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
+def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
     """Converts a SciPy sparse data structure to a sparse :class:`~torch.Tensor`.
 
     Parameters

@@ -16,7 +16,7 @@ from scvi.utils._exceptions import InvalidParameterError
 
 if TYPE_CHECKING:
     from ._manager import AnnDataManager
-from ._utils import convert_scipy_sparse_to_torch_sparse, registry_key_to_default_dtype
+from ._utils import registry_key_to_default_dtype, scipy_to_torch_sparse
 
 logger = logging.getLogger(__name__)
 
@@ -122,17 +122,11 @@ class AnnTorchDataset(Dataset):
     ) -> dict[str, np.ndarray | torch.Tensor]:
         """Fetch data from the :class:`~anndata.AnnData` object."""
         if isinstance(indexes, int):
-            indexes = [indexes]
-        # elif isinstance(indexes, slice):
-        #     indexes = np.arange(indexes.start, indexes.stop, indexes.step)
-        # elif not isinstance(indexes, list):
-        #     raise InvalidParameterError(
-        #         param="indexes",
-        #         value=indexes.__class__,
-        #         valid=[int, list, slice],
-        #     )
+            indexes = [indexes]  # force batched single observations
 
-        if self.adata_manager.adata.isbacked:
+        if self.adata_manager.adata.isbacked and isinstance(
+            indexes, (list, np.ndarray)
+        ):
             # need to sort indexes for h5py datasets
             indexes = np.sort(indexes)
 
@@ -148,7 +142,7 @@ class AnnTorchDataset(Dataset):
             elif issparse(data) or isinstance(data, SparseDataset):
                 sliced_data = data[indexes].astype(dtype, copy=False)
                 if self.load_sparse_tensor:
-                    sliced_data = convert_scipy_sparse_to_torch_sparse(sliced_data)
+                    sliced_data = scipy_to_torch_sparse(sliced_data)
                 else:
                     sliced_data = sliced_data.toarray()
             elif isinstance(data, str) and key == REGISTRY_KEYS.MINIFY_TYPE_KEY:
@@ -159,9 +153,6 @@ class AnnTorchDataset(Dataset):
                 continue
             else:
                 raise TypeError(f"{key} is not a supported type")
-
-            # if len(indexes) == 1:
-            #     sliced_data = sliced_data.reshape(1, -1)
 
             data_map[key] = sliced_data
 

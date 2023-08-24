@@ -100,6 +100,6 @@ def test_load_sparse_tensor_backed(save_path: str):
 
     dataset = manager.create_torch_dataset(load_sparse_tensor=True)
     assert dataset.adata_manager.adata.isbacked
-    data = dataset[0]
+    data = dataset[:10]
     assert isinstance(data[REGISTRY_KEYS.X_KEY], torch.Tensor)
     assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
