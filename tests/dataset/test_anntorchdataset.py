@@ -1,5 +1,11 @@
+from __future__ import annotations
+
+import os
+
+import anndata
 import numpy as np
 import pytest
+import torch
 from torch.utils.data import Dataset
 
 import scvi
@@ -8,7 +14,7 @@ from scvi.utils._exceptions import InvalidParameterError
 from tests.dataset.utils import generic_setup_adata_manager
 
 
-def test_anntorchdataset_init():
+def test_init():
     adata = scvi.data.synthetic_iid()
     manager = generic_setup_adata_manager(adata)
 
@@ -22,22 +28,22 @@ def test_anntorchdataset_init():
     assert len(dataset.registered_keys) > 0
 
 
-def test_anntorchdataset_default_dtypes():
+def test_default_dtypes():
     adata = scvi.data.synthetic_iid()
     manager = generic_setup_adata_manager(adata, batch_key="batch")
 
     dataset = manager.create_torch_dataset()
-    batch = dataset[:10]
-    assert isinstance(batch, dict)
-    assert REGISTRY_KEYS.X_KEY in batch
-    assert REGISTRY_KEYS.BATCH_KEY in batch
-    assert isinstance(batch[REGISTRY_KEYS.X_KEY], np.ndarray)
-    assert isinstance(batch[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
-    assert batch[REGISTRY_KEYS.X_KEY].dtype == np.float32
-    assert batch[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
+    data = dataset[:10]
+    assert isinstance(data, dict)
+    assert REGISTRY_KEYS.X_KEY in data
+    assert REGISTRY_KEYS.BATCH_KEY in data
+    assert isinstance(data[REGISTRY_KEYS.X_KEY], np.ndarray)
+    assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.X_KEY].dtype == np.float32
+    assert data[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
 
 
-def test_anntorchdataset_getitem_tensors():
+def test_getitem_tensors():
     adata = scvi.data.synthetic_iid()
     manager = generic_setup_adata_manager(adata, batch_key="batch")
 
@@ -68,3 +74,32 @@ def test_anntorchdataset_getitem_tensors():
 
     with pytest.raises(InvalidParameterError):
         manager.create_torch_dataset(data_and_attributes=1)
+
+
+@pytest.mark.parametrize(
+    "sparse_format", ["csr_matrix", "csr_array", "csc_matrix", "csc_array"]
+)
+def test_load_sparse_tensor(sparse_format: str | None):
+    adata = scvi.data.synthetic_iid(sparse_format=sparse_format)
+    manager = generic_setup_adata_manager(adata, batch_key="batch")
+
+    dataset = manager.create_torch_dataset(load_sparse_tensor=True)
+    data = dataset[:10]
+    assert isinstance(data[REGISTRY_KEYS.X_KEY], torch.Tensor)
+    assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+
+
+def test_load_sparse_tensor_backed(save_path: str):
+    adata = scvi.data.synthetic_iid(sparse_format="csr_matrix")
+    adata_path = os.path.join(save_path, "adata.h5ad")
+    adata.write(adata_path)
+    del adata
+
+    adata = anndata.read_h5ad(adata_path, backed="r")
+    manager = generic_setup_adata_manager(adata, batch_key="batch")
+
+    dataset = manager.create_torch_dataset(load_sparse_tensor=True)
+    assert dataset.adata_manager.adata.isbacked
+    data = dataset[0]
+    assert isinstance(data[REGISTRY_KEYS.X_KEY], torch.Tensor)
+    assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
