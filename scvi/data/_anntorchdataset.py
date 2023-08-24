@@ -120,7 +120,18 @@ class AnnTorchDataset(Dataset):
     def __getitem__(
         self, indexes: int | list[int] | slice
     ) -> dict[str, np.ndarray | torch.Tensor]:
-        """Fetch data from the :class:`~anndata.AnnData` object."""
+        """Fetch data from the :class:`~anndata.AnnData` object.
+
+        Parameters
+        ----------
+        indexes
+            Indexes of the observations to fetch. Can be a single index, a list of indexes, or a
+            slice.
+
+        Returns
+        -------
+        Mapping of data registry keys to arrays of shape ``(n_obs, ...)``.
+        """
         if isinstance(indexes, int):
             indexes = [indexes]  # force batched single observations
 
