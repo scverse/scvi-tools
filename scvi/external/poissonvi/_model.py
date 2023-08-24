@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from functools import partial
-from typing import Iterable, List, Literal, Optional, Sequence, Union
+from typing import Iterable, Literal, Sequence
 
 import numpy as np
 import pandas as pd
@@ -100,8 +100,8 @@ class POISSONVI(
     def __init__(
         self,
         adata: AnnData,
-        n_hidden: Optional[int] = None,
-        n_latent: Optional[int] = None,
+        n_hidden: int | None = None,
+        n_latent: int | None = None,
         n_layers: int = 2,
         dropout_rate: float = 0.1,
         latent_distribution: Literal["normal", "ln"] = "normal",
@@ -287,11 +287,11 @@ class POISSONVI(
         indices: Sequence[int] = None,
         transform_batch: str | int | None = None,
         region_list: Sequence[str] | None = None,
-        library_size: Union[float, Literal["latent"]] = 1,
+        library_size: float | Literal["latent"] = 1,
         normalize_regions: bool = False,
         n_samples: int = 1,
         n_samples_overall: int = None,
-        weights: Optional[Literal["uniform", "importance"]] = None,
+        weights: Literal["uniform", "importance"] | None = None,
         batch_size: int = 128,
         return_mean: bool = True,
         return_numpy: bool = False,
@@ -392,24 +392,24 @@ class POISSONVI(
     @de_dsp.dedent
     def differential_accessibility(
         self,
-        adata: Optional[AnnData] = None,
-        groupby: Optional[str] = None,
-        group1: Optional[Iterable[str]] = None,
-        group2: Optional[str] = None,
-        idx1: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
-        idx2: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        adata: AnnData | None = None,
+        groupby: str | None = None,
+        group1: Iterable[str] | None = None,
+        group2: str | None = None,
+        idx1: Sequence[int] | Sequence[bool] | str | None = None,
+        idx2: Sequence[int] | Sequence[bool] | str | None = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         all_stats: bool = True,
         batch_correction: bool = False,
-        batchid1: Optional[Iterable[str]] = None,
-        batchid2: Optional[Iterable[str]] = None,
+        batchid1: Iterable[str] | None = None,
+        batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        weights: Optional[Literal["uniform", "importance"]] = "uniform",
+        weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
-        importance_weighting_kwargs: Optional[dict] = None,
+        importance_weighting_kwargs: dict | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential accessibility analysis.
@@ -501,12 +501,12 @@ class POISSONVI(
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
+        layer: str | None = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         """%(summary)s.
