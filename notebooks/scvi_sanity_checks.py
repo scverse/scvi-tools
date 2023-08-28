@@ -66,48 +66,55 @@ else:
     batch_size = [512, 1024, 2048, 4096, 8192, 16384]
 
 latent_space_metrics = {}
+feature_space_metrics = {}
 
 # params = [str(x) for x in (100, 200, 300, 400)]
 params = [str(x) for x in (100, 200, 300, 400)]
-space = "feature"
 
 for param in tqdm.tqdm(params):
+    # latent
     latent_space_metrics[param] = {}
-    if space == "latent":
-        metrics, errors = sanity_checks_metrics_latent(models[param],
-                                                adata,
-                                                batch_sizes=batch_size,
-                                                n_repeats=100,
-                                                use_get_latent=True)
-    else:
-        metrics, errors = sanity_checks_metrics_feature(models[param],
-                                                adata,
-                                                batch_sizes=batch_size,
-                                                n_repeats=100,
-                                                use_get_normalized=True)
-    latent_space_metrics[param]["corr"] = metrics["corr"]
-    latent_space_metrics[param]["error"] = errors["corr"]
+    latent_metrics, latent_errors = sanity_checks_metrics_latent(models[param],
+                                            adata,
+                                            batch_sizes=batch_size,
+                                            n_repeats=100,
+                                            use_get_latent=True)
+    latent_space_metrics[param]["corr"] = latent_metrics["corr"]
+    latent_space_metrics[param]["error"] = latent_errors["corr"]
+    # feature
+    feature_space_metrics[param] = {}
+    feature_metrics, feature_errors = sanity_checks_metrics_feature(models[param],
+                                            adata,
+                                            batch_sizes=batch_size,
+                                            n_repeats=100,
+                                            use_get_normalized=True)
+    feature_space_metrics[param]["corr"] = feature_metrics["corr"]
+    feature_space_metrics[param]["error"] = latent_errors["corr"]
 
 
 # %%
 ## 4. plot
 
-fig, ax = plt.subplots(1, 1, figsize=(15, 4))
+def plot_metrics(dict_metrics, params, title, type):
+    fig, ax = plt.subplots(1, 1, figsize=(15, 4))
 
-for param in params:
-        plt.errorbar(batch_size,
-                latent_space_metrics[param]["corr"],
-                yerr=latent_space_metrics[param]["error"],
-                fmt='o-',
-                capsize=5,
-                linestyle="--", marker="+",
-                label=f"{param}_epochs")
+    for param in params:
+            plt.errorbar(batch_size,
+                    dict_metrics[param]["corr"],
+                    yerr=dict_metrics[param]["error"],
+                    fmt='o-',
+                    capsize=5,
+                    linestyle="--", marker="+",
+                    label=f"{param}_epochs")
 
 
-plt.legend()
-plt.xlabel("Batch size")
-plt.ylabel("Pearson correaltion")
-plt.xticks(batch_size)
+    plt.legend()
+    plt.xlabel("Batch size")
+    plt.ylabel("Pearson correaltion")
+    plt.xticks(batch_size)
 
-plt.title("Sanity check 1: correlation between sum(encodings) & encoder(pseudo-bulk)")
-plt.savefig("toy_linearity_check.png")
+    plt.title(title)
+    plt.savefig(f"toy_linearity_check_{str(type)}.png")
+
+plot_metrics(latent_space_metrics, params, "Sanity check 1: Interpolation in latent space", 1)
+plot_metrics(feature_space_metrics, params, "Sanity check 2: Interpolation in feature space", 2)
