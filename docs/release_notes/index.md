@@ -49,6 +49,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     per-group LFC.
 -   Revalidate `devices` when automatically switching from MPS to CPU
     accelerator in {func}`scvi.model._utils.parse_device_args` {pr}`2247`.
+-   Refactor {class}`scvi.data.AnnTorchDataset`, now
 
 #### Removed
 

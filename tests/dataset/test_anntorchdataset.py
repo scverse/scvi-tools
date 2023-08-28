@@ -79,18 +79,39 @@ def test_getitem_tensors():
 @pytest.mark.parametrize(
     "sparse_format", ["csr_matrix", "csr_array", "csc_matrix", "csc_array"]
 )
-def test_load_sparse_tensor(sparse_format: str | None):
-    adata = scvi.data.synthetic_iid(sparse_format=sparse_format)
+def test_load_sparse_tensor(sparse_format: str | None, n_genes: int = 50):
+    adata = scvi.data.synthetic_iid(sparse_format=sparse_format, n_genes=n_genes)
     manager = generic_setup_adata_manager(adata, batch_key="batch")
 
     dataset = manager.create_torch_dataset(load_sparse_tensor=True)
+
     data = dataset[:10]
     assert isinstance(data[REGISTRY_KEYS.X_KEY], torch.Tensor)
+    assert data[REGISTRY_KEYS.X_KEY].dtype == torch.float32
+    assert data[REGISTRY_KEYS.X_KEY].shape == (10, n_genes)
     assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
+    assert data[REGISTRY_KEYS.BATCH_KEY].shape == (10, 1)
+
+    data = dataset[[0, 1, 2]]
+    assert isinstance(data[REGISTRY_KEYS.X_KEY], torch.Tensor)
+    assert data[REGISTRY_KEYS.X_KEY].dtype == torch.float32
+    assert data[REGISTRY_KEYS.X_KEY].shape == (3, n_genes)
+    assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
+    assert data[REGISTRY_KEYS.BATCH_KEY].shape == (3, 1)
+
+    data = dataset[1]
+    assert isinstance(data[REGISTRY_KEYS.X_KEY], torch.Tensor)
+    assert data[REGISTRY_KEYS.X_KEY].dtype == torch.float32
+    assert data[REGISTRY_KEYS.X_KEY].shape == (1, n_genes)
+    assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
+    assert data[REGISTRY_KEYS.BATCH_KEY].shape == (1, 1)
 
 
-def test_load_sparse_tensor_backed(save_path: str):
-    adata = scvi.data.synthetic_iid(sparse_format="csr_matrix")
+def test_load_sparse_tensor_backed(save_path: str, n_genes: int = 50):
+    adata = scvi.data.synthetic_iid(sparse_format="csr_matrix", n_genes=n_genes)
     adata_path = os.path.join(save_path, "adata.h5ad")
     adata.write(adata_path)
     del adata
@@ -100,6 +121,27 @@ def test_load_sparse_tensor_backed(save_path: str):
 
     dataset = manager.create_torch_dataset(load_sparse_tensor=True)
     assert dataset.adata_manager.adata.isbacked
+
     data = dataset[:10]
     assert isinstance(data[REGISTRY_KEYS.X_KEY], torch.Tensor)
+    assert data[REGISTRY_KEYS.X_KEY].dtype == torch.float32
+    assert data[REGISTRY_KEYS.X_KEY].shape == (10, n_genes)
     assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
+    assert data[REGISTRY_KEYS.BATCH_KEY].shape == (10, 1)
+
+    data = dataset[[0, 1, 2]]
+    assert isinstance(data[REGISTRY_KEYS.X_KEY], torch.Tensor)
+    assert data[REGISTRY_KEYS.X_KEY].dtype == torch.float32
+    assert data[REGISTRY_KEYS.X_KEY].shape == (3, n_genes)
+    assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
+    assert data[REGISTRY_KEYS.BATCH_KEY].shape == (3, 1)
+
+    data = dataset[1]
+    assert isinstance(data[REGISTRY_KEYS.X_KEY], torch.Tensor)
+    assert data[REGISTRY_KEYS.X_KEY].dtype == torch.float32
+    assert data[REGISTRY_KEYS.X_KEY].shape == (1, n_genes)
+    assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
+    assert data[REGISTRY_KEYS.BATCH_KEY].shape == (1, 1)
