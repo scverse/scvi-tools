@@ -39,6 +39,7 @@ dependencies = [
     "jax>=0.4.4",
     "jaxlib>=0.4.3",
     "optax",
+    "numba==0.58.0rc1",
     "numpy>=1.21.0",
     "pandas>=1.0",
     "scipy",
