@@ -76,6 +76,37 @@ def test_getitem_tensors():
         manager.create_torch_dataset(data_and_attributes=1)
 
 
+def test_getitem(n_genes: int = 50):
+    adata = scvi.data.synthetic_iid(n_genes=n_genes)
+    manager = generic_setup_adata_manager(adata, batch_key="batch")
+
+    dataset = manager.create_torch_dataset(load_sparse_tensor=True)
+
+    data = dataset[:10]
+    assert isinstance(data[REGISTRY_KEYS.X_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.X_KEY].dtype == np.float32
+    assert data[REGISTRY_KEYS.X_KEY].shape == (10, n_genes)
+    assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
+    assert data[REGISTRY_KEYS.BATCH_KEY].shape == (10, 1)
+
+    data = dataset[[0, 1, 2]]
+    assert isinstance(data[REGISTRY_KEYS.X_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.X_KEY].dtype == np.float32
+    assert data[REGISTRY_KEYS.X_KEY].shape == (3, n_genes)
+    assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
+    assert data[REGISTRY_KEYS.BATCH_KEY].shape == (3, 1)
+
+    data = dataset[1]
+    assert isinstance(data[REGISTRY_KEYS.X_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.X_KEY].dtype == np.float32
+    assert data[REGISTRY_KEYS.X_KEY].shape == (1, n_genes)
+    assert isinstance(data[REGISTRY_KEYS.BATCH_KEY], np.ndarray)
+    assert data[REGISTRY_KEYS.BATCH_KEY].dtype == np.int64
+    assert data[REGISTRY_KEYS.BATCH_KEY].shape == (1, 1)
+
+
 @pytest.mark.parametrize(
     "sparse_format", ["csr_matrix", "csr_array", "csc_matrix", "csc_array"]
 )
