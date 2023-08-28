@@ -5,12 +5,12 @@ import tqdm
 import pandas
 import anndata as ad
 import torch
-import loguru import logger
 import scvi
 
 from typing import List, Dict
 
-def create_anndata_pseudobulk(adata, x: np.array) -> ad.AnnData:
+def create_anndata_pseudobulk(adata: ad.AnnData,
+                              x: np.array) -> ad.AnnData:
     """Creates an anndata object from a pseudobulk sample.
 
     Parameters
@@ -26,21 +26,22 @@ def create_anndata_pseudobulk(adata, x: np.array) -> ad.AnnData:
         Anndata object storing the pseudobulk array
     """
     df_obs = pandas.DataFrame.from_dict([{col: adata.obs[col].value_counts().index[0] for col in adata.obs.columns}])
-    adata_pseudobulk = ad.AnnData(X=x,
-                                    obs=df_obs
-                                    )
+    adata_pseudobulk = ad.AnnData(X=x, obs=df_obs)
     adata_pseudobulk.layers["counts"] = np.copy(x)
 
     return adata_pseudobulk
 
 
-def replace_inf(x: np.array, strategy: str = "mean") -> np.array:
+def replace_inf(x: np.array,
+                strategy: str = "mean") -> np.array:
     """Checks if array contains nan values and replaces them
 
     Parmaters
     ---------
     x: np.array
         Input numpy array
+    stratrgy: str
+        Imputaton strategy
 
     Returns
     -------
@@ -54,6 +55,7 @@ def replace_inf(x: np.array, strategy: str = "mean") -> np.array:
         # Replace infinite values with the mean of finite values
         x[np.isinf(x)] = mean_of_finite
     return x
+
 
 def sanity_checks_metrics(model: scvi.model.SCVI,
                           adata: ad.AnnData,
@@ -76,6 +78,7 @@ def sanity_checks_metrics(model: scvi.model.SCVI,
         Whether to use get_latent scvi built in function
         to infer the latent states. Is set to `False`, will
         use the module encoder directly.
+
     Returns
     -------
     Dict
@@ -84,7 +87,7 @@ def sanity_checks_metrics(model: scvi.model.SCVI,
     metrics = {"corr": [], "kl": []}
     errors = {"corr": [], "kl": []}
     for n in tqdm.tqdm(batch_sizes):
-        current_metrics = {"corr": [], "CE": [], "MSE": []}
+        current_metrics = {"corr": [], "kl": []}
         for i in range(n_repeats):
             # Calculate the number of cells to sample from each cell type proportionally
             sampled_cells_per_type = adata.obs['cell_type'].value_counts(normalize=True) * n
@@ -100,9 +103,10 @@ def sanity_checks_metrics(model: scvi.model.SCVI,
             # Select the sampled cells from the DataFrame
             adata_sampled = adata[sampled_cells]
 
-            # embeddings of single-cells | sum(encoding)
+            # embeddings of single-cells
             if use_get_latent:
                 latent_sampled = model.get_latent_representation(adata_sampled)
+                mean_sampled_z = latent_sampled.mean(axis=0)
             else:
                 dist_z, latent_sampled = model.module.z_encoder(torch.from_numpy(adata_sampled.layers["counts"].toarray()).to("cuda:0"))
                 latent_sampled = latent_sampled.detach().cpu().numpy()
@@ -112,15 +116,13 @@ def sanity_checks_metrics(model: scvi.model.SCVI,
             # pseudo-bulk embedding
             if use_get_latent:
                 pseudobulk_x = adata_sampled.layers["counts"].mean(axis=0) #.astype(int).astype(numpy.float32)
-                adata_pseudobulk = create_anndata_pseudobulk(pseudobulk_x, adata)
+                adata_pseudobulk = create_anndata_pseudobulk(adata, pseudobulk_x)
                 pseudobulk_z = model.get_latent_representation(adata_pseudobulk)
             else:
-
                 dist_pseudobulk_z, pseudobulk_z = model.module.z_encoder(torch.from_numpy(pseudobulk_x).to("cuda:0"))
                 pseudobulk_z = pseudobulk_z.detach().cpu().numpy().flatten()
 
                 pseudobulk_z = replace_inf(pseudobulk_z)
-
 
             # Compute correlation
             pearson_corr = pearsonr(mean_sampled_z, pseudobulk_z)
