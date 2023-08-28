@@ -3,13 +3,13 @@ import pytest
 import torch
 
 import scvi
-from scvi.data._utils import convert_scipy_sparse_to_torch_sparse
+from scvi.data._utils import scipy_to_torch_sparse
 
 
 @pytest.mark.parametrize(
     "sparse_format", ["csr_matrix", "csr_array", "csc_matrix", "csc_array", None]
 )
-def test_convert_scipy_sparse_to_torch_sparse(sparse_format: str):
+def test_scipy_to_torch_sparse(sparse_format: str):
     adata = scvi.data.synthetic_iid(sparse_format=sparse_format)
     scipy_sparse = adata.X
 
@@ -21,10 +21,10 @@ def test_convert_scipy_sparse_to_torch_sparse(sparse_format: str):
     else:
         # raises error for dense data
         with pytest.raises(TypeError):
-            _ = convert_scipy_sparse_to_torch_sparse(scipy_sparse)
+            _ = scipy_to_torch_sparse(scipy_sparse)
         return
 
-    torch_sparse = convert_scipy_sparse_to_torch_sparse(scipy_sparse)
+    torch_sparse = scipy_to_torch_sparse(scipy_sparse)
     assert isinstance(torch_sparse, torch.Tensor)
     assert torch_sparse.layout is expected_torch_layout
     assert torch_sparse.shape == scipy_sparse.shape
