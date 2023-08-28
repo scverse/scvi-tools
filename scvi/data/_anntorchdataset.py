@@ -33,12 +33,11 @@ class AnnTorchDataset(Dataset):
         ``__getitem__``. One of the following:
 
         * ``dict``: Keys correspond to keys in the data registry and values correspond to the
-                    desired :class:`~np.dtype` of the returned data.
+        desired :class:`~np.dtype` of the returned data.
         * ``list``: Elements correspond to keys in the data registry. Continuous data will be
-                    returned as :class:`~np.float32` and discrete data will be returned as
-                    :class:`~np.int64`.
+        returned as :class:`~np.float32` and discrete data will be returned as :class:`~np.int64`.
         * ``None``: All registered data will be returned. Continuous data will be returned as
-                    :class:`~np.float32` and discrete data will be returned as :class:`~np.int64`.
+        :class:`~np.float32` and discrete data will be returned as :class:`~np.int64`.
     load_sparse_tensor
         `EXPERIMENTAL` If ``True``, loads data with sparse CSR or CSC layout as a
         :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to GPUs,
@@ -104,8 +103,9 @@ class AnnTorchDataset(Dataset):
     def data(self):
         """Dictionary of data tensors.
 
-        First time this is accessed, data is fetched from the :class:`~anndata.AnnData` object.
-        Subsequent accesses will return the same dictionary.
+        First time this is accessed, data is fetched from the underlying
+        :class:`~anndata.AnnData` object. Subsequent accesses will return the
+        cached dictionary.
         """
         if not hasattr(self, "_data"):
             self._data = {
