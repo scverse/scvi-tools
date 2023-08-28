@@ -61,12 +61,14 @@ def convert_scipy_sparse_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
             as_tensor(x.indptr),
             as_tensor(x.indices),
             as_tensor(x.data),
+            size=x.shape,
         )
     elif isinstance(x, (sp_sparse.csc_matrix, sp_sparse.csc_array)):
         return sparse_csc_tensor(
             as_tensor(x.indptr),
             as_tensor(x.indices),
             as_tensor(x.data),
+            size=x.shape,
         )
     else:
         raise TypeError(
@@ -210,8 +212,8 @@ def _make_column_categorical(
     if -1 in unique:
         received_categories = df[column_key].astype("category").cat.categories
         raise ValueError(
-            'Making .obs["{}"] categorical failed. Expected categories: {}. '
-            "Received categories: {}. ".format(column_key, mapping, received_categories)
+            f'Making .obs["{column_key}"] categorical failed. Expected categories: {mapping}. '
+            f"Received categories: {received_categories}. "
         )
     df[alternate_column_key] = codes
 

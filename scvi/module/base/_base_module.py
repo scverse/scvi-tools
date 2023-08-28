@@ -11,7 +11,6 @@ import jax.numpy as jnp
 import numpy as np
 import pyro
 import torch
-from flax.core import FrozenDict
 from flax.training import train_state
 from jax import random
 from jaxlib.xla_extension import Device
@@ -145,7 +144,14 @@ class LossOutput:
 
 
 class BaseModuleClass(TunableMixin, nn.Module):
-    """Abstract class for scvi-tools modules."""
+    """Abstract class for scvi-tools modules.
+
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/dev/module_user_guide`
+    """
 
     def __init__(
         self,
@@ -446,7 +452,7 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
 class TrainStateWithState(train_state.TrainState):
     """TrainState with state attribute."""
 
-    state: FrozenDict[str, Any]
+    state: dict[str, Any]
 
 
 class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
@@ -618,12 +624,12 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
         return ret_rngs
 
     @property
-    def params(self) -> FrozenDict[str, Any]:
+    def params(self) -> dict[str, Any]:
         self._check_train_state_is_not_none()
         return self.train_state.params
 
     @property
-    def state(self) -> FrozenDict[str, Any]:
+    def state(self) -> dict[str, Any]:
         self._check_train_state_is_not_none()
         return self.train_state.state
 

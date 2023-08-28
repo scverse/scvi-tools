@@ -30,6 +30,14 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     and {class}`scvi.external.GIMVI.save` {pr}`2200`.
 -   Add `model_kwargs` and `train_kwargs` arguments to {meth}`scvi.autotune.ModelTuner.fit` {pr}`2203`.
 -   Add `datasplitter_kwargs` to model `train` methods {pr}`2204`.
+-   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for
+    stochastic prediction of celltype labels {pr}`2224`.
+-   Add support for Python 3.10+ type annotations in {class}`scvi.autotune.ModelTuner` {pr}`2239`.
+
+#### Fixed
+
+-   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder`
+    in {class}`scvi.model.AmortizedLDA` {pr}`2229`
 
 #### Changed
 
@@ -39,6 +47,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
     stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
     per-group LFC.
+-   Revalidate `devices` when automatically switching from MPS to CPU
+    accelerator in {func}`scvi.model._utils.parse_device_args` {pr}`2247`.
 
 #### Removed
 
@@ -48,11 +58,13 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 1.0
 
-### 1.0.3 (2023-07-DD)
+### 1.0.3 (2023-08-13)
 
 ### Changed
 
 -   Disable the default selection of MPS when `accelerator="auto"` in Lightning {pr}`2167`.
+-   Change JAX models to use `dict` instead of {class}`flax.core.FrozenDict` according
+    to the Flax migration guide https://github.com/google/flax/discussions/3191 {pr}`2222`.
 
 ### Fixed
 

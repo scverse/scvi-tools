@@ -90,7 +90,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
     modules.
 
     The following developer tutorial will familiarize you more with training plans
-    and how to use them: :doc:`/tutorials/notebooks/model_user_guide`.
+    and how to use them: :doc:`/tutorials/notebooks/dev/model_user_guide`.
 
     Parameters
     ----------
@@ -733,7 +733,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
 
     def initialize_metrics(self, n_classes: int):
         """Initialize metrics."""
-        kwargs = {"task": "multiclass", "num_classes": n_classes}
+        kwargs = {"task": "multiclass", "num_classes": n_classes, "top_k": 1}
         self.train_accuracy = Accuracy(**kwargs)
         self.train_f1 = F1Score(**kwargs)
         self.val_accuracy = Accuracy(**kwargs)

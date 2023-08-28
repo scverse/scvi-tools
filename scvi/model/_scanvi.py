@@ -98,9 +98,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/harmonization`
-    2. :doc:`/tutorials/notebooks/scarches_scvi_tools`
-    3. :doc:`/tutorials/notebooks/seed_labeling`
+    1. :doc:`/tutorials/notebooks/scrna/harmonization`
+    2. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
+    3. :doc:`/tutorials/notebooks/scrna/seed_labeling`
     """
 
     _module_cls = SCANVAE
@@ -290,6 +290,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         indices: Sequence[int] | None = None,
         soft: bool = False,
         batch_size: int | None = None,
+        use_posterior_mean: bool = True,
     ) -> np.ndarray | pd.DataFrame:
         """Return cell label predictions.
 
@@ -303,6 +304,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             If True, returns per class probabilities
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        use_posterior_mean
+            If ``True``, uses the mean of the posterior distribution to predict celltype
+            labels. Otherwise, uses a sample from the posterior distribution - this
+            means that the predictions will be stochastic.
         """
         adata = self._validate_anndata(adata)
 
@@ -326,7 +331,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
             pred = self.module.classify(
-                x, batch_index=batch, cat_covs=cat_covs, cont_covs=cont_covs
+                x,
+                batch_index=batch,
+                cat_covs=cat_covs,
+                cont_covs=cont_covs,
+                use_posterior_mean=use_posterior_mean,
             )
             if not soft:
                 pred = pred.argmax(dim=1)

@@ -27,6 +27,7 @@ def test_convert_scipy_sparse_to_torch_sparse(sparse_format: str):
     torch_sparse = convert_scipy_sparse_to_torch_sparse(scipy_sparse)
     assert isinstance(torch_sparse, torch.Tensor)
     assert torch_sparse.layout is expected_torch_layout
+    assert torch_sparse.shape == scipy_sparse.shape
     assert np.allclose(
         torch_sparse.to_dense().numpy(),
         scipy_sparse.toarray(),
