@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import logging
+import math
 import os
 import warnings
 from collections import OrderedDict
@@ -433,6 +434,8 @@ class TunerManager:
 
         accelerator = "gpu" if resources.get("gpu", 0) > 0 else "cpu"
         devices = resources.get(accelerator, 1)
+        if isinstance(devices, int):
+            devices = math.ceil(devices)
 
         _wrap_params = tune.with_parameters(
             _trainable,
