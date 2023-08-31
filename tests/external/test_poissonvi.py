@@ -1,6 +1,4 @@
-from typing import Optional
 
-from scvi.data import synthetic_iid
 from scvi.external import POISSONVI
 
 
