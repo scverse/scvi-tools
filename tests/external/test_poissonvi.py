@@ -4,7 +4,6 @@ from scvi.external import POISSONVI
 
 def test_poissonvi():
     adata = synthetic_iid(batch_size=100)
-    print(adata.obs)
     POISSONVI.setup_anndata(
         adata,
     )
