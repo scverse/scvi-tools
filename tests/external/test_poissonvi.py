@@ -1,17 +1,8 @@
-from typing import Optional
-
-from scvi.data import synthetic_iid
 from scvi.external import POISSONVI
 
 
-def _get_adata(sparse_format: Optional[str] = None):
-    dataset1 = synthetic_iid(batch_size=100, sparse_format=sparse_format)
-    return dataset1
-
-
 def test_poissonvi():
-    adata = _get_adata()
-    print(adata.obs)
+    adata = synthetic_iid(batch_size=100)
     POISSONVI.setup_anndata(
         adata,
     )
