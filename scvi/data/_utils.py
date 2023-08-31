@@ -23,7 +23,7 @@ from mudata import MuData
 from pandas.api.types import CategoricalDtype
 from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
-from scvi import settings
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import AnnOrMuData, MinifiedDataType
 
 from . import _constants
@@ -36,7 +36,31 @@ ScipySparse = Union[
 ]
 
 
-def convert_scipy_sparse_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
+def registry_key_to_default_dtype(key: str) -> type:
+    """Returns the default dtype for a given registry key."""
+    if key in [
+        REGISTRY_KEYS.X_KEY,
+        REGISTRY_KEYS.PROTEIN_EXP_KEY,
+        REGISTRY_KEYS.CONT_COVS_KEY,
+        REGISTRY_KEYS.SIZE_FACTOR_KEY,
+        REGISTRY_KEYS.MINIFY_TYPE_KEY,
+        REGISTRY_KEYS.LATENT_QZM_KEY,
+        REGISTRY_KEYS.LATENT_QZV_KEY,
+        REGISTRY_KEYS.OBSERVED_LIB_SIZE,
+    ]:
+        return np.float32
+    elif key in [
+        REGISTRY_KEYS.BATCH_KEY,
+        REGISTRY_KEYS.LABELS_KEY,
+        REGISTRY_KEYS.CAT_COVS_KEY,
+        REGISTRY_KEYS.INDICES_KEY,
+    ]:
+        return np.int64
+    else:
+        raise KeyError(f"Invalid registry key: {key}")
+
+
+def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
     """Converts a SciPy sparse data structure to a sparse :class:`~torch.Tensor`.
 
     Parameters
