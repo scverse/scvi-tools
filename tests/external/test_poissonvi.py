@@ -1,4 +1,5 @@
 from scvi.external import POISSONVI
+from scvi.data import synthetic_iid
 
 
 def test_poissonvi():
