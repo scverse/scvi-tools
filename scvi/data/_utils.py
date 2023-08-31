@@ -324,7 +324,6 @@ def _check_fragment_counts(
     n_to_check: int = 100,
 ):
     """Approximately checks values of data to ensure it is fragment count data."""
-
     # for backed anndata
     if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
         if len(data) >= 400:
