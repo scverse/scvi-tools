@@ -434,7 +434,7 @@ class TunerManager:
 
         accelerator = "gpu" if resources.get("gpu", 0) > 0 else "cpu"
         devices = resources.get(accelerator, 1)
-        if isinstance(devices, int):
+        if isinstance(devices, float):
             devices = math.ceil(devices)
 
         _wrap_params = tune.with_parameters(
