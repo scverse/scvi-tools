@@ -53,6 +53,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     {class}`numpy.float32` and categorical data as {class}`numpy.int64` by
     default {pr}`2250`.
 -   Support fractional GPU usage in {class}`scvi.autotune.ModelTuner` `pr`{2252}.
+-   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner` `pr`{xxxx}.
 
 #### Removed
 
