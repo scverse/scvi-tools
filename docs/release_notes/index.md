@@ -33,6 +33,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for
     stochastic prediction of celltype labels {pr}`2224`.
 -   Add support for Python 3.10+ type annotations in {class}`scvi.autotune.ModelTuner` {pr}`2239`.
+-   Add option to log device statistics in {class}`scvi.autotune.ModelTuner`
+    with argument `monitor_device_stats` {pr}`2260`.
 
 #### Fixed
 
