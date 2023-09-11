@@ -21,6 +21,7 @@ try:
 except ImportError:
     pass
 
+import scvi
 from scvi import settings
 from scvi._decorators import dependencies
 from scvi._types import AnnOrMuData
@@ -393,6 +394,7 @@ class TunerManager:
         setup_method_name: str,
         setup_kwargs: dict,
         max_epochs: int,
+        seed: int | None,
         experiment_name: str,
         logging_dir: str,
         monitor_device_stats: bool,
@@ -412,10 +414,13 @@ class TunerManager:
             max_epochs: int,
             accelerator: str,
             devices: int,
+            seed: int | None,
             experiment_name: str,
             logging_dir: str,
             monitor_device_stats: bool,
         ) -> None:
+            scvi.settings.seed = seed
+
             _model_kwargs, _train_kwargs = self._get_search_space(search_space)
             model_kwargs = copy.deepcopy(model_kwargs)
             train_kwargs = copy.deepcopy(train_kwargs)
@@ -466,6 +471,7 @@ class TunerManager:
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=devices,
+            seed=seed,
             experiment_name=experiment_name,
             logging_dir=logging_dir,
             monitor_device_stats=monitor_device_stats,
@@ -501,6 +507,7 @@ class TunerManager:
         searcher_kwargs: dict | None = None,
         reporter: bool = True,
         resources: dict | None = None,
+        seed: int | None = None,
         experiment_name: str | None = None,
         logging_dir: str | None = None,
         monitor_device_stats: bool = False,
@@ -542,6 +549,7 @@ class TunerManager:
             _setup_method_name,
             _setup_args,
             max_epochs,
+            seed,
             _experiment_name,
             _logging_dir,
             monitor_device_stats=monitor_device_stats,
