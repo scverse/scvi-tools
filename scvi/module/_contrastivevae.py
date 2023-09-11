@@ -10,7 +10,7 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import ZeroInflatedNegativeBinomial
-from scvi.module.base import BaseModuleClass, LossRecorder, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, one_hot
 
 torch.backends.cudnn.benchmark = True
@@ -536,7 +536,7 @@ class CONTRASTIVEVAE(BaseModuleClass):
         inference_outputs: Dict[str, Dict[str, torch.Tensor]],
         generative_outputs: Dict[str, Dict[str, torch.Tensor]],
         kl_weight: float = 1.0,
-    ) -> LossRecorder:
+    ) -> LossOutput:
         """Computes loss terms for contrastiveVI.
 
         Parameters
@@ -556,7 +556,7 @@ class CONTRASTIVEVAE(BaseModuleClass):
 
         Returns
         -------
-        An scvi.module.base.LossRecorder instance that records the following:
+        An scvi.module.base.LossOutput instance that records the following:
         loss
             One-dimensional tensor for overall loss used for optimization.
         reconstruction_loss
@@ -565,8 +565,6 @@ class CONTRASTIVEVAE(BaseModuleClass):
         kl_local
             KL divergence term with shape (n_samples, batch_size) if number of latent
             samples > 1, or (batch_size, ) if number of latent samples == 1.
-        kl_global
-            One-dimensional tensor for global KL divergence term.
         """
         background_tensors = concat_tensors["background"]
         target_tensors = concat_tensors["target"]
@@ -610,16 +608,14 @@ class CONTRASTIVEVAE(BaseModuleClass):
             "kl_divergence_z": kl_divergence_z,
             "kl_divergence_s": kl_divergence_s,
         }
-        kl_global = torch.tensor(0.0)
 
-        # LossRecorder internally sums the `reconst_loss`, `kl_local`, and `kl_global`
-        # terms before logging, so we do the same for our `wasserstein_loss` term.
-        return LossRecorder(
-            loss,
-            reconst_loss,
-            kl_local,
-            kl_global,
-            wasserstein_loss=torch.sum(wasserstein_loss),
+        # LossOutput internally sums the reconst_loss, kl_local, and kl_global
+        # terms before logging, so we do the same for the `wasserstein_loss` term.
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_local=kl_local,
+            extra_metrics={"wasserstein_loss_sum": torch.sum(wasserstein_loss)},
         )
 
     def sample(self):
