@@ -262,51 +262,68 @@ class TunerManager:
 
     @dependencies("ray.tune")
     def _validate_scheduler(
-        self, scheduler: str, metrics: OrderedDict, scheduler_kwargs: dict
+        self,
+        scheduler: str,
+        metrics: OrderedDict,
+        scheduler_kwargs: dict,
     ) -> Any:
         """Validates a trial scheduler."""
         metric, mode = self._get_primary_metric_and_mode(metrics)
-        _kwargs = {"metric": metric, "mode": mode}
 
         if scheduler == "asha":
-            _default_kwargs = {
+            _kwargs = {
+                "metric": metric,
+                "mode": mode,
                 "max_t": 100,
                 "grace_period": 1,
                 "reduction_factor": 2,
             }
             _scheduler = tune.schedulers.AsyncHyperBandScheduler
         elif scheduler == "hyperband":
-            _default_kwargs = {}
+            _kwargs = {
+                "metric": metric,
+                "mode": mode,
+            }
             _scheduler = tune.schedulers.HyperBandScheduler
         elif scheduler == "median":
-            _default_kwargs = {}
+            _kwargs = {
+                "metric": metric,
+                "mode": mode,
+            }
             _scheduler = tune.schedulers.MedianStoppingRule
         elif scheduler == "pbt":
-            _default_kwargs = {}
+            _kwargs = {
+                "metric": metric,
+                "mode": mode,
+            }
             _scheduler = tune.schedulers.PopulationBasedTraining
         elif scheduler == "fifo":
-            _default_kwargs = {}
+            _kwargs = {}
             _scheduler = tune.schedulers.FIFOScheduler
 
         # prority given to user-provided scheduler kwargs
-        _default_kwargs.update(scheduler_kwargs)
-        _kwargs.update(_default_kwargs)
+        _kwargs.update(scheduler_kwargs)
         return _scheduler(**_kwargs)
 
     @dependencies(["ray.tune", "hyperopt"])
     def _validate_search_algorithm(
-        self, searcher: str, metrics: OrderedDict, searcher_kwargs: dict
+        self,
+        searcher: str,
+        metrics: OrderedDict,
+        searcher_kwargs: dict,
+        seed: int | None,
     ) -> Any:
         """Validates a hyperparameter search algorithm."""
         metric, mode = self._get_primary_metric_and_mode(metrics)
 
         if searcher == "random":
-            _default_kwargs = {}
+            _default_kwargs = {"random_state": seed}
             _searcher = tune.search.basic_variant.BasicVariantGenerator
         elif searcher == "hyperopt":
             _default_kwargs = {
                 "metric": metric,
                 "mode": mode,
+                "random_state_seed": seed,
             }
             # tune does not import hyperopt by default
             tune.search.SEARCH_ALG_IMPORT[searcher]()
@@ -323,6 +340,7 @@ class TunerManager:
         metrics: OrderedDict,
         scheduler_kwargs: dict,
         searcher_kwargs: dict,
+        seed: int | None,
     ) -> tuple[Any, Any]:
         """Validates a scheduler and search algorithm pair for compatibility."""
         supported = ["asha", "hyperband", "median", "pbt", "fifo"]
@@ -344,7 +362,9 @@ class TunerManager:
             )
 
         _scheduler = self._validate_scheduler(scheduler, metrics, scheduler_kwargs)
-        _searcher = self._validate_search_algorithm(searcher, metrics, searcher_kwargs)
+        _searcher = self._validate_search_algorithm(
+            searcher, metrics, searcher_kwargs, seed
+        )
         return _scheduler, _searcher
 
     @staticmethod
@@ -530,7 +550,12 @@ class TunerManager:
         _metrics = self._validate_metrics(metric, additional_metrics)
         _search_space = self._validate_search_space(search_space, use_defaults)
         _scheduler, _searcher = self._validate_scheduler_and_search_algorithm(
-            scheduler, searcher, _metrics, scheduler_kwargs, searcher_kwargs
+            scheduler,
+            searcher,
+            _metrics,
+            scheduler_kwargs,
+            searcher_kwargs,
+            seed,
         )
         _reporter = self._validate_reporter(reporter, _search_space, _metrics)
         _resources = self._validate_resources(resources)
