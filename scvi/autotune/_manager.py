@@ -395,6 +395,7 @@ class TunerManager:
         max_epochs: int,
         experiment_name: str,
         logging_dir: str,
+        monitor_device_stats: bool,
     ) -> Callable:
         """Returns a trainable function consumable by :class:`~ray.tune.Tuner`."""
 
@@ -413,6 +414,7 @@ class TunerManager:
             devices: int,
             experiment_name: str,
             logging_dir: str,
+            monitor_device_stats: bool,
         ) -> None:
             _model_kwargs, _train_kwargs = self._get_search_space(search_space)
             model_kwargs = copy.deepcopy(model_kwargs)
@@ -427,18 +429,21 @@ class TunerManager:
             callback_cls = type(
                 "_TuneReportCallback", (TuneReportCallback, pl.Callback), {}
             )
-            monitor = callback_cls(metric, on="validation_end")
+            callbacks = [callback_cls(metric, on="validation_end")]
 
             logs_dir = os.path.join(logging_dir, experiment_name)
             trial_name = air.session.get_trial_name() + "_lightning"
             logger = pl.loggers.TensorBoardLogger(logs_dir, name=trial_name)
+
+            if monitor_device_stats:
+                callbacks.append(pl.callbacks.DeviceStatsMonitor())
 
             model.train(
                 max_epochs=max_epochs,
                 accelerator=accelerator,
                 devices=devices,
                 check_val_every_n_epoch=1,
-                callbacks=[monitor],
+                callbacks=callbacks,
                 enable_progress_bar=False,
                 logger=logger,
                 **train_kwargs,
@@ -463,6 +468,7 @@ class TunerManager:
             devices=devices,
             experiment_name=experiment_name,
             logging_dir=logging_dir,
+            monitor_device_stats=monitor_device_stats,
         )
         return tune.with_resources(_wrap_params, resources=resources)
 
@@ -497,6 +503,7 @@ class TunerManager:
         resources: dict | None = None,
         experiment_name: str | None = None,
         logging_dir: str | None = None,
+        monitor_device_stats: bool = False,
     ) -> tuple[Any, dict]:
         metric = (
             metric or self._get_primary_metric_and_mode(self._registry["metrics"])[0]
@@ -537,6 +544,7 @@ class TunerManager:
             max_epochs,
             _experiment_name,
             _logging_dir,
+            monitor_device_stats=monitor_device_stats,
         )
 
         tune_config = tune.tune_config.TuneConfig(
