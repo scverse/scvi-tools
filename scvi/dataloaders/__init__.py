@@ -3,6 +3,7 @@ from scvi.data import AnnTorchDataset
 
 from ._ann_dataloader import AnnDataLoader
 from ._concat_dataloader import ConcatDataLoader
+from ._contrastive_dataloader import ContrastiveDataLoader
 from ._data_splitting import (
     DataSplitter,
     DeviceBackedDataSplitter,
@@ -19,4 +20,5 @@ __all__ = [
     "SemiSupervisedDataLoader",
     "DataSplitter",
     "SemiSupervisedDataSplitter",
+    "ContrastiveDataLoader",
 ]
