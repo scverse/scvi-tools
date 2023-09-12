@@ -1,4 +1,4 @@
-from scvi.module._vae import _compute_mmd, _compute_mmd_loss, _compute_fast_mmd
+# from scvi.module._vae import _compute_mmd, _compute_mmd_loss, _compute_fast_mmd
 from scvi.model import SCVI
 import scanpy as sc
 import gdown
@@ -39,27 +39,15 @@ def main():
     SCVI.setup_anndata(adata, layer="counts", batch_key="study")
     model = SCVI(adata)
     model.view_anndata_setup(adata)
-    n_cells = adata.shape[0]
-    n_genes = adata.shape[1]
-    n_batches = adata.obs['_scvi_batch'].nunique()
-    [batch_0, batch_1, batch_2, batch_3, batch_4] = [torch.tensor(adata.X[adata.obs['_scvi_batch'] == 0]), torch.tensor(adata.X[adata.obs['_scvi_batch'] == 1]),
-                                                     torch.tensor(adata.X[adata.obs['_scvi_batch'] == 2]), torch.tensor(adata.X[adata.obs['_scvi_batch'] == 3]),
-                                                     torch.tensor(adata.X[adata.obs['_scvi_batch'] == 4])]
-    x = torch.tensor(adata.X[0])
-    y = torch.tensor(adata.X[1])
-    print(_compute_mmd(x, y))
-    print(_compute_fast_mmd(x, y))
-
-    # d = _compute_mmd(torch.tensor(batch_0), torch.tensor(batch_1))
-    # e = _compute_fast_mmd(batch_0, batch_1)
-    batches = [batch_0, batch_1, batch_2, batch_3, batch_4]
-    _compute_mmd_loss(batches, "fast")
 
 
 
 
 if __name__ == '__main__':
     main()
+    # ts = torch.tensor([1,2,3,4])
+    # ts.to('cuda')
+    # print(ts)
 
 
 #   TBD (to be done):

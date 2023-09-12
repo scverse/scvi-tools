@@ -102,7 +102,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_batch: int = 0,
         n_labels: int = 0,
         mode: str = "fast",
-        # batches: torch.tensor() = None,
+        batches: torch.tensor = None,
         n_hidden: Tunable[int] = 128,
         n_latent: Tunable[int] = 10,
         n_layers: Tunable[int] = 1,
@@ -134,11 +134,11 @@ class VAE(BaseMinifiedModeModuleClass):
         self.gene_likelihood = gene_likelihood
         # Automatically deactivate if useless
         self.n_batch = n_batch
-        # self.batches = batches
+        self.batches = batches
         self.n_labels = n_labels
         self.beta = 1.0
         self.mode = mode
-        # self.mmdloss = _compute_mmd_loss(batches, mode)
+        self.mmdloss = self._compute_mmd_loss(self.batches, self.mode)
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key
@@ -228,6 +228,60 @@ class VAE(BaseMinifiedModeModuleClass):
             scale_activation="softplus" if use_size_factor_key else "softmax",
             **_extra_decoder_kwargs,
         )
+
+    def _compute_mmd(self, z1: torch.Tensor, z2: torch.Tensor):
+        m = z1.size(0)
+        n = z2.size(0)
+        return ((1 / m ** 2) * self.Left_sum(z1, m) - (2 / (m * n)) * self.Middle_sum(z1, z2, m, n) + (1 / n ** 2) * self.Right_sum(z2, n)) ** 0.5
+
+    def _compute_fast_mmd(self, z1: torch.Tensor, z2: torch.Tensor):
+        m2 = min(z1.size(0), z2.size(0)) // 2
+        MMD = 0
+        for i in range(m2):
+            MMD += self.h(z1[2 * i], z2[2 * i], z1[2 * i + 1], z2[2 * i + 1])
+        return (MMD / m2) ** 0.5
+
+    def h(self, x1: torch.tensor, y1: torch.tensor, x2: torch.tensor, y2: torch.tensor):
+        return self.gauss_kernel(x1, x2) + self.gauss_kernel(y1, y2) - self.gauss_kernel(x1, y2) - self.gauss_kernel(x2, y1)
+
+    def Left_sum(self, z1: torch.tensor, m: int):
+        mmd_left = 0
+        for i in range(m):
+            for j in range(m):
+                mmd_left += self.gauss_kernel(z1[i], z1[j])
+        return mmd_left
+
+    def Middle_sum(self, z1: torch.tensor, z2: torch.tensor, m: int, n: int):
+        mmd_middle = 0
+        for i in range(m):
+            for j in range(n):
+                mmd_middle += self.gauss_kernel(z1[i], z2[j])
+        return mmd_middle
+
+
+    def Right_sum(self, z2: torch.tensor, n: int):
+        mmd_right = 0
+        for i in range(n):
+            for j in range(n):
+                mmd_right += self.gauss_kernel(z2[i], z2[j])
+        return mmd_right
+
+
+    def gauss_kernel(self, z1: torch.tensor, z2: torch.tensor, gamma=1.0):
+        return torch.exp(-gamma * torch.norm(torch.sub(z1, z2), p=2) ** 2)
+
+    def _compute_mmd_loss(self, batches: Tensor, mode: str) -> Tensor:
+        mmd_Loss = 0.0
+        for i in range(len(batches)):
+            for j in range(i):
+                if mode == "normal":
+                    mmd_Loss += self._compute_mmd(batches[j], batches[i])
+                elif mode == "fast":
+                    mmd_Loss += self._compute_fast_mmd(batches[j], batches[i])
+                else:
+                    break
+        return mmd_Loss
+
 
     def _get_inference_input(
         self,
@@ -761,76 +815,5 @@ class LDVAE(VAE):
         return loadings
 
 
-def _compute_mmd(z1: torch.Tensor, z2: torch.Tensor):
-    m = z1.size(0)
-    n = z2.size(0)
-    return ((1 / m ** 2) * Left_sum(z1, m) - (2 / (m * n)) * Middle_sum(z1, z2, m, n) + (1 / n ** 2) * Right_sum(z2, n)) ** 0.5
 
-
-def _compute_fast_mmd(z1: torch.Tensor, z2: torch.Tensor):
-    m2 = min(z1.size(0), z2.size(0)) // 2
-    MMD = 0
-    for i in range(m2):
-        MMD += h(z1[2 * i], z2[2 * i], z1[2 * i + 1], z2[2 * i + 1])
-    return (MMD / m2) ** 0.5
-
-
-def _compute_mmd_loss(z: torch.Tensor, batch_indices: torch.Tensor, mode: str) -> torch.Tensor:
-    batches = torch.unique(batch_indices)
-    mmd_Loss = 0.0
-    for b0, b1 in zip(batches, batches[1:]):
-        z0 = z[(batch_indices == b0).reshape(-1)]
-        z1 = z[(batch_indices == b1).reshape(-1)]
-        if mode == "normal":
-            mmd_Loss += (_compute_mmd(z0, z1)) ** 2
-        elif mode == "fast":
-            mmd_Loss += (_compute_fast_mmd(z0, z1)) ** 2
-        else:
-            break
-    return mmd_Loss
-
-
-def h(x1: torch.tensor, y1: torch.tensor, x2: torch.tensor, y2: torch.tensor):
-    return gauss_kernel(x1, x2) + gauss_kernel(y1, y2) - gauss_kernel(x1, y2) - gauss_kernel(x2, y1)
-
-
-def Left_sum(z1: torch.tensor, m: int):
-    mmd_left = 0
-    for i in range(m):
-        for j in range(m):
-            mmd_left += gauss_kernel(z1[i], z1[j])
-    return mmd_left
-
-
-def Middle_sum(z1: torch.tensor, z2: torch.tensor, m: int, n: int):
-    mmd_middle = 0
-    for i in range(m):
-        for j in range(n):
-            mmd_middle += gauss_kernel(z1[i], z2[j])
-    return mmd_middle
-
-
-def Right_sum(z2: torch.tensor, n: int):
-    mmd_right = 0
-    for i in range(n):
-        for j in range(n):
-            mmd_right += gauss_kernel(z2[i], z2[j])
-    return mmd_right
-
-
-def gauss_kernel(z1: torch.tensor, z2: torch.tensor , gamma=1.0):
-    return torch.exp(-gamma * torch.norm(torch.sub(z1, z2), p=2) ** 2)
-
-
-def _compute_mmd_loss(batches: Tensor, mode: str) -> Tensor:
-    mmd_Loss = 0.0
-    for i in range(len(batches)):
-        for j in range(i):
-            if mode == "normal":
-                mmd_Loss += _compute_mmd(batches[j], batches[i])
-            elif mode == "fast":
-                mmd_Loss += _compute_fast_mmd(batches[j], batches[i])
-            else:
-                break
-    return mmd_Loss
 
