@@ -93,22 +93,15 @@ def test_anndataloader_distributed_sampler_init():
         )
 
 
-def test_contrastivedataloader():
+def test_contrastivedataloader(
+    mock_contrastive_adata_manager,
+    mock_background_indices,
+    mock_target_indices,
+):
     batch_size = 32
-    adata = scvi.data.synthetic_iid(n_batches=2)
-    adata = adata[:-3, :]  # Unequal technical batch sizes.
-    adata.layers["raw_counts"] = adata.X.copy()
-    background_indices = (
-        adata.obs.index[adata.obs["batch"] == "batch_0"].astype(int).tolist()
-    )
-    target_indices = (
-        adata.obs.index[adata.obs["batch"] == "batch_1"].astype(int).tolist()
-    )
-    manager = generic_setup_adata_manager(
-        adata=adata, batch_key="batch", labels_key="labels", layer="raw_counts"
-    )
+    adata = mock_contrastive_adata_manager.adata
 
-    expected_background_indices = background_indices[:batch_size]
+    expected_background_indices = mock_background_indices[:batch_size]
     expected_background_input = torch.Tensor(
         adata.layers["raw_counts"][expected_background_indices, :]
     )
@@ -119,7 +112,7 @@ def test_contrastivedataloader():
         adata.obs["_scvi_batch"].iloc[expected_background_indices]
     ).unsqueeze(1)
 
-    expected_target_indices = target_indices[:batch_size]
+    expected_target_indices = mock_target_indices[:batch_size]
     expected_target_input = torch.Tensor(
         adata.layers["raw_counts"][expected_target_indices, :]
     )
@@ -131,9 +124,9 @@ def test_contrastivedataloader():
     ).unsqueeze(1)
 
     dataloader = scvi.dataloaders.ContrastiveDataLoader(
-        adata_manager=manager,
-        background_indices=background_indices,
-        target_indices=target_indices,
+        adata_manager=mock_contrastive_adata_manager,
+        background_indices=mock_background_indices,
+        target_indices=mock_target_indices,
         batch_size=batch_size,
     )
     batch = next(batch for batch in dataloader)

@@ -1,12 +1,10 @@
 import pytest
 import torch
 
-import scvi
 from scvi.dataloaders import ContrastiveDataLoader
 from scvi.model._utils import _init_library_size
 from scvi.module import CONTRASTIVEVAE
 from scvi.module.base import LossOutput
-from tests.dataset.utils import generic_setup_adata_manager
 
 REQUIRED_DATA_SOURCES = ["background", "target"]
 REQUIRED_INFERENCE_INPUT_KEYS = ["x", "batch_index"]
@@ -31,29 +29,19 @@ REQUIRED_GENERATIVE_OUTPUT_KEYS = [
 ]
 
 
-@pytest.fixture()
-def mock_adata_manager():
-    adata = scvi.data.synthetic_iid(n_batches=2)
-    adata = adata[:-3, :]  # Unequal technical batch sizes.
-    adata.layers["raw_counts"] = adata.X.copy()
-    return generic_setup_adata_manager(
-        adata=adata, batch_key="batch", labels_key="labels", layer="raw_counts"
-    )
+@pytest.fixture
+def mock_n_input(mock_contrastive_adata_manager):
+    return mock_contrastive_adata_manager.adata.X.shape[1]
 
 
 @pytest.fixture
-def mock_n_input(mock_adata_manager):
-    return mock_adata_manager.adata.X.shape[1]
+def mock_n_batch(mock_contrastive_adata_manager):
+    return len(mock_contrastive_adata_manager.adata.obs["batch"].unique())
 
 
 @pytest.fixture
-def mock_n_batch(mock_adata_manager):
-    return len(mock_adata_manager.adata.obs["batch"].unique())
-
-
-@pytest.fixture
-def mock_library_log_means_and_vars(mock_adata_manager, mock_n_batch):
-    return _init_library_size(mock_adata_manager, n_batch=mock_n_batch)
+def mock_library_log_means_and_vars(mock_contrastive_adata_manager, mock_n_batch):
+    return _init_library_size(mock_contrastive_adata_manager, n_batch=mock_n_batch)
 
 
 @pytest.fixture
@@ -67,23 +55,11 @@ def mock_library_log_vars(mock_library_log_means_and_vars):
 
 
 @pytest.fixture
-def mock_background_indices(mock_adata_manager):
-    adata = mock_adata_manager.adata
-    return adata.obs.index[(adata.obs["batch"] == "batch_0")].astype(int).tolist()
-
-
-@pytest.fixture
-def mock_target_indices(mock_adata_manager):
-    adata = mock_adata_manager.adata
-    return adata.obs.index[(adata.obs["batch"] == "batch_1")].astype(int).tolist()
-
-
-@pytest.fixture
 def mock_contrastive_dataloader(
-    mock_adata_manager, mock_background_indices, mock_target_indices
+    mock_contrastive_adata_manager, mock_background_indices, mock_target_indices
 ):
     return ContrastiveDataLoader(
-        mock_adata_manager,
+        mock_contrastive_adata_manager,
         mock_background_indices,
         mock_target_indices,
         batch_size=32,
@@ -98,8 +74,8 @@ def mock_contrastive_batch(mock_contrastive_dataloader):
 
 
 @pytest.fixture
-def mock_background_batch(mock_adata_manager, mock_background_indices):
-    background_batch = mock_adata_manager.adata.obs["_scvi_batch"][
+def mock_background_batch(mock_contrastive_adata_manager, mock_background_indices):
+    background_batch = mock_contrastive_adata_manager.adata.obs["_scvi_batch"][
         mock_background_indices
     ].unique()
     assert len(background_batch) == 1
@@ -107,8 +83,8 @@ def mock_background_batch(mock_adata_manager, mock_background_indices):
 
 
 @pytest.fixture
-def mock_target_batch(mock_adata_manager, mock_target_indices):
-    target_batch = mock_adata_manager.adata.obs["_scvi_batch"][
+def mock_target_batch(mock_contrastive_adata_manager, mock_target_indices):
+    target_batch = mock_contrastive_adata_manager.adata.obs["_scvi_batch"][
         mock_target_indices
     ].unique()
     assert len(target_batch) == 1

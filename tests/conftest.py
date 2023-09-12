@@ -4,6 +4,7 @@ from distutils.dir_util import copy_tree
 import pytest
 
 import scvi
+from tests.dataset.utils import generic_setup_adata_manager
 
 
 def pytest_addoption(parser):
@@ -97,3 +98,28 @@ def accelerator(request):
 def devices(request):
     """Docstring for devices."""
     return request.config.getoption("--devices")
+
+
+@pytest.fixture(scope="session")
+def mock_contrastive_adata_manager():
+    """adata manager for synthetic contrastive data."""
+    adata = scvi.data.synthetic_iid(n_batches=2)
+    adata = adata[:-3, :]  # Unequal technical batch sizes.
+    adata.layers["raw_counts"] = adata.X.copy()
+    return generic_setup_adata_manager(
+        adata=adata, batch_key="batch", labels_key="labels", layer="raw_counts"
+    )
+
+
+@pytest.fixture(scope="session")
+def mock_background_indices(mock_contrastive_adata_manager):
+    """Indices for background data in ``mock_contrastive_adata_manager``."""
+    adata = mock_contrastive_adata_manager.adata
+    return adata.obs.index[(adata.obs["batch"] == "batch_0")].astype(int).tolist()
+
+
+@pytest.fixture(scope="session")
+def mock_target_indices(mock_contrastive_adata_manager):
+    """Indices for target data in ``mock_contrastive_adata_manager``."""
+    adata = mock_contrastive_adata_manager.adata
+    return adata.obs.index[(adata.obs["batch"] == "batch_1")].astype(int).tolist()

@@ -59,21 +59,17 @@ def test_datasplitter_load_sparse_tensor(
 
 
 @pytest.mark.parametrize("shuffle_set_split", [False, True])
-def test_contrastive_datasplitter(shuffle_set_split: bool):
-    adata = scvi.data.synthetic_iid(n_batches=2)
-    adata = adata[:-3, :]  # Unequal technical batch sizes.
-    adata.layers["raw_counts"] = adata.X.copy()
-    background_indices = (
-        adata.obs.index[adata.obs["batch"] == "batch_0"].astype(int).tolist()
-    )
-    target_indices = (
-        adata.obs.index[adata.obs["batch"] == "batch_1"].astype(int).tolist()
-    )
-    manager = generic_setup_adata_manager(
-        adata=adata, batch_key="batch", labels_key="labels", layer="raw_counts"
-    )
+def test_contrastive_datasplitter(
+    shuffle_set_split: bool,
+    mock_contrastive_adata_manager,
+    mock_background_indices,
+    mock_target_indices,
+):
+    background_indices = mock_background_indices
+    target_indices = mock_target_indices
+
     contrastive_datasplitter = scvi.dataloaders.ContrastiveDataSplitter(
-        adata_manager=manager,
+        adata_manager=mock_contrastive_adata_manager,
         background_indices=background_indices,
         target_indices=target_indices,
         train_size=0.5,
