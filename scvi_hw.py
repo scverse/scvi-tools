@@ -39,6 +39,7 @@ def main():
     SCVI.setup_anndata(adata, layer="counts", batch_key="study")
     model = SCVI(adata)
     model.view_anndata_setup(adata)
+    model.train()
 
 
 

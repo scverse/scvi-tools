@@ -136,7 +136,7 @@ class VAE(BaseMinifiedModeModuleClass):
         self.n_batch = n_batch
         self.batches = batches
         self.n_labels = n_labels
-        self.beta = 1.0
+        self.beta = torch.tensor(1.0)
         self.mode = mode
         self.mmdloss = self._compute_mmd_loss(self.batches, self.mode)
         self.latent_distribution = latent_distribution
@@ -258,14 +258,12 @@ class VAE(BaseMinifiedModeModuleClass):
                 mmd_middle += self.gauss_kernel(z1[i], z2[j])
         return mmd_middle
 
-
     def Right_sum(self, z2: torch.tensor, n: int):
         mmd_right = 0
         for i in range(n):
             for j in range(n):
                 mmd_right += self.gauss_kernel(z2[i], z2[j])
         return mmd_right
-
 
     def gauss_kernel(self, z1: torch.tensor, z2: torch.tensor, gamma=1.0):
         return torch.exp(-gamma * torch.norm(torch.sub(z1, z2), p=2) ** 2)
@@ -280,7 +278,7 @@ class VAE(BaseMinifiedModeModuleClass):
                     mmd_Loss += self._compute_fast_mmd(batches[j], batches[i])
                 else:
                     break
-        return mmd_Loss
+        return torch.tensor(mmd_Loss)
 
 
     def _get_inference_input(
@@ -541,7 +539,7 @@ class VAE(BaseMinifiedModeModuleClass):
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
 
-        loss = torch.mean(reconst_loss + weighted_kl_local) + self.beta * self.mmd_loss
+        loss = torch.mean(reconst_loss + weighted_kl_local) + self.beta * self.mmdloss
 
         kl_local = {
             "kl_divergence_l": kl_divergence_l,
