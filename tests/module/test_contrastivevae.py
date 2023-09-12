@@ -3,7 +3,7 @@ import torch
 
 from scvi.dataloaders import ContrastiveDataLoader
 from scvi.model._utils import _init_library_size
-from scvi.module import CONTRASTIVEVAE
+from scvi.module import ContrastiveVAE
 from scvi.module.base import LossOutput
 
 REQUIRED_DATA_SOURCES = ["background", "target"]
@@ -98,7 +98,7 @@ def mock_contrastive_vae(
     mock_n_input, mock_n_batch, mock_library_log_means, mock_library_log_vars, request
 ):
     if request.param:
-        return CONTRASTIVEVAE(
+        return ContrastiveVAE(
             n_input=mock_n_input,
             n_batch=mock_n_batch,
             n_hidden=10,
@@ -110,7 +110,7 @@ def mock_contrastive_vae(
             library_log_vars=None,
         )
     else:
-        return CONTRASTIVEVAE(
+        return ContrastiveVAE(
             n_input=mock_n_input,
             n_batch=mock_n_batch,
             n_hidden=10,

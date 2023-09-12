@@ -16,7 +16,7 @@ from scvi.nn import DecoderSCVI, Encoder, one_hot
 torch.backends.cudnn.benchmark = True
 
 
-class CONTRASTIVEVAE(BaseModuleClass):
+class ContrastiveVAE(BaseModuleClass):
     """Variational inference for contrastive analysis of RNA-seq data.
 
     Implements the contrastiveVI model of :cite:p:`Weinberger23`.
