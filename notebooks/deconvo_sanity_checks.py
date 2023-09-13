@@ -28,8 +28,15 @@ signature_laughney = pd.read_csv(
 signature_almudena = read_almudena_signature(
     "/home/owkin/project/Almudena/Output/Crosstiss_Immune_norm/CTI.txt"
 )  # it is the normalised one (using adata.X and not adata.raw.X, to match this code)
-# primary cell type categories
-groups = GROUPS["primary_groups"]
+
+
+# %%
+# cell type categories
+signature_choice = "crosstissue_general" # choose between laughney and crosstissue_general
+grouping_choice = "primary_groups" # choose between primary_groups and precise_groups
+if signature_choice in ["laughney", "crosstissue_general"] and grouping_choice != "primary_groups":
+    raise ValueError("Incompatabile number of cell types between the signature matrix and the grouping chosen for the dataset.")
+groups = GROUPS[grouping_choice] 
 
 
 # %%
@@ -59,9 +66,6 @@ adata = adata[cell_types_test, :]
 
 
 # %%
-
-signature_choice = "almudena"  # almudena or laughney
-
 if signature_choice == "laughney":
     # map the HGNC notation to ENSG if the signature matrix uses HGNC notation
     mg = mygene.MyGeneInfo()
@@ -76,7 +80,7 @@ if signature_choice == "laughney":
     ensg_names = map_hgnc_to_ensg(genes, adata)
     signature = signature_laughney.copy()
     signature.index = ensg_names
-elif signature_choice == "almudena":
+elif signature_choice == "crosstissue_general":
     signature = signature_almudena.copy()
 
 # intersection between all genes and marker genes
@@ -133,8 +137,12 @@ plt.show()
 # %%
 # Sanity check 2: Pseudobulks from predefined fractions → correlation between the
 # fractions of selected cells (“ground truth”)  and the estimated fractions
+# nb This task is too easy because the pseudo-bulk have the same cell fractions than the
+# training dataset on which was created the signature matrix.
 
-n_sample = 100
+n_sample = 100 # When using 1000 to create the pseudo-bulks, all n_sample pseudo-bulks
+              # will have the same cell fractions because of the high 1000 cell. In this
+              # case, n_sample = 1 is already representative of the sanity check results
 random.seed(42)
 averaged_data = []
 ground_truth_fractions = []
@@ -203,7 +211,7 @@ alpha_posterior = (
     prior_alphas + likelihood_alphas
 )  # (TO CHECK: maths behind this simple addition)
 posterior_dirichlet = np.random.dirichlet(alpha_posterior, n_sample)
-posterior_dirichlet = np.round(posterior_dirichlet * 500)
+posterior_dirichlet = np.round(posterior_dirichlet * 1000)
 posterior_dirichlet = posterior_dirichlet.astype(np.int64)  # number of cells to sample
 
 ground_truth_fractions = posterior_dirichlet / posterior_dirichlet.sum(
@@ -223,9 +231,9 @@ for i in range(n_sample):
             list(adata.obs.loc[adata.obs.cell_types_grouped == cell_type].index),
             posterior_dirichlet[i][j],
         )
-        adata_sample = adata[cell_sample, :]
-        sample_data.append(adata_sample.X.mean(axis=0).tolist()[0])
-    averaged_data.append(np.array(sample_data).mean(axis=0))
+        sample_data.extend(cell_sample)
+    adata_sample = adata[sample_data]
+    averaged_data.append(adata_sample.X.mean(axis=0).tolist()[0])
 
 averaged_data = pd.DataFrame(
     averaged_data, index=range(n_sample), columns=adata.var_names

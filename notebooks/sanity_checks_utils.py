@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+import scipy.stats
 from sklearn.linear_model import LinearRegression
 
 GROUPS = {
@@ -62,45 +63,28 @@ GROUPS = {
             "ABCs",
             "GC_B (I)",
             "GC_B (II)",
-            "MNP/B doublets",
             "Memory B cells",
             "Naive B cells",
             "Pre-B",
-            "Pro-B",
+            "Pro-B"
         ],
         "Plasma": ["Plasma cells", "Plasmablasts"],
         "Mono": ["Classical monocytes", "Nonclassical monocytes"],
-        "Macro": [
-            "Alveolar macrophages",
-            "Erythrophagocytic macrophages",
-            "Intermediate macrophages",
-            "Intestinal macrophages",
-        ],
-        "T": [
-            "MAIT",
-            "MNP/T doublets",
-            "T_CD4/CD8",
-            "Teffector/EM_CD4",
-            "Tem/emra_CD8",
-            "Tfh",
-            "Tgd_CRTAM+",
-            "Tnaive/CM_CD4",
-            "Tnaive/CM_CD4_activated",
-            "Tnaive/CM_CD8",
-            "Tregs",
-            "Trm/em_CD8",
-            "Trm_Tgd",
-            "Trm_Th1/Th17",
-            "Trm_gut_CD8",
-        ],
+        "CD8 T": ["Tem/emra_CD8", "Tnaive/CM_CD8", "Trm/em_CD8", "Trm_gut_CD8"],
+        "CD4 T":["Teffector/EM_CD4", "Tfh", "Tnaive/CM_CD4", "Tnaive/CM_CD4_activated", "Tregs", 
+                 "Trm_Th1/Th17"],
+        "T": ["MAIT","T_CD4/CD8","Tgd_CRTAM+","Trm_Tgd"],
         "NK": ["NK_CD16+", "NK_CD56bright_CD16-"],
-        "ICL3": ["ILC3"],
         "DC": ["DC1", "DC2", "migDC", "pDC"],
         "Mast": ["Mast cells"],
         "Red_blood": ["Erythroid"],
         "Bone_marrow": ["Megakaryocytes"],
         "Non-differentiated": ["Progenitor"],
-        "To remove": ["Cycling", "T/B doublets", "Cycling T&NK"],
+        "To remove":  ["Cycling", "T/B doublets", "Cycling T&NK",
+            "MNP/B doublets", "MNP/T doublets","Alveolar macrophages",
+            "Erythrophagocytic macrophages",
+            "Intermediate macrophages",
+            "Intestinal macrophages", "ILC3"],
     },
 }
 
@@ -190,10 +174,10 @@ def compute_correlations(deconv_results, ground_truth_fractions):
     """Compute n_sample pairwise correlations between the deconvolution results and the
     ground truth fractions.
     """
-    correlations = pd.concat(
-        [deconv_results.T, ground_truth_fractions.T], axis=1, keys=["df1", "df2"]
-    )
-    correlations = np.diag(correlations.corr().loc["df2", "df1"])
+    deconv_results = deconv_results[ground_truth_fractions.columns] # to align order of columsn
+    correlations = [scipy.stats.pearsonr(ground_truth_fractions.iloc[i], 
+                                         deconv_results.iloc[i]).statistic 
+                                         for i in range(len(deconv_results))]
     correlations = pd.DataFrame({"correlations": correlations})
     correlations["Method"] = "nnls"  # add all the deconv methods
     return correlations
