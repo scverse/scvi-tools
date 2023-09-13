@@ -138,6 +138,8 @@ class VAE(BaseMinifiedModeModuleClass):
         self.n_labels = n_labels
         self.beta = torch.tensor(1.0)
         self.mode = mode
+        self.epoch = 0
+        self.error = []
         self.mmdloss = self._compute_mmd_loss(self.batches, self.mode)
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
@@ -232,18 +234,20 @@ class VAE(BaseMinifiedModeModuleClass):
     def _compute_mmd(self, z1: torch.Tensor, z2: torch.Tensor):
         m = z1.size(0)
         n = z2.size(0)
-        return ((1 / m ** 2) * self.Left_sum(z1, m) - (2 / (m * n)) * self.Middle_sum(z1, z2, m, n) + (1 / n ** 2) * self.Right_sum(z2, n)) ** 0.5
+        return (1 / m ** 2) * self.Left_sum(z1, m) - (2 / (m * n)) * self.Middle_sum(z1, z2, m, n) + (1 / n ** 2) * self.Right_sum(z2, n)
 
     def _compute_fast_mmd(self, z1: torch.Tensor, z2: torch.Tensor):
         m2 = min(z1.size(0), z2.size(0)) // 2
         MMD = 0
         for i in range(m2):
             MMD += self.h(z1[2 * i], z2[2 * i], z1[2 * i + 1], z2[2 * i + 1])
-        return (MMD / m2) ** 0.5
+        return MMD / m2
 
     def h(self, x1: torch.tensor, y1: torch.tensor, x2: torch.tensor, y2: torch.tensor):
         return self.gauss_kernel(x1, x2) + self.gauss_kernel(y1, y2) - self.gauss_kernel(x1, y2) - self.gauss_kernel(x2, y1)
 
+
+    # the operations are symetric and some of the have already been computed, so we can improve this algorithem
     def Left_sum(self, z1: torch.tensor, m: int):
         mmd_left = 0
         for i in range(m):
@@ -258,6 +262,7 @@ class VAE(BaseMinifiedModeModuleClass):
                 mmd_middle += self.gauss_kernel(z1[i], z2[j])
         return mmd_middle
 
+#the operations are symetric and some of the have already been computed, so we can improve this algorithem
     def Right_sum(self, z2: torch.tensor, n: int):
         mmd_right = 0
         for i in range(n):
@@ -538,8 +543,9 @@ class VAE(BaseMinifiedModeModuleClass):
         kl_local_no_warmup = kl_divergence_l
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
-
+        self.mmdloss = self._compute_mmd_loss(self.batches, self.mode)
         loss = torch.mean(reconst_loss + weighted_kl_local) + self.beta * self.mmdloss
+        self.error.append(loss)
 
         kl_local = {
             "kl_divergence_l": kl_divergence_l,

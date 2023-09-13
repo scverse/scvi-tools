@@ -1,7 +1,10 @@
 # from scvi.module._vae import _compute_mmd, _compute_mmd_loss, _compute_fast_mmd
+import numpy as np
+
 from scvi.model import SCVI
 import scanpy as sc
 import gdown
+import matplotlib.pyplot as plt
 import torch
 
 
@@ -40,8 +43,14 @@ def main():
     model = SCVI(adata)
     model.view_anndata_setup(adata)
     model.train()
-
-
+    epoch = np.arange(1,401)
+    loss_epoch = model.module.error
+    plt.plot(epoch, loss_epoch)
+    plt.xlabel('Epoch')
+    plt.ylabel('Error')
+    plt.title('Error as function of the Epoch')
+    plt.grid(True)
+    plt.show()
 
 
 if __name__ == '__main__':
