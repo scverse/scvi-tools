@@ -147,7 +147,7 @@ def mock_contrastive_vi_data(
     }
 
 
-class TestCONTRASTIVEVAEInference:
+class TestContrastiveVAEInference:
     def test_get_inference_input_from_concat_tensors(
         self,
         mock_contrastive_vae,
@@ -257,7 +257,7 @@ class TestCONTRASTIVEVAEInference:
         assert torch.equal(background_s, torch.zeros_like(background_s))
 
 
-class TestCONTRASTIVEVAEGenerative:
+class TestContrastiveVAEGenerative:
     def test_get_generative_input_from_concat_tensors(
         self,
         mock_contrastive_vae,
@@ -383,7 +383,7 @@ class TestCONTRASTIVEVAEGenerative:
             assert data_source in generative_outputs.keys()
 
 
-class TestCONTRASTIVEVAELoss:
+class TestContrastiveVAELoss:
     def test_reconstruction_loss(self, mock_contrastive_vae, mock_contrastive_vi_data):
         inference_input = mock_contrastive_vi_data["inference_input"]["background"]
         generative_outputs = mock_contrastive_vi_data["generative_outputs"][

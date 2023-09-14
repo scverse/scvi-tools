@@ -93,7 +93,7 @@ def test_anndataloader_distributed_sampler_init():
         )
 
 
-def test_contrastivedataloader(
+def test_contrastive_dataloader(
     mock_contrastive_adata_manager,
     mock_background_indices,
     mock_target_indices,
