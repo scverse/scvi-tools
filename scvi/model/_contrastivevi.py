@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from scvi import REGISTRY_KEYS
+
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -26,35 +27,39 @@ from scvi.model._utils import (
 )
 from scvi.model.base import BaseModelClass
 from scvi.model.base._utils import _de_core
+from scvi.module import ContrastiveVAE
 from scvi.utils import setup_anndata_dsp
 
-from contrastive_vi.model.base.training_mixin import ContrastiveTrainingMixin
-from contrastive_vi.module.contrastive_vi import ContrastiveVIModule
+from .base import ContrastiveTrainingMixin
 
 logger = logging.getLogger(__name__)
 Number = Union[int, float]
 
 
-class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
-    """
-    Model class for contrastive-VI.
-    Args:
-    ----
-        adata: AnnData object that has been registered via
-            `ContrastiveVIModel.setup_anndata`.
-        n_batch: Number of batches. If 0, no batch effect correction is performed.
-        n_hidden: Number of nodes per hidden layer.
-        n_latent: Dimensionality of the latent space.
-        n_layers: Number of hidden layers used for encoder and decoder NNs.
-        dropout_rate: Dropout rate for neural networks.
-        use_observed_lib_size: Use observed library size for RNA as scaling factor in
-            mean of conditional distribution.
-        disentangle: Whether to disentangle the salient and background latent variables.
-        use_mmd: Whether to use the maximum mean discrepancy loss to force background
-            latent variables to have the same distribution for background and target
-            data.
-        mmd_weight: Weight used for the MMD loss.
-        gammas: Gamma parameters for the MMD loss.
+class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
+    """contrastive variational inference :cite:p:`Weinberger23`.
+
+    Parameters
+    ----------
+        adata
+            AnnData object that has been registered via
+            :meth:`~scvi.model.ContrastiveVI.setup_anndata`.
+        n_batch
+            Number of batches. If 0, no batch effect correction is performed.
+        n_hidden
+            Number of nodes per hidden layer.
+        n_latent
+            Dimensionality of the latent space.
+        n_layers
+            Number of hidden layers used for encoder and decoder NNs.
+        dropout_rate
+            Dropout rate for neural networks.
+        use_observed_lib_size
+            Use observed library size for RNA as scaling factor in mean of conditional
+            distribution.
+        wasserstein_penalty
+            Weight of the Wasserstein distance loss that further discourages shared
+            variations from leaking into the salient latent space.
     """
 
     def __init__(
@@ -69,7 +74,7 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
         use_observed_lib_size: bool = True,
         wasserstein_penalty: float = 0,
     ) -> None:
-        super(ContrastiveVIModel, self).__init__(adata)
+        super().__init__(adata)
 
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(
@@ -88,7 +93,7 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
                 self.adata_manager, n_batch
             )
 
-        self.module = ContrastiveVIModule(
+        self.module = ContrastiveVAE(
             n_input=self.summary_stats["n_vars"],
             n_batch=n_batch,
             n_hidden=n_hidden,
@@ -119,30 +124,36 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
         continuous_covariate_keys: Optional[List[str]] = None,
         **kwargs,
     ) -> Optional[AnnData]:
-        """
-        Set up AnnData instance for contrastive-VI model.
+        """Sets up AnnData instance for contrastiveVI model.
 
-        Args:
-        ----
-            adata: AnnData object containing raw counts. Rows represent cells, columns
+        Parameters
+        ----------
+            adata
+                AnnData object containing raw counts. Rows represent cells, columns
                 represent features.
-            layer: If not None, uses this as the key in adata.layers for raw count data.
-            batch_key: Key in `adata.obs` for batch information. Categories will
-                automatically be converted into integer categories and saved to
+            layer
+                If not None, uses this as the key in adata.layers for raw count data.
+            batch_key
+                Key in `adata.obs` for batch information. Categories will automatically
+                be converted into integer categories and saved to
                 `adata.obs["_scvi_batch"]`. If None, assign the same batch to all the
                 data.
-            labels_key: Key in `adata.obs` for label information. Categories will
-                automatically be converted into integer categories and saved to
+            labels_key
+                Key in `adata.obs` for label information. Categories will automatically
+                be converted into integer categories and saved to
                 `adata.obs["_scvi_labels"]`. If None, assign the same label to all the
                 data.
-            size_factor_key: Key in `adata.obs` for size factor information. Instead of
-                using library size as a size factor, the provided size factor column
-                will be used as offset in the mean of the likelihood. Assumed to be on
-                linear scale.
-            categorical_covariate_keys: Keys in `adata.obs` corresponding to categorical
-                data. Used in some models.
-            continuous_covariate_keys: Keys in `adata.obs` corresponding to continuous
-                data. Used in some models.
+            size_factor_key
+                Key in `adata.obs` for size factor information. Instead of using
+                library size as a size factor, the provided size factor column will be
+                used as offset in the mean of the likelihood. Assumed to be on linear
+                scale.
+            categorical_covariate_keys
+                Keys in `adata.obs` corresponding to categorical data. Used in some
+                models.
+            continuous_covariate_keys
+                Keys in `adata.obs` corresponding to continuous data. Used in some
+                models.
 
         Returns
         -------
@@ -179,19 +190,22 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
         batch_size: Optional[int] = None,
         representation_kind: str = "salient",
     ) -> np.ndarray:
-        """
-        Return the background or salient latent representation for each cell.
+        """Returns the background or salient latent representation for each cell.
 
-        Args:
-        ----
-        adata: AnnData object with equivalent structure to initial AnnData. If `None`,
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`,
             defaults to the AnnData object used to initialize the model.
-        indices: Indices of cells in adata to use. If `None`, all cells are used.
-        give_mean: Give mean of distribution or sample from it.
-        batch_size: Mini-batch size for data loading into model. Defaults to
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        give_mean
+            Give mean of distribution or sample from it.
+        batch_size
+            Mini-batch size for data loading into model. Defaults to
             `scvi.settings.batch_size`.
-        representation_kind: Either "background" or "salient" for the corresponding
-            representation kind.
+        representation_kind
+            Either "background" or "salient" for the corresponding representation kind.
 
         Returns
         -------
@@ -242,24 +256,30 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
         n_samples: int = 1,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
-        """
-        Return the normalized (decoded) gene expression.
+        """Returns the normalized (decoded) gene expression.
 
-        Args:
-        ----
-        adata: AnnData object with equivalent structure to initial AnnData. If `None`,
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`,
             defaults to the AnnData object used to initialize the model.
-        indices: Indices of cells in adata to use. If `None`, all cells are used.
-        transform_batch: Batch to condition on. If transform_batch is:
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Batch to condition on. If transform_batch is:
             - None, then real observed batch is used.
             - int, then batch transform_batch is used.
-        gene_list: Return frequencies of expression for a subset of genes. This can
-            save memory when working with large datasets and few genes are of interest.
-        library_size:  Scale the expression frequencies to a common library size. This
+        gene_list
+            Return frequencies of expression for a subset of genes. This can save
+            memory when working with large datasets and few genes are of interest.
+        library_size
+            Scale the expression frequencies to a common library size. This
             allows gene expression levels to be interpreted on a common scale of
             relevant magnitude. If set to `"latent"`, use the latent library size.
-        n_samples: Number of posterior samples to use for estimation.
-        batch_size: Mini-batch size for data loading into model. Defaults to
+        n_samples
+            Number of posterior samples to use for estimation.
+        batch_size
+            Mini-batch size for data loading into model. Defaults to
             `scvi.settings.batch_size`.
 
         Returns
@@ -298,28 +318,37 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Dict[str, Union[np.ndarray, pd.DataFrame]]:
-        """
-        Return the normalized (decoded) gene expression.
+        """Returns the normalized (decoded) gene expression.
 
-        Args:
-        ----
-        adata: AnnData object with equivalent structure to initial AnnData. If `None`,
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`,
             defaults to the AnnData object used to initialize the model.
-        indices: Indices of cells in adata to use. If `None`, all cells are used.
-        transform_batch: Batch to condition on. If transform_batch is:
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Batch to condition on. If transform_batch is:
             - None, then real observed batch is used.
             - int, then batch transform_batch is used.
-        gene_list: Return frequencies of expression for a subset of genes. This can
-            save memory when working with large datasets and few genes are of interest.
-        library_size:  Scale the expression frequencies to a common library size. This
+        gene_list
+            Return frequencies of expression for a subset of genes. This can save
+            memory when working with large datasets and few genes are of interest.
+        library_size
+            Scale the expression frequencies to a common library size. This
             allows gene expression levels to be interpreted on a common scale of
             relevant magnitude. If set to `"latent"`, use the latent library size.
-        n_samples: Number of posterior samples to use for estimation.
-        n_samples_overall: The number of random samples in `adata` to use.
-        batch_size: Mini-batch size for data loading into model. Defaults to
+        n_samples
+            Number of posterior samples to use for estimation.
+        n_samples_overall
+            The number of random samples in `adata` to use.
+        batch_size
+            Mini-batch size for data loading into model. Defaults to
             `scvi.settings.batch_size`.
-        return_mean: Whether to return the mean of the samples.
-        return_numpy: Return a `numpy.ndarray` instead of a `pandas.DataFrame`.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a `numpy.ndarray` instead of a `pandas.DataFrame`.
             DataFrame includes gene names as columns. If either `n_samples=1` or
             `return_mean=True`, defaults to `False`. Otherwise, it defaults to `True`.
 
@@ -357,7 +386,8 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
             if return_numpy is False:
                 warnings.warn(
                     "return_numpy must be True if n_samples > 1 and"
-                    " return_mean is False, returning np.ndarray"
+                    " return_mean is False, returning np.ndarray",
+                    stacklevel=settings.warnings_stacklevel,
                 )
             return_numpy = True
         if library_size == "latent":
@@ -445,30 +475,39 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
         return_mean: bool = True,
         return_numpy: Optional[bool] = None,
     ) -> Union[np.ndarray, pd.DataFrame]:
-        """
-        Return the normalized (decoded) gene expression.
+        """Returns the normalized (decoded) gene expression.
 
         Gene expressions are decoded from both the background and salient latent space.
 
-        Args:
-        ----
-        adata: AnnData object with equivalent structure to initial AnnData. If `None`,
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`,
             defaults to the AnnData object used to initialize the model.
-        indices: Indices of cells in adata to use. If `None`, all cells are used.
-        transform_batch: Batch to condition on. If transform_batch is:
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Batch to condition on. If transform_batch is:
             - None, then real observed batch is used.
             - int, then batch transform_batch is used.
-        gene_list: Return frequencies of expression for a subset of genes. This can
+        gene_list
+            Return frequencies of expression for a subset of genes. This can
             save memory when working with large datasets and few genes are of interest.
-        library_size:  Scale the expression frequencies to a common library size. This
+        library_size
+            Scale the expression frequencies to a common library size. This
             allows gene expression levels to be interpreted on a common scale of
             relevant magnitude. If set to `"latent"`, use the latent library size.
-        n_samples: Number of posterior samples to use for estimation.
-        n_samples_overall: The number of random samples in `adata` to use.
-        batch_size: Mini-batch size for data loading into model. Defaults to
+        n_samples
+            Number of posterior samples to use for estimation.
+        n_samples_overall
+            The number of random samples in `adata` to use.
+        batch_size
+            Mini-batch size for data loading into model. Defaults to
             `scvi.settings.batch_size`.
-        return_mean: Whether to return the mean of the samples.
-        return_numpy: Return a `numpy.ndarray` instead of a `pandas.DataFrame`.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a `numpy.ndarray` instead of a `pandas.DataFrame`.
             DataFrame includes gene names as columns. If either `n_samples=1` or
             `return_mean=True`, defaults to `False`. Otherwise, it defaults to `True`.
 
@@ -508,41 +547,52 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
         expression_type: Optional[str] = None,
         indices_to_return_salient: Optional[Sequence[int]] = None,
     ):
-        """
-        Return the normalized (decoded) gene expression.
+        """Returns the normalized (decoded) gene expression.
 
         Gene expressions are decoded from either the background or salient latent space.
         One of `expression_type` or `indices_to_return_salient` should have an input
         argument.
 
-        Args:
-        ----
-        adata: AnnData object with equivalent structure to initial AnnData. If `None`,
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`,
             defaults to the AnnData object used to initialize the model.
-        indices: Indices of cells in adata to use. If `None`, all cells are used.
-        transform_batch: Batch to condition on. If transform_batch is:
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Batch to condition on. If transform_batch is:
             - None, then real observed batch is used.
             - int, then batch transform_batch is used.
-        gene_list: Return frequencies of expression for a subset of genes. This can
+        gene_list
+            Return frequencies of expression for a subset of genes. This can
             save memory when working with large datasets and few genes are of interest.
-        library_size:  Scale the expression frequencies to a common library size. This
+        library_size
+            Scale the expression frequencies to a common library size. This
             allows gene expression levels to be interpreted on a common scale of
             relevant magnitude. If set to `"latent"`, use the latent library size.
-        n_samples: Number of posterior samples to use for estimation.
-        n_samples_overall: The number of random samples in `adata` to use.
-        batch_size: Mini-batch size for data loading into model. Defaults to
+        n_samples
+            Number of posterior samples to use for estimation.
+        n_samples_overall
+            The number of random samples in `adata` to use.
+        batch_size
+            Mini-batch size for data loading into model. Defaults to
             `scvi.settings.batch_size`.
-        return_mean: Whether to return the mean of the samples.
-        return_numpy: Return a `numpy.ndarray` instead of a `pandas.DataFrame`.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a `numpy.ndarray` instead of a `pandas.DataFrame`.
             DataFrame includes gene names as columns. If either `n_samples=1` or
             `return_mean=True`, defaults to `False`. Otherwise, it defaults to `True`.
-        expression_type: One of {"salient", "background"} to specify the type of
+        expression_type
+            One of {"salient", "background"} to specify the type of
             normalized expression to return.
-        indices_to_return_salient: If `indices` is a subset of
-            `indices_to_return_salient`, normalized expressions derived from background
-            and salient latent embeddings are returned. If `indices` is not `None` and
-            is not a subset of `indices_to_return_salient`, normalized expressions
-            derived only from background latent embeddings are returned.
+        indices_to_return_salient
+            If `indices` is a subset of `indices_to_return_salient`, normalized
+            expressions derived from background and salient latent embeddings are
+            returned. If `indices` is not `None` and is not a subset of
+            `indices_to_return_salient`, normalized expressions derived only from
+            background latent embeddings are returned.
 
         Returns
         -------
@@ -607,55 +657,68 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
         n_samples: int = 1,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""
-        Perform differential expression analysis.
+        r"""Performs differential expression analysis.
 
-        Args:
-        ----
-        adata: AnnData object with equivalent structure to initial AnnData. If `None`,
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`,
             defaults to the AnnData object used to initialize the model.
-        groupby: The key of the observations grouping to consider.
-        group1: Subset of groups, e.g. ["g1", "g2", "g3"], to which comparison shall be
+        groupby
+            The key of the observations grouping to consider.
+        group1
+            Subset of groups, e.g. ["g1", "g2", "g3"], to which comparison shall be
             restricted, or all groups in `groupby` (default).
-        group2: If `None`, compare each group in `group1` to the union of the rest of
+        group2
+            If `None`, compare each group in `group1` to the union of the rest of
             the groups in `groupby`. If a group identifier, compare with respect to this
             group.
-        idx1: `idx1` and `idx2` can be used as an alternative to the AnnData keys.
+        idx1
+            `idx1` and `idx2` can be used as an alternative to the AnnData keys.
             Custom identifier for `group1` that can be of three sorts:
             (1) a boolean mask, (2) indices, or (3) a string. If it is a string, then
             it will query indices that verifies conditions on adata.obs, as described
             in `pandas.DataFrame.query()`. If `idx1` is not `None`, this option
             overrides `group1` and `group2`.
-        idx2: Custom identifier for `group2` that has the same properties as `idx1`.
+        idx2
+            Custom identifier for `group2` that has the same properties as `idx1`.
             By default, includes all cells not specified in `idx1`.
         mode: Method for differential expression. See
             https://docs.scvi-tools.org/en/0.14.1/user_guide/background/differential_expression.html
             for more details.
-        delta: Specific case of region inducing differential expression. In this case,
+        delta
+            Specific case of region inducing differential expression. In this case,
             we suppose that R\[-delta, delta] does not induce differential expression
             (change model default case).
-        batch_size: Mini-batch size for data loading into model. Defaults to
+        batch_size
+            Mini-batch size for data loading into model. Defaults to
             scvi.settings.batch_size.
-        all_stats: Concatenate count statistics (e.g., mean expression group 1) to DE
+        all_stats
+            Concatenate count statistics (e.g., mean expression group 1) to DE
             results.
-        batch_correction: Whether to correct for batch effects in DE inference.
-        batchid1: Subset of categories from `batch_key` registered in `setup_anndata`,
+        batch_correction
+            Whether to correct for batch effects in DE inference.
+        batchid1
+            Subset of categories from `batch_key` registered in `setup_anndata`,
             e.g. ["batch1", "batch2", "batch3"], for `group1`. Only used if
             `batch_correction` is `True`, and by default all categories are used.
-        batchid2: Same as `batchid1` for `group2`. `batchid2` must either have null
+        batchid2
+            Same as `batchid1` for `group2`. `batchid2` must either have null
             intersection with `batchid1`, or be exactly equal to `batchid1`. When the
             two sets are exactly equal, cells are compared by decoding on the same
             batch. When sets have null intersection, cells from `group1` and `group2`
             are decoded on each group in `group1` and `group2`, respectively.
-        fdr_target: Tag features as DE based on posterior expected false discovery rate.
-        silent: If `True`, disables the progress bar. Default: `False`.
-        target_idx: If not `None`, a boolean or integer identifier should be used for
+        fdr_target
+            Tag features as DE based on posterior expected false discovery rate.
+        silent
+            If `True`, disables the progress bar. Default: `False`.
+        target_idx
+            If not `None`, a boolean or integer identifier should be used for
             cells in the contrastive target group. Normalized expression values derived
             from both salient and background latent embeddings are used when
             {group1, group2} is a subset of the target group, otherwise background
             normalized expression values are used.
-
-        **kwargs: Keyword args for
+        kwargs: Keyword args for
             `scvi.model.base.DifferentialComputation.get_bayes_factors`.
 
         Returns
@@ -734,9 +797,10 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
         give_mean: bool = True,
         batch_size: Optional[int] = None,
     ) -> np.ndarray:
-        r"""
-        Returns the latent library size for each cell.
+        r"""Returns the latent library size for each cell.
+
         This is denoted as :math:`\ell_n` in the scVI paper.
+
         Parameters
         ----------
         adata
@@ -768,7 +832,6 @@ class ContrastiveVIModel(ContrastiveTrainingMixin, BaseModelClass):
             else:
                 ql = (outputs["ql_m"], outputs["ql_v"])
                 if ql is None:
-
                     raise RuntimeError(
                         "The module for this model does not compute the posterior"
                         "distribution for the library size. Set `give_mean` to False"
