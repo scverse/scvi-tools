@@ -44,12 +44,12 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
         adata
             AnnData object that has been registered via
             :meth:`~scvi.model.ContrastiveVI.setup_anndata`.
-        n_batch
-            Number of batches. If 0, no batch effect correction is performed.
         n_hidden
             Number of nodes per hidden layer.
-        n_latent
-            Dimensionality of the latent space.
+        n_background_latent
+            Dimensionality of the background shared latent space.
+        n_salient_latent
+            Dimensionality of the salient latent space.
         n_layers
             Number of hidden layers used for encoder and decoder NNs.
         dropout_rate
@@ -58,14 +58,15 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
             Use observed library size for RNA as scaling factor in mean of conditional
             distribution.
         wasserstein_penalty
-            Weight of the Wasserstein distance loss that further discourages shared
-            variations from leaking into the salient latent space.
+            Weight of the Wasserstein distance loss that further discourages background
+            shared variations from leaking into the salient latent space.
     """
+
+    _module_cls = ContrastiveVAE
 
     def __init__(
         self,
         adata: AnnData,
-        n_batch: int = 0,
         n_hidden: int = 128,
         n_background_latent: int = 10,
         n_salient_latent: int = 10,
@@ -84,17 +85,15 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
             else None
         )
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = (
-            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-        )
+
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
+        if not use_observed_lib_size:
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
             )
 
-        self.module = ContrastiveVAE(
-            n_input=self.summary_stats["n_vars"],
+        self.module = self._module_cls(
+            n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_hidden=n_hidden,
             n_background_latent=n_background_latent,
@@ -106,10 +105,20 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
             library_log_vars=library_log_vars,
             wasserstein_penalty=wasserstein_penalty,
         )
-        self._model_summary_string = "Contrastive-VI."
-        # Necessary line to get params to be used for saving and loading.
+        self._model_summary_string = (
+            "ContrastiveVI Model with the following params: \nn_hidden: {}, "
+            "n_background_latent: {}, n_salient_latent: {}, n_layers: {}, "
+            "dropout_rate: {}, use_observed_lib_size: {}, wasserstein_penalty: {}"
+        ).format(
+            n_hidden,
+            n_background_latent,
+            n_salient_latent,
+            n_layers,
+            dropout_rate,
+            use_observed_lib_size,
+            wasserstein_penalty,
+        )
         self.init_params_ = self._get_init_params(locals())
-        logger.info("The model has been initialized")
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -123,42 +132,18 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
         categorical_covariate_keys: Optional[List[str]] = None,
         continuous_covariate_keys: Optional[List[str]] = None,
         **kwargs,
-    ) -> Optional[AnnData]:
-        """Sets up AnnData instance for contrastiveVI model.
+    ):
+        """%(summary)s.
 
         Parameters
         ----------
-            adata
-                AnnData object containing raw counts. Rows represent cells, columns
-                represent features.
-            layer
-                If not None, uses this as the key in adata.layers for raw count data.
-            batch_key
-                Key in `adata.obs` for batch information. Categories will automatically
-                be converted into integer categories and saved to
-                `adata.obs["_scvi_batch"]`. If None, assign the same batch to all the
-                data.
-            labels_key
-                Key in `adata.obs` for label information. Categories will automatically
-                be converted into integer categories and saved to
-                `adata.obs["_scvi_labels"]`. If None, assign the same label to all the
-                data.
-            size_factor_key
-                Key in `adata.obs` for size factor information. Instead of using
-                library size as a size factor, the provided size factor column will be
-                used as offset in the mean of the likelihood. Assumed to be on linear
-                scale.
-            categorical_covariate_keys
-                Keys in `adata.obs` corresponding to categorical data. Used in some
-                models.
-            continuous_covariate_keys
-                Keys in `adata.obs` corresponding to continuous data. Used in some
-                models.
-
-        Returns
-        -------
-            If `copy` is True, return the modified `adata` set up for contrastive-VI
-            model, otherwise `adata` is modified in place.
+        %(param_adata)s
+        %(param_layer)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
@@ -181,7 +166,7 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_latent_representation(
         self,
         adata: Optional[AnnData] = None,
@@ -246,65 +231,7 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
             latent += [latent_sample.detach().cpu()]
         return torch.cat(latent).numpy()
 
-    def get_normalized_expression_fold_change(
-        self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        gene_list: Optional[Sequence[str]] = None,
-        library_size: Union[float, str] = 1.0,
-        n_samples: int = 1,
-        batch_size: Optional[int] = None,
-    ) -> np.ndarray:
-        """Returns the normalized (decoded) gene expression.
-
-        Parameters
-        ----------
-        adata
-            AnnData object with equivalent structure to initial AnnData. If `None`,
-            defaults to the AnnData object used to initialize the model.
-        indices
-            Indices of cells in adata to use. If `None`, all cells are used.
-        transform_batch
-            Batch to condition on. If transform_batch is:
-            - None, then real observed batch is used.
-            - int, then batch transform_batch is used.
-        gene_list
-            Return frequencies of expression for a subset of genes. This can save
-            memory when working with large datasets and few genes are of interest.
-        library_size
-            Scale the expression frequencies to a common library size. This
-            allows gene expression levels to be interpreted on a common scale of
-            relevant magnitude. If set to `"latent"`, use the latent library size.
-        n_samples
-            Number of posterior samples to use for estimation.
-        batch_size
-            Mini-batch size for data loading into model. Defaults to
-            `scvi.settings.batch_size`.
-
-        Returns
-        -------
-            If `n_samples` > 1, then the shape is `(samples, cells, genes)`. Otherwise,
-            shape is `(cells, genes)`. Each element is fold change of salient normalized
-            expression divided by background normalized expression.
-        """
-        exprs = self.get_normalized_expression(
-            adata=adata,
-            indices=indices,
-            transform_batch=transform_batch,
-            gene_list=gene_list,
-            library_size=library_size,
-            n_samples=n_samples,
-            batch_size=batch_size,
-            return_mean=False,
-            return_numpy=True,
-        )
-        salient_exprs = exprs["salient"]
-        background_exprs = exprs["background"]
-        fold_change = salient_exprs / background_exprs
-        return fold_change
-
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_normalized_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -461,7 +388,7 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
             salient_exprs = pd.DataFrame(salient_exprs, columns=genes, index=samples)
         return {"background": background_exprs, "salient": salient_exprs}
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_salient_normalized_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -531,7 +458,7 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
         )
         return exprs["salient"]
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_specific_normalized_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -756,6 +683,7 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
         result = _de_core(
             self.get_anndata_manager(adata, required=True),
             model_fn,
+            representation_fn=None,
             groupby=groupby,
             group1=group1,
             group2=group2,
@@ -776,7 +704,7 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
         return result
 
     @staticmethod
-    @torch.no_grad()
+    @torch.inference_mode()
     def _preprocess_normalized_expression(
         generative_outputs: Dict[str, torch.Tensor],
         generative_output_key: str,
@@ -789,7 +717,7 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
         output = output.cpu().numpy()
         return output
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_latent_library_size(
         self,
         adata: Optional[AnnData] = None,
