@@ -618,6 +618,10 @@ class ContrastiveDataSplitter(DataSplitter):
         ]
         self.target_test_idx = target_indices[(n_target_val + n_target_train) :]
 
+        self.val_idx = self.background_val_idx + self.target_val_idx
+        self.train_idx = self.background_train_idx + self.target_train_idx
+        self.test_idx = self.background_test_idx + self.target_test_idx
+
     def train_dataloader(self) -> ContrastiveDataLoader:
         return ContrastiveDataLoader(
             adata_manager=self.adata_manager,
