@@ -101,25 +101,34 @@ def devices(request):
 
 
 @pytest.fixture(scope="session")
-def mock_contrastive_adata_manager():
-    """adata manager for synthetic contrastive data."""
+def mock_contrastive_adata():
+    """Synthetic contrastive adata."""
     adata = scvi.data.synthetic_iid(n_batches=2)
     adata = adata[:-3, :]  # Unequal technical batch sizes.
     adata.layers["raw_counts"] = adata.X.copy()
+    return adata
+
+
+@pytest.fixture(scope="session")
+def mock_contrastive_adata_manager(mock_contrastive_adata):
+    """Anndata manager for synthetic contrastive data."""
     return generic_setup_adata_manager(
-        adata=adata, batch_key="batch", labels_key="labels", layer="raw_counts"
+        adata=mock_contrastive_adata,
+        batch_key="batch",
+        labels_key="labels",
+        layer="raw_counts",
     )
 
 
 @pytest.fixture(scope="session")
-def mock_background_indices(mock_contrastive_adata_manager):
+def mock_background_indices(mock_contrastive_adata):
     """Indices for background data in ``mock_contrastive_adata_manager``."""
-    adata = mock_contrastive_adata_manager.adata
+    adata = mock_contrastive_adata
     return adata.obs.index[(adata.obs["batch"] == "batch_0")].astype(int).tolist()
 
 
 @pytest.fixture(scope="session")
-def mock_target_indices(mock_contrastive_adata_manager):
+def mock_target_indices(mock_contrastive_adata):
     """Indices for target data in ``mock_contrastive_adata_manager``."""
-    adata = mock_contrastive_adata_manager.adata
+    adata = mock_contrastive_adata
     return adata.obs.index[(adata.obs["batch"] == "batch_1")].astype(int).tolist()
