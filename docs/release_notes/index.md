@@ -13,6 +13,10 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Added
 
+-   Add {class}`scvi.model.ContrastiveVI`, {class}`scvi.module.ContrastiveVAE`,
+    {class}`scvi.model.base.ContrastiveTrainingMixin`,
+    {class}`scvi.dataloaders.ContrastiveDataLoader`,
+    and {class}`scvi.dataloaders.ContrastiveDataSplitter` for contrastiveVI {pr}`2242`.
 -   Add {class}`scvi.dataloaders.BatchDistributedSampler` for distributed training {pr}`2102`.
 -   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to
     specify additional metrics to compute and log during the validation loop using
