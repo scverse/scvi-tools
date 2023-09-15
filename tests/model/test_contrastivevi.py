@@ -67,7 +67,7 @@ class TestContrastiveVI:
         mock_contrastive_vi_model.train(
             background_indices=mock_background_indices,
             target_indices=mock_target_indices,
-            max_epochs=2,
+            max_epochs=3,
             batch_size=20,  # Unequal final batches to test edge cases.
         )
         trained_state_dict = copy_module_state_dict(mock_contrastive_vi_model.module)
