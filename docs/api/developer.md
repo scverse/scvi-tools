@@ -75,6 +75,8 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
+   dataloaders.ContrastiveDataLoader
+   dataloaders.ContrastiveDataSplitter
 
 ```
 
@@ -117,6 +119,7 @@ These classes should be used to construct user-facing model classes.
     model.base.RNASeqMixin
     model.base.ArchesMixin
     model.base.UnsupervisedTrainingMixin
+    model.base.ContrastiveTrainingMixin
     model.base.PyroSviTrainMixin
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
@@ -148,6 +151,7 @@ Existing module classes with respective generative and inference procedures.
    module.TOTALVAE
    module.VAE
    module.VAEC
+   module.ContrastiveVAE
    module.AmortizedLDAPyroModule
    module.JaxVAE
 

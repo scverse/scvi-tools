@@ -30,6 +30,7 @@ import scvi
    model.PEAKVI
    model.SCANVI
    model.SCVI
+   model.ContrastiveVI
    model.TOTALVI
    model.MULTIVI
    model.AmortizedLDA
