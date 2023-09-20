@@ -46,6 +46,7 @@ def error_function_printout(epoch_num,error):
     plt.show()
 
 
+
 def UMAP():
     pass
 
