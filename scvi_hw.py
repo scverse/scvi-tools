@@ -35,16 +35,9 @@ def preprocess_ann_data(adata):
     return adata
 
 
-def main():
-    # download_dataset()
-    adata = read_dataset()
-    adata = preprocess_ann_data(adata)
-    SCVI.setup_anndata(adata, layer="counts", batch_key="study")
-    model = SCVI(adata)
-    model.view_anndata_setup(adata)
-    model.train()
-    epoch = np.arange(1,401)
-    loss_epoch = model.module.error
+def error_function_printout(epoch_num,error):
+    epoch = np.arange(1,epoch_num)
+    loss_epoch = error
     plt.plot(epoch, loss_epoch)
     plt.xlabel('Epoch')
     plt.ylabel('Error')
@@ -53,8 +46,28 @@ def main():
     plt.show()
 
 
+def UMAP():
+    pass
+
+
+def main():
+    # download_dataset()
+    adata = read_dataset()
+    adata = preprocess_ann_data(adata)
+    SCVI.setup_anndata(adata, layer="counts", batch_key="study")
+    model = SCVI(adata)
+    model.view_anndata_setup(adata)
+    model.train()
+    model.history_()
+
+
 if __name__ == '__main__':
     main()
+
+
+
+
+    # for i in range(2):
     # ts = torch.tensor([1,2,3,4])
     # ts.to('cuda')
     # print(ts)

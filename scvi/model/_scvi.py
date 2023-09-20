@@ -104,6 +104,7 @@ class SCVI(
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
+        n_batches: int = 5,
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
@@ -128,10 +129,9 @@ class SCVI(
             library_log_means, library_log_vars = _init_library_size(
                 self.adata_manager, n_batch
             )
-        [self.batch_0, self.batch_1, self.batch_2, self.batch_3, self.batch_4] = [torch.tensor(adata.X[adata.obs['_scvi_batch'] == 0]), torch.tensor(adata.X[adata.obs['_scvi_batch'] == 1]),
-                                                                                  torch.tensor(adata.X[adata.obs['_scvi_batch'] == 2]), torch.tensor(adata.X[adata.obs['_scvi_batch'] == 3]),
-                                                                                  torch.tensor(adata.X[adata.obs['_scvi_batch'] == 4])]
-        self.batches = [self.batch_0, self.batch_1, self.batch_2, self.batch_3, self.batch_4]
+        self.batches = []
+        for i in range(n_batches):
+            self.batches.append(torch.tensor(adata.X[adata.obs['_scvi_batch'] == i]))
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
@@ -166,8 +166,12 @@ class SCVI(
         )
         self.init_params_ = self._get_init_params(locals())
 
+
+
     @classmethod
     @setup_anndata_dsp.dedent
+
+
     def setup_anndata(
         cls,
         adata: AnnData,

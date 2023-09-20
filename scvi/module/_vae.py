@@ -103,6 +103,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_labels: int = 0,
         mode: str = "fast",
         batches: torch.tensor = None,
+        beta: Tunable[float] = 1.0,
         n_hidden: Tunable[int] = 128,
         n_latent: Tunable[int] = 10,
         n_layers: Tunable[int] = 1,
@@ -136,11 +137,11 @@ class VAE(BaseMinifiedModeModuleClass):
         self.n_batch = n_batch
         self.batches = batches
         self.n_labels = n_labels
-        self.beta = torch.tensor(1.0)
+        self.beta = beta
         self.mode = mode
         self.epoch = 0
         self.error = []
-        self.mmdloss = self._compute_mmd_loss(self.batches, self.mode)
+        self.mmdloss = 0
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key
@@ -545,14 +546,14 @@ class VAE(BaseMinifiedModeModuleClass):
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
         self.mmdloss = self._compute_mmd_loss(self.batches, self.mode)
         loss = torch.mean(reconst_loss + weighted_kl_local) + self.beta * self.mmdloss
-        self.error.append(loss)
 
         kl_local = {
             "kl_divergence_l": kl_divergence_l,
             "kl_divergence_z": kl_divergence_z,
         }
+
         return LossOutput(
-            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local, mmd_loss=self.mmdloss
         )
     @torch.inference_mode()
     def sample(

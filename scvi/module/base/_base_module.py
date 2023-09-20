@@ -87,6 +87,7 @@ class LossOutput:
     reconstruction_loss_sum: Tensor = field(default=None, init=False)
     kl_local_sum: Tensor = field(default=None, init=False)
     kl_global_sum: Tensor = field(default=None, init=False)
+    mmd_loss: int | None = None
 
     def __post_init__(self):
         self.loss = self.dict_sum(self.loss)
