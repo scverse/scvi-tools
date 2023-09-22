@@ -101,7 +101,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        mode: str = "fast",
+        mode: str = "normal",
         batches: torch.tensor = None,
         beta: Tunable[float] = 1.0,
         n_hidden: Tunable[int] = 128,
@@ -235,7 +235,12 @@ class VAE(BaseMinifiedModeModuleClass):
     def _compute_mmd(self, z1: torch.Tensor, z2: torch.Tensor):
         m = z1.size(0)
         n = z2.size(0)
-        return (1 / m ** 2) * self.Left_sum(z1, m) - (2 / (m * n)) * self.Middle_sum(z1, z2, m, n) + (1 / n ** 2) * self.Right_sum(z2, n)
+        z1 = torch.tensor([[1., 2., 3., 4.], [5., 6., 7., 8.]])
+        z2 = torch.tensor([[3, 4, 5, 9]], dtype= torch.float)
+        n = 1
+        m = 2
+        t = (1 / m ** 2) * self.Left_sum(z1, m) - (2 / (m * n)) * self.Middle_sum(z1, z2, m, n) + (1 / n ** 2) * self.Right_sum(z2, n)
+        return t
 
     def _compute_fast_mmd(self, z1: torch.Tensor, z2: torch.Tensor):
         m2 = min(z1.size(0), z2.size(0)) // 2
@@ -243,6 +248,31 @@ class VAE(BaseMinifiedModeModuleClass):
         for i in range(m2):
             MMD += self.h(z1[2 * i], z2[2 * i], z1[2 * i + 1], z2[2 * i + 1])
         return MMD / m2
+
+    def calculate_mmd(self, x, y, sigma=1):
+        """
+        Calculates the Maximum Mean Discrepancy (MMD) of two samples.
+        :param x: a tensor of shape (N, D)
+        :param y: a tensor of shape (M, D)
+        :param sigma: the sigma parameter for the RBF kernel
+        :return: a scalar value representing the MMD between x and y
+        """
+        # calculate the number of samples in each batch
+        n = x.shape[0]
+        m = y.shape[0]
+
+        # calculate the RBF kernel between x and y
+        xx, yy, zz = torch.mm(x, x.t()), torch.mm(y, y.t()), torch.mm(x, y.t())
+        rx = (xx.diag().unsqueeze(0).expand_as(xx))
+        ry = (yy.diag().unsqueeze(0).expand_as(yy))
+        K = torch.exp(- 1 / sigma ** 2 * (rx.t() + rx - 2 * xx))
+        L = torch.exp(- 1 / sigma ** 2 * (ry.t() + ry - 2 * yy))
+        P = torch.exp(- 1 / sigma ** 2 * (rx.t() + ry - 2 * zz))
+
+        # calculate the MMD
+        mmd = 1 / (n ** 2) * torch.sum(K) + 1 / (m ** 2) * torch.sum(L) - 2 / (n * m) * torch.sum(P)
+
+        return mmd
 
     def h(self, x1: torch.tensor, y1: torch.tensor, x2: torch.tensor, y2: torch.tensor):
         return self.gauss_kernel(x1, x2) + self.gauss_kernel(y1, y2) - self.gauss_kernel(x1, y2) - self.gauss_kernel(x2, y1)

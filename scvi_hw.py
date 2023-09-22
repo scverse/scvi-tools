@@ -1,6 +1,6 @@
 # from scvi.module._vae import _compute_mmd, _compute_mmd_loss, _compute_fast_mmd
 import numpy as np
-
+import scvi.module._vae
 from scvi.model import SCVI
 import scanpy as sc
 import gdown
@@ -61,9 +61,10 @@ def main():
     model.train()
     model.history_()
 
-
 if __name__ == '__main__':
     main()
+
+    # z1 = torch.tensor([1,2,3])
 
 
 
