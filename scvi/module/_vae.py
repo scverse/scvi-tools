@@ -232,77 +232,41 @@ class VAE(BaseMinifiedModeModuleClass):
             **_extra_decoder_kwargs,
         )
 
-    def _compute_mmd(self, z1: torch.Tensor, z2: torch.Tensor):
-        m = z1.size(0)
-        n = z2.size(0)
-        z1 = torch.tensor([[1., 2., 3., 4.], [5., 6., 7., 8.]])
-        z2 = torch.tensor([[3, 4, 5, 9]], dtype= torch.float)
-        n = 1
-        m = 2
-        t = (1 / m ** 2) * self.Left_sum(z1, m) - (2 / (m * n)) * self.Middle_sum(z1, z2, m, n) + (1 / n ** 2) * self.Right_sum(z2, n)
-        return t
+    def _compute_mmd(self, z1: torch.Tensor, z2: torch.Tensor, gamma):
 
-    def _compute_fast_mmd(self, z1: torch.Tensor, z2: torch.Tensor):
-        m2 = min(z1.size(0), z2.size(0)) // 2
-        MMD = 0
-        for i in range(m2):
-            MMD += self.h(z1[2 * i], z2[2 * i], z1[2 * i + 1], z2[2 * i + 1])
-        return MMD / m2
-
-    def calculate_mmd(self, x, y, sigma=1):
-        """
-        Calculates the Maximum Mean Discrepancy (MMD) of two samples.
-        :param x: a tensor of shape (N, D)
-        :param y: a tensor of shape (M, D)
-        :param sigma: the sigma parameter for the RBF kernel
-        :return: a scalar value representing the MMD between x and y
-        """
-        # calculate the number of samples in each batch
-        n = x.shape[0]
-        m = y.shape[0]
+        n = z1.shape[0]
+        m = z2.shape[0]
 
         # calculate the RBF kernel between x and y
-        xx, yy, zz = torch.mm(x, x.t()), torch.mm(y, y.t()), torch.mm(x, y.t())
+        xx, yy, zz = torch.mm(z1, z1.t()), torch.mm(z2, z2.t()), torch.mm(z1, z2.t())
         rx = (xx.diag().unsqueeze(0).expand_as(xx))
         ry = (yy.diag().unsqueeze(0).expand_as(yy))
-        K = torch.exp(- 1 / sigma ** 2 * (rx.t() + rx - 2 * xx))
-        L = torch.exp(- 1 / sigma ** 2 * (ry.t() + ry - 2 * yy))
-        P = torch.exp(- 1 / sigma ** 2 * (rx.t() + ry - 2 * zz))
+        K = torch.exp(- 1 / gamma ** 2 * (rx.t() + rx - 2 * xx))
+        L = torch.exp(- 1 / gamma ** 2 * (ry.t() + ry - 2 * yy))
+        P = torch.exp(- 1 / gamma ** 2 * (rx.t() + ry - 2 * zz))
 
         # calculate the MMD
         mmd = 1 / (n ** 2) * torch.sum(K) + 1 / (m ** 2) * torch.sum(L) - 2 / (n * m) * torch.sum(P)
-
         return mmd
 
-    def h(self, x1: torch.tensor, y1: torch.tensor, x2: torch.tensor, y2: torch.tensor):
-        return self.gauss_kernel(x1, x2) + self.gauss_kernel(y1, y2) - self.gauss_kernel(x1, y2) - self.gauss_kernel(x2, y1)
+    def _compute_fast_mmd(self, z1: torch.Tensor, z2: torch.Tensor):
+        m2 = min(z1.shape[0], z2.shape[0]) // 2
+        if z1.shape[0] > z2.shape[0]:
+            X = z1[0:2 * m2]
+        else:
+            Y = z2[0:2 * m2]
+        T1 = X[:-1:2]
+        T2 = X[:-1:2]
+        S1 = Y[:-1:2]
+        S2 = Y[1::2]
+        P = (T1 - T2).float()
+        Q = (S1 - S2).float()
+        R = (T1 - S2).float()
+        W = (T2 - S1).float()
+        fast_mmd = torch.exp(-torch.norm(P, dim=1)).sum() + torch.exp(-torch.norm(Q, dim=1)).sum() + torch.exp(
+            -torch.norm(R, dim=1)).sum() + torch.exp(-torch.norm(W, dim=1)).sum()
+        return fast_mmd
 
-
-    # the operations are symetric and some of the have already been computed, so we can improve this algorithem
-    def Left_sum(self, z1: torch.tensor, m: int):
-        mmd_left = 0
-        for i in range(m):
-            for j in range(m):
-                mmd_left += self.gauss_kernel(z1[i], z1[j])
-        return mmd_left
-
-    def Middle_sum(self, z1: torch.tensor, z2: torch.tensor, m: int, n: int):
-        mmd_middle = 0
-        for i in range(m):
-            for j in range(n):
-                mmd_middle += self.gauss_kernel(z1[i], z2[j])
-        return mmd_middle
-
-#the operations are symetric and some of the have already been computed, so we can improve this algorithem
-    def Right_sum(self, z2: torch.tensor, n: int):
-        mmd_right = 0
-        for i in range(n):
-            for j in range(n):
-                mmd_right += self.gauss_kernel(z2[i], z2[j])
-        return mmd_right
-
-    def gauss_kernel(self, z1: torch.tensor, z2: torch.tensor, gamma=1.0):
-        return torch.exp(-gamma * torch.norm(torch.sub(z1, z2), p=2) ** 2)
 
     def _compute_mmd_loss(self, batches: Tensor, mode: str) -> Tensor:
         mmd_Loss = 0.0
@@ -313,7 +277,7 @@ class VAE(BaseMinifiedModeModuleClass):
                 elif mode == "fast":
                     mmd_Loss += self._compute_fast_mmd(batches[j], batches[i])
                 else:
-                    break
+                    raise ValueError
         return torch.tensor(mmd_Loss)
 
 
