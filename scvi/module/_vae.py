@@ -101,7 +101,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        mode: str = "normal",
+        mode: str = "fast",
         batches: torch.tensor = None,
         beta: Tunable[float] = 1.0,
         n_hidden: Tunable[int] = 128,
