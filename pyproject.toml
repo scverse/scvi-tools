@@ -98,6 +98,7 @@ autotune = [
     "ray[tune]>=2.5.0",
     "ipython",
     "scib-metrics>=0.3",
+    "tensorboard",
 ]  # scvi.autotune
 census = ["cellxgene-census"]  # scvi.data.cellxgene
 hub = ["huggingface_hub"]  # scvi.hub dependencies

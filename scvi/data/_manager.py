@@ -343,9 +343,9 @@ class AnnDataManager:
             such keys. A list can be used to subset to certain keys in the event that more tensors than
             needed have been registered. If ``None``, defaults to all registered data.
         load_sparse_tensor
-            If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
-            :class:`~torch.Tensor` with the same layout. Can lead to significant
-            speedups in transferring data to GPUs, depending on the sparsity of the data.
+        `EXPERIMENTAL` If ``True``, loads data with sparse CSR or CSC layout as a
+        :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to GPUs,
+        depending on the sparsity of the data.
 
         Returns
         -------

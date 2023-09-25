@@ -33,6 +33,10 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for
     stochastic prediction of celltype labels {pr}`2224`.
 -   Add support for Python 3.10+ type annotations in {class}`scvi.autotune.ModelTuner` {pr}`2239`.
+-   Add option to log device statistics in {meth}`scvi.autotune.ModelTuner.fit`
+    with argument `monitor_device_stats` {pr}`2260`.
+-   Add option to pass in a random seed to {meth}`scvi.autotune.ModelTuner.fit`
+    with argument `seed` {pr}`2260`.
 
 #### Fixed
 
@@ -49,6 +53,11 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     per-group LFC.
 -   Revalidate `devices` when automatically switching from MPS to CPU
     accelerator in {func}`scvi.model._utils.parse_device_args` {pr}`2247`.
+-   Refactor {class}`scvi.data.AnnTorchDataset`, now loads continuous data as
+    {class}`numpy.float32` and categorical data as {class}`numpy.int64` by
+    default {pr}`2250`.
+-   Support fractional GPU usage in {class}`scvi.autotune.ModelTuner` `pr`{2252}.
+-   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner` `pr`{2260}.
 
 #### Removed
 
