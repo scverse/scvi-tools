@@ -324,6 +324,14 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             sync_dist=self.use_sync_dist,
         )
 
+        if mode == "train" and self.reduce_lr_on_plateau:
+            self.log(
+                "lr",
+                self.optimizers().param_groups[0]["lr"],
+                on_step=False,
+                on_epoch=True,
+            )
+
         # accumlate extra metrics passed to loss recorder
         for key in loss_output.extra_metrics_keys:
             met = loss_output.extra_metrics[key]
