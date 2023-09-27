@@ -1,7 +1,7 @@
 # contrastiveVI
 
 **contrastiveVI** [^ref1] (contrastive variational inference; Python class
-{class}`~scvi.model.ContrastiveVI`) is a generative model for the contrastive analysis
+{class}`~scvi.external.ContrastiveVI`) is a generative model for the contrastive analysis
 of scRNA-seq count data that can subsequently be used for many common downstream tasks.
 
 Contrastive analysis requires a _target_ (e.g., treated cells) and a _background_

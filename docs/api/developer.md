@@ -151,7 +151,6 @@ Existing module classes with respective generative and inference procedures.
    module.TOTALVAE
    module.VAE
    module.VAEC
-   module.ContrastiveVAE
    module.AmortizedLDAPyroModule
    module.JaxVAE
 
@@ -177,6 +176,7 @@ Module classes in the external API with respective generative and inference proc
    external.stereoscope.SpatialDeconv
    external.tangram.TangramMapper
    external.scbasset.ScBassetModule
+   external.contrastivevi.ContrastiveVAE
 
 ```
 

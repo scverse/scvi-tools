@@ -30,7 +30,6 @@ import scvi
    model.PEAKVI
    model.SCANVI
    model.SCVI
-   model.ContrastiveVI
    model.TOTALVI
    model.MULTIVI
    model.AmortizedLDA
@@ -58,6 +57,7 @@ import scvi
    external.SCAR
    external.Tangram
    external.SCBASSET
+   external.ContrastiveVI
 
 ```
 
