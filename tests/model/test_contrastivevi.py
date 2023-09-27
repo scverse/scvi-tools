@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 import torch
 
-from scvi.model import ContrastiveVI
+from scvi.external.contrastivevi import ContrastiveVI
 
 
 def copy_module_state_dict(module) -> Dict[str, torch.Tensor]:

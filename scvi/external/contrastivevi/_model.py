@@ -26,11 +26,11 @@ from scvi.model._utils import (
     scrna_raw_counts_properties,
 )
 from scvi.model.base import BaseModelClass
+from scvi.model.base._training_mixin import ContrastiveTrainingMixin
 from scvi.model.base._utils import _de_core
-from scvi.module import ContrastiveVAE
 from scvi.utils import setup_anndata_dsp
 
-from .base import ContrastiveTrainingMixin
+from ._module import ContrastiveVAE
 
 logger = logging.getLogger(__name__)
 Number = Union[int, float]
