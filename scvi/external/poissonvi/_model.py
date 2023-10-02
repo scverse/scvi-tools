@@ -90,7 +90,6 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             adata,
         )
 
-        print(self.summary_stats)
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = (
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
