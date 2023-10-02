@@ -19,31 +19,21 @@ from scvi.data.fields import (
     NumericalObsField,
 )
 from scvi.model._utils import _init_library_size, scatac_raw_counts_properties
+from scvi.model import PEAKVI
 from scvi.model.base import (
-    ArchesMixin,
-    BaseModelClass,
     RNASeqMixin,
-    UnsupervisedTrainingMixin,
-    VAEMixin,
 )
 from scvi.model.base._utils import (
     _de_core,
 )
 from scvi.module import VAE
-from scvi.train._callbacks import SaveBestState
 from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import de_dsp, devices_dsp
+from scvi.utils._docstrings import de_dsp
 
 logger = logging.getLogger(__name__)
 
 
-class POISSONVI(
-    RNASeqMixin,
-    VAEMixin,
-    ArchesMixin,
-    UnsupervisedTrainingMixin,
-    BaseModelClass,
-):
+class POISSONVI(PEAKVI, RNASeqMixin):
     """
     Peak Variational Inference using a Poisson distribution.
 
@@ -57,32 +47,23 @@ class POISSONVI(
     n_latent
         Dimensionality of the latent space. If `None`, defaults to square root
         of `n_hidden`.
-    n_layers_encoder
-        Number of hidden layers used for encoder NN.
-    n_layers_decoder
-        Number of hidden layers used for decoder NN.
+    n_layers
+        Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
         Dropout rate for neural networks
-    model_depth
-        Model sequencing depth / library size (default: True)
-    region_factors
-        Include region-specific factors in the model (default: True)
     latent_distribution
         One of
 
         * ``'normal'`` - Normal distribution (Default)
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
-    deeply_inject_covariates
-        Whether to deeply inject covariates into all layers of the decoder. If False (default),
-        covariates will only be included in the input layer.
     **model_kwargs
         Keyword args for :class:`~scvi.module.VAE`
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.POISSINVI.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.model.POISSONVI(adata)
+    >>> scvi.external.POISSINVI.setup_anndata(adata, batch_key="batch")
+    >>> vae = scvi.external.POISSONVI(adata)
     >>> vae.train()
 
     Notes
@@ -95,27 +76,21 @@ class POISSONVI(
     # TODO: change tutorial link
     # TODO: change citation
 
-    _module_cls = VAE
-
     def __init__(
         self,
         adata: AnnData,
         n_hidden: int | None = None,
         n_latent: int | None = None,
-        n_layers: int = 2,
-        dropout_rate: float = 0.1,
+        n_layers: int | None = None,
+        dropout_rate: float | None = None,
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super().__init__(adata)
-
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
+        super().__init__(
+            adata,
         )
+
+        print(self.summary_stats)
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = (
             REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
@@ -126,38 +101,32 @@ class POISSONVI(
                 self.adata_manager, n_batch
             )
 
-        # to be consitent with PEAKVI architecture
-        n_hidden = (
-            int(np.sqrt(self.summary_stats.n_vars)) if n_hidden is None else n_hidden
-        )
-        n_latent = int(np.sqrt(n_hidden)) if n_latent is None else n_latent
+        self._module_cls = VAE
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_labels=self.summary_stats.n_labels,
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
-            n_cats_per_cov=n_cats_per_cov,
-            n_hidden=n_hidden,
-            n_latent=n_latent,
-            n_layers=n_layers,
-            dropout_rate=dropout_rate,
+            n_cats_per_cov=self.module.n_cats_per_cov,
+            n_hidden=self.module.n_hidden,
+            n_latent=self.module.n_latent,
+            n_layers=self.module.n_layers_encoder,
+            dropout_rate=self.module.dropout_rate,
             dispersion="gene",  # not needed here
             gene_likelihood="poisson",  # fixed value for now, but we could think of also allowing nb
-            latent_distribution=latent_distribution,
+            latent_distribution=self.module.latent_distribution,
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
-            use_batch_norm="none",  # to be consitent with PEAKVI architecture
-            use_layer_norm="both",  # to be consitent with PEAKVI architecture
-            extra_encoder_kwargs={
-                "activation_fn": torch.nn.LeakyReLU
-            },  # to be consitent with PEAKVI architecture
-            extra_decoder_kwargs={
-                "activation_fn": torch.nn.LeakyReLU
-            },  # to be consitent with PEAKVI architecture
+            use_batch_norm="none",
+            use_layer_norm="both",
+            # to be consitent with PEAKVI architecture
+            extra_encoder_kwargs={"activation_fn": torch.nn.LeakyReLU},
+            extra_decoder_kwargs={"activation_fn": torch.nn.LeakyReLU},
             **model_kwargs,
         )
+
         self._model_summary_string = (
             "PoissonVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
             "{}, peak_likelihood: {}, latent_distribution: {}"
@@ -170,115 +139,6 @@ class POISSONVI(
             latent_distribution,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    # to be consitent with PEAKVI training
-    @devices_dsp.dedent
-    def train(
-        self,
-        max_epochs: int = 500,
-        lr: float = 1e-4,
-        accelerator: str = "auto",
-        devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
-        validation_size: float | None = None,
-        shuffle_set_split: bool = True,
-        batch_size: int = 128,
-        weight_decay: float = 1e-3,
-        eps: float = 1e-08,
-        early_stopping: bool = True,
-        early_stopping_patience: int = 50,
-        save_best: bool = True,
-        check_val_every_n_epoch: int | None = None,
-        n_steps_kl_warmup: int | None = None,
-        n_epochs_kl_warmup: int | None = 50,
-        datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
-        **kwargs,
-    ):
-        """Trains the model using amortized variational inference.
-
-        Parameters
-        ----------
-        max_epochs
-            Number of passes through the dataset.
-        lr
-            Learning rate for optimization.
-        %(param_accelerator)s
-        %(param_devices)s
-        train_size
-            Size of training set in the range [0.0, 1.0].
-        validation_size
-            Size of the test set. If `None`, defaults to 1 - `train_size`. If
-            `train_size + validation_size < 1`, the remaining cells belong to a test set.
-        shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
-        batch_size
-            Minibatch size to use during training.
-        weight_decay
-            weight decay regularization term for optimization
-        eps
-            Optimizer eps
-        early_stopping
-            Whether to perform early stopping with respect to the validation set.
-        early_stopping_patience
-            How many epochs to wait for improvement before early stopping
-        save_best
-            Save the best model state with respect to the validation loss (default), or use the final
-            state in the training procedure
-        check_val_every_n_epoch
-            Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
-            If so, val is checked every epoch.
-        n_steps_kl_warmup
-            Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
-            Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
-            to `floor(0.75 * adata.n_obs)`.
-        n_epochs_kl_warmup
-            Number of epochs to scale weight on KL divergences from 0 to 1.
-            Overrides `n_steps_kl_warmup` when both are not `None`.
-        datasplitter_kwargs
-            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
-        plan_kwargs
-            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
-            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        **kwargs
-            Other keyword args for :class:`~scvi.train.Trainer`.
-        """
-        update_dict = {
-            "lr": lr,
-            "weight_decay": weight_decay,
-            "eps": eps,
-            "n_epochs_kl_warmup": n_epochs_kl_warmup,
-            "n_steps_kl_warmup": n_steps_kl_warmup,
-            "optimizer": "AdamW",
-        }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
-        if save_best:
-            if "callbacks" not in kwargs.keys():
-                kwargs["callbacks"] = []
-            kwargs["callbacks"].append(
-                SaveBestState(monitor="reconstruction_loss_validation")
-            )
-
-        super().train(
-            max_epochs=max_epochs,
-            train_size=train_size,
-            accelerator=accelerator,
-            devices=devices,
-            validation_size=validation_size,
-            shuffle_set_split=shuffle_set_split,
-            early_stopping=early_stopping,
-            early_stopping_monitor="reconstruction_loss_validation",
-            early_stopping_patience=early_stopping_patience,
-            datasplitter_kwargs=datasplitter_kwargs,
-            plan_kwargs=plan_kwargs,
-            check_val_every_n_epoch=check_val_every_n_epoch,
-            batch_size=batch_size,
-            **kwargs,
-        )
 
     @torch.inference_mode()
     def get_accessibility_estimates(
@@ -379,15 +239,12 @@ class POISSONVI(
             )
         return accs
 
-    @torch.inference_mode()
     def get_normalized_expression(
         self,
     ):
         # Refer to function get_accessibility_estimates
-        print(
-            "``get_normalized_expression`` is not implemented for POISSONVI, please use get_accessibility_estimates"
-        )
-        return None
+        msg = f"differential_expression is not implemented for {self.__class__.__name__}, please use {self.__class__.__name__}.get_accessibility_estimates"
+        raise ValueError(msg)
 
     @de_dsp.dedent
     def differential_accessibility(
@@ -399,7 +256,7 @@ class POISSONVI(
         idx1: Sequence[int] | Sequence[bool] | str | None = None,
         idx2: Sequence[int] | Sequence[bool] | str | None = None,
         mode: Literal["vanilla", "change"] = "change",
-        delta: float = 0.25,
+        delta: float = 0.05,
         batch_size: int | None = None,
         all_stats: bool = True,
         batch_correction: bool = False,
@@ -407,14 +264,17 @@ class POISSONVI(
         batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
+        two_sided: bool = True,
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
         importance_weighting_kwargs: dict | None = None,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""A unified method for differential accessibility analysis.
+        r"""\.
 
-        Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
+        A unified method for differential accessibility analysis.
+
+        Implements `"vanilla"` DE :cite:p:`Lopez18`. and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
@@ -433,6 +293,8 @@ class POISSONVI(
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
+        two_sided
+            Whether to perform a two-sided test, or a one-sided test.
         weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
         filter_outlier_cells
@@ -444,7 +306,28 @@ class POISSONVI(
 
         Returns
         -------
-        Differential accessibility DataFrame.
+        Differential accessibility DataFrame with the following columns:
+        prob_da
+            the probability of the region being differentially accessible
+        is_da_fdr
+            whether the region passes a multiple hypothesis correction procedure with the target_fdr
+            threshold
+        bayes_factor
+            Bayes Factor indicating the level of significance of the analysis
+        effect_size
+            the effect size, computed as (accessibility in population 2) - (accessibility in population 1)
+        emp_effect
+            the empirical effect, based on observed detection rates instead of the estimated accessibility
+            scores from the PeakVI model
+        est_prob1
+            the estimated probability of accessibility in population 1
+        est_prob2
+            the estimated probability of accessibility in population 2
+        emp_prob1
+            the empirical (observed) probability of accessibility in population 1
+        emp_prob2
+            the empirical (observed) probability of accessibility in population 2
+
         """
         adata = self._validate_anndata(adata)
         col_names = adata.var_names
@@ -461,38 +344,54 @@ class POISSONVI(
             self.get_latent_representation if filter_outlier_cells else None
         )
 
+        if two_sided:
+
+            def m1_domain_fn(samples):
+                return np.abs(samples) >= delta
+
+        else:
+
+            def m1_domain_fn(samples):
+                return samples >= delta
+
         result = _de_core(
-            self.get_anndata_manager(adata, required=True),
-            model_fn,
-            representation_fn,
-            groupby,
-            group1,
-            group2,
-            idx1,
-            idx2,
-            all_stats,
-            scatac_raw_counts_properties,
-            col_names,
-            mode,
-            batchid1,
-            batchid2,
-            delta,
-            batch_correction,
-            fdr_target,
-            silent,
+            adata_manager=self.get_anndata_manager(adata, required=True),
+            model_fn=model_fn,
+            representation_fn=representation_fn,
+            groupby=groupby,
+            group1=group1,
+            group2=group2,
+            idx1=idx1,
+            idx2=idx2,
+            all_stats=all_stats,
+            all_stats_fn=scatac_raw_counts_properties,
+            col_names=col_names,
+            mode=mode,
+            batchid1=batchid1,
+            batchid2=batchid2,
+            delta=delta,
+            batch_correction=batch_correction,
+            fdr=fdr_target,
+            m1_domain_fn=m1_domain_fn,
+            silent=silent,
             **kwargs,
         )
 
+        # change the column names to prob as done in PeakVI
+        result = result.rename(
+            columns={
+                "emp_mean1": "emp_prob1",
+                "emp_mean2": "emp_prob2",
+            }
+        )
         return result
 
-    @torch.inference_mode()
     def differential_expression(
         self,
     ):
         # Refer to function differential_accessibility
-        raise ValueError(
-            f"``differential_expression`` is not implemented for {self.__name__}, please use ``{self.__name__}.differential_accessibility``"
-        )
+        msg = f"differential_expression is not implemented for {self.__class__.__name__}, please use {self.__class__.__name__}.differential_accessibility"
+        raise ValueError(msg)
 
         return None
 
