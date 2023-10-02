@@ -18,8 +18,8 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.model._utils import _init_library_size, scatac_raw_counts_properties
 from scvi.model import PEAKVI
+from scvi.model._utils import _init_library_size, scatac_raw_counts_properties
 from scvi.model.base import (
     RNASeqMixin,
 )
