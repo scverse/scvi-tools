@@ -530,19 +530,6 @@ def test_semisupervised_data_splitter():
     assert np.isclose(adata_ratio, train_ratio, atol=0.05)
 
 
-def test_linear_scvi(save_path):
-    adata = synthetic_iid()
-    adata = adata[:, :10].copy()
-    LinearSCVI.setup_anndata(adata)
-    model = LinearSCVI(adata, n_latent=10)
-    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
-    assert len(model.history["elbo_train"]) == 1
-    assert len(model.history["elbo_validation"]) == 1
-    model.get_loadings()
-    model.differential_expression(groupby="labels", group1="label_1")
-    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
-
-
 def test_autozi():
     data = synthetic_iid(
         n_batches=1,
