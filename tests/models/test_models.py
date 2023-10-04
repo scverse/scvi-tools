@@ -3,7 +3,6 @@ import pickle
 import tarfile
 
 import numpy as np
-import pandas as pd
 import pytest
 import torch
 
@@ -532,122 +531,6 @@ def test_semisupervised_data_splitter():
     # labeled vs unlabeled ratio in train set
     train_ratio = len(unlabeled_train_idx) / len(labeled_train_idx)
     assert np.isclose(adata_ratio, train_ratio, atol=0.05)
-
-
-def test_scanvi(save_path):
-    adata = synthetic_iid()
-    SCANVI.setup_anndata(
-        adata,
-        "labels",
-        "label_0",
-        batch_key="batch",
-    )
-    model = SCANVI(adata, n_latent=10)
-    assert len(model._labeled_indices) == sum(adata.obs["labels"] != "label_0")
-    assert len(model._unlabeled_indices) == sum(adata.obs["labels"] == "label_0")
-    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
-    logged_keys = model.history.keys()
-    assert "elbo_validation" in logged_keys
-    assert "reconstruction_loss_validation" in logged_keys
-    assert "kl_local_validation" in logged_keys
-    assert "elbo_train" in logged_keys
-    assert "reconstruction_loss_train" in logged_keys
-    assert "kl_local_train" in logged_keys
-    assert "validation_classification_loss" in logged_keys
-    adata2 = synthetic_iid()
-    predictions = model.predict(adata2, indices=[1, 2, 3])
-    assert len(predictions) == 3
-    model.predict()
-    df = model.predict(adata2, soft=True)
-    assert isinstance(df, pd.DataFrame)
-    model.predict(adata2, soft=True, indices=[1, 2, 3])
-    model.get_normalized_expression(adata2)
-    model.differential_expression(groupby="labels", group1="label_1")
-    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
-
-    # test that all data labeled runs
-    unknown_label = "asdf"
-    a = scvi.data.synthetic_iid()
-    scvi.model.SCANVI.setup_anndata(
-        a,
-        "labels",
-        unknown_label,
-        batch_key="batch",
-    )
-    m = scvi.model.SCANVI(a)
-    m.train(1)
-
-    # test mix of labeled and unlabeled data
-    unknown_label = "label_0"
-    a = scvi.data.synthetic_iid()
-    scvi.model.SCANVI.setup_anndata(
-        a,
-        "labels",
-        unknown_label,
-        batch_key="batch",
-    )
-    m = scvi.model.SCANVI(a)
-    m.train(1, train_size=0.9)
-
-    # test from_scvi_model
-    a = scvi.data.synthetic_iid()
-    SCVI.setup_anndata(
-        a,
-        batch_key="batch",
-    )
-    m = SCVI(a, use_observed_lib_size=False)
-    a2 = scvi.data.synthetic_iid()
-    scanvi_model = scvi.model.SCANVI.from_scvi_model(
-        m, "label_0", labels_key="labels", adata=a2
-    )
-    with pytest.raises(ValueError):
-        scanvi_model = scvi.model.SCANVI.from_scvi_model(
-            m, "label_0", labels_key=None, adata=a2
-        )
-
-    # make sure the state_dicts are different objects for the two models
-    assert scanvi_model.module.state_dict() is not m.module.state_dict()
-    scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
-    scvi_pxr = m.module.state_dict().get("px_r", None)
-    assert scanvi_pxr is not None and scvi_pxr is not None
-    assert scanvi_pxr is not scvi_pxr
-    scanvi_model.train(1)
-
-    # Test without label groups
-    scanvi_model = scvi.model.SCANVI.from_scvi_model(
-        m, "label_0", labels_key="labels", use_labels_groups=False
-    )
-    scanvi_model.train(1)
-
-    # test from_scvi_model with size_factor
-    a = scvi.data.synthetic_iid()
-    a.obs["size_factor"] = np.random.randint(1, 5, size=(a.shape[0],))
-    SCVI.setup_anndata(
-        a, batch_key="batch", labels_key="labels", size_factor_key="size_factor"
-    )
-    m = SCVI(a, use_observed_lib_size=False)
-    a2 = scvi.data.synthetic_iid()
-    a2.obs["size_factor"] = np.random.randint(1, 5, size=(a2.shape[0],))
-    scanvi_model = scvi.model.SCANVI.from_scvi_model(m, "label_0", adata=a2)
-    scanvi_model.train(1)
-
-
-def test_linear_classifier_scanvi(n_latent: int = 10, n_labels: int = 5):
-    adata = synthetic_iid(n_labels=n_labels)
-    SCANVI.setup_anndata(
-        adata,
-        "labels",
-        "label_0",
-        batch_key="batch",
-    )
-    model = SCANVI(adata, linear_classifier=True, n_latent=n_latent)
-
-    assert len(model.module.classifier.classifier) == 2  # linear layer + softmax
-    assert isinstance(model.module.classifier.classifier[0], torch.nn.Linear)
-    assert model.module.classifier.classifier[0].in_features == n_latent
-    assert model.module.classifier.classifier[0].out_features == n_labels - 1
-
-    model.train(max_epochs=1)
 
 
 def test_linear_scvi(save_path):
