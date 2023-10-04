@@ -325,12 +325,22 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         )
 
         if mode == "train" and self.reduce_lr_on_plateau:
-            self.log(
-                "lr",
-                self.optimizers().param_groups[0]["lr"],
-                on_step=False,
-                on_epoch=True,
-            )
+            optimizers = self.optimizers()
+            if isinstance(optimizers, list):
+                for i, opt in enumerate(optimizers):
+                    self.log(
+                        f"lr_{i}",
+                        opt.param_groups[0]["lr"],
+                        on_step=False,
+                        on_epoch=True,
+                    )
+            else:
+                self.log(
+                    "lr",
+                    self.optimizers().param_groups[0]["lr"],
+                    on_step=False,
+                    on_epoch=True,
+                )
 
         # accumlate extra metrics passed to loss recorder
         for key in loss_output.extra_metrics_keys:
