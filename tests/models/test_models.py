@@ -683,34 +683,3 @@ def test_multiple_encoded_covariates_scvi(save_path):
     )
     m = TOTALVI(adata, encode_covariates=True)
     m.train(1)
-
-
-def test_peakvi():
-    data = synthetic_iid()
-    PEAKVI.setup_anndata(
-        data,
-        batch_key="batch",
-    )
-    vae = PEAKVI(
-        data,
-        model_depth=False,
-    )
-    vae.train(1, save_best=False)
-    vae = PEAKVI(
-        data,
-        region_factors=False,
-    )
-    vae.train(1, save_best=False)
-    vae = PEAKVI(
-        data,
-    )
-    vae.train(3)
-    vae.get_elbo(indices=vae.validation_indices)
-    vae.get_accessibility_estimates()
-    vae.get_accessibility_estimates(normalize_cells=True)
-    vae.get_accessibility_estimates(normalize_regions=True)
-    vae.get_library_size_factors()
-    vae.get_region_factors()
-    vae.get_reconstruction_error(indices=vae.validation_indices)
-    vae.get_latent_representation()
-    vae.differential_accessibility(groupby="labels", group1="label_1")
