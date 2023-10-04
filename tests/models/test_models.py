@@ -23,7 +23,6 @@ from scvi.model import (
     SCANVI,
     SCVI,
     TOTALVI,
-    CondSCVI,
     LinearSCVI,
 )
 from scvi.train import TrainingPlan, TrainRunner
@@ -715,22 +714,3 @@ def test_peakvi():
     vae.get_reconstruction_error(indices=vae.validation_indices)
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
-
-
-def test_condscvi(save_path):
-    dataset = synthetic_iid(
-        n_labels=5,
-    )
-    CondSCVI.setup_anndata(
-        dataset,
-        "labels",
-    )
-    model = CondSCVI(dataset)
-    model.train(1, train_size=1)
-    model.get_latent_representation()
-    model.get_vamp_prior(dataset)
-
-    model = CondSCVI(dataset, weight_obs=True)
-    model.train(1, train_size=1)
-    model.get_latent_representation()
-    model.get_vamp_prior(dataset)
