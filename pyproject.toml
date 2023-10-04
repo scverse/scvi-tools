@@ -104,7 +104,7 @@ hub = ["huggingface_hub"]  # scvi.hub dependencies
 pymde = ["pymde"]  # scvi.model.utils.mde dependencies
 regseq = ["biopython>=1.81", "genomepy"]  # scvi.data.add_dna_sequence
 loompy = ["loompy>=3.0.6"]  # read loom
-scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
+scanpy = ["scanpy>=1.9"]  # scvi.criticism and read 10x
 optional = [
     "scvi-tools[autotune,census,hub,loompy,pymde,regseq,scanpy]"
 ]  # all optional user functionality
