@@ -252,13 +252,13 @@ class VAE(BaseMinifiedModeModuleClass):
     def _compute_fast_mmd(self, z1: torch.Tensor, z2: torch.Tensor):
         m2 = min(z1.shape[0], z2.shape[0]) // 2
         if z1.shape[0] > z2.shape[0]:
-            X = z1[0:2 * m2]
+            z1 = z1[0:2 * m2]
         else:
-            Y = z2[0:2 * m2]
-        T1 = X[:-1:2]
-        T2 = X[:-1:2]
-        S1 = Y[:-1:2]
-        S2 = Y[1::2]
+            z2 = z2[0:2 * m2]
+        T1 = z1[:-1:2]
+        T2 = z1[:-1:2]
+        S1 = z2[:-1:2]
+        S2 = z2[1::2]
         P = (T1 - T2).float()
         Q = (S1 - S2).float()
         R = (T1 - S2).float()
@@ -545,7 +545,6 @@ class VAE(BaseMinifiedModeModuleClass):
             "kl_divergence_l": kl_divergence_l,
             "kl_divergence_z": kl_divergence_z,
         }
-
         return LossOutput(
             loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local, mmd_loss=self.mmdloss
         )

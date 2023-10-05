@@ -1031,9 +1031,11 @@ def test_scanvi(save_path):
     assert "elbo_validation" in logged_keys
     assert "reconstruction_loss_validation" in logged_keys
     assert "kl_local_validation" in logged_keys
+    assert "mmd_loss_validation" in logged_keys
     assert "elbo_train" in logged_keys
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
+    assert "mmd_loss_train" in logged_keys
     assert "validation_classification_loss" in logged_keys
 
     adata2 = synthetic_iid()

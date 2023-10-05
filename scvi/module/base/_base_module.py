@@ -71,6 +71,7 @@ class LossOutput:
     ...     loss=loss,
     ...     reconstruction_loss=reconstruction_loss,
     ...     kl_local=kl_local,
+    ...     mmd_loss=mmd_loss,
     ...     extra_metrics={"x": scalar_tensor_x, "y": scalar_tensor_y},
     ... )
     """
@@ -79,6 +80,7 @@ class LossOutput:
     reconstruction_loss: LossRecord | None = None
     kl_local: LossRecord | None = None
     kl_global: LossRecord | None = None
+    mmd_loss: LossRecord | None = None
     classification_loss: LossRecord | None = None
     logits: Tensor | None = None
     true_labels: Tensor | None = None
@@ -87,7 +89,8 @@ class LossOutput:
     reconstruction_loss_sum: Tensor = field(default=None, init=False)
     kl_local_sum: Tensor = field(default=None, init=False)
     kl_global_sum: Tensor = field(default=None, init=False)
-    mmd_loss: int | None = None
+    mmd_loss_sum: Tensor = field(default=None, init=False)
+
 
     def __post_init__(self):
         self.loss = self.dict_sum(self.loss)
@@ -104,12 +107,16 @@ class LossOutput:
             self.kl_local = default
         if self.kl_global is None:
             self.kl_global = default
+        if self.mmd_loss is None:
+            self.mmd_loss = default
         self.reconstruction_loss = self._as_dict("reconstruction_loss")
         self.kl_local = self._as_dict("kl_local")
         self.kl_global = self._as_dict("kl_global")
+        self.mmd_loss = self._as_dict("mmd_loss")
         self.reconstruction_loss_sum = self.dict_sum(self.reconstruction_loss).sum()
         self.kl_local_sum = self.dict_sum(self.kl_local).sum()
         self.kl_global_sum = self.dict_sum(self.kl_global)
+        self.mmd_loss_sum = self.dict_sum(self.mmd_loss)
 
         if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
             rec_loss = self.reconstruction_loss
@@ -143,6 +150,8 @@ class LossOutput:
         else:
             return {attr_name: attr}
 
+    def update_mmd_loss(self, error):
+        self.mmd_loss.update()
 
 class BaseModuleClass(TunableMixin, nn.Module):
     """Abstract class for scvi-tools modules.

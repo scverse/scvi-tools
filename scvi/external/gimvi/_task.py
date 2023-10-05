@@ -59,6 +59,9 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
         loss /= n_obs
         rec_loss = sum([scl.reconstruction_loss_sum for scl in loss_output_objs])
         kl = sum([scl.kl_local_sum for scl in loss_output_objs])
+        mmd = sum([scl.mmd_loss_sum for scl in loss_output_objs])
+
+
 
         # fool classifier if doing adversarial training
         batch_tensor = [
@@ -76,6 +79,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             "loss": loss,
             "reconstruction_loss_sum": rec_loss,
             "kl_local_sum": kl,
+            "mmd_loss_sum": mmd,
             "kl_global": 0.0,
             "n_obs": n_obs,
         }
@@ -121,7 +125,9 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
                 "reconstruction_loss_sum": reconstruction_loss,
                 "kl_local_sum": loss_output.kl_local_sum,
                 "kl_global": loss_output.kl_global,
+                "mmd_loss_sum": loss_output.mmd_loss_sum,
                 "n_obs": loss_output.n_obs_minibatch,
+
             }
         )
 
@@ -129,15 +135,18 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
         """Aggregate validation step information."""
         super().on_validation_epoch_end()
         outputs = self.validation_step_outputs
-        n_obs, elbo, rec_loss, kl_local = 0, 0, 0, 0
+        n_obs, elbo, rec_loss, kl_local, mmd_loss_sum = 0, 0, 0, 0, 0
         for val_metrics in outputs:
             elbo += val_metrics["reconstruction_loss_sum"] + val_metrics["kl_local_sum"]
             rec_loss += val_metrics["reconstruction_loss_sum"]
             kl_local += val_metrics["kl_local_sum"]
+            mmd_loss_sum += val_metrics["mmd_loss_sum"]
             n_obs += val_metrics["n_obs"]
+
         # kl global same for each minibatch
         self.log("elbo_validation", elbo / n_obs)
         self.log("reconstruction_loss_validation", rec_loss / n_obs)
         self.log("kl_local_validation", kl_local / n_obs)
         self.log("kl_global_validation", 0.0)
+        self.log("mmd_loss_validation", mmd_loss_sum / n_obs)
         self.validation_step_outputs.clear()  # free memory
