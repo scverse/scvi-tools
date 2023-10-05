@@ -518,45 +518,12 @@ def test_totalvi_size_factor():
     model.train(1, train_size=0.5)
 
 
-def test_multiple_covariates_scvi(save_path):
+def test_multiple_covariates_totalvi():
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCVI(adata)
-    m.train(1)
-    m.get_latent_representation()
-    m.get_elbo()
-    m.get_marginal_ll(n_mc_samples=3)
-    m.get_reconstruction_error()
-    m.get_normalized_expression(n_samples=1)
-    m.get_normalized_expression(n_samples=2)
-
-    SCANVI.setup_anndata(
-        adata,
-        "labels",
-        "Unknown",
-        batch_key="batch",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCANVI(adata)
-    m.train(1)
-    m.get_latent_representation()
-    m.get_elbo()
-    m.get_marginal_ll(n_mc_samples=3)
-    m.get_reconstruction_error()
-    m.get_normalized_expression(n_samples=1)
-    m.get_normalized_expression(n_samples=2)
 
     TOTALVI.setup_anndata(
         adata,
@@ -576,33 +543,12 @@ def test_multiple_covariates_scvi(save_path):
     m.get_normalized_expression(n_samples=2)
 
 
-def test_multiple_encoded_covariates_scvi(save_path):
+def test_multiple_encoded_covariates_totalvi():
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCVI(adata, encode_covariates=True)
-    m.train(1)
-
-    SCANVI.setup_anndata(
-        adata,
-        "labels",
-        "Unknown",
-        batch_key="batch",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCANVI(adata, encode_covariates=True)
-    m.train(1)
 
     TOTALVI.setup_anndata(
         adata,

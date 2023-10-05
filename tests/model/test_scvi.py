@@ -21,7 +21,6 @@ from scvi.dataloaders import (
 from scvi.model import (
     SCANVI,
     SCVI,
-    TOTALVI,
 )
 from scvi.model.utils import mde
 from scvi.train import TrainingPlan, TrainRunner
@@ -658,7 +657,7 @@ def test_scanvi(save_path):
     scanvi_model.train(1)
 
 
-def test_multiple_covariates_scvi(save_path):
+def test_multiple_covariates_scvi():
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
@@ -681,42 +680,8 @@ def test_multiple_covariates_scvi(save_path):
     m.get_normalized_expression(n_samples=1)
     m.get_normalized_expression(n_samples=2)
 
-    SCANVI.setup_anndata(
-        adata,
-        "labels",
-        "Unknown",
-        batch_key="batch",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCANVI(adata)
-    m.train(1)
-    m.get_latent_representation()
-    m.get_elbo()
-    m.get_marginal_ll(n_mc_samples=3)
-    m.get_reconstruction_error()
-    m.get_normalized_expression(n_samples=1)
-    m.get_normalized_expression(n_samples=2)
 
-    TOTALVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = TOTALVI(adata)
-    m.train(1)
-    m.get_latent_representation()
-    m.get_elbo()
-    m.get_marginal_ll(n_mc_samples=3)
-    m.get_reconstruction_error()
-    m.get_normalized_expression(n_samples=1)
-    m.get_normalized_expression(n_samples=2)
-
-
-def test_multiple_encoded_covariates_scvi(save_path):
+def test_multiple_encoded_covariates_scvi():
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
@@ -731,28 +696,6 @@ def test_multiple_encoded_covariates_scvi(save_path):
         categorical_covariate_keys=["cat1", "cat2"],
     )
     m = SCVI(adata, encode_covariates=True)
-    m.train(1)
-
-    SCANVI.setup_anndata(
-        adata,
-        "labels",
-        "Unknown",
-        batch_key="batch",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCANVI(adata, encode_covariates=True)
-    m.train(1)
-
-    TOTALVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = TOTALVI(adata, encode_covariates=True)
     m.train(1)
 
 
