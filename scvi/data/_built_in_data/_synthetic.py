@@ -54,16 +54,16 @@ def _generate_synthetic(
         labels = np.random.randint(0, n_labels, size=(n_obs,))
         labels = np.array([f"label_{i}" for i in labels])
 
-    adata = AnnData(rna, dtype=np.float32)
+    adata = AnnData(rna)
     if return_mudata:
         mod_dict = {rna_key: adata}
 
         if n_proteins > 0:
-            protein_adata = AnnData(protein, dtype=np.float32)
+            protein_adata = AnnData(protein)
             protein_adata.var_names = protein_names
             mod_dict[protein_expression_key] = protein_adata
         if n_regions > 0:
-            mod_dict[accessibility_key] = AnnData(accessibility, dtype=np.float32)
+            mod_dict[accessibility_key] = AnnData(accessibility)
 
         adata = MuData(mod_dict)
     else:

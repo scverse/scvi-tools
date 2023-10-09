@@ -10,7 +10,14 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
 from anndata import AnnData
-from anndata._core.sparse_dataset import SparseDataset
+
+try:
+    from anndata._core.sparse_dataset import SparseDataset
+except ImportError:
+    # anndata >= 0.10.0
+    from anndata._core.sparse_dataset import (
+        BaseCompressedSparseDataset as SparseDataset,
+    )
 
 # TODO use the experimental api once we lower bound to anndata 0.8
 try:
