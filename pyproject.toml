@@ -32,7 +32,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "anndata==0.10.0rc1",  # for testing purposes only
+    "anndata>=0.7.5",
     "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
     "docrep>=0.3.2",
     "flax",
