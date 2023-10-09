@@ -67,6 +67,12 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ## Version 1.0
 
+### 1.0.4 (2023-10-xx)
+
+### Added
+
+-   Add support for AnnData 0.10.0 {pr}`2271`.
+
 ### 1.0.3 (2023-08-13)
 
 ### Changed
