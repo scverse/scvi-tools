@@ -130,7 +130,9 @@ class Trainer(TunableMixin, pl.Trainer):
             callbacks.append(early_stopping_callback)
             check_val_every_n_epoch = 1
 
-        if learning_rate_monitor and not any(isinstance(c, LearningRateMonitor) for c in callbacks):
+        if learning_rate_monitor and not any(
+            isinstance(c, LearningRateMonitor) for c in callbacks
+        ):
             callbacks.append(LearningRateMonitor())
             check_val_every_n_epoch = 1
 
