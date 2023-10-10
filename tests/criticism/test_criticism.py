@@ -1,4 +1,5 @@
 import pandas as pd
+from anndata import AnnData
 from sparse import GCXS
 from xarray import Dataset
 
@@ -7,7 +8,7 @@ from scvi.data import synthetic_iid
 from scvi.model import SCVI
 
 
-def get_ppc_with_samples(adata, two_models=True, n_samples=2):
+def get_ppc_with_samples(adata: AnnData, n_samples: int = 2):
     # create and train models
     SCVI.setup_anndata(
         adata,
@@ -17,21 +18,16 @@ def get_ppc_with_samples(adata, two_models=True, n_samples=2):
     model1 = SCVI(adata, n_latent=5)
     model1.train(1)
 
-    if two_models:
-        adata2 = adata.copy()
-        SCVI.setup_anndata(
-            adata2,
-            batch_key="batch",
-        )
-        model2 = SCVI(adata2, n_latent=5)
-        model2.train(1)
+    bdata = adata.copy()
+    SCVI.setup_anndata(
+        bdata,
+        batch_key="batch",
+    )
+    model2 = SCVI(bdata, n_latent=5)
+    model2.train(1)
 
-    models_dict = {"model1": model1}
-    if two_models:
-        models_dict["model2"] = model2
-
+    models_dict = {"model1": model1, "model2": model2}
     ppc = PPC(adata, models_dict, n_samples=n_samples)
-
     return ppc, models_dict
 
 
@@ -89,9 +85,8 @@ def test_ppc_zero_fraction():
     assert ppc.metrics["zero_fraction"].columns.tolist() == ["model1", "model2", "Raw"]
 
 
-def test_ppc_de():
-    adata = synthetic_iid(n_genes=200)
-    adata.var_names = [f"gene_{i}" for i in range(adata.shape[1])]
+def test_ppc_de(n_genes: int = 200):
+    adata = synthetic_iid(n_genes=n_genes)
     ppc, _ = get_ppc_with_samples(adata, n_samples=4)
 
     # Use a high thresh for simulated data

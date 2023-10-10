@@ -1,4 +1,5 @@
 import shutil
+from distutils.dir_util import copy_tree
 
 import pytest
 
@@ -28,6 +29,12 @@ def pytest_addoption(parser):
         action="store",
         default="auto",
         help="Option to specify which devices to use for tests.",
+    )
+    parser.addoption(
+        "--seed",
+        action="store",
+        default=0,
+        help="Option to specify which scvi-tools seed to use for tests.",
     )
 
 
@@ -60,6 +67,7 @@ def save_path(tmp_path_factory):
     """Docstring for save_path."""
     dir = tmp_path_factory.mktemp("temp_data", numbered=False)
     path = str(dir)
+    copy_tree("tests/test_data", path)
     yield path + "/"
     shutil.rmtree(str(tmp_path_factory.getbasetemp()))
 
@@ -74,3 +82,12 @@ def accelerator(request):
 def devices(request):
     """Docstring for devices."""
     return request.config.getoption("--devices")
+
+
+@pytest.fixture(autouse=True)
+def set_seed(request):
+    """Sets the seed for each test."""
+    from scvi import settings
+
+    settings.seed = int(request.config.getoption("--seed"))
+    yield
