@@ -37,6 +37,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     with argument `monitor_device_stats` {pr}`2260`.
 -   Add option to pass in a random seed to {meth}`scvi.autotune.ModelTuner.fit`
     with argument `seed` {pr}`2260`.
+-   Automatically log the learning rate when `reduce_lr_on_plateau=True` in
+    training plans {pr}`2280`.
 
 #### Fixed
 

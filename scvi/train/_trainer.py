@@ -4,6 +4,7 @@ from typing import Dict, List, Literal, Optional, Union
 
 import lightning.pytorch as pl
 from lightning.pytorch.accelerators import Accelerator
+from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import Logger
 
 from scvi import settings
@@ -110,14 +111,15 @@ class Trainer(TunableMixin, pl.Trainer):
         simple_progress_bar: bool = True,
         logger: Union[Optional[Logger], bool] = None,
         log_every_n_steps: int = 10,
+        learning_rate_monitor: bool = False,
         **kwargs,
     ):
         if default_root_dir is None:
             default_root_dir = settings.logging_dir
 
-        kwargs["callbacks"] = (
-            [] if "callbacks" not in kwargs.keys() else kwargs["callbacks"]
-        )
+        check_val_every_n_epoch = check_val_every_n_epoch or sys.maxsize
+        callbacks = kwargs.pop("callbacks", [])
+
         if early_stopping:
             early_stopping_callback = LoudEarlyStopping(
                 monitor=early_stopping_monitor,
@@ -125,19 +127,17 @@ class Trainer(TunableMixin, pl.Trainer):
                 patience=early_stopping_patience,
                 mode=early_stopping_mode,
             )
-            kwargs["callbacks"] += [early_stopping_callback]
+            callbacks.append(early_stopping_callback)
             check_val_every_n_epoch = 1
-        else:
-            check_val_every_n_epoch = (
-                check_val_every_n_epoch
-                if check_val_every_n_epoch is not None
-                # needs to be an integer, np.inf does not work
-                else sys.maxsize
-            )
+
+        if learning_rate_monitor and not any(
+            isinstance(c, LearningRateMonitor) for c in callbacks
+        ):
+            callbacks.append(LearningRateMonitor())
+            check_val_every_n_epoch = 1
 
         if simple_progress_bar and enable_progress_bar:
-            bar = ProgressBar(refresh_rate=progress_bar_refresh_rate)
-            kwargs["callbacks"] += [bar]
+            callbacks.append(ProgressBar(refresh_rate=progress_bar_refresh_rate))
 
         if additional_val_metrics is not None:
             if check_val_every_n_epoch == sys.maxsize:
@@ -147,7 +147,7 @@ class Trainer(TunableMixin, pl.Trainer):
                     UserWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )
-            kwargs["callbacks"].append(MetricsCallback(additional_val_metrics))
+            callbacks.append(MetricsCallback(additional_val_metrics))
 
         if logger is None:
             logger = SimpleLogger()
@@ -165,6 +165,7 @@ class Trainer(TunableMixin, pl.Trainer):
             logger=logger,
             log_every_n_steps=log_every_n_steps,
             enable_progress_bar=enable_progress_bar,
+            callbacks=callbacks,
             **kwargs,
         )
 
