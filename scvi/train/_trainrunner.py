@@ -75,6 +75,10 @@ class TrainRunner:
         self.accelerator = accelerator
         self.lightning_devices = lightning_devices
         self.device = device
+
+        if getattr(self.training_plan, "reduce_lr_on_plateau", False):
+            trainer_kwargs["learning_rate_monitor"] = True
+
         self.trainer = self._trainer_cls(
             max_epochs=max_epochs,
             accelerator=accelerator,
