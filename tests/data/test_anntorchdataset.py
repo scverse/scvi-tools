@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.utils._exceptions import InvalidParameterError
-from tests.dataset.utils import generic_setup_adata_manager
+from tests.data.utils import generic_setup_adata_manager
 
 
 def test_init():

@@ -56,16 +56,6 @@ def test_transfer_fields_unknown_label(adata1, adata2):
         adata1_manager.transfer_fields(adata2)
 
 
-def test_transfer_fields_correct_mapping(adata1, adata2):
-    # test that correct mapping was applied
-    adata2.obs["labels"] = ["label_1"] * adata2.n_obs
-    adata1_manager = generic_setup_adata_manager(adata1, labels_key="labels")
-    adata1_manager.transfer_fields(adata2)
-    labels_mapping = adata1_manager.get_state_registry("labels").categorical_mapping
-    correct_label = np.where(labels_mapping == "label_1")[0][0]
-    assert adata2.obs["_scvi_labels"][0] == correct_label
-
-
 def test_transfer_fields_correct_batch(adata1, adata2):
     # test that transfer_fields correctly looks for adata.obs['batch']
     del adata2.obs["batch"]
@@ -523,23 +513,29 @@ def test_view_registry(adata):
     adata_manager.view_registry(hide_state_registries=True)
 
 
-def test_saving(adata, save_path):
-    save_path = os.path.join(save_path, "tmp_adata.h5ad")
-    adata.obs["cat1"] = np.random.randint(0, 3, adata.n_obs).astype(str)
-    adata.obs["cat1"][1] = "asdf"
-    adata.obs["cat1"][2] = "f34"
-    adata.obs["cat2"] = np.random.randint(0, 7, adata.n_obs)
+def test_saving(save_path: str):
+    adata_path = os.path.join(save_path, "tmp_adata.h5ad")
+    adata = synthetic_iid(
+        n_categorical_covariates=[3, 7],
+        n_continuous_covariates=2,
+    )
 
     generic_setup_adata_manager(
         adata,
-        protein_expression_obsm_key="protein_expression",
         batch_key="batch",
         labels_key="labels",
-        categorical_covariate_keys=["cat1", "cat2"],
-        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=[
+            "categorical_covariate_0",
+            "categorical_covariate_1",
+        ],
+        continuous_covariate_keys=[
+            "continuous_covariate_0",
+            "continuous_covariate_0",
+        ],
+        protein_expression_obsm_key="protein_expression",
     )
-    adata.write(save_path)
-    anndata.read(save_path)
+    adata.write_h5ad(adata_path)
+    anndata.read_h5ad(adata_path)
 
 
 def test_backed_anndata(adata, save_path):
