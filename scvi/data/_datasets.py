@@ -495,11 +495,9 @@ def synthetic_iid(
     n_regions: int = 100,
     n_batches: int = 2,
     n_labels: int = 3,
-    n_categorical_covariates: list[int] | None = None,
-    n_continuous_covariates: int | None = None,
+    dropout_ratio: float = 0.7,
     sparse_format: str | None = None,
     return_mudata: bool = False,
-    **kwargs,
 ) -> AnnOrMuData:
     """Synthetic multimodal dataset.
 
@@ -523,10 +521,11 @@ def synthetic_iid(
         The number of batches to generate.
     n_labels
         The number of cell type labels, distributed uniformly across batches.
-    n_categorical_covariates
-        A list of the number of categories for each categorical covariate.
-    n_continuous_covariates
-        The number of continuous covariates generated from a standard normal distribution.
+    sparse
+        Whether to store ZINB generated data as a :class:`scipy.sparse.csr_matrix`.
+    dropout_ratio
+        The expected percentage of zeros artificially added into the data for RNA
+        and accessibility data.
     sparse_format
         Whether to store RNA, accessibility, and protein data as sparse arrays. One of
         the following:
@@ -541,28 +540,21 @@ def synthetic_iid(
 
     Returns
     -------
-    :class:`~anndata.AnnData` (if ``return_mudata=False``) with the following fields:
+    :class:`~anndata.AnnData` (if `return_mudata=False`) with the following fields:
 
-    * ``.obs["batch"]``: Categorical batch labels in the format ``batch_{i}``.
-    * ``.obs["labels"]``: Categorical cell type labels in the format ``label_{i}``.
-    * ``.obs["categorical_covariate_{i}"]``: Categorical covariates in the format
-      ``categorical_covariate_{i}_{j}`` for each covariate ``i`` and category ``j``.
-    * ``.obs["continuous_covariate_{i}"]``: Continuous covariates for each covariate ``i``.
-    * ``.obsm["protein_expression"]``: Protein expression matrix.
-    * ``.uns["protein_names"]``: Array of protein names.
-    * ``.obsm["accessibility"]``: Accessibility expression matrix.
-    * ``.uns["accessibility_names"]``: Array of accessibility names.
+    * `.obs["batch"]`: Categorical batch labels in the format `batch_{i}`.
+    * `.obs["labels"]`: Categorical cell type labels in the format `label_{i}`.
+    * `.obsm["protein_expression"]`: Protein expression matrix.
+    * `.uns["protein_names"]`: Array of protein names.
+    * `.obsm["accessibility"]`: Accessibility expression matrix.
 
-    :class:`~mudata.MuData` (if ``return_mudata=True``) with the following fields:
+    :class:`~mudata.MuData` (if `return_mudata=True`) with the following fields:
 
-    * ``.obs["batch"]``: Categorical batch labels in the format ``batch_{i}``.
-    * ``.obs["labels"]``: Categorical cell type labels in the format ``label_{i}``.
-    * ``.obs["categorical_covariate_{i}"]``: Categorical covariates in the format
-      ``categorical_covariate_{i}_{j}`` for each covariate ``i`` and category ``j``.
-    * ``.obs["continuous_covariate_{i}"]``: Continuous covariates for each covariate ``i``.
-    * ``.mod["rna"]``: RNA expression data.
-    * ``.mod["protein_expression"]``: Protein expression data.
-    * ``.mod["accessibility"]``: Accessibility expression data.
+    * `.obs["batch"]`: Categorical batch labels in the format `batch_{i}`.
+    * `.obs["labels"]`: Categorical cell type labels in the format `label_{i}`.
+    * `.mod["rna"]`: RNA expression data.
+    * `.mod["protein_expression"]`: Protein expression data.
+    * `.mod["accessibility"]`: Accessibility expression data.
 
     Examples
     --------
@@ -574,9 +566,6 @@ def synthetic_iid(
     if n_genes < 1:
         raise ValueError("`n_genes` must be greater than 0")
 
-    n_categorical_covariates = n_categorical_covariates or []
-    n_continuous_covariates = n_continuous_covariates or 0
-
     return _generate_synthetic(
         batch_size=batch_size,
         n_genes=n_genes,
@@ -584,11 +573,9 @@ def synthetic_iid(
         n_regions=n_regions,
         n_batches=n_batches,
         n_labels=n_labels,
-        n_categorical_covariates=n_categorical_covariates,
-        n_continuous_covariates=n_continuous_covariates,
+        dropout_ratio=dropout_ratio,
         sparse_format=sparse_format,
         return_mudata=return_mudata,
-        **kwargs,
     )
 
 
