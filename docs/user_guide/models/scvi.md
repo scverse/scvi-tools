@@ -15,10 +15,10 @@ The limitations of scVI include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/api_overview`
--   {doc}`/tutorials/notebooks/harmonization`
--   {doc}`/tutorials/notebooks/scarches_scvi_tools`
--   {doc}`/tutorials/notebooks/scvi_in_R`
+-   {doc}`/tutorials/notebooks/quick_start/api_overview`
+-   {doc}`/tutorials/notebooks/scrna/harmonization`
+-   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/scrna/scvi_in_R`
 ```
 
 ## Preliminaries
