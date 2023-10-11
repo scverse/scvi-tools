@@ -18,7 +18,7 @@ The limitations of CellAssign include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/cellassign_tutorial`
+-   {doc}`/tutorials/notebooks/scrna/cellassign_tutorial`
 ```
 
 ## Preliminaries

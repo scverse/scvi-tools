@@ -14,7 +14,7 @@ The limitations of Stereoscope include:
 
 ```{topic} Tutorial:
 
--   {doc}`/tutorials/notebooks/stereoscope_heart_LV_tutorial`
+-   {doc}`/tutorials/notebooks/spatial/stereoscope_heart_LV_tutorial`
 ```
 
 ## Preliminaries
