@@ -5,7 +5,7 @@ is a model for assessing gene-specific levels of zero-inflation in scRNA-seq dat
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/AutoZI_tutorial`
+-   {doc}`/tutorials/notebooks/scrna/AutoZI_tutorial`
 ```
 
 ## Generative process
