@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from __future__ import annotations
 
 import anndata
 
@@ -62,8 +62,8 @@ def pbmc_dataset(
 
 
 def dataset_10x(
-    dataset_name: Optional[str] = None,
-    filename: Optional[str] = None,
+    dataset_name: str | None = None,
+    filename: str | None = None,
     save_path: str = "data/10X",
     url: str = None,
     return_filtered: bool = True,
@@ -120,10 +120,10 @@ def dataset_10x(
 
 def cellxgene(
     url: str,
-    filename: Optional[str] = None,
+    filename: str | None = None,
     save_path: str = "data/",
     return_path: bool = False,
-) -> Union[anndata.AnnData, str]:
+) -> anndata.AnnData | str:
     """Loads a file from `cellxgene <https://cellxgene.cziscience.com/>`_ portal.
 
     Parameters
@@ -182,7 +182,7 @@ def smfish(
 
 def purified_pbmc_dataset(
     save_path: str = "data/",
-    subset_datasets: Optional[List[str]] = None,
+    subset_datasets: list[str] | None = None,
 ) -> anndata.AnnData:
     """Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
 
@@ -420,7 +420,7 @@ def spleen_lymph_cite_seq(
 def brainlarge_dataset(
     save_path: str = "data/",
     sample_size_gene_var: int = 10000,
-    max_cells_to_keep: Optional[int] = None,
+    max_cells_to_keep: int | None = None,
     n_genes_to_keep: int = 720,
     loading_batch_size: int = 100000,
 ) -> anndata.AnnData:
@@ -495,9 +495,11 @@ def synthetic_iid(
     n_regions: int = 100,
     n_batches: int = 2,
     n_labels: int = 3,
-    dropout_ratio: float = 0.7,
-    sparse_format: Optional[str] = None,
+    n_categorical_covariates: list[int] | None = None,
+    n_continuous_covariates: int = 0,
+    sparse_format: str | None = None,
     return_mudata: bool = False,
+    **kwargs,
 ) -> AnnOrMuData:
     """Synthetic multimodal dataset.
 
@@ -521,11 +523,10 @@ def synthetic_iid(
         The number of batches to generate.
     n_labels
         The number of cell type labels, distributed uniformly across batches.
-    sparse
-        Whether to store ZINB generated data as a :class:`scipy.sparse.csr_matrix`.
-    dropout_ratio
-        The expected percentage of zeros artificially added into the data for RNA
-        and accessibility data.
+    n_categorical_covariates
+        A list of the number of categories for each categorical covariate.
+    n_continuous_covariates
+        The number of continuous covariates generated from a standard normal distribution.
     sparse_format
         Whether to store RNA, accessibility, and protein data as sparse arrays. One of
         the following:
@@ -537,24 +538,31 @@ def synthetic_iid(
         * `"csc_array"`: Store as a :class:`scipy.sparse.csc_array`.
     return_mudata
         Returns a :class:`~mudata.MuData` if `True`, else :class:`~anndata.AnnData`.
+    **kwargs
+        Additional keyword arguments.
 
     Returns
     -------
-    :class:`~anndata.AnnData` (if `return_mudata=False`) with the following fields:
+    :class:`~anndata.AnnData` (if ``return_mudata=False``) with the following fields:
+    * ``.obs["batch"]``: Categorical batch labels in the format ``batch_{i}``.
+    * ``.obs["labels"]``: Categorical cell type labels in the format ``label_{i}``.
+    * ``.obs["categorical_covariate_{i}"]``: Categorical covariates in the format
+      ``categorical_covariate_{i}_{j}`` for each covariate ``i`` and category ``j``.
+    * ``.obs["continuous_covariate_{i}"]``: Continuous covariates for each covariate ``i``.
+    * ``.obsm["protein_expression"]``: Protein expression matrix.
+    * ``.uns["protein_names"]``: Array of protein names.
+    * ``.obsm["accessibility"]``: Accessibility expression matrix.
+    * ``.uns["accessibility_names"]``: Array of accessibility names.
 
-    * `.obs["batch"]`: Categorical batch labels in the format `batch_{i}`.
-    * `.obs["labels"]`: Categorical cell type labels in the format `label_{i}`.
-    * `.obsm["protein_expression"]`: Protein expression matrix.
-    * `.uns["protein_names"]`: Array of protein names.
-    * `.obsm["accessibility"]`: Accessibility expression matrix.
-
-    :class:`~mudata.MuData` (if `return_mudata=True`) with the following fields:
-
-    * `.obs["batch"]`: Categorical batch labels in the format `batch_{i}`.
-    * `.obs["labels"]`: Categorical cell type labels in the format `label_{i}`.
-    * `.mod["rna"]`: RNA expression data.
-    * `.mod["protein_expression"]`: Protein expression data.
-    * `.mod["accessibility"]`: Accessibility expression data.
+    :class:`~mudata.MuData` (if ``return_mudata=True``) with the following fields:
+    * ``.obs["batch"]``: Categorical batch labels in the format ``batch_{i}``.
+    * ``.obs["labels"]``: Categorical cell type labels in the format ``label_{i}``.
+    * ``.obs["categorical_covariate_{i}"]``: Categorical covariates in the format
+      ``categorical_covariate_{i}_{j}`` for each covariate ``i`` and category ``j``.
+    * ``.obs["continuous_covariate_{i}"]``: Continuous covariates for each covariate ``i``.
+    * ``.mod["rna"]``: RNA expression data.
+    * ``.mod["protein_expression"]``: Protein expression data.
+    * ``.mod["accessibility"]``: Accessibility expression data.
 
     Examples
     --------
@@ -566,6 +574,8 @@ def synthetic_iid(
     if n_genes < 1:
         raise ValueError("`n_genes` must be greater than 0")
 
+    n_categorical_covariates = n_categorical_covariates or []
+
     return _generate_synthetic(
         batch_size=batch_size,
         n_genes=n_genes,
@@ -573,9 +583,11 @@ def synthetic_iid(
         n_regions=n_regions,
         n_batches=n_batches,
         n_labels=n_labels,
-        dropout_ratio=dropout_ratio,
+        n_categorical_covariates=n_categorical_covariates,
+        n_continuous_covariates=n_continuous_covariates,
         sparse_format=sparse_format,
         return_mudata=return_mudata,
+        **kwargs,
     )
 
 
