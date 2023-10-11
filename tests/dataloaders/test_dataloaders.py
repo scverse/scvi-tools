@@ -4,7 +4,7 @@ import torch
 
 import scvi
 from scvi import REGISTRY_KEYS
-from tests.dataset.utils import generic_setup_adata_manager
+from tests.data.utils import generic_setup_adata_manager
 
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
