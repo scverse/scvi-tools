@@ -2,6 +2,7 @@ import pytest
 
 import scvi
 from scvi import METRIC_KEYS
+from scvi.data import synthetic_iid
 from scvi.model import SCVI, JaxSCVI
 from scvi.train import JaxTrainingPlan, TrainingPlan
 from scvi.train._trainingplans import _compute_kl_weight
@@ -59,12 +60,13 @@ def test_compute_kl_precedence(
     assert kl_weight == expected
 
 
-def test_loss_args(synthetic_adata):
+def test_loss_args():
     """Test that self._loss_args is set correctly."""
-    SCVI.setup_anndata(synthetic_adata)
-    JaxSCVI.setup_anndata(synthetic_adata)
-    vae = SCVI(synthetic_adata)
-    jax_vae = JaxSCVI(synthetic_adata)
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata)
+    JaxSCVI.setup_anndata(adata)
+    vae = SCVI(adata)
+    jax_vae = JaxSCVI(adata)
     tp = TrainingPlan(vae.module)
     jax_tp = JaxTrainingPlan(jax_vae.module)
 

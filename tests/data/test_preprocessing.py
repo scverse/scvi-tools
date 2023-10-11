@@ -1,4 +1,3 @@
-import os
 
 import numpy as np
 from scipy import sparse
@@ -32,7 +31,7 @@ def test_poisson_gene_selection():
     assert np.sum(adata.var["highly_variable"]) == n_top_genes
 
 
-def test_add_dna_sequence():
+def test_add_dna_sequence(save_path: str):
     adata = synthetic_iid()
     adata = adata[:, :2].copy()
     adata.var["chr"] = "chr1"
@@ -43,7 +42,7 @@ def test_add_dna_sequence():
         adata,
         seq_len=seq_len,
         genome_name="test_genome",
-        genome_dir=os.path.abspath("tests/data/"),
+        genome_dir=save_path,
         install_genome=False,
     )
     assert "dna_sequence" in adata.varm.keys()
