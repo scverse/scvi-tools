@@ -57,8 +57,12 @@ def mde(
 
     if isinstance(data, pd.DataFrame):
         data = data.values
-
-    device = "cpu" if not torch.cuda.is_available() else "cuda"
+        
+    if device not in ["cpu", "cuda", None]:
+        raise ValueError("`device` must be 'cpu' or 'cuda'")
+    
+    if device is None:
+        device = "cpu" if not torch.cuda.is_available() else "cuda"
 
     _kwargs = {
         "embedding_dim": 2,
