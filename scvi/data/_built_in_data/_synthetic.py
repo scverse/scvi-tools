@@ -103,9 +103,7 @@ def _generate_synthetic(
     obs_columns[batch_key] = pd.Categorical(batch)
 
     if n_labels > 0:
-        labels = _generate_categorical(
-            n_obs, 0, n_labels, "label", as_categorical=True
-        )
+        labels = _generate_categorical(n_obs, 0, n_labels, "label", as_categorical=True)
         obs_columns[labels_key] = labels
 
     for i, n_categories in enumerate(n_categorical_covariates):
