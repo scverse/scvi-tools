@@ -10,5 +10,5 @@ Tangram learns a matrix $M$ with shape ($n_{sc} \times n_{sp}$), in which each r
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/tangram_scvi_tools`
+-   {doc}`/tutorials/notebooks/spatial/tangram_scvi_tools`
 ```

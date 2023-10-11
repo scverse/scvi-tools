@@ -12,7 +12,7 @@ The core logic for scArches is implemented in {class}`~scvi.model.base.ArchesMix
 
 :::{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
     :::
 
 ### Preliminaries

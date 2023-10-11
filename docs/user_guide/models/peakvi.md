@@ -15,10 +15,10 @@ The limitations of peakVI include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/api_overview`
--   {doc}`/tutorials/notebooks/PeakVI`
--   {doc}`/tutorials/notebooks/peakvi_in_R`
--   {doc}`/tutorials/notebooks/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/quick_start/api_overview`
+-   {doc}`/tutorials/notebooks/atac/PeakVI`
+-   {doc}`/tutorials/notebooks/atac/peakvi_in_R`
+-   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
 ```
 
 ## Preliminaries

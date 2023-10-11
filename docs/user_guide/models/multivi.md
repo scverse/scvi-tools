@@ -16,8 +16,8 @@ The limitations of MultiVI include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/api_overview`
--   {doc}`/tutorials/notebooks/MultiVI_tutorial`
+-   {doc}`/tutorials/notebooks/quick_start/api_overview`
+-   {doc}`/tutorials/notebooks/multimodal/MultiVI_tutorial`
 ```
 
 ## Preliminaries

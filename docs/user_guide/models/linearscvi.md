@@ -15,7 +15,7 @@ The limitations of LDVAE include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/linear_decoder`
+-   {doc}`/tutorials/notebooks/scrna/linear_decoder`
 ```
 
 ## Contrasting with scVI
