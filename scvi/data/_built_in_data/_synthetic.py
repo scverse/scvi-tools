@@ -104,7 +104,7 @@ def _generate_synthetic(
 
     if n_labels > 0:
         labels = _generate_categorical(
-            n_obs, 0, n_labels, labels_key, as_categorical=True
+            n_obs, 0, n_labels, "label", as_categorical=True
         )
         obs_columns[labels_key] = labels
 
