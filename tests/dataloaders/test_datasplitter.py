@@ -7,7 +7,7 @@ import pytest
 from sparse_utils import TestSparseModel
 
 import scvi
-from tests.dataset.utils import generic_setup_adata_manager
+from tests.data.utils import generic_setup_adata_manager
 
 
 def test_datasplitter_shuffle():

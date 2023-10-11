@@ -242,7 +242,7 @@ class ArchesMixin:
 
         if inplace:
             if adata_out is not adata:
-                adata._init_as_actual(adata_out, dtype=adata._X.dtype)
+                adata._init_as_actual(adata_out)
         else:
             return adata_out
 
