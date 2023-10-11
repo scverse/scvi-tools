@@ -15,7 +15,7 @@ The limitations of DestVI include:
 
 ```{topic} Tutorial:
 
--   {doc}`/tutorials/notebooks/DestVI_tutorial`
+-   {doc}`/tutorials/notebooks/spatial/DestVI_tutorial`
 ```
 
 ## Preliminaries
