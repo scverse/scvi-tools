@@ -37,6 +37,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     with argument `monitor_device_stats` {pr}`2260`.
 -   Add option to pass in a random seed to {meth}`scvi.autotune.ModelTuner.fit`
     with argument `seed` {pr}`2260`.
+-   Add {class}`~scvi.external.POISSONVI` to model scATAC-seq fragment counts with a Poisson distribution {pr}`2249`
 
 #### Fixed
 
