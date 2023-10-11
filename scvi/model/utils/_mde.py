@@ -57,10 +57,10 @@ def mde(
 
     if isinstance(data, pd.DataFrame):
         data = data.values
-        
+
     if device not in ["cpu", "cuda", None]:
         raise ValueError("`device` must be 'cpu' or 'cuda'")
-    
+
     if device is None:
         device = "cpu" if not torch.cuda.is_available() else "cuda"
 
