@@ -14,7 +14,7 @@ from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
-    FragmentCountLayerField,
+    LayerField,
     NumericalJointObsField,
     NumericalObsField,
 )
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 class POISSONVI(PEAKVI, RNASeqMixin):
     """
-    Peak Variational Inference using a Poisson distribution.
+    Peak Variational Inference using a Poisson distribution :cite:p:`Martens2023`.
 
     Parameters
     ----------
@@ -70,11 +70,8 @@ class POISSONVI(PEAKVI, RNASeqMixin):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:``
+    1. :doc:`/tutorials/notebooks/atac/PoissonVI`
     """
-
-    # TODO: change tutorial link
-    # TODO: change citation
 
     def __init__(
         self,
@@ -243,7 +240,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
     ):
         # Refer to function get_accessibility_estimates
         msg = f"differential_expression is not implemented for {self.__class__.__name__}, please use {self.__class__.__name__}.get_accessibility_estimates"
-        raise ValueError(msg)
+        raise NotImplementedError(msg)
 
     @de_dsp.dedent
     def differential_accessibility(
@@ -390,7 +387,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
     ):
         # Refer to function differential_accessibility
         msg = f"differential_expression is not implemented for {self.__class__.__name__}, please use {self.__class__.__name__}.differential_accessibility"
-        raise ValueError(msg)
+        raise NotImplementedError(msg)
 
         return None
 
@@ -421,7 +418,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            FragmentCountLayerField(REGISTRY_KEYS.X_KEY, layer),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, check_fragment_counts=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             NumericalObsField(
