@@ -46,25 +46,14 @@ ScipySparse = Union[
 def registry_key_to_default_dtype(key: str) -> type:
     """Returns the default dtype for a given registry key."""
     if key in [
-        REGISTRY_KEYS.X_KEY,
-        REGISTRY_KEYS.PROTEIN_EXP_KEY,
-        REGISTRY_KEYS.CONT_COVS_KEY,
-        REGISTRY_KEYS.SIZE_FACTOR_KEY,
-        REGISTRY_KEYS.MINIFY_TYPE_KEY,
-        REGISTRY_KEYS.LATENT_QZM_KEY,
-        REGISTRY_KEYS.LATENT_QZV_KEY,
-        REGISTRY_KEYS.OBSERVED_LIB_SIZE,
-    ]:
-        return np.float32
-    elif key in [
         REGISTRY_KEYS.BATCH_KEY,
         REGISTRY_KEYS.LABELS_KEY,
         REGISTRY_KEYS.CAT_COVS_KEY,
         REGISTRY_KEYS.INDICES_KEY,
     ]:
         return np.int64
-    else:
-        raise KeyError(f"Invalid registry key: {key}")
+
+    return np.float32
 
 
 def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
