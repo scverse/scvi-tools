@@ -20,7 +20,7 @@ The limitations of amortized LDA include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/amortized_lda`
+-   {doc}`/tutorials/notebooks/scrna/amortized_lda`
 ```
 
 ## Preliminaries
