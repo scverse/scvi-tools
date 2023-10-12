@@ -65,8 +65,9 @@ tutorials/index
 user_guide/index
 api/index
 release_notes/index
-references
+faq/index
 contributing/index
+references
 Discussion <https://discourse.scvi-tools.org>
 GitHub <https://github.com/YosefLab/scvi-tools>
 ```
