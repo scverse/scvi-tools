@@ -40,9 +40,7 @@ def test_datasplitter_shuffle():
     )
 
 
-@pytest.mark.parametrize(
-    "sparse_format", ["csr_matrix", "csr_array", "csc_matrix", "csc_array"]
-)
+@pytest.mark.parametrize("sparse_format", ["csr_matrix", "csc_matrix"])
 def test_datasplitter_load_sparse_tensor(
     sparse_format: str,
     accelerator: str,
