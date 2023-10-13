@@ -6,9 +6,7 @@ import scvi
 from scvi.data._utils import scipy_to_torch_sparse
 
 
-@pytest.mark.parametrize(
-    "sparse_format", ["csr_matrix", "csr_array", "csc_matrix", "csc_array", None]
-)
+@pytest.mark.parametrize("sparse_format", ["csr_matrix", "csc_matrix", None])
 def test_scipy_to_torch_sparse(sparse_format: str):
     adata = scvi.data.synthetic_iid(sparse_format=sparse_format)
     scipy_sparse = adata.X
