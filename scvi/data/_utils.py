@@ -38,9 +38,7 @@ from . import _constants
 logger = logging.getLogger(__name__)
 
 
-ScipySparse = Union[
-    sp_sparse.csr_matrix, sp_sparse.csc_matrix, sp_sparse.csr_array, sp_sparse.csc_array
-]
+ScipySparse = Union[sp_sparse.csr_matrix, sp_sparse.csc_matrix]
 
 
 def registry_key_to_default_dtype(key: str) -> type:
@@ -75,10 +73,10 @@ def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
     x
         SciPy sparse data structure to convert. One of the following:
 
-        * :class:`~scipy.sparse.csr_matrix` and :class:`~scipy.sparse.csr_array`:
+        * :class:`~scipy.sparse.csr_matrix`:
             Converted to a :class:`~torch.Tensor` constructed with
             :meth:`~torch.sparse_csr_tensor`.
-        * :class:`~scipy.sparse.csc_matrix` and :class:`~scipy.sparse.csc_array`:
+        * :class:`~scipy.sparse.csc_matrix`:
             Converted to a :class:`~torch.Tensor` constructed with
             :meth:`~torch.sparse_csc_tensor`.
 
@@ -87,14 +85,14 @@ def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
     :class:`~torch.Tensor`
         A sparse tensor equivalent to `x`.
     """
-    if isinstance(x, (sp_sparse.csr_matrix, sp_sparse.csr_array)):
+    if isinstance(x, sp_sparse.csr_matrix):
         return sparse_csr_tensor(
             as_tensor(x.indptr),
             as_tensor(x.indices),
             as_tensor(x.data),
             size=x.shape,
         )
-    elif isinstance(x, (sp_sparse.csc_matrix, sp_sparse.csc_array)):
+    elif isinstance(x, sp_sparse.csc_matrix):
         return sparse_csc_tensor(
             as_tensor(x.indptr),
             as_tensor(x.indices),
@@ -103,8 +101,8 @@ def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
         )
     else:
         raise TypeError(
-            "`x` must be of type `scipy.sparse.csr_matrix`, `scipy.sparse.csr_array`, "
-            "`scipy.sparse.csc_matrix`, or `scipy.sparse.csc_array`."
+            "`x` must be of type `scipy.sparse.csr_matrix` or "
+            "`scipy.sparse.csc_matrix`."
         )
 
 
