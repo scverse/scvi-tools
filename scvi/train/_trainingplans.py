@@ -1096,8 +1096,6 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
     ----------
     classifier
         A model instance from :class:`~scvi.module.Classifier`.
-    n_classes
-        The number of classes in the labeled dataset.
     lr
         Learning rate used for optimization.
     weight_decay
@@ -1117,7 +1115,6 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
     def __init__(
         self,
         classifier: BaseModuleClass,
-        n_classes: int,
         *,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
@@ -1142,79 +1139,9 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
                 "classifier should return logits when using CrossEntropyLoss."
             )
 
-        self.n_classes = n_classes
-
     def forward(self, *args, **kwargs):
         """Passthrough to the module's forward function."""
         return self.module(*args, **kwargs)
-
-    def log_with_mode(self, key: str, value: Any, mode: str, **kwargs):
-        """Log with mode."""
-        # TODO: Include this with a base training plan
-        self.log(f"{mode}_{key}", value, **kwargs)
-
-    def compute_and_log_metrics(
-        self, loss_output: LossOutput, metrics: Dict[str, ElboMetric], mode: str
-    ):
-        """Computes and logs metrics."""
-        if loss_output.classification_loss is None:
-            raise ValueError(
-                "`classification_loss` must be provided in `LossOutput` for "
-                "`ClassifierTrainingPlan`."
-            )
-
-        classification_loss = loss_output.classification_loss
-        true_labels = loss_output.true_labels.squeeze()
-        logits = loss_output.logits
-        predicted_labels = torch.argmax(logits, dim=-1, keepdim=True)
-
-        accuracy = tmf.classification.multiclass_accuracy(
-            predicted_labels,
-            true_labels,
-            self.n_classes,
-        )
-        f1 = tmf.classification.multiclass_f1_score(
-            predicted_labels,
-            true_labels,
-            self.n_classes,
-        )
-        ce = tmf.classification.multiclass_calibration_error(
-            logits,
-            true_labels,
-            self.n_classes,
-        )
-        self.log_with_mode(
-            METRIC_KEYS.CLASSIFICATION_LOSS_KEY,
-            classification_loss,
-            mode,
-            on_step=False,
-            on_epoch=True,
-            batch_size=loss_output.n_obs_minibatch,
-        )
-        self.log_with_mode(
-            METRIC_KEYS.ACCURACY_KEY,
-            accuracy,
-            mode,
-            on_step=False,
-            on_epoch=True,
-            batch_size=loss_output.n_obs_minibatch,
-        )
-        self.log_with_mode(
-            METRIC_KEYS.F1_SCORE_KEY,
-            f1,
-            mode,
-            on_step=False,
-            on_epoch=True,
-            batch_size=loss_output.n_obs_minibatch,
-        )
-        self.log_with_mode(
-            METRIC_KEYS.CALIBRATION_ERROR_KEY,
-            ce,
-            mode,
-            on_step=False,
-            on_epoch=True,
-            batch_size=loss_output.n_obs_minibatch,
-        )
 
     def training_step(self, batch, batch_idx):
         """Training step for classifier training."""
