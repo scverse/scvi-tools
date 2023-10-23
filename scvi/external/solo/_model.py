@@ -376,9 +376,7 @@ class SOLO(BaseModelClass):
             batch_size=batch_size,
             **datasplitter_kwargs,
         )
-        training_plan = ClassifierTrainingPlan(
-            self.module, self.n_labels, **plan_kwargs
-        )
+        training_plan = ClassifierTrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
             self,
             training_plan=training_plan,

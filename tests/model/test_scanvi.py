@@ -112,6 +112,9 @@ def test_scanvi():
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
     assert "validation_classification_loss" in logged_keys
+    assert "validation_accuracy" in logged_keys
+    assert "validation_f1_score" in logged_keys
+    assert "validation_calibration_error" in logged_keys
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
