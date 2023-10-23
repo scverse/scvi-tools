@@ -10,10 +10,10 @@ import numpy as np
 import optax
 import pyro
 import torch
+import torchmetrics.functional as tmf
 from lightning.pytorch.strategies.ddp import DDPStrategy
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchmetrics import AUROC, Accuracy, F1Score
 
 from scvi import METRIC_KEYS, REGISTRY_KEYS
 from scvi.autotune._types import Tunable, TunableMixin
@@ -729,15 +729,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
-        self.initialize_metrics(n_classes)
-
-    def initialize_metrics(self, n_classes: int):
-        """Initialize metrics."""
-        kwargs = {"task": "multiclass", "num_classes": n_classes, "top_k": 1}
-        self.train_accuracy = Accuracy(**kwargs)
-        self.train_f1 = F1Score(**kwargs)
-        self.val_accuracy = Accuracy(**kwargs)
-        self.val_f1 = F1Score(**kwargs)
+        self.n_classes = n_classes
 
     def log_with_mode(self, key: str, value: Any, mode: str, **kwargs):
         """Log with mode."""
@@ -755,19 +747,25 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             return
 
         classification_loss = loss_output.classification_loss
-        true_labels = loss_output.true_labels
+        true_labels = loss_output.true_labels.squeeze()
         logits = loss_output.logits
-        predicted_labels = torch.argmax(logits, dim=-1, keepdim=True)
+        predicted_labels = torch.argmax(logits, dim=-1)
 
-        if mode == "train":
-            accuracy = self.train_accuracy
-            f1 = self.train_f1
-        else:
-            accuracy = self.val_accuracy
-            f1 = self.val_f1
-
-        accuracy(predicted_labels, true_labels)
-        f1(predicted_labels, true_labels)
+        accuracy = tmf.classification.multiclass_accuracy(
+            predicted_labels,
+            true_labels,
+            self.n_classes,
+        )
+        f1 = tmf.classification.multiclass_f1_score(
+            predicted_labels,
+            true_labels,
+            self.n_classes,
+        )
+        ce = tmf.classification.multiclass_calibration_error(
+            logits,
+            true_labels,
+            self.n_classes,
+        )
 
         self.log_with_mode(
             METRIC_KEYS.CLASSIFICATION_LOSS_KEY,
@@ -793,7 +791,14 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             on_epoch=True,
             batch_size=loss_output.n_obs_minibatch,
         )
-        # currently not logging auroc due to accumulation error
+        self.log_with_mode(
+            METRIC_KEYS.CALIBRATION_ERROR_KEY,
+            ce,
+            mode,
+            on_step=False,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
 
     def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
@@ -1137,14 +1142,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
                 "classifier should return logits when using CrossEntropyLoss."
             )
 
-        self.initialize_metrics(n_classes)
-
-    def initialize_metrics(self, n_classes: int):
-        """Initialize metrics."""
-        kwargs = {"task": "multiclass", "num_classes": n_classes}
-        self.accuracy = Accuracy(**kwargs)
-        self.f1 = F1Score(**kwargs)
-        self.auroc = AUROC(**kwargs)
+        self.n_classes = n_classes
 
     def forward(self, *args, **kwargs):
         """Passthrough to the module's forward function."""
@@ -1166,20 +1164,57 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
             )
 
         classification_loss = loss_output.classification_loss
-        true_labels = loss_output.true_labels
+        true_labels = loss_output.true_labels.squeeze()
         logits = loss_output.logits
         predicted_labels = torch.argmax(logits, dim=-1, keepdim=True)
 
-        self.accuracy(predicted_labels, true_labels)
-        self.f1(predicted_labels, true_labels)
-        self.auroc(logits, true_labels.view(-1).long())
-
-        self.log_with_mode(
-            METRIC_KEYS.CLASSIFICATION_LOSS_KEY, classification_loss, mode
+        accuracy = tmf.classification.multiclass_accuracy(
+            predicted_labels,
+            true_labels,
+            self.n_classes,
         )
-        self.log_with_mode(METRIC_KEYS.ACCURACY_KEY, self.accuracy, mode)
-        self.log_with_mode(METRIC_KEYS.F1_SCORE_KEY, self.f1, mode)
-        self.log_with_mode(METRIC_KEYS.AUROC_KEY, self.auroc, mode)
+        f1 = tmf.classification.multiclass_f1_score(
+            predicted_labels,
+            true_labels,
+            self.n_classes,
+        )
+        ce = tmf.classification.multiclass_calibration_error(
+            logits,
+            true_labels,
+            self.n_classes,
+        )
+        self.log_with_mode(
+            METRIC_KEYS.CLASSIFICATION_LOSS_KEY,
+            classification_loss,
+            mode,
+            on_step=False,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
+        self.log_with_mode(
+            METRIC_KEYS.ACCURACY_KEY,
+            accuracy,
+            mode,
+            on_step=False,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
+        self.log_with_mode(
+            METRIC_KEYS.F1_SCORE_KEY,
+            f1,
+            mode,
+            on_step=False,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
+        self.log_with_mode(
+            METRIC_KEYS.CALIBRATION_ERROR_KEY,
+            ce,
+            mode,
+            on_step=False,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
 
     def training_step(self, batch, batch_idx):
         """Training step for classifier training."""

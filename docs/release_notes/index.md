@@ -39,6 +39,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     with argument `seed` {pr}`2260`.
 -   Automatically log the learning rate when `reduce_lr_on_plateau=True` in
     training plans {pr}`2280`.
+-   {class}`scvi.train.SemiSupervisedTrainingPlan` and {class}`scvi.train.ClassifierTrainingPlan`
+    now log the classifier calibration error {pr}`xxxx`.
 
 #### Fixed
 
@@ -60,6 +62,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     default {pr}`2250`.
 -   Support fractional GPU usage in {class}`scvi.autotune.ModelTuner` `pr`{2252}.
 -   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner` `pr`{2260}.
+-
 
 #### Removed
 
