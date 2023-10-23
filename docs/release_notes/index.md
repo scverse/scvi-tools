@@ -40,7 +40,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Automatically log the learning rate when `reduce_lr_on_plateau=True` in
     training plans {pr}`2280`.
 -   {class}`scvi.train.SemiSupervisedTrainingPlan` and {class}`scvi.train.ClassifierTrainingPlan`
-    now log the classifier calibration error {pr}`xxxx`.
+    now log the classifier calibration error {pr}`2299`.
 
 #### Fixed
 
