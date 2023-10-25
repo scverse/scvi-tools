@@ -225,7 +225,7 @@ class SCANVAE(VAE):
         -------
         Tensor of shape ``(n_obs, n_labels)`` denoting logit scores per label.
         Before v1.1, this method by default returned probabilities per label,
-        see #xxxx for more details.
+        see #2301 for more details.
         """
         if self.log_variational:
             x = torch.log1p(x)
@@ -271,7 +271,7 @@ class SCANVAE(VAE):
             labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
         )
         # NOTE: prior to v1.1, this method returned probabilities per label by
-        # default, see #xxxx for more details
+        # default, see #2301 for more details
         logits = self.classify(
             x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
         )  # (n_obs, n_labels)
