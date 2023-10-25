@@ -96,7 +96,7 @@ autotune = [
     "hyperopt>=0.2",
     "ray[tune]>=2.5.0",
     "ipython",
-    "scib-metrics>=0.3",
+    "scib-metrics>=0.4.1",
     "tensorboard",
 ]  # scvi.autotune
 census = ["cellxgene-census"]  # scvi.data.cellxgene
