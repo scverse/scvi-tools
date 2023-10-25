@@ -72,6 +72,8 @@ class SCANVAE(VAE):
     use_layer_norm
         Whether to use layer norm in layers
     linear_classifier
+        If ``True``, uses a single linear layer for classification instead of a
+        multi-layer perceptron.
     **vae_kwargs
         Keyword args for :class:`~scvi.module.VAE`
     """
