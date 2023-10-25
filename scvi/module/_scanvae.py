@@ -130,6 +130,7 @@ class SCANVAE(VAE):
             "n_layers": 0 if linear_classifier else n_layers,
             "n_hidden": 0 if linear_classifier else n_hidden,
             "dropout_rate": dropout_rate,
+            "logits": True,
         }
         cls_parameters.update(classifier_parameters)
         self.classifier = Classifier(
@@ -204,7 +205,28 @@ class SCANVAE(VAE):
         cat_covs: Optional[torch.Tensor] = None,
         use_posterior_mean: bool = True,
     ) -> torch.Tensor:
-        """Classify cells into cell types."""
+        """Forward pass through the encoder and classifier.
+
+        Parameters
+        ----------
+        x
+            Tensor of shape ``(n_obs, n_vars)``.
+        batch_index
+            Tensor of shape ``(n_obs,)`` denoting batch indices.
+        cont_covs
+            Tensor of shape ``(n_obs, n_continuous_covariates)``.
+        cat_covs
+            Tensor of shape ``(n_obs, n_categorical_covariates)``.
+        use_posterior_mean
+            Whether to use the posterior mean of the latent distribution for
+            classification.
+
+        Returns
+        -------
+        Tensor of shape ``(n_obs, n_labels)`` denoting logit scores per label.
+        Before v1.1, this method by default returned probabilities per label,
+        see #xxxx for more details.
+        """
         if self.log_variational:
             x = torch.log1p(x)
 
@@ -248,6 +270,8 @@ class SCANVAE(VAE):
         cat_covs = (
             labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
         )
+        # NOTE: prior to v1.1, this method returned probabilities per label by
+        # default, see #xxxx for more details
         logits = self.classify(
             x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
         )  # (n_obs, n_labels)
@@ -337,7 +361,11 @@ class SCANVAE(VAE):
                 kl_local=kl_locals,
             )
 
-        probs = self.classifier(z1)
+        if self.classifier.logits:
+            probs = F.softmax(self.classifier(z1), dim=1)
+        else:
+            probs = self.classifier(z1)
+
         reconst_loss += loss_z1_weight + (
             (loss_z1_unweight).view(self.n_labels, -1).t() * probs
         ).sum(dim=1)
