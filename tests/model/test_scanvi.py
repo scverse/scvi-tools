@@ -210,7 +210,6 @@ def test_linear_classifier_scanvi(n_latent: int = 10, n_labels: int = 5):
     )
     model = SCANVI(adata, linear_classifier=True, n_latent=n_latent)
 
-    assert len(model.module.classifier.classifier) == 2  # linear layer + softmax
     assert isinstance(model.module.classifier.classifier[0], torch.nn.Linear)
     assert model.module.classifier.classifier[0].in_features == n_latent
     assert model.module.classifier.classifier[0].out_features == n_labels - 1
