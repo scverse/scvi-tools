@@ -433,3 +433,20 @@ def test_scanvi_online_update(save_path):
     m_q = SCANVI.load(save_path, adata=query)
     m_q.predict()
     m_q.get_elbo()
+
+
+def test_scanvi_logits_bug_backwards_compat(save_path: str):
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(adata, labels_key="labels", unlabeled_category="label_0")
+
+    # initialize with <1.1 classifier default
+    model = SCANVI(adata, classifier_parameters={"logits": False})
+    model.train(max_epochs=1)
+
+    model_path = os.path.join(save_path, "scanvi_logits_model")
+    model.save(model_path, overwrite=True)
+    del model
+
+    model = SCANVI.load(model_path, adata)
+    assert not model.module.classifier.logits
+    _ = model.predict()
