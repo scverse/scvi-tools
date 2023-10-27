@@ -26,11 +26,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
 
     def training_step(self, batch, batch_idx):
         """Training step."""
-        kappa = (
-            1 - self.kl_weight
-            if self.scale_adversarial_loss == "auto"
-            else self.scale_adversarial_loss
-        )
+        kappa = 1 - self.kl_weight if self.scale_adversarial_loss == "auto" else self.scale_adversarial_loss
         opts = self.optimizers()
         if not isinstance(opts, list):
             opt1 = opts
@@ -61,13 +57,9 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
         kl = sum([scl.kl_local_sum for scl in loss_output_objs])
 
         # fool classifier if doing adversarial training
-        batch_tensor = [
-            torch.zeros((z.shape[0], 1), device=z.device) + i for i, z in enumerate(zs)
-        ]
+        batch_tensor = [torch.zeros((z.shape[0], 1), device=z.device) + i for i, z in enumerate(zs)]
         if kappa > 0 and self.adversarial_classifier is not False:
-            fool_loss = self.loss_adversarial_classifier(
-                torch.cat(zs), torch.cat(batch_tensor), False
-            )
+            fool_loss = self.loss_adversarial_classifier(torch.cat(zs), torch.cat(batch_tensor), False)
             loss += fool_loss * kappa
         opt1.zero_grad()
         self.manual_backward(loss)
@@ -90,13 +82,8 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
                 outputs = self.module.inference(**inference_inputs)
                 zs.append(outputs["z"])
 
-            batch_tensor = [
-                torch.zeros((z.shape[0], 1), device=z.device) + i
-                for i, z in enumerate(zs)
-            ]
-            loss = self.loss_adversarial_classifier(
-                torch.cat(zs).detach(), torch.cat(batch_tensor), True
-            )
+            batch_tensor = [torch.zeros((z.shape[0], 1), device=z.device) + i for i, z in enumerate(zs)]
+            loss = self.loss_adversarial_classifier(torch.cat(zs).detach(), torch.cat(batch_tensor), True)
             loss *= kappa
             opt2.zero_grad()
             self.manual_backward(loss)

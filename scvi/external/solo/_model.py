@@ -133,12 +133,8 @@ class SOLO(BaseModelClass):
         """
         _validate_scvi_model(scvi_model, restrict_to_batch=restrict_to_batch)
         orig_adata_manager = scvi_model.adata_manager
-        orig_batch_key_registry = orig_adata_manager.get_state_registry(
-            REGISTRY_KEYS.BATCH_KEY
-        )
-        orig_labels_key_registry = orig_adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
+        orig_batch_key_registry = orig_adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)
+        orig_labels_key_registry = orig_adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         orig_batch_key = orig_batch_key_registry.original_key
         orig_labels_key = orig_labels_key_registry.original_key
 
@@ -178,9 +174,7 @@ class SOLO(BaseModelClass):
             if np.sum(batch_mask) == 0:
                 raise ValueError(
                     "Batch category given to restrict_to_batch not found.\n"
-                    + "Available categories: {}".format(
-                        adata.obs[orig_batch_key].astype("category").cat.categories
-                    )
+                    + "Available categories: {}".format(adata.obs[orig_batch_key].astype("category").cat.categories)
                 )
             # indices in adata with restrict_to_batch category
             batch_indices = np.where(batch_mask)[0]
@@ -189,17 +183,13 @@ class SOLO(BaseModelClass):
             batch_indices = None
 
         # anndata with only generated doublets
-        doublet_adata = cls.create_doublets(
-            adata_manager, indices=batch_indices, doublet_ratio=doublet_ratio
-        )
+        doublet_adata = cls.create_doublets(adata_manager, indices=batch_indices, doublet_ratio=doublet_ratio)
         # if scvi wasn't trained with batch correction having the
         # zeros here does nothing.
         doublet_adata.obs[orig_batch_key] = (
             restrict_to_batch
             if restrict_to_batch is not None
-            else orig_adata_manager.get_state_registry(
-                REGISTRY_KEYS.BATCH_KEY
-            ).categorical_mapping[0]
+            else orig_adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).categorical_mapping[0]
         )
 
         # Create dummy labels column set to first label in adata (does not affect inference).
@@ -212,28 +202,18 @@ class SOLO(BaseModelClass):
 
         # get latent representations and make input anndata
         latent_rep = scvi_model.get_latent_representation(adata, indices=batch_indices)
-        lib_size = scvi_model.get_latent_library_size(
-            adata, indices=batch_indices, give_mean=give_mean_lib
-        )
+        lib_size = scvi_model.get_latent_library_size(adata, indices=batch_indices, give_mean=give_mean_lib)
         latent_adata = AnnData(np.concatenate([latent_rep, np.log(lib_size)], axis=1))
         latent_adata.obs[LABELS_KEY] = "singlet"
         orig_obs_names = adata.obs_names
-        latent_adata.obs_names = (
-            orig_obs_names[batch_indices]
-            if batch_indices is not None
-            else orig_obs_names
-        )
+        latent_adata.obs_names = orig_obs_names[batch_indices] if batch_indices is not None else orig_obs_names
 
         logger.info("Creating doublets, preparing SOLO model.")
         f = io.StringIO()
         with redirect_stdout(f):
             doublet_latent_rep = scvi_model.get_latent_representation(doublet_adata)
-            doublet_lib_size = scvi_model.get_latent_library_size(
-                doublet_adata, give_mean=give_mean_lib
-            )
-            doublet_adata = AnnData(
-                np.concatenate([doublet_latent_rep, np.log(doublet_lib_size)], axis=1)
-            )
+            doublet_lib_size = scvi_model.get_latent_library_size(doublet_adata, give_mean=give_mean_lib)
+            doublet_adata = AnnData(np.concatenate([doublet_latent_rep, np.log(doublet_lib_size)], axis=1))
             doublet_adata.obs[LABELS_KEY] = "doublet"
 
             full_adata = anndata.concat([latent_adata, doublet_adata])
@@ -389,9 +369,7 @@ class SOLO(BaseModelClass):
         return runner()
 
     @torch.inference_mode()
-    def predict(
-        self, soft: bool = True, include_simulated_doublets: bool = False
-    ) -> pd.DataFrame:
+    def predict(self, soft: bool = True, include_simulated_doublets: bool = False) -> pd.DataFrame:
         """Return doublet predictions.
 
         Parameters
@@ -428,9 +406,7 @@ class SOLO(BaseModelClass):
 
         preds = y_pred[mask]
 
-        cols = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        ).categorical_mapping
+        cols = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY).categorical_mapping
         preds_df = pd.DataFrame(preds, columns=cols, index=self.adata.obs_names[mask])
 
         if not soft:
@@ -459,9 +435,7 @@ class SOLO(BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=False),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 

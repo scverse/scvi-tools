@@ -103,9 +103,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         super().__init__(adata)
 
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else []
         )
@@ -233,9 +231,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if save_best:
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
-            kwargs["callbacks"].append(
-                SaveBestState(monitor="reconstruction_loss_validation")
-            )
+            kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
 
         super().train(
             max_epochs=max_epochs,
@@ -278,9 +274,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Library size factor for expression and accessibility
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         library_sizes = []
         for tensors in scdl:
@@ -361,9 +355,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             indices = np.arange(adata.n_obs)
         if n_samples_overall is not None:
             indices = np.random.choice(indices, n_samples_overall)
-        post = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        post = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
 
         if region_list is None:
@@ -494,9 +486,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """
         adata = self._validate_anndata(adata)
         col_names = adata.var_names
-        model_fn = partial(
-            self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
-        )
+        model_fn = partial(self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size)
 
         # TODO check if change_fn in kwargs and raise error if so
         def change_fn(a, b):
@@ -580,15 +570,9 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

@@ -75,26 +75,16 @@ class Tangram(BaseModelClass):
         **model_kwargs,
     ):
         super().__init__(sc_adata)
-        self.n_obs_sc = self.adata_manager.get_from_registry(
-            TANGRAM_REGISTRY_KEYS.SC_KEY
-        ).shape[0]
-        self.n_obs_sp = self.adata_manager.get_from_registry(
-            TANGRAM_REGISTRY_KEYS.SP_KEY
-        ).shape[0]
+        self.n_obs_sc = self.adata_manager.get_from_registry(TANGRAM_REGISTRY_KEYS.SC_KEY).shape[0]
+        self.n_obs_sp = self.adata_manager.get_from_registry(TANGRAM_REGISTRY_KEYS.SP_KEY).shape[0]
 
         if constrained and target_count is None:
-            raise ValueError(
-                "Please specify `target_count` when using constrained Tangram."
-            )
+            raise ValueError("Please specify `target_count` when using constrained Tangram.")
         has_density_prior = not self.adata_manager.fields[-1].is_empty
         if has_density_prior:
-            prior = self.adata_manager.get_from_registry(
-                TANGRAM_REGISTRY_KEYS.DENSITY_KEY
-            )
+            prior = self.adata_manager.get_from_registry(TANGRAM_REGISTRY_KEYS.DENSITY_KEY)
             if np.abs(prior.ravel().sum() - 1) > 1e-3:
-                raise ValueError(
-                    "Density prior must sum to 1. Please normalize the prior."
-                )
+                raise ValueError("Density prior must sum to 1. Please normalize the prior.")
 
         self.module = TangramMapper(
             n_obs_sc=self.n_obs_sc,
@@ -104,7 +94,9 @@ class Tangram(BaseModelClass):
             target_count=target_count,
             **model_kwargs,
         )
-        self._model_summary_string = f"TangramMapper Model with params: \nn_obs_sc: {self.n_obs_sc}, n_obs_sp: {self.n_obs_sp}"
+        self._model_summary_string = (
+            f"TangramMapper Model with params: \nn_obs_sc: {self.n_obs_sc}, n_obs_sp: {self.n_obs_sp}"
+        )
         self.init_params_ = self._get_init_params(locals())
 
     def get_mapper_matrix(self) -> np.ndarray:
@@ -114,9 +106,7 @@ class Tangram(BaseModelClass):
         -------
         Mapping matrix of shape (n_obs_sp, n_obs_sc)
         """
-        return jax.device_get(
-            jax.nn.softmax(self.module.params["mapper_unconstrained"], axis=1)
-        )
+        return jax.device_get(jax.nn.softmax(self.module.params["mapper_unconstrained"], axis=1))
 
     @devices_dsp.dedent
     def train(
@@ -178,9 +168,7 @@ class Tangram(BaseModelClass):
         pbar = track(range(max_epochs), style="tqdm", description="Training")
         history = pd.DataFrame(index=np.arange(max_epochs), columns=["loss"])
         for i in pbar:
-            self.module.train_state, loss, _ = train_step_fn(
-                self.module.train_state, tensor_dict, self.module.rngs
-            )
+            self.module.train_state, loss, _ = train_step_fn(self.module.train_state, tensor_dict, self.module.rngs)
             loss = jax.device_get(loss)
             history.iloc[i] = loss
             pbar.set_description(f"Training... Loss: {loss}")
@@ -193,9 +181,7 @@ class Tangram(BaseModelClass):
     def setup_mudata(
         cls,
         mdata: MuData,
-        density_prior_key: Union[
-            str, Literal["rna_count_based", "uniform"], None
-        ] = "rna_count_based",
+        density_prior_key: Union[str, Literal["rna_count_based", "uniform"], None] = "rna_count_based",
         sc_layer: Optional[str] = None,
         sp_layer: Optional[str] = None,
         modalities: Optional[Dict[str, str]] = None,
@@ -248,9 +234,7 @@ class Tangram(BaseModelClass):
         adata_manager = AnnDataManager(
             fields=mudata_fields,
             setup_method_args=setup_method_args,
-            validation_checks=AnnDataManagerValidationCheck(
-                check_fully_paired_mudata=False
-            ),
+            validation_checks=AnnDataManagerValidationCheck(check_fully_paired_mudata=False),
         )
         adata_manager.register_fields(mdata, **kwargs)
         sc_state = adata_manager.get_state_registry(TANGRAM_REGISTRY_KEYS.SC_KEY)
@@ -261,17 +245,13 @@ class Tangram(BaseModelClass):
                 sp_state[fields.LayerField.COLUMN_NAMES_KEY]
             ),
         ):
-            raise ValueError(
-                "The column names of the spatial and single-cell layers must be the same."
-            )
+            raise ValueError("The column names of the spatial and single-cell layers must be the same.")
         cls.register_manager(adata_manager)
 
     @classmethod
     def setup_anndata(cls):
         """Not implemented, use `setup_mudata`."""
-        raise NotImplementedError(
-            "Use `setup_mudata` to setup a MuData object for training."
-        )
+        raise NotImplementedError("Use `setup_mudata` to setup a MuData object for training.")
 
     def _get_tensor_dict(
         self,
@@ -321,19 +301,13 @@ class Tangram(BaseModelClass):
         Projected annotations as a :class:`pd.DataFrame` with shape (n_sp, n_labels).
         """
         if len(labels) != adata_sc.shape[0]:
-            raise ValueError(
-                "The number of labels must match the number of cells in the sc AnnData object."
-            )
+            raise ValueError("The number of labels must match the number of cells in the sc AnnData object.")
         cell_type_df = pd.get_dummies(labels)
         projection = mapper.T @ cell_type_df.values
-        return pd.DataFrame(
-            index=adata_sp.obs_names, columns=cell_type_df.columns, data=projection
-        )
+        return pd.DataFrame(index=adata_sp.obs_names, columns=cell_type_df.columns, data=projection)
 
     @staticmethod
-    def project_genes(
-        adata_sc: AnnData, adata_sp: AnnData, mapper: np.ndarray
-    ) -> AnnData:
+    def project_genes(adata_sc: AnnData, adata_sp: AnnData, mapper: np.ndarray) -> AnnData:
         """Project gene expression to spatial data.
 
         Parameters

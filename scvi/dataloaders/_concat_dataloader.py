@@ -74,7 +74,5 @@ class ConcatDataLoader(DataLoader):
         the data in the other dataloaders. The order of data in returned iter_list
         is the same as indices_list.
         """
-        iter_list = [
-            cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders
-        ]
+        iter_list = [cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders]
         return zip(*iter_list)

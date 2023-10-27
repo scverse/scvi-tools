@@ -37,9 +37,7 @@ def test_jax_scvi_training(n_latent: int = 5, dropout_rate: float = 0.1):
     model = JaxSCVI(adata, n_latent=n_latent, dropout_rate=dropout_rate)
     assert model.module.training
 
-    with mock.patch(
-        "scvi.module._jaxvae.nn.Dropout", wraps=nn.Dropout
-    ) as mock_dropout_cls:
+    with mock.patch("scvi.module._jaxvae.nn.Dropout", wraps=nn.Dropout) as mock_dropout_cls:
         mock_dropout = mock.Mock()
         mock_dropout.side_effect = lambda h, **_kwargs: h
         mock_dropout_cls.return_value = mock_dropout
@@ -48,8 +46,7 @@ def test_jax_scvi_training(n_latent: int = 5, dropout_rate: float = 0.1):
         assert not model.module.training
         mock_dropout_cls.assert_called()
         mock_dropout.assert_has_calls(
-            12 * [mock.call(mock.ANY, deterministic=False)]
-            + 8 * [mock.call(mock.ANY, deterministic=True)]
+            12 * [mock.call(mock.ANY, deterministic=False)] + 8 * [mock.call(mock.ANY, deterministic=True)]
         )
 
 
@@ -76,17 +73,13 @@ def test_jax_scvi_save_load(save_path: str, n_latent: int = 5):
 
     # Load with different batches.
     tmp_adata = synthetic_iid()
-    tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(
-        ["batch_2", "batch_3"]
-    )
+    tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(["batch_2", "batch_3"])
     with pytest.raises(ValueError):
         JaxSCVI.load(save_path, adata=tmp_adata)
 
     model = JaxSCVI.load(save_path, adata=adata)
     assert "batch" in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry.batch == attrdict(
-        {"attr_name": "obs", "attr_key": "_scvi_batch"}
-    )
+    assert model.adata_manager.data_registry.batch == attrdict({"attr_name": "obs", "attr_key": "_scvi_batch"})
     assert model.is_trained is True
 
     z2 = model.get_latent_representation()

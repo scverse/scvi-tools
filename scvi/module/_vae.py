@@ -106,9 +106,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: Tunable[float] = 0.1,
-        dispersion: Tunable[
-            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
-        ] = "gene",
+        dispersion: Tunable[Literal["gene", "gene-batch", "gene-label", "gene-cell"]] = "gene",
         log_variational: Tunable[bool] = True,
         gene_likelihood: Tunable[Literal["zinb", "nb", "poisson"]] = "zinb",
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
@@ -140,16 +138,11 @@ class VAE(BaseMinifiedModeModuleClass):
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_vars is None:
                 raise ValueError(
-                    "If not using observed_lib_size, "
-                    "must provide library_log_means and library_log_vars."
+                    "If not using observed_lib_size, " "must provide library_log_means and library_log_vars."
                 )
 
-            self.register_buffer(
-                "library_log_means", torch.from_numpy(library_log_means).float()
-            )
-            self.register_buffer(
-                "library_log_vars", torch.from_numpy(library_log_vars).float()
-            )
+            self.register_buffer("library_log_means", torch.from_numpy(library_log_means).float())
+            self.register_buffer("library_log_vars", torch.from_numpy(library_log_vars).float())
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input))
@@ -254,9 +247,7 @@ class VAE(BaseMinifiedModeModuleClass):
                     "observed_lib_size": observed_lib_size,
                 }
             else:
-                raise NotImplementedError(
-                    f"Unknown minified-data type: {self.minified_data_type}"
-                )
+                raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
         return input_dict
 
@@ -273,11 +264,7 @@ class VAE(BaseMinifiedModeModuleClass):
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
-        size_factor = (
-            torch.log(tensors[size_factor_key])
-            if size_factor_key in tensors.keys()
-            else None
-        )
+        size_factor = torch.log(tensors[size_factor_key]) if size_factor_key in tensors.keys() else None
 
         input_dict = {
             "z": z,
@@ -298,12 +285,8 @@ class VAE(BaseMinifiedModeModuleClass):
         log library sizes in the batch the cell corresponds to.
         """
         n_batch = self.library_log_means.shape[1]
-        local_library_log_means = F.linear(
-            one_hot(batch_index, n_batch), self.library_log_means
-        )
-        local_library_log_vars = F.linear(
-            one_hot(batch_index, n_batch), self.library_log_vars
-        )
+        local_library_log_means = F.linear(one_hot(batch_index, n_batch), self.library_log_means)
+        local_library_log_vars = F.linear(one_hot(batch_index, n_batch), self.library_log_vars)
         return local_library_log_means, local_library_log_vars
 
     @auto_move_data
@@ -336,18 +319,14 @@ class VAE(BaseMinifiedModeModuleClass):
         qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
         ql = None
         if not self.use_observed_lib_size:
-            ql, library_encoded = self.l_encoder(
-                encoder_input, batch_index, *categorical_input
-            )
+            ql, library_encoded = self.l_encoder(encoder_input, batch_index, *categorical_input)
             library = library_encoded
 
         if n_samples > 1:
             untran_z = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
             if self.use_observed_lib_size:
-                library = library.unsqueeze(0).expand(
-                    (n_samples, library.size(0), library.size(1))
-                )
+                library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
             else:
                 library = ql.sample((n_samples,))
         outputs = {"z": z, "qz": qz, "ql": ql, "library": library}
@@ -362,13 +341,9 @@ class VAE(BaseMinifiedModeModuleClass):
             z = self.z_encoder.z_transformation(untran_z)
             library = torch.log(observed_lib_size)
             if n_samples > 1:
-                library = library.unsqueeze(0).expand(
-                    (n_samples, library.size(0), library.size(1))
-                )
+                library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
         else:
-            raise NotImplementedError(
-                f"Unknown minified-data type: {self.minified_data_type}"
-            )
+            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
         outputs = {"z": z, "qz_m": qzm, "qz_v": qzv, "ql": None, "library": library}
         return outputs
 
@@ -390,9 +365,7 @@ class VAE(BaseMinifiedModeModuleClass):
         if cont_covs is None:
             decoder_input = z
         elif z.dim() != cont_covs.dim():
-            decoder_input = torch.cat(
-                [z, cont_covs.unsqueeze(0).expand(z.size(0), -1, -1)], dim=-1
-            )
+            decoder_input = torch.cat([z, cont_covs.unsqueeze(0).expand(z.size(0), -1, -1)], dim=-1)
         else:
             decoder_input = torch.cat([z, cont_covs], dim=-1)
 
@@ -416,9 +389,7 @@ class VAE(BaseMinifiedModeModuleClass):
             y,
         )
         if self.dispersion == "gene-label":
-            px_r = F.linear(
-                one_hot(y, self.n_labels), self.px_r
-            )  # px_r gets transposed - last dimension is nb genes
+            px_r = F.linear(one_hot(y, self.n_labels), self.px_r)  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
             px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
         elif self.dispersion == "gene":
@@ -463,9 +434,7 @@ class VAE(BaseMinifiedModeModuleClass):
     ):
         """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
-        kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
-            dim=-1
-        )
+        kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(dim=-1)
         if not self.use_observed_lib_size:
             kl_divergence_l = kl(
                 inference_outputs["ql"],
@@ -487,9 +456,7 @@ class VAE(BaseMinifiedModeModuleClass):
             "kl_divergence_l": kl_divergence_l,
             "kl_divergence_z": kl_divergence_z,
         }
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)
 
     @torch.inference_mode()
     def sample(
@@ -530,13 +497,9 @@ class VAE(BaseMinifiedModeModuleClass):
         if self.gene_likelihood == "poisson":
             l_train = generative_outputs["px"].rate
             l_train = torch.clamp(l_train, max=1e8)
-            dist = torch.distributions.Poisson(
-                l_train
-            )  # Shape : (n_samples, n_cells_batch, n_genes)
+            dist = torch.distributions.Poisson(l_train)  # Shape : (n_samples, n_cells_batch, n_genes)
         if n_samples > 1:
-            exprs = dist.sample().permute(
-                [1, 2, 0]
-            )  # Shape : (n_cells_batch, n_genes, n_samples)
+            exprs = dist.sample().permute([1, 2, 0])  # Shape : (n_cells_batch, n_genes, n_samples)
         else:
             exprs = dist.sample()
 
@@ -575,9 +538,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_passes = int(np.ceil(n_mc_samples / n_mc_samples_per_pass))
         for _ in range(n_passes):
             # Distribution parameters and sampled variables
-            inference_outputs, _, losses = self.forward(
-                tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass}
-            )
+            inference_outputs, _, losses = self.forward(tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass})
             qz = inference_outputs["qz"]
             ql = inference_outputs["ql"]
             z = inference_outputs["z"]
@@ -587,11 +548,7 @@ class VAE(BaseMinifiedModeModuleClass):
             reconst_loss = losses.dict_sum(losses.reconstruction_loss)
 
             # Log-probabilities
-            p_z = (
-                Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale))
-                .log_prob(z)
-                .sum(dim=-1)
-            )
+            p_z = Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale)).log_prob(z).sum(dim=-1)
             p_x_zl = -reconst_loss
             q_z_x = qz.log_prob(z).sum(dim=-1)
             log_prob_sum = p_z + p_x_zl - q_z_x
@@ -602,11 +559,7 @@ class VAE(BaseMinifiedModeModuleClass):
                     local_library_log_vars,
                 ) = self._compute_local_library_params(batch_index)
 
-                p_l = (
-                    Normal(local_library_log_means, local_library_log_vars.sqrt())
-                    .log_prob(library)
-                    .sum(dim=-1)
-                )
+                p_l = Normal(local_library_log_means, local_library_log_vars.sqrt()).log_prob(library).sum(dim=-1)
                 q_l_x = ql.log_prob(library).sum(dim=-1)
 
                 log_prob_sum += p_l - q_l_x

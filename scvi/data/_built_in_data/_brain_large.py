@@ -45,9 +45,7 @@ def _load_brainlarge_file(
     with h5py.File(path_to_file, "r") as f:
         data = f["mm10"]
         nb_genes, nb_cells = f["mm10"]["shape"]
-        n_cells_to_keep = (
-            max_cells_to_keep if max_cells_to_keep is not None else nb_cells
-        )
+        n_cells_to_keep = max_cells_to_keep if max_cells_to_keep is not None else nb_cells
         index_partitioner = data["indptr"][...]
         # estimate gene variance using a subset of cells.
         index_partitioner_gene_var = index_partitioner[: (sample_size_gene_var + 1)]
@@ -61,31 +59,19 @@ def _load_brainlarge_file(
             shape=(nb_genes, len(index_partitioner_gene_var) - 1),
         )
         mean = gene_var_sample_matrix.mean(axis=1)
-        var = gene_var_sample_matrix.multiply(gene_var_sample_matrix).mean(
-            axis=1
-        ) - np.multiply(mean, mean)
+        var = gene_var_sample_matrix.multiply(gene_var_sample_matrix).mean(axis=1) - np.multiply(mean, mean)
         subset_genes = np.squeeze(np.asarray(var)).argsort()[-n_genes_to_keep:][::-1]
         del gene_var_sample_matrix, mean, var
 
-        n_iters = int(n_cells_to_keep / loading_batch_size) + (
-            n_cells_to_keep % loading_batch_size > 0
-        )
+        n_iters = int(n_cells_to_keep / loading_batch_size) + (n_cells_to_keep % loading_batch_size > 0)
         for i in range(n_iters):
-            index_partitioner_batch = index_partitioner[
-                (i * loading_batch_size) : ((1 + i) * loading_batch_size + 1)
-            ]
+            index_partitioner_batch = index_partitioner[(i * loading_batch_size) : ((1 + i) * loading_batch_size + 1)]
             first_index_batch = index_partitioner_batch[0]
             last_index_batch = index_partitioner_batch[-1]
-            index_partitioner_batch = (
-                index_partitioner_batch - first_index_batch
-            ).astype(np.int32)
+            index_partitioner_batch = (index_partitioner_batch - first_index_batch).astype(np.int32)
             n_cells_batch = len(index_partitioner_batch) - 1
-            data_batch = data["data"][first_index_batch:last_index_batch].astype(
-                np.float32
-            )
-            indices_batch = data["indices"][first_index_batch:last_index_batch].astype(
-                np.int32
-            )
+            data_batch = data["data"][first_index_batch:last_index_batch].astype(np.float32)
+            indices_batch = data["indices"][first_index_batch:last_index_batch].astype(np.int32)
             matrix_batch = sp_sparse.csr_matrix(
                 (data_batch, indices_batch, index_partitioner_batch),
                 shape=(n_cells_batch, nb_genes),
@@ -95,9 +81,7 @@ def _load_brainlarge_file(
                 matrix = matrix_batch
             else:
                 matrix = sp_sparse.vstack([matrix, matrix_batch])
-            logger.info(
-                f"loaded {i * loading_batch_size + n_cells_batch} / {n_cells_to_keep} cells"
-            )
+            logger.info(f"loaded {i * loading_batch_size + n_cells_batch} / {n_cells_to_keep} cells")
     logger.info("%d cells subsampled" % matrix.shape[0])
     logger.info("%d genes subsampled" % matrix.shape[1])
     adata = anndata.AnnData(matrix)

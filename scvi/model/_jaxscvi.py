@@ -98,9 +98,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -138,13 +136,9 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True)
 
-        jit_inference_fn = self.module.get_jit_inference_fn(
-            inference_kwargs={"n_samples": n_samples}
-        )
+        jit_inference_fn = self.module.get_jit_inference_fn(inference_kwargs={"n_samples": n_samples})
         latent = []
         for array_dict in scdl:
             out = jit_inference_fn(self.module.rngs, array_dict)

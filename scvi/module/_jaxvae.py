@@ -88,13 +88,9 @@ class FlaxDecoder(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
-        self.disp = self.param(
-            "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
-        )
+        self.disp = self.param("disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1))
 
-    def __call__(
-        self, z: jnp.ndarray, batch: jnp.ndarray, training: Optional[bool] = None
-    ):
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training: Optional[bool] = None):
         """Forward pass."""
         # TODO(adamgayoso): Test this
         training = nn.merge_param("training", self.training, training)
@@ -223,6 +219,4 @@ class JaxVAE(JaxBaseModuleClass):
         loss = jnp.mean(reconst_loss + weighted_kl_local)
 
         kl_local = kl_divergence_z
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)

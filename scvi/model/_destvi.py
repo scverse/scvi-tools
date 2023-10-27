@@ -127,17 +127,13 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         decoder_state_dict = sc_model.module.decoder.state_dict()
         px_decoder_state_dict = sc_model.module.px_decoder.state_dict()
         px_r = sc_model.module.px_r.detach().cpu().numpy()
-        mapping = sc_model.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        ).categorical_mapping
+        mapping = sc_model.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY).categorical_mapping
         dropout_decoder = sc_model.module.dropout_rate
         if vamp_prior_p is None:
             mean_vprior = None
             var_vprior = None
         else:
-            mean_vprior, var_vprior, mp_vprior = sc_model.get_vamp_prior(
-                sc_model.adata, p=vamp_prior_p
-            )
+            mean_vprior, var_vprior, mp_vprior = sc_model.get_vamp_prior(sc_model.adata, p=vamp_prior_p)
 
         return cls(
             st_adata,
@@ -183,15 +179,11 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             column_names = np.append(column_names, "noise_term")
 
         if self.module.amortization in ["both", "proportion"]:
-            stdl = self._make_data_loader(
-                adata=self.adata, indices=indices, batch_size=batch_size
-            )
+            stdl = self._make_data_loader(adata=self.adata, indices=indices, batch_size=batch_size)
             prop_ = []
             for tensors in stdl:
                 generative_inputs = self.module._get_generative_input(tensors, None)
-                prop_local = self.module.get_proportions(
-                    x=generative_inputs["x"], keep_noise=keep_noise
-                )
+                prop_local = self.module.get_proportions(x=generative_inputs["x"], keep_noise=keep_noise)
                 prop_ += [prop_local.cpu()]
             data = torch.cat(prop_).numpy()
             if indices:
@@ -232,9 +224,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         index_names = self.adata.obs.index
 
         if self.module.amortization in ["both", "latent"]:
-            stdl = self._make_data_loader(
-                adata=self.adata, indices=indices, batch_size=batch_size
-            )
+            stdl = self._make_data_loader(adata=self.adata, indices=indices, batch_size=batch_size)
             gamma_ = []
             for tensors in stdl:
                 generative_inputs = self.module._get_generative_input(tensors, None)
@@ -256,9 +246,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         else:
             res = {}
             for i, ct in enumerate(self.cell_type_mapping):
-                res[ct] = pd.DataFrame(
-                    data=data[:, :, i], columns=column_names, index=index_names
-                )
+                res[ct] = pd.DataFrame(data=data[:, :, i], columns=column_names, index=index_names)
             return res
 
     def get_scale_for_ct(
@@ -288,9 +276,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             raise ValueError("Unknown cell type")
         y = np.where(label == self.cell_type_mapping)[0][0]
 
-        stdl = self._make_data_loader(
-            self.adata, indices=indices, batch_size=batch_size
-        )
+        stdl = self._make_data_loader(self.adata, indices=indices, batch_size=batch_size)
         scale = []
         for tensors in stdl:
             generative_inputs = self.module._get_generative_input(tensors, None)
@@ -397,8 +383,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

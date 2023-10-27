@@ -30,16 +30,12 @@ def test_brain_small(save_path):
 
 
 def test_pbmc_cite(save_path):
-    file_path = os.path.join(
-        save_path, "10X/pbmc_10k_protein_v3/filtered_feature_bc_matrix.tar.gz"
-    )
+    file_path = os.path.join(save_path, "10X/pbmc_10k_protein_v3/filtered_feature_bc_matrix.tar.gz")
     sp = os.path.join(save_path, "10X/pbmc_10k_protein_v3/")
     tar = tarfile.open(file_path, "r:gz")
     tar.extractall(path=sp)
     tar.close()
-    dataset = sc.read_10x_mtx(
-        os.path.join(sp, "filtered_feature_bc_matrix"), gex_only=False
-    )
+    dataset = sc.read_10x_mtx(os.path.join(sp, "filtered_feature_bc_matrix"), gex_only=False)
     organize_cite_seq_10x(dataset)
     unsupervised_training_one_epoch(dataset)
 

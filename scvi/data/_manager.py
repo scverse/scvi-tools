@@ -102,19 +102,14 @@ class AnnDataManager:
     def _assert_anndata_registered(self):
         """Asserts that an AnnData object has been registered with this instance."""
         if self.adata is None:
-            raise AssertionError(
-                "AnnData object not registered. Please call register_fields."
-            )
+            raise AssertionError("AnnData object not registered. Please call register_fields.")
 
     def _validate_anndata_object(self, adata: AnnOrMuData):
         """For a given AnnData object, runs general scvi-tools compatibility checks."""
         if self.validation_checks.check_if_view:
             _check_if_view(adata, copy_if_view=False)
 
-        if (
-            isinstance(adata, MuData)
-            and self.validation_checks.check_fully_paired_mudata
-        ):
+        if isinstance(adata, MuData) and self.validation_checks.check_fully_paired_mudata:
             _check_mudata_fully_paired(adata)
 
     def _get_setup_method_args(self) -> dict:
@@ -125,9 +120,7 @@ class AnnDataManager:
         in the form of a dictionary.
         """
         return {
-            k: v
-            for k, v in self._registry.items()
-            if k in {_constants._MODEL_NAME_KEY, _constants._SETUP_ARGS_KEY}
+            k: v for k, v in self._registry.items() if k in {_constants._MODEL_NAME_KEY, _constants._SETUP_ARGS_KEY}
         }
 
     def _assign_uuid(self):
@@ -166,9 +159,7 @@ class AnnDataManager:
             Additional keywords which modify transfer behavior. Only applicable if ``source_registry`` is set.
         """
         if self.adata is not None:
-            raise AssertionError(
-                "Existing AnnData object registered with this Manager instance."
-            )
+            raise AssertionError("Existing AnnData object registered with this Manager instance.")
 
         if source_registry is None and transfer_kwargs:
             raise TypeError(
@@ -214,21 +205,17 @@ class AnnDataManager:
             # Transfer case: Source registry is used for validation and/or setup.
             if source_registry is not None:
                 field_registry[_constants._STATE_REGISTRY_KEY] = field.transfer_field(
-                    source_registry[_constants._FIELD_REGISTRIES_KEY][
-                        field.registry_key
-                    ][_constants._STATE_REGISTRY_KEY],
+                    source_registry[_constants._FIELD_REGISTRIES_KEY][field.registry_key][
+                        _constants._STATE_REGISTRY_KEY
+                    ],
                     adata,
                     **transfer_kwargs,
                 )
             else:
-                field_registry[_constants._STATE_REGISTRY_KEY] = field.register_field(
-                    adata
-                )
+                field_registry[_constants._STATE_REGISTRY_KEY] = field.register_field(adata)
         # Compute and set summary stats for the given field.
         state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
-        field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(
-            state_registry
-        )
+        field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(state_registry)
 
     def register_new_fields(self, fields: list[AnnDataField]):
         """Register new fields to a manager instance.
@@ -241,9 +228,7 @@ class AnnDataManager:
             List of AnnDataFields to register
         """
         if self.adata is None:
-            raise AssertionError(
-                "No AnnData object has been registered with this Manager instance."
-            )
+            raise AssertionError("No AnnData object has been registered with this Manager instance.")
         self.validate()
         for field in fields:
             self._add_field(
@@ -364,9 +349,7 @@ class AnnDataManager:
     @staticmethod
     def _get_data_registry_from_registry(registry: dict) -> attrdict:
         data_registry = {}
-        for registry_key, field_registry in registry[
-            _constants._FIELD_REGISTRIES_KEY
-        ].items():
+        for registry_key, field_registry in registry[_constants._FIELD_REGISTRIES_KEY].items():
             field_data_registry = field_registry[_constants._DATA_REGISTRY_KEY]
             if field_data_registry:
                 data_registry[registry_key] = field_data_registry
@@ -411,16 +394,10 @@ class AnnDataManager:
         """Returns the state registry for the AnnDataField registered with this instance."""
         self._assert_anndata_registered()
 
-        return attrdict(
-            self._registry[_constants._FIELD_REGISTRIES_KEY][registry_key][
-                _constants._STATE_REGISTRY_KEY
-            ]
-        )
+        return attrdict(self._registry[_constants._FIELD_REGISTRIES_KEY][registry_key][_constants._STATE_REGISTRY_KEY])
 
     @staticmethod
-    def _view_summary_stats(
-        summary_stats: attrdict, as_markdown: bool = False
-    ) -> rich.table.Table | str:
+    def _view_summary_stats(summary_stats: attrdict, as_markdown: bool = False) -> rich.table.Table | str:
         """Prints summary stats."""
         if not as_markdown:
             t = rich.table.Table(title="Summary Statistics")
@@ -452,9 +429,7 @@ class AnnDataManager:
         return t
 
     @staticmethod
-    def _view_data_registry(
-        data_registry: attrdict, as_markdown: bool = False
-    ) -> rich.table.Table | str:
+    def _view_data_registry(data_registry: attrdict, as_markdown: bool = False) -> rich.table.Table | str:
         """Prints data registry."""
         if not as_markdown:
             t = rich.table.Table(title="Data Registry")

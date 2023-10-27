@@ -141,8 +141,7 @@ def _load_pbmc_seurat_v4_cite_seq(
                 if root not in ["Notch", "TCR"]:
                     try:
                         protein_dict[root] = np.asarray(
-                            adata.obsm["protein_counts"][root + "-1"]
-                            + adata.obsm["protein_counts"][root + "-2"]
+                            adata.obsm["protein_counts"][root + "-1"] + adata.obsm["protein_counts"][root + "-2"]
                         )
                     except KeyError:
                         protein_dict[p] = np.asarray(adata.obsm["protein_counts"][p])
@@ -157,19 +156,11 @@ def _load_pbmc_seurat_v4_cite_seq(
     if apply_filters:
         adata.obs["total_counts"] = np.ravel(adata.X.sum(axis=1).A)
         adata.var["mt"] = adata.var_names.str.startswith("MT-")
-        adata.obs["total_counts_mt"] = np.ravel(
-            adata.X[:, adata.var["mt"].values].sum(axis=1).A
-        )
-        adata.obs["pct_counts_mt"] = (
-            adata.obs["total_counts_mt"] / adata.obs["total_counts"] * 100
-        )
+        adata.obs["total_counts_mt"] = np.ravel(adata.X[:, adata.var["mt"].values].sum(axis=1).A)
+        adata.obs["pct_counts_mt"] = adata.obs["total_counts_mt"] / adata.obs["total_counts"] * 100
 
-        adata.obs["Protein log library size"] = np.log(
-            adata.obsm["protein_counts"].sum(1)
-        )
-        adata.obs["Number proteins detected"] = (adata.obsm["protein_counts"] > 0).sum(
-            1
-        )
+        adata.obs["Protein log library size"] = np.log(adata.obsm["protein_counts"].sum(1))
+        adata.obs["Number proteins detected"] = (adata.obsm["protein_counts"] > 0).sum(1)
         adata.obs["RNA log library size"] = np.log(adata.X.sum(1).A)
 
         # actually filter
@@ -186,9 +177,9 @@ def _load_pbmc_seurat_v4_cite_seq(
 
     if mask_protein_batches > 0:
         random_state = np.random.RandomState(seed=settings.seed)
-        rand_cats = random_state.permutation(
-            adata.obs["orig.ident"].astype("category").cat.categories
-        )[:mask_protein_batches]
+        rand_cats = random_state.permutation(adata.obs["orig.ident"].astype("category").cat.categories)[
+            :mask_protein_batches
+        ]
         for r in rand_cats:
             adata.obsm["protein_counts"][adata.obs["orig.ident"] == r] = 0.0
 

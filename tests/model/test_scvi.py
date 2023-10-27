@@ -78,9 +78,7 @@ def test_saving_and_loading(save_path):
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
-            raise ValueError(
-                f"{dir_path} already exists. Please provide an unexisting directory for saving."
-            )
+            raise ValueError(f"{dir_path} already exists. Please provide an unexisting directory for saving.")
 
         file_name_prefix = prefix or ""
 
@@ -128,17 +126,13 @@ def test_saving_and_loading(save_path):
 
         # Load with different batches.
         tmp_adata = synthetic_iid()
-        tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(
-            ["batch_2", "batch_3"]
-        )
+        tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(["batch_2", "batch_3"])
         with pytest.raises(ValueError):
             cls.load(save_path, adata=tmp_adata, prefix=prefix)
 
         model = cls.load(save_path, adata=adata, prefix=prefix)
         assert "batch" in model.adata_manager.data_registry
-        assert model.adata_manager.data_registry.batch == attrdict(
-            {"attr_name": "obs", "attr_key": "_scvi_batch"}
-        )
+        assert model.adata_manager.data_registry.batch == attrdict({"attr_name": "obs", "attr_key": "_scvi_batch"})
 
         z2 = model.get_latent_representation()
         test_idx2 = model.validation_indices
@@ -148,9 +142,7 @@ def test_saving_and_loading(save_path):
 
         # Test legacy loading
         legacy_save_path = os.path.join(save_path, "legacy/")
-        legacy_save(
-            model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
-        )
+        legacy_save(model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix)
         with pytest.raises(ValueError):
             cls.load(legacy_save_path, adata=adata, prefix=prefix)
         cls.convert_legacy_save(
@@ -194,9 +186,7 @@ def test_scvi(n_latent: int = 5):
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # Test without observed lib size.
-    model = SCVI(
-        adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False
-    )
+    model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
@@ -233,22 +223,14 @@ def test_scvi(n_latent: int = 5):
     model.view_anndata_setup(adata=adata2)
     model.view_anndata_setup(adata=adata2, hide_state_registries=True)
 
-    denoised = model.get_normalized_expression(
-        adata2, indices=[1, 2, 3], transform_batch="batch_1"
-    )
-    denoised = model.get_normalized_expression(
-        adata2, indices=[1, 2, 3], transform_batch=["batch_0", "batch_1"]
-    )
+    denoised = model.get_normalized_expression(adata2, indices=[1, 2, 3], transform_batch="batch_1")
+    denoised = model.get_normalized_expression(adata2, indices=[1, 2, 3], transform_batch=["batch_0", "batch_1"])
     assert denoised.shape == (3, adata2.n_vars)
     sample = model.posterior_predictive_sample(adata2)
     assert sample.shape == adata2.shape
-    sample = model.posterior_predictive_sample(
-        adata2, indices=[1, 2, 3], gene_list=["1", "2"]
-    )
+    sample = model.posterior_predictive_sample(adata2, indices=[1, 2, 3], gene_list=["1", "2"])
     assert sample.shape == (3, 2)
-    sample = model.posterior_predictive_sample(
-        adata2, indices=[1, 2, 3], gene_list=["1", "2"], n_samples=3
-    )
+    sample = model.posterior_predictive_sample(adata2, indices=[1, 2, 3], gene_list=["1", "2"], n_samples=3)
     assert sample.shape == (3, 2, 3)
 
     model.get_feature_correlation_matrix(correlation_type="pearson")
@@ -269,14 +251,10 @@ def test_scvi(n_latent: int = 5):
     )
     params = model.get_likelihood_parameters()
     assert params["mean"].shape == adata.shape
-    assert (
-        params["mean"].shape == params["dispersions"].shape == params["dropout"].shape
-    )
+    assert params["mean"].shape == params["dispersions"].shape == params["dropout"].shape
     params = model.get_likelihood_parameters(adata2, indices=[1, 2, 3])
     assert params["mean"].shape == (3, adata.n_vars)
-    params = model.get_likelihood_parameters(
-        adata2, indices=[1, 2, 3], n_samples=3, give_mean=True
-    )
+    params = model.get_likelihood_parameters(adata2, indices=[1, 2, 3], n_samples=3, give_mean=True)
     assert params["mean"].shape == (3, adata.n_vars)
     model.get_latent_library_size()
     model.get_latent_library_size(adata2, indices=[1, 2, 3])
@@ -318,12 +296,8 @@ def test_scvi(n_latent: int = 5):
 
     # test differential expression
     model.differential_expression(groupby="labels", group1="label_1")
-    model.differential_expression(
-        groupby="labels", group1="label_1", weights="importance"
-    )
-    model.differential_expression(
-        groupby="labels", group1="label_1", group2="label_2", mode="change"
-    )
+    model.differential_expression(groupby="labels", group1="label_1", weights="importance")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2", mode="change")
     model.differential_expression(groupby="labels")
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
@@ -432,9 +406,7 @@ def test_scvi_get_feature_corr_backwards_compat(n_latent: int = 5):
         return inf_outs, gen_outs
 
     vae_mock.forward.side_effect = old_forward
-    vae_mock.generative.__signature__ = inspect.signature(
-        vae.generative
-    )  # Necessary to pass transform_batch check.
+    vae_mock.generative.__signature__ = inspect.signature(vae.generative)  # Necessary to pass transform_batch check.
     model.module = vae_mock
 
     model.get_feature_correlation_matrix()
@@ -507,9 +479,7 @@ def test_new_setup_compat():
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     # Handle edge case where registry_key != obs_key.
-    adata.obs.rename(
-        columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True
-    )
+    adata.obs.rename(columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True)
     adata2 = adata.copy()
 
     SCVI.setup_anndata(
@@ -524,9 +494,7 @@ def test_new_setup_compat():
     model.view_anndata_setup(hide_state_registries=True)
 
     field_registries = adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
-    field_registries_legacy_subset = {
-        k: v for k, v in field_registries.items() if k in LEGACY_REGISTRY_KEYS
-    }
+    field_registries_legacy_subset = {k: v for k, v in field_registries.items() if k in LEGACY_REGISTRY_KEYS}
 
     # Backwards compatibility test.
     registry = registry_from_setup_dict(SCVI, LEGACY_SETUP_DICT)
@@ -546,9 +514,7 @@ def test_new_setup_compat():
 @pytest.mark.internet
 def test_backwards_compatible_loading(save_path):
     def download_080_models(save_path):
-        file_path = (
-            "https://github.com/yoseflab/scVI-data/raw/master/testing_models.tar.gz"
-        )
+        file_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models.tar.gz"
         save_fn = "testing_models.tar.gz"
         _download(file_path, save_path, save_fn)
         saved_file_path = os.path.join(save_path, save_fn)
@@ -558,9 +524,7 @@ def test_backwards_compatible_loading(save_path):
 
     download_080_models(save_path)
     pretrained_scvi_path = os.path.join(save_path, "testing_models/080_scvi")
-    pretrained_scvi_updated_path = os.path.join(
-        save_path, "testing_models/080_scvi_updated"
-    )
+    pretrained_scvi_updated_path = os.path.join(save_path, "testing_models/080_scvi_updated")
     a = synthetic_iid()
     # Fail legacy load.
     with pytest.raises(ValueError):
@@ -709,9 +673,7 @@ def test_scarches_data_prep(save_path):
     SCVI.prepare_query_anndata(adata4, dir_path)
     # should be padded 0s
     assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
-    np.testing.assert_equal(
-        adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy()
-    )
+    np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
 
     adata5 = SCVI.prepare_query_anndata(adata4, dir_path, inplace=False)
@@ -738,9 +700,7 @@ def test_scarches_data_prep_layer(save_path):
     SCVI.prepare_query_anndata(adata4, dir_path)
     # should be padded 0s
     assert np.sum(adata4[:, adata4.var_names[:10]].layers["counts"]) == 0
-    np.testing.assert_equal(
-        adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy()
-    )
+    np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
 
 
@@ -769,28 +729,11 @@ def test_scvi_online_update(save_path):
     model2.get_latent_representation()
 
     # encoder linear layer equal
-    one = (
-        model.module.z_encoder.encoder.fc_layers[0][0]
-        .weight.detach()
-        .cpu()
-        .numpy()[:, : adata1.shape[1]]
-    )
-    two = (
-        model2.module.z_encoder.encoder.fc_layers[0][0]
-        .weight.detach()
-        .cpu()
-        .numpy()[:, : adata1.shape[1]]
-    )
+    one = model.module.z_encoder.encoder.fc_layers[0][0].weight.detach().cpu().numpy()[:, : adata1.shape[1]]
+    two = model2.module.z_encoder.encoder.fc_layers[0][0].weight.detach().cpu().numpy()[:, : adata1.shape[1]]
     np.testing.assert_equal(one, two)
     single_pass_for_online_update(model2)
-    assert (
-        np.sum(
-            model2.module.z_encoder.encoder.fc_layers[0][0]
-            .weight.grad.cpu()
-            .numpy()[:, : adata1.shape[1]]
-        )
-        == 0
-    )
+    assert np.sum(model2.module.z_encoder.encoder.fc_layers[0][0].weight.grad.cpu().numpy()[:, : adata1.shape[1]]) == 0
     # dispersion
     assert model2.module.px_r.requires_grad is False
     # library encoder linear layer
@@ -869,9 +812,10 @@ def test_scvi_library_size_update(save_path):
         and model.module.library_log_means.shape == (1, 2)
         and model.module.library_log_means.count_nonzero().item() == 2
     )
-    assert getattr(
-        model.module, "library_log_vars", None
-    ) is not None and model.module.library_log_vars.shape == (1, 2)
+    assert getattr(model.module, "library_log_vars", None) is not None and model.module.library_log_vars.shape == (
+        1,
+        2,
+    )
 
     model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")

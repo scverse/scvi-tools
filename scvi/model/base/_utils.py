@@ -42,9 +42,7 @@ def _load_legacy_saved_files(
         if os.path.exists(adata_path):
             adata = read(adata_path)
         elif not os.path.exists(adata_path):
-            raise ValueError(
-                "Save path contains no saved anndata and no adata was passed."
-            )
+            raise ValueError("Save path contains no saved anndata and no adata was passed.")
     else:
         adata = None
 
@@ -87,9 +85,7 @@ def _load_saved_files(
             else:
                 adata = anndata.read(adata_path)
         else:
-            raise ValueError(
-                "Save path contains no saved anndata and no adata was passed."
-            )
+            raise ValueError("Save path contains no saved anndata and no adata was passed.")
     else:
         adata = None
 
@@ -100,8 +96,7 @@ def _initialize_model(cls, adata, attr_dict):
     """Helper to initialize a model."""
     if "init_params_" not in attr_dict.keys():
         raise ValueError(
-            "No init_params_ were saved by the model. Check out the "
-            "developers guide if creating custom models."
+            "No init_params_ were saved by the model. Check out the " "developers guide if creating custom models."
         )
     # get the parameters for the class init signature
     init_params = attr_dict.pop("init_params_")
@@ -172,11 +167,7 @@ def _prepare_obs(
     """
 
     def ravel_idx(my_idx, obs_df):
-        return (
-            obs_df.index.isin(obs_df.query(my_idx).index)
-            if isinstance(my_idx, str)
-            else np.asarray(my_idx).ravel()
-        )
+        return obs_df.index.isin(obs_df.query(my_idx).index) if isinstance(my_idx, str) else np.asarray(my_idx).ravel()
 
     obs_df = adata.obs
     idx1 = ravel_idx(idx1, obs_df)
@@ -219,9 +210,7 @@ def _de_core(
     if group1 is None and idx1 is None:
         group1 = adata.obs[groupby].astype("category").cat.categories.tolist()
         if len(group1) == 1:
-            raise ValueError(
-                "Only a single group in the data. Can't run DE on a single group."
-            )
+            raise ValueError("Only a single group in the data. Can't run DE on a single group.")
 
     if not isinstance(group1, IterableClass) or isinstance(group1, str):
         group1 = [group1]
@@ -290,9 +279,7 @@ def _fdr_de_prediction(posterior_probas: pd.Series, fdr: float = 0.05) -> pd.Ser
     sorted_pgs = posterior_probas.sort_values(ascending=False)
     cumulative_fdr = (1.0 - sorted_pgs).cumsum() / (1.0 + np.arange(len(sorted_pgs)))
     d = (cumulative_fdr <= fdr).sum()
-    is_pred_de = pd.Series(
-        np.zeros_like(cumulative_fdr).astype(bool), index=sorted_pgs.index
-    )
+    is_pred_de = pd.Series(np.zeros_like(cumulative_fdr).astype(bool), index=sorted_pgs.index)
     is_pred_de.iloc[:d] = True
     is_pred_de = is_pred_de.loc[original_index]
     return is_pred_de

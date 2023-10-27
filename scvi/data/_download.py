@@ -16,17 +16,14 @@ def _download(url: Optional[str], save_path: str, filename: str):
         logger.info(f"File {os.path.join(save_path, filename)} already downloaded")
         return
     elif url is None:
-        logger.info(
-            f"No backup URL provided for missing file {os.path.join(save_path, filename)}"
-        )
+        logger.info(f"No backup URL provided for missing file {os.path.join(save_path, filename)}")
         return
     req = urllib.request.Request(url, headers={"User-Agent": "Magic Browser"})
     try:
         r = urllib.request.urlopen(req)
         if r.getheader("Content-Length") is None:
             raise FileNotFoundError(
-                f"Found file with no content at {url}. "
-                "This is possibly a directory rather than a file path."
+                f"Found file with no content at {url}. " "This is possibly a directory rather than a file path."
             )
     except urllib.error.HTTPError as exc:
         if exc.code == "404":
@@ -55,7 +52,5 @@ def _download(url: Optional[str], save_path: str, filename: str):
     filesize = np.rint(filesize / block_size)
     with open(os.path.join(save_path, filename), "wb") as f:
         iterator = read_iter(r, block_size=block_size)
-        for data in track(
-            iterator, style="tqdm", total=filesize, description="Downloading..."
-        ):
+        for data in track(iterator, style="tqdm", total=filesize, description="Downloading..."):
             f.write(data)

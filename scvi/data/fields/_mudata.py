@@ -23,14 +23,10 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         If ``True``, raises ``ValueError`` when ``mod_key`` is ``None``.
     """
 
-    def __init__(
-        self, mod_key: Optional[str] = None, mod_required: bool = False
-    ) -> None:
+    def __init__(self, mod_key: Optional[str] = None, mod_required: bool = False) -> None:
         super().__init__()
         if mod_required and mod_key is None:
-            raise ValueError(
-                f"Modality required for {self.__class__.__name__} but not provided."
-            )
+            raise ValueError(f"Modality required for {self.__class__.__name__} but not provided.")
         self._mod_key = mod_key
         self._preregister = lambda _self, _mdata: None
 
@@ -96,9 +92,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         bdata = self.get_modality(mdata)
         return self.adata_field.register_field(bdata)
 
-    def transfer_field(
-        self, state_registry: dict, mdata_target: MuData, **kwargs
-    ) -> dict:
+    def transfer_field(self, state_registry: dict, mdata_target: MuData, **kwargs) -> dict:
         """Transfer the field."""
         self.preregister(mdata_target)
         bdata_target = self.get_modality(mdata_target)
@@ -113,9 +107,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         return self.adata_field.view_state_registry(state_registry)
 
 
-def MuDataWrapper(
-    adata_field_cls: AnnDataField, preregister_fn: Optional[Callable] = None
-) -> AnnDataField:
+def MuDataWrapper(adata_field_cls: AnnDataField, preregister_fn: Optional[Callable] = None) -> AnnDataField:
     """Wraps an AnnDataField with :class:`~scvi.data.fields.BaseMuDataWrapperClass`.
 
     Parameters
@@ -129,12 +121,8 @@ def MuDataWrapper(
     if not isinstance(adata_field_cls, type):
         raise ValueError("`adata_field_cls` must be a class, not an instance.")
 
-    def mudata_field_init(
-        self, *args, mod_key: Optional[str] = None, mod_required: bool = False, **kwargs
-    ):
-        BaseMuDataWrapperClass.__init__(
-            self, mod_key=mod_key, mod_required=mod_required
-        )
+    def mudata_field_init(self, *args, mod_key: Optional[str] = None, mod_required: bool = False, **kwargs):
+        BaseMuDataWrapperClass.__init__(self, mod_key=mod_key, mod_required=mod_required)
         self._adata_field = adata_field_cls(*args, **kwargs)
         if preregister_fn is not None:
             self._preregister = preregister_fn

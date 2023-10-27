@@ -15,9 +15,7 @@ class SimpleExperiment:
     def log_hparams(self, params: Dict[str, Any]) -> None:
         """Record hparams."""
 
-    def log_metrics(
-        self, metrics: Dict[str, float], step: Optional[int] = None
-    ) -> None:
+    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         """Record metrics."""
 
         def _handle_value(value):
@@ -47,9 +45,7 @@ class SimpleExperiment:
 class SimpleLogger(Logger):
     """Simple logger class."""
 
-    def __init__(
-        self, name: str = "lightning_logs", version: Optional[Union[int, str]] = None
-    ):
+    def __init__(self, name: str = "lightning_logs", version: Optional[Union[int, str]] = None):
         super().__init__()
         self._name = name
         self._experiment = None

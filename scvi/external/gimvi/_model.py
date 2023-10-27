@@ -94,9 +94,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         self.adatas = [adata_seq, adata_spatial]
         self.adata_managers = {
             "seq": self._get_most_recent_anndata_manager(adata_seq, required=True),
-            "spatial": self._get_most_recent_anndata_manager(
-                adata_spatial, required=True
-            ),
+            "spatial": self._get_most_recent_anndata_manager(adata_spatial, required=True),
         }
         self.registries_ = []
         for adm in self.adata_managers.values():
@@ -109,9 +107,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         if not set(spatial_var_names) <= set(seq_var_names):
             raise ValueError("spatial genes needs to be subset of seq genes")
 
-        spatial_gene_loc = [
-            np.argwhere(seq_var_names == g)[0] for g in spatial_var_names
-        ]
+        spatial_gene_loc = [np.argwhere(seq_var_names == g)[0] for g in spatial_var_names]
         spatial_gene_loc = np.concatenate(spatial_gene_loc)
         gene_mappings = [slice(None), spatial_gene_loc]
         sum_stats = [adm.summary_stats for adm in self.adata_managers.values()]
@@ -123,9 +119,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         # of one of the datasets
         adata_seq_n_batches = sum_stats[0]["n_batch"]
         adata_spatial.obs[
-            self.adata_managers["spatial"]
-            .data_registry[REGISTRY_KEYS.BATCH_KEY]
-            .attr_key
+            self.adata_managers["spatial"].data_registry[REGISTRY_KEYS.BATCH_KEY].attr_key
         ] += adata_seq_n_batches
 
         n_batches = sum(s["n_batch"] for s in sum_stats)
@@ -133,9 +127,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         library_log_means = []
         library_log_vars = []
         for adata_manager in self.adata_managers.values():
-            adata_library_log_means, adata_library_log_vars = _init_library_size(
-                adata_manager, n_batches
-            )
+            adata_library_log_means, adata_library_log_vars = _init_library_size(adata_manager, n_batches)
             library_log_means.append(adata_library_log_means)
             library_log_vars.append(adata_library_log_vars)
 
@@ -299,11 +291,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                     sample_batch,
                     *_,
                 ) = _unpack_tensors(tensors)
-                latent.append(
-                    self.module.sample_from_posterior_z(
-                        sample_batch, mode, deterministic=deterministic
-                    )
-                )
+                latent.append(self.module.sample_from_posterior_z(sample_batch, mode, deterministic=deterministic))
 
             latent = torch.cat(latent).cpu().detach().numpy()
             latents.append(latent)
@@ -413,9 +401,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
-            raise ValueError(
-                f"{dir_path} already exists. Please provide an unexisting directory for saving."
-            )
+            raise ValueError(f"{dir_path} already exists. Please provide an unexisting directory for saving.")
 
         file_name_prefix = prefix or ""
         save_kwargs = save_kwargs or {}
@@ -426,9 +412,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             seq_save_path = os.path.join(dir_path, f"{file_name_prefix}adata_seq.h5ad")
             seq_adata.write(seq_save_path)
 
-            spatial_save_path = os.path.join(
-                dir_path, f"{file_name_prefix}adata_spatial.h5ad"
-            )
+            spatial_save_path = os.path.join(dir_path, f"{file_name_prefix}adata_spatial.h5ad")
             spatial_adata.write(spatial_save_path)
 
         # save the model state dict and the trainer state dict only
@@ -537,23 +521,15 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         registries = attr_dict.pop("registries_")
         for adata, registry in zip(adatas, registries):
-            if (
-                _MODEL_NAME_KEY in registry
-                and registry[_MODEL_NAME_KEY] != cls.__name__
-            ):
-                raise ValueError(
-                    "It appears you are loading a model from a different class."
-                )
+            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+                raise ValueError("It appears you are loading a model from a different class.")
 
             if _SETUP_ARGS_KEY not in registry:
                 raise ValueError(
-                    "Saved model does not contain original setup inputs. "
-                    "Cannot load the original setup."
+                    "Saved model does not contain original setup inputs. " "Cannot load the original setup."
                 )
 
-            cls.setup_anndata(
-                adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
-            )
+            cls.setup_anndata(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
 
         # get the parameters for the class init signature
         init_params = attr_dict.pop("init_params_")
@@ -568,9 +544,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         else:
             # grab all the parameters except for kwargs (is a dict)
-            non_kwargs = {
-                k: v for k, v in init_params.items() if not isinstance(v, dict)
-            }
+            non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
             kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         model = cls(adata_seq, adata_spatial, **non_kwargs, **kwargs)
@@ -611,9 +585,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         if not os.path.exists(output_dir_path) or overwrite:
             os.makedirs(output_dir_path, exist_ok=overwrite)
         else:
-            raise ValueError(
-                f"{dir_path} already exists. Please provide an unexisting directory for saving."
-            )
+            raise ValueError(f"{dir_path} already exists. Please provide an unexisting directory for saving.")
 
         file_name_prefix = prefix or ""
         (
@@ -672,9 +644,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -684,9 +654,7 @@ class TrainDL(DataLoader):
 
     def __init__(self, data_loader_list, **kwargs):
         self.data_loader_list = data_loader_list
-        self.largest_train_dl_idx = np.argmax(
-            [len(dl.indices) for dl in data_loader_list]
-        )
+        self.largest_train_dl_idx = np.argmax([len(dl.indices) for dl in data_loader_list])
         self.largest_dl = self.data_loader_list[self.largest_train_dl_idx]
         super().__init__(self.largest_dl, **kwargs)
 
@@ -694,8 +662,5 @@ class TrainDL(DataLoader):
         return len(self.largest_dl)
 
     def __iter__(self):
-        train_dls = [
-            dl if i == self.largest_train_dl_idx else cycle(dl)
-            for i, dl in enumerate(self.data_loader_list)
-        ]
+        train_dls = [dl if i == self.largest_train_dl_idx else cycle(dl) for i, dl in enumerate(self.data_loader_list)]
         return zip(*train_dls)

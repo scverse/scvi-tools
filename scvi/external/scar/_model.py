@@ -94,14 +94,10 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = (
-            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-        )
+        use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
         if not use_size_factor_key:
-            library_log_means, library_log_vars = _init_library_size(
-                self.adata_manager, n_batch
-            )
+            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         # self.summary_stats provides information about anndata dimensions and other tensor info
         if not torch.is_tensor(ambient_profile):
@@ -115,12 +111,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 ambient_profile = adata.X.sum(axis=0) / adata.X.sum(axis=0).sum()
                 ambient_profile = np.nan_to_num(ambient_profile)
             else:
-                raise TypeError(
-                    f"Expecting str / np.array / None / pd.DataFrame, but get a {type(ambient_profile)}"
-                )
-            ambient_profile = (
-                torch.from_numpy(np.asarray(ambient_profile)).float().reshape(1, -1)
-            )
+                raise TypeError(f"Expecting str / np.array / None / pd.DataFrame, but get a {type(ambient_profile)}")
+            ambient_profile = torch.from_numpy(np.asarray(ambient_profile)).float().reshape(1, -1)
 
         self.module = SCAR_VAE(
             ambient_profile=ambient_profile,
@@ -173,13 +165,9 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, None),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
-            NumericalObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -225,9 +213,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         raw_adata = raw_adata[raw_adata.X.sum(axis=1) >= min_raw_counts]
 
         sample = int(sample)
-        idx = np.random.choice(
-            raw_adata.shape[0], size=min(raw_adata.shape[0], sample), replace=False
-        )
+        idx = np.random.choice(raw_adata.shape[0], size=min(raw_adata.shape[0], sample), replace=False)
         raw_adata = raw_adata[idx]
         print(f"Randomly sampling {sample} droplets to calculate the ambient profile.")
         # initial estimation of ambient profile, will be updated
@@ -236,27 +222,21 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         for _ in track(range(iterations)):
             # calculate joint probability (log) of being cell-free droplets for each droplet
             log_prob = []
-            batch_idx = np.floor(
-                np.array(range(raw_adata.shape[0])) / raw_adata.shape[0] * n_batch
-            )
+            batch_idx = np.floor(np.array(range(raw_adata.shape[0])) / raw_adata.shape[0] * n_batch)
             for b in range(n_batch):
                 try:
                     count_batch = raw_adata[batch_idx == b].X.astype(int).A
                 except MemoryError as err:
-                    raise MemoryError(
-                        "use more batches by setting a higher n_batch"
-                    ) from err
-                log_prob_batch = Multinomial(
-                    probs=torch.tensor(ambient_prof), validate_args=False
-                ).log_prob(torch.Tensor(count_batch))
+                    raise MemoryError("use more batches by setting a higher n_batch") from err
+                log_prob_batch = Multinomial(probs=torch.tensor(ambient_prof), validate_args=False).log_prob(
+                    torch.Tensor(count_batch)
+                )
                 log_prob.append(log_prob_batch)
             log_prob = np.concatenate(log_prob, axis=0)
             raw_adata.obs["log_prob"] = log_prob
             raw_adata.obs["droplets"] = "other droplets"
             # cell-containing droplets
-            raw_adata.obs.loc[
-                raw_adata.obs_names.isin(adata.obs_names), "droplets"
-            ] = "cells"
+            raw_adata.obs.loc[raw_adata.obs_names.isin(adata.obs_names), "droplets"] = "cells"
             # identify cell-free droplets
             raw_adata.obs["droplets"] = raw_adata.obs["droplets"].mask(
                 raw_adata.obs["log_prob"] >= np.log(prob) * raw_adata.shape[1],
@@ -268,9 +248,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             ambient_prof = emptydrops.X.sum(axis=0) / emptydrops.X.sum()
 
         # update ambient profile
-        adata.varm["ambient_profile"] = np.asarray(
-            emptydrops.X.sum(axis=0).reshape(-1, 1) / emptydrops.X.sum()
-        )
+        adata.varm["ambient_profile"] = np.asarray(emptydrops.X.sum(axis=0).reshape(-1, 1) / emptydrops.X.sum())
 
     @torch.no_grad()
     def get_denoised_counts(
@@ -318,9 +296,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 px_scale = generative_outputs["px"].scale
             expected_counts = total_count_per_cell * px_scale.cpu()
 
-            b = torch.distributions.Binomial(
-                probs=expected_counts - expected_counts.floor()
-            )
+            b = torch.distributions.Binomial(probs=expected_counts - expected_counts.floor())
             expected_counts = expected_counts.floor() + b.sample()
 
             if n_samples > 1:

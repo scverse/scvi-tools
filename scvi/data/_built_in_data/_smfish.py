@@ -51,16 +51,12 @@ def _load_smfish(
     url = "http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom"
     save_fn = "osmFISH_SScortex_mouse_all_cell.loom"
     _download(url, save_path, save_fn)
-    adata = _load_smfish_data(
-        os.path.join(save_path, save_fn), use_high_level_cluster=use_high_level_cluster
-    )
+    adata = _load_smfish_data(os.path.join(save_path, save_fn), use_high_level_cluster=use_high_level_cluster)
     adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
     return adata
 
 
-def _load_smfish_data(
-    path_to_file: str, use_high_level_cluster: bool
-) -> anndata.AnnData:
+def _load_smfish_data(path_to_file: str, use_high_level_cluster: bool) -> anndata.AnnData:
     import loompy
 
     logger.info("Loading smFISH dataset")
@@ -85,11 +81,7 @@ def _load_smfish_data(
             "Oligodendrocytes",
             "Pyramidals",
         ]
-        row_indices = [
-            i
-            for i in range(data.shape[0])
-            if ds.ca["ClusterName"][i] in cell_types_to_keep
-        ]
+        row_indices = [i for i in range(data.shape[0]) if ds.ca["ClusterName"][i] in cell_types_to_keep]
         str_labels = str_labels[row_indices]
         data = data[row_indices, :]
         x_coord = x_coord[row_indices]
