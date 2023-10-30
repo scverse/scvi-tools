@@ -40,8 +40,8 @@ class FlaxEncoder(nn.Module):
         self.dense3 = Dense(self.n_latent)
         self.dense4 = Dense(self.n_latent)
 
-        self.batchnorm1 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
-        self.batchnorm2 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
+        self.batchnorm1 = nn.BatchNorm(momentum=0.9)
+        self.batchnorm2 = nn.BatchNorm(momentum=0.9)
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
