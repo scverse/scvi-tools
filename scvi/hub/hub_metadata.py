@@ -1,7 +1,7 @@
 import json
 import os
 from dataclasses import dataclass, field
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import torch
 from huggingface_hub import ModelCard, ModelCardData
@@ -63,9 +63,7 @@ class HubMetadata:
         kwargs
             Additional keyword arguments to pass to the HubMetadata initializer.
         """
-        attr_dict, _, _, _ = _load_saved_files(
-            local_dir, load_adata=False, map_location=map_location
-        )
+        attr_dict, _, _, _ = _load_saved_files(local_dir, load_adata=False, map_location=map_location)
         scvi_version = attr_dict["registry_"]["scvi_version"]
         model_cls_name = attr_dict["registry_"]["model_name"]
 
@@ -141,8 +139,8 @@ class HubModelCardHelper:
     model_data_registry: dict
     scvi_version: str
     anndata_version: str
-    data_modalities: List[str] = field(default_factory=list)
-    tissues: List[str] = field(default_factory=list)
+    data_modalities: list[str] = field(default_factory=list)
+    tissues: list[str] = field(default_factory=list)
     data_is_annotated: Optional[bool] = None
     data_is_minified: Optional[bool] = None
     training_data_url: Optional[str] = None
@@ -186,20 +184,14 @@ class HubModelCardHelper:
         kwargs
             Additional keyword arguments to pass to the HubModelCardHelper initializer.
         """
-        attr_dict, _, _, _ = _load_saved_files(
-            local_dir, load_adata=False, map_location=map_location
-        )
+        attr_dict, _, _, _ = _load_saved_files(local_dir, load_adata=False, map_location=map_location)
         model_init_params = attr_dict["init_params_"]
         registry = attr_dict["registry_"]
         model_cls_name = registry["model_name"]
         scvi_version = registry["scvi_version"]
         model_setup_anndata_args = registry["setup_args"]
-        model_summary_stats = dict(
-            AnnDataManager._get_summary_stats_from_registry(registry)
-        )
-        model_data_registry = dict(
-            AnnDataManager._get_data_registry_from_registry(registry)
-        )
+        model_summary_stats = dict(AnnDataManager._get_summary_stats_from_registry(registry))
+        model_data_registry = dict(AnnDataManager._get_data_registry_from_registry(registry))
 
         # get `is_minified` from the param if it is given, else from adata if it on disk, else set it to None
         is_minified = data_is_minified
@@ -250,14 +242,8 @@ class HubModelCardHelper:
             non_kwargs = self.model_init_params["non_kwargs"]
             kwargs = self.model_init_params["kwargs"]
         else:
-            non_kwargs = {
-                k: v
-                for k, v in self.model_init_params.items()
-                if not isinstance(v, dict)
-            }
-            kwargs = {
-                k: v for k, v in self.model_init_params.items() if isinstance(v, dict)
-            }
+            non_kwargs = {k: v for k, v in self.model_init_params.items() if not isinstance(v, dict)}
+            kwargs = {k: v for k, v in self.model_init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         # kwargs and non_kwargs keys should be disjoint but if not, we'll just use the original model_init_params
         if len(set(kwargs.keys()).intersection(set(non_kwargs.keys()))) == 0:
@@ -270,15 +256,9 @@ class HubModelCardHelper:
             card_data=card_data.to_yaml(),
             description=self.description,
             model_init_params=json.dumps(flattened_model_init_params, indent=4),
-            model_setup_anndata_args=json.dumps(
-                self.model_setup_anndata_args, indent=4
-            ),
-            model_summary_stats=AnnDataManager._view_summary_stats(
-                self.model_summary_stats, as_markdown=True
-            ),
-            model_data_registry=AnnDataManager._view_data_registry(
-                self.model_data_registry, as_markdown=True
-            ),
+            model_setup_anndata_args=json.dumps(self.model_setup_anndata_args, indent=4),
+            model_summary_stats=AnnDataManager._view_summary_stats(self.model_summary_stats, as_markdown=True),
+            model_data_registry=AnnDataManager._view_data_registry(self.model_data_registry, as_markdown=True),
             model_parent_module=self.model_parent_module,
             data_is_minified=_SCVI_HUB.DEFAULT_MISSING_FIELD
             if self.data_is_minified is None

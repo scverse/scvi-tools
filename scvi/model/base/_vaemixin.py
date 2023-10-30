@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -39,9 +40,7 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         elbo = compute_elbo(self.module, scdl)
         return -elbo
 
@@ -102,8 +101,7 @@ class VAEMixin:
                 return np.mean(log_lkl)
         else:
             raise NotImplementedError(
-                "marginal_ll is not implemented for current model. "
-                "Please raise an issue on github if you need it."
+                "marginal_ll is not implemented for current model. " "Please raise an issue on github if you need it."
             )
 
     @torch.inference_mode()
@@ -130,9 +128,7 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         reconstruction_error = compute_reconstruction_error(self.module, scdl)
         return reconstruction_error
 
@@ -145,7 +141,7 @@ class VAEMixin:
         mc_samples: int = 5000,
         batch_size: Optional[int] = None,
         return_dist: bool = False,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    ) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
         """Return the latent representation for each cell.
 
         This is typically denoted as :math:`z_n`.
@@ -177,9 +173,7 @@ class VAEMixin:
         self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         latent_qzm = []
         latent_qzv = []

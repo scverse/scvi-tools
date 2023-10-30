@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import pandas as pd
 import torch
@@ -12,12 +12,10 @@ class SimpleExperiment:
     def __init__(self):
         self.data = {}
 
-    def log_hparams(self, params: Dict[str, Any]) -> None:
+    def log_hparams(self, params: dict[str, Any]) -> None:
         """Record hparams."""
 
-    def log_metrics(
-        self, metrics: Dict[str, float], step: Optional[int] = None
-    ) -> None:
+    def log_metrics(self, metrics: dict[str, float], step: Optional[int] = None) -> None:
         """Record metrics."""
 
         def _handle_value(value):
@@ -47,9 +45,7 @@ class SimpleExperiment:
 class SimpleLogger(Logger):
     """Simple logger class."""
 
-    def __init__(
-        self, name: str = "lightning_logs", version: Optional[Union[int, str]] = None
-    ):
+    def __init__(self, name: str = "lightning_logs", version: Optional[Union[int, str]] = None):
         super().__init__()
         self._name = name
         self._experiment = None
@@ -75,7 +71,7 @@ class SimpleLogger(Logger):
         self.experiment.log_metrics(metrics, step)
 
     @property
-    def history(self) -> Dict[str, pd.DataFrame]:
+    def history(self) -> dict[str, pd.DataFrame]:
         return self.experiment.data
 
     @property

@@ -17,9 +17,7 @@ def _get_mdata(sparse_format: Optional[str] = None):
     mdata = mudata.MuData({"sc": dataset1, "sp": dataset2})
     ad_sp = mdata.mod["sp"]
     rna_count_per_spot = np.asarray(ad_sp.X.sum(axis=1)).squeeze()
-    ad_sp.obs["rna_count_based_density"] = rna_count_per_spot / np.sum(
-        rna_count_per_spot
-    )
+    ad_sp.obs["rna_count_based_density"] = rna_count_per_spot / np.sum(rna_count_per_spot)
     ad_sp.obs["bad_prior"] = np.random.uniform(size=ad_sp.n_obs)
     return mdata
 
@@ -52,9 +50,7 @@ def test_tangram(density_prior_key, constrained):
         mdata.mod["sc"].obsm["mapper"],
         mdata.mod["sc"].obs.labels,
     )
-    model.project_genes(
-        mdata.mod["sc"], mdata.mod["sp"], mdata.mod["sc"].obsm["mapper"]
-    )
+    model.project_genes(mdata.mod["sc"], mdata.mod["sp"], mdata.mod["sc"].obsm["mapper"])
 
 
 def test_tangram_errors():

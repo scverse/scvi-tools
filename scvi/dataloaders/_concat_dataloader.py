@@ -1,5 +1,5 @@
 from itertools import cycle
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 from torch.utils.data import DataLoader
@@ -33,7 +33,7 @@ class ConcatDataLoader(DataLoader):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        indices_list: List[List[int]],
+        indices_list: list[list[int]],
         shuffle: bool = False,
         batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,
@@ -74,7 +74,5 @@ class ConcatDataLoader(DataLoader):
         the data in the other dataloaders. The order of data in returned iter_list
         is the same as indices_list.
         """
-        iter_list = [
-            cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders
-        ]
+        iter_list = [cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders]
         return zip(*iter_list)

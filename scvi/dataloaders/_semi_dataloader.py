@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 
@@ -38,7 +38,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         self,
         adata_manager: AnnDataManager,
         n_samples_per_label: Optional[int] = None,
-        indices: Optional[List[int]] = None,
+        indices: Optional[list[int]] = None,
         shuffle: bool = False,
         batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,
@@ -56,9 +56,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
         self.n_samples_per_label = n_samples_per_label
 
-        labels_state_registry = adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
+        labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         labels = get_anndata_attribute(
             adata_manager.adata,
             adata_manager.data_registry.labels.attr_name,
@@ -109,9 +107,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             if len(loc) < self.n_samples_per_label:
                 sample_idx.append(loc)
             else:
-                label_subset = np.random.choice(
-                    loc, self.n_samples_per_label, replace=False
-                )
+                label_subset = np.random.choice(loc, self.n_samples_per_label, replace=False)
                 sample_idx.append(label_subset)
         sample_idx = np.concatenate(sample_idx)
         return sample_idx

@@ -3,7 +3,6 @@ import os
 import shutil
 import tarfile
 import warnings
-from typing import Tuple
 
 import numpy as np
 
@@ -53,9 +52,7 @@ available_datasets = {
 }
 
 dataset_to_group = {
-    dataset_name: group
-    for group, list_datasets in available_datasets.items()
-    for dataset_name in list_datasets
+    dataset_name: group for group, list_datasets in available_datasets.items() for dataset_name in list_datasets
 }
 
 group_to_url_skeleton = {
@@ -148,7 +145,7 @@ def _load_dataset_10x(
     return adata
 
 
-def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
+def _find_path_to_mtx(save_path: str) -> tuple[str, str]:
     """Returns exact path for the data in the archive.
 
     This is required because 10X doesn't have a consistent way of storing their data.
@@ -162,10 +159,7 @@ def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
     for root, _, files in os.walk(save_path):
         # do not consider hidden files
         files = [f for f in files if not f[0] == "."]
-        contains_mat = [
-            filename == "matrix.mtx" or filename == "matrix.mtx.gz"
-            for filename in files
-        ]
+        contains_mat = [filename == "matrix.mtx" or filename == "matrix.mtx.gz" for filename in files]
         contains_mat = np.asarray(contains_mat).any()
         if contains_mat:
             is_tar = files[0][-3:] == ".gz"

@@ -1,7 +1,8 @@
 import inspect
 import logging
 import warnings
-from typing import Callable, Dict, List, Literal, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import Callable, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -45,7 +46,7 @@ class DifferentialComputation:
         self.model_fn = model_fn
         self.representation_fn = representation_fn
 
-    def filter_outlier_cells(self, selection: Union[List[bool], np.ndarray]):
+    def filter_outlier_cells(self, selection: Union[list[bool], np.ndarray]):
         """Filters out cells that are outliers in the representation space."""
         selection = self.process_selection(selection)
         reps = self.representation_fn(
@@ -66,8 +67,8 @@ class DifferentialComputation:
 
     def get_bayes_factors(
         self,
-        idx1: Union[List[bool], np.ndarray],
-        idx2: Union[List[bool], np.ndarray],
+        idx1: Union[list[bool], np.ndarray],
+        idx2: Union[list[bool], np.ndarray],
         mode: Literal["vanilla", "change"] = "vanilla",
         batchid1: Optional[Sequence[Union[Number, str]]] = None,
         batchid2: Optional[Sequence[Union[Number, str]]] = None,
@@ -79,8 +80,8 @@ class DifferentialComputation:
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
         pseudocounts: Union[float, None] = 0.0,
-        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
-    ) -> Dict[str, np.ndarray]:
+        cred_interval_lvls: Optional[Union[list[float], np.ndarray]] = None,
+    ) -> dict[str, np.ndarray]:
         r"""A unified method for differential expression inference.
 
         Two modes coexist:
@@ -228,29 +229,19 @@ class DifferentialComputation:
         batchid1_vals = np.unique(scales_batches_1["batch"])
         batchid2_vals = np.unique(scales_batches_2["batch"])
 
-        create_pairs_from_same_batches = (
-            set(batchid1_vals) == set(batchid2_vals)
-        ) and not use_observed_batches
+        create_pairs_from_same_batches = (set(batchid1_vals) == set(batchid2_vals)) and not use_observed_batches
         if create_pairs_from_same_batches:
             # First case: same batch normalization in two groups
             logger.debug("Same batches in both cell groups")
             n_batches = len(set(batchid1_vals))
-            n_samples_per_batch = (
-                m_permutation // n_batches if m_permutation is not None else None
-            )
-            logger.debug(
-                f"Using {n_samples_per_batch} samples per batch for pair matching"
-            )
+            n_samples_per_batch = m_permutation // n_batches if m_permutation is not None else None
+            logger.debug(f"Using {n_samples_per_batch} samples per batch for pair matching")
             scales_1 = []
             scales_2 = []
             for batch_val in set(batchid1_vals):
                 # Select scale samples that originate from the same batch id
-                scales_1_batch = scales_batches_1["scale"][
-                    scales_batches_1["batch"] == batch_val
-                ]
-                scales_2_batch = scales_batches_2["scale"][
-                    scales_batches_2["batch"] == batch_val
-                ]
+                scales_1_batch = scales_batches_1["scale"][scales_batches_1["batch"] == batch_val]
+                scales_2_batch = scales_batches_2["scale"][scales_batches_2["batch"] == batch_val]
 
                 # Create more pairs
                 scales_1_local, scales_2_local = pairs_sampler(
@@ -322,28 +313,18 @@ class DifferentialComputation:
             if m1_domain_fn is None:
 
                 def m1_domain_fn(samples):
-                    delta_ = (
-                        delta
-                        if delta is not None
-                        else estimate_delta(lfc_means=samples.mean(0))
-                    )
+                    delta_ = delta if delta is not None else estimate_delta(lfc_means=samples.mean(0))
                     logger.debug(f"Using delta ~ {delta_:.2f}")
                     return np.abs(samples) >= delta_
 
             change_fn_specs = inspect.getfullargspec(change_fn)
             domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
             if (len(change_fn_specs.args) != 2) | (len(domain_fn_specs.args) != 1):
-                raise ValueError(
-                    "change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter."
-                )
+                raise ValueError("change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter.")
             try:
                 change_distribution = change_fn(scales_1, scales_2)
                 is_de = m1_domain_fn(change_distribution)
-                delta_ = (
-                    estimate_delta(lfc_means=change_distribution.mean(0))
-                    if delta is None
-                    else delta
-                )
+                delta_ = estimate_delta(lfc_means=change_distribution.mean(0)) if delta is None else delta
             except TypeError as err:
                 raise TypeError(
                     "change_fn or m1_domain_fn have has wrong properties."
@@ -355,9 +336,7 @@ class DifferentialComputation:
                 samples=change_distribution,
                 credible_intervals_levels=cred_interval_lvls,
             )
-            change_distribution_props = {
-                "lfc_" + key: val for (key, val) in change_distribution_props.items()
-            }
+            change_distribution_props = {"lfc_" + key: val for (key, val) in change_distribution_props.items()}
 
             res = dict(
                 proba_de=proba_m1,
@@ -377,7 +356,7 @@ class DifferentialComputation:
     @torch.inference_mode()
     def scale_sampler(
         self,
-        selection: Union[List[bool], np.ndarray],
+        selection: Union[list[bool], np.ndarray],
         n_samples: Optional[int] = 5000,
         n_samples_per_cell: Optional[int] = None,
         batchid: Optional[Sequence[Union[Number, str]]] = None,
@@ -422,9 +401,7 @@ class DifferentialComputation:
         """
         # Get overall number of desired samples and desired batches
         if batchid is None and not use_observed_batches:
-            batch_registry = self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.BATCH_KEY
-            )
+            batch_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)
             batchid = batch_registry.categorical_mapping
         if use_observed_batches:
             if batchid is not None:
@@ -436,18 +413,19 @@ class DifferentialComputation:
             n_samples = n_samples_per_cell * len(selection)
         if (n_samples_per_cell is not None) and (n_samples is not None):
             warnings.warn(
-                "`n_samples` and `n_samples_per_cell` were provided. Ignoring "
-                "`n_samples_per_cell`",
+                "`n_samples` and `n_samples_per_cell` were provided. Ignoring " "`n_samples_per_cell`",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
         n_samples = int(n_samples / len(batchid))
         if n_samples == 0:
-            warnings.warn(
-                "very small sample size, please consider increasing `n_samples`",
-                UserWarning,
-                stacklevel=settings.warnings_stacklevel,
-            ),
+            (
+                warnings.warn(
+                    "very small sample size, please consider increasing `n_samples`",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                ),
+            )
             n_samples = 2
 
         selection = self.process_selection(selection)
@@ -473,7 +451,7 @@ class DifferentialComputation:
             px_scales = px_scales.mean(0)
         return {"scale": px_scales, "batch": batch_ids}
 
-    def process_selection(self, selection: Union[List[bool], np.ndarray]) -> np.ndarray:
+    def process_selection(self, selection: Union[list[bool], np.ndarray]) -> np.ndarray:
         """If selection is a mask, convert it to indices."""
         selection = np.asarray(selection)
         if selection.dtype is np.dtype("bool"):
@@ -483,7 +461,7 @@ class DifferentialComputation:
         return selection
 
 
-def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
+def estimate_delta(lfc_means: list[np.ndarray], coef=0.6, min_thres=0.3):
     """Computes a threshold LFC value based on means of LFCs.
 
     Parameters
@@ -507,10 +485,10 @@ def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
 
 
 def estimate_pseudocounts_offset(
-    scales_a: List[np.ndarray],
-    scales_b: List[np.ndarray],
-    where_zero_a: List[np.ndarray],
-    where_zero_b: List[np.ndarray],
+    scales_a: list[np.ndarray],
+    scales_b: list[np.ndarray],
+    where_zero_a: list[np.ndarray],
+    where_zero_b: list[np.ndarray],
     percentile: Optional[float] = 0.9,
 ):
     """Determines pseudocount offset.
@@ -530,14 +508,11 @@ def estimate_pseudocounts_offset(
     """
     max_scales_a = np.max(scales_a, 0)
     max_scales_b = np.max(scales_b, 0)
-    asserts = (
-        (max_scales_a.shape == where_zero_a.shape)
-        and (max_scales_b.shape == where_zero_b.shape)
-    ) and (where_zero_a.shape == where_zero_b.shape)
+    asserts = ((max_scales_a.shape == where_zero_a.shape) and (max_scales_b.shape == where_zero_b.shape)) and (
+        where_zero_a.shape == where_zero_b.shape
+    )
     if not asserts:
-        raise ValueError(
-            "Dimension mismatch between scales and/or masks to compute the pseudocounts offset."
-        )
+        raise ValueError("Dimension mismatch between scales and/or masks to compute the pseudocounts offset.")
     if where_zero_a.sum() >= 1:
         artefact_scales_a = max_scales_a[where_zero_a]
         eps_a = np.percentile(artefact_scales_a, q=percentile)
@@ -554,13 +529,13 @@ def estimate_pseudocounts_offset(
 
 
 def pairs_sampler(
-    arr1: Union[List[float], np.ndarray, torch.Tensor],
-    arr2: Union[List[float], np.ndarray, torch.Tensor],
+    arr1: Union[list[float], np.ndarray, torch.Tensor],
+    arr2: Union[list[float], np.ndarray, torch.Tensor],
     use_permutation: bool = True,
     m_permutation: int = None,
     sanity_check_perm: bool = False,
-    weights1: Union[List[float], np.ndarray, torch.Tensor] = None,
-    weights2: Union[List[float], np.ndarray, torch.Tensor] = None,
+    weights1: Union[list[float], np.ndarray, torch.Tensor] = None,
+    weights2: Union[list[float], np.ndarray, torch.Tensor] = None,
 ) -> tuple:
     """Creates more pairs.
 
@@ -617,9 +592,7 @@ def pairs_sampler(
     return first_set, second_set
 
 
-def credible_intervals(
-    ary: np.ndarray, confidence_level: Union[float, List[float], np.ndarray] = 0.94
-) -> np.ndarray:
+def credible_intervals(ary: np.ndarray, confidence_level: Union[float, list[float], np.ndarray] = 0.94) -> np.ndarray:
     """Calculate highest posterior density (HPD) of array for given credible_interval.
 
     Taken from the arviz package
@@ -639,12 +612,7 @@ def credible_intervals(
         intervals minima, intervals maxima
     """
     if ary.ndim > 1:
-        hpd = np.array(
-            [
-                credible_intervals(row, confidence_level=confidence_level)
-                for row in ary.T
-            ]
-        )
+        hpd = np.array([credible_intervals(row, confidence_level=confidence_level) for row in ary.T])
         return hpd
     # Make a copy of trace
     ary = ary.copy()
@@ -667,7 +635,7 @@ def credible_intervals(
 
 def describe_continuous_distrib(
     samples: Union[np.ndarray, torch.Tensor],
-    credible_intervals_levels: Optional[Union[List[float], np.ndarray]] = None,
+    credible_intervals_levels: Optional[Union[list[float], np.ndarray]] = None,
 ) -> dict:
     """Computes properties of distribution based on its samples.
 
@@ -691,9 +659,7 @@ def describe_continuous_distrib(
         "min": samples.min(0),
         "max": samples.max(0),
     }
-    credible_intervals_levels = (
-        [] if credible_intervals_levels is None else credible_intervals_levels
-    )
+    credible_intervals_levels = [] if credible_intervals_levels is None else credible_intervals_levels
     for confidence in credible_intervals_levels:
         intervals = credible_intervals(samples, confidence_level=confidence)
         interval_min, interval_max = intervals[:, 0], intervals[:, 1]
@@ -704,9 +670,7 @@ def describe_continuous_distrib(
     return dist_props
 
 
-def save_cluster_xlsx(
-    filepath: str, de_results: List[pd.DataFrame], cluster_names: List
-):
+def save_cluster_xlsx(filepath: str, de_results: list[pd.DataFrame], cluster_names: list):
     """Saves multi-clusters DE in an xlsx sheet.
 
     Parameters

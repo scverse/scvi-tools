@@ -1,6 +1,7 @@
 import collections.abc
 import logging
-from typing import Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -65,22 +66,15 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         if (
             cell_topic_prior is not None
             and not isinstance(cell_topic_prior, float)
-            and (
-                not isinstance(cell_topic_prior, collections.abc.Sequence)
-                or len(cell_topic_prior) != n_topics
-            )
+            and (not isinstance(cell_topic_prior, collections.abc.Sequence) or len(cell_topic_prior) != n_topics)
         ):
             raise ValueError(
-                f"cell_topic_prior, {cell_topic_prior}, must be None, "
-                f"a float or a Sequence of length n_topics."
+                f"cell_topic_prior, {cell_topic_prior}, must be None, " f"a float or a Sequence of length n_topics."
             )
         if (
             topic_feature_prior is not None
             and not isinstance(topic_feature_prior, float)
-            and (
-                not isinstance(topic_feature_prior, collections.abc.Sequence)
-                or len(topic_feature_prior) != n_input
-            )
+            and (not isinstance(topic_feature_prior, collections.abc.Sequence) or len(topic_feature_prior) != n_input)
         ):
             raise ValueError(
                 f"topic_feature_prior, {topic_feature_prior}, must be None, "
@@ -116,9 +110,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -181,9 +173,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         transformed_xs = []
         for tensors in dl:
             x = tensors[REGISTRY_KEYS.X_KEY]
-            transformed_xs.append(
-                self.module.get_topic_distribution(x, n_samples=n_samples)
-            )
+            transformed_xs.append(self.module.get_topic_distribution(x, n_samples=n_samples))
         transformed_x = torch.cat(transformed_xs).numpy()
 
         return pd.DataFrame(
@@ -259,7 +249,4 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         total_counts = sum(tensors[REGISTRY_KEYS.X_KEY].sum().item() for tensors in dl)
 
-        return np.exp(
-            self.get_elbo(adata=adata, indices=indices, batch_size=batch_size)
-            / total_counts
-        )
+        return np.exp(self.get_elbo(adata=adata, indices=indices, batch_size=batch_size) / total_counts)

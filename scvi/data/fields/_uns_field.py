@@ -26,14 +26,10 @@ class BaseUnsField(BaseAnnDataField):
 
     _attr_name = _constants._ADATA_ATTRS.UNS
 
-    def __init__(
-        self, registry_key: str, uns_key: Optional[str], required: bool = True
-    ) -> None:
+    def __init__(self, registry_key: str, uns_key: Optional[str], required: bool = True) -> None:
         super().__init__()
         if required and uns_key is None:
-            raise ValueError(
-                "`uns_key` cannot be `None` if `required=True`. Please provide an `uns_key`."
-            )
+            raise ValueError("`uns_key` cannot be `None` if `required=True`. Please provide an `uns_key`.")
         self._registry_key = registry_key
         self._attr_key = uns_key
         self._is_empty = uns_key is None

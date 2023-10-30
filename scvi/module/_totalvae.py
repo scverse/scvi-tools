@@ -1,5 +1,6 @@
 """Main module."""
-from typing import Dict, Iterable, Literal, Optional, Tuple, Union
+from collections.abc import Iterable
+from typing import Literal, Optional, Union
 
 import numpy as np
 import torch
@@ -116,13 +117,11 @@ class TOTALVAE(BaseModuleClass):
         dropout_rate_decoder: Tunable[float] = 0.2,
         dropout_rate_encoder: Tunable[float] = 0.2,
         gene_dispersion: Tunable[Literal["gene", "gene-batch", "gene-label"]] = "gene",
-        protein_dispersion: Tunable[
-            Literal["protein", "protein-batch", "protein-label"]
-        ] = "protein",
+        protein_dispersion: Tunable[Literal["protein", "protein-batch", "protein-label"]] = "protein",
         log_variational: bool = True,
         gene_likelihood: Tunable[Literal["zinb", "nb"]] = "nb",
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
-        protein_batch_mask: Dict[Union[str, int], np.ndarray] = None,
+        protein_batch_mask: dict[Union[str, int], np.ndarray] = None,
         encode_covariates: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
@@ -153,33 +152,22 @@ class TOTALVAE(BaseModuleClass):
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_means is None:
                 raise ValueError(
-                    "If not using observed_lib_size, "
-                    "must provide library_log_means and library_log_vars."
+                    "If not using observed_lib_size, " "must provide library_log_means and library_log_vars."
                 )
 
-            self.register_buffer(
-                "library_log_means", torch.from_numpy(library_log_means).float()
-            )
-            self.register_buffer(
-                "library_log_vars", torch.from_numpy(library_log_vars).float()
-            )
+            self.register_buffer("library_log_means", torch.from_numpy(library_log_means).float())
+            self.register_buffer("library_log_vars", torch.from_numpy(library_log_vars).float())
 
         # parameters for prior on rate_back (background protein mean)
         if protein_background_prior_mean is None:
             if n_batch > 0:
-                self.background_pro_alpha = torch.nn.Parameter(
-                    torch.randn(n_input_proteins, n_batch)
-                )
+                self.background_pro_alpha = torch.nn.Parameter(torch.randn(n_input_proteins, n_batch))
                 self.background_pro_log_beta = torch.nn.Parameter(
                     torch.clamp(torch.randn(n_input_proteins, n_batch), -10, 1)
                 )
             else:
-                self.background_pro_alpha = torch.nn.Parameter(
-                    torch.randn(n_input_proteins)
-                )
-                self.background_pro_log_beta = torch.nn.Parameter(
-                    torch.clamp(torch.randn(n_input_proteins), -10, 1)
-                )
+                self.background_pro_alpha = torch.nn.Parameter(torch.randn(n_input_proteins))
+                self.background_pro_log_beta = torch.nn.Parameter(torch.clamp(torch.randn(n_input_proteins), -10, 1))
         else:
             if protein_background_prior_mean.shape[1] == 1 and n_batch != 1:
                 init_mean = protein_background_prior_mean.ravel()
@@ -187,9 +175,7 @@ class TOTALVAE(BaseModuleClass):
             else:
                 init_mean = protein_background_prior_mean
                 init_scale = protein_background_prior_scale
-            self.background_pro_alpha = torch.nn.Parameter(
-                torch.from_numpy(init_mean.astype(np.float32))
-            )
+            self.background_pro_alpha = torch.nn.Parameter(torch.from_numpy(init_mean.astype(np.float32)))
             self.background_pro_log_beta = torch.nn.Parameter(
                 torch.log(torch.from_numpy(init_scale.astype(np.float32)))
             )
@@ -206,13 +192,9 @@ class TOTALVAE(BaseModuleClass):
         if self.protein_dispersion == "protein":
             self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins))
         elif self.protein_dispersion == "protein-batch":
-            self.py_r = torch.nn.Parameter(
-                2 * torch.rand(self.n_input_proteins, n_batch)
-            )
+            self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins, n_batch))
         elif self.protein_dispersion == "protein-label":
-            self.py_r = torch.nn.Parameter(
-                2 * torch.rand(self.n_input_proteins, n_labels)
-            )
+            self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins, n_labels))
         else:  # protein-cell
             pass
 
@@ -262,7 +244,7 @@ class TOTALVAE(BaseModuleClass):
         batch_index: Optional[torch.Tensor] = None,
         label: Optional[torch.Tensor] = None,
         n_samples: int = 1,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Returns the tensors of dispersions for genes and proteins.
 
         Parameters
@@ -283,9 +265,7 @@ class TOTALVAE(BaseModuleClass):
         type
             tensors of dispersions of the negative binomial distribution
         """
-        outputs = self.inference(
-            x, y, batch_index=batch_index, label=label, n_samples=n_samples
-        )
+        outputs = self.inference(x, y, batch_index=batch_index, label=label, n_samples=n_samples)
         px_r = outputs["px_"]["r"]
         py_r = outputs["py_"]["r"]
         return px_r, py_r
@@ -294,28 +274,22 @@ class TOTALVAE(BaseModuleClass):
         self,
         x: torch.Tensor,
         y: torch.Tensor,
-        px_dict: Dict[str, torch.Tensor],
-        py_dict: Dict[str, torch.Tensor],
+        px_dict: dict[str, torch.Tensor],
+        py_dict: dict[str, torch.Tensor],
         pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute reconstruction loss."""
         px_ = px_dict
         py_ = py_dict
         # Reconstruction Loss
         if self.gene_likelihood == "zinb":
             reconst_loss_gene = (
-                -ZeroInflatedNegativeBinomial(
-                    mu=px_["rate"], theta=px_["r"], zi_logits=px_["dropout"]
-                )
+                -ZeroInflatedNegativeBinomial(mu=px_["rate"], theta=px_["r"], zi_logits=px_["dropout"])
                 .log_prob(x)
                 .sum(dim=-1)
             )
         else:
-            reconst_loss_gene = (
-                -NegativeBinomial(mu=px_["rate"], theta=px_["r"])
-                .log_prob(x)
-                .sum(dim=-1)
-            )
+            reconst_loss_gene = -NegativeBinomial(mu=px_["rate"], theta=px_["r"]).log_prob(x).sum(dim=-1)
 
         py_conditional = NegativeBinomialMixture(
             mu1=py_["rate_back"],
@@ -325,9 +299,7 @@ class TOTALVAE(BaseModuleClass):
         )
         reconst_loss_protein_full = -py_conditional.log_prob(y)
         if pro_batch_mask_minibatch is not None:
-            temp_pro_loss_full = (
-                pro_batch_mask_minibatch.bool() * reconst_loss_protein_full
-            )
+            temp_pro_loss_full = pro_batch_mask_minibatch.bool() * reconst_loss_protein_full
             reconst_loss_protein = temp_pro_loss_full.sum(dim=-1)
         else:
             reconst_loss_protein = reconst_loss_protein_full.sum(dim=-1)
@@ -367,9 +339,7 @@ class TOTALVAE(BaseModuleClass):
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
-        size_factor = (
-            tensors[size_factor_key] if size_factor_key in tensors.keys() else None
-        )
+        size_factor = tensors[size_factor_key] if size_factor_key in tensors.keys() else None
 
         return {
             "z": z,
@@ -392,14 +362,12 @@ class TOTALVAE(BaseModuleClass):
         cat_covs=None,
         size_factor=None,
         transform_batch: Optional[int] = None,
-    ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
+    ) -> dict[str, Union[torch.Tensor, dict[str, torch.Tensor]]]:
         """Run the generative step."""
         if cont_covs is None:
             decoder_input = z
         elif z.dim() != cont_covs.dim():
-            decoder_input = torch.cat(
-                [z, cont_covs.unsqueeze(0).expand(z.size(0), -1, -1)], dim=-1
-            )
+            decoder_input = torch.cat([z, cont_covs.unsqueeze(0).expand(z.size(0), -1, -1)], dim=-1)
         else:
             decoder_input = torch.cat([z, cont_covs], dim=-1)
 
@@ -414,9 +382,7 @@ class TOTALVAE(BaseModuleClass):
         if not self.use_size_factor_key:
             size_factor = library_gene
 
-        px_, py_, log_pro_back_mean = self.decoder(
-            decoder_input, size_factor, batch_index, *categorical_input
-        )
+        px_, py_, log_pro_back_mean = self.decoder(decoder_input, size_factor, batch_index, *categorical_input)
 
         if self.gene_dispersion == "gene-label":
             # px_r gets transposed - last dimension is nb genes
@@ -454,7 +420,7 @@ class TOTALVAE(BaseModuleClass):
         n_samples=1,
         cont_covs=None,
         cat_covs=None,
-    ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
+    ) -> dict[str, Union[torch.Tensor, dict[str, torch.Tensor]]]:
         """Internal helper function to compute necessary inference quantities.
 
         We use the dictionary ``px_`` to contain the parameters of the ZINB/NB for genes.
@@ -503,9 +469,7 @@ class TOTALVAE(BaseModuleClass):
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = ()
-        qz, ql, latent, untran_latent = self.encoder(
-            encoder_input, batch_index, *categorical_input
-        )
+        qz, ql, latent, untran_latent = self.encoder(encoder_input, batch_index, *categorical_input)
 
         z = latent["z"]
         untran_z = untran_latent["z"]
@@ -544,9 +508,7 @@ class TOTALVAE(BaseModuleClass):
             py_r = self.py_r
         py_r = torch.exp(py_r)
         if self.n_batch > 0:
-            py_back_alpha_prior = F.linear(
-                one_hot(batch_index, self.n_batch), self.background_pro_alpha
-            )
+            py_back_alpha_prior = F.linear(one_hot(batch_index, self.n_batch), self.background_pro_alpha)
             py_back_beta_prior = F.linear(
                 one_hot(batch_index, self.n_batch),
                 torch.exp(self.background_pro_log_beta),
@@ -572,9 +534,7 @@ class TOTALVAE(BaseModuleClass):
         generative_outputs,
         pro_recons_weight=1.0,  # double check these defaults
         kl_weight=1.0,
-    ) -> Tuple[
-        torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor
-    ]:
+    ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
         """Returns the reconstruction loss and the Kullback divergences.
 
         Parameters
@@ -621,12 +581,8 @@ class TOTALVAE(BaseModuleClass):
         kl_div_z = kl(qz, Normal(0, 1)).sum(dim=1)
         if not self.use_observed_lib_size:
             n_batch = self.library_log_means.shape[1]
-            local_library_log_means = F.linear(
-                one_hot(batch_index, n_batch), self.library_log_means
-            )
-            local_library_log_vars = F.linear(
-                one_hot(batch_index, n_batch), self.library_log_vars
-            )
+            local_library_log_means = F.linear(one_hot(batch_index, n_batch), self.library_log_means)
+            local_library_log_vars = F.linear(one_hot(batch_index, n_batch), self.library_log_vars)
             kl_div_l_gene = kl(
                 ql,
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
@@ -634,9 +590,7 @@ class TOTALVAE(BaseModuleClass):
         else:
             kl_div_l_gene = 0.0
 
-        kl_div_back_pro_full = kl(
-            Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
-        )
+        kl_div_back_pro_full = kl(Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior)
         if pro_batch_mask_minibatch is not None:
             kl_div_back_pro = pro_batch_mask_minibatch.bool() * kl_div_back_pro_full
             kl_div_back_pro = kl_div_back_pro.sum(dim=1)
@@ -660,9 +614,7 @@ class TOTALVAE(BaseModuleClass):
             "kl_div_back_pro": kl_div_back_pro,
         }
 
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local)
 
     @torch.inference_mode()
     def sample(self, tensors, n_samples=1):
@@ -723,16 +675,10 @@ class TOTALVAE(BaseModuleClass):
 
             if not self.use_observed_lib_size:
                 n_batch = self.library_log_means.shape[1]
-                local_library_log_means = F.linear(
-                    one_hot(batch_index, n_batch), self.library_log_means
-                )
-                local_library_log_vars = F.linear(
-                    one_hot(batch_index, n_batch), self.library_log_vars
-                )
+                local_library_log_means = F.linear(one_hot(batch_index, n_batch), self.library_log_means)
+                local_library_log_vars = F.linear(one_hot(batch_index, n_batch), self.library_log_vars)
                 p_l_gene = (
-                    Normal(local_library_log_means, local_library_log_vars.sqrt())
-                    .log_prob(log_library)
-                    .sum(dim=-1)
+                    Normal(local_library_log_means, local_library_log_vars.sqrt()).log_prob(log_library).sum(dim=-1)
                 )
                 q_l_x = ql.log_prob(log_library).sum(dim=-1)
 
@@ -742,11 +688,7 @@ class TOTALVAE(BaseModuleClass):
             p_mu_back = self.back_mean_prior.log_prob(log_pro_back_mean).sum(dim=-1)
             p_xy_zl = -(reconst_loss_gene + reconst_loss_protein)
             q_z_x = qz.log_prob(z).sum(dim=-1)
-            q_mu_back = (
-                Normal(py_["back_alpha"], py_["back_beta"])
-                .log_prob(log_pro_back_mean)
-                .sum(dim=-1)
-            )
+            q_mu_back = Normal(py_["back_alpha"], py_["back_beta"]).log_prob(log_pro_back_mean).sum(dim=-1)
             log_prob_sum += p_z + p_mu_back + p_xy_zl - q_z_x - q_mu_back
 
             to_sum[:, i] = log_prob_sum

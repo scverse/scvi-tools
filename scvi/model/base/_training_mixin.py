@@ -76,18 +76,14 @@ class UnsupervisedTrainingMixin:
             validation_size=validation_size,
             batch_size=batch_size,
             shuffle_set_split=shuffle_set_split,
-            distributed_sampler=use_distributed_sampler(
-                trainer_kwargs.get("strategy", None)
-            ),
+            distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
             load_sparse_tensor=load_sparse_tensor,
             **datasplitter_kwargs,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
-        trainer_kwargs[es] = (
-            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
-        )
+        trainer_kwargs[es] = early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
         runner = self._train_runner_cls(
             self,
             training_plan=training_plan,

@@ -1,5 +1,6 @@
 import collections
-from typing import Callable, Iterable, List, Literal, Optional
+from collections.abc import Iterable
+from typing import Callable, Literal, Optional
 
 import torch
 from torch import nn
@@ -84,19 +85,13 @@ class FCLayers(nn.Module):
                                 bias=bias,
                             ),
                             # non-default params come from defaults in original Tensorflow implementation
-                            nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
-                            if use_batch_norm
-                            else None,
-                            nn.LayerNorm(n_out, elementwise_affine=False)
-                            if use_layer_norm
-                            else None,
+                            nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001) if use_batch_norm else None,
+                            nn.LayerNorm(n_out, elementwise_affine=False) if use_layer_norm else None,
                             activation_fn() if use_activation else None,
                             nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
                         ),
                     )
-                    for i, (n_in, n_out) in enumerate(
-                        zip(layers_dim[:-1], layers_dim[1:])
-                    )
+                    for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))
                 ]
             )
         )
@@ -151,9 +146,7 @@ class FCLayers(nn.Module):
         one_hot_cat_list = []  # for generality in this list many indices useless.
 
         if len(self.n_cat_list) > len(cat_list):
-            raise ValueError(
-                "nb. categorical args provided doesn't match init. params."
-            )
+            raise ValueError("nb. categorical args provided doesn't match init. params.")
         for n_cat, cat in zip(self.n_cat_list, cat_list):
             if n_cat and cat is None:
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
@@ -168,19 +161,14 @@ class FCLayers(nn.Module):
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
                         if x.dim() == 3:
-                            x = torch.cat(
-                                [(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0
-                            )
+                            x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
                         else:
                             x = layer(x)
                     else:
                         if isinstance(layer, nn.Linear) and self.inject_into_layer(i):
                             if x.dim() == 3:
                                 one_hot_cat_list_layer = [
-                                    o.unsqueeze(0).expand(
-                                        (x.size(0), o.size(0), o.size(1))
-                                    )
-                                    for o in one_hot_cat_list
+                                    o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1))) for o in one_hot_cat_list
                                 ]
                             else:
                                 one_hot_cat_list_layer = one_hot_cat_list
@@ -458,9 +446,7 @@ class LinearDecoderSCVI(nn.Module):
             **kwargs,
         )
 
-    def forward(
-        self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int
-    ):
+    def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int):
         """Forward pass."""
         # The decoder returns values for the parameters of the ZINB distribution
         raw_px_scale = self.factor_regressor(z, *cat_list)
@@ -555,7 +541,7 @@ class MultiEncoder(nn.Module):
     def __init__(
         self,
         n_heads: int,
-        n_input_list: List[int],
+        n_input_list: list[int],
         n_output: int,
         n_hidden: int = 128,
         n_layers_individual: int = 1,
@@ -660,9 +646,7 @@ class MultiDecoder(nn.Module):
         else:
             self.px_decoder_final = None
 
-        self.px_scale_decoder = nn.Sequential(
-            nn.Linear(n_in, n_output), nn.Softmax(dim=-1)
-        )
+        self.px_scale_decoder = nn.Sequential(nn.Linear(n_in, n_output), nn.Softmax(dim=-1))
         self.px_r_decoder = nn.Linear(n_in, n_output)
         self.px_dropout_decoder = nn.Linear(n_in, n_output)
 
@@ -882,17 +866,13 @@ class DecoderTOTALVI(nn.Module):
         py_back_cat_z = torch.cat([py_back, z], dim=-1)
 
         py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
-        py_["back_beta"] = torch.exp(
-            self.py_back_mean_log_beta(py_back_cat_z, *cat_list)
-        )
+        py_["back_beta"] = torch.exp(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)
 
         py_fore = self.py_fore_decoder(z, *cat_list)
         py_fore_cat_z = torch.cat([py_fore, z], dim=-1)
-        py_["fore_scale"] = (
-            self.py_fore_scale_decoder(py_fore_cat_z, *cat_list) + 1 + 1e-8
-        )
+        py_["fore_scale"] = self.py_fore_scale_decoder(py_fore_cat_z, *cat_list) + 1 + 1e-8
         py_["rate_fore"] = py_["rate_back"] * py_["fore_scale"]
 
         p_mixing = self.sigmoid_decoder(z, *cat_list)
@@ -901,9 +881,7 @@ class DecoderTOTALVI(nn.Module):
         py_["mixing"] = self.py_background_decoder(p_mixing_cat_z, *cat_list)
 
         protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
-        py_["scale"] = torch.nn.functional.normalize(
-            (1 - protein_mixing) * py_["rate_fore"], p=1, dim=-1
-        )
+        py_["scale"] = torch.nn.functional.normalize((1 - protein_mixing) * py_["rate_fore"], p=1, dim=-1)
 
         return (px_, py_, log_pro_back_mean)
 

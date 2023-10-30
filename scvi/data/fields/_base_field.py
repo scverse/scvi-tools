@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Type, Union
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -65,9 +65,7 @@ class BaseAnnDataField(ABC):
         return {}
 
     @abstractmethod
-    def transfer_field(
-        self, state_registry: dict, adata_target: AnnOrMuData, **kwargs
-    ) -> dict:
+    def transfer_field(self, state_registry: dict, adata_target: AnnOrMuData, **kwargs) -> dict:
         """Takes an existing scvi-tools setup dictionary and transfers the same setup to the target AnnData.
 
         Used when one is running a pretrained model on a new AnnData object, which
@@ -128,9 +126,7 @@ class BaseAnnDataField(ABC):
         """Returns the requested data as determined by the field for a given AnnData/MuData object."""
         if self.is_empty:
             raise AssertionError(f"The {self.registry_key} field is empty.")
-        return get_anndata_attribute(
-            adata, self.attr_name, self.attr_key, mod_key=self.mod_key
-        )
+        return get_anndata_attribute(adata, self.attr_name, self.attr_key, mod_key=self.mod_key)
 
     def get_data_registry(self) -> dict:
         """Returns a nested dictionary which describes the mapping to the data field.
@@ -151,4 +147,4 @@ class BaseAnnDataField(ABC):
 
 
 # Convenience type
-AnnDataField = Type[BaseAnnDataField]
+AnnDataField = type[BaseAnnDataField]

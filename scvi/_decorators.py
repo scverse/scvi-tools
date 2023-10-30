@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Callable, List, Union
+from typing import Callable, Union
 
 
 class classproperty:
@@ -15,7 +15,7 @@ class classproperty:
         return self.f(owner)
 
 
-def dependencies(packages: Union[str, List[str]]) -> Callable:
+def dependencies(packages: Union[str, list[str]]) -> Callable:
     """Decorator to check for dependencies.
 
     Parameters
@@ -35,9 +35,7 @@ def dependencies(packages: Union[str, List[str]]) -> Callable:
                 for package in packages:
                     importlib.import_module(package)
             except ImportError as err:
-                raise ImportError(
-                    f"Please install {packages} to use this functionality."
-                ) from err
+                raise ImportError(f"Please install {packages} to use this functionality.") from err
             return fn(*args, **kwargs)
 
         return wrapper

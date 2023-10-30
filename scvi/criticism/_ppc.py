@@ -1,6 +1,6 @@
 import json
 import warnings
-from typing import Dict, List, Literal, Optional
+from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -36,16 +36,12 @@ Dims = Literal["cells", "features"]
 
 def _make_dataset_dense(dataset: Dataset) -> Dataset:
     """Make a dataset dense, converting sparse arrays to dense arrays."""
-    dataset = dataset.map(
-        lambda x: x.data.todense() if isinstance(x.data, SparseArray) else x
-    )
+    dataset = dataset.map(lambda x: x.data.todense() if isinstance(x.data, SparseArray) else x)
     return dataset
 
 
 def _get_precision_recall_f1(ground_truth: np.ndarray, pred: np.ndarray):
-    precision, recall, f1, _ = precision_recall_fscore_support(
-        ground_truth, pred, average="binary"
-    )
+    precision, recall, f1, _ = precision_recall_fscore_support(ground_truth, pred, average="binary")
     return precision, recall, f1
 
 
@@ -68,22 +64,18 @@ class PosteriorPredictiveCheck:
     def __init__(
         self,
         adata: AnnData,
-        models_dict: Dict[str, BaseModelClass],
+        models_dict: dict[str, BaseModelClass],
         count_layer_key: Optional[str] = None,
         n_samples: int = 10,
     ):
         self.adata = adata
         self.count_layer_key = count_layer_key
-        raw_counts = (
-            adata.layers[count_layer_key] if count_layer_key is not None else adata.X
-        )
+        raw_counts = adata.layers[count_layer_key] if count_layer_key is not None else adata.X
         # Compressed axis is rows, like csr
         if isinstance(raw_counts, np.ndarray):
             self.raw_counts = GCXS.from_numpy(raw_counts, compressed_axes=(0,))
         elif issparse(raw_counts):
-            self.raw_counts = GCXS.from_scipy_sparse(raw_counts).change_compressed_axes(
-                (0,)
-            )
+            self.raw_counts = GCXS.from_scipy_sparse(raw_counts).change_compressed_axes((0,))
         else:
             raise ValueError("raw_counts must be a numpy array or scipy sparse matrix")
         self.samples_dataset = None
@@ -121,7 +113,7 @@ class PosteriorPredictiveCheck:
     def _store_posterior_predictive_samples(
         self,
         batch_size: int = 32,
-        indices: List[int] = None,
+        indices: list[int] = None,
     ):
         """
         Store posterior predictive samples for each model.
@@ -176,9 +168,7 @@ class PosteriorPredictiveCheck:
         # we use a trick to compute the std to speed it up: std = E[X^2] - E[X]^2
         # a square followed by a sqrt is ok here because this is counts data (no negative values)
         self.samples_dataset = np.square(self.samples_dataset)
-        std = np.sqrt(
-            self.samples_dataset.mean(dim=dim, skipna=False) - np.square(mean)
-        )
+        std = np.sqrt(self.samples_dataset.mean(dim=dim, skipna=False) - np.square(mean))
         self.samples_dataset = np.sqrt(self.samples_dataset)
         # now compute the CV
         cv = std / mean
@@ -191,17 +181,11 @@ class PosteriorPredictiveCheck:
     def zero_fraction(self) -> None:
         """Fraction of zeros in raw counts for a specific gene"""
         pp_samples = self.samples_dataset
-        mean = (
-            (pp_samples != 0)
-            .mean(dim="cells", skipna=False)
-            .mean(dim="samples", skipna=False)
-        )
+        mean = (pp_samples != 0).mean(dim="cells", skipna=False).mean(dim="samples", skipna=False)
         mean = _make_dataset_dense(mean)
         self.metrics[METRIC_ZERO_FRACTION] = mean.to_dataframe()
 
-    def calibration_error(
-        self, confidence_intervals: Optional[List[float]] = None
-    ) -> None:
+    def calibration_error(self, confidence_intervals: Optional[list[float]] = None) -> None:
         """Calibration error for each observed count.
 
         For a series of credible intervals of the samples, the fraction of observed counts that fall
@@ -232,9 +216,7 @@ class PosteriorPredictiveCheck:
         pp_samples = _make_dataset_dense(pp_samples)
         # results in (quantiles, cells, features)
         quants = pp_samples.quantile(q=ps, dim="samples", skipna=False)
-        credible_interval_indices = [
-            (i, len(ps) - (i + 1)) for i in range(len(ps) // 2)
-        ]
+        credible_interval_indices = [(i, len(ps) - (i + 1)) for i in range(len(ps) // 2)]
 
         model_cal = {}
         for model in pp_samples.data_vars:
@@ -245,12 +227,8 @@ class PosteriorPredictiveCheck:
                 start = interval[0]
                 end = interval[1]
                 true_width = ps[end] - ps[start]
-                greater_than = (
-                    quants[DATA_VAR_RAW] >= quants.model1.isel(quantile=start)
-                ).data
-                less_than = (
-                    quants[DATA_VAR_RAW] <= quants.model1.isel(quantile=end)
-                ).data
+                greater_than = (quants[DATA_VAR_RAW] >= quants.model1.isel(quantile=start)).data
+                less_than = (quants[DATA_VAR_RAW] <= quants.model1.isel(quantile=end)).data
                 # Logical and
                 ci = greater_than * less_than
                 pci_features = ci.mean()
@@ -295,8 +273,7 @@ class PosteriorPredictiveCheck:
 
         if n_samples > self.n_samples:
             raise ValueError(
-                f"n_samples={n_samples} is greater than the number of samples already recorded "
-                f"({self.n_samples})"
+                f"n_samples={n_samples} is greater than the number of samples already recorded " f"({self.n_samples})"
             )
         # run DE with the raw counts
         adata_de = AnnData(
@@ -307,9 +284,7 @@ class PosteriorPredictiveCheck:
         sc.pp.normalize_total(adata_de, target_sum=cell_scale_factor)
         sc.pp.log1p(adata_de)
         with warnings.catch_warnings():
-            warnings.simplefilter(
-                action="ignore", category=pd.errors.PerformanceWarning
-            )
+            warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
             sc.tl.rank_genes_groups(
                 adata_de,
                 de_groupby,
@@ -343,9 +318,7 @@ class PosteriorPredictiveCheck:
 
                 # run DE with the imputed normalized data
                 with warnings.catch_warnings():
-                    warnings.simplefilter(
-                        action="ignore", category=pd.errors.PerformanceWarning
-                    )
+                    warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
                     key_added = f"{UNS_NAME_RGG_PPC}_{model}_sample_{k}"
                     de_keys[model].append(key_added)
                     sc.tl.rank_genes_groups(
@@ -374,9 +347,7 @@ class PosteriorPredictiveCheck:
         self.metrics[METRIC_DIFF_EXP] = {}
         self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"] = {}
         for g in groups:
-            raw_group_data = sc.get.rank_genes_groups_df(
-                adata_de, group=g, key=UNS_NAME_RGG_RAW
-            )
+            raw_group_data = sc.get.rank_genes_groups_df(adata_de, group=g, key=UNS_NAME_RGG_RAW)
             raw_group_data.set_index("names", inplace=True)
             for model in de_keys.keys():
                 gene_overlap_f1s = []
@@ -389,23 +360,15 @@ class PosteriorPredictiveCheck:
                 pr_aucs = []
                 # Now over potential samples
                 for de_key in de_keys[model]:
-                    sample_group_data = sc.get.rank_genes_groups_df(
-                        adata_approx, group=g, key=de_key
-                    )
+                    sample_group_data = sc.get.rank_genes_groups_df(adata_approx, group=g, key=de_key)
                     sample_group_data.set_index("names", inplace=True)
                     # compute gene overlaps
                     all_genes = raw_group_data.index  # order doesn't matter here
                     top_genes_raw = raw_group_data[:n_top_genes_fallback].index
                     top_genes_sample = sample_group_data[:n_top_genes_fallback].index
-                    true_genes = np.array(
-                        [0 if g not in top_genes_raw else 1 for g in all_genes]
-                    )
-                    pred_genes = np.array(
-                        [0 if g not in top_genes_sample else 1 for g in all_genes]
-                    )
-                    gene_overlap_f1s.append(
-                        _get_precision_recall_f1(true_genes, pred_genes)[2]
-                    )
+                    true_genes = np.array([0 if g not in top_genes_raw else 1 for g in all_genes])
+                    pred_genes = np.array([0 if g not in top_genes_sample else 1 for g in all_genes])
+                    gene_overlap_f1s.append(_get_precision_recall_f1(true_genes, pred_genes)[2])
                     # compute lfc correlations
                     sample_group_data = sample_group_data.loc[raw_group_data.index]
                     rgd, sgd = (
@@ -436,19 +399,12 @@ class PosteriorPredictiveCheck:
                 df.loc[i, "lfc_spearman"] = np.mean(lfc_spearmans)
                 df.loc[i, "roc_auc"] = np.mean(roc_aucs)
                 df.loc[i, "pr_auc"] = np.mean(pr_aucs)
-                rgd, sgd = pd.DataFrame(rgds).mean(axis=0), pd.DataFrame(sgds).mean(
-                    axis=0
-                )
-                if (
-                    model
-                    not in self.metrics[METRIC_DIFF_EXP][
-                        "lfc_per_model_per_group"
-                    ].keys()
-                ):
+                rgd, sgd = pd.DataFrame(rgds).mean(axis=0), pd.DataFrame(sgds).mean(axis=0)
+                if model not in self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"].keys():
                     self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model] = {}
-                self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model][
-                    g
-                ] = pd.DataFrame([rgd, sgd], index=["raw", "approx"]).T
+                self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model][g] = pd.DataFrame(
+                    [rgd, sgd], index=["raw", "approx"]
+                ).T
                 i += 1
 
         self.metrics[METRIC_DIFF_EXP]["summary"] = df

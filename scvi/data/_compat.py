@@ -26,9 +26,7 @@ LEGACY_REGISTRY_KEY_MAP = {
 }
 
 
-def _infer_setup_args(
-    model_cls, setup_dict: dict, unlabeled_category: Optional[str]
-) -> dict:
+def _infer_setup_args(model_cls, setup_dict: dict, unlabeled_category: Optional[str]) -> dict:
     setup_args = {}
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
     categorical_mappings = setup_dict["categorical_mappings"]
@@ -46,14 +44,9 @@ def _infer_setup_args(
         elif attr_name == _constants._ADATA_ATTRS.OBS:
             if new_registry_key in {REGISTRY_KEYS.BATCH_KEY, REGISTRY_KEYS.LABELS_KEY}:
                 # Omit labels field for TOTALVI
-                if (
-                    model_cls.__name__ == "TOTALVI"
-                    and new_registry_key == REGISTRY_KEYS.LABELS_KEY
-                ):
+                if model_cls.__name__ == "TOTALVI" and new_registry_key == REGISTRY_KEYS.LABELS_KEY:
                     continue
-                setup_args[f"{new_registry_key}_key"] = categorical_mappings[attr_key][
-                    "original_key"
-                ]
+                setup_args[f"{new_registry_key}_key"] = categorical_mappings[attr_key]["original_key"]
         elif attr_name == _constants._ADATA_ATTRS.OBSM:
             if new_registry_key == REGISTRY_KEYS.CONT_COVS_KEY:
                 obs_keys = setup_dict["extra_continuous_keys"]
@@ -74,9 +67,7 @@ def _infer_setup_args(
     }
 
 
-def registry_from_setup_dict(
-    model_cls, setup_dict: dict, unlabeled_category: Optional[str] = None
-) -> dict:
+def registry_from_setup_dict(model_cls, setup_dict: dict, unlabeled_category: Optional[str] = None) -> dict:
     """Converts old setup dict format to new registry dict format.
 
     Only to be used for backwards compatibility when loading setup dictionaries for models.
@@ -127,28 +118,17 @@ def registry_from_setup_dict(
         elif attr_name == _constants._ADATA_ATTRS.OBS:
             categorical_mapping = categorical_mappings[attr_key]
             # Default labels field for TOTALVI
-            if (
-                model_cls.__name__ == "TOTALVI"
-                and new_registry_key == REGISTRY_KEYS.LABELS_KEY
-            ):
-                field_state_registry[
-                    CategoricalObsField.CATEGORICAL_MAPPING_KEY
-                ] = np.zeros(1, dtype=np.int64)
+            if model_cls.__name__ == "TOTALVI" and new_registry_key == REGISTRY_KEYS.LABELS_KEY:
+                field_state_registry[CategoricalObsField.CATEGORICAL_MAPPING_KEY] = np.zeros(1, dtype=np.int64)
             else:
-                field_state_registry[
-                    CategoricalObsField.CATEGORICAL_MAPPING_KEY
-                ] = categorical_mapping["mapping"]
-            field_state_registry[
-                CategoricalObsField.ORIGINAL_ATTR_KEY
-            ] = categorical_mapping["original_key"]
+                field_state_registry[CategoricalObsField.CATEGORICAL_MAPPING_KEY] = categorical_mapping["mapping"]
+            field_state_registry[CategoricalObsField.ORIGINAL_ATTR_KEY] = categorical_mapping["original_key"]
             if new_registry_key == REGISTRY_KEYS.BATCH_KEY:
                 field_summary_stats[f"n_{new_registry_key}"] = summary_stats["n_batch"]
             elif new_registry_key == REGISTRY_KEYS.LABELS_KEY:
                 field_summary_stats[f"n_{new_registry_key}"] = summary_stats["n_labels"]
                 if unlabeled_category is not None:
-                    field_state_registry[
-                        LabelsWithUnlabeledObsField.UNLABELED_CATEGORY
-                    ] = unlabeled_category
+                    field_state_registry[LabelsWithUnlabeledObsField.UNLABELED_CATEGORY] = unlabeled_category
         elif attr_name == _constants._ADATA_ATTRS.OBSM:
             if new_registry_key == REGISTRY_KEYS.CONT_COVS_KEY:
                 columns = setup_dict["extra_continuous_keys"].copy()
@@ -157,23 +137,13 @@ def registry_from_setup_dict(
             elif new_registry_key == REGISTRY_KEYS.CAT_COVS_KEY:
                 extra_categoricals_mapping = deepcopy(setup_dict["extra_categoricals"])
                 field_state_registry.update(extra_categoricals_mapping)
-                field_state_registry[
-                    CategoricalJointObsField.FIELD_KEYS_KEY
-                ] = field_state_registry.pop("keys")
-                field_summary_stats[f"n_{new_registry_key}"] = len(
-                    extra_categoricals_mapping["keys"]
-                )
+                field_state_registry[CategoricalJointObsField.FIELD_KEYS_KEY] = field_state_registry.pop("keys")
+                field_summary_stats[f"n_{new_registry_key}"] = len(extra_categoricals_mapping["keys"])
             elif new_registry_key == REGISTRY_KEYS.PROTEIN_EXP_KEY:
-                field_state_registry[ProteinObsmField.COLUMN_NAMES_KEY] = setup_dict[
-                    "protein_names"
-                ].copy()
+                field_state_registry[ProteinObsmField.COLUMN_NAMES_KEY] = setup_dict["protein_names"].copy()
                 if "totalvi_batch_mask" in setup_dict:
-                    field_state_registry[
-                        ProteinObsmField.PROTEIN_BATCH_MASK
-                    ] = setup_dict["totalvi_batch_mask"].copy()
-                field_summary_stats[f"n_{new_registry_key}"] = len(
-                    setup_dict["protein_names"]
-                )
+                    field_state_registry[ProteinObsmField.PROTEIN_BATCH_MASK] = setup_dict["totalvi_batch_mask"].copy()
+                field_summary_stats[f"n_{new_registry_key}"] = len(setup_dict["protein_names"])
 
     registry.update(_infer_setup_args(model_cls, setup_dict, unlabeled_category))
 

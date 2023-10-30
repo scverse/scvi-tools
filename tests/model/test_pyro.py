@@ -48,14 +48,10 @@ class BayesianRegressionPyroModel(PyroModule):
         # This effectively allows these priors to move with the model's device with the
         # expense of dynamic recreation.
         self.linear.weight = PyroSample(
-            lambda prior: dist.Normal(self.zero, self.one)
-            .expand([self.out_features, self.in_features])
-            .to_event(2)
+            lambda prior: dist.Normal(self.zero, self.one).expand([self.out_features, self.in_features]).to_event(2)
         )
         self.linear.bias = PyroSample(
-            lambda prior: dist.Normal(self.zero, self.ten)
-            .expand([self.out_features])
-            .to_event(1)
+            lambda prior: dist.Normal(self.zero, self.ten).expand([self.out_features]).to_event(1)
         )
 
     def create_plates(self, x, y, ind_x):
@@ -101,9 +97,7 @@ class BayesianRegressionPyroModel(PyroModule):
 
         if self.per_cell_weight:
             with obs_plate:
-                per_cell_weights = pyro.sample(
-                    "per_cell_weights", dist.Normal(self.zero, self.one)
-                )
+                per_cell_weights = pyro.sample("per_cell_weights", dist.Normal(self.zero, self.one))
                 mean = mean + per_cell_weights.squeeze(-1)
 
         with obs_plate:
@@ -115,9 +109,7 @@ class BayesianRegressionModule(PyroBaseModuleClass):
     def __init__(self, **kwargs):
         super().__init__()
         self._model = BayesianRegressionPyroModel(**kwargs)
-        self._guide = AutoNormal(
-            self.model, init_loc_fn=init_to_mean, create_plates=self.model.create_plates
-        )
+        self._guide = AutoNormal(self.model, init_loc_fn=init_to_mean, create_plates=self.model.create_plates)
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 
     @property
@@ -167,9 +159,7 @@ class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -216,9 +206,7 @@ def test_pyro_bayesian_regression_low_level(
     ]
 
 
-def test_pyro_bayesian_regression(
-    accelerator: str, devices: list | str | int, save_path: str
-):
+def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, save_path: str):
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
     train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
@@ -238,11 +226,7 @@ def test_pyro_bayesian_regression(
     predictive = model.create_predictive(num_samples=num_samples)
     for tensor_dict in train_dl:
         args, kwargs = model._get_fn_args_from_batch(tensor_dict)
-        _ = {
-            k: v.detach().cpu().numpy()
-            for k, v in predictive(*args, **kwargs).items()
-            if k != "obs"
-        }
+        _ = {k: v.detach().cpu().numpy() for k, v in predictive(*args, **kwargs).items() if k != "obs"}
     # test save and load
     # cpu/gpu has minor difference
     model.cpu()
@@ -314,11 +298,7 @@ def test_pyro_bayesian_regression_jit(
     predictive = model.create_predictive(num_samples=num_samples)
     for tensor_dict in train_dl:
         args, kwargs = model._get_fn_args_from_batch(tensor_dict)
-        _ = {
-            k: v.detach().cpu().numpy()
-            for k, v in predictive(*args, **kwargs).items()
-            if k != "obs"
-        }
+        _ = {k: v.detach().cpu().numpy() for k, v in predictive(*args, **kwargs).items() if k != "obs"}
 
 
 def test_pyro_bayesian_save_load(save_path):
@@ -362,9 +342,7 @@ def test_pyro_bayesian_train_sample_mixin():
     )
 
     # 100 features
-    assert list(
-        mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape
-    ) == [1, 100]
+    assert list(mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape) == [1, 100]
 
     # test posterior sampling
     samples = mod.sample_posterior(num_samples=10, batch_size=None, return_samples=True)
@@ -383,14 +361,10 @@ def test_pyro_bayesian_train_sample_mixin_full_data():
     )
 
     # 100 features
-    assert list(
-        mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape
-    ) == [1, 100]
+    assert list(mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape) == [1, 100]
 
     # test posterior sampling
-    samples = mod.sample_posterior(
-        num_samples=10, batch_size=adata.n_obs, return_samples=True
-    )
+    samples = mod.sample_posterior(num_samples=10, batch_size=adata.n_obs, return_samples=True)
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
 
@@ -407,9 +381,7 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
     )
 
     # 100
-    assert list(
-        mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape
-    ) == [1, 100]
+    assert list(mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape) == [1, 100]
 
     # test posterior sampling
     samples = mod.sample_posterior(num_samples=10, batch_size=None, return_samples=True)
@@ -434,14 +406,10 @@ def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
     )
 
     # 100
-    assert list(
-        mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape
-    ) == [1, 100]
+    assert list(mod.module.guide.state_dict()["locs.linear.weight_unconstrained"].shape) == [1, 100]
 
     # test posterior sampling
-    samples = mod.sample_posterior(
-        num_samples=10, batch_size=adata.n_obs, return_samples=True
-    )
+    samples = mod.sample_posterior(num_samples=10, batch_size=adata.n_obs, return_samples=True)
 
     assert len(samples["posterior_samples"]["sigma"]) == 10
     assert samples["posterior_samples"]["per_cell_weights"].shape == (
@@ -496,9 +464,7 @@ class FunctionBasedPyroModule(PyroBaseModuleClass):
             # decode the latent code z
             px_scale, _, px_rate, px_dropout = self.decoder("gene", z, log_library)
             # build count distribution
-            nb_logits = (px_rate + self.epsilon).log() - (
-                self.px_r.exp() + self.epsilon
-            ).log()
+            nb_logits = (px_rate + self.epsilon).log() - (self.px_r.exp() + self.epsilon).log()
             x_dist = dist.ZeroInflatedNegativeBinomial(
                 gate_logits=px_dropout, total_count=self.px_r.exp(), logits=nb_logits
             )
@@ -546,9 +512,7 @@ class FunctionBasedPyroModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass)
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, None, is_count_data=True),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 

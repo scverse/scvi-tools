@@ -5,7 +5,7 @@ import os
 import warnings
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, Type, Union
+from typing import Optional, Union
 
 import anndata
 import rich
@@ -91,9 +91,7 @@ class HubModel:
         else:
             raise ValueError("No model card found")
 
-    def push_to_huggingface_hub(
-        self, repo_name: str, repo_token: str, repo_create: bool
-    ):
+    def push_to_huggingface_hub(self, repo_name: str, repo_token: str, repo_create: bool):
         """Push this model to huggingface.
 
         If the dataset is too large to upload to huggingface, this will raise an
@@ -109,9 +107,7 @@ class HubModel:
         repo_create
             Whether to create the repo
         """
-        if os.path.isfile(self._adata_path) and (
-            os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
-        ):
+        if os.path.isfile(self._adata_path) and (os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE):
             raise ValueError(
                 "Dataset is too large to upload to the Model. \
                 Please refer to scvi-tools tutorials for how to handle this case."
@@ -221,7 +217,7 @@ class HubModel:
         return self._model_card
 
     @property
-    def model(self) -> Type[BaseModelClass]:
+    def model(self) -> type[BaseModelClass]:
         """Returns the model object for this hub model.
 
         If the model has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.load_model`.
@@ -318,9 +314,7 @@ class HubModel:
         """
         training_data_url = self.metadata.training_data_url
         if training_data_url is not None:
-            logger.info(
-                f"Downloading large training dataset from this url:\n{training_data_url}..."
-            )
+            logger.info(f"Downloading large training dataset from this url:\n{training_data_url}...")
             dn = Path(self._large_training_adata_path).parent.as_posix()
             fn = Path(self._large_training_adata_path).name
             url_parts = training_data_url.split("/")
@@ -330,8 +324,6 @@ class HubModel:
             else:
                 _download(training_data_url, dn, fn)
             logger.info("Reading large training data...")
-            self._large_training_adata = anndata.read_h5ad(
-                self._large_training_adata_path
-            )
+            self._large_training_adata = anndata.read_h5ad(self._large_training_adata_path)
         else:
             logger.info("No training_data_url found in the model card. Skipping...")

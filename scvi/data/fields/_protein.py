@@ -40,8 +40,7 @@ class ProteinFieldMixin:
     ) -> None:
         if use_batch_mask and batch_field is None:
             raise ValueError(
-                "`use_batch_mask = True` requires that `batch_field is not None`. "
-                "Please provide a `batch_field`."
+                "`use_batch_mask = True` requires that `batch_field is not None`. " "Please provide a `batch_field`."
             )
         self.use_batch_mask = use_batch_mask
         self.batch_field = batch_field
@@ -83,13 +82,9 @@ class ProteinFieldMixin:
 
         return state_registry
 
-    def transfer_field(
-        self, state_registry: dict, adata_target: AnnData, **kwargs
-    ) -> dict:
+    def transfer_field(self, state_registry: dict, adata_target: AnnData, **kwargs) -> dict:
         """Transfer the field."""
-        transfer_state_registry = super().transfer_field(
-            state_registry, adata_target, **kwargs
-        )
+        transfer_state_registry = super().transfer_field(state_registry, adata_target, **kwargs)
         batch_mask = self._get_batch_mask_protein_data(adata_target)
         if batch_mask is not None:
             transfer_state_registry[self.PROTEIN_BATCH_MASK] = batch_mask
@@ -167,6 +162,4 @@ def copy_over_batch_attr(self, mdata: MuData):
     bdata_attr[self.batch_field.attr_key] = batch_data
 
 
-MuDataProteinLayerField = MuDataWrapper(
-    ProteinLayerField, preregister_fn=copy_over_batch_attr
-)
+MuDataProteinLayerField = MuDataWrapper(ProteinLayerField, preregister_fn=copy_over_batch_attr)

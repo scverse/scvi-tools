@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -127,9 +127,7 @@ class ArrayLikeField(BaseArrayLikeField):
         """
         array_data = self.get_field_data(adata)
         if self.colnames_uns_key is None and isinstance(array_data, pd.DataFrame):
-            logger.info(
-                f"Using column names from columns of adata.{self.attr_name}['{self.attr_key}']"
-            )
+            logger.info(f"Using column names from columns of adata.{self.attr_name}['{self.attr_key}']")
             column_names = list(array_data.columns)
         elif self.colnames_uns_key is not None:
             logger.info(f"Using column names from adata.uns['{self.colnames_uns_key}']")
@@ -149,9 +147,7 @@ class ArrayLikeField(BaseArrayLikeField):
 
         return {self.COLUMN_NAMES_KEY: column_names}
 
-    def transfer_field(
-        self, state_registry: dict, adata_target: AnnData, **kwargs
-    ) -> dict:
+    def transfer_field(self, state_registry: dict, adata_target: AnnData, **kwargs) -> dict:
         """Transfer the field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         self.validate_field(adata_target)
@@ -163,9 +159,7 @@ class ArrayLikeField(BaseArrayLikeField):
                 f"the source adata.{self.attr_name}['{self.attr_key}'] column count of {len(source_cols)}."
             )
 
-        if isinstance(target_data, pd.DataFrame) and source_cols != list(
-            target_data.columns
-        ):
+        if isinstance(target_data, pd.DataFrame) and source_cols != list(target_data.columns):
             raise ValueError(
                 f"Target adata.{self.attr_name}['{self.attr_key}'] column names do not match "
                 f"the source adata.{self.attr_name}['{self.attr_key}'] column names."
@@ -219,7 +213,7 @@ class BaseJointField(BaseArrayLikeField):
     def __init__(
         self,
         registry_key: str,
-        attr_keys: Optional[List[str]],
+        attr_keys: Optional[list[str]],
         field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key)
@@ -257,7 +251,7 @@ class BaseJointField(BaseArrayLikeField):
         return self._source_attr_name
 
     @property
-    def attr_keys(self) -> List[str]:
+    def attr_keys(self) -> list[str]:
         """List of .obs or .var keys that make up this joint field."""
         return self._attr_keys
 
@@ -290,7 +284,7 @@ class NumericalJointField(BaseJointField):
     def __init__(
         self,
         registry_key: str,
-        attr_keys: Optional[List[str]],
+        attr_keys: Optional[list[str]],
         field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key, attr_keys, field_type=field_type)
@@ -301,11 +295,7 @@ class NumericalJointField(BaseJointField):
         """Register the field."""
         super().register_field(adata)
         self._combine_fields(adata)
-        return {
-            self.COLUMNS_KEY: getattr(adata, self.attr_name)[
-                self.attr_key
-            ].columns.to_numpy()
-        }
+        return {self.COLUMNS_KEY: getattr(adata, self.attr_name)[self.attr_key].columns.to_numpy()}
 
     def transfer_field(
         self,
@@ -381,7 +371,7 @@ class CategoricalJointField(BaseJointField):
     def __init__(
         self,
         registry_key: str,
-        attr_keys: Optional[List[str]],
+        attr_keys: Optional[list[str]],
         field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key, attr_keys, field_type=field_type)
@@ -394,14 +384,9 @@ class CategoricalJointField(BaseJointField):
             self.N_CATS_PER_KEY: [],
         }
 
-    def _make_array_categorical(
-        self, adata: AnnData, category_dict: Optional[Dict[str, List[str]]] = None
-    ) -> dict:
+    def _make_array_categorical(self, adata: AnnData, category_dict: Optional[dict[str, list[str]]] = None) -> dict:
         """Make the .obsm categorical."""
-        if (
-            self.attr_keys
-            != getattr(adata, self.attr_name)[self.attr_key].columns.tolist()
-        ):
+        if self.attr_keys != getattr(adata, self.attr_name)[self.attr_key].columns.tolist():
             raise ValueError(
                 f"Original .{self.source_attr_name} keys do not match the columns in the ",
                 f"generated .{self.attr_name} field.",
@@ -410,14 +395,8 @@ class CategoricalJointField(BaseJointField):
         categories = {}
         df = getattr(adata, self.attr_name)[self.attr_key]
         for key in self.attr_keys:
-            categorical_dtype = (
-                CategoricalDtype(categories=category_dict[key])
-                if category_dict is not None
-                else None
-            )
-            mapping = _make_column_categorical(
-                df, key, key, categorical_dtype=categorical_dtype
-            )
+            categorical_dtype = CategoricalDtype(categories=category_dict[key]) if category_dict is not None else None
+            mapping = _make_column_categorical(df, key, key, categorical_dtype=categorical_dtype)
             categories[key] = mapping
 
         store_cats = categories if category_dict is None else category_dict
@@ -481,9 +460,7 @@ class CategoricalJointField(BaseJointField):
             no_wrap=True,
             overflow="fold",
         )
-        t.add_column(
-            "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
-        )
+        t.add_column("Categories", justify="center", style="green", no_wrap=True, overflow="fold")
         t.add_column(
             "scvi-tools Encoding",
             justify="center",
@@ -494,9 +471,7 @@ class CategoricalJointField(BaseJointField):
         for key, mappings in state_registry[self.MAPPINGS_KEY].items():
             for i, mapping in enumerate(mappings):
                 if i == 0:
-                    t.add_row(
-                        f"adata.{self.source_attr_name}['{key}']", str(mapping), str(i)
-                    )
+                    t.add_row(f"adata.{self.source_attr_name}['{key}']", str(mapping), str(i))
                 else:
                     t.add_row("", str(mapping), str(i))
             t.add_row("", "")

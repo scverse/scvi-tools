@@ -14,9 +14,7 @@ def test_datasplitter_shuffle():
     adata = scvi.data.synthetic_iid()
     manager = generic_setup_adata_manager(adata)
 
-    datasplitter = scvi.dataloaders.DataSplitter(
-        manager, train_size=0.5, validation_size=0.3, shuffle_set_split=False
-    )
+    datasplitter = scvi.dataloaders.DataSplitter(manager, train_size=0.5, validation_size=0.3, shuffle_set_split=False)
     datasplitter.setup()
     assert isinstance(datasplitter.train_idx, np.ndarray)
     assert isinstance(datasplitter.val_idx, np.ndarray)

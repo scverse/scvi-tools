@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import List, Union
+from typing import Union
 
 import lightning.pytorch as pl
 import numpy as np
@@ -61,7 +61,7 @@ class TrainRunner:
         data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
         max_epochs: int,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: Union[int, list[int], str] = "auto",
         **trainer_kwargs,
     ):
         self.training_plan = training_plan
@@ -115,8 +115,7 @@ class TrainRunner:
             # if not using the default logger (e.g., tensorboard)
             if not isinstance(self.model.history_, dict):
                 warnings.warn(
-                    "Training history cannot be updated. Logger can be accessed from "
-                    "`model.trainer.logger`",
+                    "Training history cannot be updated. Logger can be accessed from " "`model.trainer.logger`",
                     UserWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )

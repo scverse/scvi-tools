@@ -37,9 +37,7 @@ class ElboMetric(Metric):
         self._mode = mode
         self._interval = interval
 
-        self.add_state(
-            "elbo_component", default=torch.tensor(0.0), dist_reduce_fx="sum"
-        )
+        self.add_state("elbo_component", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("n_obs", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("n_batches", default=torch.tensor(0.0), dist_reduce_fx="sum")
 
@@ -77,9 +75,7 @@ class ElboMetric(Metric):
         Filters for the relevant metric's value and updates this metric.
         """
         if self._N_OBS_MINIBATCH_KEY not in kwargs:
-            raise ValueError(
-                f"Missing {self._N_OBS_MINIBATCH_KEY} value in metrics update."
-            )
+            raise ValueError(f"Missing {self._N_OBS_MINIBATCH_KEY} value in metrics update.")
         if self._name not in kwargs:
             raise ValueError(f"Missing {self._name} value in metrics update.")
 

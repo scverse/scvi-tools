@@ -1,5 +1,5 @@
 """Main module."""
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -76,13 +76,13 @@ class JVAE(BaseModuleClass):
 
     def __init__(
         self,
-        dim_input_list: List[int],
+        dim_input_list: list[int],
         total_genes: int,
-        indices_mappings: List[Union[np.ndarray, slice]],
-        gene_likelihoods: List[str],
-        model_library_bools: List[bool],
-        library_log_means: List[Optional[np.ndarray]],
-        library_log_vars: List[Optional[np.ndarray]],
+        indices_mappings: list[Union[np.ndarray, slice]],
+        gene_likelihoods: list[str],
+        model_library_bools: list[bool],
+        library_log_means: list[Optional[np.ndarray]],
+        library_log_vars: list[Optional[np.ndarray]],
         n_latent: int = 10,
         n_layers_encoder_individual: int = 1,
         n_layers_encoder_shared: int = 1,
@@ -170,9 +170,7 @@ class JVAE(BaseModuleClass):
         else:  # gene-cell
             pass
 
-    def sample_from_posterior_z(
-        self, x: torch.Tensor, mode: int = None, deterministic: bool = False
-    ) -> torch.Tensor:
+    def sample_from_posterior_z(self, x: torch.Tensor, mode: int = None, deterministic: bool = False) -> torch.Tensor:
         """Sample tensor of latent values from the posterior.
 
         Parameters
@@ -201,9 +199,7 @@ class JVAE(BaseModuleClass):
             z = qz_m
         return z
 
-    def sample_from_posterior_l(
-        self, x: torch.Tensor, mode: int = None, deterministic: bool = False
-    ) -> torch.Tensor:
+    def sample_from_posterior_l(self, x: torch.Tensor, mode: int = None, deterministic: bool = False) -> torch.Tensor:
         """Sample the tensor of library sizes from the posterior.
 
         Parameters
@@ -354,16 +350,10 @@ class JVAE(BaseModuleClass):
         reconstruction_loss = None
         if self.gene_likelihoods[mode] == "zinb":
             reconstruction_loss = (
-                -ZeroInflatedNegativeBinomial(
-                    mu=px_rate, theta=px_r, zi_logits=px_dropout
-                )
-                .log_prob(x)
-                .sum(dim=-1)
+                -ZeroInflatedNegativeBinomial(mu=px_rate, theta=px_r, zi_logits=px_dropout).log_prob(x).sum(dim=-1)
             )
         elif self.gene_likelihoods[mode] == "nb":
-            reconstruction_loss = (
-                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
-            )
+            reconstruction_loss = -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
         elif self.gene_likelihoods[mode] == "poisson":
             reconstruction_loss = -Poisson(px_rate).log_prob(x).sum(dim=1)
         return reconstruction_loss
@@ -406,9 +396,7 @@ class JVAE(BaseModuleClass):
         mode: Optional[int] = None,
     ) -> dict:
         """Run the generative model."""
-        px_scale, px_r, px_rate, px_dropout = self.decoder(
-            z, mode, library, self.dispersion, batch_index, y
-        )
+        px_scale, px_r, px_rate, px_dropout = self.decoder(z, mode, library, self.dispersion, batch_index, y)
         if self.dispersion == "gene-label":
             px_r = F.linear(one_hot(y, self.n_labels), self.px_r)
         elif self.dispersion == "gene-batch":
@@ -417,9 +405,7 @@ class JVAE(BaseModuleClass):
             px_r = self.px_r.view(1, self.px_r.size(0))
         px_r = torch.exp(px_r)
 
-        px_scale = px_scale / torch.sum(
-            px_scale[:, self.indices_mappings[mode]], dim=1
-        ).view(-1, 1)
+        px_scale = px_scale / torch.sum(px_scale[:, self.indices_mappings[mode]], dim=1).view(-1, 1)
         px_rate = px_scale * torch.exp(library)
 
         return {
@@ -436,7 +422,7 @@ class JVAE(BaseModuleClass):
         generative_outputs,
         mode: Optional[int] = None,
         kl_weight=1.0,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Return the reconstruction loss and the Kullback divergences.
 
         Parameters
@@ -489,12 +475,8 @@ class JVAE(BaseModuleClass):
             library_log_means = getattr(self, f"library_log_means_{mode}")
             library_log_vars = getattr(self, f"library_log_vars_{mode}")
 
-            local_library_log_means = F.linear(
-                one_hot(batch_index, self.n_batch), library_log_means
-            )
-            local_library_log_vars = F.linear(
-                one_hot(batch_index, self.n_batch), library_log_vars
-            )
+            local_library_log_means = F.linear(one_hot(batch_index, self.n_batch), library_log_means)
+            local_library_log_vars = F.linear(one_hot(batch_index, self.n_batch), library_log_vars)
             kl_divergence_l = kl(
                 ql,
                 Normal(local_library_log_means, local_library_log_vars.sqrt()),
@@ -506,6 +488,4 @@ class JVAE(BaseModuleClass):
 
         loss = torch.mean(reconstruction_loss + kl_weight * kl_local) * x.size(0)
 
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconstruction_loss, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconstruction_loss, kl_local=kl_local)

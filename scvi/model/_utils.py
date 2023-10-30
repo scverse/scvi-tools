@@ -1,7 +1,8 @@
 import logging
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Literal, Optional, Union
 
 import jax
 import numpy as np
@@ -32,9 +33,7 @@ def use_distributed_sampler(strategy: Union[str, Strategy]) -> bool:
     return isinstance(strategy, DDPStrategy)
 
 
-def get_max_epochs_heuristic(
-    n_obs: int, epochs_cap: int = 400, decay_at_n_obs: int = 20000
-) -> int:
+def get_max_epochs_heuristic(n_obs: int, epochs_cap: int = 400, decay_at_n_obs: int = 20000) -> int:
     """Compute a heuristic for the default number of maximum epochs.
 
     If `n_obs <= decay_at_n_obs`, the number of maximum epochs is set to
@@ -73,7 +72,7 @@ def get_max_epochs_heuristic(
 @devices_dsp.dedent
 def parse_device_args(
     accelerator: str = "auto",
-    devices: Union[int, List[int], str] = "auto",
+    devices: Union[int, list[int], str] = "auto",
     return_device: Optional[Literal["torch", "jax"]] = None,
     validate_single_device: bool = False,
 ):
@@ -88,9 +87,7 @@ def parse_device_args(
     """
     valid = [None, "torch", "jax"]
     if return_device not in valid:
-        raise InvalidParameterError(
-            param="return_device", value=return_device, valid=valid
-        )
+        raise InvalidParameterError(param="return_device", value=return_device, valid=valid)
 
     _validate_single_device = validate_single_device and devices != "auto"
     cond1 = isinstance(devices, list) and len(devices) > 1
@@ -152,10 +149,10 @@ def parse_device_args(
 
 def scrna_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[List[int], np.ndarray],
-    idx2: Union[List[int], np.ndarray],
-    var_idx: Optional[Union[List[int], np.ndarray]] = None,
-) -> Dict[str, np.ndarray]:
+    idx1: Union[list[int], np.ndarray],
+    idx2: Union[list[int], np.ndarray],
+    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
     Parameters
@@ -219,9 +216,9 @@ def scrna_raw_counts_properties(
 
 def cite_seq_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[List[int], np.ndarray],
-    idx2: Union[List[int], np.ndarray],
-) -> Dict[str, np.ndarray]:
+    idx1: Union[list[int], np.ndarray],
+    idx2: Union[list[int], np.ndarray],
+) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
     Parameters
@@ -251,12 +248,8 @@ def cite_seq_raw_counts_properties(
     properties = {
         "raw_mean1": np.concatenate([gp["raw_mean1"], mean1_pro]),
         "raw_mean2": np.concatenate([gp["raw_mean2"], mean2_pro]),
-        "non_zeros_proportion1": np.concatenate(
-            [gp["non_zeros_proportion1"], nonz1_pro]
-        ),
-        "non_zeros_proportion2": np.concatenate(
-            [gp["non_zeros_proportion2"], nonz2_pro]
-        ),
+        "non_zeros_proportion1": np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
+        "non_zeros_proportion2": np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
         "raw_normalized_mean1": np.concatenate([gp["raw_normalized_mean1"], nan]),
         "raw_normalized_mean2": np.concatenate([gp["raw_normalized_mean2"], nan]),
     }
@@ -266,10 +259,10 @@ def cite_seq_raw_counts_properties(
 
 def scatac_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[List[int], np.ndarray],
-    idx2: Union[List[int], np.ndarray],
-    var_idx: Optional[Union[List[int], np.ndarray]] = None,
-) -> Dict[str, np.ndarray]:
+    idx1: Union[list[int], np.ndarray],
+    idx2: Union[list[int], np.ndarray],
+    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
     Parameters
@@ -300,15 +293,11 @@ def scatac_raw_counts_properties(
     return properties
 
 
-def _get_batch_code_from_category(
-    adata_manager: AnnDataManager, category: Sequence[Union[Number, str]]
-):
+def _get_batch_code_from_category(adata_manager: AnnDataManager, category: Sequence[Union[Number, str]]):
     if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]
 
-    batch_mappings = adata_manager.get_state_registry(
-        REGISTRY_KEYS.BATCH_KEY
-    ).categorical_mapping
+    batch_mappings = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).categorical_mapping
     batch_code = []
     for cat in category:
         if cat is None:
@@ -321,9 +310,7 @@ def _get_batch_code_from_category(
     return batch_code
 
 
-def _init_library_size(
-    adata_manager: AnnDataManager, n_batch: dict
-) -> Tuple[np.ndarray, np.ndarray]:
+def _init_library_size(adata_manager: AnnDataManager, n_batch: dict) -> tuple[np.ndarray, np.ndarray]:
     """Computes and returns library size.
 
     Parameters
@@ -351,9 +338,7 @@ def _init_library_size(
 
     for i_batch in np.unique(batch_indices):
         idx_batch = np.squeeze(batch_indices == i_batch)
-        batch_data = data[
-            idx_batch.nonzero()[0]
-        ]  # h5ad requires integer indexing arrays.
+        batch_data = data[idx_batch.nonzero()[0]]  # h5ad requires integer indexing arrays.
         sum_counts = batch_data.sum(axis=1)
         masked_log_sum = np.ma.log(sum_counts)
         if np.ma.is_masked(masked_log_sum):
@@ -371,7 +356,5 @@ def _init_library_size(
     return library_log_means.reshape(1, -1), library_log_vars.reshape(1, -1)
 
 
-def _get_var_names_from_manager(
-    adata_manager: AnnDataManager, registry_key: str = REGISTRY_KEYS.X_KEY
-) -> np.ndarray:
+def _get_var_names_from_manager(adata_manager: AnnDataManager, registry_key: str = REGISTRY_KEYS.X_KEY) -> np.ndarray:
     return np.asarray(adata_manager.get_state_registry(registry_key).column_names)

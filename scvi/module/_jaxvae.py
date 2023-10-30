@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Optional
 
 import jax
 import jax.numpy as jnp
@@ -88,13 +88,9 @@ class FlaxDecoder(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
-        self.disp = self.param(
-            "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
-        )
+        self.disp = self.param("disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1))
 
-    def __call__(
-        self, z: jnp.ndarray, batch: jnp.ndarray, training: Optional[bool] = None
-    ):
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training: Optional[bool] = None):
         """Forward pass."""
         # TODO(adamgayoso): Test this
         training = nn.merge_param("training", self.training, training)
@@ -149,7 +145,7 @@ class JaxVAE(JaxBaseModuleClass):
     def required_rngs(self):
         return ("params", "dropout", "z")
 
-    def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
+    def _get_inference_input(self, tensors: dict[str, jnp.ndarray]):
         """Get input for inference."""
         x = tensors[REGISTRY_KEYS.X_KEY]
 
@@ -170,8 +166,8 @@ class JaxVAE(JaxBaseModuleClass):
 
     def _get_generative_input(
         self,
-        tensors: Dict[str, jnp.ndarray],
-        inference_outputs: Dict[str, jnp.ndarray],
+        tensors: dict[str, jnp.ndarray],
+        inference_outputs: dict[str, jnp.ndarray],
     ):
         """Get input for generative model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
@@ -223,6 +219,4 @@ class JaxVAE(JaxBaseModuleClass):
         loss = jnp.mean(reconst_loss + weighted_kl_local)
 
         kl_local = kl_divergence_z
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)

@@ -1,6 +1,6 @@
 import warnings
 from copy import deepcopy
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Optional, Union
 
 import flax
 import lightning.pytorch as pl
@@ -38,9 +38,7 @@ class MetricsCallback(Callback):
 
     def __init__(
         self,
-        metric_fns: Union[
-            MetricCallable, List[MetricCallable], Dict[str, MetricCallable]
-        ],
+        metric_fns: Union[MetricCallable, list[MetricCallable], dict[str, MetricCallable]],
     ):
         super().__init__()
 
@@ -164,8 +162,7 @@ class SaveBestState(Callback):
 
             if current is None:
                 warnings.warn(
-                    f"Can save best module state only with {self.monitor} available, "
-                    "skipping.",
+                    f"Can save best module state only with {self.monitor} available, " "skipping.",
                     RuntimeWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )
@@ -201,7 +198,7 @@ class LoudEarlyStopping(EarlyStopping):
         super().__init__(**kwargs)
         self.early_stopping_reason = None
 
-    def _evaluate_stopping_criteria(self, current: torch.Tensor) -> Tuple[bool, str]:
+    def _evaluate_stopping_criteria(self, current: torch.Tensor) -> tuple[bool, str]:
         should_stop, reason = super()._evaluate_stopping_criteria(current)
         if should_stop:
             self.early_stopping_reason = reason

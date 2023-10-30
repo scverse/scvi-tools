@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from anndata import AnnData
 from mudata import MuData
@@ -38,8 +38,8 @@ def generic_setup_adata_manager(
     adata: AnnData,
     batch_key: Optional[str] = None,
     labels_key: Optional[str] = None,
-    categorical_covariate_keys: Optional[List[str]] = None,
-    continuous_covariate_keys: Optional[List[str]] = None,
+    categorical_covariate_keys: Optional[list[str]] = None,
+    continuous_covariate_keys: Optional[list[str]] = None,
     layer: Optional[str] = None,
     protein_expression_obsm_key: Optional[str] = None,
     protein_names_uns_key: Optional[str] = None,
@@ -53,9 +53,7 @@ def generic_setup_adata_manager(
         batch_field,
         LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
         CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-        CategoricalJointObsField(
-            REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-        ),
+        CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
         NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
     ]
     if protein_expression_obsm_key is not None:
@@ -69,9 +67,7 @@ def generic_setup_adata_manager(
                 is_count_data=True,
             )
         )
-    adata_manager = AnnDataManager(
-        fields=anndata_fields, setup_method_args=setup_method_args
-    )
+    adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
     adata_manager.register_fields(adata)
     return adata_manager
 
@@ -87,13 +83,9 @@ def scanvi_setup_adata_manager(
     setup_method_args = {_MODEL_NAME_KEY: "TestModel", _SETUP_ARGS_KEY: setup_args}
     anndata_fields = [
         CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-        LabelsWithUnlabeledObsField(
-            REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
-        ),
+        LabelsWithUnlabeledObsField(REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category),
     ]
-    adata_manager = AnnDataManager(
-        fields=anndata_fields, setup_method_args=setup_method_args
-    )
+    adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
     adata_manager.register_fields(adata)
     return adata_manager
 
@@ -105,9 +97,9 @@ def generic_setup_mudata_manager(
     batch_mod: Optional[str] = None,
     batch_key: Optional[str] = None,
     categorical_covariate_mod: Optional[str] = None,
-    categorical_covariate_keys: Optional[List[str]] = None,
+    categorical_covariate_keys: Optional[list[str]] = None,
     continuous_covariate_mod: Optional[str] = None,
-    continuous_covariate_keys: Optional[List[str]] = None,
+    continuous_covariate_keys: Optional[list[str]] = None,
     protein_expression_mod: Optional[str] = None,
     protein_expression_layer: Optional[str] = None,
 ) -> AnnDataManager:
@@ -115,9 +107,7 @@ def generic_setup_mudata_manager(
     setup_args.pop("mdata")
     setup_method_args = {_MODEL_NAME_KEY: "TestModel", _SETUP_ARGS_KEY: setup_args}
 
-    batch_field = MuDataCategoricalObsField(
-        REGISTRY_KEYS.BATCH_KEY, batch_key, mod_key=batch_mod
-    )
+    batch_field = MuDataCategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key, mod_key=batch_mod)
     anndata_fields = [
         MuDataLayerField(
             REGISTRY_KEYS.X_KEY,
@@ -149,8 +139,6 @@ def generic_setup_mudata_manager(
                 batch_field=batch_field,
             )
         )
-    mdata_manager = AnnDataManager(
-        fields=anndata_fields, setup_method_args=setup_method_args
-    )
+    mdata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
     mdata_manager.register_fields(mdata)
     return mdata_manager
