@@ -155,19 +155,25 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
         fully_paired: bool = False,
-        protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
+        protein_dispersion: Literal[
+            "protein", "protein-batch", "protein-label"
+        ] = "protein",
         **model_kwargs,
     ):
         super().__init__(adata)
 
         prior_mean, prior_scale = None, None
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+            self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else []
         )
 
-        use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+        use_size_factor_key = (
+            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+        )
 
         if "n_proteins" in self.summary_stats:
             n_proteins = self.summary_stats.n_proteins
@@ -324,7 +330,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         if save_best:
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
-            kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
+            kwargs["callbacks"].append(
+                SaveBestState(monitor="reconstruction_loss_validation")
+            )
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
@@ -375,7 +383,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         lib_exp = []
         lib_acc = []
@@ -434,7 +444,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         self._check_adata_modality_weights(adata)
         keys = {"z": "z", "qz_m": "qz_m", "qz_v": "qz_v"}
         if self.fully_paired and modality != "joint":
-            raise RuntimeError("A fully paired model only has a joint latent representation.")
+            raise RuntimeError(
+                "A fully paired model only has a joint latent representation."
+            )
         if not self.fully_paired and modality != "joint":
             if modality == "expression":
                 keys = {"z": "z_expr", "qz_m": "qzm_expr", "qz_v": "qzv_expr"}
@@ -443,10 +455,14 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             elif modality == "protein":
                 keys = {"z": "z_pro", "qz_m": "qzm_pro", "qz_v": "qzv_pro"}
             else:
-                raise RuntimeError("modality must be 'joint', 'expression', 'accessibility', or 'protein'.")
+                raise RuntimeError(
+                    "modality must be 'joint', 'expression', 'accessibility', or 'protein'."
+                )
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         latent = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
@@ -527,13 +543,17 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             indices = np.arange(adata.n_obs)
         if n_samples_overall is not None:
             indices = np.random.choice(indices, n_samples_overall)
-        post = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
 
         if region_list is None:
             region_mask = slice(None)
         else:
-            region_mask = [region in region_list for region in adata.var_names[self.n_genes :]]
+            region_mask = [
+                region in region_list for region in adata.var_names[self.n_genes :]
+            ]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -641,7 +661,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             indices = np.arange(adata.n_obs)
         if n_samples_overall is not None:
             indices = np.random.choice(indices, n_samples_overall)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
 
@@ -657,7 +679,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             for batch in transform_batch:
                 if batch is not None:
                     batch_indices = tensors[REGISTRY_KEYS.BATCH_KEY]
-                    tensors[REGISTRY_KEYS.BATCH_KEY] = torch.ones_like(batch_indices) * batch
+                    tensors[REGISTRY_KEYS.BATCH_KEY] = (
+                        torch.ones_like(batch_indices) * batch
+                    )
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs={"n_samples": n_samples},
@@ -668,7 +692,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 output = output[..., gene_mask]
                 output = output.cpu().numpy()
                 per_batch_exprs.append(output)
-            per_batch_exprs = np.stack(per_batch_exprs)  # shape is (len(transform_batch) x batch_size x n_var)
+            per_batch_exprs = np.stack(
+                per_batch_exprs
+            )  # shape is (len(transform_batch) x batch_size x n_var)
             exprs += [per_batch_exprs.mean(0)]
 
         if n_samples > 1:
@@ -763,7 +789,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
         col_names = adata.var_names[self.n_genes :]
-        model_fn = partial(self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size)
+        model_fn = partial(
+            self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
+        )
 
         # TODO check if change_fn in kwargs and raise error if so
         def change_fn(a, b):
@@ -963,7 +991,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         if protein_list is None:
             protein_mask = slice(None)
@@ -987,7 +1017,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         if not isinstance(transform_batch, IterableClass):
             transform_batch = [transform_batch]
 
-        transform_batch = _get_batch_code_from_category(self.adata_manager, transform_batch)
+        transform_batch = _get_batch_code_from_category(
+            self.adata_manager, transform_batch
+        )
         for tensors in post:
             y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
             py_mixing = torch.zeros_like(y[..., protein_mask])
@@ -1003,7 +1035,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
-                py_mixing += torch.sigmoid(generative_outputs["py_"]["mixing"])[..., protein_mask].cpu()
+                py_mixing += torch.sigmoid(generative_outputs["py_"]["mixing"])[
+                    ..., protein_mask
+                ].cpu()
             py_mixing /= len(transform_batch)
             py_mixings += [py_mixing]
         if n_samples > 1:
@@ -1068,9 +1102,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             batch_field,
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
-            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
+            NumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
+            ),
+            CategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
         if protein_expression_obsm_key is not None:
@@ -1085,7 +1125,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 )
             )
 
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 

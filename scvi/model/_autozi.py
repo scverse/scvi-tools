@@ -112,7 +112,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         self.use_observed_lib_size = use_observed_lib_size
         n_batch = self.summary_stats.n_batch
-        library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
+        library_log_means, library_log_vars = _init_library_size(
+            self.adata_manager, n_batch
+        )
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -151,7 +153,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def get_alphas_betas(self, as_numpy: bool = True) -> dict[str, Union[torch.Tensor, np.ndarray]]:
+    def get_alphas_betas(
+        self, as_numpy: bool = True
+    ) -> dict[str, Union[torch.Tensor, np.ndarray]]:
         """Return parameters of Bernoulli Beta distributions in a dictionary."""
         return self.module.get_alphas_betas(as_numpy=as_numpy)
 
@@ -184,7 +188,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if indices is None:
             indices = np.arange(adata.n_obs)
 
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         log_lkl = 0
         to_sum = torch.zeros((n_mc_samples,)).to(self.device)
@@ -195,7 +201,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         beta_posterior = alphas_betas["beta_posterior"]
 
         for i in range(n_mc_samples):
-            bernoulli_params = self.module.sample_from_beta_distribution(alpha_posterior, beta_posterior)
+            bernoulli_params = self.module.sample_from_beta_distribution(
+                alpha_posterior, beta_posterior
+            )
             for tensors in scdl:
                 sample_batch = tensors[REGISTRY_KEYS.X_KEY].to(self.device)
                 batch_index = tensors[REGISTRY_KEYS.BATCH_KEY].to(self.device)
@@ -282,6 +290,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

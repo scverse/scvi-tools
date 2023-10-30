@@ -75,7 +75,9 @@ class AmortizedLDAPyroModel(PyroModule):
         # Populated by PyroTrainingPlan.
         self.n_obs = None
 
-        cell_topic_prior_mu, cell_topic_prior_sigma = logistic_normal_approximation(cell_topic_prior)
+        cell_topic_prior_mu, cell_topic_prior_sigma = logistic_normal_approximation(
+            cell_topic_prior
+        )
         self.register_buffer(
             "cell_topic_prior_mu",
             cell_topic_prior_mu,
@@ -95,7 +97,9 @@ class AmortizedLDAPyroModel(PyroModule):
         self._dummy = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
 
     @staticmethod
-    def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Union[Iterable, dict]:
+    def _get_fn_args_from_batch(
+        tensor_dict: dict[str, torch.Tensor]
+    ) -> Union[Iterable, dict]:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         library = torch.sum(x, dim=1)
         return (x, library), {}
@@ -113,7 +117,9 @@ class AmortizedLDAPyroModel(PyroModule):
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             log_topic_feature_dist = pyro.sample(
                 "log_topic_feature_dist",
-                dist.Normal(self.topic_feature_prior_mu, self.topic_feature_prior_sigma).to_event(1),
+                dist.Normal(
+                    self.topic_feature_prior_mu, self.topic_feature_prior_sigma
+                ).to_event(1),
             )
             topic_feature_dist = F.softmax(log_topic_feature_dist, dim=1)
 
@@ -123,7 +129,9 @@ class AmortizedLDAPyroModel(PyroModule):
             with poutine.scale(None, kl_weight):
                 log_cell_topic_dist = pyro.sample(
                     "log_cell_topic_dist",
-                    dist.Normal(self.cell_topic_prior_mu, self.cell_topic_prior_sigma).to_event(1),
+                    dist.Normal(
+                        self.cell_topic_prior_mu, self.cell_topic_prior_sigma
+                    ).to_event(1),
                 )
             cell_topic_dist = F.softmax(log_cell_topic_dist, dim=1)
 
@@ -156,12 +164,16 @@ class AmortizedLDAPyroGuide(PyroModule):
         # Populated by PyroTrainingPlan.
         self.n_obs = None
 
-        self.encoder = Encoder(n_input, n_topics, distribution="ln", return_dist=True, n_hidden=n_hidden)
+        self.encoder = Encoder(
+            n_input, n_topics, distribution="ln", return_dist=True, n_hidden=n_hidden
+        )
         (
             topic_feature_posterior_mu,
             topic_feature_posterior_sigma,
         ) = logistic_normal_approximation(torch.ones(self.n_input))
-        self.topic_feature_posterior_mu = torch.nn.Parameter(topic_feature_posterior_mu.repeat(self.n_topics, 1))
+        self.topic_feature_posterior_mu = torch.nn.Parameter(
+            topic_feature_posterior_mu.repeat(self.n_topics, 1)
+        )
         self.unconstrained_topic_feature_posterior_sigma = torch.nn.Parameter(
             topic_feature_posterior_sigma.repeat(self.n_topics, 1)
         )
@@ -190,13 +202,17 @@ class AmortizedLDAPyroGuide(PyroModule):
             )
 
         # Cell topic distributions guide.
-        with pyro.plate("cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]), poutine.scale(None, kl_weight):
+        with pyro.plate(
+            "cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]
+        ), poutine.scale(None, kl_weight):
             cell_topic_posterior, _ = self.encoder(x)
             cell_topic_posterior_mu = cell_topic_posterior.loc
             cell_topic_posterior_sigma = cell_topic_posterior.scale**2
             pyro.sample(
                 "log_cell_topic_dist",
-                dist.Normal(cell_topic_posterior_mu, cell_topic_posterior_sigma).to_event(1),
+                dist.Normal(
+                    cell_topic_posterior_mu, cell_topic_posterior_sigma
+                ).to_event(1),
             )
 
 
@@ -321,7 +337,9 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         cell_topic_dist_sigma = F.softplus(cell_topic_dist_sigma.detach().cpu())
         return torch.mean(
             F.softmax(
-                dist.Normal(cell_topic_dist_mu, cell_topic_dist_sigma).sample(sample_shape=torch.Size((n_samples,))),
+                dist.Normal(cell_topic_dist_mu, cell_topic_dist_sigma).sample(
+                    sample_shape=torch.Size((n_samples,))
+                ),
                 dim=2,
             ),
             dim=0,

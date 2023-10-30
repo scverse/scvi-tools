@@ -20,7 +20,9 @@ from torch.distributions.utils import (
 from scvi import settings
 
 
-def log_zinb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, pi: torch.Tensor, eps=1e-8):
+def log_zinb_positive(
+    x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, pi: torch.Tensor, eps=1e-8
+):
     """Log likelihood (scalar) of a minibatch according to a zinb model.
 
     Parameters
@@ -42,7 +44,9 @@ def log_zinb_positive(x: torch.Tensor, mu: torch.Tensor, theta: torch.Tensor, pi
     """
     # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless of batch or labels)
     if theta.ndimension() == 1:
-        theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
+        theta = theta.view(
+            1, theta.size(0)
+        )  # In this case, we reshape theta for broadcasting
 
     # Uses log(sigmoid(x)) = -softplus(-x)
     softplus_pi = F.softplus(-pi)
@@ -146,7 +150,9 @@ def log_mixture_nb(
     else:
         theta = theta_1
         if theta.ndimension() == 1:
-            theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
+            theta = theta.view(
+                1, theta.size(0)
+            )  # In this case, we reshape theta for broadcasting
 
         log_theta_mu_1_eps = torch.log(theta + mu_1 + eps)
         log_theta_mu_2_eps = torch.log(theta + mu_2 + eps)
@@ -196,7 +202,9 @@ def _convert_mean_disp_to_counts_logits(mu, theta, eps=1e-6):
         and the success probability.
     """
     if not (mu is None) == (theta is None):
-        raise ValueError("If using the mu/theta NB parameterization, both parameters must be specified")
+        raise ValueError(
+            "If using the mu/theta NB parameterization, both parameters must be specified"
+        )
     logits = (mu + eps).log() - (theta + eps).log()
     total_count = theta
     return total_count, logits
@@ -311,7 +319,9 @@ class NegativeBinomial(Distribution):
                 "Please use one of the two possible parameterizations. Refer to the documentation for more information."
             )
 
-        using_param_1 = total_count is not None and (logits is not None or probs is not None)
+        using_param_1 = total_count is not None and (
+            logits is not None or probs is not None
+        )
         if using_param_1:
             logits = logits if logits is not None else probs_to_logits(probs)
             total_count = total_count.type_as(logits)
@@ -345,7 +355,9 @@ class NegativeBinomial(Distribution):
         # Clamping as distributions objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
-        counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
+        counts = PoissonTorch(
+            l_train
+        ).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
         return counts
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
@@ -426,7 +438,9 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
             scale=scale,
             validate_args=validate_args,
         )
-        self.zi_logits, self.mu, self.theta = broadcast_all(zi_logits, self.mu, self.theta)
+        self.zi_logits, self.mu, self.theta = broadcast_all(
+            zi_logits, self.mu, self.theta
+        )
 
     @property
     def mean(self):
@@ -554,7 +568,9 @@ class NegativeBinomialMixture(Distribution):
         # Clamping as distributions objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
-        counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_features)
+        counts = PoissonTorch(
+            l_train
+        ).sample()  # Shape : (n_samples, n_cells_batch, n_features)
         return counts
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:

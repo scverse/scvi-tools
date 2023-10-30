@@ -59,7 +59,9 @@ def test_getitem_tensors():
     assert list(dataset.keys_and_dtypes.keys()) == [REGISTRY_KEYS.X_KEY]
 
     # dict
-    dataset = manager.create_torch_dataset(data_and_attributes={REGISTRY_KEYS.X_KEY: np.float64})
+    dataset = manager.create_torch_dataset(
+        data_and_attributes={REGISTRY_KEYS.X_KEY: np.float64}
+    )
     assert isinstance(dataset.keys_and_dtypes, dict)
     assert list(dataset.keys_and_dtypes.keys()) == [REGISTRY_KEYS.X_KEY]
     assert dataset.keys_and_dtypes[REGISTRY_KEYS.X_KEY] == np.float64

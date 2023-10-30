@@ -115,7 +115,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         """
         if self.is_trained_ is False:
             warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train " "the model first.",
+                "Trying to query inferred values from an untrained model. Please train "
+                "the model first.",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
@@ -127,7 +128,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         var_vprior = np.ones((self.summary_stats.n_labels, p, self.module.n_latent))
         mp_vprior = np.zeros((self.summary_stats.n_labels, p))
 
-        labels_state_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
+        labels_state_registry = self.adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        )
         key = labels_state_registry.original_key
         mapping = labels_state_registry.categorical_mapping
 
@@ -150,7 +153,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             n_local_indices = len(local_indices)
             if "overclustering_vamp" not in adata.obs.columns:
                 if p < n_local_indices and p > 0:
-                    overclustering_vamp = KMeans(n_clusters=p, n_init=30).fit_predict(mean_cat[local_indices])
+                    overclustering_vamp = KMeans(n_clusters=p, n_init=30).fit_predict(
+                        mean_cat[local_indices]
+                    )
                 else:
                     # Every cell is its own cluster
                     overclustering_vamp = np.arange(n_local_indices)
@@ -177,7 +182,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
             for index, cluster in enumerate(keys):
                 indices_curr = local_indices[np.where(overclustering_vamp == cluster)[0]]
-                var_cluster[index, :] = np.mean(var_cat[indices_curr], axis=0) + np.var(mean_cat[indices_curr], axis=0)
+                var_cluster[index, :] = np.mean(var_cat[indices_curr], axis=0) + np.var(
+                    mean_cat[indices_curr], axis=0
+                )
                 mean_cluster[index, :] = np.mean(mean_cat[indices_curr], axis=0)
 
             slicing = slice(n_labels_overclustering)
@@ -272,6 +279,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

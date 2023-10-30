@@ -35,7 +35,9 @@ def dependencies(packages: Union[str, list[str]]) -> Callable:
                 for package in packages:
                     importlib.import_module(package)
             except ImportError as err:
-                raise ImportError(f"Please install {packages} to use this functionality.") from err
+                raise ImportError(
+                    f"Please install {packages} to use this functionality."
+                ) from err
             return fn(*args, **kwargs)
 
         return wrapper

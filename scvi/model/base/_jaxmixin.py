@@ -99,7 +99,9 @@ class JaxTrainingMixin:
 
         # Ignore Pytorch Lightning warnings for Jax workarounds.
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=UserWarning, module=r"pytorch_lightning.*")
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, module=r"pytorch_lightning.*"
+            )
             runner = self._train_runner_cls(
                 self,
                 training_plan=self.training_plan,

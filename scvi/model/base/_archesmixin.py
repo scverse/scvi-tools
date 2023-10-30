@@ -83,7 +83,9 @@ class ArchesMixin:
             validate_single_device=True,
         )
 
-        attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)
+        attr_dict, var_names, load_state_dict = _get_loaded_data(
+            reference_model, device=device
+        )
 
         if inplace_subset_query_vars:
             logger.debug("Subsetting query vars to reference vars.")
@@ -92,10 +94,15 @@ class ArchesMixin:
 
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
-            raise ValueError("It appears you are loading a model from a different class.")
+            raise ValueError(
+                "It appears you are loading a model from a different class."
+            )
 
         if _SETUP_ARGS_KEY not in registry:
-            raise ValueError("Saved model does not contain original setup inputs. " "Cannot load the original setup.")
+            raise ValueError(
+                "Saved model does not contain original setup inputs. "
+                "Cannot load the original setup."
+            )
 
         cls.setup_anndata(
             adata,
@@ -109,12 +116,15 @@ class ArchesMixin:
         adata_manager = model.get_anndata_manager(adata, required=True)
 
         if REGISTRY_KEYS.CAT_COVS_KEY in adata_manager.data_registry:
-            raise NotImplementedError("scArches currently does not support models with extra categorical covariates.")
+            raise NotImplementedError(
+                "scArches currently does not support models with extra categorical covariates."
+            )
 
         version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
             warnings.warn(
-                "Query integration should be performed using models trained with " "version >= 0.8",
+                "Query integration should be performed using models trained with "
+                "version >= 0.8",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
@@ -271,8 +281,18 @@ def _set_params_online_update(
         two = mod_name in mod_no_hooks_yes_grad
         three = sum([p in key for p in parameters_yes_grad]) > 0
         # batch norm option
-        four = "fc_layers" in key and ".1." in key and "encoder" in key and (not freeze_batchnorm_encoder)
-        five = "fc_layers" in key and ".1." in key and "decoder" in key and (not freeze_batchnorm_decoder)
+        four = (
+            "fc_layers" in key
+            and ".1." in key
+            and "encoder" in key
+            and (not freeze_batchnorm_encoder)
+        )
+        five = (
+            "fc_layers" in key
+            and ".1." in key
+            and "decoder" in key
+            and (not freeze_batchnorm_decoder)
+        )
         if one or two or three or four or five:
             return True
         else:

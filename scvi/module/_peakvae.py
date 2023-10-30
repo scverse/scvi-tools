@@ -70,7 +70,9 @@ class Decoder(nn.Module):
             inject_covariates=deep_inject_covariates,
             **kwargs,
         )
-        self.output = torch.nn.Sequential(torch.nn.Linear(n_hidden, n_output), torch.nn.Sigmoid())
+        self.output = torch.nn.Sequential(
+            torch.nn.Linear(n_hidden, n_output), torch.nn.Sigmoid()
+        )
 
     def forward(self, z: torch.Tensor, *cat_list: int):
         """Forward pass."""
@@ -159,7 +161,9 @@ class PEAKVAE(BaseModuleClass):
         super().__init__()
 
         self.n_input_regions = n_input_regions
-        self.n_hidden = int(np.sqrt(self.n_input_regions)) if n_hidden is None else n_hidden
+        self.n_hidden = (
+            int(np.sqrt(self.n_input_regions)) if n_hidden is None else n_hidden
+        )
         self.n_latent = int(np.sqrt(self.n_hidden)) if n_latent is None else n_latent
         self.n_layers_encoder = n_layers_encoder
         self.n_layers_decoder = n_layers_decoder
@@ -282,7 +286,11 @@ class PEAKVAE(BaseModuleClass):
         # if encode_covariates is False, cat_list to init encoder is None, so
         # batch_index is not used (or categorical_input, but it's empty)
         qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-        d = self.d_encoder(encoder_input, batch_index, *categorical_input) if self.model_depth else 1
+        d = (
+            self.d_encoder(encoder_input, batch_index, *categorical_input)
+            if self.model_depth
+            else 1
+        )
 
         if n_samples > 1:
             # when z is normal, untran_z == z
@@ -311,7 +319,9 @@ class PEAKVAE(BaseModuleClass):
         if cont_covs is None:
             decoder_input = latent
         elif latent.dim() != cont_covs.dim():
-            decoder_input = torch.cat([latent, cont_covs.unsqueeze(0).expand(latent.size(0), -1, -1)], dim=-1)
+            decoder_input = torch.cat(
+                [latent, cont_covs.unsqueeze(0).expand(latent.size(0), -1, -1)], dim=-1
+            )
         else:
             decoder_input = torch.cat([latent, cont_covs], dim=-1)
 
@@ -319,7 +329,9 @@ class PEAKVAE(BaseModuleClass):
 
         return {"p": p}
 
-    def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0):
+    def loss(
+        self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
+    ):
         """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         qz = inference_outputs["qz"]

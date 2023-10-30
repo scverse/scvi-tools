@@ -75,7 +75,9 @@ class ElboMetric(Metric):
         Filters for the relevant metric's value and updates this metric.
         """
         if self._N_OBS_MINIBATCH_KEY not in kwargs:
-            raise ValueError(f"Missing {self._N_OBS_MINIBATCH_KEY} value in metrics update.")
+            raise ValueError(
+                f"Missing {self._N_OBS_MINIBATCH_KEY} value in metrics update."
+            )
         if self._name not in kwargs:
             raise ValueError(f"Missing {self._name} value in metrics update.")
 

@@ -127,16 +127,22 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         # ignores unlabeled catgegory
         n_labels = self.summary_stats.n_labels - 1
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+            self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
 
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+        use_size_factor_key = (
+            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+        )
         library_log_means, library_log_vars = None, None
         if not use_size_factor_key and self.minified_data_type is None:
-            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
+            library_log_means, library_log_vars = _init_library_size(
+                self.adata_manager, n_batch
+            )
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -203,7 +209,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         scanvi_kwargs
             kwargs for scANVI model
         """
-        scvi_model._check_if_trained(message="Passed in scvi model hasn't been trained yet.")
+        scvi_model._check_if_trained(
+            message="Passed in scvi model hasn't been trained yet."
+        )
 
         scanvi_kwargs = dict(scanvi_kwargs)
         init_params = scvi_model.init_params_
@@ -213,7 +221,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         for k, v in {**non_kwargs, **kwargs}.items():
             if k in scanvi_kwargs.keys():
                 warnings.warn(
-                    f"Ignoring param '{k}' as it was already passed in to pretrained " f"SCVI model with value {v}.",
+                    f"Ignoring param '{k}' as it was already passed in to pretrained "
+                    f"SCVI model with value {v}.",
                     UserWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )
@@ -228,14 +237,18 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             adata = scvi_model.adata
         else:
             if _is_minified(adata):
-                raise ValueError("Please provide a non-minified `adata` to initialize scanvi.")
+                raise ValueError(
+                    "Please provide a non-minified `adata` to initialize scanvi."
+                )
             # validate new anndata against old model
             scvi_model._validate_anndata(adata)
 
         scvi_setup_args = deepcopy(scvi_model.adata_manager.registry[_SETUP_ARGS_KEY])
         scvi_labels_key = scvi_setup_args["labels_key"]
         if labels_key is None and scvi_labels_key is None:
-            raise ValueError("A `labels_key` is necessary as the SCVI model was initialized without one.")
+            raise ValueError(
+                "A `labels_key` is necessary as the SCVI model was initialized without one."
+            )
         if scvi_labels_key is None:
             scvi_setup_args.update({"labels_key": labels_key})
         cls.setup_anndata(
@@ -252,7 +265,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
     def _set_indices_and_labels(self):
         """Set indices for labeled and unlabeled cells."""
-        labels_state_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
+        labels_state_registry = self.adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        )
         self.original_label_key = labels_state_registry.original_key
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
@@ -414,7 +429,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             batch_size=batch_size,
             **datasplitter_kwargs,
         )
-        training_plan = self._training_plan_cls(self.module, self.n_labels, **plan_kwargs)
+        training_plan = self._training_plan_cls(
+            self.module, self.n_labels, **plan_kwargs
+        )
         if "callbacks" in trainer_kwargs.keys():
             trainer_kwargs["callbacks"].concatenate(sampler_callback)
         else:
@@ -463,16 +480,26 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            LabelsWithUnlabeledObsField(REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category),
-            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
-            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
+            LabelsWithUnlabeledObsField(
+                REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
+            ),
+            NumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
+            ),
+            CategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
+            NumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
+            ),
         ]
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
         if adata_minify_type is not None:
             anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -541,12 +568,18 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
 
         if self.module.use_observed_lib_size is False:
-            raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
+            raise ValueError(
+                "Cannot minify the data if `use_observed_lib_size` is False"
+            )
 
         minified_adata = get_minified_adata_scrna(self.adata, minified_data_type)
         minified_adata.obsm[_SCANVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
         minified_adata.obsm[_SCANVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
         counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
-        minified_adata.obs[_SCANVI_OBSERVED_LIB_SIZE] = np.squeeze(np.asarray(counts.sum(axis=1)))
-        self._update_adata_and_manager_post_minification(minified_adata, minified_data_type)
+        minified_adata.obs[_SCANVI_OBSERVED_LIB_SIZE] = np.squeeze(
+            np.asarray(counts.sum(axis=1))
+        )
+        self._update_adata_and_manager_post_minification(
+            minified_adata, minified_data_type
+        )
         self.module.minified_data_type = minified_data_type

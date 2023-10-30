@@ -22,7 +22,9 @@ def test_saving_and_loading(save_path):
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
-            raise ValueError(f"{dir_path} already exists. Please provide an unexisting directory for saving.")
+            raise ValueError(
+                f"{dir_path} already exists. Please provide an unexisting directory for saving."
+            )
 
         file_name_prefix = prefix or ""
 
@@ -68,7 +70,9 @@ def test_saving_and_loading(save_path):
         AUTOZI.load(save_path, adata=tmp_adata, prefix=prefix)
     model = AUTOZI.load(save_path, adata=adata, prefix=prefix)
     assert "batch" in model.adata_manager.data_registry
-    assert model.adata_manager.data_registry.batch == attrdict({"attr_name": "obs", "attr_key": "_scvi_batch"})
+    assert model.adata_manager.data_registry.batch == attrdict(
+        {"attr_name": "obs", "attr_key": "_scvi_batch"}
+    )
 
     ab2 = model.get_alphas_betas()
     np.testing.assert_array_equal(ab1["alpha_posterior"], ab2["alpha_posterior"])
@@ -77,10 +81,14 @@ def test_saving_and_loading(save_path):
 
     # Test legacy loading
     legacy_save_path = os.path.join(save_path, "legacy/")
-    legacy_save(model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix)
+    legacy_save(
+        model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
+    )
     with pytest.raises(ValueError):
         AUTOZI.load(legacy_save_path, adata=adata, prefix=prefix)
-    AUTOZI.convert_legacy_save(legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix)
+    AUTOZI.convert_legacy_save(
+        legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix
+    )
     m = AUTOZI.load(legacy_save_path, adata=adata, prefix=prefix)
     m.train(1)
 
@@ -118,7 +126,9 @@ def test_autozi():
             use_observed_lib_size=False,
         )
         autozivae.train(1, plan_kwargs={"lr": 1e-2}, check_val_every_n_epoch=1)
-        assert hasattr(autozivae.module, "library_log_means") and hasattr(autozivae.module, "library_log_vars")
+        assert hasattr(autozivae.module, "library_log_means") and hasattr(
+            autozivae.module, "library_log_vars"
+        )
         assert len(autozivae.history["elbo_train"]) == 1
         assert len(autozivae.history["elbo_validation"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)

@@ -229,19 +229,29 @@ class DifferentialComputation:
         batchid1_vals = np.unique(scales_batches_1["batch"])
         batchid2_vals = np.unique(scales_batches_2["batch"])
 
-        create_pairs_from_same_batches = (set(batchid1_vals) == set(batchid2_vals)) and not use_observed_batches
+        create_pairs_from_same_batches = (
+            set(batchid1_vals) == set(batchid2_vals)
+        ) and not use_observed_batches
         if create_pairs_from_same_batches:
             # First case: same batch normalization in two groups
             logger.debug("Same batches in both cell groups")
             n_batches = len(set(batchid1_vals))
-            n_samples_per_batch = m_permutation // n_batches if m_permutation is not None else None
-            logger.debug(f"Using {n_samples_per_batch} samples per batch for pair matching")
+            n_samples_per_batch = (
+                m_permutation // n_batches if m_permutation is not None else None
+            )
+            logger.debug(
+                f"Using {n_samples_per_batch} samples per batch for pair matching"
+            )
             scales_1 = []
             scales_2 = []
             for batch_val in set(batchid1_vals):
                 # Select scale samples that originate from the same batch id
-                scales_1_batch = scales_batches_1["scale"][scales_batches_1["batch"] == batch_val]
-                scales_2_batch = scales_batches_2["scale"][scales_batches_2["batch"] == batch_val]
+                scales_1_batch = scales_batches_1["scale"][
+                    scales_batches_1["batch"] == batch_val
+                ]
+                scales_2_batch = scales_batches_2["scale"][
+                    scales_batches_2["batch"] == batch_val
+                ]
 
                 # Create more pairs
                 scales_1_local, scales_2_local = pairs_sampler(
@@ -313,18 +323,28 @@ class DifferentialComputation:
             if m1_domain_fn is None:
 
                 def m1_domain_fn(samples):
-                    delta_ = delta if delta is not None else estimate_delta(lfc_means=samples.mean(0))
+                    delta_ = (
+                        delta
+                        if delta is not None
+                        else estimate_delta(lfc_means=samples.mean(0))
+                    )
                     logger.debug(f"Using delta ~ {delta_:.2f}")
                     return np.abs(samples) >= delta_
 
             change_fn_specs = inspect.getfullargspec(change_fn)
             domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
             if (len(change_fn_specs.args) != 2) | (len(domain_fn_specs.args) != 1):
-                raise ValueError("change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter.")
+                raise ValueError(
+                    "change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter."
+                )
             try:
                 change_distribution = change_fn(scales_1, scales_2)
                 is_de = m1_domain_fn(change_distribution)
-                delta_ = estimate_delta(lfc_means=change_distribution.mean(0)) if delta is None else delta
+                delta_ = (
+                    estimate_delta(lfc_means=change_distribution.mean(0))
+                    if delta is None
+                    else delta
+                )
             except TypeError as err:
                 raise TypeError(
                     "change_fn or m1_domain_fn have has wrong properties."
@@ -336,7 +356,9 @@ class DifferentialComputation:
                 samples=change_distribution,
                 credible_intervals_levels=cred_interval_lvls,
             )
-            change_distribution_props = {"lfc_" + key: val for (key, val) in change_distribution_props.items()}
+            change_distribution_props = {
+                "lfc_" + key: val for (key, val) in change_distribution_props.items()
+            }
 
             res = dict(
                 proba_de=proba_m1,
@@ -401,7 +423,9 @@ class DifferentialComputation:
         """
         # Get overall number of desired samples and desired batches
         if batchid is None and not use_observed_batches:
-            batch_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)
+            batch_registry = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.BATCH_KEY
+            )
             batchid = batch_registry.categorical_mapping
         if use_observed_batches:
             if batchid is not None:
@@ -413,7 +437,8 @@ class DifferentialComputation:
             n_samples = n_samples_per_cell * len(selection)
         if (n_samples_per_cell is not None) and (n_samples is not None):
             warnings.warn(
-                "`n_samples` and `n_samples_per_cell` were provided. Ignoring " "`n_samples_per_cell`",
+                "`n_samples` and `n_samples_per_cell` were provided. Ignoring "
+                "`n_samples_per_cell`",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
@@ -508,11 +533,14 @@ def estimate_pseudocounts_offset(
     """
     max_scales_a = np.max(scales_a, 0)
     max_scales_b = np.max(scales_b, 0)
-    asserts = ((max_scales_a.shape == where_zero_a.shape) and (max_scales_b.shape == where_zero_b.shape)) and (
-        where_zero_a.shape == where_zero_b.shape
-    )
+    asserts = (
+        (max_scales_a.shape == where_zero_a.shape)
+        and (max_scales_b.shape == where_zero_b.shape)
+    ) and (where_zero_a.shape == where_zero_b.shape)
     if not asserts:
-        raise ValueError("Dimension mismatch between scales and/or masks to compute the pseudocounts offset.")
+        raise ValueError(
+            "Dimension mismatch between scales and/or masks to compute the pseudocounts offset."
+        )
     if where_zero_a.sum() >= 1:
         artefact_scales_a = max_scales_a[where_zero_a]
         eps_a = np.percentile(artefact_scales_a, q=percentile)
@@ -592,7 +620,9 @@ def pairs_sampler(
     return first_set, second_set
 
 
-def credible_intervals(ary: np.ndarray, confidence_level: Union[float, list[float], np.ndarray] = 0.94) -> np.ndarray:
+def credible_intervals(
+    ary: np.ndarray, confidence_level: Union[float, list[float], np.ndarray] = 0.94
+) -> np.ndarray:
     """Calculate highest posterior density (HPD) of array for given credible_interval.
 
     Taken from the arviz package
@@ -612,7 +642,9 @@ def credible_intervals(ary: np.ndarray, confidence_level: Union[float, list[floa
         intervals minima, intervals maxima
     """
     if ary.ndim > 1:
-        hpd = np.array([credible_intervals(row, confidence_level=confidence_level) for row in ary.T])
+        hpd = np.array(
+            [credible_intervals(row, confidence_level=confidence_level) for row in ary.T]
+        )
         return hpd
     # Make a copy of trace
     ary = ary.copy()
@@ -659,7 +691,9 @@ def describe_continuous_distrib(
         "min": samples.min(0),
         "max": samples.max(0),
     }
-    credible_intervals_levels = [] if credible_intervals_levels is None else credible_intervals_levels
+    credible_intervals_levels = (
+        [] if credible_intervals_levels is None else credible_intervals_levels
+    )
     for confidence in credible_intervals_levels:
         intervals = credible_intervals(samples, confidence_level=confidence)
         interval_min, interval_max = intervals[:, 0], intervals[:, 1]
@@ -670,7 +704,9 @@ def describe_continuous_distrib(
     return dist_props
 
 
-def save_cluster_xlsx(filepath: str, de_results: list[pd.DataFrame], cluster_names: list):
+def save_cluster_xlsx(
+    filepath: str, de_results: list[pd.DataFrame], cluster_names: list
+):
     """Saves multi-clusters DE in an xlsx sheet.
 
     Parameters

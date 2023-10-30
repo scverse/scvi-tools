@@ -20,10 +20,16 @@ from scvi.train._trainingplans import _compute_kl_weight
         (400, 400, 0.0, 2.0, 2.0),
     ],
 )
-def test_compute_kl_weight_linear_annealing(current, n_warm_up, min_kl_weight, max_kl_weight, expected):
-    kl_weight = _compute_kl_weight(current, 1, n_warm_up, None, max_kl_weight, min_kl_weight)
+def test_compute_kl_weight_linear_annealing(
+    current, n_warm_up, min_kl_weight, max_kl_weight, expected
+):
+    kl_weight = _compute_kl_weight(
+        current, 1, n_warm_up, None, max_kl_weight, min_kl_weight
+    )
     assert kl_weight == pytest.approx(expected)
-    kl_weight = _compute_kl_weight(1, current, None, n_warm_up, max_kl_weight, min_kl_weight)
+    kl_weight = _compute_kl_weight(
+        1, current, None, n_warm_up, max_kl_weight, min_kl_weight
+    )
     assert kl_weight == pytest.approx(expected)
 
 
@@ -45,8 +51,12 @@ def test_compute_kl_weight_min_greater_max():
         (100, 200, 100, 1000, 1.0),
     ],
 )
-def test_compute_kl_precedence(epoch, step, n_epochs_kl_warmup, n_steps_kl_warmup, expected):
-    kl_weight = _compute_kl_weight(epoch, step, n_epochs_kl_warmup, n_steps_kl_warmup, 1.0, 0.0)
+def test_compute_kl_precedence(
+    epoch, step, n_epochs_kl_warmup, n_steps_kl_warmup, expected
+):
+    kl_weight = _compute_kl_weight(
+        epoch, step, n_epochs_kl_warmup, n_steps_kl_warmup, 1.0, 0.0
+    )
     assert kl_weight == expected
 
 

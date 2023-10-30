@@ -20,7 +20,9 @@ class ProgressBar(ProgressBarBase):
     def __init__(self, refresh_rate: int = 1):
         super().__init__()
         if refresh_rate > 1:
-            raise ValueError("scvi-tools progress bar only supports a value of 0 of 1 for `progress_bar_refresh_rate`")
+            raise ValueError(
+                "scvi-tools progress bar only supports a value of 0 of 1 for `progress_bar_refresh_rate`"
+            )
         self._refresh_rate = refresh_rate
         self._enabled = True
 

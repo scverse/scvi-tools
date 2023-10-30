@@ -24,8 +24,12 @@ def edit_colab_url(
         if button["label"] == "launch-buttons":
             # only one items in the launch buttons list as we only use colab
             # remove "tutorials/notebooks" from url
-            button["buttons"][0]["url"] = button["buttons"][0]["url"].replace("/docs/tutorials/notebooks", "")
-            button["buttons"][0]["url"] = button["buttons"][0]["url"].replace("scvi-tools", "scvi-tutorials")
+            button["buttons"][0]["url"] = button["buttons"][0]["url"].replace(
+                "/docs/tutorials/notebooks", ""
+            )
+            button["buttons"][0]["url"] = button["buttons"][0]["url"].replace(
+                "scvi-tools", "scvi-tutorials"
+            )
 
 
 def setup(app: Sphinx):

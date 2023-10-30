@@ -10,7 +10,9 @@ from scvi.train import TrainRunner
 
 
 class TestSparseDataSplitter(scvi.dataloaders.DataSplitter):
-    def __init__(self, *args, expected_sparse_layout: Literal["csr", "csc"] = None, **kwargs):
+    def __init__(
+        self, *args, expected_sparse_layout: Literal["csr", "csc"] = None, **kwargs
+    ):
         if expected_sparse_layout == "csr":
             self.expected_sparse_layout = torch.sparse_csr
         elif expected_sparse_layout == "csc":
@@ -80,7 +82,9 @@ class TestSparseModel(scvi.model.base.BaseModelClass):
             fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
         ]
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
         adata_manager.register_fields(adata)
         cls.register_manager(adata_manager)
 

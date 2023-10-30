@@ -8,7 +8,9 @@ def unsupported_if_adata_minified(fn: Callable) -> Callable:
     @wraps(fn)
     def wrapper(self, *args, **kwargs):
         if getattr(self, "minified_data_type", None) is not None:
-            raise ValueError(f"The {fn.__qualname__} function currently does not support minified data.")
+            raise ValueError(
+                f"The {fn.__qualname__} function currently does not support minified data."
+            )
         return fn(self, *args, **kwargs)
 
     return wrapper

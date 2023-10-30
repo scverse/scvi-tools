@@ -53,9 +53,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             n_labels=self.n_labels,
             **model_kwargs,
         )
-        self._model_summary_string = (
-            f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}"
-        )
+        self._model_summary_string = f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}"
         self.init_params_ = self._get_init_params(locals())
 
     @devices_dsp.dedent
@@ -143,7 +141,9 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -201,7 +201,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             prior_weight=prior_weight,
             **model_kwargs,
         )
-        self._model_summary_string = f"RNADeconv Model with params: \nn_spots: {st_adata.n_obs}"
+        self._model_summary_string = (
+            f"RNADeconv Model with params: \nn_spots: {st_adata.n_obs}"
+        )
         self.cell_type_mapping = cell_type_mapping
         self.init_params_ = self._get_init_params(locals())
 
@@ -230,7 +232,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         return cls(
             st_adata,
             sc_model.module.get_params(),
-            sc_model.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY).categorical_mapping,
+            sc_model.adata_manager.get_state_registry(
+                REGISTRY_KEYS.LABELS_KEY
+            ).categorical_mapping,
             prior_weight=prior_weight,
             **model_kwargs,
         )
@@ -357,6 +361,8 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

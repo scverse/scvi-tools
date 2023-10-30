@@ -103,11 +103,20 @@ def _apply_to_collection(
 
     # Recursively apply to collection items
     elif isinstance(data, Mapping):
-        return elem_type({k: _apply_to_collection(v, dtype, function, *args, **kwargs) for k, v in data.items()})
+        return elem_type(
+            {
+                k: _apply_to_collection(v, dtype, function, *args, **kwargs)
+                for k, v in data.items()
+            }
+        )
     elif isinstance(data, tuple) and hasattr(data, "_fields"):  # named tuple
-        return elem_type(*(_apply_to_collection(d, dtype, function, *args, **kwargs) for d in data))
+        return elem_type(
+            *(_apply_to_collection(d, dtype, function, *args, **kwargs) for d in data)
+        )
     elif isinstance(data, Sequence) and not isinstance(data, str):
-        return elem_type([_apply_to_collection(d, dtype, function, *args, **kwargs) for d in data])
+        return elem_type(
+            [_apply_to_collection(d, dtype, function, *args, **kwargs) for d in data]
+        )
 
     # data is neither of dtype, nor a collection
     return data

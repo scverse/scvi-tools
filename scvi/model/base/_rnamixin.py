@@ -34,7 +34,9 @@ class RNASeqMixin:
         if "transform_batch" in inspect.signature(self.module.generative).parameters:
             return {"transform_batch": batch}
         else:
-            raise NotImplementedError("Transforming batches is not implemented for this model.")
+            raise NotImplementedError(
+                "Transforming batches is not implemented for this model."
+            )
 
     def _get_importance_weights(
         self,
@@ -106,16 +108,22 @@ class RNASeqMixin:
         )
         mask = torch.tensor(anchor_cells)
         qz_anchor = subset_distribution(qz, mask, 0)  # n_anchors, n_latent
-        log_qz = qz_anchor.log_prob(zs.unsqueeze(-2)).sum(dim=-1)  # n_samples, n_cells, n_anchors
+        log_qz = qz_anchor.log_prob(zs.unsqueeze(-2)).sum(
+            dim=-1
+        )  # n_samples, n_cells, n_anchors
 
         log_px_z = []
         distributions_px = deep_to(px, device=device)
-        scdl_anchor = self._make_data_loader(adata=adata, indices=indices[anchor_cells], batch_size=1)
+        scdl_anchor = self._make_data_loader(
+            adata=adata, indices=indices[anchor_cells], batch_size=1
+        )
         for tensors_anchor in scdl_anchor:
             tensors_anchor = _move_data_to_device(tensors_anchor, device)
             x_anchor = tensors_anchor[REGISTRY_KEYS.X_KEY]  # 1, n_genes
             distributions_px.mu = distributions_px.scale * x_anchor.sum(-1)
-            log_px_z.append(distributions_px.log_prob(x_anchor).sum(dim=-1)[..., None].cpu())  # n_samples, n_cells, 1
+            log_px_z.append(
+                distributions_px.log_prob(x_anchor).sum(dim=-1)[..., None].cpu()
+            )  # n_samples, n_cells, 1
         log_px_z = torch.cat(log_px_z, dim=-1)
 
         log_pz = log_pz.reshape(-1, 1)
@@ -128,7 +136,9 @@ class RNASeqMixin:
             dim=1,
         )
         if truncation:
-            tau = torch.logsumexp(importance_weight, 0) - np.log(importance_weight.shape[0])
+            tau = torch.logsumexp(importance_weight, 0) - np.log(
+                importance_weight.shape[0]
+            )
             importance_weight = torch.clamp(importance_weight, min=tau)
 
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
@@ -209,7 +219,9 @@ class RNASeqMixin:
         if n_samples_overall is not None:
             assert n_samples == 1  # default value
             n_samples = n_samples_overall // len(indices) + 1
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         transform_batch = _get_batch_code_from_category(
             self.get_anndata_manager(adata, required=True), transform_batch
@@ -370,7 +382,9 @@ class RNASeqMixin:
             weights=weights,
             **importance_weighting_kwargs,
         )
-        representation_fn = self.get_latent_representation if filter_outlier_cells else None
+        representation_fn = (
+            self.get_latent_representation if filter_outlier_cells else None
+        )
 
         result = _de_core(
             self.get_anndata_manager(adata, required=True),
@@ -434,7 +448,9 @@ class RNASeqMixin:
 
         adata = self._validate_anndata(adata)
 
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         if indices is None:
             indices = np.arange(adata.n_obs)
@@ -492,7 +508,9 @@ class RNASeqMixin:
         denoised_samples
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         data_loader_list = []
         for tensors in scdl:
@@ -593,18 +611,26 @@ class RNASeqMixin:
                 rna_size_factor=rna_size_factor,
                 transform_batch=b,
             )
-            flattened = np.zeros((denoised_data.shape[0] * n_samples, denoised_data.shape[1]))
+            flattened = np.zeros(
+                (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
+            )
             for i in range(n_samples):
                 if n_samples == 1:
-                    flattened[denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)] = denoised_data[:, :]
+                    flattened[
+                        denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
+                    ] = denoised_data[:, :]
                 else:
-                    flattened[denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)] = denoised_data[:, :, i]
+                    flattened[
+                        denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
+                    ] = denoised_data[:, :, i]
             if correlation_type == "pearson":
                 corr_matrix = np.corrcoef(flattened, rowvar=False)
             elif correlation_type == "spearman":
                 corr_matrix, _ = spearmanr(flattened)
             else:
-                raise ValueError("Unknown correlation type. Choose one of 'spearman', 'pearson'.")
+                raise ValueError(
+                    "Unknown correlation type. Choose one of 'spearman', 'pearson'."
+                )
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
         var_names = adata.var_names
@@ -637,7 +663,9 @@ class RNASeqMixin:
         """
         adata = self._validate_anndata(adata)
 
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         dropout_list = []
         mean_list = []
@@ -714,7 +742,9 @@ class RNASeqMixin:
         self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         libraries = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)

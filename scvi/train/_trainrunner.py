@@ -115,7 +115,8 @@ class TrainRunner:
             # if not using the default logger (e.g., tensorboard)
             if not isinstance(self.model.history_, dict):
                 warnings.warn(
-                    "Training history cannot be updated. Logger can be accessed from " "`model.trainer.logger`",
+                    "Training history cannot be updated. Logger can be accessed from "
+                    "`model.trainer.logger`",
                     UserWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )

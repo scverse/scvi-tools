@@ -34,7 +34,10 @@ class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
             prev_prev_epoch = self.current_epoch - 2
 
             # check previous two epochs have different labeled indices
-            if prev_epoch in self.epoch_to_labeled_indices and prev_prev_epoch in self.epoch_to_labeled_indices:
+            if (
+                prev_epoch in self.epoch_to_labeled_indices
+                and prev_prev_epoch in self.epoch_to_labeled_indices
+            ):
                 prev_indices = self.epoch_to_labeled_indices[prev_epoch]
                 prev_prev_indices = self.epoch_to_labeled_indices[prev_prev_epoch]
 
@@ -51,7 +54,9 @@ def test_semisuperviseddataloader_subsampling(
     n_labels: int = 3,
     n_samples_per_label: int = 10,
 ):
-    adata = scvi.data.synthetic_iid(batch_size=batch_size, n_batches=n_batches, n_labels=n_labels)
+    adata = scvi.data.synthetic_iid(
+        batch_size=batch_size, n_batches=n_batches, n_labels=n_labels
+    )
     adata.obs["indices"] = np.arange(adata.n_obs)
 
     original_training_plan_cls = scvi.model.SCANVI._training_plan_cls
@@ -88,7 +93,9 @@ def test_anndataloader_distributed_sampler_init():
         )
 
 
-def multiprocessing_worker(rank: int, world_size: int, manager: scvi.data.AnnDataManager, save_path: str):
+def multiprocessing_worker(
+    rank: int, world_size: int, manager: scvi.data.AnnDataManager, save_path: str
+):
     # initializes the distributed backend that takes care of synchronizing processes
     torch.distributed.init_process_group(
         "gloo",  # backend that works on all systems

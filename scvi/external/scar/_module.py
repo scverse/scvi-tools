@@ -52,7 +52,9 @@ class softplus(nn.Module):
     def _softplus(self, input_x):
         """Customized softplus activation, output range: [0, inf)."""
         var_sp = nn.functional.softplus(input_x)
-        threshold = nn.functional.softplus(torch.tensor(-(1 - self.sparsity) * 10.0, device=input_x.device))
+        threshold = nn.functional.softplus(
+            torch.tensor(-(1 - self.sparsity) * 10.0, device=input_x.device)
+        )
         var_sp = var_sp - threshold
         zero = torch.zeros_like(threshold)
         var_out = torch.where(var_sp <= zero, zero, var_sp)
@@ -332,7 +334,9 @@ class SCAR_VAE(VAE):
     ):
         """Compute the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
-        kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(dim=1)
+        kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
+            dim=1
+        )
         if not self.use_observed_lib_size:
             kl_divergence_l = kl(
                 inference_outputs["ql"],

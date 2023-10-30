@@ -88,7 +88,9 @@ class SCANVAE(VAE):
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: Tunable[float] = 0.1,
-        dispersion: Tunable[Literal["gene", "gene-batch", "gene-label", "gene-cell"]] = "gene",
+        dispersion: Tunable[
+            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
+        ] = "gene",
         log_variational: Tunable[bool] = True,
         gene_likelihood: Tunable[Literal["zinb", "nb"]] = "zinb",
         y_prior=None,
@@ -166,7 +168,9 @@ class SCANVAE(VAE):
             requires_grad=False,
         )
         self.use_labels_groups = use_labels_groups
-        self.labels_groups = np.array(labels_groups) if labels_groups is not None else None
+        self.labels_groups = (
+            np.array(labels_groups) if labels_groups is not None else None
+        )
         if self.use_labels_groups:
             if labels_groups is None:
                 raise ValueError("Specify label groups")
@@ -174,7 +178,9 @@ class SCANVAE(VAE):
             self.n_groups = len(unique_groups)
             if not (unique_groups == np.arange(self.n_groups)).all():
                 raise ValueError()
-            self.classifier_groups = Classifier(n_latent, n_hidden, self.n_groups, n_layers, dropout_rate)
+            self.classifier_groups = Classifier(
+                n_latent, n_hidden, self.n_groups, n_layers, dropout_rate
+            )
             self.groups_index = torch.nn.ParameterList(
                 [
                     torch.nn.Parameter(
@@ -219,7 +225,9 @@ class SCANVAE(VAE):
             w_y = torch.zeros_like(unw_y)
             for i, group_index in enumerate(self.groups_index):
                 unw_y_g = unw_y[:, group_index]
-                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
+                w_y[:, group_index] = unw_y_g / (
+                    unw_y_g.sum(dim=-1, keepdim=True) + 1e-8
+                )
                 w_y[:, group_index] *= w_g[:, [i]]
         else:
             w_y = self.classifier(z)
@@ -231,11 +239,17 @@ class SCANVAE(VAE):
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
+        cont_covs = (
+            labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
+        )
 
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
-        logits = self.classify(x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs)  # (n_obs, n_labels)
+        cat_covs = (
+            labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
+        )
+        logits = self.classify(
+            x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
+        )  # (n_obs, n_labels)
         ce_loss = F.cross_entropy(
             logits,
             y.view(-1).long(),
@@ -309,7 +323,9 @@ class SCANVAE(VAE):
                     true_labels=true_labels,
                     logits=logits,
                     extra_metrics={
-                        "n_labelled_tensors": labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
+                        "n_labelled_tensors": labelled_tensors[
+                            REGISTRY_KEYS.X_KEY
+                        ].shape[0],
                     },
                 )
             return LossOutput(
@@ -319,7 +335,9 @@ class SCANVAE(VAE):
             )
 
         probs = self.classifier(z1)
-        reconst_loss += loss_z1_weight + ((loss_z1_unweight).view(self.n_labels, -1).t() * probs).sum(dim=1)
+        reconst_loss += loss_z1_weight + (
+            (loss_z1_unweight).view(self.n_labels, -1).t() * probs
+        ).sum(dim=1)
 
         kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
         kl_divergence += kl(
@@ -342,4 +360,6 @@ class SCANVAE(VAE):
                 true_labels=true_labels,
                 logits=logits,
             )
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence
+        )

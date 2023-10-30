@@ -170,7 +170,9 @@ def test_register_new_fields(adata):
         )
     ]
     incremental_adata_manager.register_new_fields(new_fields)
-    adata_manager = generic_setup_adata_manager(adata, protein_expression_obsm_key="protein_expression")
+    adata_manager = generic_setup_adata_manager(
+        adata, protein_expression_obsm_key="protein_expression"
+    )
     np.testing.assert_array_equal(
         incremental_adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
         adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
@@ -190,13 +192,18 @@ def test_register_new_fields_with_transferred_manager(adata):
 
     # Should have protein field
     cdata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
-    np.testing.assert_array_equal(cdata.obs["_scvi_batch"].values, adata.obs["_scvi_batch"].values)
+    np.testing.assert_array_equal(
+        cdata.obs["_scvi_batch"].values, adata.obs["_scvi_batch"].values
+    )
 
 
 def test_update_setup_args(adata):
     adata_manager = generic_setup_adata_manager(adata)
     adata_manager.update_setup_method_args({"test_arg": "test_val"})
-    assert "test_arg" in adata_manager._get_setup_method_args()[_constants._SETUP_ARGS_KEY].keys()
+    assert (
+        "test_arg"
+        in adata_manager._get_setup_method_args()[_constants._SETUP_ARGS_KEY].keys()
+    )
 
 
 def test_data_format(adata):
@@ -209,7 +216,9 @@ def test_data_format(adata):
     assert adata.X.flags["C_CONTIGUOUS"] is False
     assert adata.obsm["protein_expression"].flags["C_CONTIGUOUS"] is False
 
-    adata_manager = generic_setup_adata_manager(adata, protein_expression_obsm_key="protein_expression")
+    adata_manager = generic_setup_adata_manager(
+        adata, protein_expression_obsm_key="protein_expression"
+    )
     assert adata.X.flags["C_CONTIGUOUS"] is True
     assert adata.obsm["protein_expression"].flags["C_CONTIGUOUS"] is True
 
@@ -229,7 +238,9 @@ def test_data_format_c_contiguous(adata):
     pe = np.asfortranarray(adata.obsm["protein_expression"])
     adata.obsm["protein_expression"] = pd.DataFrame(pe, index=adata.obs_names)
     assert adata.obsm["protein_expression"].to_numpy().flags["C_CONTIGUOUS"] is False
-    adata_manager = generic_setup_adata_manager(adata, protein_expression_obsm_key="protein_expression")
+    adata_manager = generic_setup_adata_manager(
+        adata, protein_expression_obsm_key="protein_expression"
+    )
     new_pe = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
     assert new_pe.to_numpy().flags["C_CONTIGUOUS"] is True
     assert np.array_equal(pe, new_pe)
@@ -257,7 +268,9 @@ def test_setup_anndata(adata):
         adata_manager.get_from_registry(REGISTRY_KEYS.LABELS_KEY),
         np.array(adata.obs["labels"].cat.codes).reshape((-1, 1)),
     )
-    np.testing.assert_array_equal(adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), adata.X)
+    np.testing.assert_array_equal(
+        adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), adata.X
+    )
     np.testing.assert_array_equal(
         adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
         adata.obsm["protein_expression"],
@@ -283,7 +296,9 @@ def test_setup_anndata_view_error_df_protein_none(adata):
         columns=new_protein_names,
     )
     adata.obsm["protein_expression"] = df
-    adata_manager = generic_setup_adata_manager(adata, protein_expression_obsm_key="protein_expression")
+    adata_manager = generic_setup_adata_manager(
+        adata, protein_expression_obsm_key="protein_expression"
+    )
     np.testing.assert_array_equal(
         adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).column_names,
         new_protein_names,
@@ -296,7 +311,9 @@ def test_setup_anndata_layer(adata):
     adata.layers["X"] = true_x
     adata.X = np.ones_like(adata.X)
     adata_manager = generic_setup_adata_manager(adata, layer="X")
-    np.testing.assert_array_equal(adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), true_x)
+    np.testing.assert_array_equal(
+        adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), true_x
+    )
 
 
 def test_setup_anndata_create_label_batch(adata):
@@ -377,7 +394,10 @@ def test_extra_covariates_transfer(adata):
     # give it a new category
     bdata.obs["cat1"] = 6
     bdata_manager = adata_manager.transfer_fields(bdata, extend_categories=True)
-    assert bdata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings["cat1"][-1] == 6
+    assert (
+        bdata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings["cat1"][-1]
+        == 6
+    )
 
 
 def test_anntorchdataset_getitem(adata):
@@ -443,7 +463,9 @@ def test_anntorchdataset_numpy_sparse(adata):
 
 def test_anntorchdataset_getitem_numpy_sparse(adata):
     # check AnnTorchDataset returns numpy array if pro exp was sparse
-    adata.obsm["protein_expression"] = sparse.csr_matrix(adata.obsm["protein_expression"])
+    adata.obsm["protein_expression"] = sparse.csr_matrix(
+        adata.obsm["protein_expression"]
+    )
     adata_manager = generic_setup_adata_manager(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )
@@ -454,7 +476,9 @@ def test_anntorchdataset_getitem_numpy_sparse(adata):
 
 def test_anntorchdataset_getitem_pro_exp(adata):
     # check pro exp is being returned as numpy array even if its DF
-    adata.obsm["protein_expression"] = pd.DataFrame(adata.obsm["protein_expression"], index=adata.obs_names)
+    adata.obsm["protein_expression"] = pd.DataFrame(
+        adata.obsm["protein_expression"], index=adata.obs_names
+    )
     adata_manager = generic_setup_adata_manager(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )

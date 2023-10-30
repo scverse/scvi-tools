@@ -28,11 +28,15 @@ def nearest_neighbor_overlap(x1, x2, k=100):
     kmatrix_2 = nne.kneighbors_graph(x2) - scipy.sparse.identity(n_samples)
 
     # 1 - spearman correlation from knn graphs
-    spearman_correlation = scipy.stats.spearmanr(kmatrix_1.A.flatten(), kmatrix_2.A.flatten())[0]
+    spearman_correlation = scipy.stats.spearmanr(
+        kmatrix_1.A.flatten(), kmatrix_2.A.flatten()
+    )[0]
     # 2 - fold enrichment
     set_1 = set(np.where(kmatrix_1.A.flatten() == 1)[0])
     set_2 = set(np.where(kmatrix_2.A.flatten() == 1)[0])
-    fold_enrichment = len(set_1.intersection(set_2)) * n_samples**2 / (float(len(set_1)) * len(set_2))
+    fold_enrichment = (
+        len(set_1.intersection(set_2)) * n_samples**2 / (float(len(set_1)) * len(set_2))
+    )
     return spearman_correlation, fold_enrichment
 
 

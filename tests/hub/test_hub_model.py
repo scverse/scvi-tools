@@ -141,7 +141,9 @@ def test_hub_model_pull_from_hf(save_path):
     # with open(os.path.join(test_save_path, _SCVI_HUB.METADATA_FILE_NAME), "w") as fp:
     #     json.dump(asdict(hm), fp, indent=4)
 
-    hmo = HubModel.pull_from_huggingface_hub(repo_name="scvi-tools/MODEL-FOR-UNIT-TESTING-1")
+    hmo = HubModel.pull_from_huggingface_hub(
+        repo_name="scvi-tools/MODEL-FOR-UNIT-TESTING-1"
+    )
     assert hmo.metadata == HubMetadata("0.17.0", "0.8.0", "SCVI")
     assert hmo.model_card.content == "---\nlicense: cc-by-4.0\n---\n"
     assert isinstance(hmo.model, scvi.model.SCVI)
@@ -150,7 +152,9 @@ def test_hub_model_pull_from_hf(save_path):
     assert hmo.large_training_adata is None
 
     # pull to a custom directory
-    hmo = HubModel.pull_from_huggingface_hub(repo_name="scvi-tools/MODEL-FOR-UNIT-TESTING-1", cache_dir=save_path)
+    hmo = HubModel.pull_from_huggingface_hub(
+        repo_name="scvi-tools/MODEL-FOR-UNIT-TESTING-1", cache_dir=save_path
+    )
     assert hmo._local_dir.startswith(save_path)
 
 
@@ -176,7 +180,9 @@ def test_hub_model_push_to_hf(request, save_path):
     # repo_token = Path(your_token_path).read_text()
     repo_token = os.environ["HF_API_TOKEN"]
     repo_name = f"scvi-tools/MODEL-FOR-UNIT-TESTING-{str(uuid4())}"
-    hmo.push_to_huggingface_hub(repo_name=repo_name, repo_token=repo_token, repo_create=True)
+    hmo.push_to_huggingface_hub(
+        repo_name=repo_name, repo_token=repo_token, repo_create=True
+    )
 
     # pull back down and validate
     hmo = HubModel.pull_from_huggingface_hub(repo_name=repo_name)

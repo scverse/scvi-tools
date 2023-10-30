@@ -253,7 +253,9 @@ class ScBassetModule(BaseModuleClass):
         tower_layers = []
         curr_n_filters = n_filters_init
         for i in range(n_repeat_blocks_tower):
-            new_n_filters = _round(curr_n_filters * filters_mult) if i > 0 else curr_n_filters
+            new_n_filters = (
+                _round(curr_n_filters * filters_mult) if i > 0 else curr_n_filters
+            )
             tower_layers.append(
                 _ConvBlock(
                     in_channels=curr_n_filters,
@@ -348,13 +350,17 @@ class ScBassetModule(BaseModuleClass):
         if batch_size is None:
             # no minibatching
             batch_size = dna_codes.shape[0]
-        n_batches = accessibility.shape[0] // batch_size + int((accessibility.shape[0] % batch_size) > 0)
+        n_batches = accessibility.shape[0] // batch_size + int(
+            (accessibility.shape[0] % batch_size) > 0
+        )
         for batch in range(n_batches):
             batch_codes = dna_codes[batch * batch_size : (batch + 1) * batch_size]
             # forward passes, output is dict(region_embedding=np.ndarray: [n_seqs, n_latent=32])
             motif_rep = self.inference(dna_code=batch_codes)
             # output is dict(reconstruction_logits=np.ndarray: [n_seqs, n_cells])
-            batch_acc = self.generative(region_embedding=motif_rep["region_embedding"])["reconstruction_logits"]
+            batch_acc = self.generative(region_embedding=motif_rep["region_embedding"])[
+                "reconstruction_logits"
+            ]
             accessibility[batch * batch_size : (batch + 1) * batch_size] = batch_acc
         return accessibility
 
@@ -376,7 +382,9 @@ class ScBassetModule(BaseModuleClass):
         loss_fn = nn.BCEWithLogitsLoss(reduction="none")
         full_loss = loss_fn(reconstruction_logits, target)
         reconstruction_loss = full_loss.sum(dim=-1)
-        loss = reconstruction_loss.sum() / (reconstruction_logits.shape[0] * reconstruction_logits.shape[1])
+        loss = reconstruction_loss.sum() / (
+            reconstruction_logits.shape[0] * reconstruction_logits.shape[1]
+        )
         if self.l2_reg_cell_embedding > 0:
             loss += self.l2_reg_cell_embedding * torch.square(self.cell_embedding).mean()
         auroc = torchmetrics.functional.auroc(

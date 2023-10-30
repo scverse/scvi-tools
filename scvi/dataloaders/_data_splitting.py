@@ -21,7 +21,9 @@ from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
 
 
-def validate_data_split(n_samples: int, train_size: float, validation_size: Optional[float] = None):
+def validate_data_split(
+    n_samples: int, train_size: float, validation_size: Optional[float] = None
+):
     """Check data splitting parameters and return n_train and n_val.
 
     Parameters
@@ -244,7 +246,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
-        labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
+        labels_state_registry = adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        )
         labels = get_anndata_attribute(
             adata_manager.adata,
             adata_manager.data_registry.labels.attr_name,
@@ -263,15 +267,21 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         n_unlabeled_idx = len(self._unlabeled_indices)
 
         if n_labeled_idx != 0:
-            n_labeled_train, n_labeled_val = validate_data_split(n_labeled_idx, self.train_size, self.validation_size)
+            n_labeled_train, n_labeled_val = validate_data_split(
+                n_labeled_idx, self.train_size, self.validation_size
+            )
 
             labeled_permutation = self._labeled_indices
             if self.shuffle_set_split:
                 rs = np.random.RandomState(seed=settings.seed)
-                labeled_permutation = rs.choice(self._labeled_indices, len(self._labeled_indices), replace=False)
+                labeled_permutation = rs.choice(
+                    self._labeled_indices, len(self._labeled_indices), replace=False
+                )
 
             labeled_idx_val = labeled_permutation[:n_labeled_val]
-            labeled_idx_train = labeled_permutation[n_labeled_val : (n_labeled_val + n_labeled_train)]
+            labeled_idx_train = labeled_permutation[
+                n_labeled_val : (n_labeled_val + n_labeled_train)
+            ]
             labeled_idx_test = labeled_permutation[(n_labeled_val + n_labeled_train) :]
         else:
             labeled_idx_test = []
@@ -286,11 +296,17 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             unlabeled_permutation = self._unlabeled_indices
             if self.shuffle_set_split:
                 rs = np.random.RandomState(seed=settings.seed)
-                unlabeled_permutation = rs.choice(self._unlabeled_indices, len(self._unlabeled_indices))
+                unlabeled_permutation = rs.choice(
+                    self._unlabeled_indices, len(self._unlabeled_indices)
+                )
 
             unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]
-            unlabeled_idx_train = unlabeled_permutation[n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)]
-            unlabeled_idx_test = unlabeled_permutation[(n_unlabeled_val + n_unlabeled_train) :]
+            unlabeled_idx_train = unlabeled_permutation[
+                n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
+            ]
+            unlabeled_idx_test = unlabeled_permutation[
+                (n_unlabeled_val + n_unlabeled_train) :
+            ]
         else:
             unlabeled_idx_train = []
             unlabeled_idx_val = []
@@ -414,7 +430,9 @@ class DeviceBackedDataSplitter(DataSplitter):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.shuffle_test_val = shuffle_test_val
-        _, _, self.device = parse_device_args(accelerator=accelerator, devices=device, return_device="torch")
+        _, _, self.device = parse_device_args(
+            accelerator=accelerator, devices=device, return_device="torch"
+        )
 
     def setup(self, stage: Optional[str] = None):
         """Create the train, validation, and test indices."""
@@ -422,10 +440,16 @@ class DeviceBackedDataSplitter(DataSplitter):
 
         if self.shuffle is False:
             self.train_idx = np.sort(self.train_idx)
-            self.val_idx = np.sort(self.val_idx) if len(self.val_idx) > 0 else self.val_idx
-            self.test_idx = np.sort(self.test_idx) if len(self.test_idx) > 0 else self.test_idx
+            self.val_idx = (
+                np.sort(self.val_idx) if len(self.val_idx) > 0 else self.val_idx
+            )
+            self.test_idx = (
+                np.sort(self.test_idx) if len(self.test_idx) > 0 else self.test_idx
+            )
 
-        self.train_tensor_dict = self._get_tensor_dict(self.train_idx, device=self.device)
+        self.train_tensor_dict = self._get_tensor_dict(
+            self.train_idx, device=self.device
+        )
         self.test_tensor_dict = self._get_tensor_dict(self.test_idx, device=self.device)
         self.val_tensor_dict = self._get_tensor_dict(self.val_idx, device=self.device)
 

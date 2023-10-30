@@ -38,7 +38,9 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         super().__init__(registry_key, obs_key)
         self._unlabeled_category = unlabeled_category
 
-    def _remap_unlabeled_to_final_category(self, adata: AnnData, mapping: np.ndarray) -> dict:
+    def _remap_unlabeled_to_final_category(
+        self, adata: AnnData, mapping: np.ndarray
+    ) -> dict:
         labels = self._get_original_column(adata)
 
         if self._unlabeled_category in labels:

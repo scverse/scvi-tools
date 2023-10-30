@@ -93,7 +93,9 @@ class LossOutput:
         self.loss = self.dict_sum(self.loss)
 
         if self.n_obs_minibatch is None and self.reconstruction_loss is None:
-            raise ValueError("Must provide either n_obs_minibatch or reconstruction_loss")
+            raise ValueError(
+                "Must provide either n_obs_minibatch or reconstruction_loss"
+            )
 
         default = 0 * self.loss
         if self.reconstruction_loss is None:
@@ -113,8 +115,13 @@ class LossOutput:
             rec_loss = self.reconstruction_loss
             self.n_obs_minibatch = list(rec_loss.values())[0].shape[0]
 
-        if self.classification_loss is not None and (self.logits is None or self.true_labels is None):
-            raise ValueError("Must provide `logits` and `true_labels` if `classification_loss` is " "provided.")
+        if self.classification_loss is not None and (
+            self.logits is None or self.true_labels is None
+        ):
+            raise ValueError(
+                "Must provide `logits` and `true_labels` if `classification_loss` is "
+                "provided."
+            )
 
     @staticmethod
     def dict_sum(dictionary: dict[str, Tensor] | Tensor):
@@ -172,7 +179,9 @@ class BaseModuleClass(TunableMixin, nn.Module):
         generative_kwargs: dict | None = None,
         loss_kwargs: dict | None = None,
         compute_loss=True,
-    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, LossOutput]:
+    ) -> (
+        tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, LossOutput]
+    ):
         """Forward pass through the network.
 
         Parameters
@@ -233,7 +242,9 @@ class BaseModuleClass(TunableMixin, nn.Module):
         """
 
     @abstractmethod
-    def generative(self, *args, **kwargs) -> dict[str, torch.Tensor | torch.distributions.Distribution]:
+    def generative(
+        self, *args, **kwargs
+    ) -> dict[str, torch.Tensor | torch.distributions.Distribution]:
         """Run the generative model.
 
         This function should return the parameters associated with the likelihood of the data.
@@ -289,7 +300,10 @@ class BaseMinifiedModeModuleClass(BaseModuleClass):
         Branches off to regular or cached inference depending on whether we have a minified adata
         that contains the latent posterior parameters.
         """
-        if self.minified_data_type is not None and self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        if (
+            self.minified_data_type is not None
+            and self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             return self._cached_inference(*args, **kwargs)
         else:
             return self._regular_inference(*args, **kwargs)
@@ -625,14 +639,20 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
     def load_state_dict(self, state_dict: dict[str, Any]):
         """Load a state dictionary into a train state."""
         if self.train_state is None:
-            raise RuntimeError("Train state is not set. Train for one iteration prior to loading state dict.")
-        self.train_state = flax.serialization.from_state_dict(self.train_state, state_dict)
+            raise RuntimeError(
+                "Train state is not set. Train for one iteration prior to loading state dict."
+            )
+        self.train_state = flax.serialization.from_state_dict(
+            self.train_state, state_dict
+        )
 
     def to(self, device: Device):
         """Move module to device."""
         if device is not self.device:
             if self.train_state is not None:
-                self.train_state = jax.tree_util.tree_map(lambda x: jax.device_put(x, device), self.train_state)
+                self.train_state = jax.tree_util.tree_map(
+                    lambda x: jax.device_put(x, device), self.train_state
+                )
 
             self.seed_rng = jax.device_put(self.seed_rng, device)
             self._rngs = jax.device_put(self._rngs, device)
@@ -652,7 +672,9 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
         self,
         get_inference_input_kwargs: dict[str, Any] | None = None,
         inference_kwargs: dict[str, Any] | None = None,
-    ) -> Callable[[dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]]:
+    ) -> Callable[
+        [dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]
+    ]:
         """Create a method to run inference using the bound module.
 
         Parameters
@@ -721,10 +743,14 @@ def _generic_forward(
 
     inference_inputs = module._get_inference_input(tensors, **get_inference_input_kwargs)
     inference_outputs = module.inference(**inference_inputs, **inference_kwargs)
-    generative_inputs = module._get_generative_input(tensors, inference_outputs, **get_generative_input_kwargs)
+    generative_inputs = module._get_generative_input(
+        tensors, inference_outputs, **get_generative_input_kwargs
+    )
     generative_outputs = module.generative(**generative_inputs, **generative_kwargs)
     if compute_loss:
-        losses = module.loss(tensors, inference_outputs, generative_outputs, **loss_kwargs)
+        losses = module.loss(
+            tensors, inference_outputs, generative_outputs, **loss_kwargs
+        )
         return inference_outputs, generative_outputs, losses
     else:
         return inference_outputs, generative_outputs

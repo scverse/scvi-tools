@@ -38,7 +38,9 @@ class MetricsCallback(Callback):
 
     def __init__(
         self,
-        metric_fns: Union[MetricCallable, list[MetricCallable], dict[str, MetricCallable]],
+        metric_fns: Union[
+            MetricCallable, list[MetricCallable], dict[str, MetricCallable]
+        ],
     ):
         super().__init__()
 
@@ -162,7 +164,8 @@ class SaveBestState(Callback):
 
             if current is None:
                 warnings.warn(
-                    f"Can save best module state only with {self.monitor} available, " "skipping.",
+                    f"Can save best module state only with {self.monitor} available, "
+                    "skipping.",
                     RuntimeWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )

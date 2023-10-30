@@ -60,7 +60,9 @@ def mde(
     try:
         import pymde
     except ImportError as err:
-        raise ImportError("Please install pymde package via `pip install pymde`") from err
+        raise ImportError(
+            "Please install pymde package via `pip install pymde`"
+        ) from err
 
     if isinstance(data, pd.DataFrame):
         data = data.values
@@ -82,7 +84,9 @@ def mde(
     }
     _kwargs.update(kwargs)
 
-    emb = pymde.preserve_neighbors(data, device=device, **_kwargs).embed(verbose=_kwargs["verbose"])
+    emb = pymde.preserve_neighbors(data, device=device, **_kwargs).embed(
+        verbose=_kwargs["verbose"]
+    )
 
     if isinstance(emb, torch.Tensor):
         emb = emb.cpu().numpy()

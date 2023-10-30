@@ -62,8 +62,14 @@ def test_scbasset_tf(save_path):
     # model.train(max_epochs=2, early_stopping=True)
     model.is_trained = True
 
-    motif_seqs, bg_seqs = model._get_motif_library(tf="MYOD1", motif_dir=save_path, genome="human")
+    motif_seqs, bg_seqs = model._get_motif_library(
+        tf="MYOD1", motif_dir=save_path, genome="human"
+    )
 
-    model.get_tf_activity(tf="MYOD1", motif_dir=save_path, genome="human", lib_size_norm=True)
-    model.get_tf_activity(tf="MYOD1", motif_dir=save_path, genome="human", lib_size_norm=False)
+    model.get_tf_activity(
+        tf="MYOD1", motif_dir=save_path, genome="human", lib_size_norm=True
+    )
+    model.get_tf_activity(
+        tf="MYOD1", motif_dir=save_path, genome="human", lib_size_norm=False
+    )
     return

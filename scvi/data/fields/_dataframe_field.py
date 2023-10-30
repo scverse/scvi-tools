@@ -39,7 +39,9 @@ class BaseDataFrameField(BaseAnnDataField):
     ) -> None:
         super().__init__()
         if required and attr_key is None:
-            raise ValueError("`attr_key` cannot be `None` if `required=True`. Please provide an `attr_key`.")
+            raise ValueError(
+                "`attr_key` cannot be `None` if `required=True`. Please provide an `attr_key`."
+            )
         if field_type == "obs":
             self._attr_name = _constants._ADATA_ATTRS.OBS
         elif field_type == "var":
@@ -89,7 +91,9 @@ class NumericalDataFrameField(BaseDataFrameField):
         """Register field."""
         return super().register_field(adata)
 
-    def transfer_field(self, state_registry: dict, adata_target: AnnData, **kwargs) -> dict:
+    def transfer_field(
+        self, state_registry: dict, adata_target: AnnData, **kwargs
+    ) -> dict:
         """Transfer field from registry to target AnnData."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         return self.register_field(adata_target)
@@ -157,7 +161,11 @@ class CategoricalDataFrameField(BaseDataFrameField):
     def _setup_default_attr(self, adata: AnnData) -> None:
         """Setup default attr."""
         self._original_attr_key = self.attr_key
-        length = adata.shape[0] if self._attr_name == _constants._ADATA_ATTRS.OBS else adata.shape[1]
+        length = (
+            adata.shape[0]
+            if self._attr_name == _constants._ADATA_ATTRS.OBS
+            else adata.shape[1]
+        )
         getattr(adata, self.attr_name)[self.attr_key] = np.zeros(length, dtype=np.int64)
 
     def _get_original_column(self, adata: AnnData) -> np.ndarray:
@@ -168,7 +176,9 @@ class CategoricalDataFrameField(BaseDataFrameField):
         """Validate field."""
         super().validate_field(adata)
         if self._original_attr_key not in getattr(adata, self.attr_name):
-            raise KeyError(f"{self._original_attr_key} not found in adata.{self.attr_name}.")
+            raise KeyError(
+                f"{self._original_attr_key} not found in adata.{self.attr_name}."
+            )
 
     def register_field(self, adata: AnnData) -> dict:
         """Register field."""
@@ -243,7 +253,9 @@ class CategoricalDataFrameField(BaseDataFrameField):
             no_wrap=True,
             overflow="fold",
         )
-        t.add_column("Categories", justify="center", style="green", no_wrap=True, overflow="fold")
+        t.add_column(
+            "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
+        )
         t.add_column(
             "scvi-tools Encoding",
             justify="center",

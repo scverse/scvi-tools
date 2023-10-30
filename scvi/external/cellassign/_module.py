@@ -79,7 +79,9 @@ class CellAssignModule(BaseModuleClass):
 
         # compute delta (cell type specific overexpression parameter)
         # will be clamped by callback during training
-        self.delta_log = torch.nn.Parameter(torch.FloatTensor(self.n_genes, self.n_labels).uniform_(-2, 2))
+        self.delta_log = torch.nn.Parameter(
+            torch.FloatTensor(self.n_genes, self.n_labels).uniform_(-2, 2)
+        )
 
         # shrinkage prior on delta
         self.delta_log_mean = torch.nn.Parameter(
@@ -120,7 +122,9 @@ class CellAssignModule(BaseModuleClass):
 
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         if cat_key in tensors.keys():
-            for cat_input, n_cat in zip(torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov):
+            for cat_input, n_cat in zip(
+                torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov
+            ):
                 to_cat.append(one_hot(cat_input, n_cat))
 
         design_matrix = torch.cat(to_cat, dim=1) if len(to_cat) > 0 else None
@@ -146,7 +150,9 @@ class CellAssignModule(BaseModuleClass):
         # compute mean of NegBin - shape (n_cells, n_genes, n_labels)
         n_cells = size_factor.shape[0]
         base_mean = torch.log(size_factor)  # (n, 1)
-        base_mean = base_mean.unsqueeze(-1).expand(n_cells, self.n_genes, self.n_labels)  # (n, g, c)
+        base_mean = base_mean.unsqueeze(-1).expand(
+            n_cells, self.n_genes, self.n_labels
+        )  # (n, g, c)
 
         # compute beta (covariate coefficent)
         # design_matrix has shape (n,p)
@@ -169,10 +175,15 @@ class CellAssignModule(BaseModuleClass):
         b_init = 2 * ((self.basis_means[1] - self.basis_means[0]) ** 2)
         b = torch.exp(torch.ones(B, device=x.device) * (-torch.log(b_init)))  # (B)
         b = b.expand(n_cells, self.n_genes, self.n_labels, B)
-        mu_ngcb = mu_ngc.unsqueeze(-1).expand(n_cells, self.n_genes, self.n_labels, B)  # (n, g, c, B)
-        basis_means = self.basis_means.expand(n_cells, self.n_genes, self.n_labels, B)  # (n, g, c, B)
+        mu_ngcb = mu_ngc.unsqueeze(-1).expand(
+            n_cells, self.n_genes, self.n_labels, B
+        )  # (n, g, c, B)
+        basis_means = self.basis_means.expand(
+            n_cells, self.n_genes, self.n_labels, B
+        )  # (n, g, c, B)
         phi = (  # (n, g, c)
-            torch.sum(a * torch.exp(-b * torch.square(mu_ngcb - basis_means)), 3) + LOWER_BOUND
+            torch.sum(a * torch.exp(-b * torch.square(mu_ngcb - basis_means)), 3)
+            + LOWER_BOUND
         )
 
         # compute gamma
@@ -182,7 +193,9 @@ class CellAssignModule(BaseModuleClass):
         theta_log = theta_log.expand(n_cells, self.n_labels)
         p_x_c = torch.sum(x_log_prob_raw, 1) + theta_log  # (n, c)
         normalizer_over_c = torch.logsumexp(p_x_c, 1)
-        normalizer_over_c = normalizer_over_c.unsqueeze(-1).expand(n_cells, self.n_labels)
+        normalizer_over_c = normalizer_over_c.unsqueeze(-1).expand(
+            n_cells, self.n_labels
+        )
         gamma = torch.exp(p_x_c - normalizer_over_c)  # (n, c)
 
         return {
@@ -213,10 +226,16 @@ class CellAssignModule(BaseModuleClass):
         # third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit, dim=-1)
         theta_log_prior = Dirichlet(self.dirichlet_concentration)
-        theta_log_prob = -theta_log_prior.log_prob(torch.exp(theta_log) + THETA_LOWER_BOUND)
+        theta_log_prob = -theta_log_prior.log_prob(
+            torch.exp(theta_log) + THETA_LOWER_BOUND
+        )
         prior_log_prob = theta_log_prob
-        delta_log_prior = Normal(self.delta_log_mean, self.delta_log_log_scale.exp().sqrt())
-        delta_log_prob = torch.masked_select(delta_log_prior.log_prob(self.delta_log), (self.rho > 0))
+        delta_log_prior = Normal(
+            self.delta_log_mean, self.delta_log_log_scale.exp().sqrt()
+        )
+        delta_log_prob = torch.masked_select(
+            delta_log_prior.log_prob(self.delta_log), (self.rho > 0)
+        )
         prior_log_prob += -torch.sum(delta_log_prob)
 
         loss = (torch.mean(q_per_cell) * n_obs + prior_log_prob) / n_obs

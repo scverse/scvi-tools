@@ -170,7 +170,9 @@ class PyroSviTrainMixin:
             training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
-        trainer_kwargs[es] = early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
+        trainer_kwargs[es] = (
+            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
+        )
 
         if "callbacks" not in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] = []
@@ -224,13 +226,17 @@ class PyroSampleMixin:
             sample = self.module.guide(*args, **kwargs)
         else:
             guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
-            model_trace = poutine.trace(poutine.replay(self.module.model, guide_trace)).get_trace(*args, **kwargs)
+            model_trace = poutine.trace(
+                poutine.replay(self.module.model, guide_trace)
+            ).get_trace(*args, **kwargs)
             sample = {
                 name: site["value"]
                 for name, site in model_trace.nodes.items()
                 if (
                     (site["type"] == "sample")  # sample statement
-                    and ((return_sites is None) or (name in return_sites))  # selected in return_sites list
+                    and (
+                        (return_sites is None) or (name in return_sites)
+                    )  # selected in return_sites list
                     and (
                         (
                             (not site.get("is_observed", True)) or return_observed
@@ -343,10 +349,14 @@ class PyroSampleMixin:
             if (
                 (site["type"] == "sample")  # sample statement
                 and (
-                    ((not site.get("is_observed", True)) or return_observed)  # don't save observed unless requested
+                    (
+                        (not site.get("is_observed", True)) or return_observed
+                    )  # don't save observed unless requested
                     or (site.get("infer", False).get("_deterministic", False))
                 )  # unless it is deterministic
-                and not isinstance(site.get("fn", None), poutine.subsample_messenger._Subsample)  # don't save plates
+                and not isinstance(
+                    site.get("fn", None), poutine.subsample_messenger._Subsample
+                )  # don't save plates
             )
             if any(f.name == plate_name for f in site["cond_indep_stack"])
         }
@@ -388,7 +398,9 @@ class PyroSampleMixin:
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
 
-        train_dl = AnnDataLoader(self.adata_manager, shuffle=False, batch_size=batch_size)
+        train_dl = AnnDataLoader(
+            self.adata_manager, shuffle=False, batch_size=batch_size
+        )
         # sample local parameters
         i = 0
         for tensor_dict in track(
@@ -403,21 +415,29 @@ class PyroSampleMixin:
 
             if i == 0:
                 return_observed = getattr(sample_kwargs, "return_observed", False)
-                obs_plate_sites = self._get_obs_plate_sites(args, kwargs, return_observed=return_observed)
+                obs_plate_sites = self._get_obs_plate_sites(
+                    args, kwargs, return_observed=return_observed
+                )
                 if len(obs_plate_sites) == 0:
                     # if no local variables - don't sample
                     break
                 obs_plate_dim = list(obs_plate_sites.values())[0]
 
                 sample_kwargs_obs_plate = sample_kwargs.copy()
-                sample_kwargs_obs_plate["return_sites"] = self._get_obs_plate_return_sites(
+                sample_kwargs_obs_plate[
+                    "return_sites"
+                ] = self._get_obs_plate_return_sites(
                     sample_kwargs["return_sites"], list(obs_plate_sites.keys())
                 )
                 sample_kwargs_obs_plate["show_progress"] = False
 
-                samples = self._get_posterior_samples(args, kwargs, **sample_kwargs_obs_plate)
+                samples = self._get_posterior_samples(
+                    args, kwargs, **sample_kwargs_obs_plate
+                )
             else:
-                samples_ = self._get_posterior_samples(args, kwargs, **sample_kwargs_obs_plate)
+                samples_ = self._get_posterior_samples(
+                    args, kwargs, **sample_kwargs_obs_plate
+                )
 
                 samples = {
                     k: np.array(
@@ -426,7 +446,9 @@ class PyroSampleMixin:
                                 [samples[k][j], samples_[k][j]],
                                 axis=obs_plate_dim,
                             )
-                            for j in range(len(samples[k]))  # for each sample (in 0 dimension
+                            for j in range(
+                                len(samples[k])
+                            )  # for each sample (in 0 dimension
                         ]
                     )
                     for k in samples.keys()  # for each variable
@@ -435,7 +457,11 @@ class PyroSampleMixin:
 
         # sample global parameters
         global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
-        global_samples = {k: v for k, v in global_samples.items() if k not in list(obs_plate_sites.keys())}
+        global_samples = {
+            k: v
+            for k, v in global_samples.items()
+            if k not in list(obs_plate_sites.keys())
+        }
 
         for k in global_samples.keys():
             samples[k] = global_samples[k]
@@ -523,6 +549,8 @@ class PyroSampleMixin:
                 "q95": lambda x, axis: np.quantile(x, 0.95, axis=axis),
             }
         for k, fun in summary_fun.items():
-            results[f"post_sample_{k}"] = {v: fun(samples[v], axis=0) for v in param_names}
+            results[f"post_sample_{k}"] = {
+                v: fun(samples[v], axis=0) for v in param_names
+            }
 
         return results
