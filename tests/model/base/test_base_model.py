@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 from anndata import AnnData
@@ -18,8 +18,8 @@ class TestModelClass(BaseModelClass):
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
         size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
+        categorical_covariate_keys: Optional[list[str]] = None,
+        continuous_covariate_keys: Optional[list[str]] = None,
         **kwargs,
     ):
         setup_method_args = cls._get_setup_method_args(**locals())

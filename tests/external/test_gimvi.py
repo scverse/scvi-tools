@@ -162,9 +162,7 @@ def test_gimvi_model_library_size():
         batch_key="batch",
         labels_key="labels",
     )
-    model = GIMVI(
-        adata_seq, adata_spatial, model_library_size=[True, True], n_latent=10
-    )
+    model = GIMVI(adata_seq, adata_spatial, model_library_size=[True, True], n_latent=10)
     assert hasattr(model.module, "library_log_means_0") and hasattr(
         model.module, "library_log_means_1"
     )

@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 
 class InvalidParameterError(Exception):
@@ -8,7 +8,7 @@ class InvalidParameterError(Exception):
         self,
         param: str,
         value: Any,
-        valid: Optional[List[Any]] = None,
+        valid: Optional[list[Any]] = None,
         additional_message: Optional[str] = None,
     ):
         self.message = f"Invalid value for `{param}`: {value}."

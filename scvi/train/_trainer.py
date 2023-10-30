@@ -1,6 +1,6 @@
 import sys
 import warnings
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 import lightning.pytorch as pl
 from lightning.pytorch.accelerators import Accelerator
@@ -88,7 +88,7 @@ class Trainer(TunableMixin, pl.Trainer):
     def __init__(
         self,
         accelerator: Optional[Union[str, Accelerator]] = None,
-        devices: Optional[Union[List[int], str, int]] = None,
+        devices: Optional[Union[list[int], str, int]] = None,
         benchmark: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
         max_epochs: Tunable[int] = 400,
@@ -104,7 +104,7 @@ class Trainer(TunableMixin, pl.Trainer):
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
         additional_val_metrics: Union[
-            MetricCallable, List[MetricCallable], Dict[str, MetricCallable]
+            MetricCallable, list[MetricCallable], dict[str, MetricCallable]
         ] = None,
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,

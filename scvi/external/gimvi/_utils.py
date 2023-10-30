@@ -1,6 +1,6 @@
 import os
 import pickle
-from typing import Literal, Optional, Tuple
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -14,7 +14,7 @@ def _load_legacy_saved_gimvi_files(
     file_name_prefix: str,
     load_seq_adata: bool,
     load_spatial_adata: bool,
-) -> Tuple[dict, np.ndarray, np.ndarray, dict, Optional[AnnData], Optional[AnnData]]:
+) -> tuple[dict, np.ndarray, np.ndarray, dict, Optional[AnnData], Optional[AnnData]]:
     model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
     setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
     seq_var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names_seq.csv")
@@ -67,7 +67,7 @@ def _load_saved_gimvi_files(
     prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
     backup_url: Optional[str] = None,
-) -> Tuple[
+) -> tuple[
     dict, dict, np.ndarray, np.ndarray, dict, Optional[AnnData], Optional[AnnData]
 ]:
     file_name_prefix = prefix or ""

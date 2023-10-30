@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import sys
 from collections import defaultdict
+from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from io import StringIO
-from typing import Sequence
 from uuid import uuid4
 
 import numpy as np

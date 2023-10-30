@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Optional
 
 import jax
 import jax.numpy as jnp
@@ -149,7 +149,7 @@ class JaxVAE(JaxBaseModuleClass):
     def required_rngs(self):
         return ("params", "dropout", "z")
 
-    def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
+    def _get_inference_input(self, tensors: dict[str, jnp.ndarray]):
         """Get input for inference."""
         x = tensors[REGISTRY_KEYS.X_KEY]
 
@@ -170,8 +170,8 @@ class JaxVAE(JaxBaseModuleClass):
 
     def _get_generative_input(
         self,
-        tensors: Dict[str, jnp.ndarray],
-        inference_outputs: Dict[str, jnp.ndarray],
+        tensors: dict[str, jnp.ndarray],
+        inference_outputs: dict[str, jnp.ndarray],
     ):
         """Get input for generative model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
@@ -223,6 +223,4 @@ class JaxVAE(JaxBaseModuleClass):
         loss = jnp.mean(reconst_loss + weighted_kl_local)
 
         kl_local = kl_divergence_z
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)

@@ -429,9 +429,7 @@ def add_dna_sequence(
         genome_dir = tempdir.name
 
     if install_genome:
-        g = genomepy.install_genome(
-            genome_name, genome_provider, genomes_dir=genome_dir
-        )
+        g = genomepy.install_genome(genome_name, genome_provider, genomes_dir=genome_dir)
     else:
         g = genomepy.Genome(genome_name, genomes_dir=genome_dir)
 
