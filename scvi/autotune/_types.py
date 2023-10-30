@@ -1,5 +1,5 @@
 from inspect import isfunction
-from typing import Any, List
+from typing import Any
 
 from scvi._decorators import classproperty
 
@@ -21,7 +21,7 @@ class TunableMixin:
     """Mixin class for exposing tunable attributes."""
 
     @classproperty
-    def _tunables(cls) -> List[Any]:
+    def _tunables(cls) -> list[Any]:
         """Returns the tunable attributes of the model class."""
         _tunables = []
         for attr_key in dir(cls):

@@ -143,9 +143,7 @@ class AnnTorchDataset(Dataset):
         if isinstance(indexes, int):
             indexes = [indexes]  # force batched single observations
 
-        if self.adata_manager.adata.isbacked and isinstance(
-            indexes, (list, np.ndarray)
-        ):
+        if self.adata_manager.adata.isbacked and isinstance(indexes, (list, np.ndarray)):
             # need to sort indexes for h5py datasets
             indexes = np.sort(indexes)
 

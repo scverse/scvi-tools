@@ -1,7 +1,8 @@
 from collections import OrderedDict
+from collections.abc import Iterable
 from functools import partial
 from inspect import signature
-from typing import Any, Callable, Dict, Iterable, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -286,7 +287,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
     def compute_and_log_metrics(
         self,
         loss_output: LossOutput,
-        metrics: Dict[str, ElboMetric],
+        metrics: dict[str, ElboMetric],
         mode: str,
     ):
         """Computes and logs metrics.
@@ -606,10 +607,7 @@ class AdversarialTrainingPlan(TrainingPlan):
 
     def on_validation_epoch_end(self) -> None:
         """Update the learning rate via scheduler steps."""
-        if (
-            not self.reduce_lr_on_plateau
-            or "validation" not in self.lr_scheduler_metric
-        ):
+        if not self.reduce_lr_on_plateau or "validation" not in self.lr_scheduler_metric:
             return
         else:
             sch = self.lr_schedulers()
@@ -737,7 +735,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.log(f"{mode}_{key}", value, **kwargs)
 
     def compute_and_log_metrics(
-        self, loss_output: LossOutput, metrics: Dict[str, ElboMetric], mode: str
+        self, loss_output: LossOutput, metrics: dict[str, ElboMetric], mode: str
     ):
         """Computes and logs metrics."""
         super().compute_and_log_metrics(loss_output, metrics, mode)
@@ -1038,9 +1036,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
         if "lr" not in optim_kwargs.keys():
             optim_kwargs.update({"lr": 1e-3})
-        self.optim = (
-            pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
-        )
+        self.optim = pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         # We let SVI take care of all optimization
         self.automatic_optimization = False
 
@@ -1277,8 +1273,8 @@ class JaxTrainingPlan(TrainingPlan):
     @jax.jit
     def jit_training_step(
         state: TrainStateWithState,
-        batch: Dict[str, np.ndarray],
-        rngs: Dict[str, jnp.ndarray],
+        batch: dict[str, np.ndarray],
+        rngs: dict[str, jnp.ndarray],
         **kwargs,
     ):
         """Jit training step."""
@@ -1331,8 +1327,8 @@ class JaxTrainingPlan(TrainingPlan):
     def jit_validation_step(
         self,
         state: TrainStateWithState,
-        batch: Dict[str, np.ndarray],
-        rngs: Dict[str, jnp.ndarray],
+        batch: dict[str, np.ndarray],
+        rngs: dict[str, jnp.ndarray],
         **kwargs,
     ):
         """Jit validation step."""

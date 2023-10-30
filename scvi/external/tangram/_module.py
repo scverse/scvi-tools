@@ -1,4 +1,4 @@
-from typing import Dict, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 import chex
 import jax
@@ -63,7 +63,7 @@ class TangramMapper(JaxBaseModuleClass):
     def required_rngs(self):
         return ("params",)
 
-    def _get_inference_input(self, tensors: Dict[str, jnp.ndarray]):
+    def _get_inference_input(self, tensors: dict[str, jnp.ndarray]):
         """Get input for inference."""
         return {}
 
@@ -73,8 +73,8 @@ class TangramMapper(JaxBaseModuleClass):
 
     def _get_generative_input(
         self,
-        tensors: Dict[str, jnp.ndarray],
-        inference_outputs: Dict[str, jnp.ndarray],
+        tensors: dict[str, jnp.ndarray],
+        inference_outputs: dict[str, jnp.ndarray],
     ):
         return {}
 

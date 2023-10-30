@@ -167,9 +167,7 @@ def _load_pbmc_seurat_v4_cite_seq(
         adata.obs["Protein log library size"] = np.log(
             adata.obsm["protein_counts"].sum(1)
         )
-        adata.obs["Number proteins detected"] = (adata.obsm["protein_counts"] > 0).sum(
-            1
-        )
+        adata.obs["Number proteins detected"] = (adata.obsm["protein_counts"] > 0).sum(1)
         adata.obs["RNA log library size"] = np.log(adata.X.sum(1).A)
 
         # actually filter

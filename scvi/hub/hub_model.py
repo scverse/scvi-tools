@@ -5,7 +5,7 @@ import os
 import warnings
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, Type, Union
+from typing import Optional, Union
 
 import anndata
 import rich
@@ -221,7 +221,7 @@ class HubModel:
         return self._model_card
 
     @property
-    def model(self) -> Type[BaseModelClass]:
+    def model(self) -> type[BaseModelClass]:
         """Returns the model object for this hub model.
 
         If the model has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.load_model`.

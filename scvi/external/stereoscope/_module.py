@@ -1,4 +1,4 @@
-from typing import Literal, Tuple
+from typing import Literal
 
 import numpy as np
 import torch
@@ -47,7 +47,7 @@ class RNADeconv(BaseModuleClass):
         self.register_buffer("ct_weight", ct_weight)
 
     @torch.inference_mode()
-    def get_params(self) -> Tuple[np.ndarray]:
+    def get_params(self) -> tuple[np.ndarray]:
         """Returns the parameters for feeding into the spatial data.
 
         Returns
@@ -139,7 +139,7 @@ class SpatialDeconv(BaseModuleClass):
     def __init__(
         self,
         n_spots: int,
-        sc_params: Tuple[np.ndarray],
+        sc_params: tuple[np.ndarray],
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
     ):
         super().__init__()

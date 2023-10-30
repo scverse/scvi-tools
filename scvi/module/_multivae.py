@@ -1,4 +1,5 @@
-from typing import Dict, Iterable, Literal, Optional
+from collections.abc import Iterable
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -330,9 +331,7 @@ class MULTIVAE(BaseModuleClass):
         self.deeply_inject_covariates = deeply_inject_covariates
         self.use_size_factor_key = use_size_factor_key
 
-        cat_list = (
-            [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
-        )
+        cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
         encoder_cat_list = cat_list if encode_covariates else None
 
         # expression
@@ -579,7 +578,7 @@ class MULTIVAE(BaseModuleClass):
         label,
         cell_idx,
         n_samples=1,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Run the inference model."""
         # Get Data and Additional Covs
         if self.n_input_genes == 0:
@@ -885,9 +884,7 @@ class MULTIVAE(BaseModuleClass):
             "kl_divergence_z": kl_div_z,
             "kl_divergence_paired": kl_div_paired,
         }
-        return LossOutput(
-            loss=loss, reconstruction_loss=recon_losses, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=recon_losses, kl_local=kl_local)
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""
