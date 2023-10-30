@@ -19,31 +19,37 @@ def test_pbmc_dataset(save_path: str):
     )
 
 
+@pytest.mark.optional
 def test_retina_loom_dataset(save_path: str):
     dataset = scvi.data.retina(save_path=save_path)
     unsupervised_training_one_epoch(dataset, batch_key="batch")
 
 
+@pytest.mark.optional
 def test_pfc_starmap_dataset(save_path: str):
     gene_dataset = scvi.data.prefrontalcortex_starmap(save_path=save_path)
     unsupervised_training_one_epoch(gene_dataset)
 
 
+@pytest.mark.optional
 def test_fc_dropseq_dataset(save_path: str):
     gene_dataset = scvi.data.frontalcortex_dropseq(save_path=save_path)
     unsupervised_training_one_epoch(gene_dataset)
 
 
+@pytest.mark.optional
 def test_smfish_dataset(save_path: str):
     gene_dataset = scvi.data.smfish(save_path=save_path)
     unsupervised_training_one_epoch(gene_dataset)
 
 
+@pytest.mark.optional
 def test_cortex_dataset(save_path: str):
     adata = scvi.data.cortex(save_path=save_path)
     unsupervised_training_one_epoch(adata, labels_key="cell_type")
 
 
+@pytest.mark.optional
 def test_brainlarge_dataset(save_path: str):
     adata = scvi.data.brainlarge_dataset(
         save_path=save_path,
@@ -56,6 +62,7 @@ def test_brainlarge_dataset(save_path: str):
     )
 
 
+@pytest.mark.optional
 def test_breast_cancer_dataset(save_path: str):
     adata = scvi.data.breast_cancer_dataset(
         save_path=save_path,
@@ -65,6 +72,7 @@ def test_breast_cancer_dataset(save_path: str):
     )
 
 
+@pytest.mark.optional
 def test_mouse_ob_dataset(save_path: str):
     adata = scvi.data.mouse_ob_dataset(
         save_path=save_path,
