@@ -450,3 +450,10 @@ def test_scanvi_logits_bug_backwards_compat(save_path: str):
     model = SCANVI.load(model_path, adata)
     assert not model.module.classifier.logits
     _ = model.predict()
+
+    
+def test_scanvi_pre_logits_fix_load():
+    """See #2310."""
+    model_path = "tests/test_data/pre_logits_fix_scanvi"
+    model = SCANVI.load(model_path)
+    _ = model.get_latent_representation()
