@@ -63,7 +63,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Support fractional GPU usage in {class}`scvi.autotune.ModelTuner` `pr`{2252}.
 -   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner` `pr`{2260}.
 -   Match `momentum` and `epsilon` in {class}`scvi.module.JaxVAE` to the
-    default values in PyTorch {pr}`xxxx`.
+    default values in PyTorch {pr}`2309`.
 
 #### Removed
 
