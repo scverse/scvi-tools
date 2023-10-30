@@ -83,8 +83,8 @@ class FlaxDecoder(nn.Module):
         self.dense4 = Dense(self.n_hidden)
         self.dense5 = Dense(self.n_input)
 
-        self.batchnorm1 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
-        self.batchnorm2 = nn.BatchNorm(momentum=0.99, epsilon=0.001)
+        self.batchnorm1 = nn.BatchNorm(momentum=0.9)
+        self.batchnorm2 = nn.BatchNorm(momentum=0.9)
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
