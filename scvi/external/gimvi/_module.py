@@ -1,5 +1,5 @@
 """Main module."""
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -76,13 +76,13 @@ class JVAE(BaseModuleClass):
 
     def __init__(
         self,
-        dim_input_list: List[int],
+        dim_input_list: list[int],
         total_genes: int,
-        indices_mappings: List[Union[np.ndarray, slice]],
-        gene_likelihoods: List[str],
-        model_library_bools: List[bool],
-        library_log_means: List[Optional[np.ndarray]],
-        library_log_vars: List[Optional[np.ndarray]],
+        indices_mappings: list[Union[np.ndarray, slice]],
+        gene_likelihoods: list[str],
+        model_library_bools: list[bool],
+        library_log_means: list[Optional[np.ndarray]],
+        library_log_vars: list[Optional[np.ndarray]],
         n_latent: int = 10,
         n_layers_encoder_individual: int = 1,
         n_layers_encoder_shared: int = 1,
@@ -436,7 +436,7 @@ class JVAE(BaseModuleClass):
         generative_outputs,
         mode: Optional[int] = None,
         kl_weight=1.0,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Return the reconstruction loss and the Kullback divergences.
 
         Parameters

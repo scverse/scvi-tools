@@ -35,9 +35,7 @@ def nearest_neighbor_overlap(x1, x2, k=100):
     set_1 = set(np.where(kmatrix_1.A.flatten() == 1)[0])
     set_2 = set(np.where(kmatrix_2.A.flatten() == 1)[0])
     fold_enrichment = (
-        len(set_1.intersection(set_2))
-        * n_samples**2
-        / (float(len(set_1)) * len(set_2))
+        len(set_1.intersection(set_2)) * n_samples**2 / (float(len(set_1)) * len(set_2))
     )
     return spearman_correlation, fold_enrichment
 
@@ -75,8 +73,6 @@ def knn_purity(latent, label, n_neighbors=30):
 
     # pre cell purity scores
     scores = ((neighbors_labels - label.reshape(-1, 1)) == 0).mean(axis=1)
-    res = [
-        np.mean(scores[label == i]) for i in np.unique(label)
-    ]  # per cell-type purity
+    res = [np.mean(scores[label == i]) for i in np.unique(label)]  # per cell-type purity
 
     return np.mean(res)

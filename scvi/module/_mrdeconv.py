@@ -290,9 +290,7 @@ class MRDeconv(BaseModuleClass):
             # isotropic normal prior
             mean = torch.zeros_like(gamma)
             scale = torch.ones_like(gamma)
-            neg_log_likelihood_prior = (
-                -Normal(mean, scale).log_prob(gamma).sum(2).sum(1)
-            )
+            neg_log_likelihood_prior = -Normal(mean, scale).log_prob(gamma).sum(2).sum(1)
         else:
             # vampprior
             # gamma is of shape n_latent, n_labels, minibatch_size
@@ -305,12 +303,8 @@ class MRDeconv(BaseModuleClass):
             )  # 1, p, n_labels, n_latent
             mp_vprior = torch.transpose(self.mp_vprior, 0, 1)  # p, n_labels
             pre_lse = (
-                Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4)
-                .log_prob(gamma)
-                .sum(3)
-            ) + torch.log(
-                mp_vprior
-            )  # minibatch, p, n_labels
+                Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4).log_prob(gamma).sum(3)
+            ) + torch.log(mp_vprior)  # minibatch, p, n_labels
             # Pseudocount for numerical stability
             log_likelihood_prior = torch.logsumexp(pre_lse, 1)  # minibatch, n_labels
             neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
