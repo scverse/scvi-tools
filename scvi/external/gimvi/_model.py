@@ -537,10 +537,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         registries = attr_dict.pop("registries_")
         for adata, registry in zip(adatas, registries):
-            if (
-                _MODEL_NAME_KEY in registry
-                and registry[_MODEL_NAME_KEY] != cls.__name__
-            ):
+            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
                 raise ValueError(
                     "It appears you are loading a model from a different class."
                 )

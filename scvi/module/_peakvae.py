@@ -1,4 +1,5 @@
-from typing import Dict, Iterable, Literal, Optional
+from collections.abc import Iterable
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -178,9 +179,7 @@ class PEAKVAE(BaseModuleClass):
         self.deeply_inject_covariates = deeply_inject_covariates
         self.encode_covariates = encode_covariates
 
-        cat_list = (
-            [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
-        )
+        cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
 
         n_input_encoder = self.n_input_regions + n_continuous_cov * encode_covariates
         encoder_cat_list = cat_list if encode_covariates else None
@@ -274,7 +273,7 @@ class PEAKVAE(BaseModuleClass):
         cont_covs,
         cat_covs,
         n_samples=1,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Helper function used in forward pass."""
         if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)

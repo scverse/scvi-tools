@@ -269,9 +269,7 @@ def test_scvi(n_latent: int = 5):
     )
     params = model.get_likelihood_parameters()
     assert params["mean"].shape == adata.shape
-    assert (
-        params["mean"].shape == params["dispersions"].shape == params["dropout"].shape
-    )
+    assert params["mean"].shape == params["dispersions"].shape == params["dropout"].shape
     params = model.get_likelihood_parameters(adata2, indices=[1, 2, 3])
     assert params["mean"].shape == (3, adata.n_vars)
     params = model.get_likelihood_parameters(
@@ -871,7 +869,10 @@ def test_scvi_library_size_update(save_path):
     )
     assert getattr(
         model.module, "library_log_vars", None
-    ) is not None and model.module.library_log_vars.shape == (1, 2)
+    ) is not None and model.module.library_log_vars.shape == (
+        1,
+        2,
+    )
 
     model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")

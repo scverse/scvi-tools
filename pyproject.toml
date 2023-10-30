@@ -40,13 +40,13 @@ dependencies = [
     "jaxlib>=0.4.3",
     "optax",
     "numpy>=1.21.0",
-    "pandas>=1.0",
+    "pandas>=1.0,!=2.1.2",
     "scipy",
     "scikit-learn>=0.21.2",
     "rich>=12.0.0",
     "h5py>=2.9.0",
     "torch>=1.8.0",
-    "lightning>=2.0,<2.1",
+    "lightning>=2.0,<2.2",
     "torchmetrics>=0.11.0",
     "pyro-ppl>=1.6.0",
     "tqdm>=4.56.0",
@@ -96,7 +96,7 @@ autotune = [
     "hyperopt>=0.2",
     "ray[tune]>=2.5.0",
     "ipython",
-    "scib-metrics>=0.3",
+    "scib-metrics>=0.4.1",
     "tensorboard",
 ]  # scvi.autotune
 census = ["cellxgene-census"]  # scvi.data.cellxgene
@@ -138,30 +138,38 @@ omit = [
 testpaths = ["tests"]
 xfail_strict = true
 
-
-[tool.black]
-include = '\.pyi?$'
-exclude = '''
-(
-  /(
-      \.eggs
-    | \.git
-    | \.hg
-    | \.mypy_cache
-    | \.tox
-    | \.venv
-    | _build
-    | buck-out
-    | build
-    | dist
-  )/
-)
-'''
-
 [tool.ruff]
 src = ["."]
-line-length = 119
-target-version = "py38"
+line-length = 89
+indent-width = 4
+target-version = "py39"
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+[tool.ruff.lint]
 select = [
     "F",  # Errors detected by Pyflakes
     "E",  # Error detected by Pycodestyle
@@ -204,6 +212,19 @@ ignore = [
     # Missing argument description in the docstring TODO: enable
     "D417",
 ]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
 
 [tool.ruff.pydocstyle]
 convention = "numpy"

@@ -181,9 +181,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             mean_cluster = np.zeros_like(var_cluster)
 
             for index, cluster in enumerate(keys):
-                indices_curr = local_indices[
-                    np.where(overclustering_vamp == cluster)[0]
-                ]
+                indices_curr = local_indices[np.where(overclustering_vamp == cluster)[0]]
                 var_cluster[index, :] = np.mean(var_cat[indices_curr], axis=0) + np.var(
                     mean_cat[indices_curr], axis=0
                 )

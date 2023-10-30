@@ -189,17 +189,13 @@ def _verify_and_correct_data_format(
             stacklevel=settings.warnings_stacklevel,
         )
     elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
-        logger.debug(
-            f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS."
-        )
+        logger.debug(f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.")
         data = np.asarray(data, order="C")
         _set_data_in_registry(adata, data, attr_name, attr_key)
     elif isinstance(data, pd.DataFrame) and (
         data.to_numpy().flags["C_CONTIGUOUS"] is False
     ):
-        logger.debug(
-            f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS."
-        )
+        logger.debug(f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.")
         index = data.index
         vals = data.to_numpy()
         columns = data.columns
