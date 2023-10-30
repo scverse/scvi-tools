@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from collections.abc import Iterable
 from dataclasses import field
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 import chex
 import flax
@@ -179,8 +180,7 @@ class BaseModuleClass(TunableMixin, nn.Module):
         loss_kwargs: dict | None = None,
         compute_loss=True,
     ) -> (
-        tuple[torch.Tensor, torch.Tensor]
-        | tuple[torch.Tensor, torch.Tensor, LossOutput]
+        tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, LossOutput]
     ):
         """Forward pass through the network.
 
@@ -345,9 +345,7 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
 
     @staticmethod
     @abstractmethod
-    def _get_fn_args_from_batch(
-        tensor_dict: dict[str, torch.Tensor]
-    ) -> Iterable | dict:
+    def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
         """Parse the minibatched data to get the correct inputs for ``model`` and ``guide``.
 
         In Pyro, ``model`` and ``guide`` must have the same signature. This is a helper method
@@ -743,9 +741,7 @@ def _generic_forward(
     get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
     get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
 
-    inference_inputs = module._get_inference_input(
-        tensors, **get_inference_input_kwargs
-    )
+    inference_inputs = module._get_inference_input(tensors, **get_inference_input_kwargs)
     inference_outputs = module.inference(**inference_inputs, **inference_kwargs)
     generative_inputs = module._get_generative_input(
         tensors, inference_outputs, **get_generative_input_kwargs

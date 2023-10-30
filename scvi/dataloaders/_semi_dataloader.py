@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 
@@ -38,7 +38,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         self,
         adata_manager: AnnDataManager,
         n_samples_per_label: Optional[int] = None,
-        indices: Optional[List[int]] = None,
+        indices: Optional[list[int]] = None,
         shuffle: bool = False,
         batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,

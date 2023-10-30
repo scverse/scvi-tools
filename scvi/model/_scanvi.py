@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 import warnings
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Literal, Sequence
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -278,9 +279,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         self._label_mapping = labels_state_registry.categorical_mapping
 
         # set unlabeled and labeled indices
-        self._unlabeled_indices = np.argwhere(
-            labels == self.unlabeled_category_
-        ).ravel()
+        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category_).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self._code_to_label = dict(enumerate(self._label_mapping))
 
@@ -421,9 +420,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         datasplitter_kwargs = datasplitter_kwargs or {}
 
         # if we have labeled cells, we want to subsample labels each epoch
-        sampler_callback = (
-            [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
-        )
+        sampler_callback = [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
 
         data_splitter = SemiSupervisedDataSplitter(
             adata_manager=self.adata_manager,

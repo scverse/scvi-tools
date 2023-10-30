@@ -5,7 +5,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Sequence
+from collections.abc import Sequence
 from uuid import uuid4
 
 import numpy as np

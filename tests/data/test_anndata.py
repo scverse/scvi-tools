@@ -22,9 +22,7 @@ def test_transfer_fields_basic(adata1, adata2):
     adata2.X = adata1.X
     adata1_manager = generic_setup_adata_manager(adata1)
     adata1_manager.transfer_fields(adata2)
-    np.testing.assert_array_equal(
-        adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
-    )
+    np.testing.assert_array_equal(adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"])
 
 
 def test_transfer_fields_layer_use(adata1, adata2):
@@ -35,9 +33,7 @@ def test_transfer_fields_layer_use(adata1, adata2):
     adata2.X = ones
     adata1_manager = generic_setup_adata_manager(adata1, layer="raw")
     adata1_manager.transfer_fields(adata2)
-    np.testing.assert_array_equal(
-        adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"]
-    )
+    np.testing.assert_array_equal(adata1.obs["_scvi_labels"], adata2.obs["_scvi_labels"])
 
 
 def test_transfer_fields_unknown_batch(adata1, adata2):
@@ -114,25 +110,17 @@ def test_clobber_same_model(adata):
     assert adata_manager1.summary_stats.n_batch == 1
     # The underlying data is still 2 since we have not run _validate_anndata yet
     # to re-transfer the setup of m1.
-    assert (
-        len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
-    )
+    assert len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
     m1._validate_anndata(adata)
-    assert (
-        len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
-    )
+    assert len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
 
     adata_manager2 = m2.get_anndata_manager(adata)
     assert adata_manager2.summary_stats.n_batch == 2
     # The underlying data is still 1 since we have not run _validate_anndata yet
     # to re-transfer the setup of m2.
-    assert (
-        len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
-    )
+    assert len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
     m2._validate_anndata(adata)
-    assert (
-        len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
-    )
+    assert len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
 
 
 def test_clobber_different_models(adata):
@@ -152,25 +140,17 @@ def test_clobber_different_models(adata):
     assert adata_manager1.summary_stats.n_batch == 2
     # The underlying data is still 2 since we have not run _validate_anndata yet
     # to re-transfer the setup of m1.
-    assert (
-        len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
-    )
+    assert len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
     m1._validate_anndata(adata)
-    assert (
-        len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
-    )
+    assert len(np.unique(adata_manager1.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
 
     adata_manager2 = m2.get_anndata_manager(adata)
     assert adata_manager2.summary_stats.n_batch == 1
     # The underlying data is still 1 since we have not run _validate_anndata yet
     # to re-transfer the setup of m2.
-    assert (
-        len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
-    )
+    assert len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 2
     m2._validate_anndata(adata)
-    assert (
-        len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
-    )
+    assert len(np.unique(adata_manager2.get_from_registry(REGISTRY_KEYS.BATCH_KEY))) == 1
 
 
 def test_register_new_fields(adata):
@@ -415,9 +395,7 @@ def test_extra_covariates_transfer(adata):
     bdata.obs["cat1"] = 6
     bdata_manager = adata_manager.transfer_fields(bdata, extend_categories=True)
     assert (
-        bdata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings["cat1"][
-            -1
-        ]
+        bdata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings["cat1"][-1]
         == 6
     )
 

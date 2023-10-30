@@ -1,5 +1,5 @@
 import warnings
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -345,7 +345,7 @@ class NegativeBinomial(Distribution):
     @torch.inference_mode()
     def sample(
         self,
-        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
+        sample_shape: Optional[Union[torch.Size, tuple]] = None,
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
@@ -463,7 +463,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
     @torch.inference_mode()
     def sample(
         self,
-        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
+        sample_shape: Optional[Union[torch.Size, tuple]] = None,
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
@@ -551,7 +551,7 @@ class NegativeBinomialMixture(Distribution):
     @torch.inference_mode()
     def sample(
         self,
-        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
+        sample_shape: Optional[Union[torch.Size, tuple]] = None,
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()

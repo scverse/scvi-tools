@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
@@ -288,9 +288,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             raise ValueError("Unknown cell type")
         y = np.where(label == self.cell_type_mapping)[0][0]
 
-        stdl = self._make_data_loader(
-            self.adata, indices=indices, batch_size=batch_size
-        )
+        stdl = self._make_data_loader(self.adata, indices=indices, batch_size=batch_size)
         scale = []
         for tensors in stdl:
             generative_inputs = self.module._get_generative_input(tensors, None)
