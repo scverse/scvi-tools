@@ -8,6 +8,7 @@ import scvi
 from .utils import unsupervised_training_one_epoch
 
 
+@pytest.mark.optional
 def test_pbmc_dataset(save_path: str):
     dataset = scvi.data.pbmc_dataset(
         save_path=save_path,
