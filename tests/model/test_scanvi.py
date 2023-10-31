@@ -435,11 +435,10 @@ def test_scanvi_online_update(save_path):
     m_q.get_elbo()
 
 
-def test_scanvi_logits_bug_backwards_compat(save_path: str):
+def test_scanvi_logits_load(save_path: str):
     adata = synthetic_iid()
     SCANVI.setup_anndata(adata, labels_key="labels", unlabeled_category="label_0")
 
-    # initialize with <1.1 classifier default
     model = SCANVI(adata, classifier_parameters={"logits": False})
     model.train(max_epochs=1)
 
@@ -449,6 +448,7 @@ def test_scanvi_logits_bug_backwards_compat(save_path: str):
 
     model = SCANVI.load(model_path, adata)
     assert not model.module.classifier.logits
+    _ = model.get_latent_representation()
     _ = model.predict()
 
 
@@ -456,4 +456,8 @@ def test_scanvi_pre_logits_fix_load():
     """See #2310."""
     model_path = "tests/test_data/pre_logits_fix_scanvi"
     model = SCANVI.load(model_path)
+
+    # loading with new code should keep logits=False
+    assert not model.module.classifier.logits
     _ = model.get_latent_representation()
+    _ = model.predict()
