@@ -37,9 +37,7 @@ class ElboMetric(Metric):
         self._mode = mode
         self._interval = interval
 
-        self.add_state(
-            "elbo_component", default=torch.tensor(0.0), dist_reduce_fx="sum"
-        )
+        self.add_state("elbo_component", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("n_obs", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("n_batches", default=torch.tensor(0.0), dist_reduce_fx="sum")
 

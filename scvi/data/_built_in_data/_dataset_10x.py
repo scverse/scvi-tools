@@ -3,7 +3,6 @@ import os
 import shutil
 import tarfile
 import warnings
-from typing import Tuple
 
 import numpy as np
 
@@ -148,7 +147,7 @@ def _load_dataset_10x(
     return adata
 
 
-def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
+def _find_path_to_mtx(save_path: str) -> tuple[str, str]:
     """Returns exact path for the data in the archive.
 
     This is required because 10X doesn't have a consistent way of storing their data.
@@ -163,8 +162,7 @@ def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
         # do not consider hidden files
         files = [f for f in files if not f[0] == "."]
         contains_mat = [
-            filename == "matrix.mtx" or filename == "matrix.mtx.gz"
-            for filename in files
+            filename == "matrix.mtx" or filename == "matrix.mtx.gz" for filename in files
         ]
         contains_mat = np.asarray(contains_mat).any()
         if contains_mat:

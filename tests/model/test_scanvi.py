@@ -112,6 +112,9 @@ def test_scanvi():
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
     assert "validation_classification_loss" in logged_keys
+    assert "validation_accuracy" in logged_keys
+    assert "validation_f1_score" in logged_keys
+    assert "validation_calibration_error" in logged_keys
     adata2 = synthetic_iid()
     predictions = model.predict(adata2, indices=[1, 2, 3])
     assert len(predictions) == 3
@@ -431,3 +434,10 @@ def test_scanvi_online_update(save_path):
     m_q = SCANVI.load(save_path, adata=query)
     m_q.predict()
     m_q.get_elbo()
+
+
+def test_scanvi_pre_logits_fix_load():
+    """See #2310."""
+    model_path = "tests/test_data/pre_logits_fix_scanvi"
+    model = SCANVI.load(model_path)
+    _ = model.get_latent_representation()

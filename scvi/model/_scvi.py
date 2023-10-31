@@ -1,5 +1,5 @@
 import logging
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 import numpy as np
 from anndata import AnnData
@@ -170,8 +170,8 @@ class SCVI(
         batch_key: Optional[str] = None,
         labels_key: Optional[str] = None,
         size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
+        categorical_covariate_keys: Optional[list[str]] = None,
+        continuous_covariate_keys: Optional[list[str]] = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -214,7 +214,7 @@ class SCVI(
     @staticmethod
     def _get_fields_for_adata_minification(
         minified_data_type: MinifiedDataType,
-    ) -> List[BaseAnnDataField]:
+    ) -> list[BaseAnnDataField]:
         """Return the anndata fields required for adata minification of the given minified_data_type."""
         if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             fields = [

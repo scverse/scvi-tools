@@ -2,7 +2,7 @@ import logging
 import os
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import List, Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Union
 
 import anndata
 import mudata
@@ -25,7 +25,7 @@ def _load_legacy_saved_files(
     dir_path: str,
     file_name_prefix: str,
     load_adata: bool,
-) -> Tuple[dict, np.ndarray, dict, Optional[AnnData]]:
+) -> tuple[dict, np.ndarray, dict, Optional[AnnData]]:
     model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
     var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
     setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
@@ -57,7 +57,7 @@ def _load_saved_files(
     prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
     backup_url: Optional[str] = None,
-) -> Tuple[dict, np.ndarray, dict, AnnData]:
+) -> tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
 
@@ -147,8 +147,8 @@ def _validate_var_names(adata, source_var_names):
 
 
 def _prepare_obs(
-    idx1: Union[List[bool], np.ndarray, str],
-    idx2: Union[List[bool], np.ndarray, str],
+    idx1: Union[list[bool], np.ndarray, str],
+    idx2: Union[list[bool], np.ndarray, str],
     adata: anndata.AnnData,
 ):
     """Construct an array used for masking.

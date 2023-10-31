@@ -116,9 +116,7 @@ def test_setup_mudata_default_batch():
     # test that it creates batch if no batch_key is passed
     adata = synthetic_iid()
     mdata = mudata.MuData({"rna": adata})
-    adata_manager = generic_setup_mudata_manager(
-        mdata, layer_mod="rna", batch_mod="rna"
-    )
+    adata_manager = generic_setup_mudata_manager(mdata, layer_mod="rna", batch_mod="rna")
     np.testing.assert_array_equal(
         adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY),
         np.zeros((adata.shape[0], 1)),

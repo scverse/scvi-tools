@@ -1,7 +1,8 @@
 import inspect
 import logging
 import warnings
-from typing import Callable, Dict, List, Literal, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import Callable, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -45,7 +46,7 @@ class DifferentialComputation:
         self.model_fn = model_fn
         self.representation_fn = representation_fn
 
-    def filter_outlier_cells(self, selection: Union[List[bool], np.ndarray]):
+    def filter_outlier_cells(self, selection: Union[list[bool], np.ndarray]):
         """Filters out cells that are outliers in the representation space."""
         selection = self.process_selection(selection)
         reps = self.representation_fn(
@@ -66,8 +67,8 @@ class DifferentialComputation:
 
     def get_bayes_factors(
         self,
-        idx1: Union[List[bool], np.ndarray],
-        idx2: Union[List[bool], np.ndarray],
+        idx1: Union[list[bool], np.ndarray],
+        idx2: Union[list[bool], np.ndarray],
         mode: Literal["vanilla", "change"] = "vanilla",
         batchid1: Optional[Sequence[Union[Number, str]]] = None,
         batchid2: Optional[Sequence[Union[Number, str]]] = None,
@@ -79,8 +80,8 @@ class DifferentialComputation:
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
         pseudocounts: Union[float, None] = 0.0,
-        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
-    ) -> Dict[str, np.ndarray]:
+        cred_interval_lvls: Optional[Union[list[float], np.ndarray]] = None,
+    ) -> dict[str, np.ndarray]:
         r"""A unified method for differential expression inference.
 
         Two modes coexist:
@@ -377,7 +378,7 @@ class DifferentialComputation:
     @torch.inference_mode()
     def scale_sampler(
         self,
-        selection: Union[List[bool], np.ndarray],
+        selection: Union[list[bool], np.ndarray],
         n_samples: Optional[int] = 5000,
         n_samples_per_cell: Optional[int] = None,
         batchid: Optional[Sequence[Union[Number, str]]] = None,
@@ -443,11 +444,13 @@ class DifferentialComputation:
             )
         n_samples = int(n_samples / len(batchid))
         if n_samples == 0:
-            warnings.warn(
-                "very small sample size, please consider increasing `n_samples`",
-                UserWarning,
-                stacklevel=settings.warnings_stacklevel,
-            ),
+            (
+                warnings.warn(
+                    "very small sample size, please consider increasing `n_samples`",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                ),
+            )
             n_samples = 2
 
         selection = self.process_selection(selection)
@@ -473,7 +476,7 @@ class DifferentialComputation:
             px_scales = px_scales.mean(0)
         return {"scale": px_scales, "batch": batch_ids}
 
-    def process_selection(self, selection: Union[List[bool], np.ndarray]) -> np.ndarray:
+    def process_selection(self, selection: Union[list[bool], np.ndarray]) -> np.ndarray:
         """If selection is a mask, convert it to indices."""
         selection = np.asarray(selection)
         if selection.dtype is np.dtype("bool"):
@@ -483,7 +486,7 @@ class DifferentialComputation:
         return selection
 
 
-def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
+def estimate_delta(lfc_means: list[np.ndarray], coef=0.6, min_thres=0.3):
     """Computes a threshold LFC value based on means of LFCs.
 
     Parameters
@@ -507,10 +510,10 @@ def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
 
 
 def estimate_pseudocounts_offset(
-    scales_a: List[np.ndarray],
-    scales_b: List[np.ndarray],
-    where_zero_a: List[np.ndarray],
-    where_zero_b: List[np.ndarray],
+    scales_a: list[np.ndarray],
+    scales_b: list[np.ndarray],
+    where_zero_a: list[np.ndarray],
+    where_zero_b: list[np.ndarray],
     percentile: Optional[float] = 0.9,
 ):
     """Determines pseudocount offset.
@@ -554,13 +557,13 @@ def estimate_pseudocounts_offset(
 
 
 def pairs_sampler(
-    arr1: Union[List[float], np.ndarray, torch.Tensor],
-    arr2: Union[List[float], np.ndarray, torch.Tensor],
+    arr1: Union[list[float], np.ndarray, torch.Tensor],
+    arr2: Union[list[float], np.ndarray, torch.Tensor],
     use_permutation: bool = True,
     m_permutation: int = None,
     sanity_check_perm: bool = False,
-    weights1: Union[List[float], np.ndarray, torch.Tensor] = None,
-    weights2: Union[List[float], np.ndarray, torch.Tensor] = None,
+    weights1: Union[list[float], np.ndarray, torch.Tensor] = None,
+    weights2: Union[list[float], np.ndarray, torch.Tensor] = None,
 ) -> tuple:
     """Creates more pairs.
 
@@ -618,7 +621,7 @@ def pairs_sampler(
 
 
 def credible_intervals(
-    ary: np.ndarray, confidence_level: Union[float, List[float], np.ndarray] = 0.94
+    ary: np.ndarray, confidence_level: Union[float, list[float], np.ndarray] = 0.94
 ) -> np.ndarray:
     """Calculate highest posterior density (HPD) of array for given credible_interval.
 
@@ -640,10 +643,7 @@ def credible_intervals(
     """
     if ary.ndim > 1:
         hpd = np.array(
-            [
-                credible_intervals(row, confidence_level=confidence_level)
-                for row in ary.T
-            ]
+            [credible_intervals(row, confidence_level=confidence_level) for row in ary.T]
         )
         return hpd
     # Make a copy of trace
@@ -667,7 +667,7 @@ def credible_intervals(
 
 def describe_continuous_distrib(
     samples: Union[np.ndarray, torch.Tensor],
-    credible_intervals_levels: Optional[Union[List[float], np.ndarray]] = None,
+    credible_intervals_levels: Optional[Union[list[float], np.ndarray]] = None,
 ) -> dict:
     """Computes properties of distribution based on its samples.
 
@@ -705,7 +705,7 @@ def describe_continuous_distrib(
 
 
 def save_cluster_xlsx(
-    filepath: str, de_results: List[pd.DataFrame], cluster_names: List
+    filepath: str, de_results: list[pd.DataFrame], cluster_names: list
 ):
     """Saves multi-clusters DE in an xlsx sheet.
 

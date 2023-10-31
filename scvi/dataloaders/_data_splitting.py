@@ -1,5 +1,5 @@
 from math import ceil, floor
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 import lightning.pytorch as pl
 import numpy as np
@@ -475,7 +475,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         else:
             return None
 
-    def _make_dataloader(self, tensor_dict: Dict[str, torch.Tensor], shuffle):
+    def _make_dataloader(self, tensor_dict: dict[str, torch.Tensor], shuffle):
         """Create a dataloader from a tensor dict."""
         if tensor_dict is None:
             return None
@@ -503,10 +503,10 @@ class DeviceBackedDataSplitter(DataSplitter):
 
 
 class _DeviceBackedDataset(Dataset):
-    def __init__(self, tensor_dict: Dict[str, torch.Tensor]):
+    def __init__(self, tensor_dict: dict[str, torch.Tensor]):
         self.data = tensor_dict
 
-    def __getitem__(self, idx: List[int]) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, idx: list[int]) -> dict[str, torch.Tensor]:
         return_dict = {}
         for key, value in self.data.items():
             return_dict[key] = value[idx]
