@@ -6,6 +6,7 @@ import os
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
+from typing import Any
 from uuid import uuid4
 
 import numpy as np
@@ -639,6 +640,17 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         )
 
     @classmethod
+    def on_load_model_init(
+        cls,
+        attr_dict: dict[str, Any],
+        var_names: np.ndarray,
+        state_dict: dict[str, Any],
+        adata: AnnOrMuData | None = None,
+    ) -> tuple[dict[str, Any], np.ndarray, dict[str, Any], AnnOrMuData | None]:
+        """Callback before model initialization."""
+        return attr_dict, var_names, state_dict, adata
+
+    @classmethod
     @devices_dsp.dedent
     def load(
         cls,
@@ -718,6 +730,10 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
         getattr(cls, method_name)(
             adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+        )
+
+        attr_dict, var_names, model_state_dict, adata = cls.on_load_model_init(
+            attr_dict, var_names, model_state_dict, adata
         )
 
         model = _initialize_model(cls, adata, attr_dict)

@@ -102,6 +102,7 @@ class SCANVAE(VAE):
         classifier_parameters: Optional[dict] = None,
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        _default_logits: bool = True,
         **vae_kwargs,
     ):
         super().__init__(
@@ -133,7 +134,7 @@ class SCANVAE(VAE):
             "n_layers": 0 if linear_classifier else n_layers,
             "n_hidden": 0 if linear_classifier else n_hidden,
             "dropout_rate": dropout_rate,
-            "logits": True,
+            "logits": _default_logits,
         }
         cls_parameters.update(classifier_parameters)
         self.classifier = Classifier(
