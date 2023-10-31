@@ -452,12 +452,21 @@ def test_scanvi_logits_load(save_path: str):
     _ = model.predict()
 
 
-def test_scanvi_pre_logits_fix_load():
+def test_scanvi_pre_logits_fix_load(save_path: str):
     """See #2310."""
     model_path = "tests/test_data/pre_logits_fix_scanvi"
     model = SCANVI.load(model_path)
 
-    # loading with new code should keep logits=False
-    assert not model.module.classifier.logits
-    _ = model.get_latent_representation()
-    _ = model.predict()
+    def check_no_logits_and_softmax(model: SCANVI):
+        assert not model.module.classifier.logits
+        assert isinstance(model.module.classifier.classifier[-1], torch.nn.Softmax)
+
+    check_no_logits_and_softmax(model)
+
+    resave_model_path = os.path.join(save_path, "pre_logits_fix_scanvi")
+    model.save(resave_model_path, overwrite=True)
+    adata = model.adata
+    del model
+
+    model = SCANVI.load(resave_model_path, adata)
+    check_no_logits_and_softmax(model)
