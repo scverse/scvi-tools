@@ -435,7 +435,7 @@ def test_scanvi_online_update(save_path):
     m_q.get_elbo()
 
 
-def test_scanvi_logits_load(save_path: str):
+def test_scanvi_logits_backwards_compat(save_path: str):
     adata = synthetic_iid()
     SCANVI.setup_anndata(adata, labels_key="labels", unlabeled_category="label_0")
 
@@ -448,8 +448,7 @@ def test_scanvi_logits_load(save_path: str):
 
     model = SCANVI.load(model_path, adata)
     assert not model.module.classifier.logits
-    _ = model.get_latent_representation()
-    _ = model.predict()
+    assert isinstance(model.module.classifier.classifier[-1], torch.nn.Softmax)
 
 
 def test_scanvi_pre_logits_fix_load(save_path: str):
