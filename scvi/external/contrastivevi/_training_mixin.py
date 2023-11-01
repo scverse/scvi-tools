@@ -1,22 +1,24 @@
 from __future__ import annotations
 
-from scvi.autotune._types import Tunable
-from scvi.dataloaders import DataSplitter
+from scvi.autotune._types import List, Tunable
+from scvi.dataloaders import ContrastiveDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp
 
 
-class UnsupervisedTrainingMixin:
-    """General purpose unsupervised train method."""
+class ContrastiveTrainingMixin:
+    """Contrastive analysis train method."""
 
-    _data_splitter_cls = DataSplitter
+    _data_splitter_cls = ContrastiveDataSplitter
     _training_plan_cls = TrainingPlan
     _train_runner_cls = TrainRunner
 
     @devices_dsp.dedent
     def train(
         self,
+        background_indices: List[int],
+        target_indices: List[int],
         max_epochs: int | None = None,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
@@ -57,7 +59,7 @@ class UnsupervisedTrainingMixin:
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
         datasplitter_kwargs
-            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.ContrastiveDataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -72,6 +74,8 @@ class UnsupervisedTrainingMixin:
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
+            background_indices=background_indices,
+            target_indices=target_indices,
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,

@@ -26,11 +26,11 @@ from scvi.model._utils import (
     scrna_raw_counts_properties,
 )
 from scvi.model.base import BaseModelClass
-from scvi.model.base._training_mixin import ContrastiveTrainingMixin
 from scvi.model.base._utils import _de_core
 from scvi.utils import setup_anndata_dsp
 
 from ._module import ContrastiveVAE
+from ._training_mixin import ContrastiveTrainingMixin
 
 logger = logging.getLogger(__name__)
 Number = Union[int, float]
@@ -41,25 +41,25 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
 
     Parameters
     ----------
-        adata
-            AnnData object that has been registered via
-            :meth:`~scvi.model.ContrastiveVI.setup_anndata`.
-        n_hidden
-            Number of nodes per hidden layer.
-        n_background_latent
-            Dimensionality of the background shared latent space.
-        n_salient_latent
-            Dimensionality of the salient latent space.
-        n_layers
-            Number of hidden layers used for encoder and decoder NNs.
-        dropout_rate
-            Dropout rate for neural networks.
-        use_observed_lib_size
-            Use observed library size for RNA as scaling factor in mean of conditional
-            distribution.
-        wasserstein_penalty
-            Weight of the Wasserstein distance loss that further discourages background
-            shared variations from leaking into the salient latent space.
+    adata
+        AnnData object that has been registered via
+        :meth:`~scvi.model.ContrastiveVI.setup_anndata`.
+    n_hidden
+        Number of nodes per hidden layer.
+    n_background_latent
+        Dimensionality of the background shared latent space.
+    n_salient_latent
+        Dimensionality of the salient latent space.
+    n_layers
+        Number of hidden layers used for encoder and decoder NNs.
+    dropout_rate
+        Dropout rate for neural networks.
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional
+        distribution.
+    wasserstein_penalty
+        Weight of the Wasserstein distance loss that further discourages background
+        shared variations from leaking into the salient latent space.
     """
 
     _module_cls = ContrastiveVAE

@@ -9,7 +9,7 @@ from ._pyromixin import (
     PyroSviTrainMixin,
 )
 from ._rnamixin import RNASeqMixin
-from ._training_mixin import ContrastiveTrainingMixin, UnsupervisedTrainingMixin
+from ._training_mixin import UnsupervisedTrainingMixin
 from ._vaemixin import VAEMixin
 
 __all__ = [
@@ -17,7 +17,6 @@ __all__ = [
     "BaseModelClass",
     "RNASeqMixin",
     "VAEMixin",
-    "ContrastiveTrainingMixin",
     "UnsupervisedTrainingMixin",
     "PyroSviTrainMixin",
     "PyroSampleMixin",

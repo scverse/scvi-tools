@@ -23,32 +23,32 @@ class ContrastiveVAE(BaseModuleClass):
 
     Parameters
     ----------
-        n_input
-            Number of input genes.
-        n_batch
-            Number of batches. If 0, no batch effect correction is performed.
-        n_hidden
-            Number of nodes per hidden layer.
-        n_background_latent
-            Dimensionality of the background latent space.
-        n_salient_latent
-            Dimensionality of the salient latent space.
-        n_layers
-            Number of hidden layers used for encoder and decoder NNs.
-        dropout_rate
-            Dropout rate for neural networks.
-        use_observed_lib_size
-            Use observed library size for RNA as scaling factor in mean of conditional
-            distribution.
-        library_log_means
-            1 x n_batch array of means of the log library sizes. Parameterize prior on
-            library size if not using observed library size.
-        library_log_vars
-            1 x n_batch array of variances of the log library sizes. Parameterize prior
-            on library size if not using observed library size.
-        wasserstein_penalty
-            Weight of the Wasserstein distance loss that further discourages shared
-            variations from leaking into the salient latent space.
+    n_input
+        Number of input genes.
+    n_batch
+        Number of batches. If 0, no batch effect correction is performed.
+    n_hidden
+        Number of nodes per hidden layer.
+    n_background_latent
+        Dimensionality of the background latent space.
+    n_salient_latent
+        Dimensionality of the salient latent space.
+    n_layers
+        Number of hidden layers used for encoder and decoder NNs.
+    dropout_rate
+        Dropout rate for neural networks.
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional
+        distribution.
+    library_log_means
+        1 x n_batch array of means of the log library sizes. Parameterize prior on
+        library size if not using observed library size.
+    library_log_vars
+        1 x n_batch array of variances of the log library sizes. Parameterize prior
+        on library size if not using observed library size.
+    wasserstein_penalty
+        Weight of the Wasserstein distance loss that further discourages shared
+        variations from leaking into the salient latent space.
     """
 
     def __init__(
@@ -399,14 +399,14 @@ class ContrastiveVAE(BaseModuleClass):
 
         Parameters
         ----------
-            x
-                Input data.
-            px_rate
-                Mean of distribution.
-            px_r
-                Inverse dispersion.
-            px_dropout
-                Logits scale of zero inflation probability.
+        x
+            Input data.
+        px_rate
+            Mean of distribution.
+        px_r
+            Inverse dispersion.
+        px_dropout
+            Logits scale of zero inflation probability.
 
         Returns
         -------
@@ -432,14 +432,14 @@ class ContrastiveVAE(BaseModuleClass):
 
         Parameters
         ----------
-            variational_mean
-                Mean of the variational posterior Gaussian.
-            variational_var
-                Variance of the variational posterior Gaussian.
-            prior_mean
-                Mean of the prior Gaussian.
-            prior_var
-                Variance of the prior Gaussian.
+        variational_mean
+            Mean of the variational posterior Gaussian.
+        variational_var
+            Variance of the variational posterior Gaussian.
+        prior_mean
+            Mean of the prior Gaussian.
+        prior_var
+            Variance of the prior Gaussian.
 
         Returns
         -------
@@ -465,14 +465,14 @@ class ContrastiveVAE(BaseModuleClass):
 
         Parameters
         ----------
-            batch_index
-                Batch indices for batch-specific library size mean and variance.
-            variational_library_mean
-                Mean of variational Log-Normal.
-            variational_library_var
-                Variance of variational Log-Normal.
-            library
-                Sampled library size.
+        batch_index
+            Batch indices for batch-specific library size mean and variance.
+        variational_library_mean
+            Mean of variational Log-Normal.
+        variational_library_var
+            Variance of variational Log-Normal.
+        library
+            Sampled library size.
 
         Returns
         -------
@@ -541,18 +541,18 @@ class ContrastiveVAE(BaseModuleClass):
 
         Parameters
         ----------
-            concat_tensors
-                Tuple of data mini-batch. The first element contains background data
-                mini-batch. The second element contains target data mini-batch.
-            inference_outputs
-                Dictionary of inference step outputs. The keys are "background" and
-                "target" for the corresponding outputs.
-            generative_outputs
-                Dictionary of generative step outputs. The keys are "background" and
-                "target" for the corresponding outputs.
-            kl_weight
-                Importance weight for KL divergence of background and salient latent
-                variables, relative to KL divergence of library size.
+        concat_tensors
+            Tuple of data mini-batch. The first element contains background data
+            mini-batch. The second element contains target data mini-batch.
+        inference_outputs
+            Dictionary of inference step outputs. The keys are "background" and
+            "target" for the corresponding outputs.
+        generative_outputs
+            Dictionary of generative step outputs. The keys are "background" and
+            "target" for the corresponding outputs.
+        kl_weight
+            Importance weight for KL divergence of background and salient latent
+            variables, relative to KL divergence of library size.
 
         Returns
         -------
