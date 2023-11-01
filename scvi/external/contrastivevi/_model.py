@@ -1,9 +1,11 @@
 """Model class for contrastive-VI for single cell expression data."""
 
+from __future__ import annotations
+
 import logging
 import warnings
 from functools import partial
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import Iterable, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -11,6 +13,7 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
+from scvi.autotune._types import Tunable
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -19,24 +22,27 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.dataloaders import AnnDataLoader
+from scvi.dataloaders import AnnDataLoader, ContrastiveDataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _init_library_size,
+    get_max_epochs_heuristic,
     scrna_raw_counts_properties,
+    use_distributed_sampler,
 )
 from scvi.model.base import BaseModelClass
 from scvi.model.base._utils import _de_core
+from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 from ._module import ContrastiveVAE
-from ._training_mixin import ContrastiveTrainingMixin
 
 logger = logging.getLogger(__name__)
 Number = Union[int, float]
 
 
-class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
+class ContrastiveVI(BaseModelClass):
     """contrastive variational inference :cite:p:`Weinberger23`.
 
     Parameters
@@ -63,6 +69,9 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
     """
 
     _module_cls = ContrastiveVAE
+    _data_splitter_cls = ContrastiveDataSplitter
+    _training_plan_cls = TrainingPlan
+    _train_runner_cls = TrainRunner
 
     def __init__(
         self,
@@ -120,17 +129,106 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
+    @devices_dsp.dedent
+    def train(
+        self,
+        background_indices: list[int],
+        target_indices: list[int],
+        max_epochs: int | None = None,
+        accelerator: str = "auto",
+        devices: int | list[int] | str = "auto",
+        train_size: float = 0.9,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
+        load_sparse_tensor: bool = False,
+        batch_size: Tunable[int] = 128,
+        early_stopping: bool = False,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
+        **trainer_kwargs,
+    ):
+        """Train the model.
+
+        Parameters
+        ----------
+        max_epochs
+            Number of passes through the dataset. If `None`, defaults to
+            `np.min([round((20000 / n_cells) * 400), 400])`
+        %(param_accelerator)s
+        %(param_devices)s
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
+        load_sparse_tensor
+            `EXPERIMENTAL` If ``True``, loads data with sparse CSR or CSC layout as a
+            :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
+            GPUs, depending on the sparsity of the data.
+        batch_size
+            Minibatch size to use during training.
+        early_stopping
+            Perform early stopping. Additional arguments can be passed in `**kwargs`.
+            See :class:`~scvi.train.Trainer` for further options.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.ContrastiveDataSplitter`.
+        plan_kwargs
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        **trainer_kwargs
+            Other keyword args for :class:`~scvi.train.Trainer`.
+        """
+        if max_epochs is None:
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
+
+        plan_kwargs = plan_kwargs or {}
+        datasplitter_kwargs = datasplitter_kwargs or {}
+
+        data_splitter = self._data_splitter_cls(
+            self.adata_manager,
+            background_indices=background_indices,
+            target_indices=target_indices,
+            train_size=train_size,
+            validation_size=validation_size,
+            batch_size=batch_size,
+            shuffle_set_split=shuffle_set_split,
+            distributed_sampler=use_distributed_sampler(
+                trainer_kwargs.get("strategy", None)
+            ),
+            load_sparse_tensor=load_sparse_tensor,
+            **datasplitter_kwargs,
+        )
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
+
+        es = "early_stopping"
+        trainer_kwargs[es] = (
+            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
+        )
+        runner = self._train_runner_cls(
+            self,
+            training_plan=training_plan,
+            data_splitter=data_splitter,
+            max_epochs=max_epochs,
+            accelerator=accelerator,
+            devices=devices,
+            **trainer_kwargs,
+        )
+        return runner()
+
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
+        layer: str | None = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -169,10 +267,10 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         give_mean: bool = True,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         representation_kind: str = "salient",
     ) -> np.ndarray:
         """Returns the background or salient latent representation for each cell.
@@ -234,17 +332,17 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
     @torch.inference_mode()
     def get_normalized_expression(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        gene_list: Optional[Sequence[str]] = None,
-        library_size: Union[float, str] = 1.0,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        transform_batch: Sequence[Number | str] | None = None,
+        gene_list: Sequence[str] | None = None,
+        library_size: float | str = 1.0,
         n_samples: int = 1,
-        n_samples_overall: Optional[int] = None,
-        batch_size: Optional[int] = None,
+        n_samples_overall: int | None = None,
+        batch_size: int | None = None,
         return_mean: bool = True,
-        return_numpy: Optional[bool] = None,
-    ) -> Dict[str, Union[np.ndarray, pd.DataFrame]]:
+        return_numpy: bool | None = None,
+    ) -> dict[str, np.ndarray | pd.DataFrame]:
         """Returns the normalized (decoded) gene expression.
 
         Parameters
@@ -391,17 +489,17 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
     @torch.inference_mode()
     def get_salient_normalized_expression(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        gene_list: Optional[Sequence[str]] = None,
-        library_size: Union[float, str] = 1.0,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        transform_batch: Sequence[Number | str] | None = None,
+        gene_list: Sequence[str] | None = None,
+        library_size: float | str = 1.0,
         n_samples: int = 1,
-        n_samples_overall: Optional[int] = None,
-        batch_size: Optional[int] = None,
+        n_samples_overall: int | None = None,
+        batch_size: int | None = None,
         return_mean: bool = True,
-        return_numpy: Optional[bool] = None,
-    ) -> Union[np.ndarray, pd.DataFrame]:
+        return_numpy: bool | None = None,
+    ) -> np.ndarray | pd.DataFrame:
         """Returns the normalized (decoded) gene expression.
 
         Gene expressions are decoded from both the background and salient latent space.
@@ -461,18 +559,18 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
     @torch.inference_mode()
     def get_specific_normalized_expression(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        gene_list: Optional[Sequence[str]] = None,
-        library_size: Union[float, str] = 1,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        transform_batch: Sequence[Number | str] | None = None,
+        gene_list: Sequence[str] | None = None,
+        library_size: float | str = 1,
         n_samples: int = 1,
-        n_samples_overall: Optional[int] = None,
-        batch_size: Optional[int] = None,
+        n_samples_overall: int | None = None,
+        batch_size: int | None = None,
         return_mean: bool = True,
-        return_numpy: Optional[bool] = None,
-        expression_type: Optional[str] = None,
-        indices_to_return_salient: Optional[Sequence[int]] = None,
+        return_numpy: bool | None = None,
+        expression_type: str | None = None,
+        indices_to_return_salient: Sequence[int] | None = None,
     ):
         """Returns the normalized (decoded) gene expression.
 
@@ -565,22 +663,22 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
 
     def differential_expression(
         self,
-        adata: Optional[AnnData] = None,
-        groupby: Optional[str] = None,
-        group1: Optional[Iterable[str]] = None,
-        group2: Optional[str] = None,
-        idx1: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
-        idx2: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        adata: AnnData | None = None,
+        groupby: str | None = None,
+        group1: Iterable[str] | None = None,
+        group2: str | None = None,
+        idx1: Sequence[int] | (Sequence[bool] | str) | None = None,
+        idx2: Sequence[int] | (Sequence[bool] | str) | None = None,
         mode: str = "change",
         delta: float = 0.25,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         all_stats: bool = True,
         batch_correction: bool = False,
-        batchid1: Optional[Iterable[str]] = None,
-        batchid2: Optional[Iterable[str]] = None,
+        batchid1: Iterable[str] | None = None,
+        batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        target_idx: Optional[Sequence[int]] = None,
+        target_idx: Sequence[int] | None = None,
         n_samples: int = 1,
         **kwargs,
     ) -> pd.DataFrame:
@@ -706,9 +804,9 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
     @staticmethod
     @torch.inference_mode()
     def _preprocess_normalized_expression(
-        generative_outputs: Dict[str, torch.Tensor],
+        generative_outputs: dict[str, torch.Tensor],
         generative_output_key: str,
-        gene_mask: Union[list, slice],
+        gene_mask: list | slice,
         scaling: float,
     ) -> np.ndarray:
         output = generative_outputs[generative_output_key]
@@ -720,10 +818,10 @@ class ContrastiveVI(ContrastiveTrainingMixin, BaseModelClass):
     @torch.inference_mode()
     def get_latent_library_size(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         give_mean: bool = True,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> np.ndarray:
         r"""Returns the latent library size for each cell.
 
