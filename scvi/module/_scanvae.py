@@ -9,6 +9,8 @@ from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
 from scvi.autotune._types import Tunable
+from scvi.data import _constants
+from scvi.model.base import BaseModelClass
 from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import Decoder, Encoder
 
@@ -102,7 +104,6 @@ class SCANVAE(VAE):
         classifier_parameters: Optional[dict] = None,
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
-        _default_logits: bool = True,
         **vae_kwargs,
     ):
         super().__init__(
@@ -134,7 +135,7 @@ class SCANVAE(VAE):
             "n_layers": 0 if linear_classifier else n_layers,
             "n_hidden": 0 if linear_classifier else n_hidden,
             "dropout_rate": dropout_rate,
-            "logits": _default_logits,
+            "logits": True,
         }
         cls_parameters.update(classifier_parameters)
         self.classifier = Classifier(
@@ -393,3 +394,18 @@ class SCANVAE(VAE):
         return LossOutput(
             loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence
         )
+
+    def on_load(self, model: BaseModelClass):
+        manager = model.get_anndata_manager(model.adata)
+        version_split = manager.registry[_constants._SCVI_VERSION_KEY].split(".")
+        if int(version_split[0]) >= 1 and int(version_split[1]) >= 1:
+            return
+
+        # pre 1.1 logits fix
+        model_kwargs = model.init_params_.get("model_kwargs", {})
+        cls_params = model_kwargs.get("classifier_parameters", {})
+        user_logits = cls_params.get("logits", False)
+
+        if not user_logits:
+            self.classifier.logits = False
+            self.classifier.classifier.append(torch.nn.Softmax(dim=-1))

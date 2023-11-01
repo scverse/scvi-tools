@@ -4,7 +4,7 @@ import logging
 import warnings
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,7 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData, MinifiedDataType
+from scvi._types import MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
     _ADATA_MINIFY_TYPE_UNS_KEY,
@@ -117,7 +117,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         linear_classifier: bool = False,
-        _default_logits: bool = True,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -161,7 +160,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
             linear_classifier=linear_classifier,
-            _default_logits=_default_logits,
             **scanvae_model_kwargs,
         )
         self.module.minified_data_type = self.minified_data_type
@@ -587,17 +585,3 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             minified_adata, minified_data_type
         )
         self.module.minified_data_type = minified_data_type
-
-    @classmethod
-    def on_load_model_init(
-        cls,
-        attr_dict: dict[str, Any],
-        var_names: np.ndarray,
-        state_dict: dict[str, Any],
-        adata: AnnOrMuData | None = None,
-    ) -> tuple[dict[str, Any], np.ndarray, dict[str, Any], AnnOrMuData | None]:
-        init_non_kwargs = attr_dict["init_params_"]["non_kwargs"]
-        if "_default_logits" not in init_non_kwargs:
-            attr_dict["init_params_"]["non_kwargs"]["_default_logits"] = False
-
-        return attr_dict, var_names, state_dict, adata
