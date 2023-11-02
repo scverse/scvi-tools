@@ -296,10 +296,11 @@ class ContrastiveVI(BaseModelClass):
             A numpy array with shape `(n_cells, n_latent)`.
         """
         available_representation_kinds = ["background", "salient"]
-        assert representation_kind in available_representation_kinds, (
-            f"representation_kind = {representation_kind} is not one of"
-            f" {available_representation_kinds}"
-        )
+        if representation_kind not in available_representation_kinds:
+            raise ValueError(
+                f"representation_kind = {representation_kind} is not one of"
+                f" {available_representation_kinds}"
+            )
 
         adata = self._validate_anndata(adata)
         data_loader = self._make_data_loader(
