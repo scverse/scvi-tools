@@ -4,18 +4,11 @@ from distutils.dir_util import copy_tree
 import pytest
 
 import scvi
-from tests.dataset.utils import generic_setup_adata_manager
+from tests.data.utils import generic_setup_adata_manager
 
 
 def pytest_addoption(parser):
     """Docstring for pytest_addoption."""
-    parser.addoption(
-        "--model_fit",
-        action="store_true",
-        default=False,
-        dest="model_fit",
-        help="Option to run full training model for test_model_fit",
-    )
     parser.addoption(
         "--internet-tests",
         action="store_true",
@@ -39,6 +32,12 @@ def pytest_addoption(parser):
         action="store",
         default="auto",
         help="Option to specify which devices to use for tests.",
+    )
+    parser.addoption(
+        "--seed",
+        action="store",
+        default=0,
+        help="Option to specify which scvi-tools seed to use for tests.",
     )
 
 
@@ -67,25 +66,13 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest.fixture(scope="session")
-def save_path(tmpdir_factory):
+def save_path(tmp_path_factory):
     """Docstring for save_path."""
-    dir = tmpdir_factory.mktemp("temp_data", numbered=False)
+    dir = tmp_path_factory.mktemp("temp_data", numbered=False)
     path = str(dir)
-    copy_tree("tests/data", path)
+    copy_tree("tests/test_data", path)
     yield path + "/"
-    shutil.rmtree(str(tmpdir_factory.getbasetemp()))
-
-
-@pytest.fixture(scope="session")
-def synthetic_adata():
-    """Docstring for model_fit."""
-    return scvi.data.synthetic_iid()
-
-
-@pytest.fixture(scope="session")
-def model_fit(request):
-    """Docstring for model_fit."""
-    return request.config.getoption("--model_fit")
+    shutil.rmtree(str(tmp_path_factory.getbasetemp()))
 
 
 @pytest.fixture(scope="session")
@@ -132,3 +119,12 @@ def mock_target_indices(mock_contrastive_adata):
     """Indices for target data in ``mock_contrastive_adata_manager``."""
     adata = mock_contrastive_adata
     return adata.obs.index[(adata.obs["batch"] == "batch_1")].astype(int).tolist()
+
+
+@pytest.fixture(autouse=True)
+def set_seed(request):
+    """Sets the seed for each test."""
+    from scvi import settings
+
+    settings.seed = int(request.config.getoption("--seed"))
+    yield

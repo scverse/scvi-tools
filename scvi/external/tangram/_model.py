@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 import flax
 import jax
@@ -123,7 +123,7 @@ class Tangram(BaseModelClass):
         self,
         max_epochs: int = 1000,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: Union[int, list[int], str] = "auto",
         lr: float = 0.1,
         plan_kwargs: Optional[dict] = None,
     ):
@@ -198,7 +198,7 @@ class Tangram(BaseModelClass):
         ] = "rna_count_based",
         sc_layer: Optional[str] = None,
         sp_layer: Optional[str] = None,
-        modalities: Optional[Dict[str, str]] = None,
+        modalities: Optional[dict[str, str]] = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -276,7 +276,7 @@ class Tangram(BaseModelClass):
     def _get_tensor_dict(
         self,
         device: Device,
-    ) -> Dict[str, jnp.ndarray]:
+    ) -> dict[str, jnp.ndarray]:
         """Get training data for Tangram model.
 
         Tangram does not minibatch, so we just make a dictionary of

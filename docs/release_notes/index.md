@@ -38,6 +38,10 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     with argument `monitor_device_stats` {pr}`2260`.
 -   Add option to pass in a random seed to {meth}`scvi.autotune.ModelTuner.fit`
     with argument `seed` {pr}`2260`.
+-   Automatically log the learning rate when `reduce_lr_on_plateau=True` in
+    training plans {pr}`2280`.
+-   {class}`scvi.train.SemiSupervisedTrainingPlan` now logs the classifier
+    calibration error {pr}`2299`.
 
 #### Fixed
 
@@ -59,6 +63,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     default {pr}`2250`.
 -   Support fractional GPU usage in {class}`scvi.autotune.ModelTuner` `pr`{2252}.
 -   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner` `pr`{2260}.
+-   Match `momentum` and `epsilon` in {class}`scvi.module.JaxVAE` to the
+    default values in PyTorch {pr}`2309`.
 
 #### Removed
 
@@ -67,6 +73,12 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Remove deprecated `scvi._compat.Literal` class {pr}`2115`.
 
 ## Version 1.0
+
+### 1.0.4 (2023-10-xx)
+
+### Added
+
+-   Add support for AnnData 0.10.0 {pr}`2271`.
 
 ### 1.0.3 (2023-08-13)
 

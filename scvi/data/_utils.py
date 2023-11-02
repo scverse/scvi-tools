@@ -11,7 +11,14 @@ import pandas as pd
 import scipy.sparse as sp_sparse
 import torch
 from anndata import AnnData
-from anndata._core.sparse_dataset import SparseDataset
+
+try:
+    from anndata._core.sparse_dataset import SparseDataset
+except ImportError:
+    # anndata >= 0.10.0
+    from anndata._core.sparse_dataset import (
+        BaseCompressedSparseDataset as SparseDataset,
+    )
 
 # TODO use the experimental api once we lower bound to anndata 0.8
 try:
@@ -31,33 +38,20 @@ from . import _constants
 logger = logging.getLogger(__name__)
 
 
-ScipySparse = Union[
-    sp_sparse.csr_matrix, sp_sparse.csc_matrix, sp_sparse.csr_array, sp_sparse.csc_array
-]
+ScipySparse = Union[sp_sparse.csr_matrix, sp_sparse.csc_matrix]
 
 
 def registry_key_to_default_dtype(key: str) -> type:
     """Returns the default dtype for a given registry key."""
     if key in [
-        REGISTRY_KEYS.X_KEY,
-        REGISTRY_KEYS.PROTEIN_EXP_KEY,
-        REGISTRY_KEYS.CONT_COVS_KEY,
-        REGISTRY_KEYS.SIZE_FACTOR_KEY,
-        REGISTRY_KEYS.MINIFY_TYPE_KEY,
-        REGISTRY_KEYS.LATENT_QZM_KEY,
-        REGISTRY_KEYS.LATENT_QZV_KEY,
-        REGISTRY_KEYS.OBSERVED_LIB_SIZE,
-    ]:
-        return np.float32
-    elif key in [
         REGISTRY_KEYS.BATCH_KEY,
         REGISTRY_KEYS.LABELS_KEY,
         REGISTRY_KEYS.CAT_COVS_KEY,
         REGISTRY_KEYS.INDICES_KEY,
     ]:
         return np.int64
-    else:
-        raise KeyError(f"Invalid registry key: {key}")
+
+    return np.float32
 
 
 def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
@@ -68,10 +62,10 @@ def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
     x
         SciPy sparse data structure to convert. One of the following:
 
-        * :class:`~scipy.sparse.csr_matrix` and :class:`~scipy.sparse.csr_array`:
+        * :class:`~scipy.sparse.csr_matrix`:
             Converted to a :class:`~torch.Tensor` constructed with
             :meth:`~torch.sparse_csr_tensor`.
-        * :class:`~scipy.sparse.csc_matrix` and :class:`~scipy.sparse.csc_array`:
+        * :class:`~scipy.sparse.csc_matrix`:
             Converted to a :class:`~torch.Tensor` constructed with
             :meth:`~torch.sparse_csc_tensor`.
 
@@ -80,14 +74,14 @@ def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
     :class:`~torch.Tensor`
         A sparse tensor equivalent to `x`.
     """
-    if isinstance(x, (sp_sparse.csr_matrix, sp_sparse.csr_array)):
+    if isinstance(x, sp_sparse.csr_matrix):
         return sparse_csr_tensor(
             as_tensor(x.indptr),
             as_tensor(x.indices),
             as_tensor(x.data),
             size=x.shape,
         )
-    elif isinstance(x, (sp_sparse.csc_matrix, sp_sparse.csc_array)):
+    elif isinstance(x, sp_sparse.csc_matrix):
         return sparse_csc_tensor(
             as_tensor(x.indptr),
             as_tensor(x.indices),
@@ -96,8 +90,8 @@ def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
         )
     else:
         raise TypeError(
-            "`x` must be of type `scipy.sparse.csr_matrix`, `scipy.sparse.csr_array`, "
-            "`scipy.sparse.csc_matrix`, or `scipy.sparse.csc_array`."
+            "`x` must be of type `scipy.sparse.csr_matrix` or "
+            "`scipy.sparse.csc_matrix`."
         )
 
 
@@ -195,17 +189,13 @@ def _verify_and_correct_data_format(
             stacklevel=settings.warnings_stacklevel,
         )
     elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
-        logger.debug(
-            f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS."
-        )
+        logger.debug(f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.")
         data = np.asarray(data, order="C")
         _set_data_in_registry(adata, data, attr_name, attr_key)
     elif isinstance(data, pd.DataFrame) and (
         data.to_numpy().flags["C_CONTIGUOUS"] is False
     ):
-        logger.debug(
-            f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS."
-        )
+        logger.debug(f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.")
         index = data.index
         vals = data.to_numpy()
         columns = data.columns

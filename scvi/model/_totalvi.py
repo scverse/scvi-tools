@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 import warnings
+from collections.abc import Iterable, Sequence
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Iterable, Literal, Sequence
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -506,9 +507,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     protein_val += py_["rate_back"].cpu() * protein_mixing
 
                 if scale_protein is True:
-                    protein_val = torch.nn.functional.normalize(
-                        protein_val, p=1, dim=-1
-                    )
+                    protein_val = torch.nn.functional.normalize(protein_val, p=1, dim=-1)
                 protein_val = protein_val[..., protein_mask]
                 py_scale += protein_val
             px_scale /= len(transform_batch)
@@ -862,9 +861,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         scdl_list = []
         for tensors in scdl:
-            rna_sample, protein_sample = self.module.sample(
-                tensors, n_samples=n_samples
-            )
+            rna_sample, protein_sample = self.module.sample(tensors, n_samples=n_samples)
             rna_sample = rna_sample[..., gene_mask]
             protein_sample = protein_sample[..., protein_mask]
             data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
@@ -1078,9 +1075,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         """
         raise NotImplementedError
 
-    def _validate_anndata(
-        self, adata: AnnData | None = None, copy_if_view: bool = True
-    ):
+    def _validate_anndata(self, adata: AnnData | None = None, copy_if_view: bool = True):
         adata = super()._validate_anndata(adata=adata, copy_if_view=copy_if_view)
         error_msg = "Number of {} in anndata different from when setup_anndata was run. Please rerun setup_anndata."
         if REGISTRY_KEYS.PROTEIN_EXP_KEY in self.adata_manager.data_registry.keys():
@@ -1155,9 +1150,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     batch_avg_scales.append(0.05)
                     continue
 
-                cells = np.random.choice(
-                    np.arange(batch_pro_exp.shape[0]), size=n_cells
-                )
+                cells = np.random.choice(np.arange(batch_pro_exp.shape[0]), size=n_cells)
                 batch_pro_exp = batch_pro_exp[cells]
                 gmm = GaussianMixture(n_components=2)
                 mus, scales = [], []

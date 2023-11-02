@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import List, Union
+from typing import Union
 
 import lightning.pytorch as pl
 import numpy as np
@@ -61,7 +61,7 @@ class TrainRunner:
         data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
         max_epochs: int,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: Union[int, list[int], str] = "auto",
         **trainer_kwargs,
     ):
         self.training_plan = training_plan
@@ -75,6 +75,10 @@ class TrainRunner:
         self.accelerator = accelerator
         self.lightning_devices = lightning_devices
         self.device = device
+
+        if getattr(self.training_plan, "reduce_lr_on_plateau", False):
+            trainer_kwargs["learning_rate_monitor"] = True
+
         self.trainer = self._trainer_cls(
             max_epochs=max_epochs,
             accelerator=accelerator,

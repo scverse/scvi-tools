@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from __future__ import annotations
 
 import anndata
 
@@ -62,8 +62,8 @@ def pbmc_dataset(
 
 
 def dataset_10x(
-    dataset_name: Optional[str] = None,
-    filename: Optional[str] = None,
+    dataset_name: str | None = None,
+    filename: str | None = None,
     save_path: str = "data/10X",
     url: str = None,
     return_filtered: bool = True,
@@ -120,10 +120,10 @@ def dataset_10x(
 
 def cellxgene(
     url: str,
-    filename: Optional[str] = None,
+    filename: str | None = None,
     save_path: str = "data/",
     return_path: bool = False,
-) -> Union[anndata.AnnData, str]:
+) -> anndata.AnnData | str:
     """Loads a file from `cellxgene <https://cellxgene.cziscience.com/>`_ portal.
 
     Parameters
@@ -182,7 +182,7 @@ def smfish(
 
 def purified_pbmc_dataset(
     save_path: str = "data/",
-    subset_datasets: Optional[List[str]] = None,
+    subset_datasets: list[str] | None = None,
 ) -> anndata.AnnData:
     """Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
 
@@ -420,7 +420,7 @@ def spleen_lymph_cite_seq(
 def brainlarge_dataset(
     save_path: str = "data/",
     sample_size_gene_var: int = 10000,
-    max_cells_to_keep: Optional[int] = None,
+    max_cells_to_keep: int | None = None,
     n_genes_to_keep: int = 720,
     loading_batch_size: int = 100000,
 ) -> anndata.AnnData:
@@ -496,7 +496,7 @@ def synthetic_iid(
     n_batches: int = 2,
     n_labels: int = 3,
     dropout_ratio: float = 0.7,
-    sparse_format: Optional[str] = None,
+    sparse_format: str | None = None,
     return_mudata: bool = False,
 ) -> AnnOrMuData:
     """Synthetic multimodal dataset.
@@ -533,8 +533,6 @@ def synthetic_iid(
         * `None`: Store as a dense :class:`numpy.ndarray`.
         * `"csr_matrix"`: Store as a :class:`scipy.sparse.csr_matrix`.
         * `"csc_matrix"`: Store as a :class:`scipy.sparse.csc_matrix`.
-        * `"csr_array"`: Store as a :class:`scipy.sparse.csr_array`.
-        * `"csc_array"`: Store as a :class:`scipy.sparse.csc_array`.
     return_mudata
         Returns a :class:`~mudata.MuData` if `True`, else :class:`~anndata.AnnData`.
 

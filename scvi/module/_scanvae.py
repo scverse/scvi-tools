@@ -1,4 +1,5 @@
-from typing import Iterable, Literal, Optional, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -163,9 +164,7 @@ class SCANVAE(VAE):
         )
 
         self.y_prior = torch.nn.Parameter(
-            y_prior
-            if y_prior is not None
-            else (1 / n_labels) * torch.ones(1, n_labels),
+            y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels),
             requires_grad=False,
         )
         self.use_labels_groups = use_labels_groups
@@ -314,9 +313,7 @@ class SCANVAE(VAE):
                 "kl_divergence_l": kl_divergence_l,
             }
             if labelled_tensors is not None:
-                ce_loss, true_labels, logits = self.classification_loss(
-                    labelled_tensors
-                )
+                ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)
                 loss += ce_loss * classification_ratio
                 return LossOutput(
                     loss=loss,
@@ -342,9 +339,7 @@ class SCANVAE(VAE):
             (loss_z1_unweight).view(self.n_labels, -1).t() * probs
         ).sum(dim=1)
 
-        kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(
-            dim=1
-        )
+        kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
         kl_divergence += kl(
             Categorical(probs=probs),
             Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),

@@ -1,14 +1,23 @@
-from typing import Literal, Optional, Union
+from __future__ import annotations
+
+import logging
 
 import numpy as np
 import pandas as pd
 import torch
 from scipy.sparse import spmatrix
 
+from scvi.model._utils import parse_device_args
+from scvi.utils._docstrings import devices_dsp
 
+logger = logging.getLogger(__name__)
+
+
+@devices_dsp.dedent
 def mde(
-    data: Union[np.ndarray, pd.DataFrame, spmatrix, torch.Tensor],
-    device: Optional[Literal["cpu", "cuda"]] = None,
+    data: np.ndarray | pd.DataFrame | spmatrix | torch.Tensor,
+    accelerator: str = "auto",
+    device: int | str = "auto",
     **kwargs,
 ) -> np.ndarray:
     """Util to run :func:`pymde.preserve_neighbors` for visualization of scvi-tools embeddings.
@@ -18,8 +27,8 @@ def mde(
     data
         The data of shape (n_obs, k), where k is typically defined by one of the models
         in scvi-tools that produces an embedding (e.g., :class:`~scvi.model.SCVI`.)
-    device
-        Whether to run on cpu or gpu ("cuda"). If None, tries to run on gpu if available.
+    %(param_accelerator)s
+    %(param_devices)s
     kwargs
         Keyword args to :func:`pymde.preserve_neighbors`
 
@@ -58,19 +67,26 @@ def mde(
     if isinstance(data, pd.DataFrame):
         data = data.values
 
-    device = "cpu" if not torch.cuda.is_available() else "cuda"
+    _, _, device = parse_device_args(
+        accelerator=accelerator,
+        devices=device,
+        return_device="torch",
+        validate_single_device=True,
+    )
+    logger.info(f"Using {device} for `pymde.preserve_neighbors`.")
 
     _kwargs = {
         "embedding_dim": 2,
         "constraint": pymde.Standardized(),
         "repulsive_fraction": 0.7,
         "verbose": False,
-        "device": device,
         "n_neighbors": 15,
     }
     _kwargs.update(kwargs)
 
-    emb = pymde.preserve_neighbors(data, **_kwargs).embed(verbose=_kwargs["verbose"])
+    emb = pymde.preserve_neighbors(data, device=device, **_kwargs).embed(
+        verbose=_kwargs["verbose"]
+    )
 
     if isinstance(emb, torch.Tensor):
         emb = emb.cpu().numpy()

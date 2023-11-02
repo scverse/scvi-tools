@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, NamedTuple, Optional
+from typing import Callable, NamedTuple, Optional
 
 import numpy as np
 import torch
@@ -288,14 +288,14 @@ class ScBassetModule(BaseModuleClass):
         self.stochastic_rc = _StochasticReverseComplement()
         self.stochastic_shift = _StochasticShift(3)
 
-    def _get_inference_input(self, tensors: Dict[str, torch.Tensor]):
+    def _get_inference_input(self, tensors: dict[str, torch.Tensor]):
         dna_code = tensors[REGISTRY_KEYS.DNA_CODE_KEY]
 
         input_dict = {"dna_code": dna_code}
         return input_dict
 
     @auto_move_data
-    def inference(self, dna_code: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def inference(self, dna_code: torch.Tensor) -> dict[str, torch.Tensor]:
         """Inference method for the model."""
         # NOTE: `seq_len` assumed to be a fixed 1344 as in the original implementation.
         # input shape: (batch_size, seq_length)
@@ -327,8 +327,8 @@ class ScBassetModule(BaseModuleClass):
 
     def _get_generative_input(
         self,
-        tensors: Dict[str, torch.Tensor],
-        inference_outputs: Dict[str, torch.Tensor],
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor],
     ):
         region_embedding = inference_outputs["region_embedding"]
         input_dict = {"region_embedding": region_embedding}
@@ -364,7 +364,7 @@ class ScBassetModule(BaseModuleClass):
             accessibility[batch * batch_size : (batch + 1) * batch_size] = batch_acc
         return accessibility
 
-    def generative(self, region_embedding: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def generative(self, region_embedding: torch.Tensor) -> dict[str, torch.Tensor]:
         """Generative method for the model."""
         if hasattr(self, "batch_ids"):
             # embeddings dim by cells dim
@@ -386,9 +386,7 @@ class ScBassetModule(BaseModuleClass):
             reconstruction_logits.shape[0] * reconstruction_logits.shape[1]
         )
         if self.l2_reg_cell_embedding > 0:
-            loss += (
-                self.l2_reg_cell_embedding * torch.square(self.cell_embedding).mean()
-            )
+            loss += self.l2_reg_cell_embedding * torch.square(self.cell_embedding).mean()
         auroc = torchmetrics.functional.auroc(
             torch.sigmoid(reconstruction_logits).ravel(),
             target.int().ravel(),

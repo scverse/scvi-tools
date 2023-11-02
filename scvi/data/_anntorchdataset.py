@@ -7,7 +7,15 @@ import h5py
 import numpy as np
 import pandas as pd
 import torch
-from anndata._core.sparse_dataset import SparseDataset
+
+try:
+    from anndata._core.sparse_dataset import SparseDataset
+except ImportError:
+    # anndata >= 0.10.0
+    from anndata._core.sparse_dataset import (
+        BaseCompressedSparseDataset as SparseDataset,
+    )
+
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
@@ -135,9 +143,7 @@ class AnnTorchDataset(Dataset):
         if isinstance(indexes, int):
             indexes = [indexes]  # force batched single observations
 
-        if self.adata_manager.adata.isbacked and isinstance(
-            indexes, (list, np.ndarray)
-        ):
+        if self.adata_manager.adata.isbacked and isinstance(indexes, (list, np.ndarray)):
             # need to sort indexes for h5py datasets
             indexes = np.sort(indexes)
 
