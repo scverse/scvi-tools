@@ -1,8 +1,7 @@
 import pytest
 import torch
 
-from scvi.dataloaders import ContrastiveDataLoader
-from scvi.external.contrastivevi import ContrastiveVAE
+from scvi.external.contrastivevi import ContrastiveDataLoader, ContrastiveVAE
 from scvi.model._utils import _init_library_size
 from scvi.module.base import LossOutput
 

@@ -4,8 +4,7 @@ from typing import List, Optional, Union
 
 from scvi import settings
 from scvi.data import AnnDataManager
-
-from ._concat_dataloader import ConcatDataLoader
+from scvi.dataloaders import ConcatDataLoader
 
 
 class _ContrastiveIterator:

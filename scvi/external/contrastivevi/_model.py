@@ -22,7 +22,7 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.dataloaders import AnnDataLoader, ContrastiveDataSplitter
+from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import (
     _get_batch_code_from_category,
     _init_library_size,
@@ -36,6 +36,7 @@ from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
+from ._contrastive_data_splitting import ContrastiveDataSplitter
 from ._module import ContrastiveVAE
 
 logger = logging.getLogger(__name__)
