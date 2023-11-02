@@ -1,6 +1,6 @@
 """PyTorch module for Contrastive VI for single cell expression data."""
 
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 import torch
@@ -150,7 +150,7 @@ class ContrastiveVAE(BaseModuleClass):
     @auto_move_data
     def _compute_local_library_params(
         self, batch_index: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Computes local library parameters.
 
         Compute two tensors of shape (batch_index.shape[0], 1) where each
@@ -167,7 +167,7 @@ class ContrastiveVAE(BaseModuleClass):
         return local_library_log_means, local_library_log_vars
 
     @staticmethod
-    def _get_min_batch_size(concat_tensors: Dict[str, Dict[str, torch.Tensor]]) -> int:
+    def _get_min_batch_size(concat_tensors: dict[str, dict[str, torch.Tensor]]) -> int:
         return min(
             concat_tensors["background"][REGISTRY_KEYS.X_KEY].shape[0],
             concat_tensors["target"][REGISTRY_KEYS.X_KEY].shape[0],
@@ -175,15 +175,15 @@ class ContrastiveVAE(BaseModuleClass):
 
     @staticmethod
     def _reduce_tensors_to_min_batch_size(
-        tensors: Dict[str, torch.Tensor], min_batch_size: int
+        tensors: dict[str, torch.Tensor], min_batch_size: int
     ) -> None:
         for name, tensor in tensors.items():
             tensors[name] = tensor[:min_batch_size, :]
 
     @staticmethod
     def _get_inference_input_from_concat_tensors(
-        concat_tensors: Dict[str, Dict[str, torch.Tensor]], index: str
-    ) -> Dict[str, torch.Tensor]:
+        concat_tensors: dict[str, dict[str, torch.Tensor]], index: str
+    ) -> dict[str, torch.Tensor]:
         tensors = concat_tensors[index]
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -191,8 +191,8 @@ class ContrastiveVAE(BaseModuleClass):
         return input_dict
 
     def _get_inference_input(
-        self, concat_tensors: Dict[str, Dict[str, torch.Tensor]]
-    ) -> Dict[str, Dict[str, torch.Tensor]]:
+        self, concat_tensors: dict[str, dict[str, torch.Tensor]]
+    ) -> dict[str, dict[str, torch.Tensor]]:
         background = self._get_inference_input_from_concat_tensors(
             concat_tensors, "background"
         )
@@ -205,8 +205,8 @@ class ContrastiveVAE(BaseModuleClass):
 
     @staticmethod
     def _get_generative_input_from_concat_tensors(
-        concat_tensors: Dict[str, Dict[str, torch.Tensor]], index: str
-    ) -> Dict[str, torch.Tensor]:
+        concat_tensors: dict[str, dict[str, torch.Tensor]], index: str
+    ) -> dict[str, torch.Tensor]:
         tensors = concat_tensors[index]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         input_dict = {"batch_index": batch_index}
@@ -214,8 +214,8 @@ class ContrastiveVAE(BaseModuleClass):
 
     @staticmethod
     def _get_generative_input_from_inference_outputs(
-        inference_outputs: Dict[str, Dict[str, torch.Tensor]], data_source: str
-    ) -> Dict[str, torch.Tensor]:
+        inference_outputs: dict[str, dict[str, torch.Tensor]], data_source: str
+    ) -> dict[str, torch.Tensor]:
         z = inference_outputs[data_source]["z"]
         s = inference_outputs[data_source]["s"]
         library = inference_outputs[data_source]["library"]
@@ -223,9 +223,9 @@ class ContrastiveVAE(BaseModuleClass):
 
     def _get_generative_input(
         self,
-        concat_tensors: Dict[str, Dict[str, torch.Tensor]],
-        inference_outputs: Dict[str, Dict[str, torch.Tensor]],
-    ) -> Dict[str, Dict[str, torch.Tensor]]:
+        concat_tensors: dict[str, dict[str, torch.Tensor]],
+        inference_outputs: dict[str, dict[str, torch.Tensor]],
+    ) -> dict[str, dict[str, torch.Tensor]]:
         background_tensor_input = self._get_generative_input_from_concat_tensors(
             concat_tensors, "background"
         )
@@ -237,10 +237,8 @@ class ContrastiveVAE(BaseModuleClass):
         self._reduce_tensors_to_min_batch_size(background_tensor_input, min_batch_size)
         self._reduce_tensors_to_min_batch_size(target_tensor_input, min_batch_size)
 
-        background_inference_outputs = (
-            self._get_generative_input_from_inference_outputs(
-                inference_outputs, "background"
-            )
+        background_inference_outputs = self._get_generative_input_from_inference_outputs(
+            inference_outputs, "background"
         )
         target_inference_outputs = self._get_generative_input_from_inference_outputs(
             inference_outputs, "target"
@@ -259,7 +257,7 @@ class ContrastiveVAE(BaseModuleClass):
         x: torch.Tensor,
         batch_index: torch.Tensor,
         n_samples: int = 1,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         x_ = x
         if self.use_observed_lib_size:
             library = torch.log(x.sum(1)).unsqueeze(1)
@@ -304,10 +302,10 @@ class ContrastiveVAE(BaseModuleClass):
     @auto_move_data
     def inference(
         self,
-        background: Dict[str, torch.Tensor],
-        target: Dict[str, torch.Tensor],
+        background: dict[str, torch.Tensor],
+        target: dict[str, torch.Tensor],
         n_samples: int = 1,
-    ) -> Dict[str, Dict[str, torch.Tensor]]:
+    ) -> dict[str, dict[str, torch.Tensor]]:
         background_batch_size = background["x"].shape[0]
         target_batch_size = target["x"].shape[0]
         inference_input = {}
@@ -337,7 +335,7 @@ class ContrastiveVAE(BaseModuleClass):
         s: torch.Tensor,
         library: torch.Tensor,
         batch_index: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         latent = torch.cat([z, s], dim=-1)
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             self.dispersion,
@@ -356,9 +354,9 @@ class ContrastiveVAE(BaseModuleClass):
     @auto_move_data
     def generative(
         self,
-        background: Dict[str, torch.Tensor],
-        target: Dict[str, torch.Tensor],
-    ) -> Dict[str, Dict[str, torch.Tensor]]:
+        background: dict[str, torch.Tensor],
+        target: dict[str, torch.Tensor],
+    ) -> dict[str, dict[str, torch.Tensor]]:
         latent_z_shape = background["z"].shape
         batch_size_dim = 0 if len(latent_z_shape) == 2 else 1
         background_batch_size = background["z"].shape[batch_size_dim]
@@ -496,10 +494,10 @@ class ContrastiveVAE(BaseModuleClass):
 
     def _generic_loss(
         self,
-        tensors: Dict[str, torch.Tensor],
-        inference_outputs: Dict[str, torch.Tensor],
-        generative_outputs: Dict[str, torch.Tensor],
-    ) -> Dict[str, torch.Tensor]:
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor],
+        generative_outputs: dict[str, torch.Tensor],
+    ) -> dict[str, torch.Tensor]:
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
@@ -532,9 +530,9 @@ class ContrastiveVAE(BaseModuleClass):
 
     def loss(
         self,
-        concat_tensors: Dict[str, Dict[str, torch.Tensor]],
-        inference_outputs: Dict[str, Dict[str, torch.Tensor]],
-        generative_outputs: Dict[str, Dict[str, torch.Tensor]],
+        concat_tensors: dict[str, dict[str, torch.Tensor]],
+        inference_outputs: dict[str, dict[str, torch.Tensor]],
+        generative_outputs: dict[str, dict[str, torch.Tensor]],
         kl_weight: float = 1.0,
     ) -> LossOutput:
         """Computes loss terms for contrastiveVI.

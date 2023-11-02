@@ -1,6 +1,6 @@
 import warnings
 from itertools import cycle
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from scvi import settings
 from scvi.data import AnnDataManager
@@ -70,8 +70,8 @@ class ContrastiveDataLoader(ConcatDataLoader):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        background_indices: List[int],
-        target_indices: List[int],
+        background_indices: list[int],
+        target_indices: list[int],
         shuffle: bool = False,
         batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,

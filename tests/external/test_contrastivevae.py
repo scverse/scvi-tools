@@ -344,9 +344,7 @@ class TestContrastiveVAEGenerative:
         generative_input = mock_contrastive_vae._get_generative_input(
             mock_contrastive_batch, inference_outputs
         )["background"]
-        generative_outputs = mock_contrastive_vae._generic_generative(
-            **generative_input
-        )
+        generative_outputs = mock_contrastive_vae._generic_generative(**generative_input)
         for key in REQUIRED_GENERATIVE_OUTPUT_KEYS:
             assert key in generative_outputs.keys()
         px_scale = generative_outputs["px_scale"]
@@ -385,9 +383,7 @@ class TestContrastiveVAEGenerative:
 class TestContrastiveVAELoss:
     def test_reconstruction_loss(self, mock_contrastive_vae, mock_contrastive_vi_data):
         inference_input = mock_contrastive_vi_data["inference_input"]["background"]
-        generative_outputs = mock_contrastive_vi_data["generative_outputs"][
-            "background"
-        ]
+        generative_outputs = mock_contrastive_vi_data["generative_outputs"]["background"]
         x = inference_input["x"]
         px_rate = generative_outputs["px_rate"]
         px_r = generative_outputs["px_r"]
@@ -413,9 +409,7 @@ class TestContrastiveVAELoss:
         )
         assert kl_z.shape == qz_m.shape[:-1]
 
-    def test_library_kl_divergence(
-        self, mock_contrastive_vae, mock_contrastive_vi_data
-    ):
+    def test_library_kl_divergence(self, mock_contrastive_vae, mock_contrastive_vi_data):
         inference_input = mock_contrastive_vi_data["inference_input"]["background"]
         inference_outputs = mock_contrastive_vi_data["inference_outputs"]["background"]
         batch_index = inference_input["batch_index"]

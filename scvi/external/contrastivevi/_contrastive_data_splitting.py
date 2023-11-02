@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 
@@ -46,8 +46,8 @@ class ContrastiveDataSplitter(DataSplitter):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        background_indices: List[int],
-        target_indices: List[int],
+        background_indices: list[int],
+        target_indices: list[int],
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         shuffle_set_split: bool = True,

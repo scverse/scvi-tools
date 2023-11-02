@@ -58,7 +58,5 @@ def test_contrastive_dataloader(
     )
 
     assert torch.equal(batch["target"][REGISTRY_KEYS.X_KEY], expected_target_input)
-    assert torch.equal(
-        batch["target"][REGISTRY_KEYS.LABELS_KEY], expected_target_labels
-    )
+    assert torch.equal(batch["target"][REGISTRY_KEYS.LABELS_KEY], expected_target_labels)
     assert torch.equal(batch["target"][REGISTRY_KEYS.BATCH_KEY], expected_target_batch)

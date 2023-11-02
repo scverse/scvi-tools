@@ -1,5 +1,3 @@
-from typing import Dict
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -8,7 +6,7 @@ import torch
 from scvi.external import ContrastiveVI
 
 
-def copy_module_state_dict(module) -> Dict[str, torch.Tensor]:
+def copy_module_state_dict(module) -> dict[str, torch.Tensor]:
     copy = {}
     for name, param in module.state_dict().items():
         copy[name] = param.detach().cpu().clone()
