@@ -1,3 +1,5 @@
+import pytest
+
 import scvi
 from scvi.autotune import Tunable, TunableMixin
 
@@ -27,6 +29,7 @@ class DummyModel(TunableMixin, DummyTrainingMixin):
         self.n_latent = n_latent
 
 
+@pytest.mark.optional
 def test_tunable_mixin():
     model_cls = DummyModel
     manager = scvi.autotune.TunerManager(model_cls)

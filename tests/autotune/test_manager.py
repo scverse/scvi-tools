@@ -3,6 +3,7 @@ import pytest
 import scvi
 
 
+@pytest.mark.optional
 def test_tuner_manager_init():
     model_cls = scvi.model.SCVI
     manager = scvi.autotune.TunerManager(model_cls)
@@ -15,6 +16,7 @@ def test_tuner_manager_init():
     assert "metrics" in registry
 
 
+@pytest.mark.optional
 def test_tuner_manager_basic_validation():
     model_cls = scvi.model.SCVI
     manager = scvi.autotune.TunerManager(model_cls)
