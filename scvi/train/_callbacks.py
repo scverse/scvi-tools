@@ -1,12 +1,16 @@
+from __future__ import annotations
+
+import os
 import warnings
 from copy import deepcopy
-from typing import Callable, Optional, Union
+from datetime import datetime
+from typing import Any, Callable
 
 import flax
 import lightning.pytorch as pl
 import numpy as np
 import torch
-from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
 
@@ -15,6 +19,41 @@ from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
 
 MetricCallable = Callable[[BaseModelClass], float]
+
+
+class ModelCheckpoint(ModelCheckpoint):
+    def __init__(
+        self,
+        model_cls: BaseModelClass,
+        *args,
+        dirpath: str | None = None,
+        **kwargs,
+    ):
+        if dirpath is None:
+            timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+            model_cls = model_cls.__name__
+            dirpath = os.path.join(settings.logging_dir, f"{model_cls}-{timestamp}")
+
+        super().__init__(dirpath, *args, **kwargs)
+
+    def on_save_checkpoint(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        checkpoint: dict[str, Any],
+    ) -> None:
+        model = trainer._model
+        model.module.eval()
+        model.is_trained_ = True
+        model.trainer = trainer
+
+        epoch = checkpoint["epoch"]
+        step = checkpoint["global_step"]
+        save_path = os.path.join(self.dirpath, f"{epoch}-{step}")
+        model.save(save_path, save_andnata=False, overwrite=True)
+
+        model.module.train()
+        model.is_trained_ = False
 
 
 class MetricsCallback(Callback):
@@ -38,9 +77,7 @@ class MetricsCallback(Callback):
 
     def __init__(
         self,
-        metric_fns: Union[
-            MetricCallable, list[MetricCallable], dict[str, MetricCallable]
-        ],
+        metric_fns: MetricCallable | list[MetricCallable] | dict[str, MetricCallable],
     ):
         super().__init__()
 
@@ -211,7 +248,7 @@ class LoudEarlyStopping(EarlyStopping):
         self,
         _trainer: pl.Trainer,
         _pl_module: pl.LightningModule,
-        stage: Optional[str] = None,
+        stage: str | None = None,
     ) -> None:
         """Print the reason for stopping on teardown."""
         if self.early_stopping_reason is not None:
