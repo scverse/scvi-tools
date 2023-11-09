@@ -41,6 +41,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     training plans {pr}`2280`.
 -   {class}`scvi.train.SemiSupervisedTrainingPlan` now logs the classifier
     calibration error {pr}`2299`.
+-   Passing `enable_checkpointing=True` into `train` functions is now
+    fully-compatible with our model saves {pr}`2317`.
 
 #### Fixed
 
