@@ -1,7 +1,57 @@
+import os
+
 import pytest
 
 import scvi
-from scvi.train._callbacks import MetricsCallback
+from scvi.train._callbacks import MetricsCallback, ModelCheckpoint
+
+
+def test_modelcheckpoint_scvi(save_path: str):
+    adata = scvi.data.synthetic_iid()
+    scvi.model.SCVI.setup_anndata(adata)
+    model = scvi.model.SCVI(adata)
+
+    logging_dir = os.path.join(save_path, "checkpoints")
+    scvi.settings.logging_dir = logging_dir
+    old_logging_dir = scvi.settings.logging_dir
+
+    def check_checkpoint_logging(model, logging_dir: str):
+        assert any(isinstance(c, ModelCheckpoint) for c in model.trainer.callbacks)
+        callback = [c for c in model.trainer.callbacks if isinstance(c, ModelCheckpoint)]
+        assert len(callback) == 1
+        callback = callback[0]
+        assert callback.best_model_dir is not None
+        assert callback.best_model_score is not None
+        assert os.path.exists(callback.best_model_dir)
+
+        assert len(os.listdir(logging_dir)) >= 1
+        checkpoints_dir = os.path.join(logging_dir, os.listdir(logging_dir)[0])
+        checkpoint_dirs = os.listdir(checkpoints_dir)
+        assert len(checkpoint_dirs) >= 1
+        checkpoint_dir = os.path.join(checkpoints_dir, checkpoint_dirs[0])
+        checkpoint = scvi.model.SCVI.load(checkpoint_dir, adata=adata)
+        assert checkpoint.is_trained_
+
+    # enable_checkpointing=True, default monitor
+    model.train(max_epochs=5, enable_checkpointing=True)
+    check_checkpoint_logging(model, logging_dir)
+
+    # enable_checkpointing=True, custom monitor
+    model.train(
+        max_epochs=5,
+        enable_checkpointing=True,
+        checkpointing_monitor="elbo_validation",
+    )
+    check_checkpoint_logging(model, logging_dir)
+
+    # manual callback
+    model.train(
+        max_epochs=5,
+        callbacks=[ModelCheckpoint(monitor="elbo_validation")],
+    )
+    check_checkpoint_logging(model, logging_dir)
+
+    scvi.settings.logging_dir = old_logging_dir
 
 
 def test_metricscallback_init():

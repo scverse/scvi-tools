@@ -10,7 +10,12 @@ from lightning.pytorch.loggers import Logger
 from scvi import settings
 from scvi.autotune._types import Tunable, TunableMixin
 
-from ._callbacks import LoudEarlyStopping, MetricCallable, MetricsCallback
+from ._callbacks import (
+    LoudEarlyStopping,
+    MetricCallable,
+    MetricsCallback,
+    ModelCheckpoint,
+)
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
@@ -94,6 +99,7 @@ class Trainer(TunableMixin, pl.Trainer):
         max_epochs: Tunable[int] = 400,
         default_root_dir: Optional[str] = None,
         enable_checkpointing: bool = False,
+        checkpointing_monitor: str = "validation_loss",
         num_sanity_val_steps: int = 0,
         enable_model_summary: bool = False,
         early_stopping: bool = False,
@@ -128,6 +134,16 @@ class Trainer(TunableMixin, pl.Trainer):
                 mode=early_stopping_mode,
             )
             callbacks.append(early_stopping_callback)
+            check_val_every_n_epoch = 1
+
+        if enable_checkpointing and not any(
+            isinstance(c, ModelCheckpoint) for c in callbacks
+        ):
+            callbacks.append(ModelCheckpoint(monitor=checkpointing_monitor))
+            check_val_every_n_epoch = 1
+        elif any(isinstance(c, ModelCheckpoint) for c in callbacks):
+            # check if user provided already provided the callback
+            enable_checkpointing = True
             check_val_every_n_epoch = 1
 
         if learning_rate_monitor and not any(

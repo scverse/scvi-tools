@@ -4,7 +4,7 @@ import os
 import warnings
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Callable
+from typing import Callable
 
 import flax
 import lightning.pytorch as pl
@@ -22,38 +22,81 @@ MetricCallable = Callable[[BaseModelClass], float]
 
 
 class ModelCheckpoint(ModelCheckpoint):
+    """``EXPERIMENTAL`` Saves model checkpoints based on a monitored metric.
+
+    Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and
+    modifies the default behavior to save the full model state instead of just
+    the state dict. This is necessary for compatibility with
+    :class:`~scvi.model.base.BaseModelClass`.
+
+    The best model save and best model score based on ``monitor`` can be
+    accessed post-training with the ``best_model_dir`` and ``best_model_score``
+    attributes, respectively.
+
+    Known issues:
+
+    * Currently retains the last Lightning checkpoint.
+    * Does not set ``train_indices``, ``validation_indices``, and
+      ``test_indices`` for checkpoints.
+    * Does not set ``history`` for checkpoints. This can be accessed in the
+      final model however.
+
+    Parameters
+    ----------
+    dirpath
+        Base directory to save the model checkpoints. If ``None``, defaults to
+        a directory with the current date, time, and monitor within
+        ``settings.logging_dir``.
+    filename
+        Name of the checkpoint directories. Can contain formatting options to be
+        auto-filled. If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
+    monitor
+        Metric to monitor for checkpointing.
+    """
+
     def __init__(
         self,
-        model_cls: BaseModelClass,
-        *args,
         dirpath: str | None = None,
+        filename: str | None = None,
+        monitor: str = "validation_loss",
         **kwargs,
     ):
         if dirpath is None:
-            timestamp = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
-            model_cls = model_cls.__name__
-            dirpath = os.path.join(settings.logging_dir, f"{model_cls}-{timestamp}")
+            dirpath = os.path.join(
+                settings.logging_dir,
+                datetime.now().strftime("%Y-%m-%d-%H:%M:%S"),
+            )
+            dirpath += f"-{monitor}"
 
-        super().__init__(dirpath, *args, **kwargs)
+        if filename is None:
+            filename = "{epoch}-{step}-{" + monitor + "}"
 
-    def on_save_checkpoint(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        checkpoint: dict[str, Any],
-    ) -> None:
+        super().__init__(dirpath=dirpath, filename=filename, monitor=monitor, **kwargs)
+
+    def on_save_checkpoint(self, trainer: pl.Trainer, *args) -> None:
+        # set post training state before saving
         model = trainer._model
         model.module.eval()
         model.is_trained_ = True
         model.trainer = trainer
 
-        epoch = checkpoint["epoch"]
-        step = checkpoint["global_step"]
-        save_path = os.path.join(self.dirpath, f"{epoch}-{step}")
+        monitor_candidates = self._monitor_candidates(trainer)
+        save_path = self.format_checkpoint_name(monitor_candidates)
+        # by default, the function above gives a .ckpt extension
+        save_path = save_path.split(".ckpt")[0]
         model.save(save_path, save_andnata=False, overwrite=True)
 
         model.module.train()
         model.is_trained_ = False
+
+    def _update_best_and_save(
+        self,
+        current: torch.Tensor,
+        trainer: pl.Trainer,
+        monitor_candidates: dict[str, torch.Tensor],
+    ) -> None:
+        super()._update_best_and_save(current, trainer, monitor_candidates)
+        self.best_model_dir = self.best_model_path.split(".ckpt")[0]
 
 
 class MetricsCallback(Callback):
