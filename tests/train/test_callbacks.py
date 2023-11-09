@@ -7,15 +7,7 @@ from scvi.train._callbacks import MetricsCallback, ModelCheckpoint
 
 
 def test_modelcheckpoint_scvi(save_path: str):
-    adata = scvi.data.synthetic_iid()
-    scvi.model.SCVI.setup_anndata(adata)
-    model = scvi.model.SCVI(adata)
-
-    logging_dir = os.path.join(save_path, "checkpoints")
-    scvi.settings.logging_dir = logging_dir
-    old_logging_dir = scvi.settings.logging_dir
-
-    def check_checkpoint_logging(model, logging_dir: str):
+    def check_checkpoint_logging(model):
         assert any(isinstance(c, ModelCheckpoint) for c in model.trainer.callbacks)
         callback = [c for c in model.trainer.callbacks if isinstance(c, ModelCheckpoint)]
         assert len(callback) == 1
@@ -24,32 +16,50 @@ def test_modelcheckpoint_scvi(save_path: str):
         assert callback.best_model_score is not None
         assert os.path.exists(callback.best_model_dir)
 
-        assert len(os.listdir(logging_dir)) >= 1
-        checkpoints_dir = os.path.join(logging_dir, os.listdir(logging_dir)[0])
+        log_dirs = os.listdir(scvi.settings.logging_dir)
+        assert len(log_dirs) >= 1
+        checkpoints_dir = os.path.join(scvi.settings.logging_dir, log_dirs[0])
         checkpoint_dirs = os.listdir(checkpoints_dir)
         assert len(checkpoint_dirs) >= 1
         checkpoint_dir = os.path.join(checkpoints_dir, checkpoint_dirs[0])
-        checkpoint = scvi.model.SCVI.load(checkpoint_dir, adata=adata)
+        checkpoint = model.__class__.load(checkpoint_dir, adata=adata)
         assert checkpoint.is_trained_
 
-    # enable_checkpointing=True, default monitor
-    model.train(max_epochs=5, enable_checkpointing=True)
-    check_checkpoint_logging(model, logging_dir)
+    def test_model_cls(model_cls, adata):
+        # enable_checkpointing=True, default monitor
+        model = model_cls(adata)
+        model.train(max_epochs=5, enable_checkpointing=True)
+        check_checkpoint_logging(model)
 
-    # enable_checkpointing=True, custom monitor
-    model.train(
-        max_epochs=5,
-        enable_checkpointing=True,
-        checkpointing_monitor="elbo_validation",
-    )
-    check_checkpoint_logging(model, logging_dir)
+        # enable_checkpointing=True, custom monitor
+        model = model_cls(adata)
+        model.train(
+            max_epochs=5,
+            enable_checkpointing=True,
+            checkpointing_monitor="elbo_validation",
+        )
+        check_checkpoint_logging(model)
 
-    # manual callback
-    model.train(
-        max_epochs=5,
-        callbacks=[ModelCheckpoint(monitor="elbo_validation")],
-    )
-    check_checkpoint_logging(model, logging_dir)
+        # manual callback
+        model = model_cls(adata)
+        model.train(
+            max_epochs=5,
+            callbacks=[ModelCheckpoint(monitor="elbo_validation")],
+        )
+        check_checkpoint_logging(model)
+
+    old_logging_dir = scvi.settings.logging_dir
+    adata = scvi.data.synthetic_iid()
+
+    logging_dir = os.path.join(save_path, "checkpoints_scvi")
+    scvi.settings.logging_dir = logging_dir
+    scvi.model.SCVI.setup_anndata(adata)
+    test_model_cls(scvi.model.SCVI, adata)
+
+    logging_dir = os.path.join(save_path, "checkpoints_scanvi")
+    scvi.settings.logging_dir = logging_dir
+    scvi.model.SCANVI.setup_anndata(adata, "labels", "label_0")
+    test_model_cls(scvi.model.SCANVI, adata)
 
     scvi.settings.logging_dir = old_logging_dir
 
