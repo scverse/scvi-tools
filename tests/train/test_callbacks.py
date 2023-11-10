@@ -6,8 +6,8 @@ import scvi
 from scvi.train._callbacks import MetricsCallback, ModelCheckpoint
 
 
-def test_modelcheckpoint_scvi(save_path: str):
-    def check_checkpoint_logging(model):
+def test_modelcheckpoint_callback(save_path: str):
+    def check_checkpoint_logging(model, adata):
         assert any(isinstance(c, ModelCheckpoint) for c in model.trainer.callbacks)
         callback = [c for c in model.trainer.callbacks if isinstance(c, ModelCheckpoint)]
         assert len(callback) == 1
@@ -26,10 +26,12 @@ def test_modelcheckpoint_scvi(save_path: str):
         assert checkpoint.is_trained_
 
     def test_model_cls(model_cls, adata):
+        scvi.settings.logging_dir = os.path.join(save_path, model_cls.__name__)
+
         # enable_checkpointing=True, default monitor
         model = model_cls(adata)
         model.train(max_epochs=5, enable_checkpointing=True)
-        check_checkpoint_logging(model)
+        check_checkpoint_logging(model, adata)
 
         # enable_checkpointing=True, custom monitor
         model = model_cls(adata)
@@ -38,7 +40,7 @@ def test_modelcheckpoint_scvi(save_path: str):
             enable_checkpointing=True,
             checkpointing_monitor="elbo_validation",
         )
-        check_checkpoint_logging(model)
+        check_checkpoint_logging(model, adata)
 
         # manual callback
         model = model_cls(adata)
@@ -46,18 +48,14 @@ def test_modelcheckpoint_scvi(save_path: str):
             max_epochs=5,
             callbacks=[ModelCheckpoint(monitor="elbo_validation")],
         )
-        check_checkpoint_logging(model)
+        check_checkpoint_logging(model, adata)
 
     old_logging_dir = scvi.settings.logging_dir
     adata = scvi.data.synthetic_iid()
 
-    logging_dir = os.path.join(save_path, "checkpoints_scvi")
-    scvi.settings.logging_dir = logging_dir
     scvi.model.SCVI.setup_anndata(adata)
     test_model_cls(scvi.model.SCVI, adata)
 
-    logging_dir = os.path.join(save_path, "checkpoints_scanvi")
-    scvi.settings.logging_dir = logging_dir
     scvi.model.SCANVI.setup_anndata(adata, "labels", "label_0")
     test_model_cls(scvi.model.SCANVI, adata)
 

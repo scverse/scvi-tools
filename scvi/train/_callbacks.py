@@ -35,7 +35,6 @@ class ModelCheckpoint(ModelCheckpoint):
 
     Known issues:
 
-    * Currently retains the last Lightning checkpoint.
     * Does not set ``train_indices``, ``validation_indices``, and
       ``test_indices`` for checkpoints.
     * Does not set ``history`` for checkpoints. This can be accessed in the
@@ -96,6 +95,8 @@ class ModelCheckpoint(ModelCheckpoint):
         monitor_candidates: dict[str, torch.Tensor],
     ) -> None:
         super()._update_best_and_save(current, trainer, monitor_candidates)
+        if os.path.exists(self.best_model_path):
+            os.remove(self.best_model_path)
         self.best_model_dir = self.best_model_path.split(".ckpt")[0]
 
 
