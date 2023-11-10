@@ -47,8 +47,10 @@ class Trainer(TunableMixin, pl.Trainer):
         Defaults to `scvi.settings.logging_dir`. Can be remote file paths such as
         s3://mybucket/path or ‘hdfs://path/’
     enable_checkpointing
-        If `True`, enable checkpointing. It will configure a default ModelCheckpoint
-        callback if there is no user-defined ModelCheckpoint in `callbacks`.
+        If ``True``, enables checkpointing with a default :class:`~scvi.train.SaveCheckpoint`
+        callback if there is no user-defined :class:`~scvi.train.SaveCheckpoint` in ``callbacks``.
+    checkpointing_monitor
+        If ``enable_checkpointing`` is ``True``, specifies the metric to monitor for checkpointing.
     num_sanity_val_steps
         Sanity check runs n validation batches before starting the training routine.
         Set it to -1 to run all batches in all validation dataloaders.
