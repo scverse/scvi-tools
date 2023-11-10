@@ -98,6 +98,7 @@ class SaveCheckpoint(ModelCheckpoint):
         )
 
     def on_save_checkpoint(self, trainer: pl.Trainer, *args) -> None:
+        """Saves the model state on Lightning checkpoint saves."""
         # set post training state before saving
         model = trainer._model
         model.module.eval()
@@ -114,6 +115,7 @@ class SaveCheckpoint(ModelCheckpoint):
         model.is_trained_ = False
 
     def _remove_checkpoint(self, trainer: pl.Trainer, filepath: str) -> None:
+        """Removes model saves that are no longer needed."""
         super()._remove_checkpoint(trainer, filepath)
 
         model_path = filepath.split(".ckpt")[0]
@@ -126,6 +128,7 @@ class SaveCheckpoint(ModelCheckpoint):
         trainer: pl.Trainer,
         monitor_candidates: dict[str, torch.Tensor],
     ) -> None:
+        """Replaces Lightning checkpoints with our model saves."""
         super()._update_best_and_save(current, trainer, monitor_candidates)
 
         if os.path.exists(self.best_model_path):
