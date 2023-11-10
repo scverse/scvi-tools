@@ -21,7 +21,7 @@ from scvi.model.base import BaseModelClass
 MetricCallable = Callable[[BaseModelClass], float]
 
 
-class ModelCheckpoint(ModelCheckpoint):
+class SaveCheckpoint(ModelCheckpoint):
     """``EXPERIMENTAL`` Saves model checkpoints based on a monitored metric.
 
     Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and

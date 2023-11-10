@@ -14,7 +14,7 @@ from ._callbacks import (
     LoudEarlyStopping,
     MetricCallable,
     MetricsCallback,
-    ModelCheckpoint,
+    SaveCheckpoint,
 )
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
@@ -137,11 +137,11 @@ class Trainer(TunableMixin, pl.Trainer):
             check_val_every_n_epoch = 1
 
         if enable_checkpointing and not any(
-            isinstance(c, ModelCheckpoint) for c in callbacks
+            isinstance(c, SaveCheckpoint) for c in callbacks
         ):
-            callbacks.append(ModelCheckpoint(monitor=checkpointing_monitor))
+            callbacks.append(SaveCheckpoint(monitor=checkpointing_monitor))
             check_val_every_n_epoch = 1
-        elif any(isinstance(c, ModelCheckpoint) for c in callbacks):
+        elif any(isinstance(c, SaveCheckpoint) for c in callbacks):
             # check if user provided already provided the callback
             enable_checkpointing = True
             check_val_every_n_epoch = 1

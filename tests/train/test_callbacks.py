@@ -3,13 +3,13 @@ import os
 import pytest
 
 import scvi
-from scvi.train._callbacks import MetricsCallback, ModelCheckpoint
+from scvi.train._callbacks import MetricsCallback, SaveCheckpoint
 
 
 def test_modelcheckpoint_callback(save_path: str):
     def check_checkpoint_logging(model, adata):
-        assert any(isinstance(c, ModelCheckpoint) for c in model.trainer.callbacks)
-        callback = [c for c in model.trainer.callbacks if isinstance(c, ModelCheckpoint)]
+        assert any(isinstance(c, SaveCheckpoint) for c in model.trainer.callbacks)
+        callback = [c for c in model.trainer.callbacks if isinstance(c, SaveCheckpoint)]
         assert len(callback) == 1
         callback = callback[0]
         assert callback.best_model_dir is not None
@@ -46,7 +46,7 @@ def test_modelcheckpoint_callback(save_path: str):
         model = model_cls(adata)
         model.train(
             max_epochs=5,
-            callbacks=[ModelCheckpoint(monitor="elbo_validation")],
+            callbacks=[SaveCheckpoint(monitor="elbo_validation")],
         )
         check_checkpoint_logging(model, adata)
 
