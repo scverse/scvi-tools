@@ -4,6 +4,7 @@ import os
 import warnings
 from copy import deepcopy
 from datetime import datetime
+from shutil import rmtree
 from typing import Callable
 
 import flax
@@ -30,7 +31,7 @@ class SaveCheckpoint(ModelCheckpoint):
     :class:`~scvi.model.base.BaseModelClass`.
 
     The best model save and best model score based on ``monitor`` can be
-    accessed post-training with the ``best_model_dir`` and ``best_model_score``
+    accessed post-training with the ``best_model_path`` and ``best_model_score``
     attributes, respectively.
 
     Known issues:
@@ -39,18 +40,22 @@ class SaveCheckpoint(ModelCheckpoint):
       ``test_indices`` for checkpoints.
     * Does not set ``history`` for checkpoints. This can be accessed in the
       final model however.
+    * Unsupported arguments: ``save_weights_only`` and ``save_last``
 
     Parameters
     ----------
     dirpath
         Base directory to save the model checkpoints. If ``None``, defaults to
-        a directory with the current date, time, and monitor within
+        a directory formatted with the current date, time, and monitor within
         ``settings.logging_dir``.
     filename
         Name of the checkpoint directories. Can contain formatting options to be
         auto-filled. If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
     monitor
         Metric to monitor for checkpointing.
+    **kwargs
+        Additional keyword arguments passed into
+        :class:`~lightning.pytorch.callbacks.ModelCheckpoint`.
     """
 
     def __init__(
@@ -70,7 +75,27 @@ class SaveCheckpoint(ModelCheckpoint):
         if filename is None:
             filename = "{epoch}-{step}-{" + monitor + "}"
 
-        super().__init__(dirpath=dirpath, filename=filename, monitor=monitor, **kwargs)
+        if "save_weights_only" in kwargs:
+            warnings.warn(
+                "`save_weights_only` is not supported and will be ignored.",
+                RuntimeWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+            kwargs.pop("save_weights_only")
+        if "save_last" in kwargs:
+            warnings.warn(
+                "`save_last` is not supported and will be ignored.",
+                RuntimeWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+            kwargs.pop("save_last")
+
+        super().__init__(
+            dirpath=dirpath,
+            filename=filename,
+            monitor=monitor,
+            **kwargs,
+        )
 
     def on_save_checkpoint(self, trainer: pl.Trainer, *args) -> None:
         # set post training state before saving
@@ -88,6 +113,13 @@ class SaveCheckpoint(ModelCheckpoint):
         model.module.train()
         model.is_trained_ = False
 
+    def _remove_checkpoint(self, trainer: pl.Trainer, filepath: str) -> None:
+        super()._remove_checkpoint(trainer, filepath)
+
+        model_path = filepath.split(".ckpt")[0]
+        if os.path.exists(model_path) and os.path.isdir(model_path):
+            rmtree(model_path)
+
     def _update_best_and_save(
         self,
         current: torch.Tensor,
@@ -95,9 +127,10 @@ class SaveCheckpoint(ModelCheckpoint):
         monitor_candidates: dict[str, torch.Tensor],
     ) -> None:
         super()._update_best_and_save(current, trainer, monitor_candidates)
+
         if os.path.exists(self.best_model_path):
             os.remove(self.best_model_path)
-        self.best_model_dir = self.best_model_path.split(".ckpt")[0]
+        self.best_model_path = self.best_model_path.split(".ckpt")[0]
 
 
 class MetricsCallback(Callback):

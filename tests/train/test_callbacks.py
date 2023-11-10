@@ -12,9 +12,9 @@ def test_modelcheckpoint_callback(save_path: str):
         callback = [c for c in model.trainer.callbacks if isinstance(c, SaveCheckpoint)]
         assert len(callback) == 1
         callback = callback[0]
-        assert callback.best_model_dir is not None
+        assert callback.best_model_path is not None
         assert callback.best_model_score is not None
-        assert os.path.exists(callback.best_model_dir)
+        assert os.path.exists(callback.best_model_path)
 
         log_dirs = os.listdir(scvi.settings.logging_dir)
         assert len(log_dirs) >= 1
