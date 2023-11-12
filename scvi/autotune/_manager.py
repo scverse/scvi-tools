@@ -35,9 +35,10 @@ from ._utils import in_notebook
 logger = logging.getLogger(__name__)
 
 
-TuneAnalysis = 'TuneAnalysis'
+TuneAnalysis = "TuneAnalysis"
 try:
     from chex import dataclass
+
     @dataclass
     class TuneAnalysis:
         """Dataclass for storing results from a tuning experiment."""

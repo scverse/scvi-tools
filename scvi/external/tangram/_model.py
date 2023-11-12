@@ -19,7 +19,7 @@ from scvi.utils._docstrings import devices_dsp
 logger = logging.getLogger(__name__)
 
 
-def _asarray(x: np.ndarray, device: 'jaxlib.xla_extension.Device') -> jnp.ndarray:
+def _asarray(x: np.ndarray, device: "jaxlib.xla_extension.Device") -> jnp.ndarray:
     return jax.device_put(x, device=device)
 
 
@@ -272,7 +272,7 @@ class Tangram(BaseModelClass):
 
     def _get_tensor_dict(
         self,
-        device: 'jaxlib.xla_extension.Device',
+        device: "jaxlib.xla_extension.Device",
     ) -> dict[str, jnp.ndarray]:
         """Get training data for Tangram model.
 

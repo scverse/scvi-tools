@@ -12,7 +12,7 @@ from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._packageproxy import jax, jnp, flax, random, jaxlib, dist
+from scvi._packageproxy import dist, flax, jax, jaxlib, jnp, random
 from scvi._types import LossRecord, MinifiedDataType, Tensor
 from scvi.autotune._types import TunableMixin
 from scvi.data._constants import ADATA_MINIFY_TYPE
@@ -27,6 +27,7 @@ except ImportError:
     # If the import fails, return a no-op decorator
     def dataclass(cls):
         return cls
+
 
 @dataclass
 class LossOutput:
@@ -447,6 +448,7 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
 
 
 try:
+
     class TrainStateWithState(flax.training.train_state.TrainState):
         """TrainState with state attribute."""
 
@@ -500,7 +502,9 @@ try:
             generative_kwargs: dict | None = None,
             loss_kwargs: dict | None = None,
             compute_loss=True,
-        ) -> tuple[jnp.ndarray, jnp.ndarray] | tuple[jnp.ndarray, jnp.ndarray, LossOutput]:
+        ) -> (
+            tuple[jnp.ndarray, jnp.ndarray] | tuple[jnp.ndarray, jnp.ndarray, LossOutput]
+        ):
             """Forward pass through the network.
 
             Parameters
@@ -561,7 +565,9 @@ try:
             """
 
         @abstractmethod
-        def generative(self, *args, **kwargs) -> dict[str, jnp.ndarray | dist.Distribution]:
+        def generative(
+            self, *args, **kwargs
+        ) -> dict[str, jnp.ndarray | dist.Distribution]:
             """Run the generative model.
 
             This function should return the parameters associated with the likelihood of the data.
@@ -658,7 +664,9 @@ try:
 
         def _check_train_state_is_not_none(self):
             if self.train_state is None:
-                raise RuntimeError("Train state is not set. Module has not been trained.")
+                raise RuntimeError(
+                    "Train state is not set. Module has not been trained."
+                )
 
         def as_bound(self) -> JaxBaseModuleClass:
             """Module bound with parameters learned from training."""
@@ -724,6 +732,7 @@ try:
 except ImportError:
     TrainStateWithState = None
     JaxBaseModuleClass = None
+
 
 def _generic_forward(
     module,

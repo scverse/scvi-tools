@@ -14,8 +14,8 @@ from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import METRIC_KEYS, REGISTRY_KEYS
-from scvi.autotune._types import Tunable, TunableMixin
 from scvi._packageproxy import jax, jnp, optax
+from scvi.autotune._types import Tunable, TunableMixin
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -31,7 +31,7 @@ from ._metrics import ElboMetric
 try:
     JaxOptimizerCreator = Callable[[], optax.GradientTransformation]
 except ImportError:
-    JaxOptimizerCreator = 'JaxOptimizerCreator'
+    JaxOptimizerCreator = "JaxOptimizerCreator"
 TorchOptimizerCreator = Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
 
 
@@ -1172,6 +1172,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
 
 
 try:
+
     class JaxTrainingPlan(TrainingPlan):
         """Lightning module task to train Pyro scvi-tools modules.
 

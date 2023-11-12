@@ -13,7 +13,7 @@ from torch.distributions.utils import (
 )
 
 from scvi import settings
-from scvi._packageproxy import jax, jnp, dist
+from scvi._packageproxy import dist, jax, jnp
 
 
 def log_zinb_positive(
@@ -69,9 +69,9 @@ def log_zinb_positive(
 
 
 def log_nb_positive(
-    x: Union[torch.Tensor, 'jnp.ndarray'],
-    mu: Union[torch.Tensor, 'jnp.ndarray'],
-    theta: Union[torch.Tensor, 'jnp.ndarray'],
+    x: Union[torch.Tensor, "jnp.ndarray"],
+    mu: Union[torch.Tensor, "jnp.ndarray"],
+    theta: Union[torch.Tensor, "jnp.ndarray"],
     eps: float = 1e-8,
     log_fn: callable = torch.log,
     lgamma_fn: callable = torch.lgamma,
@@ -591,6 +591,7 @@ class NegativeBinomialMixture(Distribution):
 
 
 try:
+
     class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
         """Negative binomial parameterized by mean and inverse dispersion."""
 
@@ -607,7 +608,9 @@ try:
             validate_args: Optional[bool] = None,
             eps: float = 1e-8,
         ):
-            self._inverse_dispersion, self._mean = dist.util.promote_shapes(inverse_dispersion, mean)
+            self._inverse_dispersion, self._mean = dist.util.promote_shapes(
+                inverse_dispersion, mean
+            )
             self._eps = eps
             super().__init__(mean, inverse_dispersion, validate_args=validate_args)
 

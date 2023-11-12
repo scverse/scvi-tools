@@ -123,7 +123,7 @@ def _apply_to_collection(
     return data
 
 
-def flax_configure(cls: 'nn.Module') -> Callable:
+def flax_configure(cls: "nn.Module") -> Callable:
     """Decorator to raise an error if a boolean `training` param is missing in the call."""
     original_init = cls.__init__
 

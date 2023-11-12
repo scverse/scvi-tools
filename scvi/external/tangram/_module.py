@@ -3,6 +3,7 @@ from typing import NamedTuple, Optional
 from scvi._packageproxy import chex, jax, jnp
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
+
 class _TANGRAM_REGISTRY_KEYS_NT(NamedTuple):
     SC_KEY: str = "X"
     SP_KEY: str = "Y"

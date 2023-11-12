@@ -1,13 +1,13 @@
 from typing import Optional
 
 from scvi import REGISTRY_KEYS
-from scvi._packageproxy import jax, jnp, dist, nn
+from scvi._packageproxy import dist, jax, jnp, nn
 from scvi.autotune._types import Tunable
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
-
 try:
+
     class Dense(nn.Dense):
         """Jax dense layer."""
 
@@ -61,7 +61,6 @@ try:
 
             return mean, jnp.exp(log_var)
 
-
     class FlaxDecoder(nn.Module):
         """Decoder for Jax VAE."""
 
@@ -84,7 +83,9 @@ try:
             self.dropout2 = nn.Dropout(self.dropout_rate)
 
             self.disp = self.param(
-                "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
+                "disp",
+                lambda rng, shape: jax.random.normal(rng, shape),
+                (self.n_input, 1),
             )
 
         def __call__(
@@ -109,7 +110,6 @@ try:
             h = self.dropout2(h, deterministic=is_eval)
             h = self.dense5(h)
             return h, self.disp.ravel()
-
 
     @flax_configure
     class JaxVAE(JaxBaseModuleClass):
@@ -218,7 +218,9 @@ try:
             loss = jnp.mean(reconst_loss + weighted_kl_local)
 
             kl_local = kl_divergence_z
-            return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)
+            return LossOutput(
+                loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
+            )
 except ImportError:
     Dense = None
     FlaxEncoder = None

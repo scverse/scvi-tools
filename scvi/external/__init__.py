@@ -9,9 +9,13 @@ from .stereoscope import RNAStereoscope, SpatialStereoscope
 try:
     from .tangram import Tangram
 except ImportError:
+
     class Tangram:
         def __init__(self, *args, **kwargs):
-            raise NotImplementedError("This feature requires the 'jax' optional dependency.")
+            raise NotImplementedError(
+                "This feature requires the 'jax' optional dependency."
+            )
+
 
 __all__ = [
     "SCAR",

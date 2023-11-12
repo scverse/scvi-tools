@@ -284,6 +284,7 @@ def _check_nonnegative_integers(
 
 
 try:
+
     @jax.jit
     def _is_not_count_val(data: jnp.ndarray):
         negative = jnp.any(data < 0)
