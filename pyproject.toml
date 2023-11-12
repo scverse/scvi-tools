@@ -33,12 +33,7 @@ classifiers = [
 ]
 dependencies = [
     "anndata>=0.7.5",
-    "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
     "docrep>=0.3.2",
-    "flax",
-    "jax>=0.4.4",
-    "jaxlib>=0.4.3",
-    "optax",
     "numpy>=1.21.0",
     "pandas>=1.0,!=2.1.2",
     "scipy",
@@ -51,7 +46,6 @@ dependencies = [
     "pyro-ppl>=1.6.0",
     "tqdm>=4.56.0",
     "scikit-learn>=0.21.2",
-    "numpyro>=0.12.1",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
     "sparse>=0.14.0",
@@ -92,6 +86,15 @@ docs = [
 ]  # basic docs dependencies
 docsbuild = ["scvi-tools[docs,optional]"]  # docs build dependencies
 
+jax = [
+    "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
+    "flax",
+    "jax>=0.4.4",
+    "jaxlib>=0.4.3",
+    "optax",
+    "numpyro>=0.12.1",
+]
+
 autotune = [
     "hyperopt>=0.2",
     "ray[tune]>=2.5.0,<2.8.0",
@@ -106,7 +109,7 @@ regseq = ["biopython>=1.81", "genomepy"]  # scvi.data.add_dna_sequence
 loompy = ["loompy>=3.0.6"]  # read loom
 scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
 optional = [
-    "scvi-tools[autotune,census,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,census,hub,loompy,pymde,regseq,scanpy,jax]"
 ]  # all optional user functionality
 
 tutorials = [

@@ -2,11 +2,11 @@ import logging
 from collections.abc import Sequence
 from typing import Literal, Optional
 
-import jax.numpy as jnp
 import numpy as np
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
+from scvi._packageproxy import jnp
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.module import JaxVAE

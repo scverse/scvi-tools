@@ -4,7 +4,14 @@ from .scar import SCAR
 from .scbasset import SCBASSET
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
-from .tangram import Tangram
+
+# Jax modules
+try:
+    from .tangram import Tangram
+except ImportError:
+    class Tangram:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("This feature requires the 'jax' optional dependency.")
 
 __all__ = [
     "SCAR",
@@ -13,6 +20,6 @@ __all__ = [
     "RNAStereoscope",
     "SpatialStereoscope",
     "CellAssign",
-    "Tangram",
     "SCBASSET",
+    "Tangram",
 ]

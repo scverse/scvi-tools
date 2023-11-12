@@ -1,7 +1,6 @@
 from typing import Callable
 
-import jax
-from jax import random
+from scvi._packageproxy import jax, random
 
 
 def device_selecting_PRNGKey(use_cpu: bool = True) -> Callable:

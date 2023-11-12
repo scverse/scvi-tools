@@ -2,7 +2,6 @@ import warnings
 from copy import deepcopy
 from typing import Callable, Optional, Union
 
-import flax
 import lightning.pytorch as pl
 import numpy as np
 import torch
@@ -11,6 +10,7 @@ from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
 
 from scvi import settings
+from scvi._packageproxy import flax
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
 

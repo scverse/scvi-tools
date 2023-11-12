@@ -12,7 +12,6 @@ from typing import Any, Callable
 
 import lightning.pytorch as pl
 import rich
-from chex import dataclass
 
 try:
     import ray
@@ -36,16 +35,21 @@ from ._utils import in_notebook
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class TuneAnalysis:
-    """Dataclass for storing results from a tuning experiment."""
+TuneAnalysis = 'TuneAnalysis'
+try:
+    from chex import dataclass
+    @dataclass
+    class TuneAnalysis:
+        """Dataclass for storing results from a tuning experiment."""
 
-    model_kwargs: dict
-    train_kwargs: dict
-    metric: float
-    additional_metrics: dict
-    search_space: dict
-    results: Any
+        model_kwargs: dict
+        train_kwargs: dict
+        metric: float
+        additional_metrics: dict
+        search_space: dict
+        results: Any
+except ImportError:
+    pass
 
 
 class TunerManager:

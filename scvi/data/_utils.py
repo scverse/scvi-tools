@@ -4,8 +4,6 @@ from typing import Optional, Union
 from uuid import uuid4
 
 import h5py
-import jax
-import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
@@ -31,6 +29,7 @@ from pandas.api.types import CategoricalDtype
 from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
 from scvi import REGISTRY_KEYS, settings
+from scvi._packageproxy import jax, jnp
 from scvi._types import AnnOrMuData, MinifiedDataType
 
 from . import _constants
@@ -274,19 +273,25 @@ def _check_nonnegative_integers(
 
     ret = True
     if len(data) != 0:
-        inds = np.random.choice(len(data), size=(n_to_check,))
-        check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
-        negative, non_integer = _is_not_count_val(check)
-        ret = not (negative or non_integer)
+        try:
+            inds = np.random.choice(len(data), size=(n_to_check,))
+            check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
+            negative, non_integer = _is_not_count_val(check)
+            ret = not (negative or non_integer)
+        except ImportError:
+            pass
     return ret
 
 
-@jax.jit
-def _is_not_count_val(data: jnp.ndarray):
-    negative = jnp.any(data < 0)
-    non_integer = jnp.any(data % 1 != 0)
+try:
+    @jax.jit
+    def _is_not_count_val(data: jnp.ndarray):
+        negative = jnp.any(data < 0)
+        non_integer = jnp.any(data % 1 != 0)
 
-    return negative, non_integer
+        return negative, non_integer
+except ImportError:
+    pass
 
 
 def _check_if_view(adata: AnnOrMuData, copy_if_view: bool = False):

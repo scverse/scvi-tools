@@ -1,16 +1,13 @@
 import logging
 from typing import Literal, Optional, Union
 
-import flax
-import jax
-import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import scipy
 from anndata import AnnData
-from jaxlib.xla_extension import Device
 from mudata import MuData
 
+from scvi._packageproxy import flax, jax, jnp
 from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
 from scvi.model._utils import parse_device_args
@@ -22,7 +19,7 @@ from scvi.utils._docstrings import devices_dsp
 logger = logging.getLogger(__name__)
 
 
-def _asarray(x: np.ndarray, device: Device) -> jnp.ndarray:
+def _asarray(x: np.ndarray, device: 'jaxlib.xla_extension.Device') -> jnp.ndarray:
     return jax.device_put(x, device=device)
 
 
@@ -275,7 +272,7 @@ class Tangram(BaseModelClass):
 
     def _get_tensor_dict(
         self,
-        device: Device,
+        device: 'jaxlib.xla_extension.Device',
     ) -> dict[str, jnp.ndarray]:
         """Get training data for Tangram model.
 

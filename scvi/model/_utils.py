@@ -4,7 +4,6 @@ from collections.abc import Iterable as IterableClass
 from collections.abc import Sequence
 from typing import Literal, Optional, Union
 
-import jax
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
@@ -14,6 +13,7 @@ from lightning.pytorch.trainer.connectors.accelerator_connector import (
 )
 
 from scvi import REGISTRY_KEYS, settings
+from scvi._packageproxy import jax
 from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.utils._docstrings import devices_dsp

@@ -2,9 +2,10 @@ from collections.abc import Mapping, Sequence
 from functools import wraps
 from typing import Any, Callable, Union
 
-import flax.linen as nn
 import torch
 from torch.nn import Module
+
+from scvi._packageproxy import nn
 
 
 def auto_move_data(fn: Callable) -> Callable:
@@ -122,7 +123,7 @@ def _apply_to_collection(
     return data
 
 
-def flax_configure(cls: nn.Module) -> Callable:
+def flax_configure(cls: 'nn.Module') -> Callable:
     """Decorator to raise an error if a boolean `training` param is missing in the call."""
     original_init = cls.__init__
 
