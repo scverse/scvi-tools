@@ -41,6 +41,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     training plans {pr}`2280`.
 -   {class}`scvi.train.SemiSupervisedTrainingPlan` now logs the classifier
     calibration error {pr}`2299`.
+-   Change `chex` to a tests-only dependency. Use `flax.struct.dataclass` in place of
+    `chex.dataclass` {pr}`2319`.
 
 #### Fixed
 
