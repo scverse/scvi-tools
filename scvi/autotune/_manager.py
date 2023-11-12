@@ -10,9 +10,9 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import Any, Callable
 
+import flax
 import lightning.pytorch as pl
 import rich
-from chex import dataclass
 
 try:
     import ray
@@ -36,7 +36,7 @@ from ._utils import in_notebook
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@flax.struct.dataclass
 class TuneAnalysis:
     """Dataclass for storing results from a tuning experiment."""
 

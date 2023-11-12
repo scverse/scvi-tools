@@ -33,7 +33,6 @@ classifiers = [
 ]
 dependencies = [
     "anndata>=0.7.5",
-    "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
@@ -63,6 +62,7 @@ dependencies = [
 tests = [
     "pytest",
     "pytest-cov",
+    "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
     "scvi-tools[optional]"
 ]  # dependencies for running the test suite
 editing = [
