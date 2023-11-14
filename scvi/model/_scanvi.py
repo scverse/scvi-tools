@@ -433,7 +433,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             self.module, self.n_labels, **plan_kwargs
         )
         if "callbacks" in trainer_kwargs.keys():
-            trainer_kwargs["callbacks"].concatenate(sampler_callback)
+            trainer_kwargs["callbacks"] + [sampler_callback]
         else:
             trainer_kwargs["callbacks"] = sampler_callback
 
@@ -455,7 +455,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         cls,
         adata: AnnData,
         labels_key: str,
-        unlabeled_category: str | int | float,
+        unlabeled_category: str,
         layer: str | None = None,
         batch_key: str | None = None,
         size_factor_key: str | None = None,

@@ -244,6 +244,7 @@ TrainingPlans define train/test/val optimization steps for modules.
    train.TrainingPlan
    train.TrainRunner
    train.SaveBestState
+   train.SaveCheckpoint
    train.LoudEarlyStopping
 
 ```
