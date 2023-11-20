@@ -258,6 +258,8 @@ class Encoder(nn.Module):
 
         if distribution == "ln":
             self.z_transformation = nn.Softmax(dim=-1)
+        elif distribution == "softplus":
+            self.z_transformation = nn.Softplus()
         else:
             self.z_transformation = _identity
         self.var_activation = torch.exp if var_activation is None else var_activation
@@ -380,6 +382,7 @@ class DecoderSCVI(nn.Module):
         dispersion: str,
         z: torch.Tensor,
         library: torch.Tensor,
+        additive_background: torch.Tensor,
         *cat_list: int,
     ):
         """The forward computation for a single sample.
@@ -415,7 +418,7 @@ class DecoderSCVI(nn.Module):
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
-        px_rate = self.library_activation(library) * px_scale  # torch.clamp( , max=12)
+        px_rate = self.library_activation(library) * (px_scale + additive_background)  # torch.clamp( , max=12)
         px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
         return px_scale, px_r, px_rate, px_dropout
 
