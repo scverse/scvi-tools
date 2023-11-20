@@ -3,14 +3,15 @@ from typing import Callable, Dict, Optional, Union
 
 import numpy as np
 import torch
+from lightning.pytorch.callbacks import Callback
 from pyro import poutine
-from pytorch_lightning.callbacks import Callback
 
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
-from scvi.model._utils import parse_use_gpu_arg
+from scvi.model._utils import parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
+from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -80,10 +81,13 @@ class PyroSviTrainMixin:
     _training_plan_cls = PyroTrainingPlan
     _train_runner_cls = TrainRunner
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: Optional[int] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        device: Union[int, str] = "auto",
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -100,9 +104,9 @@ class PyroSviTrainMixin:
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_device)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -140,7 +144,8 @@ class PyroSviTrainMixin:
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
-                use_gpu=use_gpu,
+                accelerator=accelerator,
+                device=device,
             )
         else:
             data_splitter = self._data_splitter_cls(
@@ -148,7 +153,6 @@ class PyroSviTrainMixin:
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
-                use_gpu=use_gpu,
             )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
@@ -167,6 +171,8 @@ class PyroSviTrainMixin:
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=device,
             **trainer_kwargs,
         )
         return runner()
@@ -345,8 +351,14 @@ class PyroSampleMixin:
 
         return obs_plate
 
+    @devices_dsp.dedent
     def _posterior_samples_minibatch(
-        self, use_gpu: bool = None, batch_size: Optional[int] = None, **sample_kwargs
+        self,
+        use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        device: Union[int, str] = "auto",
+        batch_size: Optional[int] = None,
+        **sample_kwargs,
     ):
         """Generate samples of the posterior distribution in minibatches.
 
@@ -355,9 +367,9 @@ class PyroSampleMixin:
 
         Parameters
         ----------
-        use_gpu
-            Load model on default GPU if available (if None or True),
-            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_device)s
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
 
@@ -367,7 +379,13 @@ class PyroSampleMixin:
         """
         samples = {}
 
-        _, _, device = parse_use_gpu_arg(use_gpu)
+        _, _, device = parse_device_args(
+            use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=device,
+            return_device="torch",
+            validate_single_device=True,
+        )
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
 
@@ -443,11 +461,14 @@ class PyroSampleMixin:
 
         return samples
 
+    @devices_dsp.dedent
     def sample_posterior(
         self,
         num_samples: int = 1000,
         return_sites: Optional[list] = None,
-        use_gpu: bool = None,
+        use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        device: Union[int, str] = "auto",
         batch_size: Optional[int] = None,
         return_observed: bool = False,
         return_samples: bool = False,
@@ -456,7 +477,7 @@ class PyroSampleMixin:
         """Summarise posterior distribution.
 
         Generate samples from posterior distribution for each parameter
-        and compute mean, 5%/95% quantiles, standard deviation.
+        and compute mean, 5th/95th quantiles, standard deviation.
 
         Parameters
         ----------
@@ -464,15 +485,15 @@ class PyroSampleMixin:
             Number of posterior samples to generate.
         return_sites
             List of variables for which to generate posterior samples, defaults to all variables.
-        use_gpu
-            Load model on default GPU if available (if None or True),
-            or index of GPU to use (if int), or name of GPU (if str), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_device)s
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_observed
             Return observed sites/variables? Observed count matrix can be very large so not returned by default.
         return_samples
-            Return all generated posterior samples in addition to sample mean, 5%/95% quantile and SD?
+            Return all generated posterior samples in addition to sample mean, 5th/95th quantile and SD?
         summary_fun
              a dict in the form {"means": np.mean, "std": np.std} which specifies posterior distribution
              summaries to compute and which names to use. See below for default returns.
@@ -482,9 +503,9 @@ class PyroSampleMixin:
         post_sample_means: Dict[str, :class:`np.ndarray`]
             Mean of the posterior distribution for each variable, a dictionary of numpy arrays for each variable;
         post_sample_q05: Dict[str, :class:`np.ndarray`]
-            5% quantile of the posterior distribution for each variable;
+            5th quantile of the posterior distribution for each variable;
         post_sample_q05: Dict[str, :class:`np.ndarray`]
-            95% quantile of the posterior distribution for each variable;
+            95th quantile of the posterior distribution for each variable;
         post_sample_q05: Dict[str, :class:`np.ndarray`]
             Standard deviation of the posterior distribution for each variable;
         posterior_samples: Optional[Dict[str, :class:`np.ndarray`]]
@@ -501,6 +522,8 @@ class PyroSampleMixin:
         # sample using minibatches (if full data, data is moved to GPU only once anyway)
         samples = self._posterior_samples_minibatch(
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            device=device,
             batch_size=batch_size,
             num_samples=num_samples,
             return_sites=return_sites,

@@ -99,6 +99,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.organize_cite_seq_10x
    data.organize_multiome_anndatas
    data.add_dna_sequence
+   data.reads_to_fragments
 ```
 
 ```{eval-rst}

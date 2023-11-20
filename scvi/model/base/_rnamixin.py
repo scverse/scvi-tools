@@ -11,10 +11,8 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Number
-from scvi._utils import _doc_params
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
-from scvi.utils import unsupported_if_adata_minified
-from scvi.utils._docstrings import doc_differential_expression
+from scvi.utils import de_dsp, unsupported_if_adata_minified
 
 from ._utils import _de_core
 
@@ -160,9 +158,7 @@ class RNASeqMixin:
         else:
             return exprs
 
-    @_doc_params(
-        doc_differential_expression=doc_differential_expression,
-    )
+    @de_dsp.dedent
     def differential_expression(
         self,
         adata: Optional[AnnData] = None,
@@ -182,16 +178,27 @@ class RNASeqMixin:
         silent: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
-        r"""\.
-
-        A unified method for differential expression analysis.
-
+        r"""A unified method for differential expression analysis.
 
         Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
-        {doc_differential_expression}
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 

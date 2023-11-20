@@ -445,6 +445,7 @@ def test_peakvi_online_update(save_path):
     model2 = PEAKVI.load_query_data(adata2, dir_path)
     model2.train(max_epochs=1, weight_decay=0.0, save_best=False)
     model2.get_latent_representation()
+    single_pass_for_online_update(model2)
 
     # encoder linear layer equal for peak features
     one = (

@@ -4,9 +4,9 @@
 
 scvi-tools can be installed via conda or pip. If you don't know which to choose, we recommend conda.
 
-### conda prerequisites
+### conda
 
-1. Install conda. We typically use the [mambaforge] distribution. Use python version >=3.8, and consider using mamba instead of conda. Mamba is a drop-in replacement for conda that is significantly more efficient.
+1. Install conda. We typically use the [mambaforge] distribution. Use python>=3.8, and consider using mamba instead of conda. Mamba is a drop-in replacement for conda that is significantly more efficient.
 
 2. Create a new conda environment:
 
@@ -20,17 +20,17 @@ scvi-tools can be installed via conda or pip. If you don't know which to choose,
     conda activate scvi-env
     ```
 
-### pip prerequisites
+### pip
 
-0. If using conda/mamba, then just run `conda install -c anaconda pip` and skip this section.
-1. Install [Python], we prefer the [pyenv](https://github.com/pyenv/pyenv/) version management system, along with [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv/).
-2. Install [PyTorch] and [jax]. If you have an Nvidia GPU, be sure to install versions of PyTorch and jax that support it -- scvi-tools runs much faster with a discrete GPU.
+1. If using conda/mamba, then just run `conda install -c anaconda pip` and skip this section.
+2. Install [Python], we prefer the [pyenv](https://github.com/pyenv/pyenv/) version management system, along with [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv/).
+3. Install [PyTorch] and [jax]. If you have an Nvidia GPU, be sure to install versions of PyTorch and jax that support it -- scvi-tools runs much faster with a discrete GPU.
 
-### Apple silicon prerequisites
+### Apple silicon
 
 Installing scvi-tools on a Mac with Apple Silicon is only possible using a native version of python. A native version of python can be installed with an Apple Silicon version of mambaforge (which can be installed from a native version of homebrew via `brew install --cask mambaforge`). This is due to an scvi-tools dependency on jax, which cannot be run via Rosetta.
 
-### Windows prerequisites
+### Windows
 
 After setting up a virtual environment with conda/mamba/pyenv, please install the [community-built version of jax](https://github.com/cloudhan/jax-windows-builder) before installing scvi-tools.
 
@@ -38,7 +38,7 @@ After setting up a virtual environment with conda/mamba/pyenv, please install th
 pip install "jax[cpu]" -f https://whls.blob.core.windows.net/unstable/index.html --use-deprecated legacy-resolver
 ```
 
-### GPU prerequisites
+### GPU
 
 All scvi-tools models will be faster when accelerated with a GPU. Before installing scvi-tools, you can install GPU versions of PyTorch and jax using conda as follows:
 
@@ -89,7 +89,7 @@ This is only recommended for basic functionality (getting the latent space, norm
 
 The easiest way to install scvi-tools for R is via conda.
 
-1. Install conda Prerequisites (see above).
+1. Install conda prerequisites.
 
 2. Install R and reticulate in the conda environment:
 

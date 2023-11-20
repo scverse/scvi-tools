@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from pytorch_lightning.callbacks import Callback
+from lightning.pytorch.callbacks import Callback
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -21,6 +21,7 @@ from scvi.external.cellassign._module import CellAssignModule
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -126,11 +127,14 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             torch.cat(predictions).numpy(), columns=self.cell_type_markers.columns
         )
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int = 400,
         lr: float = 3e-3,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 1024,
@@ -148,9 +152,9 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -207,7 +211,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            use_gpu=use_gpu,
         )
         training_plan = TrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
@@ -216,6 +219,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             **kwargs,
         )
         return runner()

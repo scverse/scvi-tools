@@ -1,4 +1,4 @@
-from pytorch_lightning import LightningDataModule, LightningModule, Trainer
+from lightning.pytorch import LightningDataModule, LightningModule, Trainer
 
 from scvi import model
 from scvi.module.base import BaseModuleClass, JaxBaseModuleClass, PyroBaseModuleClass

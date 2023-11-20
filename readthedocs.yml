@@ -13,6 +13,7 @@ python:
               - docs
               - pymde
               - hub
+              - autotune
 submodules:
     include:
         - "docs/tutorials/notebooks"

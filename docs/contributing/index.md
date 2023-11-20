@@ -37,8 +37,8 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     Using mamba (recommended):
 
     ```
-    mamba install pytorch torchvision torchaudio cudatoolkit=11.6 -c pytorch -c conda-forge
-    mamba install jax jaxlib cuda-nvcc -c conda-forge -c nvidiai
+    mamba install pytorch torchvision torchaudio cudatoolkit=11.7 -c pytorch -c conda-forge
+    mamba install jax jaxlib -c conda-forge
     ```
 
     More information can be found on the installation page {doc}`/installation`.
@@ -57,7 +57,7 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     pip show scvi-tools
     ```
 
-1.  Create an ipykernel so you can use your environment with a Jupyter notebook. This will make this developement environment available through Jupyter notebook/lab. Inside your virtualenv:
+1.  Create an ipykernel so you can use your environment with a Jupyter notebook. IDEs like Visual Studio Code can perform this step automatically. To do so manually, inside your virtualenv:
 
     ```
     python -m ipykernel install --user --name=scvi-tools-dev
@@ -125,52 +125,18 @@ Before you submit a pull request, check that it meets these guidelines:
 
 1. The pull request should include tests.
 2. If the pull request adds functionality, the docs should be updated.
-3. The pull request should work for Python 3.6-3.8. Your PR will be tested
-   on these versions with our continuous integration checks.
 
-## Deploying
-
-A reminder for the maintainers on how to deploy. Make sure all your changes are committed (including a release note entry).
-
-Additionally, make sure to commit a version bump to [pyproject.toml](https://github.com/YosefLab/scvi-tools/blob/master/pyproject.toml).
-
-Then, make sure you've tested your code using pytest by running:
-
-```
-$ pytest
-```
-
-Subsequently run:
-
-```
-$ hatch build
-$ hatch publish
-```
-
-This will upload `scvi-tools` to PyPi. Also be sure to add a tag corresponding to the new version number on the tutorials repo, as the tagged repo is used for the Colab links.
-
-All the steps above are automated in the `release.yml` workflow. It's triggered by a new tag on GitHub that's named with a version (e.g., 1.2.3).
-
-### Instructions on Uploading to conda
-
-`scvi-tools` is available on conda-forge channel. Typically, a PR will be automatically created once a new PyPI release is made.
-This automated PR might need changes if we've changed dependencies. In that case, follow the below steps to upload a new version to conda-forge channel.
-
-Create a fork of the scvi-tools feedstock [repo] on GitHub and follow instructions in the README there.
-
-### Writing a GitHub release
-
-On the GitHub page, draft a release. This is important for ReadTheDocs, which uses the last release tag from GitHub as the stable version.
+Your PR will be tested with our continuous integration checks.
 
 ## Backporting
 
 This is a guide for the maintainers on how we backport patches.
 
-The mainstream development branch is the master branch. We snap releases off of release branches created off of master.
+The mainstream development branch is the `main` branch. We snap releases off of release branches created off of `main`.
 
 We use the MeeseeksDev GitHub bot for automatic backporting. The way it works, in a nutshell, is that the bot listens to certain web events - for example commits containing “@meeseeksdev backport to \[BRANCHNAME\]” on a PR - and automatically opens a PR to that repo/branch. (Note: They open the PR sourced from a fork of the repo under the [MeeseeksMachine](https://github.com/meeseeksmachine) organization, into the repo/branch of interest. That’s why under MeeseeksMachine you see a collection of repo's that are forks of the repo's that use MeeseeksDev).
 
-For each release, we create a branch \[MAJOR\].\[MINOR\].x where MAJOR and MINOR are the Major and Minor version numbers for that release, respectively, and x is the literal “x”. Every time a bug fix PR is merged into master, we evaluate whether it is worthy of being backported into the current release and if so use MeeseeksDev to do it for us if it can. How? Simply leave a comment on the PR that was merged into master that says: “@meeseeksdev backport to \[MAJOR\].\[MINOR\].x” (for example “@meeseeksdev backport to 0.14.x” if we are on a release from the 0.14 series.
+For each release, we create a branch \[MAJOR\].\[MINOR\].x where MAJOR and MINOR are the Major and Minor version numbers for that release, respectively, and x is the literal “x”. Every time a bug fix PR is merged into main, we evaluate whether it is worthy of being backported into the current release and if so use MeeseeksDev to do it for us if it can. How? Simply leave a comment on the PR that was merged into main that says: “@meeseeksdev backport to \[MAJOR\].\[MINOR\].x” (for example “@meeseeksdev backport to 0.14.x” if we are on a release from the 0.14 series.
 Note: Auto backporting can also be triggered if you associate the PR with a Milestone or Label the description of which contains “on-merge: backport to \[BRANCHNAME\]”.
 
 ```{highlight} none
@@ -178,15 +144,15 @@ Note: Auto backporting can also be triggered if you associate the PR with a Mile
 ```
 
 ```
-feature foo <- head of branch master, main development branch
+feature foo <- head of branch main, main development branch
 |
 bug fix
 |
 feature bar <- head of branch 0.14.x, release branch for the 0.14.x release series, also tagged as v0.14.0 (release)
 \
-  my hotfix <- backported from master
+  my hotfix <- backported from main
   |
-  my other hotfix <- backported from master, also tagged as v0.14.1 (release)
+  my other hotfix <- backported from main, also tagged as v0.14.1 (release)
 |
 feature baz
 |
@@ -206,3 +172,51 @@ my other hotfix
 If MeeseeksDev cannot automatically cherry-pick the PR (e.g. due to conflicts requiring manual resolution), it will let us know. In that case we need to cherry-pick the commit ourselves. [Here](https://github.com/search?q=label%3A%22Still+Needs+Manual+Backport%22+is%3Aopen&state=closed&type=Issues) are examples of such cases, and [here](https://github.com/pandas-dev/pandas/wiki/Backporting) is one resource explaining how to do it, but there are probably a lot more on the web.
 
 [repo]: https://github.com/conda-forge/scvi-tools-feedstock
+
+## Deploying
+
+There are a few steps to deploying a new version of `scvi-tools`.
+
+### Update tutorials
+
+Tutorials are currently integrated via a git submodule. To update the tutorials, locally run:
+
+```
+git submodule update --remote
+```
+
+Then, commit the changes, push, and open/merge a PR with these changes. This will update the tutorials on the website because ReadTheDocs will pull the submodule commit from the tutorials repo.
+
+Finally, make a GitHub release on the tutorials repo with the same version number as the new `scvi-tools` release. This will make the tutorials available on Colab in a versioned way (URLs will use the version tag).
+
+### Version bump
+
+Make sure all your changes are committed (and release notes are up to date). Additionally, make sure to merge a PR with a version bump to [pyproject.toml](https://github.com/YosefLab/scvi-tools/blob/main/pyproject.toml).
+
+Then, make sure you've tested your code using pytest by running:
+
+```
+$ pytest
+```
+
+### Writing a GitHub release
+
+On GitHub, draft a release. The release should be named with the version number (e.g., `1.2.3`) and should create a tag with the same version number (e.g., `1.2.3`, but importantly not `v1.2.3`).
+
+Any tag of the form `*.*.*` will trigger the [`release.yml` workflow](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/release.yml), which will build and upload to PyPI. Creating this tag will also trigger ReadTheDocs to build a new stable version (RTD uses the last release tag from GitHub as the stable version).
+
+#### Manual release
+
+If you want to manually release, you can install `hatch` and run:
+
+```
+$ hatch build
+$ hatch publish
+```
+
+This will upload `scvi-tools` to PyPI. It's advised to use the automated release workflow, but in the future if this fails we can revert to manual releases (but still after making a GitHub release, as the tag is important for the stable version of the docs).
+
+### Instructions on uploading to conda
+
+`scvi-tools` is available on conda-forge channel. Typically, a PR will be automatically created once a new PyPI release is made ([example](https://github.com/conda-forge/scvi-tools-feedstock/pull/32)).
+This automated PR might need changes if dependencies have changed. In that case, create a fork of the scvi-tools feedstock [repo] on GitHub and follow instructions in the README there.

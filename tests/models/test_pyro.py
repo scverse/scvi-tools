@@ -262,7 +262,8 @@ def test_pyro_bayesian_regression(save_path):
             plan = PyroTrainingPlan(new_model)
             plan.n_obs_training = len(train_dl.indices)
             trainer = Trainer(
-                gpus=use_gpu,
+                accelerator="gpu" if use_gpu else "cpu",
+                devices="auto",
                 max_steps=1,
             )
             trainer.fit(plan, train_dl)
@@ -288,7 +289,10 @@ def test_pyro_bayesian_regression_jit():
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        gpus=use_gpu, max_epochs=2, callbacks=[PyroJitGuideWarmup(train_dl)]
+        accelerator="gpu" if use_gpu else "cpu",
+        devices="auto",
+        max_epochs=2,
+        callbacks=[PyroJitGuideWarmup(train_dl)],
     )
     trainer.fit(plan, train_dl)
 

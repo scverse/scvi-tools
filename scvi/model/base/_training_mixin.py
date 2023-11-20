@@ -1,9 +1,10 @@
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 
 from scvi.dataloaders import DataSplitter
 from scvi.train import TrainingPlan, TrainRunner
+from scvi.utils._docstrings import devices_dsp
 
 
 class UnsupervisedTrainingMixin:
@@ -13,10 +14,13 @@ class UnsupervisedTrainingMixin:
     _training_plan_cls = TrainingPlan
     _train_runner_cls = TrainRunner
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: Optional[int] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
+        accelerator: str = "auto",
+        devices: Union[int, List[int], str] = "auto",
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
@@ -31,9 +35,9 @@ class UnsupervisedTrainingMixin:
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
+        %(param_use_gpu)s
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Size of training set in the range [0.0, 1.0].
         validation_size
@@ -61,7 +65,6 @@ class UnsupervisedTrainingMixin:
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            use_gpu=use_gpu,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
@@ -75,6 +78,8 @@ class UnsupervisedTrainingMixin:
             data_splitter=data_splitter,
             max_epochs=max_epochs,
             use_gpu=use_gpu,
+            accelerator=accelerator,
+            devices=devices,
             **trainer_kwargs,
         )
         return runner()
