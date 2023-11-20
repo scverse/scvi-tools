@@ -210,7 +210,6 @@ def test_linear_classifier_scanvi(n_latent: int = 10, n_labels: int = 5):
     )
     model = SCANVI(adata, linear_classifier=True, n_latent=n_latent)
 
-    assert len(model.module.classifier.classifier) == 2  # linear layer + softmax
     assert isinstance(model.module.classifier.classifier[0], torch.nn.Linear)
     assert model.module.classifier.classifier[0].in_features == n_latent
     assert model.module.classifier.classifier[0].out_features == n_labels - 1
@@ -436,8 +435,38 @@ def test_scanvi_online_update(save_path):
     m_q.get_elbo()
 
 
-def test_scanvi_pre_logits_fix_load():
-    """See #2310."""
+def test_scanvi_logits_backwards_compat(save_path: str):
+    """Check that we can replicate pre-fix behavior with `logits=False`."""
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(adata, labels_key="labels", unlabeled_category="label_0")
+
+    model = SCANVI(adata, classifier_parameters={"logits": False})
+    model.train(max_epochs=1)
+
+    model_path = os.path.join(save_path, "scanvi_logits_model")
+    model.save(model_path, overwrite=True)
+    del model
+
+    model = SCANVI.load(model_path, adata)
+    assert not model.module.classifier.logits
+    assert isinstance(model.module.classifier.classifier[-1], torch.nn.Softmax)
+
+
+def test_scanvi_pre_logits_fix_load(save_path: str):
+    """See #2310. Check old model saves use the old behavior."""
     model_path = "tests/test_data/pre_logits_fix_scanvi"
     model = SCANVI.load(model_path)
-    _ = model.get_latent_representation()
+
+    def check_no_logits_and_softmax(model: SCANVI):
+        assert not model.module.classifier.logits
+        assert isinstance(model.module.classifier.classifier[-1], torch.nn.Softmax)
+
+    check_no_logits_and_softmax(model)
+
+    resave_model_path = os.path.join(save_path, "pre_logits_fix_scanvi")
+    model.save(resave_model_path, overwrite=True)
+    adata = model.adata
+    del model
+
+    model = SCANVI.load(resave_model_path, adata)
+    check_no_logits_and_softmax(model)
