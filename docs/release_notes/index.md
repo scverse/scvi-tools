@@ -50,6 +50,9 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder`
     in {class}`scvi.model.AmortizedLDA` {pr}`2229`
+-   Fix bug in {class}`scvi.module.SCANVAE` where classifier probabilities
+    were interpreted as logits. This is backwards compatible as loading older
+    models will use the old code path {pr}`2301`.
 
 #### Changed
 
