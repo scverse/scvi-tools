@@ -11,6 +11,7 @@ from torch.utils.data import (
     SequentialSampler,
 )
 
+from scvi import settings
 from scvi.data import AnnDataManager
 
 from ._samplers import BatchDistributedSampler
@@ -98,6 +99,9 @@ class AnnDataLoader(DataLoader):
             data_and_attributes=data_and_attributes,
             load_sparse_tensor=load_sparse_tensor,
         )
+        if "num_workers" not in kwargs:
+            kwargs["num_workers"] = settings.dl_num_workers
+
         self.kwargs = copy.deepcopy(kwargs)
 
         if sampler is not None and distributed_sampler:

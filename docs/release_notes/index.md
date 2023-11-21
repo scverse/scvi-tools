@@ -45,6 +45,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Passing `enable_checkpointing=True` into `train` methods is now
     compatible with our model saves. Additional options can be specified
     by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
+-   `scvi.settings.dl_num_workers` is now correctly applied as the default
+    `num_workers` in {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
 
 #### Fixed
 
