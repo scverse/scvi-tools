@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 import warnings
+from collections.abc import Iterable, Sequence
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Iterable, Literal, Sequence
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -1137,6 +1138,4 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         :return:
         """
         if (adata is not None) and (self.module.modality_weights == "cell"):
-            raise RuntimeError(
-                "Held out data not permitted when using per cell weights"
-            )
+            raise RuntimeError("Held out data not permitted when using per cell weights")

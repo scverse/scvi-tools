@@ -52,9 +52,7 @@ def test_tangram(density_prior_key, constrained):
         mdata.mod["sc"].obsm["mapper"],
         mdata.mod["sc"].obs.labels,
     )
-    model.project_genes(
-        mdata.mod["sc"], mdata.mod["sp"], mdata.mod["sc"].obsm["mapper"]
-    )
+    model.project_genes(mdata.mod["sc"], mdata.mod["sp"], mdata.mod["sc"].obsm["mapper"])
 
 
 def test_tangram_errors():

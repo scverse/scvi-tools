@@ -13,6 +13,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Added
 
+-   Add {class}`scvi.external.ContrastiveVI` for contrastiveVI {pr}`2242`.
 -   Add {class}`scvi.dataloaders.BatchDistributedSampler` for distributed training {pr}`2102`.
 -   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to
     specify additional metrics to compute and log during the validation loop using
@@ -39,11 +40,19 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     with argument `seed` {pr}`2260`.
 -   Automatically log the learning rate when `reduce_lr_on_plateau=True` in
     training plans {pr}`2280`.
+-   {class}`scvi.train.SemiSupervisedTrainingPlan` now logs the classifier
+    calibration error {pr}`2299`.
+-   Passing `enable_checkpointing=True` into `train` methods is now
+    compatible with our model saves. Additional options can be specified
+    by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
 
 #### Fixed
 
 -   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder`
     in {class}`scvi.model.AmortizedLDA` {pr}`2229`
+-   Fix bug in {class}`scvi.module.SCANVAE` where classifier probabilities
+    were interpreted as logits. This is backwards compatible as loading older
+    models will use the old code path {pr}`2301`.
 
 #### Changed
 
@@ -60,6 +69,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     default {pr}`2250`.
 -   Support fractional GPU usage in {class}`scvi.autotune.ModelTuner` `pr`{2252}.
 -   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner` `pr`{2260}.
+-   Match `momentum` and `epsilon` in {class}`scvi.module.JaxVAE` to the
+    default values in PyTorch {pr}`2309`.
 
 #### Removed
 

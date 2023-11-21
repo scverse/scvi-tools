@@ -57,6 +57,7 @@ import scvi
    external.SCAR
    external.Tangram
    external.SCBASSET
+   external.ContrastiveVI
 
 ```
 

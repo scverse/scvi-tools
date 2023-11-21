@@ -1,7 +1,7 @@
 import json
 import os
 from dataclasses import dataclass, field
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import torch
 from huggingface_hub import ModelCard, ModelCardData
@@ -141,8 +141,8 @@ class HubModelCardHelper:
     model_data_registry: dict
     scvi_version: str
     anndata_version: str
-    data_modalities: List[str] = field(default_factory=list)
-    tissues: List[str] = field(default_factory=list)
+    data_modalities: list[str] = field(default_factory=list)
+    tissues: list[str] = field(default_factory=list)
     data_is_annotated: Optional[bool] = None
     data_is_minified: Optional[bool] = None
     training_data_url: Optional[str] = None
@@ -270,9 +270,7 @@ class HubModelCardHelper:
             card_data=card_data.to_yaml(),
             description=self.description,
             model_init_params=json.dumps(flattened_model_init_params, indent=4),
-            model_setup_anndata_args=json.dumps(
-                self.model_setup_anndata_args, indent=4
-            ),
+            model_setup_anndata_args=json.dumps(self.model_setup_anndata_args, indent=4),
             model_summary_stats=AnnDataManager._view_summary_stats(
                 self.model_summary_stats, as_markdown=True
             ),

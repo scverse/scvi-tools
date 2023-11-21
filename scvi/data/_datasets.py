@@ -533,8 +533,6 @@ def synthetic_iid(
         * `None`: Store as a dense :class:`numpy.ndarray`.
         * `"csr_matrix"`: Store as a :class:`scipy.sparse.csr_matrix`.
         * `"csc_matrix"`: Store as a :class:`scipy.sparse.csc_matrix`.
-        * `"csr_array"`: Store as a :class:`scipy.sparse.csr_array`.
-        * `"csc_array"`: Store as a :class:`scipy.sparse.csc_array`.
     return_mudata
         Returns a :class:`~mudata.MuData` if `True`, else :class:`~anndata.AnnData`.
 

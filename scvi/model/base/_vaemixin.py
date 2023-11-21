@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -145,7 +146,7 @@ class VAEMixin:
         mc_samples: int = 5000,
         batch_size: Optional[int] = None,
         return_dist: bool = False,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    ) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
         """Return the latent representation for each cell.
 
         This is typically denoted as :math:`z_n`.

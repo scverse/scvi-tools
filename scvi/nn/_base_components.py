@@ -1,5 +1,6 @@
 import collections
-from typing import Callable, Iterable, List, Literal, Optional
+from collections.abc import Iterable
+from typing import Callable, Literal, Optional
 
 import torch
 from torch import nn
@@ -151,9 +152,7 @@ class FCLayers(nn.Module):
         one_hot_cat_list = []  # for generality in this list many indices useless.
 
         if len(self.n_cat_list) > len(cat_list):
-            raise ValueError(
-                "nb. categorical args provided doesn't match init. params."
-            )
+            raise ValueError("nb. categorical args provided doesn't match init. params.")
         for n_cat, cat in zip(self.n_cat_list, cat_list):
             if n_cat and cat is None:
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
@@ -555,7 +554,7 @@ class MultiEncoder(nn.Module):
     def __init__(
         self,
         n_heads: int,
-        n_input_list: List[int],
+        n_input_list: list[int],
         n_output: int,
         n_hidden: int = 128,
         n_layers_individual: int = 1,

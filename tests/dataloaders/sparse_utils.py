@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 import torch
 from anndata import AnnData
@@ -92,7 +92,7 @@ class TestSparseModel(scvi.model.base.BaseModelClass):
         self,
         max_epochs: int = 1,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: Union[int, list[int], str] = "auto",
         expected_sparse_layout: Literal["csr", "csc"] = None,
     ):
         data_splitter = TestSparseDataSplitter(

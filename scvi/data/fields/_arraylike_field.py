@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -219,7 +219,7 @@ class BaseJointField(BaseArrayLikeField):
     def __init__(
         self,
         registry_key: str,
-        attr_keys: Optional[List[str]],
+        attr_keys: Optional[list[str]],
         field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key)
@@ -257,7 +257,7 @@ class BaseJointField(BaseArrayLikeField):
         return self._source_attr_name
 
     @property
-    def attr_keys(self) -> List[str]:
+    def attr_keys(self) -> list[str]:
         """List of .obs or .var keys that make up this joint field."""
         return self._attr_keys
 
@@ -290,7 +290,7 @@ class NumericalJointField(BaseJointField):
     def __init__(
         self,
         registry_key: str,
-        attr_keys: Optional[List[str]],
+        attr_keys: Optional[list[str]],
         field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key, attr_keys, field_type=field_type)
@@ -381,7 +381,7 @@ class CategoricalJointField(BaseJointField):
     def __init__(
         self,
         registry_key: str,
-        attr_keys: Optional[List[str]],
+        attr_keys: Optional[list[str]],
         field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key, attr_keys, field_type=field_type)
@@ -395,7 +395,7 @@ class CategoricalJointField(BaseJointField):
         }
 
     def _make_array_categorical(
-        self, adata: AnnData, category_dict: Optional[Dict[str, List[str]]] = None
+        self, adata: AnnData, category_dict: Optional[dict[str, list[str]]] = None
     ) -> dict:
         """Make the .obsm categorical."""
         if (

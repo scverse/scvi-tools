@@ -1,6 +1,6 @@
 import json
 import warnings
-from typing import Dict, List, Literal, Optional
+from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -68,7 +68,7 @@ class PosteriorPredictiveCheck:
     def __init__(
         self,
         adata: AnnData,
-        models_dict: Dict[str, BaseModelClass],
+        models_dict: dict[str, BaseModelClass],
         count_layer_key: Optional[str] = None,
         n_samples: int = 10,
     ):
@@ -121,7 +121,7 @@ class PosteriorPredictiveCheck:
     def _store_posterior_predictive_samples(
         self,
         batch_size: int = 32,
-        indices: List[int] = None,
+        indices: list[int] = None,
     ):
         """
         Store posterior predictive samples for each model.
@@ -176,9 +176,7 @@ class PosteriorPredictiveCheck:
         # we use a trick to compute the std to speed it up: std = E[X^2] - E[X]^2
         # a square followed by a sqrt is ok here because this is counts data (no negative values)
         self.samples_dataset = np.square(self.samples_dataset)
-        std = np.sqrt(
-            self.samples_dataset.mean(dim=dim, skipna=False) - np.square(mean)
-        )
+        std = np.sqrt(self.samples_dataset.mean(dim=dim, skipna=False) - np.square(mean))
         self.samples_dataset = np.sqrt(self.samples_dataset)
         # now compute the CV
         cv = std / mean
@@ -200,7 +198,7 @@ class PosteriorPredictiveCheck:
         self.metrics[METRIC_ZERO_FRACTION] = mean.to_dataframe()
 
     def calibration_error(
-        self, confidence_intervals: Optional[List[float]] = None
+        self, confidence_intervals: Optional[list[float]] = None
     ) -> None:
         """Calibration error for each observed count.
 
@@ -232,9 +230,7 @@ class PosteriorPredictiveCheck:
         pp_samples = _make_dataset_dense(pp_samples)
         # results in (quantiles, cells, features)
         quants = pp_samples.quantile(q=ps, dim="samples", skipna=False)
-        credible_interval_indices = [
-            (i, len(ps) - (i + 1)) for i in range(len(ps) // 2)
-        ]
+        credible_interval_indices = [(i, len(ps) - (i + 1)) for i in range(len(ps) // 2)]
 
         model_cal = {}
         for model in pp_samples.data_vars:
@@ -307,9 +303,7 @@ class PosteriorPredictiveCheck:
         sc.pp.normalize_total(adata_de, target_sum=cell_scale_factor)
         sc.pp.log1p(adata_de)
         with warnings.catch_warnings():
-            warnings.simplefilter(
-                action="ignore", category=pd.errors.PerformanceWarning
-            )
+            warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
             sc.tl.rank_genes_groups(
                 adata_de,
                 de_groupby,
@@ -436,8 +430,9 @@ class PosteriorPredictiveCheck:
                 df.loc[i, "lfc_spearman"] = np.mean(lfc_spearmans)
                 df.loc[i, "roc_auc"] = np.mean(roc_aucs)
                 df.loc[i, "pr_auc"] = np.mean(pr_aucs)
-                rgd, sgd = pd.DataFrame(rgds).mean(axis=0), pd.DataFrame(sgds).mean(
-                    axis=0
+                rgd, sgd = (
+                    pd.DataFrame(rgds).mean(axis=0),
+                    pd.DataFrame(sgds).mean(axis=0),
                 )
                 if (
                     model
