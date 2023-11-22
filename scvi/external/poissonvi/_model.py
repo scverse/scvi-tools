@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Iterable, Literal, Sequence
+from typing import Literal
 
 import numpy as np
 import pandas as pd
