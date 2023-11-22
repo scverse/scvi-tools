@@ -1,10 +1,14 @@
 from typing import NamedTuple, Optional
 
-import chex
 import jax
 import jax.numpy as jnp
 
-from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+from scvi.module.base import (
+    FlaxLossOutput,
+    JaxBaseModuleClass,
+    LossOutput,
+    flax_configure,
+)
 
 
 class _TANGRAM_REGISTRY_KEYS_NT(NamedTuple):
@@ -111,7 +115,6 @@ class TangramMapper(JaxBaseModuleClass):
             sc = sc * filter
 
         g_pred = mapper.transpose() @ sc
-        chex.assert_equal_shape([sp, g_pred])
 
         # Expression term
         if self.lambda_g1 > 0:
@@ -151,7 +154,7 @@ class TangramMapper(JaxBaseModuleClass):
         total_loss = -expression_term - regularizer_term + count_term + f_reg
         total_loss = total_loss + density_term
 
-        return LossOutput(
+        loss_output = LossOutput(
             loss=total_loss,
             n_obs_minibatch=sp.shape[0],
             extra_metrics={
@@ -159,3 +162,4 @@ class TangramMapper(JaxBaseModuleClass):
                 "regularizer_term": regularizer_term,
             },
         )
+        return FlaxLossOutput.from_loss_output(loss_output)

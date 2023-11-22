@@ -1,6 +1,7 @@
 from ._base_module import (
     BaseMinifiedModeModuleClass,
     BaseModuleClass,
+    FlaxLossOutput,
     JaxBaseModuleClass,
     LossOutput,
     PyroBaseModuleClass,
@@ -17,4 +18,5 @@ __all__ = [
     "JaxBaseModuleClass",
     "TrainStateWithState",
     "BaseMinifiedModeModuleClass",
+    "FlaxLossOutput",
 ]

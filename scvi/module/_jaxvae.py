@@ -9,7 +9,12 @@ from flax.linen.initializers import variance_scaling
 from scvi import REGISTRY_KEYS
 from scvi.autotune._types import Tunable
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
-from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+from scvi.module.base import (
+    FlaxLossOutput,
+    JaxBaseModuleClass,
+    LossOutput,
+    flax_configure,
+)
 
 
 class Dense(nn.Dense):
@@ -223,4 +228,7 @@ class JaxVAE(JaxBaseModuleClass):
         loss = jnp.mean(reconst_loss + weighted_kl_local)
 
         kl_local = kl_divergence_z
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)
+        loss_output = LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
+        )
+        return FlaxLossOutput.from_loss_output(loss_output)

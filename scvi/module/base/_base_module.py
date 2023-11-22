@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections.abc import Iterable
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
-import chex
 import flax
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pyro
 import torch
+from flax import struct
 from flax.training import train_state
 from jax import random
 from jaxlib.xla_extension import Device
@@ -29,7 +29,45 @@ from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
 
-@chex.dataclass
+@struct.dataclass
+class FlaxLossOutput:
+    """Loss signature for Flax models."""
+
+    loss: LossRecord
+    reconstruction_loss: LossRecord | None = None
+    kl_local: LossRecord | None = None
+    kl_global: LossRecord | None = None
+    classification_loss: LossRecord | None = None
+    logits: Tensor | None = None
+    true_labels: Tensor | None = None
+    extra_metrics: dict[str, Tensor] | None = field(default_factory=dict)
+    extra_metrics_keys: list[str] | None = None
+    n_obs_minibatch: int | None = None
+    reconstruction_loss_sum: Tensor = None
+    kl_local_sum: Tensor = None
+    kl_global_sum: Tensor = None
+
+    @classmethod
+    def from_loss_output(cls, loss_output: LossOutput):
+        """Create a FlaxLossOutput from a LossOutput."""
+        return cls(
+            loss=loss_output.loss,
+            reconstruction_loss=loss_output.reconstruction_loss,
+            kl_local=loss_output.kl_local,
+            kl_global=loss_output.kl_global,
+            classification_loss=loss_output.classification_loss,
+            logits=loss_output.logits,
+            true_labels=loss_output.true_labels,
+            extra_metrics=loss_output.extra_metrics,
+            extra_metrics_keys=loss_output.extra_metrics_keys,
+            n_obs_minibatch=loss_output.n_obs_minibatch,
+            reconstruction_loss_sum=loss_output.reconstruction_loss_sum,
+            kl_local_sum=loss_output.kl_local_sum,
+            kl_global_sum=loss_output.kl_global_sum,
+        )
+
+
+@dataclass
 class LossOutput:
     """Loss signature for models.
 
@@ -134,7 +172,7 @@ class LossOutput:
     @property
     def extra_metrics_keys(self) -> Iterable[str]:
         """Keys for extra metrics."""
-        return self.extra_metrics.keys()
+        return list(self.extra_metrics.keys())
 
     def _as_dict(self, attr_name: str):
         attr = getattr(self, attr_name)

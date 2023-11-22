@@ -7,12 +7,12 @@ import math
 import os
 import warnings
 from collections import OrderedDict
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable
 
 import lightning.pytorch as pl
 import rich
-from chex import dataclass
 
 try:
     import ray
