@@ -34,6 +34,7 @@ classifiers = [
 dependencies = [
     "anndata>=0.7.5",
     "chex",
+    "statsmodels==0.13.5",
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
