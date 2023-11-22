@@ -60,6 +60,7 @@ dependencies = [
 
 [project.optional-dependencies]
 tests = [
+    "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
     "pytest",
     "pytest-cov",
     "scvi-tools[optional]"
