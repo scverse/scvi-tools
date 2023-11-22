@@ -331,3 +331,39 @@ def _is_minified(adata: Union[AnnData, str]) -> bool:
             return uns_key in read_elem(fp["uns"]).keys()
     else:
         raise TypeError(f"Unsupported type: {type(adata)}")
+
+
+def _check_fragment_counts(
+    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix, h5py.Dataset],
+    n_to_check: int = 100,
+):
+    """Approximately checks values of data to ensure it is fragment count data."""
+    # for backed anndata
+    if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
+        if len(data) >= 400:
+            data = data[:400]
+        else:
+            data = data[:]
+
+    # check that n_obs is greater than n_to_check
+    if data.shape[0] < n_to_check:
+        raise ValueError(
+            f"adata.obs must have at least {n_to_check} observations. Consider reducing n_to_check. "
+        )
+
+    inds = np.random.choice(data.shape[0], size=(n_to_check,))
+    if isinstance(data, np.ndarray):
+        data = data[inds]
+    elif sp_sparse.issparse(data):
+        data = data[inds].data
+    elif isinstance(data, pd.DataFrame):
+        data = data.iloc[inds].to_numpy()
+    else:
+        raise TypeError("data type not understood")
+
+    binary = np.logical_not(np.any(data > 1))  # True if all values are 0 or 1
+    non_fragments = np.count_nonzero(data == 1) < np.count_nonzero(
+        data == 2
+    )  # True if there are more 2s than 1s
+    ret = not (non_fragments or binary)
+    return ret
