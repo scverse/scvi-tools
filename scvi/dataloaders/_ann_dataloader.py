@@ -58,7 +58,7 @@ class AnnDataLoader(DataLoader):
         Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as the sampler.
         If `True`, `sampler` must be `None`.
     load_sparse_tensor
-        `EXPERIMENTAL` If ``True``, loads data with sparse CSR or CSC layout as a
+        ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
         :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to GPUs,
         depending on the sparsity of the data.
     **kwargs
