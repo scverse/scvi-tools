@@ -51,7 +51,7 @@ def _get_precision_recall_f1(ground_truth: np.ndarray, pred: np.ndarray):
 
 class PosteriorPredictiveCheck:
     """
-    EXPERIMENTAL Posterior predictive checks for comparing scRNA-seq generative models.
+    ``EXPERIMENTAL`` Posterior predictive checks for comparing scRNA-seq generative models.
 
     Parameters
     ----------

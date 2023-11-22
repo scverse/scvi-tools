@@ -57,10 +57,10 @@ class ContrastiveDataLoader(ConcatDataLoader):
             ``drop_last``. If ``drop_last == True``, drops last non-full batch.
             If ``drop_last == False``, iterate over all batches.
         distributed_sampler
-            Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as the
-            sampler. If `True`, `sampler` must be `None`. Not applicable here.
+            ``EXPERIMENTAL`` Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as
+            the sampler. If `True`, `sampler` must be `None`. Not applicable here.
         load_sparse_tensor
-            `EXPERIMENTAL` If ``True``, loads data with sparse CSR or CSC layout as a
+            ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
             :class:`~torch.Tensor` with the same layout. Can lead to speedups in data
             transfers to GPUs, depending on the sparsity of the data. Not applicable
             here.
