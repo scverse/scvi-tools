@@ -8,7 +8,7 @@ from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import Logger
 
 from scvi import settings
-from scvi.autotune._types import Tunable, TunableMixin
+from scvi._types import Tunable, TunableMixin
 
 from ._callbacks import (
     LoudEarlyStopping,

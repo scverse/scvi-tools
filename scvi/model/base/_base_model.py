@@ -15,8 +15,7 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData, MinifiedDataType
-from scvi.autotune._types import TunableMixin
+from scvi._types import AnnOrMuData, MinifiedDataType, TunableMixin
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (

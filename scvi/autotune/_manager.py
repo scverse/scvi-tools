@@ -24,13 +24,12 @@ except ImportError:
 import scvi
 from scvi import settings
 from scvi._decorators import dependencies
-from scvi._types import AnnOrMuData
+from scvi._types import AnnOrMuData, TunableMeta
 from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model.base import BaseModelClass
 from scvi.utils import InvalidParameterError
 
 from ._defaults import COLORS, COLUMN_KWARGS, DEFAULTS, TUNABLE_TYPES
-from ._types import TunableMeta
 from ._utils import in_notebook
 
 logger = logging.getLogger(__name__)

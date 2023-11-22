@@ -14,7 +14,7 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.autotune._types import Tunable
+from scvi._types import Tunable
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,

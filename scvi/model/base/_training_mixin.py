@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from scvi.autotune._types import Tunable
+from scvi._types import Tunable
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner

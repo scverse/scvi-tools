@@ -8,7 +8,7 @@ from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi.autotune._types import Tunable
+from scvi._types import Tunable
 from scvi.data import _constants
 from scvi.model.base import BaseModelClass
 from scvi.module.base import LossOutput, auto_move_data

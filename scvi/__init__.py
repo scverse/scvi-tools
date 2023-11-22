@@ -8,7 +8,7 @@ from ._constants import METRIC_KEYS, REGISTRY_KEYS
 from ._settings import settings
 
 # this import needs to come after prior imports to prevent circular import
-from . import autotune, data, model, external, utils, criticism
+from . import data, model, external, utils, criticism
 
 from importlib.metadata import version
 
@@ -29,7 +29,6 @@ __all__ = [
     "settings",
     "REGISTRY_KEYS",
     "METRIC_KEYS",
-    "autotune",
     "data",
     "model",
     "external",
