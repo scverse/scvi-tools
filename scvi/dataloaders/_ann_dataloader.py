@@ -55,8 +55,8 @@ class AnnDataLoader(DataLoader):
     iter_ndarray
         Whether to iterate over numpy arrays instead of torch tensors
     distributed_sampler
-        Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as the sampler.
-        If `True`, `sampler` must be `None`.
+        ``EXPERIMENTAL`` Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as the
+        sampler. If `True`, `sampler` must be `None`.
     load_sparse_tensor
         ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
         :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to GPUs,

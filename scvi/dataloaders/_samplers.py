@@ -2,7 +2,7 @@ from torch.utils.data import Dataset, DistributedSampler
 
 
 class BatchDistributedSampler(DistributedSampler):
-    """Sampler that restricts to loading from a subset of the dataset.
+    """``EXPERIMENTAL`` Sampler that restricts to loading from a subset of the dataset.
 
     In contrast to :class:`~torch.utils.data.distributed.DistributedSampler`,
     retrieves a minibatch of data with one call to the dataset's `__getitem__`
