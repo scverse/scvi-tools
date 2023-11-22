@@ -40,6 +40,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     with argument `seed` {pr}`2260`.
 -   Automatically log the learning rate when `reduce_lr_on_plateau=True` in
     training plans {pr}`2280`.
+-   Add {class}`~scvi.external.POISSONVI` to model scATAC-seq fragment counts with a Poisson distribution {pr}`2249`
 -   {class}`scvi.train.SemiSupervisedTrainingPlan` now logs the classifier
     calibration error {pr}`2299`.
 -   Passing `enable_checkpointing=True` into `train` methods is now
