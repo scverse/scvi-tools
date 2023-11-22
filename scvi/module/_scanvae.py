@@ -9,6 +9,8 @@ from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
 from scvi.autotune._types import Tunable
+from scvi.data import _constants
+from scvi.model.base import BaseModelClass
 from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import Decoder, Encoder
 
@@ -73,6 +75,8 @@ class SCANVAE(VAE):
     use_layer_norm
         Whether to use layer norm in layers
     linear_classifier
+        If ``True``, uses a single linear layer for classification instead of a
+        multi-layer perceptron.
     **vae_kwargs
         Keyword args for :class:`~scvi.module.VAE`
     """
@@ -131,6 +135,7 @@ class SCANVAE(VAE):
             "n_layers": 0 if linear_classifier else n_layers,
             "n_hidden": 0 if linear_classifier else n_hidden,
             "dropout_rate": dropout_rate,
+            "logits": True,
         }
         cls_parameters.update(classifier_parameters)
         self.classifier = Classifier(
@@ -203,7 +208,28 @@ class SCANVAE(VAE):
         cat_covs: Optional[torch.Tensor] = None,
         use_posterior_mean: bool = True,
     ) -> torch.Tensor:
-        """Classify cells into cell types."""
+        """Forward pass through the encoder and classifier.
+
+        Parameters
+        ----------
+        x
+            Tensor of shape ``(n_obs, n_vars)``.
+        batch_index
+            Tensor of shape ``(n_obs,)`` denoting batch indices.
+        cont_covs
+            Tensor of shape ``(n_obs, n_continuous_covariates)``.
+        cat_covs
+            Tensor of shape ``(n_obs, n_categorical_covariates)``.
+        use_posterior_mean
+            Whether to use the posterior mean of the latent distribution for
+            classification.
+
+        Returns
+        -------
+        Tensor of shape ``(n_obs, n_labels)`` denoting logit scores per label.
+        Before v1.1, this method by default returned probabilities per label,
+        see #2301 for more details.
+        """
         if self.log_variational:
             x = torch.log1p(x)
 
@@ -247,6 +273,8 @@ class SCANVAE(VAE):
         cat_covs = (
             labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
         )
+        # NOTE: prior to v1.1, this method returned probabilities per label by
+        # default, see #2301 for more details
         logits = self.classify(
             x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
         )  # (n_obs, n_labels)
@@ -335,6 +363,9 @@ class SCANVAE(VAE):
             )
 
         probs = self.classifier(z1)
+        if self.classifier.logits:
+            probs = F.softmax(probs, dim=-1)
+
         reconst_loss += loss_z1_weight + (
             (loss_z1_unweight).view(self.n_labels, -1).t() * probs
         ).sum(dim=1)
@@ -363,3 +394,24 @@ class SCANVAE(VAE):
         return LossOutput(
             loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence
         )
+
+    def on_load(self, model: BaseModelClass):
+        manager = model.get_anndata_manager(model.adata, required=True)
+        source_version = manager._source_registry[_constants._SCVI_VERSION_KEY]
+        version_split = source_version.split(".")
+
+        if int(version_split[0]) >= 1 and int(version_split[1]) >= 1:
+            return
+
+        # need this if <1.1 model is resaved with >=1.1 as new registry is
+        # updated on setup
+        manager.registry[_constants._SCVI_VERSION_KEY] = source_version
+
+        # pre 1.1 logits fix
+        model_kwargs = model.init_params_.get("model_kwargs", {})
+        cls_params = model_kwargs.get("classifier_parameters", {})
+        user_logits = cls_params.get("logits", False)
+
+        if not user_logits:
+            self.classifier.logits = False
+            self.classifier.classifier.append(torch.nn.Softmax(dim=-1))

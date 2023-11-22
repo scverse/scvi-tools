@@ -81,7 +81,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
     linear_classifier
-        If `True`, uses a single linear layer for classification instead of a
+        If ``True``, uses a single linear layer for classification instead of a
         multi-layer perceptron.
     **model_kwargs
         Keyword args for :class:`~scvi.module.SCANVAE`
@@ -336,6 +336,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
                 cont_covs=cont_covs,
                 use_posterior_mean=use_posterior_mean,
             )
+            if self.module.classifier.logits:
+                pred = torch.nn.functional.softmax(pred, dim=-1)
             if not soft:
                 pred = pred.argmax(dim=1)
             y_pred.append(pred.detach().cpu())
@@ -433,7 +435,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             self.module, self.n_labels, **plan_kwargs
         )
         if "callbacks" in trainer_kwargs.keys():
-            trainer_kwargs["callbacks"].concatenate(sampler_callback)
+            trainer_kwargs["callbacks"] + [sampler_callback]
         else:
             trainer_kwargs["callbacks"] = sampler_callback
 
@@ -455,7 +457,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         cls,
         adata: AnnData,
         labels_key: str,
-        unlabeled_category: str | int | float,
+        unlabeled_category: str,
         layer: str | None = None,
         batch_key: str | None = None,
         size_factor_key: str | None = None,

@@ -13,6 +13,7 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 #### Added
 
+-   Add {class}`scvi.external.ContrastiveVI` for contrastiveVI {pr}`2242`.
 -   Add {class}`scvi.dataloaders.BatchDistributedSampler` for distributed training {pr}`2102`.
 -   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to
     specify additional metrics to compute and log during the validation loop using
@@ -39,13 +40,22 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     with argument `seed` {pr}`2260`.
 -   Automatically log the learning rate when `reduce_lr_on_plateau=True` in
     training plans {pr}`2280`.
+-   Add {class}`~scvi.external.POISSONVI` to model scATAC-seq fragment counts with a Poisson distribution {pr}`2249`
 -   {class}`scvi.train.SemiSupervisedTrainingPlan` now logs the classifier
     calibration error {pr}`2299`.
+-   Passing `enable_checkpointing=True` into `train` methods is now
+    compatible with our model saves. Additional options can be specified
+    by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
+-   `scvi.settings.dl_num_workers` is now correctly applied as the default
+    `num_workers` in {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
 
 #### Fixed
 
 -   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder`
     in {class}`scvi.model.AmortizedLDA` {pr}`2229`
+-   Fix bug in {class}`scvi.module.SCANVAE` where classifier probabilities
+    were interpreted as logits. This is backwards compatible as loading older
+    models will use the old code path {pr}`2301`.
 
 #### Changed
 

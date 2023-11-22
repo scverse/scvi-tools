@@ -39,6 +39,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/scar`
      - Ambient RNA removal
      - :cite:p:`Sheng22`
+   * - :doc:`/user_guide/models/contrastivevi`
+     - scVI tasks with contrastive analysis
+     - :cite:p:`Weinberger23`
 
 ```
 

@@ -48,7 +48,7 @@ class UnsupervisedTrainingMixin:
             Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
             sequential order of the data according to `validation_size` and `train_size` percentages.
         load_sparse_tensor
-            `EXPERIMENTAL` If ``True``, loads data with sparse CSR or CSC layout as a
+            ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
             :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
             GPUs, depending on the sparsity of the data.
         batch_size
