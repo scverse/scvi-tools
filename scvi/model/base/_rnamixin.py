@@ -1,8 +1,9 @@
 import inspect
 import logging
 import warnings
+from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Dict, Iterable, Literal, Optional, Sequence, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -226,9 +227,7 @@ class RNASeqMixin:
             self.get_anndata_manager(adata, required=True), transform_batch
         )
 
-        gene_mask = (
-            slice(None) if gene_list is None else adata.var_names.isin(gene_list)
-        )
+        gene_mask = slice(None) if gene_list is None else adata.var_names.isin(gene_list)
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -645,7 +644,7 @@ class RNASeqMixin:
         n_samples: Optional[int] = 1,
         give_mean: Optional[bool] = False,
         batch_size: Optional[int] = None,
-    ) -> Dict[str, np.ndarray]:
+    ) -> dict[str, np.ndarray]:
         r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`.
 
         Parameters

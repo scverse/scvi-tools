@@ -1,6 +1,6 @@
 import sys
 import warnings
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 import lightning.pytorch as pl
 from lightning.pytorch.accelerators import Accelerator
@@ -10,7 +10,12 @@ from lightning.pytorch.loggers import Logger
 from scvi import settings
 from scvi.autotune._types import Tunable, TunableMixin
 
-from ._callbacks import LoudEarlyStopping, MetricCallable, MetricsCallback
+from ._callbacks import (
+    LoudEarlyStopping,
+    MetricCallable,
+    MetricsCallback,
+    SaveCheckpoint,
+)
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
@@ -42,8 +47,10 @@ class Trainer(TunableMixin, pl.Trainer):
         Defaults to `scvi.settings.logging_dir`. Can be remote file paths such as
         s3://mybucket/path or ‘hdfs://path/’
     enable_checkpointing
-        If `True`, enable checkpointing. It will configure a default ModelCheckpoint
-        callback if there is no user-defined ModelCheckpoint in `callbacks`.
+        If ``True``, enables checkpointing with a default :class:`~scvi.train.SaveCheckpoint`
+        callback if there is no user-defined :class:`~scvi.train.SaveCheckpoint` in ``callbacks``.
+    checkpointing_monitor
+        If ``enable_checkpointing`` is ``True``, specifies the metric to monitor for checkpointing.
     num_sanity_val_steps
         Sanity check runs n validation batches before starting the training routine.
         Set it to -1 to run all batches in all validation dataloaders.
@@ -88,12 +95,13 @@ class Trainer(TunableMixin, pl.Trainer):
     def __init__(
         self,
         accelerator: Optional[Union[str, Accelerator]] = None,
-        devices: Optional[Union[List[int], str, int]] = None,
+        devices: Optional[Union[list[int], str, int]] = None,
         benchmark: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
         max_epochs: Tunable[int] = 400,
         default_root_dir: Optional[str] = None,
         enable_checkpointing: bool = False,
+        checkpointing_monitor: str = "validation_loss",
         num_sanity_val_steps: int = 0,
         enable_model_summary: bool = False,
         early_stopping: bool = False,
@@ -104,7 +112,7 @@ class Trainer(TunableMixin, pl.Trainer):
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
         additional_val_metrics: Union[
-            MetricCallable, List[MetricCallable], Dict[str, MetricCallable]
+            MetricCallable, list[MetricCallable], dict[str, MetricCallable]
         ] = None,
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
@@ -128,6 +136,16 @@ class Trainer(TunableMixin, pl.Trainer):
                 mode=early_stopping_mode,
             )
             callbacks.append(early_stopping_callback)
+            check_val_every_n_epoch = 1
+
+        if enable_checkpointing and not any(
+            isinstance(c, SaveCheckpoint) for c in callbacks
+        ):
+            callbacks.append(SaveCheckpoint(monitor=checkpointing_monitor))
+            check_val_every_n_epoch = 1
+        elif any(isinstance(c, SaveCheckpoint) for c in callbacks):
+            # check if user provided already provided the callback
+            enable_checkpointing = True
             check_val_every_n_epoch = 1
 
         if learning_rate_monitor and not any(

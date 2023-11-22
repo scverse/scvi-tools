@@ -21,9 +21,7 @@ def prep_model(cls=SCVI, layer=None, use_size_factor=False):
         adata.layers[layer] = adata.X.copy()
         adata.X = np.zeros_like(adata.X)
     adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata_counts, axis=0)))
-    adata.varm["my_varm"] = np.random.negative_binomial(
-        5, 0.3, size=(adata.shape[1], 3)
-    )
+    adata.varm["my_varm"] = np.random.negative_binomial(5, 0.3, size=(adata.shape[1], 3))
     adata.layers["my_layer"] = np.ones_like(adata.X)
     adata_before_setup = adata.copy()
 

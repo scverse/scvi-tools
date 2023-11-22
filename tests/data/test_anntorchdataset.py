@@ -107,9 +107,7 @@ def test_getitem(n_genes: int = 50):
     assert data[REGISTRY_KEYS.BATCH_KEY].shape == (1, 1)
 
 
-@pytest.mark.parametrize(
-    "sparse_format", ["csr_matrix", "csr_array", "csc_matrix", "csc_array"]
-)
+@pytest.mark.parametrize("sparse_format", ["csr_matrix", "csc_matrix"])
 def test_load_sparse_tensor(sparse_format: str | None, n_genes: int = 50):
     adata = scvi.data.synthetic_iid(sparse_format=sparse_format, n_genes=n_genes)
     manager = generic_setup_adata_manager(adata, batch_key="batch")

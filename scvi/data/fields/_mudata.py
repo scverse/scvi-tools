@@ -132,9 +132,7 @@ def MuDataWrapper(
     def mudata_field_init(
         self, *args, mod_key: Optional[str] = None, mod_required: bool = False, **kwargs
     ):
-        BaseMuDataWrapperClass.__init__(
-            self, mod_key=mod_key, mod_required=mod_required
-        )
+        BaseMuDataWrapperClass.__init__(self, mod_key=mod_key, mod_required=mod_required)
         self._adata_field = adata_field_cls(*args, **kwargs)
         if preregister_fn is not None:
             self._preregister = preregister_fn

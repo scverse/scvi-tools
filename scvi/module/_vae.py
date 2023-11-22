@@ -1,6 +1,7 @@
 """Main module."""
 import logging
-from typing import Callable, Iterable, Literal, Optional
+from collections.abc import Iterable
+from typing import Callable, Literal, Optional
 
 import numpy as np
 import torch
@@ -487,9 +488,7 @@ class VAE(BaseMinifiedModeModuleClass):
             "kl_divergence_l": kl_divergence_l,
             "kl_divergence_z": kl_divergence_z,
         }
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)
 
     @torch.inference_mode()
     def sample(

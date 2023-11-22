@@ -1,12 +1,17 @@
+from __future__ import annotations
+
+import os
 import warnings
 from copy import deepcopy
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from datetime import datetime
+from shutil import rmtree
+from typing import Callable
 
 import flax
 import lightning.pytorch as pl
 import numpy as np
 import torch
-from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
 
@@ -15,6 +20,120 @@ from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
 
 MetricCallable = Callable[[BaseModelClass], float]
+
+
+class SaveCheckpoint(ModelCheckpoint):
+    """``EXPERIMENTAL`` Saves model checkpoints based on a monitored metric.
+
+    Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and
+    modifies the default behavior to save the full model state instead of just
+    the state dict. This is necessary for compatibility with
+    :class:`~scvi.model.base.BaseModelClass`.
+
+    The best model save and best model score based on ``monitor`` can be
+    accessed post-training with the ``best_model_path`` and ``best_model_score``
+    attributes, respectively.
+
+    Known issues:
+
+    * Does not set ``train_indices``, ``validation_indices``, and
+      ``test_indices`` for checkpoints.
+    * Does not set ``history`` for checkpoints. This can be accessed in the
+      final model however.
+    * Unsupported arguments: ``save_weights_only`` and ``save_last``
+
+    Parameters
+    ----------
+    dirpath
+        Base directory to save the model checkpoints. If ``None``, defaults to
+        a directory formatted with the current date, time, and monitor within
+        ``settings.logging_dir``.
+    filename
+        Name of the checkpoint directories. Can contain formatting options to be
+        auto-filled. If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
+    monitor
+        Metric to monitor for checkpointing.
+    **kwargs
+        Additional keyword arguments passed into
+        :class:`~lightning.pytorch.callbacks.ModelCheckpoint`.
+    """
+
+    def __init__(
+        self,
+        dirpath: str | None = None,
+        filename: str | None = None,
+        monitor: str = "validation_loss",
+        **kwargs,
+    ):
+        if dirpath is None:
+            dirpath = os.path.join(
+                settings.logging_dir,
+                datetime.now().strftime("%Y-%m-%d-%H:%M:%S"),
+            )
+            dirpath += f"-{monitor}"
+
+        if filename is None:
+            filename = "{epoch}-{step}-{" + monitor + "}"
+
+        if "save_weights_only" in kwargs:
+            warnings.warn(
+                "`save_weights_only` is not supported and will be ignored.",
+                RuntimeWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+            kwargs.pop("save_weights_only")
+        if "save_last" in kwargs:
+            warnings.warn(
+                "`save_last` is not supported and will be ignored.",
+                RuntimeWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+            kwargs.pop("save_last")
+
+        super().__init__(
+            dirpath=dirpath,
+            filename=filename,
+            monitor=monitor,
+            **kwargs,
+        )
+
+    def on_save_checkpoint(self, trainer: pl.Trainer, *args) -> None:
+        """Saves the model state on Lightning checkpoint saves."""
+        # set post training state before saving
+        model = trainer._model
+        model.module.eval()
+        model.is_trained_ = True
+        model.trainer = trainer
+
+        monitor_candidates = self._monitor_candidates(trainer)
+        save_path = self.format_checkpoint_name(monitor_candidates)
+        # by default, the function above gives a .ckpt extension
+        save_path = save_path.split(".ckpt")[0]
+        model.save(save_path, save_andnata=False, overwrite=True)
+
+        model.module.train()
+        model.is_trained_ = False
+
+    def _remove_checkpoint(self, trainer: pl.Trainer, filepath: str) -> None:
+        """Removes model saves that are no longer needed."""
+        super()._remove_checkpoint(trainer, filepath)
+
+        model_path = filepath.split(".ckpt")[0]
+        if os.path.exists(model_path) and os.path.isdir(model_path):
+            rmtree(model_path)
+
+    def _update_best_and_save(
+        self,
+        current: torch.Tensor,
+        trainer: pl.Trainer,
+        monitor_candidates: dict[str, torch.Tensor],
+    ) -> None:
+        """Replaces Lightning checkpoints with our model saves."""
+        super()._update_best_and_save(current, trainer, monitor_candidates)
+
+        if os.path.exists(self.best_model_path):
+            os.remove(self.best_model_path)
+        self.best_model_path = self.best_model_path.split(".ckpt")[0]
 
 
 class MetricsCallback(Callback):
@@ -38,9 +157,7 @@ class MetricsCallback(Callback):
 
     def __init__(
         self,
-        metric_fns: Union[
-            MetricCallable, List[MetricCallable], Dict[str, MetricCallable]
-        ],
+        metric_fns: MetricCallable | list[MetricCallable] | dict[str, MetricCallable],
     ):
         super().__init__()
 
@@ -201,7 +318,7 @@ class LoudEarlyStopping(EarlyStopping):
         super().__init__(**kwargs)
         self.early_stopping_reason = None
 
-    def _evaluate_stopping_criteria(self, current: torch.Tensor) -> Tuple[bool, str]:
+    def _evaluate_stopping_criteria(self, current: torch.Tensor) -> tuple[bool, str]:
         should_stop, reason = super()._evaluate_stopping_criteria(current)
         if should_stop:
             self.early_stopping_reason = reason
@@ -211,7 +328,7 @@ class LoudEarlyStopping(EarlyStopping):
         self,
         _trainer: pl.Trainer,
         _pl_module: pl.LightningModule,
-        stage: Optional[str] = None,
+        stage: str | None = None,
     ) -> None:
         """Print the reason for stopping on teardown."""
         if self.early_stopping_reason is not None:

@@ -3,8 +3,8 @@ from __future__ import annotations
 import io
 import logging
 import warnings
+from collections.abc import Sequence
 from contextlib import redirect_stdout
-from typing import Sequence
 
 import anndata
 import numpy as np
@@ -376,9 +376,7 @@ class SOLO(BaseModelClass):
             batch_size=batch_size,
             **datasplitter_kwargs,
         )
-        training_plan = ClassifierTrainingPlan(
-            self.module, self.n_labels, **plan_kwargs
-        )
+        training_plan = ClassifierTrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
             self,
             training_plan=training_plan,
