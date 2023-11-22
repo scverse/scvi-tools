@@ -6,4 +6,4 @@ labels: releases
 assignees: ""
 ---
 
-1. [] Bump version in `pyproject.toml`
+1. [ ] Bump version in `pyproject.toml`
