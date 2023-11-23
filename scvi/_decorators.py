@@ -1,5 +1,6 @@
+import importlib
 from functools import wraps
-from typing import Callable, Union
+from typing import Callable
 
 
 class classproperty:
@@ -15,7 +16,7 @@ class classproperty:
         return self.f(owner)
 
 
-def dependencies(packages: Union[str, list[str]]) -> Callable:
+def dependencies(*modules) -> Callable:
     """Decorator to check for dependencies.
 
     Parameters
@@ -23,21 +24,21 @@ def dependencies(packages: Union[str, list[str]]) -> Callable:
     packages
         A string or list of strings of packages to check for.
     """
-    if isinstance(packages, str):
-        packages = [packages]
 
     def decorator(fn: Callable) -> Callable:
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            try:
-                import importlib
+            missing_modules = []
+            for module in modules:
+                try:
+                    importlib.import_module(module)
+                except ImportError:
+                    missing_modules.append(module)
 
-                for package in packages:
-                    importlib.import_module(package)
-            except ImportError as err:
-                raise ImportError(
-                    f"Please install {packages} to use this functionality."
-                ) from err
+            if len(missing_modules) > 0:
+                raise ModuleNotFoundError(
+                    f"Please install {missing_modules} to use this functionality."
+                )
             return fn(*args, **kwargs)
 
         return wrapper
