@@ -1,5 +1,6 @@
 from ._attrdict import attrdict
 from ._decorators import unsupported_if_adata_minified
+from ._dependencies import error_on_missing_dependencies
 from ._docstrings import de_dsp, setup_anndata_dsp
 from ._exceptions import InvalidParameterError
 from ._jax import device_selecting_PRNGKey
@@ -13,4 +14,5 @@ __all__ = [
     "device_selecting_PRNGKey",
     "unsupported_if_adata_minified",
     "InvalidParameterError",
+    "error_on_missing_dependencies",
 ]

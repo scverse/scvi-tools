@@ -1,9 +1,11 @@
+from scvi._decorators import dependencies
 from scvi._types import AnnOrMuData
 from scvi.model.base import BaseModelClass
 
 from ._manager import TunerManager
 
 
+@dependencies("ray.tune")
 class ModelTuner:
     """Automated and scalable hyperparameter tuning for scvi-tools models.
 
