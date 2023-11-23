@@ -17,12 +17,6 @@ from chex import dataclass
 from ray import air, tune
 from ray.tune.integration.pytorch_lightning import TuneReportCallback
 
-# try:
-#     import ray
-#     from ray import air, tune
-#     from ray.tune.integration.pytorch_lightning import TuneReportCallback
-# except ImportError:
-#     pass
 import scvi
 from scvi import settings
 from scvi._decorators import dependencies
