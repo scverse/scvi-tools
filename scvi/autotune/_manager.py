@@ -11,26 +11,20 @@ from datetime import datetime
 from typing import Any, Callable
 
 import lightning.pytorch as pl
+import ray
 import rich
 from chex import dataclass
-
-try:
-    import ray
-    from ray import air, tune
-    from ray.tune.integration.pytorch_lightning import TuneReportCallback
-except ImportError:
-    pass
+from ray import air, tune
+from ray.tune.integration.pytorch_lightning import TuneReportCallback
 
 import scvi
 from scvi import settings
-from scvi._decorators import dependencies
-from scvi._types import AnnOrMuData
+from scvi._types import AnnOrMuData, TunableMeta
 from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model.base import BaseModelClass
 from scvi.utils import InvalidParameterError
 
 from ._defaults import COLORS, COLUMN_KWARGS, DEFAULTS, TUNABLE_TYPES
-from ._types import TunableMeta
 from ._utils import in_notebook
 
 logger = logging.getLogger(__name__)
@@ -193,7 +187,6 @@ class TunerManager:
         train_kwargs["plan_kwargs"] = plan_kwargs
         return model_kwargs, train_kwargs
 
-    @dependencies("ray.tune")
     def _validate_search_space(self, search_space: dict, use_defaults: bool) -> dict:
         """Validates a search space against the hyperparameter registry."""
         # validate user-provided search space
@@ -260,7 +253,6 @@ class TunerManager:
         mode = metrics[metric]
         return metric, mode
 
-    @dependencies("ray.tune")
     def _validate_scheduler(
         self,
         scheduler: str,
@@ -305,7 +297,6 @@ class TunerManager:
         _kwargs.update(scheduler_kwargs)
         return _scheduler(**_kwargs)
 
-    @dependencies(["ray.tune", "hyperopt"])
     def _validate_search_algorithm(
         self,
         searcher: str,
@@ -368,7 +359,6 @@ class TunerManager:
         return _scheduler, _searcher
 
     @staticmethod
-    @dependencies("ray.tune")
     def _validate_reporter(
         reporter: bool, search_space: dict, metrics: OrderedDict
     ) -> Any:
@@ -403,7 +393,6 @@ class TunerManager:
         setup_args = manager._get_setup_method_args().get(_SETUP_ARGS_KEY, {})
         return setup_method_name, setup_args
 
-    @dependencies(["ray.tune", "ray.air", "tensorboard"])
     def _get_trainable(
         self,
         adata: AnnOrMuData,
@@ -503,12 +492,11 @@ class TunerManager:
     ) -> tuple[str, str]:
         if experiment_name is None:
             experiment_name = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
-            experiment_name += f"_tune_{self._model_cls.__name__.lower()}"
+            experiment_name += f"_{self._model_cls.__name__.lower()}"
         if logging_dir is None:
-            logging_dir = os.path.join(os.getcwd(), "scvi_autotune")
+            logging_dir = os.path.join(settings.logging_dir, "autotune")
         return experiment_name, logging_dir
 
-    @dependencies(["ray.tune", "ray.air"])
     def _get_tuner(
         self,
         adata: AnnOrMuData,
@@ -634,7 +622,6 @@ class TunerManager:
         return table
 
     @staticmethod
-    @dependencies("ray")
     def _get_resources(available: bool = False) -> dict:
         # TODO: need a cleaner way to do this as it starts a ray instance
         ray.init(logging_level=logging.ERROR)
