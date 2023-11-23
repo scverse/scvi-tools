@@ -15,8 +15,8 @@ from sklearn.metrics import (
 from sparse import GCXS, SparseArray
 from xarray import DataArray, Dataset
 
-from scvi._decorators import dependencies
 from scvi.model.base import BaseModelClass
+from scvi.utils import dependencies
 
 from ._constants import (
     DATA_VAR_RAW,

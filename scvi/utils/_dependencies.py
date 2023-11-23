@@ -1,4 +1,6 @@
 import importlib
+from functools import wraps
+from typing import Callable
 
 
 def error_on_missing_dependencies(*modules):
@@ -12,3 +14,17 @@ def error_on_missing_dependencies(*modules):
         raise ModuleNotFoundError(
             f"Please install {missing_modules} to use this functionality."
         )
+
+
+def dependencies(*modules) -> Callable:
+    """Decorator to check for dependencies."""
+
+    def decorator(fn: Callable) -> Callable:
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            error_on_missing_dependencies(*modules)
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
