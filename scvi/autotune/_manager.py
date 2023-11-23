@@ -492,9 +492,9 @@ class TunerManager:
     ) -> tuple[str, str]:
         if experiment_name is None:
             experiment_name = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
-            experiment_name += f"_tune_{self._model_cls.__name__.lower()}"
+            experiment_name += f"_{self._model_cls.__name__.lower()}"
         if logging_dir is None:
-            logging_dir = os.path.join(os.getcwd(), "scvi_autotune")
+            logging_dir = os.path.join(settings.logging_dir, "autotune")
         return experiment_name, logging_dir
 
     def _get_tuner(
