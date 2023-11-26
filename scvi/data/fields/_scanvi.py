@@ -5,6 +5,7 @@ import numpy as np
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
+from scvi import settings
 from scvi.data._utils import _make_column_categorical, _set_data_in_registry
 
 from ._dataframe_field import CategoricalObsField
@@ -88,7 +89,10 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         ):
             # Fill in original .obs attribute with unlabeled_category values.
             warnings.warn(
-                f"Missing labels key {self._original_attr_key}. Filling in with unlabeled category {self._unlabeled_category}."
+                f"Missing labels key {self._original_attr_key}. Filling in with "
+                f"unlabeled category {self._unlabeled_category}.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
             _set_data_in_registry(
                 adata_target,

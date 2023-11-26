@@ -1,5 +1,6 @@
 """Main module."""
-from typing import Dict, Iterable, Literal, Optional, Tuple, Union
+from collections.abc import Iterable
+from typing import Literal, Optional, Union
 
 import numpy as np
 import torch
@@ -91,6 +92,14 @@ class TOTALVAE(BaseModuleClass):
     library_log_vars
         1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
+    use_batch_norm
+        Whether to use batch norm in layers.
+    use_layer_norm
+        Whether to use layer norm in layers.
+    extra_encoder_kwargs
+        Extra keyword arguments passed into :class:`~scvi.nn.EncoderTOTALVI`.
+    extra_decoder_kwargs
+        Extra keyword arguments passed into :class:`~scvi.nn.DecoderTOTALVI`.
     """
 
     def __init__(
@@ -114,7 +123,7 @@ class TOTALVAE(BaseModuleClass):
         log_variational: bool = True,
         gene_likelihood: Tunable[Literal["zinb", "nb"]] = "nb",
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
-        protein_batch_mask: Dict[Union[str, int], np.ndarray] = None,
+        protein_batch_mask: dict[Union[str, int], np.ndarray] = None,
         encode_covariates: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
         protein_background_prior_scale: Optional[np.ndarray] = None,
@@ -124,6 +133,8 @@ class TOTALVAE(BaseModuleClass):
         library_log_vars: Optional[np.ndarray] = None,
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        extra_encoder_kwargs: Optional[dict] = None,
+        extra_decoder_kwargs: Optional[dict] = None,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -217,6 +228,7 @@ class TOTALVAE(BaseModuleClass):
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
         cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
         encoder_cat_list = cat_list if encode_covariates else None
+        _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.encoder = EncoderTOTALVI(
             n_input_encoder,
             n_latent,
@@ -227,7 +239,9 @@ class TOTALVAE(BaseModuleClass):
             distribution=latent_distribution,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
+            **_extra_encoder_kwargs,
         )
+        _extra_decoder_kwargs = extra_decoder_kwargs or {}
         self.decoder = DecoderTOTALVI(
             n_latent + n_continuous_cov,
             n_input_genes,
@@ -239,6 +253,7 @@ class TOTALVAE(BaseModuleClass):
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softplus" if use_size_factor_key else "softmax",
+            **_extra_decoder_kwargs,
         )
 
     def get_sample_dispersion(
@@ -248,7 +263,7 @@ class TOTALVAE(BaseModuleClass):
         batch_index: Optional[torch.Tensor] = None,
         label: Optional[torch.Tensor] = None,
         n_samples: int = 1,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Returns the tensors of dispersions for genes and proteins.
 
         Parameters
@@ -280,10 +295,10 @@ class TOTALVAE(BaseModuleClass):
         self,
         x: torch.Tensor,
         y: torch.Tensor,
-        px_dict: Dict[str, torch.Tensor],
-        py_dict: Dict[str, torch.Tensor],
+        px_dict: dict[str, torch.Tensor],
+        py_dict: dict[str, torch.Tensor],
         pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute reconstruction loss."""
         px_ = px_dict
         py_ = py_dict
@@ -298,9 +313,7 @@ class TOTALVAE(BaseModuleClass):
             )
         else:
             reconst_loss_gene = (
-                -NegativeBinomial(mu=px_["rate"], theta=px_["r"])
-                .log_prob(x)
-                .sum(dim=-1)
+                -NegativeBinomial(mu=px_["rate"], theta=px_["r"]).log_prob(x).sum(dim=-1)
             )
 
         py_conditional = NegativeBinomialMixture(
@@ -311,11 +324,9 @@ class TOTALVAE(BaseModuleClass):
         )
         reconst_loss_protein_full = -py_conditional.log_prob(y)
         if pro_batch_mask_minibatch is not None:
-            temp_pro_loss_full = torch.zeros_like(reconst_loss_protein_full)
-            temp_pro_loss_full.masked_scatter_(
-                pro_batch_mask_minibatch.bool(), reconst_loss_protein_full
+            temp_pro_loss_full = (
+                pro_batch_mask_minibatch.bool() * reconst_loss_protein_full
             )
-
             reconst_loss_protein = temp_pro_loss_full.sum(dim=-1)
         else:
             reconst_loss_protein = reconst_loss_protein_full.sum(dim=-1)
@@ -380,7 +391,7 @@ class TOTALVAE(BaseModuleClass):
         cat_covs=None,
         size_factor=None,
         transform_batch: Optional[int] = None,
-    ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
+    ) -> dict[str, Union[torch.Tensor, dict[str, torch.Tensor]]]:
         """Run the generative step."""
         if cont_covs is None:
             decoder_input = z
@@ -442,7 +453,7 @@ class TOTALVAE(BaseModuleClass):
         n_samples=1,
         cont_covs=None,
         cat_covs=None,
-    ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
+    ) -> dict[str, Union[torch.Tensor, dict[str, torch.Tensor]]]:
         """Internal helper function to compute necessary inference quantities.
 
         We use the dictionary ``px_`` to contain the parameters of the ZINB/NB for genes.
@@ -560,7 +571,7 @@ class TOTALVAE(BaseModuleClass):
         generative_outputs,
         pro_recons_weight=1.0,  # double check these defaults
         kl_weight=1.0,
-    ) -> Tuple[
+    ) -> tuple[
         torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor
     ]:
         """Returns the reconstruction loss and the Kullback divergences.
@@ -626,10 +637,7 @@ class TOTALVAE(BaseModuleClass):
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
         )
         if pro_batch_mask_minibatch is not None:
-            kl_div_back_pro = torch.zeros_like(kl_div_back_pro_full)
-            kl_div_back_pro.masked_scatter_(
-                pro_batch_mask_minibatch.bool(), kl_div_back_pro_full
-            )
+            kl_div_back_pro = pro_batch_mask_minibatch.bool() * kl_div_back_pro_full
             kl_div_back_pro = kl_div_back_pro.sum(dim=1)
         else:
             kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
@@ -686,7 +694,7 @@ class TOTALVAE(BaseModuleClass):
 
     @torch.inference_mode()
     @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples):
+    def marginal_ll(self, tensors, n_mc_samples, return_mean: bool = True):
         """Computes the marginal log likelihood of the data under the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -743,5 +751,6 @@ class TOTALVAE(BaseModuleClass):
             to_sum[:, i] = log_prob_sum
 
         batch_log_lkl = torch.logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
-        log_lkl = torch.sum(batch_log_lkl).item()
+        if return_mean:
+            log_lkl = torch.mean(batch_log_lkl).item()
         return log_lkl

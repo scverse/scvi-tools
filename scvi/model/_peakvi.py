@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import logging
+from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Dict, Iterable, List, Literal, Optional, Sequence, Union
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -76,7 +79,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/PeakVI`
+    1. :doc:`/tutorials/notebooks/atac/PeakVI`
     """
 
     _module_cls = PEAKVAE
@@ -84,8 +87,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
-        n_hidden: Optional[int] = None,
-        n_latent: Optional[int] = None,
+        n_hidden: int | None = None,
+        n_latent: int | None = None,
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 2,
         dropout_rate: float = 0.1,
@@ -149,21 +152,22 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 500,
         lr: float = 1e-4,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
         weight_decay: float = 1e-3,
         eps: float = 1e-08,
         early_stopping: bool = True,
         early_stopping_patience: int = 50,
         save_best: bool = True,
-        check_val_every_n_epoch: Optional[int] = None,
-        n_steps_kl_warmup: Union[int, None] = None,
-        n_epochs_kl_warmup: Union[int, None] = 50,
-        plan_kwargs: Optional[dict] = None,
+        check_val_every_n_epoch: int | None = None,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = 50,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **kwargs,
     ):
         """Trains the model using amortized variational inference.
@@ -174,7 +178,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of passes through the dataset.
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -182,6 +185,9 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         weight_decay
@@ -205,6 +211,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_epochs_kl_warmup
             Number of epochs to scale weight on KL divergences from 0 to 1.
             Overrides `n_steps_kl_warmup` when both are not `None`.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -233,13 +241,14 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         super().train(
             max_epochs=max_epochs,
             train_size=train_size,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
             early_stopping=early_stopping,
             early_stopping_monitor="reconstruction_loss_validation",
             early_stopping_patience=early_stopping_patience,
+            datasplitter_kwargs=datasplitter_kwargs,
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
             batch_size=batch_size,
@@ -249,10 +258,10 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     @torch.inference_mode()
     def get_library_size_factors(
         self,
-        adata: Optional[AnnData] = None,
+        adata: AnnData | None = None,
         indices: Sequence[int] = None,
         batch_size: int = 128,
-    ) -> Dict[str, np.ndarray]:
+    ) -> dict[str, np.ndarray]:
         """Return library size factors.
 
         Parameters
@@ -292,18 +301,18 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     @torch.inference_mode()
     def get_accessibility_estimates(
         self,
-        adata: Optional[AnnData] = None,
+        adata: AnnData | None = None,
         indices: Sequence[int] = None,
-        n_samples_overall: Optional[int] = None,
-        region_list: Optional[Sequence[str]] = None,
-        transform_batch: Optional[Union[str, int]] = None,
+        n_samples_overall: int | None = None,
+        region_list: Sequence[str] | None = None,
+        transform_batch: str | int | None = None,
         use_z_mean: bool = True,
-        threshold: Optional[float] = None,
+        threshold: float | None = None,
         normalize_cells: bool = False,
         normalize_regions: bool = False,
         batch_size: int = 128,
         return_numpy: bool = False,
-    ) -> Union[pd.DataFrame, np.ndarray, csr_matrix]:
+    ) -> pd.DataFrame | np.ndarray | csr_matrix:
         """Impute the full accessibility matrix.
 
         Returns a matrix of accessibility probabilities for each cell and genomic region in the input
@@ -413,19 +422,19 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     @de_dsp.dedent
     def differential_accessibility(
         self,
-        adata: Optional[AnnData] = None,
-        groupby: Optional[str] = None,
-        group1: Optional[Iterable[str]] = None,
-        group2: Optional[str] = None,
-        idx1: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
-        idx2: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        adata: AnnData | None = None,
+        groupby: str | None = None,
+        group1: Iterable[str] | None = None,
+        group2: str | None = None,
+        idx1: Sequence[int] | Sequence[bool] | str | None = None,
+        idx2: Sequence[int] | Sequence[bool] | str | None = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.05,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         all_stats: bool = True,
         batch_correction: bool = False,
-        batchid1: Optional[Iterable[str]] = None,
-        batchid2: Optional[Iterable[str]] = None,
+        batchid1: Iterable[str] | None = None,
+        batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
         two_sided: bool = True,
@@ -507,6 +516,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
+            representation_fn=None,
             groupby=groupby,
             group1=group1,
             group2=group2,
@@ -548,11 +558,11 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
-        layer: Optional[str] = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.

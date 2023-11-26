@@ -1,5 +1,5 @@
 from math import ceil, floor
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 import lightning.pytorch as pl
 import numpy as np
@@ -51,9 +51,9 @@ def validate_data_split(
 
     if n_train == 0:
         raise ValueError(
-            "With n_samples={}, train_size={} and validation_size={}, the "
+            f"With n_samples={n_samples}, train_size={train_size} and validation_size={validation_size}, the "
             "resulting train set will be empty. Adjust any of the "
-            "aforementioned parameters.".format(n_samples, train_size, validation_size)
+            "aforementioned parameters."
         )
 
     return n_train, n_val
@@ -72,6 +72,13 @@ class DataSplitter(pl.LightningDataModule):
         float, or None (default is 0.9)
     validation_size
         float, or None (default is None)
+    shuffle_set_split
+        Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+        sequential order of the data according to `validation_size` and `train_size` percentages.
+    load_sparse_tensor
+        If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
+        :class:`~torch.Tensor` with the same layout. Can lead to significant
+        speedups in transferring data to GPUs, depending on the sparsity of the data.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
@@ -90,11 +97,15 @@ class DataSplitter(pl.LightningDataModule):
     >>> train_dl = splitter.train_dataloader()
     """
 
+    data_loader_cls = AnnDataLoader
+
     def __init__(
         self,
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        shuffle_set_split: bool = True,
+        load_sparse_tensor: bool = False,
         pin_memory: bool = False,
         **kwargs,
     ):
@@ -102,8 +113,10 @@ class DataSplitter(pl.LightningDataModule):
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
+        self.shuffle_set_split = shuffle_set_split
+        self.load_sparse_tensor = load_sparse_tensor
         self.data_loader_kwargs = kwargs
-        self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
+        self.pin_memory = pin_memory
 
         self.n_train, self.n_val = validate_data_split(
             self.adata_manager.adata.n_obs, self.train_size, self.validation_size
@@ -113,19 +126,24 @@ class DataSplitter(pl.LightningDataModule):
         """Split indices in train/test/val sets."""
         n_train = self.n_train
         n_val = self.n_val
-        random_state = np.random.RandomState(seed=settings.seed)
-        permutation = random_state.permutation(self.adata_manager.adata.n_obs)
-        self.val_idx = permutation[:n_val]
-        self.train_idx = permutation[n_val : (n_val + n_train)]
-        self.test_idx = permutation[(n_val + n_train) :]
+        indices = np.arange(self.adata_manager.adata.n_obs)
+
+        if self.shuffle_set_split:
+            random_state = np.random.RandomState(seed=settings.seed)
+            indices = random_state.permutation(indices)
+
+        self.val_idx = indices[:n_val]
+        self.train_idx = indices[n_val : (n_val + n_train)]
+        self.test_idx = indices[(n_val + n_train) :]
 
     def train_dataloader(self):
         """Create train data loader."""
-        return AnnDataLoader(
+        return self.data_loader_cls(
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
             drop_last=False,
+            load_sparse_tensor=self.load_sparse_tensor,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
@@ -133,11 +151,12 @@ class DataSplitter(pl.LightningDataModule):
     def val_dataloader(self):
         """Create validation data loader."""
         if len(self.val_idx) > 0:
-            return AnnDataLoader(
+            return self.data_loader_cls(
                 self.adata_manager,
                 indices=self.val_idx,
                 shuffle=False,
                 drop_last=False,
+                load_sparse_tensor=self.load_sparse_tensor,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
@@ -147,16 +166,27 @@ class DataSplitter(pl.LightningDataModule):
     def test_dataloader(self):
         """Create test data loader."""
         if len(self.test_idx) > 0:
-            return AnnDataLoader(
+            return self.data_loader_cls(
                 self.adata_manager,
                 indices=self.test_idx,
                 shuffle=False,
                 drop_last=False,
+                load_sparse_tensor=self.load_sparse_tensor,
                 pin_memory=self.pin_memory,
                 **self.data_loader_kwargs,
             )
         else:
             pass
+
+    def on_after_batch_transfer(self, batch, dataloader_idx):
+        """Converts sparse tensors to dense if necessary."""
+        if self.load_sparse_tensor:
+            for key, val in batch.items():
+                layout = val.layout if isinstance(val, torch.Tensor) else None
+                if layout is torch.sparse_csr or layout is torch.sparse_csc:
+                    batch[key] = val.to_dense()
+
+        return batch
 
 
 class SemiSupervisedDataSplitter(pl.LightningDataModule):
@@ -174,6 +204,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         float, or None (default is 0.9)
     validation_size
         float, or None (default is None)
+    shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
     n_samples_per_label
         Number of subsamples for each label class to sample per epoch
     pin_memory
@@ -200,6 +233,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
         validation_size: Optional[float] = None,
+        shuffle_set_split: bool = True,
         n_samples_per_label: Optional[int] = None,
         pin_memory: bool = False,
         **kwargs,
@@ -208,6 +242,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.adata_manager = adata_manager
         self.train_size = float(train_size)
         self.validation_size = validation_size
+        self.shuffle_set_split = shuffle_set_split
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
@@ -224,7 +259,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
 
         self.data_loader_kwargs = kwargs
-        self.pin_memory = pin_memory or settings.dl_pin_memory_gpu_training
+        self.pin_memory = pin_memory
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
@@ -235,10 +270,14 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             n_labeled_train, n_labeled_val = validate_data_split(
                 n_labeled_idx, self.train_size, self.validation_size
             )
-            rs = np.random.RandomState(seed=settings.seed)
-            labeled_permutation = rs.choice(
-                self._labeled_indices, len(self._labeled_indices), replace=False
-            )
+
+            labeled_permutation = self._labeled_indices
+            if self.shuffle_set_split:
+                rs = np.random.RandomState(seed=settings.seed)
+                labeled_permutation = rs.choice(
+                    self._labeled_indices, len(self._labeled_indices), replace=False
+                )
+
             labeled_idx_val = labeled_permutation[:n_labeled_val]
             labeled_idx_train = labeled_permutation[
                 n_labeled_val : (n_labeled_val + n_labeled_train)
@@ -253,10 +292,14 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             n_unlabeled_train, n_unlabeled_val = validate_data_split(
                 n_unlabeled_idx, self.train_size, self.validation_size
             )
-            rs = np.random.RandomState(seed=settings.seed)
-            unlabeled_permutation = rs.choice(
-                self._unlabeled_indices, len(self._unlabeled_indices)
-            )
+
+            unlabeled_permutation = self._unlabeled_indices
+            if self.shuffle_set_split:
+                rs = np.random.RandomState(seed=settings.seed)
+                unlabeled_permutation = rs.choice(
+                    self._unlabeled_indices, len(self._unlabeled_indices)
+                )
+
             unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]
             unlabeled_idx_train = unlabeled_permutation[
                 n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
@@ -432,7 +475,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         else:
             return None
 
-    def _make_dataloader(self, tensor_dict: Dict[str, torch.Tensor], shuffle):
+    def _make_dataloader(self, tensor_dict: dict[str, torch.Tensor], shuffle):
         """Create a dataloader from a tensor dict."""
         if tensor_dict is None:
             return None
@@ -460,10 +503,10 @@ class DeviceBackedDataSplitter(DataSplitter):
 
 
 class _DeviceBackedDataset(Dataset):
-    def __init__(self, tensor_dict: Dict[str, torch.Tensor]):
+    def __init__(self, tensor_dict: dict[str, torch.Tensor]):
         self.data = tensor_dict
 
-    def __getitem__(self, idx: List[int]) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, idx: list[int]) -> dict[str, torch.Tensor]:
         return_dict = {}
         for key, value in self.data.items():
             return_dict[key] = value[idx]

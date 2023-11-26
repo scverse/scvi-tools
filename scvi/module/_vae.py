@@ -1,5 +1,7 @@
 """Main module."""
-from typing import Callable, Iterable, Literal, Optional
+import logging
+from collections.abc import Iterable
+from typing import Callable, Literal, Optional
 
 import numpy as np
 import torch
@@ -16,6 +18,8 @@ from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
+
+logger = logging.getLogger(__name__)
 
 
 class VAE(BaseMinifiedModeModuleClass):
@@ -94,6 +98,10 @@ class VAE(BaseMinifiedModeModuleClass):
     scale_activation
         String naming the activation function to use for transforming decoder output
         before applying per cell normalisation.
+    extra_encoder_kwargs
+        Extra keyword arguments passed into :class:`~scvi.nn.Encoder`.
+    extra_decoder_kwargs
+        Extra keyword arguments passed into :class:`~scvi.nn.DecoderSCVI`.
     """
 
     regularise_dispersion_prior = 3.0
@@ -112,7 +120,7 @@ class VAE(BaseMinifiedModeModuleClass):
         dispersion: Tunable[
             Literal["gene", "gene-batch", "gene-label", "gene-cell"]
         ] = "gene",
-        log_variational: bool = True,
+        log_variational: Tunable[bool] = True,
         gene_likelihood: Tunable[Literal["zinb", "nb", "poisson"]] = "zinb",
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
         encode_covariates: Tunable[bool] = False,
@@ -120,7 +128,7 @@ class VAE(BaseMinifiedModeModuleClass):
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
         use_size_factor_key: bool = False,
-        use_observed_lib_size: bool = True,
+        use_observed_lib_size: Tunable[bool] = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
         library_log_vars_weight: float = 1.0,
@@ -130,6 +138,8 @@ class VAE(BaseMinifiedModeModuleClass):
         use_additive_background: bool = False,
         use_batch_in_decoder: bool = True,
         regularise_dispersion: bool = False,
+        extra_encoder_kwargs: Optional[dict] = None,
+        extra_decoder_kwargs: Optional[dict] = None,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -190,6 +200,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
         cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
         encoder_cat_list = cat_list if encode_covariates else None
+        _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.z_encoder = Encoder(
             n_input_encoder,
             n_latent,
@@ -203,6 +214,7 @@ class VAE(BaseMinifiedModeModuleClass):
             use_layer_norm=use_layer_norm_encoder,
             var_activation=var_activation,
             return_dist=True,
+            **_extra_encoder_kwargs,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
         if library_n_hidden is None:
@@ -219,11 +231,16 @@ class VAE(BaseMinifiedModeModuleClass):
             use_layer_norm=use_layer_norm_encoder,
             var_activation=var_activation,
             return_dist=True,
+            **_extra_encoder_kwargs,
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         n_input_decoder = n_latent + n_continuous_cov
+
         if scale_activation is None:
             scale_activation = "softplus" if use_size_factor_key else "softmax"
+        _extra_decoder_kwargs = extra_decoder_kwargs or {}
+        _extra_decoder_kwargs["scale_activation"] = scale_activation
+
         self.decoder = DecoderSCVI(
             n_input_decoder,
             n_input,
@@ -233,7 +250,7 @@ class VAE(BaseMinifiedModeModuleClass):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            scale_activation=scale_activation,
+            **_extra_decoder_kwargs,
         )
 
     def _get_inference_input(
@@ -321,7 +338,12 @@ class VAE(BaseMinifiedModeModuleClass):
 
     @auto_move_data
     def _regular_inference(
-        self, x, batch_index, cont_covs=None, cat_covs=None, n_samples=1
+        self,
+        x,
+        batch_index,
+        cont_covs=None,
+        cat_covs=None,
+        n_samples=1,
     ):
         """High level inference method.
 
@@ -492,7 +514,7 @@ class VAE(BaseMinifiedModeModuleClass):
         """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
-            dim=1
+            dim=-1
         )
         if not self.use_observed_lib_size:
             kl_divergence_l = kl(
@@ -529,9 +551,7 @@ class VAE(BaseMinifiedModeModuleClass):
             "kl_divergence_l": kl_divergence_l,
             "kl_divergence_z": kl_divergence_z,
         }
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)
 
     @torch.inference_mode()
     def sample(
@@ -586,16 +606,40 @@ class VAE(BaseMinifiedModeModuleClass):
 
     @torch.inference_mode()
     @auto_move_data
-    def marginal_ll(self, tensors, n_mc_samples):
-        """Computes the marginal log likelihood of the model."""
-        sample_batch = tensors[REGISTRY_KEYS.X_KEY]
+    def marginal_ll(
+        self,
+        tensors,
+        n_mc_samples,
+        return_mean=False,
+        n_mc_samples_per_pass=1,
+    ):
+        """Computes the marginal log likelihood of the model.
+
+        Parameters
+        ----------
+        tensors
+            Dict of input tensors, typically corresponding to the items of the data loader.
+        n_mc_samples
+            Number of Monte Carlo samples to use for the estimation of the marginal log likelihood.
+        return_mean
+            Whether to return the mean of marginal likelihoods over cells.
+        n_mc_samples_per_pass
+            Number of Monte Carlo samples to use per pass. This is useful to avoid memory issues.
+        """
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        to_sum = torch.zeros(sample_batch.size()[0], n_mc_samples)
-
-        for i in range(n_mc_samples):
+        to_sum = []
+        if n_mc_samples_per_pass > n_mc_samples:
+            logger.warn(
+                "Number of chunks is larger than the total number of samples, setting it to the number of samples"
+            )
+            n_mc_samples_per_pass = n_mc_samples
+        n_passes = int(np.ceil(n_mc_samples / n_mc_samples_per_pass))
+        for _ in range(n_passes):
             # Distribution parameters and sampled variables
-            inference_outputs, _, losses = self.forward(tensors)
+            inference_outputs, _, losses = self.forward(
+                tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass}
+            )
             qz = inference_outputs["qz"]
             ql = inference_outputs["ql"]
             z = inference_outputs["z"]
@@ -629,11 +673,14 @@ class VAE(BaseMinifiedModeModuleClass):
 
                 log_prob_sum += p_l - q_l_x
 
-            to_sum[:, i] = log_prob_sum
-
-        batch_log_lkl = logsumexp(to_sum, dim=-1) - np.log(n_mc_samples)
-        log_lkl = torch.sum(batch_log_lkl).item()
-        return log_lkl
+            to_sum.append(log_prob_sum)
+        to_sum = torch.cat(to_sum, dim=0)
+        batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(n_mc_samples)
+        if return_mean:
+            batch_log_lkl = torch.mean(batch_log_lkl).item()
+        else:
+            batch_log_lkl = batch_log_lkl.cpu()
+        return batch_log_lkl
 
 
 class LDVAE(VAE):

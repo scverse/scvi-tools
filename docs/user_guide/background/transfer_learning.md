@@ -10,10 +10,10 @@ For this, we use the scArches approach [^ref1].
 
 The core logic for scArches is implemented in {class}`~scvi.model.base.ArchesMixin`.
 
-:::{topic} Tutorials:
+```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scarches_scvi_tools`
-    :::
+-   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
+```
 
 ### Preliminaries
 

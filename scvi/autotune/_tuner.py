@@ -48,6 +48,12 @@ class ModelTuner:
             provided as instantiated Ray Tune sample functions. Available
             hyperparameters can be viewed with :meth:`~scvi.autotune.ModelTuner.info`.
             Must be provided if `use_defaults` is `False`.
+        model_kwargs
+            Keyword arguments passed to the model class's constructor. Arguments must
+            not overlap with those in `search_space`.
+        train_kwargs
+            Keyword arguments passed to the model's `train` method. Arguments must not
+            overlap with those in `search_space`.
         use_defaults
             Whether to use the model class's default search space, which can be viewed
             with :meth:`~scvi.autotune.ModelTuner.info`. If `True` and `search_space` is

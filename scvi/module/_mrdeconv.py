@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -64,6 +64,10 @@ class MRDeconv(BaseModuleClass):
         Scalar parameter indicating the strength of the prior for
         the noise term (eta parameter). Default is 1e-4.
         (changing value is discouraged.)
+    extra_encoder_kwargs
+        Extra keyword arguments passed into :class:`~scvi.nn.FCLayers`.
+    extra_decoder_kwargs
+        Extra keyword arguments passed into :class:`~scvi.nn.FCLayers`.
     """
 
     def __init__(
@@ -86,6 +90,8 @@ class MRDeconv(BaseModuleClass):
         l1_reg: Tunable[float] = 0.0,
         beta_reg: Tunable[float] = 5.0,
         eta_reg: Tunable[float] = 1e-4,
+        extra_encoder_kwargs: Optional[dict] = None,
+        extra_decoder_kwargs: Optional[dict] = None,
     ):
         super().__init__()
         self.n_spots = n_spots
@@ -100,6 +106,7 @@ class MRDeconv(BaseModuleClass):
         self.beta_reg = beta_reg
         self.eta_reg = eta_reg
         # unpack and copy parameters
+        _extra_decoder_kwargs = extra_decoder_kwargs or {}
         self.decoder = FCLayers(
             n_in=n_latent,
             n_out=n_hidden,
@@ -109,6 +116,7 @@ class MRDeconv(BaseModuleClass):
             dropout_rate=dropout_decoder,
             use_layer_norm=True,
             use_batch_norm=False,
+            **_extra_decoder_kwargs,
         )
         self.px_decoder = torch.nn.Sequential(
             torch.nn.Linear(n_hidden, n_genes), torch.nn.Softplus()
@@ -144,6 +152,7 @@ class MRDeconv(BaseModuleClass):
 
         # create additional neural nets for amortization
         # within cell_type factor loadings
+        _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.gamma_encoder = torch.nn.Sequential(
             FCLayers(
                 n_in=self.n_genes,
@@ -154,6 +163,7 @@ class MRDeconv(BaseModuleClass):
                 dropout_rate=dropout_amortization,
                 use_layer_norm=True,
                 use_batch_norm=False,
+                **_extra_encoder_kwargs,
             ),
             torch.nn.Linear(n_hidden, n_latent * n_labels),
         )
@@ -167,6 +177,7 @@ class MRDeconv(BaseModuleClass):
                 dropout_rate=dropout_amortization,
                 use_layer_norm=True,
                 use_batch_norm=False,
+                **_extra_encoder_kwargs,
             ),
             torch.nn.Linear(n_hidden, n_labels + 1),
         )
@@ -279,9 +290,7 @@ class MRDeconv(BaseModuleClass):
             # isotropic normal prior
             mean = torch.zeros_like(gamma)
             scale = torch.ones_like(gamma)
-            neg_log_likelihood_prior = (
-                -Normal(mean, scale).log_prob(gamma).sum(2).sum(1)
-            )
+            neg_log_likelihood_prior = -Normal(mean, scale).log_prob(gamma).sum(2).sum(1)
         else:
             # vampprior
             # gamma is of shape n_latent, n_labels, minibatch_size
@@ -294,12 +303,8 @@ class MRDeconv(BaseModuleClass):
             )  # 1, p, n_labels, n_latent
             mp_vprior = torch.transpose(self.mp_vprior, 0, 1)  # p, n_labels
             pre_lse = (
-                Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4)
-                .log_prob(gamma)
-                .sum(3)
-            ) + torch.log(
-                mp_vprior
-            )  # minibatch, p, n_labels
+                Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4).log_prob(gamma).sum(3)
+            ) + torch.log(mp_vprior)  # minibatch, p, n_labels
             # Pseudocount for numerical stability
             log_likelihood_prior = torch.logsumexp(pre_lse, 1)  # minibatch, n_labels
             neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch

@@ -3,10 +3,10 @@ import os
 import shutil
 import tarfile
 import warnings
-from typing import Tuple
 
 import numpy as np
 
+from scvi import settings
 from scvi.data._download import _download
 
 logger = logging.getLogger(__name__)
@@ -91,9 +91,17 @@ def _load_dataset_10x(
     # form data url and filename unless manual override
     if dataset_name is not None:
         if url is not None:
-            warnings.warn("dataset_name provided, manual url is disregarded.")
+            warnings.warn(
+                "dataset_name provided, manual url is disregarded.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
         if filename is not None:
-            warnings.warn("dataset_name provided, manual filename is disregarded.")
+            warnings.warn(
+                "dataset_name provided, manual filename is disregarded.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
         group = dataset_to_group[dataset_name]
         url_skeleton = group_to_url_skeleton[group]
 
@@ -139,7 +147,7 @@ def _load_dataset_10x(
     return adata
 
 
-def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
+def _find_path_to_mtx(save_path: str) -> tuple[str, str]:
     """Returns exact path for the data in the archive.
 
     This is required because 10X doesn't have a consistent way of storing their data.
@@ -154,8 +162,7 @@ def _find_path_to_mtx(save_path: str) -> Tuple[str, str]:
         # do not consider hidden files
         files = [f for f in files if not f[0] == "."]
         contains_mat = [
-            filename == "matrix.mtx" or filename == "matrix.mtx.gz"
-            for filename in files
+            filename == "matrix.mtx" or filename == "matrix.mtx.gz" for filename in files
         ]
         contains_mat = np.asarray(contains_mat).any()
         if contains_mat:

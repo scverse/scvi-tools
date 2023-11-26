@@ -11,17 +11,145 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 ### 1.1.0 (2023-MM-DD)
 
+#### Added
+
+-   Add {class}`scvi.dataloaders.BatchDistributedSampler` for distributed training {pr}`2102`.
+-   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to
+    specify additional metrics to compute and log during the validation loop using
+    {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
+-   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model`
+    `pr`{2166}.
+-   Add `load_sparse_tensor` argument in {class}`scvi.data.AnnTorchDataset` for directly
+    loading SciPy CSR and CSC data structures to their PyTorch counterparts, leading to
+    faster data loading depending on the sparsity of the data {pr}`2158`.
+-   Add per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
+    method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
+    stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
+    per-group LFC.
+-   Expose {meth}`torch.save` keyword arguments in {class}`scvi.model.base.BaseModelClass.save`
+    and {class}`scvi.external.GIMVI.save` {pr}`2200`.
+-   Add `model_kwargs` and `train_kwargs` arguments to {meth}`scvi.autotune.ModelTuner.fit` {pr}`2203`.
+-   Add `datasplitter_kwargs` to model `train` methods {pr}`2204`.
+-   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for
+    stochastic prediction of celltype labels {pr}`2224`.
+-   Add support for Python 3.10+ type annotations in {class}`scvi.autotune.ModelTuner` {pr}`2239`.
+-   Add option to log device statistics in {meth}`scvi.autotune.ModelTuner.fit`
+    with argument `monitor_device_stats` {pr}`2260`.
+-   Add option to pass in a random seed to {meth}`scvi.autotune.ModelTuner.fit`
+    with argument `seed` {pr}`2260`.
+-   Automatically log the learning rate when `reduce_lr_on_plateau=True` in
+    training plans {pr}`2280`.
+-   {class}`scvi.train.SemiSupervisedTrainingPlan` now logs the classifier
+    calibration error {pr}`2299`.
+-   Passing `enable_checkpointing=True` into `train` methods is now
+    compatible with our model saves. Additional options can be specified
+    by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
+
+#### Fixed
+
+-   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder`
+    in {class}`scvi.model.AmortizedLDA` {pr}`2229`
+
+#### Changed
+
+-   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
+    for increased flexibility over dataset format {pr}`2163`.
+-   Add per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
+    method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
+    stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
+    per-group LFC.
+-   Revalidate `devices` when automatically switching from MPS to CPU
+    accelerator in {func}`scvi.model._utils.parse_device_args` {pr}`2247`.
+-   Refactor {class}`scvi.data.AnnTorchDataset`, now loads continuous data as
+    {class}`numpy.float32` and categorical data as {class}`numpy.int64` by
+    default {pr}`2250`.
+-   Support fractional GPU usage in {class}`scvi.autotune.ModelTuner` `pr`{2252}.
+-   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner` `pr`{2260}.
+-   Match `momentum` and `epsilon` in {class}`scvi.module.JaxVAE` to the
+    default values in PyTorch {pr}`2309`.
+
 #### Removed
 
--   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices` {pr}`xxxx`.
+-   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator`
+    and `devices` {pr}`2114`.
+-   Remove deprecated `scvi._compat.Literal` class {pr}`2115`.
 
 ## Version 1.0
 
-### 1.0.0 (2023-MM-DD)
+### 1.0.4 (2023-10-xx)
+
+### Added
+
+-   Add support for AnnData 0.10.0 {pr}`2271`.
+
+### 1.0.3 (2023-08-13)
+
+### Changed
+
+-   Disable the default selection of MPS when `accelerator="auto"` in Lightning {pr}`2167`.
+-   Change JAX models to use `dict` instead of {class}`flax.core.FrozenDict` according
+    to the Flax migration guide https://github.com/google/flax/discussions/3191 {pr}`2222`.
+
+### Fixed
+
+-   Fix bug in {class}`scvi.model.base.PyroSviTrainMixin` where `training_plan`
+    argument is ignored {pr}`2162`.
+-   Fix missing docstring for `unlabeled_category` in
+    {class}`scvi.model.SCANVI.setup_anndata` and reorder arguments {pr}`2189`.
+-   Fix Pandas 2.0 unpickling error in {meth}`scvi.model.base.BaseModelClas.convert_legacy_save`
+    by switching to {func}`pandas.read_pickle` for the setup dictionary {pr}`2212`.
+
+### 1.0.2 (2023-07-05)
+
+### Fixed
+
+-   Fix link to Scanpy preprocessing in introduction tutorial {pr}`2154`.
+-   Fix link to Ray Tune search API in autotune tutorial {pr}`2154`.
+
+### 1.0.1 (2023-07-04)
+
+#### Added
+
+-   Add support for Python 3.11 {pr}`1977`.
+
+#### Changed
+
+-   Upper bound Chex dependency to 0.1.8 due to NumPy installation conflicts {pr}`2132`.
+
+### 1.0.0 (2023-06-02)
+
+#### Added
+
+-   Add {class}`scvi.criticism.PosteriorPredictiveCheck` for model evaluation {pr}`2058`.
+-   Add {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
+-   Add default `stacklevel` for `warnings` in `scvi.settings` {pr}`1971`.
+-   Add scBasset motif injection procedure {pr}`2010`.
+-   Add importance sampling based differential expression procedure {pr}`1872`.
+-   Raise clearer error when initializing {class}`scvi.external.SOLO` from {class}`scvi.model.SCVI` with extra categorical or continuous covariates {pr}`2027`.
+-   Add option to generate {class}`mudata.MuData` in {meth}`scvi.data.synthetic_iid` {pr}`2028`.
+-   Add option for disabling shuffling prior to splitting data in {class}`scvi.dataloaders.DataSplitter` {pr}`2037`.
+-   Add {meth}`scvi.data.AnnDataManager.create_torch_dataset` and expose custom sampler ability {pr}`2036`.
+-   Log training loss through Lightning's progress bar {pr}`2043`.
+-   Filter Jax undetected GPU warnings {pr}`2044`.
+-   Raise warning if MPS backend is selected for PyTorch, see https://github.com/pytorch/pytorch/issues/77764 {pr}`2045`.
+-   Add `deregister_manager` function to {class}`scvi.model.base.BaseModelClass`, allowing to clear
+    {class}`scvi.data.AnnDataManager` instances from memory {pr}`2060`.
+-   Add option to use a linear classifier in {class}`scvi.model.SCANVI` {pr}`2063`.
+-   Add lower bound 0.12.1 for Numpyro dependency {pr}`2078`.
+-   Add new section in scBasset tutorial for motif scoring {pr}`2079`.
+
+#### Fixed
+
+-   Fix creation of minified adata by copying original uns dict {pr}`2000`. This issue arises with anndata>=0.9.0.
+-   Fix {class}`scvi.model.TOTALVI` {class}`scvi.model.MULTIVI` handling of missing protein values {pr}`2009`.
+-   Fix bug in {meth}`scvi.distributions.NegativeBinomialMixture.sample` where `theta` and `mu` arguments were switched around {pr}`2024`.
+-   Fix bug in {meth}`scvi.dataloaders.SemiSupervisedDataLoader.resample_labels` where the labeled dataloader was not being reinitialized on subsample {pr}`2032`.
+-   Fix typo in {class}`scvi.model.JaxSCVI` example snippet {pr}`2075`.
 
 #### Changed
 
 -   Use sphinx book theme for documentation {pr}`1673`.
+-   {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` now outputs 3-d {class}`sparse.GCXS` matrices {pr}`1902`.
 -   Add an option to specify `dropout_ratio` in {meth}`scvi.data.synthetic_iid` {pr}`1920`.
 -   Update to lightning 2.0 {pr}`1961`
 -   Hyperopt is new default searcher for tuner {pr}`1961`
@@ -31,16 +159,22 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Deprecate `use_gpu` in favor of PyTorch Lightning arguments `accelerator` and `devices`, to be removed in v1.1 {pr}`1978`.
 -   Docs organization {pr}`1983`.
 -   Validate training data and code URLs for {class}`scvi.hub.HubMetadata` and {class}`scvi.hub.HubModelCardHelper` {pr}`1985`.
+-   Keyword arguments for encoders and decoders can now be passed in from the model level {pr}`1986`.
+-   Expose `local_dir` as a public property in {class}`scvi.hub.HubModel` {pr}`1994`.
+-   Use {func}`anndata.concat` internally inside {meth}`scvi.external.SOLO.from_scvi_model` {pr}`2013`.
+-   {class}`scvi.train.SemiSupervisedTrainingPlan` and {class}`scvi.train.ClassifierTrainingPlan` now log accuracy,
+    F1 score, and AUROC metrics {pr}`2023`.
+-   Switch to cellxgene census for backend for cellxgene data function {pr}`2030`.
+-   Change default `max_cells` and `truncation` in {meth}`scvi.model.base.RNASeqMixin._get_importance_weights` {pr}`2064`.
+-   Refactor heuristic for default `max_epochs` as a separate function {meth}`scvi.model._utils.get_max_epochs_heuristic` {pr}`2083`.
 
 #### Removed
 
 -   Remove ability to set up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model`, which was deprecated. ST data should be set up using {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1949`.
 -   Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
 -   Remove `drop_last` as an integer from {class}`~scvi.dataloaders.AnnDataLoader`, add typing and code cleanup {pr}`1975`.
-
-#### Added
-
--   Added {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
+-   Remove seqfish and seqfish plus datasets {pr}`2017`.
+-   Remove support for Python 3.8 (NEP 29) {pr}`2021`.
 
 ## Version 0.20
 

@@ -6,7 +6,7 @@ scvi-tools can be installed via conda or pip. If you don't know which to choose,
 
 ### conda
 
-1. Install conda. We typically use the [mambaforge] distribution. Use python>=3.8, and consider using mamba instead of conda. Mamba is a drop-in replacement for conda that is significantly more efficient.
+1. Install conda. We typically use the [mambaforge] distribution. Use python>=3.9, and consider using mamba instead of conda. Mamba is a drop-in replacement for conda that is significantly more efficient.
 
 2. Create a new conda environment:
 

@@ -1,13 +1,14 @@
+from __future__ import annotations
+
 import logging
 import warnings
-from typing import List, Optional, Union
 
 import numpy as np
 import torch
 from anndata import AnnData
 from sklearn.cluster import KMeans
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model.base import (
@@ -94,9 +95,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
-    def get_vamp_prior(
-        self, adata: Optional[AnnData] = None, p: int = 10
-    ) -> np.ndarray:
+    def get_vamp_prior(self, adata: AnnData | None = None, p: int = 10) -> np.ndarray:
         r"""Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
 
         Parameters
@@ -116,7 +115,10 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         """
         if self.is_trained_ is False:
             warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train the model first."
+                "Trying to query inferred values from an untrained model. Please train "
+                "the model first.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
 
         adata = self._validate_anndata(adata)
@@ -179,9 +181,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             mean_cluster = np.zeros_like(var_cluster)
 
             for index, cluster in enumerate(keys):
-                indices_curr = local_indices[
-                    np.where(overclustering_vamp == cluster)[0]
-                ]
+                indices_curr = local_indices[np.where(overclustering_vamp == cluster)[0]]
                 var_cluster[index, :] = np.mean(var_cat[indices_curr], axis=0) + np.var(
                     mean_cat[indices_curr], axis=0
                 )
@@ -199,13 +199,14 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         self,
         max_epochs: int = 300,
         lr: float = 0.001,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 1,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **kwargs,
     ):
         """Trains the model using MAP inference.
@@ -216,7 +217,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -224,8 +224,13 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -241,12 +246,13 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             plan_kwargs = update_dict
         super().train(
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             train_size=train_size,
             validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            datasplitter_kwargs=datasplitter_kwargs,
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
@@ -256,8 +262,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     def setup_anndata(
         cls,
         adata: AnnData,
-        labels_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        labels_key: str | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.

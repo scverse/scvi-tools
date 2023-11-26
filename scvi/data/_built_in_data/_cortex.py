@@ -38,8 +38,8 @@ def _load_cortex_txt(path_to_file: str) -> anndata.AnnData:
                 gene_names.append(row[0])
     cell_types, labels = np.unique(clusters, return_inverse=True)
     _, precise_labels = np.unique(precise_clusters, return_inverse=True)
-    data = np.asarray(rows, dtype=np.int).T[1:]
-    gene_names = np.asarray(gene_names, dtype=np.str)
+    data = np.asarray(rows, dtype=np.int32).T[1:]
+    gene_names = np.asarray(gene_names, dtype=str)
     gene_indices = []
 
     extra_gene_indices = []

@@ -67,7 +67,7 @@ def _load_smfish_data(
     ds = loompy.connect(path_to_file)
     x_coord, y_coord = ds.ca["X"], ds.ca["Y"]
     data = ds[:, :].T
-    gene_names = ds.ra["Gene"].astype(np.str)
+    gene_names = ds.ra["Gene"].astype(str)
     labels = ds.ca["ClusterID"]
     str_labels = np.asarray(ds.ca["ClusterName"])
     labels_mapping = pd.Categorical(str_labels).categories

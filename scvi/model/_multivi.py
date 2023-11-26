@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import logging
 import warnings
+from collections.abc import Iterable, Sequence
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Dict, Iterable, List, Literal, Optional, Sequence, Union
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -11,7 +14,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
@@ -138,8 +141,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         n_regions: int,
         modality_weights: Literal["equal", "cell", "universal"] = "equal",
         modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
-        n_hidden: Optional[int] = None,
-        n_latent: Optional[int] = None,
+        n_hidden: int | None = None,
+        n_latent: int | None = None,
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 2,
         dropout_rate: float = 0.1,
@@ -240,21 +243,22 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         self,
         max_epochs: int = 500,
         lr: float = 1e-4,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
         weight_decay: float = 1e-3,
         eps: float = 1e-08,
         early_stopping: bool = True,
         save_best: bool = True,
-        check_val_every_n_epoch: Optional[int] = None,
-        n_steps_kl_warmup: Optional[int] = None,
-        n_epochs_kl_warmup: Optional[int] = 50,
+        check_val_every_n_epoch: int | None = None,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = 50,
         adversarial_mixing: bool = True,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **kwargs,
     ):
         """Trains the model using amortized variational inference.
@@ -265,7 +269,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Number of passes through the dataset.
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -273,6 +276,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         weight_decay
@@ -296,6 +302,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Overrides `n_steps_kl_warmup` when both are not `None`.
         adversarial_mixing
             Whether to use adversarial training to penalize the model for umbalanced mixing of modalities.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -317,6 +325,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         else:
             plan_kwargs = update_dict
 
+        datasplitter_kwargs = datasplitter_kwargs or {}
+
         if save_best:
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
@@ -328,7 +338,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            **datasplitter_kwargs,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
         runner = self._train_runner_cls(
@@ -336,7 +348,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             early_stopping=early_stopping,
@@ -350,10 +361,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @torch.inference_mode()
     def get_library_size_factors(
         self,
-        adata: Optional[AnnData] = None,
+        adata: AnnData | None = None,
         indices: Sequence[int] = None,
         batch_size: int = 128,
-    ) -> Dict[str, np.ndarray]:
+    ) -> dict[str, np.ndarray]:
         """Return library size factors.
 
         Parameters
@@ -401,11 +412,11 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adata: Optional[AnnData] = None,
+        adata: AnnData | None = None,
         modality: Literal["joint", "expression", "accessibility"] = "joint",
-        indices: Optional[Sequence[int]] = None,
+        indices: Sequence[int] | None = None,
         give_mean: bool = True,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> np.ndarray:
         r"""Return the latent representation for each cell.
 
@@ -475,18 +486,18 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @torch.inference_mode()
     def get_accessibility_estimates(
         self,
-        adata: Optional[AnnData] = None,
+        adata: AnnData | None = None,
         indices: Sequence[int] = None,
-        n_samples_overall: Optional[int] = None,
-        region_list: Optional[Sequence[str]] = None,
-        transform_batch: Optional[Union[str, int]] = None,
+        n_samples_overall: int | None = None,
+        region_list: Sequence[str] | None = None,
+        transform_batch: str | int | None = None,
         use_z_mean: bool = True,
-        threshold: Optional[float] = None,
+        threshold: float | None = None,
         normalize_cells: bool = False,
         normalize_regions: bool = False,
         batch_size: int = 128,
         return_numpy: bool = False,
-    ) -> Union[np.ndarray, csr_matrix, pd.DataFrame]:
+    ) -> np.ndarray | csr_matrix | pd.DataFrame:
         """Impute the full accessibility matrix.
 
         Returns a matrix of accessibility probabilities for each cell and genomic region in the input
@@ -593,17 +604,17 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @torch.inference_mode()
     def get_normalized_expression(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        n_samples_overall: Optional[int] = None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        gene_list: Optional[Sequence[str]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        n_samples_overall: int | None = None,
+        transform_batch: Sequence[Number | str] | None = None,
+        gene_list: Sequence[str] | None = None,
         use_z_mean: bool = True,
         n_samples: int = 1,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool = False,
-    ) -> Union[np.ndarray, pd.DataFrame]:
+    ) -> np.ndarray | pd.DataFrame:
         r"""Returns the normalized (decoded) gene expression.
 
         This is denoted as :math:`\rho_n` in the scVI paper.
@@ -706,19 +717,19 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @de_dsp.dedent
     def differential_accessibility(
         self,
-        adata: Optional[AnnData] = None,
-        groupby: Optional[str] = None,
-        group1: Optional[Iterable[str]] = None,
-        group2: Optional[str] = None,
-        idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
-        idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        adata: AnnData | None = None,
+        groupby: str | None = None,
+        group1: Iterable[str] | None = None,
+        group2: str | None = None,
+        idx1: Sequence[int] | Sequence[bool] | None = None,
+        idx2: Sequence[int] | Sequence[bool] | None = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.05,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         all_stats: bool = True,
         batch_correction: bool = False,
-        batchid1: Optional[Iterable[str]] = None,
-        batchid2: Optional[Iterable[str]] = None,
+        batchid1: Iterable[str] | None = None,
+        batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
         two_sided: bool = True,
@@ -804,6 +815,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
+            representation_fn=None,
             groupby=groupby,
             group1=group1,
             group2=group2,
@@ -844,19 +856,19 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @de_dsp.dedent
     def differential_expression(
         self,
-        adata: Optional[AnnData] = None,
-        groupby: Optional[str] = None,
-        group1: Optional[Iterable[str]] = None,
-        group2: Optional[str] = None,
-        idx1: Optional[Union[Sequence[int], Sequence[bool]]] = None,
-        idx2: Optional[Union[Sequence[int], Sequence[bool]]] = None,
+        adata: AnnData | None = None,
+        groupby: str | None = None,
+        group1: Iterable[str] | None = None,
+        group2: str | None = None,
+        idx1: Sequence[int] | Sequence[bool] | None = None,
+        idx2: Sequence[int] | Sequence[bool] | None = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         all_stats: bool = True,
         batch_correction: bool = False,
-        batchid1: Optional[Iterable[str]] = None,
-        batchid2: Optional[Iterable[str]] = None,
+        batchid1: Iterable[str] | None = None,
+        batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
         **kwargs,
@@ -904,6 +916,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
+            representation_fn=None,
             groupby=groupby,
             group1=group1,
             group2=group2,
@@ -927,15 +940,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @torch.no_grad()
     def get_protein_foreground_probability(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        protein_list: Optional[Sequence[str]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        transform_batch: Sequence[Number | str] | None = None,
+        protein_list: Sequence[str] | None = None,
         n_samples: int = 1,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         use_z_mean: bool = True,
         return_mean: bool = True,
-        return_numpy: Optional[bool] = None,
+        return_numpy: bool | None = None,
     ):
         r"""Returns the foreground probability for proteins.
 
@@ -991,7 +1004,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
                 warnings.warn(
-                    "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                    "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` is "
+                    "`False`, returning an `np.ndarray`.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             return_numpy = True
         if indices is None:
@@ -1053,13 +1069,13 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
-        protein_expression_obsm_key: Optional[str] = None,
-        protein_names_uns_key: Optional[str] = None,
+        layer: str | None = None,
+        batch_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        protein_expression_obsm_key: str | None = None,
+        protein_names_uns_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -1122,6 +1138,4 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         :return:
         """
         if (adata is not None) and (self.module.modality_weights == "cell"):
-            raise RuntimeError(
-                "Held out data not permitted when using per cell weights"
-            )
+            raise RuntimeError("Held out data not permitted when using per cell weights")

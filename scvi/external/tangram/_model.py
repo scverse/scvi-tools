@@ -1,6 +1,7 @@
 import logging
-from typing import Dict, List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
+import flax
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -12,6 +13,7 @@ from mudata import MuData
 
 from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
+from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import JaxTrainingPlan
 from scvi.utils import setup_anndata_dsp, track
@@ -62,7 +64,7 @@ class Tangram(BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/tangram_scvi_tools`
+    1. :doc:`/tutorials/notebooks/spatial/tangram_scvi_tools`
     """
 
     def __init__(
@@ -102,12 +104,7 @@ class Tangram(BaseModelClass):
             target_count=target_count,
             **model_kwargs,
         )
-        self._model_summary_string = (
-            "TangramMapper Model with params: \nn_obs_sc: {}, n_obs_sp: {}"
-        ).format(
-            self.n_obs_sc,
-            self.n_obs_sp,
-        )
+        self._model_summary_string = f"TangramMapper Model with params: \nn_obs_sc: {self.n_obs_sc}, n_obs_sp: {self.n_obs_sp}"
         self.init_params_ = self._get_init_params(locals())
 
     def get_mapper_matrix(self) -> np.ndarray:
@@ -125,9 +122,8 @@ class Tangram(BaseModelClass):
     def train(
         self,
         max_epochs: int = 1000,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: Union[int, list[int], str] = "auto",
         lr: float = 0.1,
         plan_kwargs: Optional[dict] = None,
     ):
@@ -137,7 +133,6 @@ class Tangram(BaseModelClass):
         ----------
         max_epochs
             Number of passes through the dataset.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         lr
@@ -158,24 +153,26 @@ class Tangram(BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
-        device = jax.devices("cpu")[0]
-        if use_gpu is None or use_gpu is True:
-            try:
-                device = jax.devices("gpu")[0]
-                self.module.to(device)
-                logger.info(
-                    "Jax module moved to GPU. "
-                    "Note: Pytorch lightning will show GPU is not being used for the Trainer."
-                )
-            except RuntimeError:
-                logger.debug("No GPU available to Jax.")
-        else:
+
+        _, _, device = parse_device_args(
+            accelerator,
+            devices,
+            return_device="jax",
+            validate_single_device=True,
+        )
+        try:
             self.module.to(device)
-            logger.info("Jax module moved to CPU.")
+            logger.info(
+                f"Jax module moved to {device}."
+                "Note: Pytorch lightning will show GPU is not being used for the Trainer."
+            )
+        except RuntimeError:
+            logger.debug("No GPU available to Jax.")
+
         tensor_dict = self._get_tensor_dict(device=device)
         training_plan = JaxTrainingPlan(self.module, **plan_kwargs)
         module_init = self.module.init(self.module.rngs, tensor_dict)
-        state, params = module_init.pop("params")
+        state, params = flax.core.pop(module_init, "params")
         training_plan.set_train_state(params, state)
         train_step_fn = JaxTrainingPlan.jit_training_step
         pbar = track(range(max_epochs), style="tqdm", description="Training")
@@ -201,7 +198,7 @@ class Tangram(BaseModelClass):
         ] = "rna_count_based",
         sc_layer: Optional[str] = None,
         sp_layer: Optional[str] = None,
-        modalities: Optional[Dict[str, str]] = None,
+        modalities: Optional[dict[str, str]] = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -279,7 +276,7 @@ class Tangram(BaseModelClass):
     def _get_tensor_dict(
         self,
         device: Device,
-    ) -> Dict[str, jnp.ndarray]:
+    ) -> dict[str, jnp.ndarray]:
         """Get training data for Tangram model.
 
         Tangram does not minibatch, so we just make a dictionary of

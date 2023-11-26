@@ -9,8 +9,16 @@ import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
+import torch
 from anndata import AnnData
-from anndata._core.sparse_dataset import SparseDataset
+
+try:
+    from anndata._core.sparse_dataset import SparseDataset
+except ImportError:
+    # anndata >= 0.10.0
+    from anndata._core.sparse_dataset import (
+        BaseCompressedSparseDataset as SparseDataset,
+    )
 
 # TODO use the experimental api once we lower bound to anndata 0.8
 try:
@@ -20,12 +28,71 @@ except ImportError:
 
 from mudata import MuData
 from pandas.api.types import CategoricalDtype
+from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import AnnOrMuData, MinifiedDataType
 
 from . import _constants
 
 logger = logging.getLogger(__name__)
+
+
+ScipySparse = Union[sp_sparse.csr_matrix, sp_sparse.csc_matrix]
+
+
+def registry_key_to_default_dtype(key: str) -> type:
+    """Returns the default dtype for a given registry key."""
+    if key in [
+        REGISTRY_KEYS.BATCH_KEY,
+        REGISTRY_KEYS.LABELS_KEY,
+        REGISTRY_KEYS.CAT_COVS_KEY,
+        REGISTRY_KEYS.INDICES_KEY,
+    ]:
+        return np.int64
+
+    return np.float32
+
+
+def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
+    """Converts a SciPy sparse data structure to a sparse :class:`~torch.Tensor`.
+
+    Parameters
+    ----------
+    x
+        SciPy sparse data structure to convert. One of the following:
+
+        * :class:`~scipy.sparse.csr_matrix`:
+            Converted to a :class:`~torch.Tensor` constructed with
+            :meth:`~torch.sparse_csr_tensor`.
+        * :class:`~scipy.sparse.csc_matrix`:
+            Converted to a :class:`~torch.Tensor` constructed with
+            :meth:`~torch.sparse_csc_tensor`.
+
+    Returns
+    -------
+    :class:`~torch.Tensor`
+        A sparse tensor equivalent to `x`.
+    """
+    if isinstance(x, sp_sparse.csr_matrix):
+        return sparse_csr_tensor(
+            as_tensor(x.indptr),
+            as_tensor(x.indices),
+            as_tensor(x.data),
+            size=x.shape,
+        )
+    elif isinstance(x, sp_sparse.csc_matrix):
+        return sparse_csc_tensor(
+            as_tensor(x.indptr),
+            as_tensor(x.indices),
+            as_tensor(x.data),
+            size=x.shape,
+        )
+    else:
+        raise TypeError(
+            "`x` must be of type `scipy.sparse.csr_matrix` or "
+            "`scipy.sparse.csc_matrix`."
+        )
 
 
 def get_anndata_attribute(
@@ -117,20 +184,18 @@ def _verify_and_correct_data_format(
     )
     if sp_sparse.isspmatrix(data) and (data.getformat() != "csr"):
         warnings.warn(
-            "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization."
+            "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
     elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
-        logger.debug(
-            f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS."
-        )
+        logger.debug(f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.")
         data = np.asarray(data, order="C")
         _set_data_in_registry(adata, data, attr_name, attr_key)
     elif isinstance(data, pd.DataFrame) and (
         data.to_numpy().flags["C_CONTIGUOUS"] is False
     ):
-        logger.debug(
-            f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS."
-        )
+        logger.debug(f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.")
         index = data.index
         vals = data.to_numpy()
         columns = data.columns
@@ -161,8 +226,8 @@ def _make_column_categorical(
     if -1 in unique:
         received_categories = df[column_key].astype("category").cat.categories
         raise ValueError(
-            'Making .obs["{}"] categorical failed. Expected categories: {}. '
-            "Received categories: {}. ".format(column_key, mapping, received_categories)
+            f'Making .obs["{column_key}"] categorical failed. Expected categories: {mapping}. '
+            f"Received categories: {received_categories}. "
         )
     df[alternate_column_key] = codes
 
@@ -172,7 +237,9 @@ def _make_column_categorical(
         warnings.warn(
             "Category {} in adata.obs['{}'] has fewer than 3 cells. Models may not train properly.".format(
                 category, alternate_column_key
-            )
+            ),
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
 
     return mapping

@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import logging
-from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -18,6 +19,7 @@ from scvi.data.fields import (
 )
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
+from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
@@ -104,12 +106,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             **model_kwargs,
         )
-        self._model_summary_string = (
-            "CellAssign Model with params: \nn_genes: {}, n_labels: {}"
-        ).format(
-            self.n_genes,
-            rho.shape[1],
-        )
+        self._model_summary_string = f"CellAssign Model with params: \nn_genes: {self.n_genes}, n_labels: {rho.shape[1]}"
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
@@ -132,13 +129,14 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 3e-3,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 1024,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         early_stopping: bool = True,
         early_stopping_patience: int = 15,
         early_stopping_min_delta: float = 0.0,
@@ -152,7 +150,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -160,10 +157,15 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
-            Keyword args for :class:`~scvi.train.ClassifierTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.TrainingPlan`.
         early_stopping
             Adds callback for early stopping on validation_loss
         early_stopping_patience
@@ -179,6 +181,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
+
+        datasplitter_kwargs = datasplitter_kwargs or {}
 
         if "callbacks" in kwargs:
             kwargs["callbacks"] += [ClampCallback()]
@@ -201,8 +205,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             kwargs["check_val_every_n_epoch"] = 1
 
         if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
@@ -211,6 +214,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
+            shuffle_set_split=shuffle_set_split,
+            **datasplitter_kwargs,
         )
         training_plan = TrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
@@ -218,7 +223,6 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             **kwargs,
@@ -231,10 +235,10 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         adata: AnnData,
         size_factor_key: str,
-        batch_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[List[str]] = None,
-        continuous_covariate_keys: Optional[List[str]] = None,
-        layer: Optional[str] = None,
+        batch_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.

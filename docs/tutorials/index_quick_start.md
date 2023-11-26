@@ -3,7 +3,7 @@
 ```{toctree}
 :maxdepth: 1
 
-notebooks/api_overview
-notebooks/data_loading
-notebooks/python_in_R
+notebooks/quick_start/api_overview
+notebooks/quick_start/data_loading
+notebooks/quick_start/python_in_R
 ```

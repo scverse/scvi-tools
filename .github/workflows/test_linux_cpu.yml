@@ -1,0 +1,62 @@
+name: test-linux-cpu
+
+on:
+    push:
+        branches:
+            [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x, 1.1.x]
+    pull_request:
+        branches:
+            [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x, 1.1.x]
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    test:
+        runs-on: ${{ matrix.os }}
+
+        timeout-minutes: 30
+
+        defaults:
+            run:
+                shell: bash -e {0} # -e to fail on error
+
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest]
+                python: ["3.9", "3.10", "3.11"]
+
+        env:
+            OS: ${{ matrix.os }}
+            PYTHON: ${{ matrix.python }}
+
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Set up Python ${{ matrix.python }}
+              uses: actions/setup-python@v4
+              with:
+                  python-version: ${{ matrix.python }}
+                  cache: "pip"
+                  cache-dependency-path: "**/pyproject.toml"
+
+            - name: Install test dependencies
+              run: |
+                  python -m pip install --upgrade pip wheel
+
+            - name: Install scvi-tools test dependencies
+              run: |
+                  pip install ".[tests]"
+
+            - name: Test
+              env:
+                  MPLBACKEND: agg
+                  PLATFORM: ${{ matrix.os }}
+                  DISPLAY: :42
+              run: |
+                  pytest -v --cov --color=yes
+
+            - name: Upload coverage
+              uses: codecov/codecov-action@v3

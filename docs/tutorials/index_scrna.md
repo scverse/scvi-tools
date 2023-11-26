@@ -3,14 +3,15 @@
 ```{toctree}
 :maxdepth: 1
 
-notebooks/harmonization
-notebooks/scvi_in_R
-notebooks/tabula_muris
-notebooks/scarches_scvi_tools
-notebooks/query_hlca_knn
-notebooks/seed_labeling
-notebooks/linear_decoder
-notebooks/AutoZI_tutorial
-notebooks/cellassign_tutorial
-notebooks/amortized_lda
+notebooks/scrna/harmonization
+notebooks/scrna/scvi_in_R
+notebooks/scrna/tabula_muris
+notebooks/scrna/scarches_scvi_tools
+notebooks/scrna/query_hlca_knn
+notebooks/scrna/seed_labeling
+notebooks/scrna/linear_decoder
+notebooks/scrna/AutoZI_tutorial
+notebooks/scrna/cellassign_tutorial
+notebooks/scrna/amortized_lda
+notebooks/scrna/scVI_DE_worm
 ```

@@ -1,11 +1,10 @@
+from __future__ import annotations
+
 import logging
 import warnings
-from typing import List, Optional, Union
-
-import jax
-import numpy as np
 
 from scvi.dataloaders import DataSplitter
+from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp
 
@@ -22,14 +21,15 @@ class JaxTrainingMixin:
     @devices_dsp.dedent
     def train(
         self,
-        max_epochs: Optional[int] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        max_epochs: int | None = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -39,7 +39,6 @@ class JaxTrainingMixin:
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -47,10 +46,15 @@ class JaxTrainingMixin:
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         lr
             Learning rate to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.JaxTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -58,29 +62,33 @@ class JaxTrainingMixin:
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
-        if use_gpu is None or use_gpu is True:
-            try:
-                self.module.to(jax.devices("gpu")[0])
-                logger.info(
-                    "Jax module moved to GPU. "
-                    "Note: Pytorch lightning will show GPU is not being used for the Trainer."
-                )
-            except RuntimeError:
-                logger.debug("No GPU available to Jax.")
-        else:
-            cpu_device = jax.devices("cpu")[0]
-            self.module.to(cpu_device)
-            logger.info("Jax module moved to CPU.")
+        _, _, device = parse_device_args(
+            accelerator,
+            devices,
+            return_device="jax",
+            validate_single_device=True,
+        )
+        try:
+            self.module.to(device)
+            logger.info(
+                f"Jax module moved to {device}."
+                "Note: Pytorch lightning will show GPU is not being used for the Trainer."
+            )
+        except RuntimeError:
+            logger.debug("No GPU available to Jax.")
+
+        datasplitter_kwargs = datasplitter_kwargs or {}
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
             iter_ndarray=True,
+            **datasplitter_kwargs,
         )
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 

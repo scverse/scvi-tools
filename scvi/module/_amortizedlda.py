@@ -1,5 +1,6 @@
 import math
-from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
+from collections.abc import Iterable, Sequence
+from typing import Optional, Union
 
 import pyro
 import pyro.distributions as dist
@@ -33,7 +34,7 @@ class CategoricalBoW(dist.Multinomial):
 
 def logistic_normal_approximation(
     alpha: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Returns the mean and standard deviation of the Logistic Normal approximation to the Dirichlet.
 
     Uses the Laplace approximation of the Logistic Normal distribution to the Dirichlet distribution
@@ -97,7 +98,7 @@ class AmortizedLDAPyroModel(PyroModule):
 
     @staticmethod
     def _get_fn_args_from_batch(
-        tensor_dict: Dict[str, torch.Tensor]
+        tensor_dict: dict[str, torch.Tensor]
     ) -> Union[Iterable, dict]:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         library = torch.sum(x, dim=1)
@@ -163,7 +164,9 @@ class AmortizedLDAPyroGuide(PyroModule):
         # Populated by PyroTrainingPlan.
         self.n_obs = None
 
-        self.encoder = Encoder(n_input, n_topics, distribution="ln", return_dist=True)
+        self.encoder = Encoder(
+            n_input, n_topics, distribution="ln", return_dist=True, n_hidden=n_hidden
+        )
         (
             topic_feature_posterior_mu,
             topic_feature_posterior_sigma,

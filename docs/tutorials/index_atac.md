@@ -3,8 +3,8 @@
 ```{toctree}
 :maxdepth: 1
 
-notebooks/PeakVI
-notebooks/peakvi_in_R
-notebooks/scbasset
-notebooks/scbasset_batch
+notebooks/atac/PeakVI
+notebooks/atac/peakvi_in_R
+notebooks/atac/scbasset
+notebooks/atac/scbasset_batch
 ```

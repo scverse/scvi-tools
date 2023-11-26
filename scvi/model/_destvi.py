@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 from collections import OrderedDict
-from typing import Dict, List, Optional, Sequence, Union
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
@@ -59,7 +61,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/DestVI_tutorial`
+    1. :doc:`/tutorials/notebooks/spatial/DestVI_tutorial`
     """
 
     _module_cls = MRDeconv
@@ -157,8 +159,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     def get_proportions(
         self,
         keep_noise: bool = False,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> pd.DataFrame:
         """Returns the estimated cell type proportion for the spatial data.
 
@@ -209,10 +211,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
 
     def get_gamma(
         self,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
         return_numpy: bool = False,
-    ) -> Union[np.ndarray, Dict[str, pd.DataFrame]]:
+    ) -> np.ndarray | dict[str, pd.DataFrame]:
         """Returns the estimated cell-type specific latent space for the spatial data.
 
         Parameters
@@ -262,8 +264,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     def get_scale_for_ct(
         self,
         label: str,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> pd.DataFrame:
         r"""Return the scaled parameter of the NB for every spot in queried cell types.
 
@@ -286,9 +288,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             raise ValueError("Unknown cell type")
         y = np.where(label == self.cell_type_mapping)[0][0]
 
-        stdl = self._make_data_loader(
-            self.adata, indices=indices, batch_size=batch_size
-        )
+        stdl = self._make_data_loader(self.adata, indices=indices, batch_size=batch_size)
         scale = []
         for tensors in stdl:
             generative_inputs = self.module._get_generative_input(tensors, None)
@@ -311,14 +311,15 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 2000,
         lr: float = 0.003,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 1.0,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
         n_epochs_kl_warmup: int = 200,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **kwargs,
     ):
         """Trains the model using MAP inference.
@@ -329,7 +330,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -337,10 +337,15 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         n_epochs_kl_warmup
             number of epochs needed to reach unit kl weight in the elbo
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -357,12 +362,13 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             plan_kwargs = update_dict
         super().train(
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             train_size=train_size,
             validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            datasplitter_kwargs=datasplitter_kwargs,
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
@@ -372,7 +378,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.

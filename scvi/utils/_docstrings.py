@@ -63,6 +63,13 @@ fdr_target
 de_silent = """\
 silent
     If True, disables the progress bar. Default: False."""
+de_importance_sampling = """\
+importance_sampling
+    Whether to use importance sampling to compute normalized gene expression."""
+de_fn_kwargs = """\
+fn_kwargs
+    Additional kwargs for the normalized gene expression estimation.
+    Only applies if `importance_sampling` is True."""
 
 de_dsp = DocstringProcessor(
     de_adata=de_adata,
@@ -80,6 +87,8 @@ de_dsp = DocstringProcessor(
     de_batchid2=de_batchid2,
     de_fdr_target=de_fdr_target,
     de_silent=de_silent,
+    de_importance_sampling=de_importance_sampling,
+    de_fn_kwargs=de_fn_kwargs,
 )
 
 
@@ -136,6 +145,10 @@ continuous_covariate_keys
     (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
     biologically-relevant factors that you do _not_ want to correct for."""
 
+param_unlabeled_category = """\
+unlabeled_category
+    value in `adata.obs[labels_key]` that indicates unlabeled observations."""
+
 param_modalities = """\
 modalities
     Dictionary mapping parameters to modalities."""
@@ -166,18 +179,12 @@ setup_anndata_dsp = DocstringProcessor(
     param_cat_cov_keys=param_cat_cov_keys,
     param_cont_cov_keys=param_cont_cov_keys,
     param_size_factor_key=param_size_factor_key,
+    param_unlabeled_category=param_unlabeled_category,
     param_modalities=param_modalities,
     param_copy=param_copy,
     returns=returns,
 )
 
-
-param_use_gpu = """\
-use_gpu
-    Use default GPU if available (if `True`), or index of GPU to use (if `int`), or name
-    of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in `use_gpu!=None`
-    will override `accelerator` and `devices` arguments. This argument is deprecated in
-    v1.0 and will be removed in v1.1. Please use `accelerator` and `devices` instead."""  # TODO: remove in v1.1
 
 param_accelerator = """\
 accelerator
@@ -212,7 +219,6 @@ validate_single_device
 
 
 devices_dsp = DocstringProcessor(
-    param_use_gpu=param_use_gpu,  # TODO: remove in v1.1
     param_accelerator=param_accelerator,
     param_devices=param_devices,
     param_device=param_device,

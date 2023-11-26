@@ -1,5 +1,8 @@
 import pytest
 
+import scvi
+from scvi import METRIC_KEYS
+from scvi.data import synthetic_iid
 from scvi.model import SCVI, JaxSCVI
 from scvi.train import JaxTrainingPlan, TrainingPlan
 from scvi.train._trainingplans import _compute_kl_weight
@@ -57,12 +60,13 @@ def test_compute_kl_precedence(
     assert kl_weight == expected
 
 
-def test_loss_args(synthetic_adata):
+def test_loss_args():
     """Test that self._loss_args is set correctly."""
-    SCVI.setup_anndata(synthetic_adata)
-    JaxSCVI.setup_anndata(synthetic_adata)
-    vae = SCVI(synthetic_adata)
-    jax_vae = JaxSCVI(synthetic_adata)
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata)
+    JaxSCVI.setup_anndata(adata)
+    vae = SCVI(adata)
+    jax_vae = JaxSCVI(adata)
     tp = TrainingPlan(vae.module)
     jax_tp = JaxTrainingPlan(jax_vae.module)
 
@@ -77,3 +81,23 @@ def test_loss_args(synthetic_adata):
     for arg in loss_args:
         assert arg in tp._loss_args
         assert arg in jax_tp._loss_args
+
+
+def test_semisupervisedtrainingplan_metrics():
+    adata = scvi.data.synthetic_iid(n_labels=3)
+    scvi.model.SCANVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        unlabeled_category="label_0",
+        batch_key="batch",
+    )
+    model = scvi.model.SCANVI(adata)
+    model.train(max_epochs=1, check_val_every_n_epoch=1)
+
+    for mode in ["train", "validation"]:
+        for metric in [
+            METRIC_KEYS.ACCURACY_KEY,
+            METRIC_KEYS.F1_SCORE_KEY,
+            METRIC_KEYS.CLASSIFICATION_LOSS_KEY,
+        ]:
+            assert f"{mode}_{metric}" in model.history_

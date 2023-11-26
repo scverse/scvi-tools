@@ -1,4 +1,4 @@
-from typing import Dict, Literal, Union
+from typing import Literal, Union
 
 import anndata
 import jax.numpy as jnp
@@ -8,6 +8,6 @@ import torch
 Number = Union[int, float]
 AnnOrMuData = Union[anndata.AnnData, mudata.MuData]
 Tensor = Union[torch.Tensor, jnp.ndarray]
-LossRecord = Union[Dict[str, Tensor], Tensor]
+LossRecord = Union[dict[str, Tensor], Tensor]
 # TODO(adamgayoso): Add constants for minified data types.
 MinifiedDataType = Literal["latent_posterior_parameters"]

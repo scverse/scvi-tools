@@ -1,4 +1,5 @@
-from typing import Iterable, Literal, Optional, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -62,10 +63,16 @@ class SCANVAE(VAE):
         Label group designations
     use_labels_groups
         Whether to use the label groups
+    linear_classifier
+        If `True`, uses a single linear layer for classification instead of a
+        multi-layer perceptron.
+    classifier_parameters
+        Keyword arguments passed into :class:`~scvi.module.Classifier`.
     use_batch_norm
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
+    linear_classifier
     **vae_kwargs
         Keyword args for :class:`~scvi.module.VAE`
     """
@@ -89,6 +96,7 @@ class SCANVAE(VAE):
         y_prior=None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
+        linear_classifier: bool = False,
         classifier_parameters: Optional[dict] = None,
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
@@ -120,8 +128,8 @@ class SCANVAE(VAE):
         self.n_labels = n_labels
         # Classifier takes n_latent as input
         cls_parameters = {
-            "n_layers": n_layers,
-            "n_hidden": n_hidden,
+            "n_layers": 0 if linear_classifier else n_layers,
+            "n_hidden": 0 if linear_classifier else n_hidden,
             "dropout_rate": dropout_rate,
         }
         cls_parameters.update(classifier_parameters)
@@ -156,9 +164,7 @@ class SCANVAE(VAE):
         )
 
         self.y_prior = torch.nn.Parameter(
-            y_prior
-            if y_prior is not None
-            else (1 / n_labels) * torch.ones(1, n_labels),
+            y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels),
             requires_grad=False,
         )
         self.use_labels_groups = use_labels_groups
@@ -189,10 +195,17 @@ class SCANVAE(VAE):
             )
 
     @auto_move_data
-    def classify(self, x, batch_index=None, cont_covs=None, cat_covs=None):
+    def classify(
+        self,
+        x: torch.Tensor,
+        batch_index: Optional[torch.Tensor] = None,
+        cont_covs: Optional[torch.Tensor] = None,
+        cat_covs: Optional[torch.Tensor] = None,
+        use_posterior_mean: bool = True,
+    ) -> torch.Tensor:
         """Classify cells into cell types."""
         if self.log_variational:
-            x = torch.log(1 + x)
+            x = torch.log1p(x)
 
         if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat((x, cont_covs), dim=-1)
@@ -204,8 +217,8 @@ class SCANVAE(VAE):
             categorical_input = ()
 
         qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-        # We classify using the inferred mean parameter of z_1 in the latent space
-        z = qz.loc
+        z = qz.loc if use_posterior_mean else z
+
         if self.use_labels_groups:
             w_g = self.classifier_groups(z)
             unw_y = self.classifier(z)
@@ -222,8 +235,8 @@ class SCANVAE(VAE):
 
     @auto_move_data
     def classification_loss(self, labelled_dataset):
-        x = labelled_dataset[REGISTRY_KEYS.X_KEY]
-        y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]
+        x = labelled_dataset[REGISTRY_KEYS.X_KEY]  # (n_obs, n_vars)
+        y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = (
@@ -234,13 +247,14 @@ class SCANVAE(VAE):
         cat_covs = (
             labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
         )
-        classification_loss = F.cross_entropy(
-            self.classify(
-                x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
-            ),
+        logits = self.classify(
+            x, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
+        )  # (n_obs, n_labels)
+        ce_loss = F.cross_entropy(
+            logits,
             y.view(-1).long(),
         )
-        return classification_loss
+        return ce_loss, y, logits
 
     def loss(
         self,
@@ -299,14 +313,16 @@ class SCANVAE(VAE):
                 "kl_divergence_l": kl_divergence_l,
             }
             if labelled_tensors is not None:
-                classifier_loss = self.classification_loss(labelled_tensors)
-                loss += classifier_loss * classification_ratio
+                ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)
+                loss += ce_loss * classification_ratio
                 return LossOutput(
                     loss=loss,
                     reconstruction_loss=reconst_loss,
                     kl_local=kl_locals,
+                    classification_loss=ce_loss,
+                    true_labels=true_labels,
+                    logits=logits,
                     extra_metrics={
-                        "classification_loss": classifier_loss,
                         "n_labelled_tensors": labelled_tensors[
                             REGISTRY_KEYS.X_KEY
                         ].shape[0],
@@ -323,9 +339,7 @@ class SCANVAE(VAE):
             (loss_z1_unweight).view(self.n_labels, -1).t() * probs
         ).sum(dim=1)
 
-        kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(
-            dim=1
-        )
+        kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
         kl_divergence += kl(
             Categorical(probs=probs),
             Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
@@ -335,13 +349,16 @@ class SCANVAE(VAE):
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
 
         if labelled_tensors is not None:
-            classifier_loss = self.classification_loss(labelled_tensors)
-            loss += classifier_loss * classification_ratio
+            ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)
+
+            loss += ce_loss * classification_ratio
             return LossOutput(
                 loss=loss,
                 reconstruction_loss=reconst_loss,
                 kl_local=kl_divergence,
-                extra_metrics={"classification_loss": classifier_loss},
+                classification_loss=ce_loss,
+                true_labels=true_labels,
+                logits=logits,
             )
         return LossOutput(
             loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence

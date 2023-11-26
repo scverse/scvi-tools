@@ -3,6 +3,6 @@
 ```{toctree}
 :maxdepth: 1
 
-notebooks/autotune_scvi
-notebooks/autotune_new_model
+notebooks/tuning/autotune_scvi
+notebooks/tuning/autotune_new_model
 ```

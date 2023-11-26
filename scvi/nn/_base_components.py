@@ -1,5 +1,6 @@
 import collections
-from typing import Callable, Iterable, List, Literal, Optional
+from collections.abc import Iterable
+from typing import Callable, Literal, Optional
 
 import torch
 from torch import nn
@@ -151,9 +152,7 @@ class FCLayers(nn.Module):
         one_hot_cat_list = []  # for generality in this list many indices useless.
 
         if len(self.n_cat_list) > len(cat_list):
-            raise ValueError(
-                "nb. categorical args provided doesn't match init. params."
-            )
+            raise ValueError("nb. categorical args provided doesn't match init. params.")
         for n_cat, cat in zip(self.n_cat_list, cat_list):
             if n_cat and cat is None:
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
@@ -327,6 +326,8 @@ class DecoderSCVI(nn.Module):
         Activation layer to use for px_scale_decoder
     library_activation
         Activation layer to use for library / scale factor. Use "softplus" for computational stability.
+    **kwargs
+        Keyword args for :class:`~scvi.nn.FCLayers`.
     """
 
     def __init__(
@@ -341,6 +342,7 @@ class DecoderSCVI(nn.Module):
         use_layer_norm: bool = False,
         scale_activation: Literal["softmax", "softplus"] = "softmax",
         library_activation: Literal["exp", "softplus"] = "exp",
+        **kwargs,
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -353,6 +355,7 @@ class DecoderSCVI(nn.Module):
             inject_covariates=inject_covariates,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
+            **kwargs,
         )
 
         # mean gamma
@@ -382,7 +385,7 @@ class DecoderSCVI(nn.Module):
         dispersion: str,
         z: torch.Tensor,
         library: torch.Tensor,
-        additive_background: torch.Tensor,
+        additive_background: torch.Tensor = None,
         *cat_list: int,
     ):
         """The forward computation for a single sample.
@@ -418,7 +421,10 @@ class DecoderSCVI(nn.Module):
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
-        px_rate = self.library_activation(library) * (px_scale + additive_background)  # torch.clamp( , max=12)
+        if additive_background is not None:
+            px_rate = self.library_activation(library) * (px_scale + additive_background)  # torch.clamp( , max=12)
+        else:
+            px_rate = self.library_activation(library) * px_scale   # torch.clamp( , max=12)
         px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
         return px_scale, px_r, px_rate, px_dropout
 
@@ -434,6 +440,7 @@ class LinearDecoderSCVI(nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         bias: bool = False,
+        **kwargs,
     ):
         super().__init__()
 
@@ -448,6 +455,7 @@ class LinearDecoderSCVI(nn.Module):
             use_layer_norm=use_layer_norm,
             bias=bias,
             dropout_rate=0,
+            **kwargs,
         )
 
         # dropout
@@ -461,6 +469,7 @@ class LinearDecoderSCVI(nn.Module):
             use_layer_norm=use_layer_norm,
             bias=bias,
             dropout_rate=0,
+            **kwargs,
         )
 
     def forward(
@@ -560,7 +569,7 @@ class MultiEncoder(nn.Module):
     def __init__(
         self,
         n_heads: int,
-        n_input_list: List[int],
+        n_input_list: list[int],
         n_output: int,
         n_hidden: int = 128,
         n_layers_individual: int = 1,
@@ -568,6 +577,7 @@ class MultiEncoder(nn.Module):
         n_cat_list: Iterable[int] = None,
         dropout_rate: float = 0.1,
         return_dist: bool = False,
+        **kwargs,
     ):
         super().__init__()
 
@@ -581,6 +591,7 @@ class MultiEncoder(nn.Module):
                     n_hidden=n_hidden,
                     dropout_rate=dropout_rate,
                     use_batch_norm=True,
+                    **kwargs,
                 )
                 for i in range(n_heads)
             ]
@@ -593,6 +604,7 @@ class MultiEncoder(nn.Module):
             n_layers=n_layers_shared,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            **kwargs,
         )
 
         self.mean_encoder = nn.Linear(n_hidden, n_output)
@@ -626,6 +638,7 @@ class MultiDecoder(nn.Module):
         n_layers_shared: int = 1,
         n_cat_list: Iterable[int] = None,
         dropout_rate: float = 0.2,
+        **kwargs,
     ):
         super().__init__()
 
@@ -639,6 +652,7 @@ class MultiDecoder(nn.Module):
                 n_hidden=n_hidden_conditioned,
                 dropout_rate=dropout_rate,
                 use_batch_norm=True,
+                **kwargs,
             )
             n_in = n_out
         else:
@@ -654,6 +668,7 @@ class MultiDecoder(nn.Module):
                 n_hidden=n_hidden_shared,
                 dropout_rate=dropout_rate,
                 use_batch_norm=True,
+                **kwargs,
             )
             n_in = n_hidden_shared
         else:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from collections import defaultdict
+from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from io import StringIO
@@ -13,12 +14,14 @@ import rich
 from mudata import MuData
 from rich import box
 from rich.console import Console
+from torch.utils.data import Subset
 
 import scvi
 from scvi._types import AnnOrMuData
 from scvi.utils import attrdict
 
 from . import _constants
+from ._anntorchdataset import AnnTorchDataset
 from ._utils import (
     _assign_adata_uuid,
     _check_if_view,
@@ -71,6 +74,10 @@ class AnnDataManager:
     This class is not initialized with a specific AnnData object, but later sets ``self.adata``
     via :meth:`~scvi.data.AnnDataManager.register_fields`. This decouples the generalized
     definition of the scvi-tools interface with the registration of an instance of data.
+
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/dev/data_tutorial`
     """
 
     def __init__(
@@ -316,6 +323,43 @@ class AnnDataManager:
         """Returns the data registry for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
         return self._get_data_registry_from_registry(self._registry)
+
+    def create_torch_dataset(
+        self,
+        indices: Sequence[int] | Sequence[bool] = None,
+        data_and_attributes: list[str] | dict[str, np.dtype] | None = None,
+        load_sparse_tensor: bool = False,
+    ) -> AnnTorchDataset:
+        """
+        Creates a torch dataset from the AnnData object registered with this instance.
+
+        Parameters
+        ----------
+        indices
+            The indices of the observations in the adata to use
+        data_and_attributes
+            Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
+            and value equal to desired numpy loading type (later made into torch tensor) or list of
+            such keys. A list can be used to subset to certain keys in the event that more tensors than
+            needed have been registered. If ``None``, defaults to all registered data.
+        load_sparse_tensor
+        `EXPERIMENTAL` If ``True``, loads data with sparse CSR or CSC layout as a
+        :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to GPUs,
+        depending on the sparsity of the data.
+
+        Returns
+        -------
+        :class:`~scvi.data.AnnTorchDataset`
+        """
+        dataset = AnnTorchDataset(
+            self,
+            getitem_tensors=data_and_attributes,
+            load_sparse_tensor=load_sparse_tensor,
+        )
+        if indices is not None:
+            # This is a lazy subset, it just remaps indices
+            dataset = Subset(dataset, indices)
+        return dataset
 
     @staticmethod
     def _get_data_registry_from_registry(registry: dict) -> attrdict:

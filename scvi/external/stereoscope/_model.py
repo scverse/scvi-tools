@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import List, Literal, Optional, Tuple, Union
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -51,12 +53,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             n_labels=self.n_labels,
             **model_kwargs,
         )
-        self._model_summary_string = (
-            "RNADeconv Model with params: \nn_genes: {}, n_labels: {}"
-        ).format(
-            self.n_genes,
-            self.n_labels,
-        )
+        self._model_summary_string = f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}"
         self.init_params_ = self._get_init_params(locals())
 
     @devices_dsp.dedent
@@ -64,13 +61,14 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 0.01,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 1,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **kwargs,
     ):
         """Trains the model using MAP inference.
@@ -81,7 +79,6 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -89,8 +86,13 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -104,14 +106,16 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
+
         super().train(
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             train_size=train_size,
             validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            datasplitter_kwargs=datasplitter_kwargs,
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
@@ -121,8 +125,8 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        labels_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        labels_key: str | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -185,7 +189,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     def __init__(
         self,
         st_adata: AnnData,
-        sc_params: Tuple[np.ndarray],
+        sc_params: tuple[np.ndarray],
         cell_type_mapping: np.ndarray,
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
@@ -198,9 +202,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "RNADeconv Model with params: \nn_spots: {}"
-        ).format(
-            st_adata.n_obs,
+            f"RNADeconv Model with params: \nn_spots: {st_adata.n_obs}"
         )
         self.cell_type_mapping = cell_type_mapping
         self.init_params_ = self._get_init_params(locals())
@@ -268,6 +270,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         y
             numpy array containing the list of cell types
+
         Returns
         -------
         gene_expression
@@ -286,11 +289,12 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 0.01,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **kwargs,
     ):
         """Trains the model using MAP inference.
@@ -301,11 +305,15 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -321,12 +329,13 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             plan_kwargs = update_dict
         super().train(
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             train_size=1,
             validation_size=None,
+            shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            datasplitter_kwargs=datasplitter_kwargs,
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
@@ -336,7 +345,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.

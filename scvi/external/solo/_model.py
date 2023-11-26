@@ -1,19 +1,23 @@
+from __future__ import annotations
+
 import io
 import logging
 import warnings
+from collections.abc import Sequence
 from contextlib import redirect_stdout
-from typing import List, Optional, Sequence, Union
 
+import anndata
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
+from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass
 from scvi.module import Classifier
 from scvi.module.base import auto_move_data
@@ -82,9 +86,10 @@ class SOLO(BaseModelClass):
         # about non count data
         super().__init__(adata)
 
+        self.n_labels = 2
         self.module = Classifier(
             n_input=self.summary_stats.n_vars,
-            n_labels=2,
+            n_labels=self.n_labels,
             logits=True,
             **classifier_kwargs,
         )
@@ -95,8 +100,8 @@ class SOLO(BaseModelClass):
     def from_scvi_model(
         cls,
         scvi_model: SCVI,
-        adata: Optional[AnnData] = None,
-        restrict_to_batch: Optional[str] = None,
+        adata: AnnData | None = None,
+        restrict_to_batch: str | None = None,
         doublet_ratio: int = 2,
         **classifier_kwargs,
     ):
@@ -105,16 +110,17 @@ class SOLO(BaseModelClass):
         Parameters
         ----------
         scvi_model
-            Pre-trained model of :class:`~scvi.model.SCVI`. The
-            adata object used to initialize this model should have only
-            been setup with count data, and optionally a `batch_key`;
-            i.e., no extra covariates or labels, etc.
+            Pre-trained :class:`~scvi.model.SCVI` model. The AnnData object used to
+            initialize this model should have only been setup with count data, and
+            optionally a `batch_key`. Extra categorical and continuous covariates are
+            currenty unsupported.
         adata
-            Optional anndata to use that is compatible with scvi_model.
+            Optional AnnData to use that is compatible with `scvi_model`.
         restrict_to_batch
-            Batch category in `batch_key` used to setup adata for scvi_model
-            to restrict Solo model to. This allows to train a Solo model on
-            one batch of a scvi_model that was trained on multiple batches.
+            Batch category to restrict the SOLO model to if `scvi_model` was set up with
+            a `batch_key`. This allows the model to be trained on the subset of cells
+            belonging to `restrict_to_batch` when `scvi_model` was trained on multiple
+            batches. If `None`, all cells are used.
         doublet_ratio
             Ratio of generated doublets to produce relative to number of
             cells in adata or length of indices, if not `None`.
@@ -127,12 +133,38 @@ class SOLO(BaseModelClass):
         """
         _validate_scvi_model(scvi_model, restrict_to_batch=restrict_to_batch)
         orig_adata_manager = scvi_model.adata_manager
-        orig_batch_key = orig_adata_manager.get_state_registry(
+        orig_batch_key_registry = orig_adata_manager.get_state_registry(
             REGISTRY_KEYS.BATCH_KEY
-        ).original_key
-        orig_labels_key = orig_adata_manager.get_state_registry(
+        )
+        orig_labels_key_registry = orig_adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
-        ).original_key
+        )
+        orig_batch_key = orig_batch_key_registry.original_key
+        orig_labels_key = orig_labels_key_registry.original_key
+
+        if len(orig_adata_manager.get_state_registry(REGISTRY_KEYS.CONT_COVS_KEY)) > 0:
+            raise ValueError(
+                "Initializing a SOLO model from SCVI with registered continuous "
+                "covariates is currently unsupported."
+            )
+        if len(orig_adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)) > 0:
+            raise ValueError(
+                "Initializing a SOLO model from SCVI with registered categorical "
+                "covariates is currently unsupported."
+            )
+        scvi_trained_with_batch = len(orig_batch_key_registry.categorical_mapping) > 1
+        if not scvi_trained_with_batch and restrict_to_batch is not None:
+            raise ValueError(
+                "Cannot specify `restrict_to_batch` when initializing a SOLO model from SCVI "
+                "not trained with multiple batches."
+            )
+        if scvi_trained_with_batch > 1 and restrict_to_batch is None:
+            warnings.warn(
+                "`restrict_to_batch` not specified but `scvi_model` was trained with "
+                "multiple batches. Doublets will be simulated using the first batch.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
 
         if adata is not None:
             adata_manager = orig_adata_manager.transfer_fields(adata)
@@ -163,13 +195,15 @@ class SOLO(BaseModelClass):
         # if scvi wasn't trained with batch correction having the
         # zeros here does nothing.
         doublet_adata.obs[orig_batch_key] = (
-            restrict_to_batch if restrict_to_batch is not None else 0
+            restrict_to_batch
+            if restrict_to_batch is not None
+            else orig_adata_manager.get_state_registry(
+                REGISTRY_KEYS.BATCH_KEY
+            ).categorical_mapping[0]
         )
 
         # Create dummy labels column set to first label in adata (does not affect inference).
-        dummy_label = orig_adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        ).categorical_mapping[0]
+        dummy_label = orig_labels_key_registry.categorical_mapping[0]
         doublet_adata.obs[orig_labels_key] = dummy_label
 
         # if model is using observed lib size, needs to get lib sample
@@ -202,7 +236,7 @@ class SOLO(BaseModelClass):
             )
             doublet_adata.obs[LABELS_KEY] = "doublet"
 
-            full_adata = latent_adata.concatenate(doublet_adata)
+            full_adata = anndata.concat([latent_adata, doublet_adata])
             cls.setup_anndata(full_adata, labels_key=LABELS_KEY)
         return cls(full_adata, **classifier_kwargs)
 
@@ -211,7 +245,7 @@ class SOLO(BaseModelClass):
         cls,
         adata_manager: AnnDataManager,
         doublet_ratio: int,
-        indices: Optional[Sequence[int]] = None,
+        indices: Sequence[int] | None = None,
         seed: int = 1,
     ) -> AnnData:
         """Simulate doublets.
@@ -257,13 +291,14 @@ class SOLO(BaseModelClass):
         self,
         max_epochs: int = 400,
         lr: float = 1e-3,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         early_stopping: bool = True,
         early_stopping_patience: int = 30,
         early_stopping_min_delta: float = 0.0,
@@ -277,7 +312,6 @@ class SOLO(BaseModelClass):
             Number of epochs to train for
         lr
             Learning rate for optimization.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -285,8 +319,13 @@ class SOLO(BaseModelClass):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.ClassifierTrainingPlan`. Keyword arguments passed to
         early_stopping
@@ -307,6 +346,8 @@ class SOLO(BaseModelClass):
         else:
             plan_kwargs = update_dict
 
+        datasplitter_kwargs = datasplitter_kwargs or {}
+
         if early_stopping:
             early_stopping_callback = [
                 LoudEarlyStopping(
@@ -323,8 +364,7 @@ class SOLO(BaseModelClass):
             kwargs["check_val_every_n_epoch"] = 1
 
         if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = int(np.min([round((20000 / n_cells) * 400), 400]))
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
@@ -332,7 +372,9 @@ class SOLO(BaseModelClass):
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            **datasplitter_kwargs,
         )
         training_plan = ClassifierTrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
@@ -340,7 +382,6 @@ class SOLO(BaseModelClass):
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             **kwargs,
@@ -402,8 +443,8 @@ class SOLO(BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        labels_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        labels_key: str | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -430,4 +471,5 @@ def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):
         warnings.warn(
             "Solo should only be trained on one lane of data using `restrict_to_batch`. Performance may suffer.",
             UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )

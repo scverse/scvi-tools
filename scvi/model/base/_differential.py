@@ -1,16 +1,19 @@
 import inspect
 import logging
 import warnings
-from typing import Callable, Dict, List, Literal, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import Callable, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from scipy.sparse import issparse
+from sklearn.covariance import EllipticEnvelope
 from sklearn.mixture import GaussianMixture
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
+from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +28,47 @@ class DifferentialComputation:
     Parameters
     ----------
     model_fn
-        Function in model API to get values from.
+        Callable in model API to get values from.
+    representation_fn
+        Callable providing latent representations, e.g., :meth:`~scvi.model.SCVI.get_latent_representation`, for scVI.
     adata_manager
         AnnDataManager created by :meth:`~scvi.model.SCVI.setup_anndata`.
     """
 
-    def __init__(self, model_fn, adata_manager):
+    def __init__(
+        self,
+        model_fn: Callable,
+        representation_fn: Callable,
+        adata_manager: AnnDataManager,
+    ):
         self.adata_manager = adata_manager
         self.adata = adata_manager.adata
         self.model_fn = model_fn
+        self.representation_fn = representation_fn
+
+    def filter_outlier_cells(self, selection: Union[list[bool], np.ndarray]):
+        """Filters out cells that are outliers in the representation space."""
+        selection = self.process_selection(selection)
+        reps = self.representation_fn(
+            self.adata,
+            indices=selection,
+        )
+        try:
+            idx_filt = EllipticEnvelope().fit_predict(reps)
+            idx_filt = idx_filt == 1
+        except ValueError:
+            warnings.warn(
+                "Could not properly estimate Cov!, using all samples",
+                stacklevel=settings.warnings_stacklevel,
+            )
+            return selection
+        idx_filt = selection[idx_filt]
+        return idx_filt
 
     def get_bayes_factors(
         self,
-        idx1: Union[List[bool], np.ndarray],
-        idx2: Union[List[bool], np.ndarray],
+        idx1: Union[list[bool], np.ndarray],
+        idx2: Union[list[bool], np.ndarray],
         mode: Literal["vanilla", "change"] = "vanilla",
         batchid1: Optional[Sequence[Union[Number, str]]] = None,
         batchid2: Optional[Sequence[Union[Number, str]]] = None,
@@ -50,8 +80,8 @@ class DifferentialComputation:
         m1_domain_fn: Optional[Callable] = None,
         delta: Optional[float] = 0.5,
         pseudocounts: Union[float, None] = 0.0,
-        cred_interval_lvls: Optional[Union[List[float], np.ndarray]] = None,
-    ) -> Dict[str, np.ndarray]:
+        cred_interval_lvls: Optional[Union[list[float], np.ndarray]] = None,
+    ) -> dict[str, np.ndarray]:
         r"""A unified method for differential expression inference.
 
         Two modes coexist:
@@ -173,6 +203,10 @@ class DifferentialComputation:
         #     )
         eps = 1e-8
         # Normalized means sampling for both populations
+        if self.representation_fn is not None:
+            idx1 = self.filter_outlier_cells(idx1)
+            idx2 = self.filter_outlier_cells(idx2)
+
         scales_batches_1 = self.scale_sampler(
             selection=idx1,
             batchid=batchid1,
@@ -206,9 +240,7 @@ class DifferentialComputation:
                 m_permutation // n_batches if m_permutation is not None else None
             )
             logger.debug(
-                "Using {} samples per batch for pair matching".format(
-                    n_samples_per_batch
-                )
+                f"Using {n_samples_per_batch} samples per batch for pair matching"
             )
             scales_1 = []
             scales_2 = []
@@ -237,8 +269,10 @@ class DifferentialComputation:
             if len(set(batchid1_vals).intersection(set(batchid2_vals))) >= 1:
                 warnings.warn(
                     "Batchids of cells groups 1 and 2 are different but have an non-null "
-                    "intersection. Specific handling of such situations is not implemented "
-                    "yet and batch correction is not trustworthy."
+                    "intersection. Specific handling of such situations is not "
+                    "implemented yet and batch correction is not trustworthy.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
             scales_1, scales_2 = pairs_sampler(
                 scales_batches_1["scale"],
@@ -344,7 +378,7 @@ class DifferentialComputation:
     @torch.inference_mode()
     def scale_sampler(
         self,
-        selection: Union[List[bool], np.ndarray],
+        selection: Union[list[bool], np.ndarray],
         n_samples: Optional[int] = 5000,
         n_samples_per_cell: Optional[int] = None,
         batchid: Optional[Sequence[Union[Number, str]]] = None,
@@ -403,25 +437,23 @@ class DifferentialComputation:
             n_samples = n_samples_per_cell * len(selection)
         if (n_samples_per_cell is not None) and (n_samples is not None):
             warnings.warn(
-                "n_samples and n_samples_per_cell were provided. Ignoring n_samples_per_cell"
+                "`n_samples` and `n_samples_per_cell` were provided. Ignoring "
+                "`n_samples_per_cell`",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         n_samples = int(n_samples / len(batchid))
         if n_samples == 0:
-            warnings.warn(
-                "very small sample size, please consider increasing `n_samples`"
+            (
+                warnings.warn(
+                    "very small sample size, please consider increasing `n_samples`",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                ),
             )
             n_samples = 2
 
-        # Selection of desired cells for sampling
-        if selection is None:
-            raise ValueError("selections should be a list of cell subsets indices")
-        selection = np.asarray(selection)
-        if selection.dtype is np.dtype("bool"):
-            if len(selection) < self.adata.shape[0]:
-                raise ValueError("Mask must be same length as adata.")
-            selection = np.asarray(np.where(selection)[0].ravel())
-
-        # Sampling loop
+        selection = self.process_selection(selection)
         px_scales = []
         batch_ids = []
         for batch_idx in batchid:
@@ -444,8 +476,17 @@ class DifferentialComputation:
             px_scales = px_scales.mean(0)
         return {"scale": px_scales, "batch": batch_ids}
 
+    def process_selection(self, selection: Union[list[bool], np.ndarray]) -> np.ndarray:
+        """If selection is a mask, convert it to indices."""
+        selection = np.asarray(selection)
+        if selection.dtype is np.dtype("bool"):
+            if len(selection) < self.adata.shape[0]:
+                raise ValueError("Mask must be same length as adata.")
+            selection = np.asarray(np.where(selection)[0].ravel())
+        return selection
 
-def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
+
+def estimate_delta(lfc_means: list[np.ndarray], coef=0.6, min_thres=0.3):
     """Computes a threshold LFC value based on means of LFCs.
 
     Parameters
@@ -469,10 +510,10 @@ def estimate_delta(lfc_means: List[np.ndarray], coef=0.6, min_thres=0.3):
 
 
 def estimate_pseudocounts_offset(
-    scales_a: List[np.ndarray],
-    scales_b: List[np.ndarray],
-    where_zero_a: List[np.ndarray],
-    where_zero_b: List[np.ndarray],
+    scales_a: list[np.ndarray],
+    scales_b: list[np.ndarray],
+    where_zero_a: list[np.ndarray],
+    where_zero_b: list[np.ndarray],
     percentile: Optional[float] = 0.9,
 ):
     """Determines pseudocount offset.
@@ -516,13 +557,13 @@ def estimate_pseudocounts_offset(
 
 
 def pairs_sampler(
-    arr1: Union[List[float], np.ndarray, torch.Tensor],
-    arr2: Union[List[float], np.ndarray, torch.Tensor],
+    arr1: Union[list[float], np.ndarray, torch.Tensor],
+    arr2: Union[list[float], np.ndarray, torch.Tensor],
     use_permutation: bool = True,
     m_permutation: int = None,
     sanity_check_perm: bool = False,
-    weights1: Union[List[float], np.ndarray, torch.Tensor] = None,
-    weights2: Union[List[float], np.ndarray, torch.Tensor] = None,
+    weights1: Union[list[float], np.ndarray, torch.Tensor] = None,
+    weights2: Union[list[float], np.ndarray, torch.Tensor] = None,
 ) -> tuple:
     """Creates more pairs.
 
@@ -580,7 +621,7 @@ def pairs_sampler(
 
 
 def credible_intervals(
-    ary: np.ndarray, confidence_level: Union[float, List[float], np.ndarray] = 0.94
+    ary: np.ndarray, confidence_level: Union[float, list[float], np.ndarray] = 0.94
 ) -> np.ndarray:
     """Calculate highest posterior density (HPD) of array for given credible_interval.
 
@@ -602,10 +643,7 @@ def credible_intervals(
     """
     if ary.ndim > 1:
         hpd = np.array(
-            [
-                credible_intervals(row, confidence_level=confidence_level)
-                for row in ary.T
-            ]
+            [credible_intervals(row, confidence_level=confidence_level) for row in ary.T]
         )
         return hpd
     # Make a copy of trace
@@ -629,7 +667,7 @@ def credible_intervals(
 
 def describe_continuous_distrib(
     samples: Union[np.ndarray, torch.Tensor],
-    credible_intervals_levels: Optional[Union[List[float], np.ndarray]] = None,
+    credible_intervals_levels: Optional[Union[list[float], np.ndarray]] = None,
 ) -> dict:
     """Computes properties of distribution based on its samples.
 
@@ -667,7 +705,7 @@ def describe_continuous_distrib(
 
 
 def save_cluster_xlsx(
-    filepath: str, de_results: List[pd.DataFrame], cluster_names: List
+    filepath: str, de_results: list[pd.DataFrame], cluster_names: list
 ):
     """Saves multi-clusters DE in an xlsx sheet.
 

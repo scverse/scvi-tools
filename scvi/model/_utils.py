@@ -1,17 +1,19 @@
 import logging
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Literal, Optional, Union
 
 import jax
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
+from lightning.pytorch.strategies import DDPStrategy, Strategy
 from lightning.pytorch.trainer.connectors.accelerator_connector import (
     _AcceleratorConnector,
 )
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.utils._docstrings import devices_dsp
@@ -20,11 +22,59 @@ from scvi.utils._exceptions import InvalidParameterError
 logger = logging.getLogger(__name__)
 
 
+def use_distributed_sampler(strategy: Union[str, Strategy]) -> bool:
+    """Return whether to use a distributed sampler.
+
+    Currently only supports DDP.
+    """
+    if isinstance(strategy, str):
+        # ["ddp", "ddp_spawn", "ddp_find_unused_parameters_true"]
+        return "ddp" in strategy
+    return isinstance(strategy, DDPStrategy)
+
+
+def get_max_epochs_heuristic(
+    n_obs: int, epochs_cap: int = 400, decay_at_n_obs: int = 20000
+) -> int:
+    """Compute a heuristic for the default number of maximum epochs.
+
+    If `n_obs <= decay_at_n_obs`, the number of maximum epochs is set to
+    `epochs_cap`. Otherwise, the number of maximum epochs decays according to
+    `(decay_at_n_obs / n_obs) * epochs_cap`, with a minimum of 1.
+
+    Parameters
+    ----------
+    n_obs
+        The number of observations in the dataset.
+    epochs_cap
+        The maximum number of epochs for the heuristic.
+    decay_at_n_obs
+        The number of observations at which the heuristic starts decaying.
+
+    Returns
+    -------
+    `int`
+        A heuristic for the default number of maximum epochs.
+    """
+    max_epochs = min(round((decay_at_n_obs / n_obs) * epochs_cap), epochs_cap)
+    max_epochs = max(max_epochs, 1)
+
+    if max_epochs == 1:
+        warnings.warn(
+            "The default number of maximum epochs has been set to 1 due to the large"
+            "number of observations. Pass in `max_epochs` to the `train` function in "
+            "order to override this behavior.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
+    return max_epochs
+
+
 @devices_dsp.dedent
 def parse_device_args(
-    use_gpu: Optional[Union[str, int, bool]] = None,
     accelerator: str = "auto",
-    devices: Union[int, List[int], str] = "auto",
+    devices: Union[int, list[int], str] = "auto",
     return_device: Optional[Literal["torch", "jax"]] = None,
     validate_single_device: bool = False,
 ):
@@ -32,22 +82,11 @@ def parse_device_args(
 
     Parameters
     ----------
-    %(param_use_gpu)s
     %(param_accelerator)s
     %(param_devices)s
     %(param_return_device)s
     %(param_validate_single_device)s
     """
-    if use_gpu is not None:
-        warnings.warn(
-            "`use_gpu` is deprecated in v1.0 and will be removed in v1.1. Please use "
-            "`accelerator` and `devices` instead.",
-            DeprecationWarning,
-        )
-        return parse_use_gpu_arg(
-            use_gpu=use_gpu, return_device=return_device == "torch"
-        )
-
     valid = [None, "torch", "jax"]
     if return_device not in valid:
         raise InvalidParameterError(
@@ -67,9 +106,23 @@ def parse_device_args(
 
     if _accelerator in ["tpu", "ipu", "hpu"]:
         warnings.warn(
-            f"The selected accelerator `{_accelerator}` has not been extensively ",
+            f"The selected accelerator `{_accelerator}` has not been extensively "
             "tested in scvi-tools. Please report any issues in the GitHub repo.",
             UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+    elif _accelerator == "mps" and accelerator == "auto":
+        # auto accelerator should not default to mps
+        connector = _AcceleratorConnector(accelerator="cpu", devices=devices)
+        _accelerator = connector._accelerator_flag
+        _devices = connector._devices_flag
+    elif _accelerator == "mps" and accelerator != "auto":
+        warnings.warn(
+            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
+            "operations are supported with this backend. Refer to "
+            "https://github.com/pytorch/pytorch/issues/77764 for more details.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
 
     # get the first device index
@@ -80,8 +133,8 @@ def parse_device_args(
     else:
         device_idx = _devices
 
-    # auto device should not use multiple devices for non-cpu accelerators
     if devices == "auto" and _accelerator != "cpu":
+        # auto device should not use multiple devices for non-cpu accelerators
         _devices = [device_idx]
 
     if return_device == "torch":
@@ -98,75 +151,12 @@ def parse_device_args(
     return _accelerator, _devices
 
 
-def parse_use_gpu_arg(
-    use_gpu: Optional[Union[str, int, bool]] = None,
-    return_device=True,
-):
-    """Parses the use_gpu arg in codebase.
-
-    Returned gpus are is compatible with PytorchLightning's gpus arg.
-    If return_device is True, will also return the device.
-
-    Parameters
-    ----------
-    use_gpu
-        Use default GPU if available (if None or True), or index of GPU to use (if int),
-        or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
-    return_device
-        If True, will return the torch.device of use_gpu.
-
-    Returns
-    -------
-    Arguments for lightning trainer, including the accelerator (str), devices
-    (int or sequence of int), and optionally the torch device.
-    """
-    # Support Apple silicon
-    cuda_available = torch.cuda.is_available()
-    # If using an older version of torch.
-    try:
-        mps_available = torch.backends.mps.is_available()
-    except AttributeError:
-        mps_available = False
-    gpu_available = cuda_available
-    lightning_devices = None
-    if (use_gpu is None and not gpu_available) or (use_gpu is False):
-        accelerator = "cpu"
-        device = torch.device("cpu")
-        lightning_devices = "auto"
-    elif (use_gpu is None and gpu_available) or (use_gpu is True):
-        current = torch.cuda.current_device() if cuda_available else "mps"
-        if current != "mps":
-            lightning_devices = [current]
-            accelerator = "gpu"
-        else:
-            accelerator = "mps"
-            lightning_devices = 1
-        device = torch.device(current)
-    # Also captures bool case
-    elif isinstance(use_gpu, int):
-        device = torch.device(use_gpu) if not mps_available else torch.device("mps")
-        accelerator = "gpu" if not mps_available else "mps"
-        lightning_devices = [use_gpu] if not mps_available else 1
-    elif isinstance(use_gpu, str):
-        device = torch.device(use_gpu)
-        accelerator = "gpu"
-        # changes "cuda:0" to "0,"
-        lightning_devices = [int(use_gpu.split(":")[-1])]
-    else:
-        raise ValueError("use_gpu argument not understood.")
-
-    if return_device:
-        return accelerator, lightning_devices, device
-    else:
-        return accelerator, lightning_devices
-
-
 def scrna_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[List[int], np.ndarray],
-    idx2: Union[List[int], np.ndarray],
-    var_idx: Optional[Union[List[int], np.ndarray]] = None,
-) -> Dict[str, np.ndarray]:
+    idx1: Union[list[int], np.ndarray],
+    idx2: Union[list[int], np.ndarray],
+    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
     Parameters
@@ -230,9 +220,9 @@ def scrna_raw_counts_properties(
 
 def cite_seq_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[List[int], np.ndarray],
-    idx2: Union[List[int], np.ndarray],
-) -> Dict[str, np.ndarray]:
+    idx1: Union[list[int], np.ndarray],
+    idx2: Union[list[int], np.ndarray],
+) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
     Parameters
@@ -277,10 +267,10 @@ def cite_seq_raw_counts_properties(
 
 def scatac_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[List[int], np.ndarray],
-    idx2: Union[List[int], np.ndarray],
-    var_idx: Optional[Union[List[int], np.ndarray]] = None,
-) -> Dict[str, np.ndarray]:
+    idx1: Union[list[int], np.ndarray],
+    idx2: Union[list[int], np.ndarray],
+    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
     Parameters
@@ -334,7 +324,7 @@ def _get_batch_code_from_category(
 
 def _init_library_size(
     adata_manager: AnnDataManager, n_batch: dict
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Computes and returns library size.
 
     Parameters
@@ -370,7 +360,9 @@ def _init_library_size(
         if np.ma.is_masked(masked_log_sum):
             warnings.warn(
                 "This dataset has some empty cells, this might fail inference."
-                "Data should be filtered with `scanpy.pp.filter_cells()`"
+                "Data should be filtered with `scanpy.pp.filter_cells()`",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
 
         log_counts = masked_log_sum.filled(0)

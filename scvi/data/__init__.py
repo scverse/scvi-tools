@@ -1,5 +1,6 @@
 from anndata import read_csv, read_h5ad, read_loom, read_text
 
+from ._anntorchdataset import AnnTorchDataset
 from ._datasets import (
     annotation_simulation,
     brainlarge_dataset,
@@ -16,8 +17,6 @@ from ._datasets import (
     prefrontalcortex_starmap,
     purified_pbmc_dataset,
     retina,
-    seqfish,
-    seqfishplus,
     smfish,
     spleen_lymph_cite_seq,
     synthetic_iid,
@@ -33,6 +32,7 @@ from ._preprocessing import (
 from ._read import read_10x_atac, read_10x_multiome
 
 __all__ = [
+    "AnnTorchDataset",
     "AnnDataManagerValidationCheck",
     "AnnDataManager",
     "poisson_gene_selection",
@@ -45,8 +45,6 @@ __all__ = [
     "synthetic_iid",
     "pbmc_dataset",
     "cortex",
-    "seqfish",
-    "seqfishplus",
     "smfish",
     "breast_cancer_dataset",
     "mouse_ob_dataset",

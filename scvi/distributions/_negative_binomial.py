@@ -1,5 +1,5 @@
 import warnings
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -16,6 +16,8 @@ from torch.distributions.utils import (
     logits_to_probs,
     probs_to_logits,
 )
+
+from scvi import settings
 
 
 def log_zinb_positive(
@@ -297,6 +299,7 @@ class NegativeBinomial(Distribution):
     arg_constraints = {
         "mu": constraints.greater_than_eq(0),
         "theta": constraints.greater_than_eq(0),
+        "scale": constraints.greater_than_eq(0),
     }
     support = constraints.nonnegative_integer
 
@@ -342,7 +345,7 @@ class NegativeBinomial(Distribution):
     @torch.inference_mode()
     def sample(
         self,
-        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
+        sample_shape: Optional[Union[torch.Size, tuple]] = None,
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
@@ -365,6 +368,7 @@ class NegativeBinomial(Distribution):
                 warnings.warn(
                     "The value argument must be within the support of the distribution",
                     UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
 
         return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps)
@@ -409,8 +413,8 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
     arg_constraints = {
         "mu": constraints.greater_than_eq(0),
         "theta": constraints.greater_than_eq(0),
-        "zi_probs": constraints.half_open_interval(0.0, 1.0),
         "zi_logits": constraints.real,
+        "scale": constraints.greater_than_eq(0),
     }
     support = constraints.nonnegative_integer
 
@@ -459,7 +463,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
     @torch.inference_mode()
     def sample(
         self,
-        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
+        sample_shape: Optional[Union[torch.Size, tuple]] = None,
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
@@ -476,6 +480,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
             warnings.warn(
                 "The value argument must be within the support of the distribution",
                 UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         return log_zinb_positive(value, self.mu, self.theta, self.zi_logits, eps=1e-08)
 
@@ -546,7 +551,7 @@ class NegativeBinomialMixture(Distribution):
     @torch.inference_mode()
     def sample(
         self,
-        sample_shape: Optional[Union[torch.Size, Tuple]] = None,
+        sample_shape: Optional[Union[torch.Size, tuple]] = None,
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
@@ -557,7 +562,7 @@ class NegativeBinomialMixture(Distribution):
             theta = self.theta1
         else:
             theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
-        gamma_d = _gamma(mu, theta)
+        gamma_d = _gamma(theta, mu)
         p_means = gamma_d.sample(sample_shape)
 
         # Clamping as distributions objects can have buggy behaviors when
@@ -576,6 +581,7 @@ class NegativeBinomialMixture(Distribution):
             warnings.warn(
                 "The value argument must be within the support of the distribution",
                 UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         return log_mixture_nb(
             value,

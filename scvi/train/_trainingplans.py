@@ -1,7 +1,8 @@
 from collections import OrderedDict
+from collections.abc import Iterable
 from functools import partial
 from inspect import signature
-from typing import Callable, Dict, Iterable, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
 import jax
 import jax.numpy as jnp
@@ -10,10 +11,12 @@ import numpy as np
 import optax
 import pyro
 import torch
+import torchmetrics.functional as tmf
+from lightning.pytorch.strategies.ddp import DDPStrategy
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from scvi import REGISTRY_KEYS
+from scvi import METRIC_KEYS, REGISTRY_KEYS
 from scvi.autotune._types import Tunable, TunableMixin
 from scvi.module import Classifier
 from scvi.module.base import (
@@ -88,7 +91,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
     modules.
 
     The following developer tutorial will familiarize you more with training plans
-    and how to use them: :doc:`/tutorials/notebooks/model_user_guide`.
+    and how to use them: :doc:`/tutorials/notebooks/dev/model_user_guide`.
 
     Parameters
     ----------
@@ -237,6 +240,10 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         self.elbo_val.reset()
 
     @property
+    def use_sync_dist(self):
+        return isinstance(self.trainer.strategy, DDPStrategy)
+
+    @property
     def n_obs_training(self):
         """Number of observations in the training set.
 
@@ -280,7 +287,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
     def compute_and_log_metrics(
         self,
         loss_output: LossOutput,
-        metrics: Dict[str, ElboMetric],
+        metrics: dict[str, ElboMetric],
         mode: str,
     ):
         """Computes and logs metrics.
@@ -315,6 +322,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             on_step=False,
             on_epoch=True,
             batch_size=n_obs_minibatch,
+            sync_dist=self.use_sync_dist,
         )
 
         # accumlate extra metrics passed to loss recorder
@@ -330,6 +338,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
                 on_step=False,
                 on_epoch=True,
                 batch_size=n_obs_minibatch,
+                sync_dist=self.use_sync_dist,
             )
 
     def training_step(self, batch, batch_idx):
@@ -339,7 +348,13 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             self.loss_kwargs.update({"kl_weight": kl_weight})
             self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        self.log("train_loss", scvi_loss.loss, on_epoch=True)
+        self.log(
+            "train_loss",
+            scvi_loss.loss,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=self.use_sync_dist,
+        )
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
         return scvi_loss.loss
 
@@ -349,7 +364,12 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         # so when relevant, the actual loss value is rescaled to number
         # of training examples
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        self.log("validation_loss", scvi_loss.loss, on_epoch=True)
+        self.log(
+            "validation_loss",
+            scvi_loss.loss,
+            on_epoch=True,
+            sync_dist=self.use_sync_dist,
+        )
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
     def _optimizer_creator_fn(
@@ -525,11 +545,9 @@ class AdversarialTrainingPlan(TrainingPlan):
             cls_target = one_hot(batch_index, n_classes)
         else:
             one_hot_batch = one_hot(batch_index, n_classes)
-            cls_target = torch.zeros_like(one_hot_batch)
             # place zeroes where true label is
-            cls_target.masked_scatter_(
-                ~one_hot_batch.bool(), torch.ones_like(one_hot_batch) / (n_classes - 1)
-            )
+            cls_target = (~one_hot_batch.bool()).float()
+            cls_target = cls_target / (n_classes - 1)
 
         l_soft = cls_logits * cls_target
         loss = -l_soft.sum(dim=1).mean()
@@ -564,7 +582,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
             loss += fool_loss * kappa
 
-        self.log("train_loss", loss, on_epoch=True)
+        self.log("train_loss", loss, on_epoch=True, prog_bar=True)
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
         opt1.zero_grad()
         self.manual_backward(loss)
@@ -589,10 +607,7 @@ class AdversarialTrainingPlan(TrainingPlan):
 
     def on_validation_epoch_end(self) -> None:
         """Update the learning rate via scheduler steps."""
-        if (
-            not self.reduce_lr_on_plateau
-            or "validation" not in self.lr_scheduler_metric
-        ):
+        if not self.reduce_lr_on_plateau or "validation" not in self.lr_scheduler_metric:
             return
         else:
             sch = self.lr_schedulers()
@@ -649,6 +664,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     ----------
     module
         A module instance from class ``BaseModuleClass``.
+    n_classes
+        The number of classes in the labeled dataset.
     classification_ratio
         Weight of the classification_loss in loss function
     lr
@@ -680,6 +697,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
     def __init__(
         self,
         module: BaseModuleClass,
+        n_classes: int,
         *,
         classification_ratio: int = 50,
         lr: float = 1e-3,
@@ -709,6 +727,76 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
+        self.n_classes = n_classes
+
+    def log_with_mode(self, key: str, value: Any, mode: str, **kwargs):
+        """Log with mode."""
+        # TODO: Include this with a base training plan
+        self.log(f"{mode}_{key}", value, **kwargs)
+
+    def compute_and_log_metrics(
+        self, loss_output: LossOutput, metrics: dict[str, ElboMetric], mode: str
+    ):
+        """Computes and logs metrics."""
+        super().compute_and_log_metrics(loss_output, metrics, mode)
+
+        # no labeled observations in minibatch
+        if loss_output.classification_loss is None:
+            return
+
+        classification_loss = loss_output.classification_loss
+        true_labels = loss_output.true_labels.squeeze()
+        logits = loss_output.logits
+        predicted_labels = torch.argmax(logits, dim=-1)
+
+        accuracy = tmf.classification.multiclass_accuracy(
+            predicted_labels,
+            true_labels,
+            self.n_classes,
+        )
+        f1 = tmf.classification.multiclass_f1_score(
+            predicted_labels,
+            true_labels,
+            self.n_classes,
+        )
+        ce = tmf.classification.multiclass_calibration_error(
+            logits,
+            true_labels,
+            self.n_classes,
+        )
+
+        self.log_with_mode(
+            METRIC_KEYS.CLASSIFICATION_LOSS_KEY,
+            classification_loss,
+            mode,
+            on_step=False,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
+        self.log_with_mode(
+            METRIC_KEYS.ACCURACY_KEY,
+            accuracy,
+            mode,
+            on_step=False,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
+        self.log_with_mode(
+            METRIC_KEYS.F1_SCORE_KEY,
+            f1,
+            mode,
+            on_step=False,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
+        self.log_with_mode(
+            METRIC_KEYS.CALIBRATION_ERROR_KEY,
+            ce,
+            mode,
+            on_step=False,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
 
     def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
@@ -734,6 +822,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             loss,
             on_epoch=True,
             batch_size=loss_output.n_obs_minibatch,
+            prog_bar=True,
         )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
         return loss
@@ -947,9 +1036,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
         if "lr" not in optim_kwargs.keys():
             optim_kwargs.update({"lr": 1e-3})
-        self.optim = (
-            pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
-        )
+        self.optim = pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         # We let SVI take care of all optimization
         self.automatic_optimization = False
 
@@ -1056,7 +1143,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
         """Training step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
-        self.log("train_loss", loss, on_epoch=True)
+        self.log("train_loss", loss, on_epoch=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -1186,8 +1273,8 @@ class JaxTrainingPlan(TrainingPlan):
     @jax.jit
     def jit_training_step(
         state: TrainStateWithState,
-        batch: Dict[str, np.ndarray],
-        rngs: Dict[str, jnp.ndarray],
+        batch: dict[str, np.ndarray],
+        rngs: dict[str, jnp.ndarray],
         **kwargs,
     ):
         """Jit training step."""
@@ -1240,8 +1327,8 @@ class JaxTrainingPlan(TrainingPlan):
     def jit_validation_step(
         self,
         state: TrainStateWithState,
-        batch: Dict[str, np.ndarray],
-        rngs: Dict[str, jnp.ndarray],
+        batch: dict[str, np.ndarray],
+        rngs: dict[str, jnp.ndarray],
         **kwargs,
     ):
         """Jit validation step."""

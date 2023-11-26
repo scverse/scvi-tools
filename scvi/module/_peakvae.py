@@ -1,4 +1,5 @@
-from typing import Dict, Iterable, Literal, Optional
+from collections.abc import Iterable
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -39,6 +40,8 @@ class Decoder(nn.Module):
     deeply_inject_covariates
         Whether to deeply inject covariates into all layers. If False (default),
         covairates will only be included in the input layer.
+    **kwargs
+        Keyword args for :class:`~scvi.nn.FCLayers`
     """
 
     def __init__(
@@ -51,6 +54,7 @@ class Decoder(nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = True,
         deep_inject_covariates: bool = False,
+        **kwargs,
     ):
         super().__init__()
         self.px_decoder = FCLayers(
@@ -64,6 +68,7 @@ class Decoder(nn.Module):
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
             inject_covariates=deep_inject_covariates,
+            **kwargs,
         )
         self.output = torch.nn.Sequential(
             torch.nn.Linear(n_hidden, n_output), torch.nn.Sigmoid()
@@ -124,7 +129,12 @@ class PEAKVAE(BaseModuleClass):
     deeply_inject_covariates
         Whether to deeply inject covariates into all layers of the decoder. If False (default),
         covairates will only be included in the input layer.
-
+    encode_covariates
+        Whether to concatenate covariates to expression in encoder.
+    extra_encoder_kwargs
+        Extra keyword arguments passed into :class:`scvi.nn.Encoder`.
+    extra_decoder_kwargs
+        Extra keyword arguments passed into :class:`scvi.nn.Decoder`.
     """
 
     def __init__(
@@ -145,6 +155,8 @@ class PEAKVAE(BaseModuleClass):
         latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
         deeply_inject_covariates: Tunable[bool] = False,
         encode_covariates: bool = False,
+        extra_encoder_kwargs: Optional[dict] = None,
+        extra_decoder_kwargs: Optional[dict] = None,
     ):
         super().__init__()
 
@@ -167,12 +179,11 @@ class PEAKVAE(BaseModuleClass):
         self.deeply_inject_covariates = deeply_inject_covariates
         self.encode_covariates = encode_covariates
 
-        cat_list = (
-            [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
-        )
+        cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
 
         n_input_encoder = self.n_input_regions + n_continuous_cov * encode_covariates
         encoder_cat_list = cat_list if encode_covariates else None
+        _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.z_encoder = Encoder(
             n_input=n_input_encoder,
             n_layers=self.n_layers_encoder,
@@ -186,8 +197,10 @@ class PEAKVAE(BaseModuleClass):
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
             return_dist=True,
+            **_extra_encoder_kwargs,
         )
 
+        _extra_decoder_kwargs = extra_decoder_kwargs or {}
         self.z_decoder = Decoder(
             n_input=self.n_latent + self.n_continuous_cov,
             n_output=n_input_regions,
@@ -197,6 +210,7 @@ class PEAKVAE(BaseModuleClass):
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
             deep_inject_covariates=self.deeply_inject_covariates,
+            **_extra_decoder_kwargs,
         )
 
         self.d_encoder = None
@@ -208,6 +222,7 @@ class PEAKVAE(BaseModuleClass):
                 n_hidden=self.n_hidden,
                 n_cat_list=encoder_cat_list,
                 n_layers=self.n_layers_encoder,
+                **_extra_decoder_kwargs,
             )
         self.region_factors = None
         if region_factors:
@@ -258,7 +273,7 @@ class PEAKVAE(BaseModuleClass):
         cont_covs,
         cat_covs,
         n_samples=1,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """Helper function used in forward pass."""
         if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)

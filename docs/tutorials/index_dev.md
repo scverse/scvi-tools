@@ -9,9 +9,9 @@ For questions about developing with scvi-tools, please use the [forum] or [zulip
 ```{toctree}
 :maxdepth: 1
 
-notebooks/data_tutorial
-notebooks/module_user_guide
-notebooks/model_user_guide
+notebooks/dev/data_tutorial
+notebooks/dev/module_user_guide
+notebooks/dev/model_user_guide
 ```
 
 [forum]: https://discourse.scvi-tools.org/

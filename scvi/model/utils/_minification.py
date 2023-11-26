@@ -30,7 +30,7 @@ def get_minified_adata_scrna(
     bdata = AnnData(
         X=all_zeros,
         layers=layers,
-        uns=adata.uns,
+        uns=adata.uns.copy(),
         obs=adata.obs,
         var=adata.var,
         varm=adata.varm,

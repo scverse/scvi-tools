@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import Callable, Dict, Optional, Union
+from typing import Callable
 
 import numpy as np
 import torch
@@ -8,7 +10,7 @@ from pyro import poutine
 
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
-from scvi.model._utils import parse_device_args
+from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
 from scvi.utils._docstrings import devices_dsp
@@ -84,17 +86,18 @@ class PyroSviTrainMixin:
     @devices_dsp.dedent
     def train(
         self,
-        max_epochs: Optional[int] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        max_epochs: int | None = None,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
+        device: int | str = "auto",
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
         early_stopping: bool = False,
-        lr: Optional[float] = None,
-        training_plan: PyroTrainingPlan = PyroTrainingPlan,
-        plan_kwargs: Optional[dict] = None,
+        lr: float | None = None,
+        training_plan: PyroTrainingPlan | None = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -104,7 +107,6 @@ class PyroSviTrainMixin:
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         train_size
@@ -112,6 +114,9 @@ class PyroSviTrainMixin:
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training. If `None`, no minibatching occurs and all
             data is copied to device (e.g., GPU).
@@ -123,6 +128,8 @@ class PyroSviTrainMixin:
             Specifying optimiser via plan_kwargs overrides this choice of lr.
         training_plan
             Training plan :class:`~scvi.train.PyroTrainingPlan`.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.PyroTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -130,12 +137,13 @@ class PyroSviTrainMixin:
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            n_obs = self.adata.n_obs
-            max_epochs = int(np.min([round((20000 / n_obs) * 1000), 1000]))
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs, epochs_cap=1000)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
         if lr is not None and "optim" not in plan_kwargs.keys():
             plan_kwargs.update({"optim_kwargs": {"lr": lr}})
+
+        datasplitter_kwargs = datasplitter_kwargs or {}
 
         if batch_size is None:
             # use data splitter which moves data to GPU once
@@ -146,15 +154,20 @@ class PyroSviTrainMixin:
                 batch_size=batch_size,
                 accelerator=accelerator,
                 device=device,
+                **datasplitter_kwargs,
             )
         else:
             data_splitter = self._data_splitter_cls(
                 self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
+                shuffle_set_split=shuffle_set_split,
                 batch_size=batch_size,
+                **datasplitter_kwargs,
             )
-        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
+
+        if training_plan is None:
+            training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
         trainer_kwargs[es] = (
@@ -170,7 +183,6 @@ class PyroSviTrainMixin:
             training_plan=training_plan,
             data_splitter=data_splitter,
             max_epochs=max_epochs,
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=device,
             **trainer_kwargs,
@@ -189,7 +201,7 @@ class PyroSampleMixin:
         self,
         args,
         kwargs,
-        return_sites: Optional[list] = None,
+        return_sites: list | None = None,
         return_observed: bool = False,
     ):
         """Get one sample from posterior distribution.
@@ -246,7 +258,7 @@ class PyroSampleMixin:
         args,
         kwargs,
         num_samples: int = 1000,
-        return_sites: Optional[list] = None,
+        return_sites: list | None = None,
         return_observed: bool = False,
         show_progress: bool = True,
     ):
@@ -354,10 +366,9 @@ class PyroSampleMixin:
     @devices_dsp.dedent
     def _posterior_samples_minibatch(
         self,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
-        batch_size: Optional[int] = None,
+        device: int | str = "auto",
+        batch_size: int | None = None,
         **sample_kwargs,
     ):
         """Generate samples of the posterior distribution in minibatches.
@@ -367,7 +378,6 @@ class PyroSampleMixin:
 
         Parameters
         ----------
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         batch_size
@@ -380,7 +390,6 @@ class PyroSampleMixin:
         samples = {}
 
         _, _, device = parse_device_args(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=device,
             return_device="torch",
@@ -465,14 +474,13 @@ class PyroSampleMixin:
     def sample_posterior(
         self,
         num_samples: int = 1000,
-        return_sites: Optional[list] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        return_sites: list | None = None,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
-        batch_size: Optional[int] = None,
+        device: int | str = "auto",
+        batch_size: int | None = None,
         return_observed: bool = False,
         return_samples: bool = False,
-        summary_fun: Optional[Dict[str, Callable]] = None,
+        summary_fun: dict[str, Callable] | None = None,
     ):
         """Summarise posterior distribution.
 
@@ -485,7 +493,6 @@ class PyroSampleMixin:
             Number of posterior samples to generate.
         return_sites
             List of variables for which to generate posterior samples, defaults to all variables.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         batch_size
@@ -521,7 +528,6 @@ class PyroSampleMixin:
         """
         # sample using minibatches (if full data, data is moved to GPU only once anyway)
         samples = self._posterior_samples_minibatch(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             device=device,
             batch_size=batch_size,

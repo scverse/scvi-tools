@@ -53,6 +53,7 @@ for operating over a collection of AnnDataFields and an AnnData object.
    data.fields.MuDataNumericalJointVarField
    data.fields.MuDataCategoricalJointObsField
    data.fields.MuDataCategoricalJointVarField
+   data.AnnTorchDataset
 
 ```
 
@@ -70,7 +71,6 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    :nosignatures:
 
    dataloaders.AnnDataLoader
-   dataloaders.AnnTorchDataset
    dataloaders.ConcatDataLoader
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
@@ -244,6 +244,7 @@ TrainingPlans define train/test/val optimization steps for modules.
    train.TrainingPlan
    train.TrainRunner
    train.SaveBestState
+   train.SaveCheckpoint
    train.LoudEarlyStopping
 
 ```

@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 import logging
 import os
 import warnings
 from itertools import cycle
-from typing import List, Optional, Union
 
 import numpy as np
 import torch
 from anndata import AnnData
 from torch.utils.data import DataLoader
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
@@ -77,8 +78,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         self,
         adata_seq: AnnData,
         adata_spatial: AnnData,
-        generative_distributions: Optional[List[str]] = None,
-        model_library_size: Optional[List[bool]] = None,
+        generative_distributions: list[str] | None = None,
+        model_library_size: list[bool] | None = None,
         n_latent: int = 10,
         **model_kwargs,
     ):
@@ -161,14 +162,15 @@ class GIMVI(VAEMixin, BaseModelClass):
     def train(
         self,
         max_epochs: int = 200,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         kappa: int = 5,
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
         batch_size: int = 128,
-        plan_kwargs: Optional[dict] = None,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
         **kwargs,
     ):
         """Train the model.
@@ -178,7 +180,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         max_epochs
             Number of passes through the dataset. If `None`, defaults to
             `np.min([round((20000 / n_cells) * 400), 400])`
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_devices)s
         kappa
@@ -188,8 +189,13 @@ class GIMVI(VAEMixin, BaseModelClass):
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
+            sequential order of the data according to `validation_size` and `train_size` percentages.
         batch_size
             Minibatch size to use during training.
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed
             to `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -197,11 +203,11 @@ class GIMVI(VAEMixin, BaseModelClass):
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         accelerator, devices, device = parse_device_args(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             return_device="torch",
         )
+        datasplitter_kwargs = datasplitter_kwargs or {}
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
@@ -217,6 +223,8 @@ class GIMVI(VAEMixin, BaseModelClass):
                 train_size=train_size,
                 validation_size=validation_size,
                 batch_size=batch_size,
+                shuffle_set_split=shuffle_set_split,
+                **datasplitter_kwargs,
             )
             ds.setup()
             train_dls.append(ds.train_dataloader())
@@ -252,7 +260,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         self.to_device(device)
         self.is_trained_ = True
 
-    def _make_scvi_dls(self, adatas: List[AnnData] = None, batch_size=128):
+    def _make_scvi_dls(self, adatas: list[AnnData] = None, batch_size=128):
         if adatas is None:
             adatas = self.adatas
         post_list = [self._make_data_loader(ad) for ad in adatas]
@@ -264,10 +272,10 @@ class GIMVI(VAEMixin, BaseModelClass):
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adatas: List[AnnData] = None,
+        adatas: list[AnnData] = None,
         deterministic: bool = True,
         batch_size: int = 128,
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         """Return the latent space embedding for each dataset.
 
         Parameters
@@ -305,12 +313,12 @@ class GIMVI(VAEMixin, BaseModelClass):
     @torch.inference_mode()
     def get_imputed_values(
         self,
-        adatas: List[AnnData] = None,
+        adatas: list[AnnData] = None,
         deterministic: bool = True,
         normalized: bool = True,
-        decode_mode: Optional[int] = None,
+        decode_mode: int | None = None,
         batch_size: int = 128,
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         """Return imputed values for all genes for each dataset.
 
         Parameters
@@ -374,9 +382,10 @@ class GIMVI(VAEMixin, BaseModelClass):
     def save(
         self,
         dir_path: str,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         overwrite: bool = False,
         save_anndata: bool = False,
+        save_kwargs: dict | None = None,
         **anndata_write_kwargs,
     ):
         """Save the state of the model.
@@ -396,6 +405,8 @@ class GIMVI(VAEMixin, BaseModelClass):
             already exists at `dir_path`, error will be raised.
         save_anndata
             If True, also saves the anndata
+        save_kwargs
+            Keyword arguments passed into :func:`~torch.save`.
         anndata_write_kwargs
             Kwargs for anndata write function
         """
@@ -403,12 +414,11 @@ class GIMVI(VAEMixin, BaseModelClass):
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
-                "{} already exists. Please provide an unexisting directory for saving.".format(
-                    dir_path
-                )
+                f"{dir_path} already exists. Please provide an unexisting directory for saving."
             )
 
         file_name_prefix = prefix or ""
+        save_kwargs = save_kwargs or {}
 
         seq_adata = self.adatas[0]
         spatial_adata = self.adatas[1]
@@ -442,6 +452,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                 "attr_dict": user_attributes,
             },
             model_save_path,
+            **save_kwargs,
         )
 
     @classmethod
@@ -449,13 +460,12 @@ class GIMVI(VAEMixin, BaseModelClass):
     def load(
         cls,
         dir_path: str,
-        adata_seq: Optional[AnnData] = None,
-        adata_spatial: Optional[AnnData] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        adata_seq: AnnData | None = None,
+        adata_spatial: AnnData | None = None,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
-        prefix: Optional[str] = None,
-        backup_url: Optional[str] = None,
+        device: int | str = "auto",
+        prefix: str | None = None,
+        backup_url: str | None = None,
     ):
         """Instantiate a model from the saved output.
 
@@ -471,7 +481,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         adata_spatial
             AnnData organized in the same way as data used to train model.
             If None, will check for and load anndata saved with the model.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         prefix
@@ -489,7 +498,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         >>> vae.get_latent_representation()
         """
         _, _, device = parse_device_args(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=device,
             return_device="torch",
@@ -520,17 +528,16 @@ class GIMVI(VAEMixin, BaseModelClass):
             user_var_names = adata.var_names.astype(str)
             if not np.array_equal(saved_var_names, user_var_names):
                 warnings.warn(
-                    "var_names for adata passed in does not match var_names of "
-                    "adata used to train the model. For valid results, the vars "
-                    "need to be the same and in the same order as the adata used to train the model."
+                    "var_names for adata passed in does not match var_names of adata "
+                    "used to train the model. For valid results, the vars need to be the"
+                    "same and in the same order as the adata used to train the model.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
 
         registries = attr_dict.pop("registries_")
         for adata, registry in zip(adatas, registries):
-            if (
-                _MODEL_NAME_KEY in registry
-                and registry[_MODEL_NAME_KEY] != cls.__name__
-            ):
+            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
                 raise ValueError(
                     "It appears you are loading a model from a different class."
                 )
@@ -579,29 +586,30 @@ class GIMVI(VAEMixin, BaseModelClass):
         dir_path: str,
         output_dir_path: str,
         overwrite: bool = False,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
+        **save_kwargs,
     ) -> None:
         """Converts a legacy saved GIMVI model (<v0.15.0) to the updated save format.
 
         Parameters
         ----------
-        dir_path
-            Path to directory where legacy model is saved.
-        output_dir_path
-            Path to save converted save files.
-        overwrite
-            Overwrite existing data or not. If ``False`` and directory
-            already exists at ``output_dir_path``, error will be raised.
-        prefix
-            Prefix of saved file names.
+         dir_path
+             Path to directory where legacy model is saved.
+         output_dir_path
+             Path to save converted save files.
+         overwrite
+             Overwrite existing data or not. If ``False`` and directory
+             already exists at ``output_dir_path``, error will be raised.
+         prefix
+             Prefix of saved file names.
+        **save_kwargs
+             Keyword arguments passed into :func:`~torch.save`.
         """
         if not os.path.exists(output_dir_path) or overwrite:
             os.makedirs(output_dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
-                "{} already exists. Please provide an unexisting directory for saving.".format(
-                    dir_path
-                )
+                f"{dir_path} already exists. Please provide an unexisting directory for saving."
             )
 
         file_name_prefix = prefix or ""
@@ -634,6 +642,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                 "attr_dict": attr_dict,
             },
             model_save_path,
+            **save_kwargs,
         )
 
     @classmethod
@@ -641,9 +650,9 @@ class GIMVI(VAEMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.

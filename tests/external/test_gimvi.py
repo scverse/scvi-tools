@@ -28,9 +28,7 @@ def test_saving_and_loading(save_path):
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
-                "{} already exists. Please provide an unexisting directory for saving.".format(
-                    dir_path
-                )
+                f"{dir_path} already exists. Please provide an unexisting directory for saving."
             )
 
         file_name_prefix = prefix or ""
@@ -92,7 +90,6 @@ def test_saving_and_loading(save_path):
         save_path,
         adata_seq=adata,
         adata_spatial=adata2,
-        use_gpu=False,
         prefix=prefix,
     )
     z2 = model.get_latent_representation([adata])
@@ -165,9 +162,7 @@ def test_gimvi_model_library_size():
         batch_key="batch",
         labels_key="labels",
     )
-    model = GIMVI(
-        adata_seq, adata_spatial, model_library_size=[True, True], n_latent=10
-    )
+    model = GIMVI(adata_seq, adata_spatial, model_library_size=[True, True], n_latent=10)
     assert hasattr(model.module, "library_log_means_0") and hasattr(
         model.module, "library_log_means_1"
     )

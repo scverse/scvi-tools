@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 import anndata
 import numpy as np
@@ -11,7 +10,7 @@ from scvi.data._download import _download
 
 def _load_purified_pbmc_dataset(
     save_path: str = "data/",
-    subset_datasets: List[str] = None,
+    subset_datasets: list[str] = None,
 ) -> anndata.AnnData:
     url = "https://github.com/YosefLab/scVI-data/raw/master/PurifiedPBMCDataset.h5ad"
     save_fn = "PurifiedPBMCDataset.h5ad"
@@ -78,7 +77,7 @@ def _load_pbmc_dataset(
 
     dict_barcodes = dict(zip(barcodes, np.arange(len(barcodes))))
     subset_cells = []
-    barcodes_metadata = pbmc_metadata["barcodes"].index.values.ravel().astype(np.str)
+    barcodes_metadata = pbmc_metadata["barcodes"].index.values.ravel().astype(str)
     for barcode in barcodes_metadata:
         if (
             barcode in dict_barcodes
@@ -86,7 +85,7 @@ def _load_pbmc_dataset(
             subset_cells += [dict_barcodes[barcode]]
     adata = adata[np.asarray(subset_cells), :].copy()
     idx_metadata = np.asarray(
-        [not barcode.endswith("11") for barcode in barcodes_metadata], dtype=np.bool
+        [not barcode.endswith("11") for barcode in barcodes_metadata], dtype=bool
     )
     genes_to_keep = list(
         de_metadata["ENSG"].values

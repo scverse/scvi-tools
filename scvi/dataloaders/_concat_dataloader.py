@@ -1,5 +1,5 @@
 from itertools import cycle
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 from torch.utils.data import DataLoader
@@ -33,13 +33,20 @@ class ConcatDataLoader(DataLoader):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        indices_list: List[List[int]],
+        indices_list: list[list[int]],
         shuffle: bool = False,
         batch_size: int = 128,
         data_and_attributes: Optional[dict] = None,
         drop_last: Union[bool, int] = False,
         **data_loader_kwargs,
     ):
+        self.adata_manager = adata_manager
+        self.dataloader_kwargs = data_loader_kwargs
+        self.data_and_attributes = data_and_attributes
+        self._shuffle = shuffle
+        self._batch_size = batch_size
+        self._drop_last = drop_last
+
         self.dataloaders = []
         for indices in indices_list:
             self.dataloaders.append(
@@ -50,7 +57,7 @@ class ConcatDataLoader(DataLoader):
                     batch_size=batch_size,
                     data_and_attributes=data_and_attributes,
                     drop_last=drop_last,
-                    **data_loader_kwargs,
+                    **self.dataloader_kwargs,
                 )
             )
         lens = [len(dl) for dl in self.dataloaders]

@@ -1,5 +1,6 @@
 import logging
-from typing import Literal, Optional, Sequence
+from collections.abc import Sequence
+from typing import Literal, Optional
 
 import jax.numpy as jnp
 import numpy as np
@@ -43,7 +44,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.model.JaxSCVI.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.model.SCVI(adata)
+    >>> vae = scvi.model.JaxSCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     """

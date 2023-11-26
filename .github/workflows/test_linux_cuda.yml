@@ -1,0 +1,42 @@
+name: test-linux-cuda
+
+on:
+    schedule:
+        - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+
+    workflow_dispatch:
+
+jobs:
+    test:
+        runs-on: [self-hosted, Linux, X64, CUDA]
+
+        timeout-minutes: 30
+
+        strategy:
+            fail-fast: false
+            matrix:
+                python: ["3.11"]
+                cuda: ["11"]
+
+        container:
+            image: martinkim0/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
+            options: --user root --gpus all
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+
+            - name: Install dependencies
+              run: |
+                  pip install ".[tests]"
+
+            - name: Test
+              env:
+                  MPLBACKEND: agg
+                  PLATFORM: ubuntu
+                  DISPLAY: :42
+              run: |
+                  pytest -v --cov --color=yes --accelerator cuda --devices auto
+
+            - name: Upload coverage
+              uses: codecov/codecov-action@v3

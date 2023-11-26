@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import inspect
 import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Optional, Sequence, Type, Union
+from collections.abc import Sequence
 from uuid import uuid4
 
 import numpy as np
@@ -53,19 +55,28 @@ class BaseModelMetaClass(ABCMeta):
 
     @abstractmethod
     def __init__(cls, name, bases, dct):
-        cls._setup_adata_manager_store: Dict[
-            str, Type[AnnDataManager]
+        cls._setup_adata_manager_store: dict[
+            str, type[AnnDataManager]
         ] = {}  # Maps adata id to AnnDataManager instances.
-        cls._per_instance_manager_store: Dict[
-            str, Dict[str, Type[AnnDataManager]]
+        cls._per_instance_manager_store: dict[
+            str, dict[str, type[AnnDataManager]]
         ] = {}  # Maps model instance id to AnnDataManager mappings.
         super().__init__(name, bases, dct)
 
 
 class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
-    """Abstract class for scvi-tools models."""
+    """Abstract class for scvi-tools models.
 
-    def __init__(self, adata: Optional[AnnOrMuData] = None):
+    Notes
+    -----
+    See further usage examples in the following tutorials:
+
+    1. :doc:`/tutorials/notebooks/dev/model_user_guide`
+    """
+
+    _data_loader_cls = AnnDataLoader
+
+    def __init__(self, adata: AnnOrMuData | None = None):
         # check if the given adata is minified and check if the model being created
         # supports minified-data mode (i.e. inherits from the abstract BaseMinifiedModeModelClass).
         # If not, raise an error to inform the user of the lack of minified-data functionality
@@ -94,7 +105,6 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         self.test_indices_ = None
         self.validation_indices_ = None
         self.history_ = None
-        self._data_loader_cls = AnnDataLoader
 
     @property
     def adata(self) -> AnnOrMuData:
@@ -116,7 +126,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         """Manager instance associated with self.adata."""
         return self._adata_manager
 
-    def to_device(self, device: Union[str, int]):
+    def to_device(self, device: str | int):
         """Move model to device.
 
         Parameters
@@ -168,7 +178,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
     @staticmethod
     def _create_modalities_attr_dict(
-        modalities: Dict[str, str], setup_method_args: dict
+        modalities: dict[str, str], setup_method_args: dict
     ) -> attrdict:
         """Preprocesses a ``modalities`` dictionary used in ``setup_mudata()`` to map modality names.
 
@@ -223,10 +233,46 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         instance_manager_store = self._per_instance_manager_store[self.id]
         instance_manager_store[adata_id] = adata_manager
 
+    def deregister_manager(self, adata: AnnData | None = None):
+        """Deregisters the :class:`~scvi.data.AnnDataManager` instance associated with `adata`.
+
+        If `adata` is `None`, deregisters all :class:`~scvi.data.AnnDataManager` instances
+        in both the class and instance-specific manager stores, except for the one associated
+        with this model instance.
+        """
+        cls_manager_store = self._setup_adata_manager_store
+        instance_manager_store = self._per_instance_manager_store[self.id]
+
+        if adata is None:
+            instance_managers_to_clear = list(instance_manager_store.keys())
+            cls_managers_to_clear = list(cls_manager_store.keys())
+        else:
+            adata_manager = self._get_most_recent_anndata_manager(adata, required=True)
+            cls_managers_to_clear = [adata_manager.adata_uuid]
+            instance_managers_to_clear = [adata_manager.adata_uuid]
+
+        for adata_id in cls_managers_to_clear:
+            # don't clear the current manager by default
+            is_current_adata = (
+                adata is None and adata_id == self.adata_manager.adata_uuid
+            )
+            if is_current_adata or adata_id not in cls_manager_store:
+                continue
+            del cls_manager_store[adata_id]
+
+        for adata_id in instance_managers_to_clear:
+            # don't clear the current manager by default
+            is_current_adata = (
+                adata is None and adata_id == self.adata_manager.adata_uuid
+            )
+            if is_current_adata or adata_id not in instance_manager_store:
+                continue
+            del instance_manager_store[adata_id]
+
     @classmethod
     def _get_most_recent_anndata_manager(
         cls, adata: AnnOrMuData, required: bool = False
-    ) -> Optional[AnnDataManager]:
+    ) -> AnnDataManager | None:
         """Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model class.
 
         Checks for the most recent :class:`~scvi.data.AnnDataManager` created for the given AnnData object via
@@ -268,7 +314,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
     def get_anndata_manager(
         self, adata: AnnOrMuData, required: bool = False
-    ) -> Optional[AnnDataManager]:
+    ) -> AnnDataManager | None:
         """Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model instance.
 
         Requires ``self.id`` has been set. Checks for an :class:`~scvi.data.AnnDataManager`
@@ -347,8 +393,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def _make_data_loader(
         self,
         adata: AnnOrMuData,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
         shuffle: bool = False,
         data_loader_class=None,
         **data_loader_kwargs,
@@ -398,7 +444,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         return dl
 
     def _validate_anndata(
-        self, adata: Optional[AnnOrMuData] = None, copy_if_view: bool = True
+        self, adata: AnnOrMuData | None = None, copy_if_view: bool = True
     ) -> AnnData:
         """Validate anndata has been properly registered, transfer if necessary."""
         if adata is None:
@@ -430,7 +476,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         """
         if not self.is_trained_:
             if warn:
-                warnings.warn(message)
+                warnings.warn(
+                    message, UserWarning, stacklevel=settings.warnings_stacklevel
+                )
             else:
                 raise RuntimeError(message)
 
@@ -518,9 +566,10 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def save(
         self,
         dir_path: str,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         overwrite: bool = False,
         save_anndata: bool = False,
+        save_kwargs: dict | None = None,
         **anndata_write_kwargs,
     ):
         """Save the state of the model.
@@ -540,6 +589,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             already exists at `dir_path`, error will be raised.
         save_anndata
             If True, also saves the anndata
+        save_kwargs
+            Keyword arguments passed into :func:`~torch.save`.
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
@@ -547,12 +598,12 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
-                "{} already exists. Please provide another directory for saving.".format(
-                    dir_path
-                )
+                f"{dir_path} already exists. Please provide another directory for saving."
             )
 
         file_name_prefix = prefix or ""
+        save_kwargs = save_kwargs or {}
+
         if save_anndata:
             file_suffix = ""
             if isinstance(self.adata, AnnData):
@@ -584,6 +635,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
                 "attr_dict": user_attributes,
             },
             model_save_path,
+            **save_kwargs,
         )
 
     @classmethod
@@ -591,12 +643,11 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def load(
         cls,
         dir_path: str,
-        adata: Optional[AnnOrMuData] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
+        adata: AnnOrMuData | None = None,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
-        prefix: Optional[str] = None,
-        backup_url: Optional[str] = None,
+        device: int | str = "auto",
+        prefix: str | None = None,
+        backup_url: str | None = None,
     ):
         """Instantiate a model from the saved output.
 
@@ -609,7 +660,6 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             It is not necessary to run setup_anndata,
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
-        %(param_use_gpu)s
         %(param_accelerator)s
         %(param_device)s
         prefix
@@ -628,7 +678,6 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         """
         load_adata = adata is None
         _, _, device = parse_device_args(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=device,
             return_device="torch",
@@ -686,7 +735,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         dir_path: str,
         output_dir_path: str,
         overwrite: bool = False,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
+        **save_kwargs,
     ) -> None:
         """Converts a legacy saved model (<v0.15.0) to the updated save format.
 
@@ -701,6 +751,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             already exists at ``output_dir_path``, error will be raised.
         prefix
             Prefix of saved file names.
+        **save_kwargs
+            Keyword arguments passed into :func:`~torch.save`.
         """
         if not os.path.exists(output_dir_path) or overwrite:
             os.makedirs(output_dir_path, exist_ok=overwrite)
@@ -732,19 +784,20 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
                 "attr_dict": attr_dict,
             },
             model_save_path,
+            **save_kwargs,
         )
 
-    def __repr__(
-        self,
-    ):
+    @property
+    def summary_string(self):
+        """Summary string of the model."""
         summary_string = self._model_summary_string
         summary_string += "\nTraining status: {}".format(
             "Trained" if self.is_trained_ else "Not Trained"
         )
-        summary_string += "\nModel's adata is minified?: {}".format(
-            hasattr(self, "minified_data_type") and self.minified_data_type is not None
-        )
-        rich.print(summary_string)
+        return summary_string
+
+    def __repr__(self):
+        rich.print(self.summary_string)
         return ""
 
     @classmethod
@@ -765,7 +818,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         """
 
     @staticmethod
-    def view_setup_args(dir_path: str, prefix: Optional[str] = None) -> None:
+    def view_setup_args(dir_path: str, prefix: str | None = None) -> None:
         """Print args used to setup a saved model.
 
         Parameters
@@ -779,7 +832,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         AnnDataManager.view_setup_method_args(registry)
 
     @staticmethod
-    def load_registry(dir_path: str, prefix: Optional[str] = None) -> dict:
+    def load_registry(dir_path: str, prefix: str | None = None) -> dict:
         """Return the full registry saved with the model.
 
         Parameters
@@ -805,7 +858,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         return attr_dict.pop("registry_")
 
     def view_anndata_setup(
-        self, adata: Optional[AnnOrMuData] = None, hide_state_registries: bool = False
+        self, adata: AnnOrMuData | None = None, hide_state_registries: bool = False
     ) -> None:
         """Print summary of the setup for the initial AnnData or a given AnnData object.
 
@@ -833,7 +886,7 @@ class BaseMinifiedModeModelClass(BaseModelClass):
     """Abstract base class for scvi-tools models that can handle minified data."""
 
     @property
-    def minified_data_type(self) -> Union[MinifiedDataType, None]:
+    def minified_data_type(self) -> MinifiedDataType | None:
         """The type of minified data associated with this model, if applicable."""
         return (
             self.adata_manager.get_from_registry(REGISTRY_KEYS.MINIFY_TYPE_KEY)
@@ -877,3 +930,12 @@ class BaseMinifiedModeModelClass(BaseModelClass):
         # We set the adata attribute of the model as this will update self.registry_
         # and self.adata_manager with the new adata manager
         self.adata = minified_adata
+
+    @property
+    def summary_string(self):
+        """Summary string of the model."""
+        summary_string = super().summary_string
+        summary_string += "\nModel's adata is minified?: {}".format(
+            hasattr(self, "minified_data_type") and self.minified_data_type is not None
+        )
+        return summary_string

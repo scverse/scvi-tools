@@ -1,11 +1,12 @@
 import logging
 import warnings
-from typing import List, Optional, Union
+from typing import Union
 
 import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
 
+from scvi import settings
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
@@ -28,11 +29,6 @@ class TrainRunner:
         :class:`~scvi.dataloaders.DataSplitter`
     max_epochs
         max_epochs to train for
-    use_gpu
-        Use default GPU if available (if `True`), or index of GPU to use (if int), or name
-        of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False). Passing in `use_gpu != None`
-        will override `accelerator` and `devices` arguments. This argument is deprecated in
-        v1.0 and will be removed in v1.1. Please use `accelerator` and `devices` instead.
     accelerator
         Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu",
         "mps, "auto") as well as custom accelerator instances.
@@ -64,16 +60,14 @@ class TrainRunner:
         training_plan: pl.LightningModule,
         data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
         max_epochs: int,
-        use_gpu: Optional[Union[str, int, bool]] = None,
         accelerator: str = "auto",
-        devices: Union[int, List[int], str] = "auto",
+        devices: Union[int, list[int], str] = "auto",
         **trainer_kwargs,
     ):
         self.training_plan = training_plan
         self.data_splitter = data_splitter
         self.model = model
         accelerator, lightning_devices, device = parse_device_args(
-            use_gpu=use_gpu,
             accelerator=accelerator,
             devices=devices,
             return_device="torch",
@@ -81,12 +75,18 @@ class TrainRunner:
         self.accelerator = accelerator
         self.lightning_devices = lightning_devices
         self.device = device
+
+        if getattr(self.training_plan, "reduce_lr_on_plateau", False):
+            trainer_kwargs["learning_rate_monitor"] = True
+
         self.trainer = self._trainer_cls(
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=lightning_devices,
             **trainer_kwargs,
         )
+        # currently set for MetricsCallback
+        self.trainer._model = model  # TODO: Find a better way to do this
 
     def __call__(self):
         """Run training."""
@@ -115,7 +115,10 @@ class TrainRunner:
             # if not using the default logger (e.g., tensorboard)
             if not isinstance(self.model.history_, dict):
                 warnings.warn(
-                    "Training history cannot be updated. Logger can be accessed from model.trainer.logger"
+                    "Training history cannot be updated. Logger can be accessed from "
+                    "`model.trainer.logger`",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
                 )
                 return
             else:

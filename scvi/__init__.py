@@ -2,12 +2,13 @@
 
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
+import warnings
 
-from ._constants import REGISTRY_KEYS
+from ._constants import METRIC_KEYS, REGISTRY_KEYS
 from ._settings import settings
 
 # this import needs to come after prior imports to prevent circular import
-from . import autotune, data, model, external, utils
+from . import autotune, data, model, external, utils, criticism
 
 from importlib.metadata import version
 
@@ -21,12 +22,17 @@ test_var = "test"
 scvi_logger = logging.getLogger("scvi")
 scvi_logger.propagate = False
 
+# ignore Jax GPU warnings
+warnings.filterwarnings("ignore", message="No GPU/TPU found, falling back to CPU.")
+
 __all__ = [
     "settings",
     "REGISTRY_KEYS",
+    "METRIC_KEYS",
     "autotune",
     "data",
     "model",
     "external",
     "utils",
+    "criticism",
 ]

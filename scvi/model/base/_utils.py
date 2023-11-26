@@ -1,9 +1,8 @@
 import logging
 import os
-import pickle
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import List, Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Union
 
 import anndata
 import mudata
@@ -12,6 +11,7 @@ import pandas as pd
 import torch
 from anndata import AnnData, read
 
+from scvi import settings
 from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
 from scvi.utils import track
@@ -25,7 +25,7 @@ def _load_legacy_saved_files(
     dir_path: str,
     file_name_prefix: str,
     load_adata: bool,
-) -> Tuple[dict, np.ndarray, dict, Optional[AnnData]]:
+) -> tuple[dict, np.ndarray, dict, Optional[AnnData]]:
     model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
     var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
     setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
@@ -35,7 +35,7 @@ def _load_legacy_saved_files(
     var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
 
     with open(setup_dict_path, "rb") as handle:
-        attr_dict = pickle.load(handle)
+        attr_dict = pd.read_pickle(handle)
 
     if load_adata:
         adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
@@ -57,7 +57,7 @@ def _load_saved_files(
     prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
     backup_url: Optional[str] = None,
-) -> Tuple[dict, np.ndarray, dict, AnnData]:
+) -> tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
 
@@ -138,15 +138,17 @@ def _validate_var_names(adata, source_var_names):
     user_var_names = adata.var_names.astype(str)
     if not np.array_equal(source_var_names, user_var_names):
         warnings.warn(
-            "var_names for adata passed in does not match var_names of "
-            "adata used to train the model. For valid results, the vars "
-            "need to be the same and in the same order as the adata used to train the model."
+            "var_names for adata passed in does not match var_names of adata used to "
+            "train the model. For valid results, the vars need to be the same and in "
+            "the same order as the adata used to train the model.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
 
 
 def _prepare_obs(
-    idx1: Union[List[bool], np.ndarray, str],
-    idx2: Union[List[bool], np.ndarray, str],
+    idx1: Union[list[bool], np.ndarray, str],
+    idx2: Union[list[bool], np.ndarray, str],
     adata: anndata.AnnData,
 ):
     """Construct an array used for masking.
@@ -194,6 +196,7 @@ def _prepare_obs(
 def _de_core(
     adata_manager,
     model_fn,
+    representation_fn,
     groupby,
     group1,
     group2,
@@ -232,7 +235,7 @@ def _de_core(
         groupby = temp_key
 
     df_results = []
-    dc = DifferentialComputation(model_fn, adata_manager)
+    dc = DifferentialComputation(model_fn, representation_fn, adata_manager)
     for g1 in track(
         group1,
         description="DE...",

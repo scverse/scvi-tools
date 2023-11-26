@@ -1,15 +1,21 @@
 import sys
 import warnings
-from typing import List, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 import lightning.pytorch as pl
 from lightning.pytorch.accelerators import Accelerator
+from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import Logger
 
 from scvi import settings
 from scvi.autotune._types import Tunable, TunableMixin
 
-from ._callbacks import LoudEarlyStopping
+from ._callbacks import (
+    LoudEarlyStopping,
+    MetricCallable,
+    MetricsCallback,
+    SaveCheckpoint,
+)
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
@@ -41,8 +47,10 @@ class Trainer(TunableMixin, pl.Trainer):
         Defaults to `scvi.settings.logging_dir`. Can be remote file paths such as
         s3://mybucket/path or ‘hdfs://path/’
     enable_checkpointing
-        If `True`, enable checkpointing. It will configure a default ModelCheckpoint
-        callback if there is no user-defined ModelCheckpoint in `callbacks`.
+        If ``True``, enables checkpointing with a default :class:`~scvi.train.SaveCheckpoint`
+        callback if there is no user-defined :class:`~scvi.train.SaveCheckpoint` in ``callbacks``.
+    checkpointing_monitor
+        If ``enable_checkpointing`` is ``True``, specifies the metric to monitor for checkpointing.
     num_sanity_val_steps
         Sanity check runs n validation batches before starting the training routine.
         Set it to -1 to run all batches in all validation dataloaders.
@@ -64,6 +72,9 @@ class Trainer(TunableMixin, pl.Trainer):
     early_stopping_mode
         In 'min' mode, training will stop when the quantity monitored has stopped decreasing
         and in 'max' mode it will stop when the quantity monitored has stopped increasing.
+    additional_val_metrics
+        Additional validation metrics to compute and log. See
+        :class:`~scvi.train._callbacks.MetricsCallback` for more details.
     enable_progress_bar
         Whether to enable or disable the progress bar.
     progress_bar_refresh_rate
@@ -84,12 +95,13 @@ class Trainer(TunableMixin, pl.Trainer):
     def __init__(
         self,
         accelerator: Optional[Union[str, Accelerator]] = None,
-        devices: Optional[Union[List[int], str, int]] = None,
+        devices: Optional[Union[list[int], str, int]] = None,
         benchmark: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
         max_epochs: Tunable[int] = 400,
         default_root_dir: Optional[str] = None,
         enable_checkpointing: bool = False,
+        checkpointing_monitor: str = "validation_loss",
         num_sanity_val_steps: int = 0,
         enable_model_summary: bool = False,
         early_stopping: bool = False,
@@ -99,19 +111,23 @@ class Trainer(TunableMixin, pl.Trainer):
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
+        additional_val_metrics: Union[
+            MetricCallable, list[MetricCallable], dict[str, MetricCallable]
+        ] = None,
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
         logger: Union[Optional[Logger], bool] = None,
         log_every_n_steps: int = 10,
+        learning_rate_monitor: bool = False,
         **kwargs,
     ):
         if default_root_dir is None:
             default_root_dir = settings.logging_dir
 
-        kwargs["callbacks"] = (
-            [] if "callbacks" not in kwargs.keys() else kwargs["callbacks"]
-        )
+        check_val_every_n_epoch = check_val_every_n_epoch or sys.maxsize
+        callbacks = kwargs.pop("callbacks", [])
+
         if early_stopping:
             early_stopping_callback = LoudEarlyStopping(
                 monitor=early_stopping_monitor,
@@ -119,19 +135,37 @@ class Trainer(TunableMixin, pl.Trainer):
                 patience=early_stopping_patience,
                 mode=early_stopping_mode,
             )
-            kwargs["callbacks"] += [early_stopping_callback]
+            callbacks.append(early_stopping_callback)
             check_val_every_n_epoch = 1
-        else:
-            check_val_every_n_epoch = (
-                check_val_every_n_epoch
-                if check_val_every_n_epoch is not None
-                # needs to be an integer, np.inf does not work
-                else sys.maxsize
-            )
+
+        if enable_checkpointing and not any(
+            isinstance(c, SaveCheckpoint) for c in callbacks
+        ):
+            callbacks.append(SaveCheckpoint(monitor=checkpointing_monitor))
+            check_val_every_n_epoch = 1
+        elif any(isinstance(c, SaveCheckpoint) for c in callbacks):
+            # check if user provided already provided the callback
+            enable_checkpointing = True
+            check_val_every_n_epoch = 1
+
+        if learning_rate_monitor and not any(
+            isinstance(c, LearningRateMonitor) for c in callbacks
+        ):
+            callbacks.append(LearningRateMonitor())
+            check_val_every_n_epoch = 1
 
         if simple_progress_bar and enable_progress_bar:
-            bar = ProgressBar(refresh_rate=progress_bar_refresh_rate)
-            kwargs["callbacks"] += [bar]
+            callbacks.append(ProgressBar(refresh_rate=progress_bar_refresh_rate))
+
+        if additional_val_metrics is not None:
+            if check_val_every_n_epoch == sys.maxsize:
+                warnings.warn(
+                    "`additional_val_metrics` was passed in but will not be computed "
+                    "because `check_val_every_n_epoch` was not passed in.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+            callbacks.append(MetricsCallback(additional_val_metrics))
 
         if logger is None:
             logger = SimpleLogger()
@@ -149,6 +183,7 @@ class Trainer(TunableMixin, pl.Trainer):
             logger=logger,
             log_every_n_steps=log_every_n_steps,
             enable_progress_bar=enable_progress_bar,
+            callbacks=callbacks,
             **kwargs,
         )
 

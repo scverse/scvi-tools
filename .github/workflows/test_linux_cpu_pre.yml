@@ -1,0 +1,64 @@
+name: test-linux-cpu-prerelease
+
+on:
+    schedule:
+        - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+    issue_comment:
+        types: [created] # runs if issue/PR has a specific comment
+    workflow_dispatch:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    test:
+        runs-on: ${{ matrix.os }}
+
+        timeout-minutes: 30
+
+        # run if scheduled or pr has the comment 'test linux cpu prelease'
+        if: github.event_name == 'schedule' || (github.event.issue.pull_request != '' && contains(github.event.comment.body, 'test linux cpu prerelease'))
+
+        defaults:
+            run:
+                shell: bash -e {0} # -e to fail on error
+
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest]
+                python: ["3.9", "3.10", "3.11", "3.12"]
+
+        env:
+            OS: ${{ matrix.os }}
+            PYTHON: ${{ matrix.python }}
+
+        steps:
+            - uses: actions/checkout@v3
+
+            - name: Set up Python ${{ matrix.python }}
+              uses: actions/setup-python@v4
+              with:
+                  python-version: ${{ matrix.python }}
+                  cache: "pip"
+                  cache-dependency-path: "**/pyproject.toml"
+
+            - name: Install test dependencies
+              run: |
+                  python -m pip install --upgrade pip wheel
+
+            - name: Install scvi-tools test dependencies
+              run: |
+                  pip install --pre ".[tests]"
+
+            - name: Test
+              env:
+                  MPLBACKEND: agg
+                  PLATFORM: ${{ matrix.os }}
+                  DISPLAY: :42
+              run: |
+                  pytest -v --cov --color=yes
+
+            - name: Upload coverage
+              uses: codecov/codecov-action@v3
