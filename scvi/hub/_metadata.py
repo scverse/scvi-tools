@@ -11,8 +11,8 @@ from scvi.data._utils import _is_minified
 from scvi.model.base._utils import _load_saved_files
 
 from ._constants import _SCVI_HUB
+from ._template import template
 from ._url import validate_url
-from .model_card_template import template
 
 
 @dataclass

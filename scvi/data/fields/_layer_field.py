@@ -8,6 +8,7 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import _constants
 from scvi.data._utils import (
+    _check_fragment_counts,
     _check_nonnegative_integers,
     _verify_and_correct_data_format,
 )
@@ -45,6 +46,7 @@ class LayerField(BaseAnnDataField):
         layer: Optional[str],
         is_count_data: bool = True,
         correct_data_format: bool = True,
+        check_fragment_counts: bool = False,
     ) -> None:
         super().__init__()
         self._registry_key = registry_key
@@ -61,6 +63,7 @@ class LayerField(BaseAnnDataField):
             if self.registry_key == REGISTRY_KEYS.X_KEY
             else f"n_{self.registry_key}"
         )
+        self.check_fragment_counts = check_fragment_counts
 
     @property
     def registry_key(self) -> str:
@@ -90,6 +93,19 @@ class LayerField(BaseAnnDataField):
             warnings.warn(
                 f"{logger_data_loc} does not contain unnormalized count data. "
                 "Are you sure this is what you want?",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+
+        if self.check_fragment_counts and not _check_fragment_counts(x):
+            logger_data_loc = (
+                "adata.X" if self.attr_key is None else f"adata.layers[{self.attr_key}]"
+            )
+            warnings.warn(
+                f"{logger_data_loc} does not contain fragment count data. "
+                "Are you sure this is what you want?. "
+                "Check that your data is not binarized and does not contain read counts. "
+                "You can approximate read counts to fragment counts using scvi.data.reads_to_fragments",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )

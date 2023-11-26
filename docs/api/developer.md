@@ -75,6 +75,8 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
+   dataloaders.ContrastiveDataLoader
+   dataloaders.ContrastiveDataSplitter
 
 ```
 
@@ -173,6 +175,7 @@ Module classes in the external API with respective generative and inference proc
    external.stereoscope.SpatialDeconv
    external.tangram.TangramMapper
    external.scbasset.ScBassetModule
+   external.contrastivevi.ContrastiveVAE
 
 ```
 

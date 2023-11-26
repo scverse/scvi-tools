@@ -11,6 +11,7 @@ from torch.utils.data import (
     SequentialSampler,
 )
 
+from scvi import settings
 from scvi.data import AnnDataManager
 
 from ._samplers import BatchDistributedSampler
@@ -54,10 +55,10 @@ class AnnDataLoader(DataLoader):
     iter_ndarray
         Whether to iterate over numpy arrays instead of torch tensors
     distributed_sampler
-        Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as the sampler.
-        If `True`, `sampler` must be `None`.
+        ``EXPERIMENTAL`` Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as the
+        sampler. If `True`, `sampler` must be `None`.
     load_sparse_tensor
-        `EXPERIMENTAL` If ``True``, loads data with sparse CSR or CSC layout as a
+        ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
         :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to GPUs,
         depending on the sparsity of the data.
     **kwargs
@@ -98,6 +99,9 @@ class AnnDataLoader(DataLoader):
             data_and_attributes=data_and_attributes,
             load_sparse_tensor=load_sparse_tensor,
         )
+        if "num_workers" not in kwargs:
+            kwargs["num_workers"] = settings.dl_num_workers
+
         self.kwargs = copy.deepcopy(kwargs)
 
         if sampler is not None and distributed_sampler:

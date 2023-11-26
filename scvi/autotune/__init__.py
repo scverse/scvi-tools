@@ -1,5 +1,9 @@
-from ._manager import TuneAnalysis, TunerManager
-from ._tuner import ModelTuner
-from ._types import Tunable, TunableMixin
+from scvi.utils import error_on_missing_dependencies
 
-__all__ = ["ModelTuner", "Tunable", "TunableMixin", "TunerManager", "TuneAnalysis"]
+error_on_missing_dependencies("hyperopt", "ray.tune")
+
+
+from ._manager import TuneAnalysis, TunerManager  # noqa
+from ._tuner import ModelTuner  # noqa
+
+__all__ = ["ModelTuner", "TunerManager", "TuneAnalysis"]

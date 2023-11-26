@@ -15,8 +15,8 @@ from sklearn.metrics import (
 from sparse import GCXS, SparseArray
 from xarray import DataArray, Dataset
 
-from scvi._decorators import dependencies
 from scvi.model.base import BaseModelClass
+from scvi.utils import dependencies
 
 from ._constants import (
     DATA_VAR_RAW,
@@ -51,7 +51,7 @@ def _get_precision_recall_f1(ground_truth: np.ndarray, pred: np.ndarray):
 
 class PosteriorPredictiveCheck:
     """
-    EXPERIMENTAL Posterior predictive checks for comparing scRNA-seq generative models.
+    ``EXPERIMENTAL`` Posterior predictive checks for comparing scRNA-seq generative models.
 
     Parameters
     ----------
