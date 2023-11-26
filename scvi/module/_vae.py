@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import logsumexp
-from torch.distributions import Normal, Exponential
+from torch.distributions import Exponential, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
@@ -539,9 +539,8 @@ class VAE(BaseMinifiedModeModuleClass):
             # overdispersion = 1 / disp -> mean = 9
             # disp = dist ^ 2 -> mean = 1/9
             # disp_prior ~ Exponential(rate=3) -> mean = 1/3
-            rate = (
-                torch.ones_like(self.px_r)
-                * torch.tensor(self.regularise_dispersion_prior, device=x.device)
+            rate = torch.ones_like(self.px_r) * torch.tensor(
+                self.regularise_dispersion_prior, device=x.device
             )  # 3
             px_r = torch.exp(self.px_r).pow(0.5)
             neg_log_likelihood_prior = -Exponential(rate).log_prob(px_r).sum()
