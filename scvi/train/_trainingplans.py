@@ -753,11 +753,13 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             predicted_labels,
             true_labels,
             self.n_classes,
+            average="micro",
         )
         f1 = tmf.classification.multiclass_f1_score(
             predicted_labels,
             true_labels,
             self.n_classes,
+            average="micro",
         )
         ce = tmf.classification.multiclass_calibration_error(
             logits,
