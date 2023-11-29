@@ -74,6 +74,9 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner` `pr`{2260}.
 -   Match `momentum` and `epsilon` in {class}`scvi.module.JaxVAE` to the
     default values in PyTorch {pr}`2309`.
+-   Change {class}`scvi.train.SemiSupervisedTrainingPlan` and
+    {class}`scvi.train.ClassifierTrainingPlan` accuracy and F1 score computations
+    to use `"micro"` reduction rather than `"macro` {pr}`2339`.
 
 #### Removed
 
