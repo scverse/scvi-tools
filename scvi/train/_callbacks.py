@@ -68,9 +68,9 @@ class SaveCheckpoint(ModelCheckpoint):
         if dirpath is None:
             dirpath = os.path.join(
                 settings.logging_dir,
-                datetime.now().strftime("%Y-%m-%d-%H:%M:%S"),
+                datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
             )
-            dirpath += f"-{monitor}"
+            dirpath += f"_{monitor}"
 
         if filename is None:
             filename = "{epoch}-{step}-{" + monitor + "}"
