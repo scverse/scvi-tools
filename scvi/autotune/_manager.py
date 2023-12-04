@@ -491,7 +491,7 @@ class TunerManager:
         self, experiment_name: str | None, logging_dir: str | None
     ) -> tuple[str, str]:
         if experiment_name is None:
-            experiment_name = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+            experiment_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             experiment_name += f"_{self._model_cls.__name__.lower()}"
         if logging_dir is None:
             logging_dir = os.path.join(settings.logging_dir, "autotune")

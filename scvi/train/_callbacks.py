@@ -4,6 +4,7 @@ import os
 import warnings
 from copy import deepcopy
 from datetime import datetime
+from pathlib import Path
 from shutil import rmtree
 from typing import Callable
 
@@ -68,9 +69,10 @@ class SaveCheckpoint(ModelCheckpoint):
         if dirpath is None:
             dirpath = os.path.join(
                 settings.logging_dir,
-                datetime.now().strftime("%Y-%m-%d-%H:%M:%S"),
+                datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
             )
-            dirpath += f"-{monitor}"
+            dirpath += f"_{monitor}"
+            Path(dirpath).mkdir(parents=True, exist_ok=True)
 
         if filename is None:
             filename = "{epoch}-{step}-{" + monitor + "}"
@@ -89,6 +91,10 @@ class SaveCheckpoint(ModelCheckpoint):
                 stacklevel=settings.warnings_stacklevel,
             )
             kwargs.pop("save_last")
+
+        print("$$$$$$$$$$")
+        print(dirpath)
+        print(os.listdir(settings.logging_dir))
 
         super().__init__(
             dirpath=dirpath,

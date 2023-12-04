@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pytest
 
@@ -26,7 +27,9 @@ def test_modelcheckpoint_callback(save_path: str):
         assert checkpoint.is_trained_
 
     def test_model_cls(model_cls, adata):
-        scvi.settings.logging_dir = os.path.join(save_path, model_cls.__name__)
+        logging_dir = os.path.join(save_path, model_cls.__name__)
+        Path(logging_dir).mkdir(parents=True, exist_ok=True)
+        scvi.settings.logging_dir = logging_dir
 
         # enable_checkpointing=True, default monitor
         model = model_cls(adata)
