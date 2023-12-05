@@ -42,7 +42,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/stereoscope_heart_LV_tutorial`
+    1. :doc:`/tutorials/notebooks/spatial/stereoscope_heart_LV_tutorial`
     """
 
     def __init__(
@@ -189,7 +189,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/stereoscope_heart_LV_tutorial`
+    1. :doc:`/tutorials/notebooks/spatial/stereoscope_heart_LV_tutorial`
     """
 
     def __init__(
