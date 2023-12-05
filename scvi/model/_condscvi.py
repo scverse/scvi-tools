@@ -56,7 +56,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     -----
     See further usage examples in the following tutorial:
 
-    1. :doc:`/user_guide/notebooks/spatial/DestVI_tutorial`
+    1. :doc:`/tutorials/notebooks/spatial/DestVI_tutorial`
     """
 
     _module_cls = VAEC
