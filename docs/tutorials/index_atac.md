@@ -7,4 +7,5 @@ notebooks/atac/PeakVI
 notebooks/atac/peakvi_in_R
 notebooks/atac/scbasset
 notebooks/atac/scbasset_batch
+notebooks/atac/PoissonVI
 ```
