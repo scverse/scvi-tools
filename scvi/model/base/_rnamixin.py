@@ -74,7 +74,7 @@ class RNASeqMixin:
             Maximum number of cells used to estimated the importance weights
         truncation
             Whether importance weights should be truncated. If True, the importance weights are
-            truncated as described in :cite:p:`ionides2008`. In particular, the provided value
+            truncated as described in :cite:p:`Ionides2008`. In particular, the provided value
             is used to threshold importance weights as a way to reduce the variance of the estimator.
         n_mc_samples
             Number of Monte Carlo samples to use for estimating the importance weights, by default 500

@@ -33,6 +33,8 @@ B = 10
 class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     """Reimplementation of CellAssign for reference-based annotation :cite:p:`Zhang19`.
 
+    Original implementation: https://github.com/irrationone/cellassign.
+
     Parameters
     ----------
     adata

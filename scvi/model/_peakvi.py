@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """Peak Variational Inference :cite:p:`Ashuach22`.
+    """Peak Variational Inference for chromatin accessilibity analysis :cite:p:`Ashuach22`.
 
     Parameters
     ----------
