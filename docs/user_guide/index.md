@@ -108,7 +108,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
    * - :doc:`/user_guide/models/destvi`
      - Multi-resolution deconvolution, cell-type-specific gene expression imputation, comparative analysis
-     - :cite:p:`Lopez21`
+     - :cite:p:`Lopez22`
    * - :doc:`/user_guide/models/stereoscope`
      - Deconvolution
      - :cite:p:`Andersson20`

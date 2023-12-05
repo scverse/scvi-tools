@@ -71,7 +71,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/gimvi_tutorial`
+    1. :doc:`/tutorials/notebooks/spatial/gimvi_tutorial`
     """
 
     def __init__(

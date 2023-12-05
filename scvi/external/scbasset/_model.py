@@ -24,10 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 class SCBASSET(BaseModelClass):
-    """Reimplementation of ScBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
+    """``EXPERIMENTAL`` Reimplementation of scBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
 
-    This implementation is EXPERIMENTAL. We are working to measure the performance of this model
-    compared to the original.
+    Original implementation: https://github.com/calico/scBasset.
+
+    We are working to measure the performance of this model compared to the original.
 
     Parameters
     ----------

@@ -68,6 +68,12 @@ class ContrastiveVI(BaseModelClass):
     wasserstein_penalty
         Weight of the Wasserstein distance loss that further discourages background
         shared variations from leaking into the salient latent space.
+
+    Notes
+    -----
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/tutorials/notebooks/scrna/contrastiveVI_tutorial`
     """
 
     _module_cls = ContrastiveVAE

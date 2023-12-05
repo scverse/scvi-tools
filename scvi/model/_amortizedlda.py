@@ -44,6 +44,12 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     >>> model.train()
     >>> feature_by_topic = model.get_feature_by_topic()
     >>> adata.obsm["X_LDA"] = model.get_latent_representation()
+
+    Notes
+    -----
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/tutorials/notebooks/scrna/amortized_lda`
     """
 
     _module_cls = AmortizedLDAPyroModule
