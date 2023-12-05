@@ -51,6 +51,12 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     >>> vae = scvi.model.CondSCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_CondSCVI"] = vae.get_latent_representation()
+
+    Notes
+    -----
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/user_guide/notebooks/spatial/DestVI_tutorial`
     """
 
     _module_cls = VAEC
