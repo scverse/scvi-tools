@@ -2,14 +2,12 @@
 
 Starting from version 0.20.1, this format is based on [Keep a Changelog][],
 and this project adheres to [Semantic Versioning][]. Full commit history
-is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits/).
+is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## [Unreleased]
-
-### 1.1.0 (2023-MM-DD)
+### 1.1.0 (2023-12-DD)
 
 #### Added
 
@@ -23,13 +21,15 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 -   Add `load_sparse_tensor` argument in {class}`scvi.data.AnnTorchDataset` for directly
     loading SciPy CSR and CSC data structures to their PyTorch counterparts, leading to
     faster data loading depending on the sparsity of the data {pr}`2158`.
--   Add per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
+-   Add per-group LFC information to the
+    {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
     method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
     stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
     per-group LFC.
 -   Expose {meth}`torch.save` keyword arguments in {class}`scvi.model.base.BaseModelClass.save`
     and {class}`scvi.external.GIMVI.save` {pr}`2200`.
--   Add `model_kwargs` and `train_kwargs` arguments to {meth}`scvi.autotune.ModelTuner.fit` {pr}`2203`.
+-   Add `model_kwargs` and `train_kwargs` arguments to {meth}`scvi.autotune.ModelTuner.fit`
+    {pr}`2203`.
 -   Add `datasplitter_kwargs` to model `train` methods {pr}`2204`.
 -   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for
     stochastic prediction of celltype labels {pr}`2224`.
@@ -40,13 +40,14 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     with argument `seed` {pr}`2260`.
 -   Automatically log the learning rate when `reduce_lr_on_plateau=True` in
     training plans {pr}`2280`.
--   Add {class}`~scvi.external.POISSONVI` to model scATAC-seq fragment counts with a Poisson distribution {pr}`2249`
+-   Add {class}`scvi.external.POISSONVI` to model scATAC-seq fragment counts with a Poisson
+    distribution {pr}`2249`
 -   {class}`scvi.train.SemiSupervisedTrainingPlan` now logs the classifier
     calibration error {pr}`2299`.
 -   Passing `enable_checkpointing=True` into `train` methods is now
     compatible with our model saves. Additional options can be specified
     by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
--   `scvi.settings.dl_num_workers` is now correctly applied as the default
+-   {attr}`scvi.settings.dl_num_workers` is now correctly applied as the default
     `num_workers` in {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
 
 #### Fixed
@@ -61,7 +62,8 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
 
 -   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
     for increased flexibility over dataset format {pr}`2163`.
--   Add per-group LFC information to the {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
+-   Add per-group LFC information to the
+    {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
     method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
     stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
     per-group LFC.
@@ -71,17 +73,18 @@ is available in the [commit logs](https://github.com/YosefLab/scvi-tools/commits
     {class}`numpy.float32` and categorical data as {class}`numpy.int64` by
     default {pr}`2250`.
 -   Support fractional GPU usage in {class}`scvi.autotune.ModelTuner` `pr`{2252}.
--   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner` `pr`{2260}.
+-   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner`
+    `pr`{2260}.
 -   Match `momentum` and `epsilon` in {class}`scvi.module.JaxVAE` to the
     default values in PyTorch {pr}`2309`.
 -   Change {class}`scvi.train.SemiSupervisedTrainingPlan` and
-    {class}`scvi.train.ClassifierTrainingPlan` accuracy and F1 score computations
-    to use `"micro"` reduction rather than `"macro` {pr}`2339`.
+    {class}`scvi.train.ClassifierTrainingPlan` accuracy and F1 score
+    computations to use `"micro"` reduction rather than `"macro"` {pr}`2339`.
 
 #### Removed
 
--   Remove deprecated `use_gpu` in favor of PyTorch Lightning arguments `accelerator`
-    and `devices` {pr}`2114`.
+-   Remove deprecated `use_gpu argument in favor of PyTorch Lightning arguments
+`accelerator`and`devices` {pr}`2114`.
 -   Remove deprecated `scvi._compat.Literal` class {pr}`2115`.
 
 ## Version 1.0

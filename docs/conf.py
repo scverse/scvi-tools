@@ -168,7 +168,7 @@ html_theme_options = {
         {
             "name": "Model hub",
             "url": "https://huggingface.co/scvi-tools/",
-            "icon": "fa-sharp fa-solid fa-face-smiling-hands",
+            "icon": "fa-solid fa-cloud",
             "type": "fontawesome",
         },
     ],
