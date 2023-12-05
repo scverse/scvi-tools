@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
-    https://github.com/almaan/stereoscope.
+    Original implementation: https://github.com/almaan/stereoscope.
 
     Parameters
     ----------
@@ -157,7 +157,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
 class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
-    https://github.com/almaan/stereoscope.
+    Original implementation: https://github.com/almaan/stereoscope.
 
     Parameters
     ----------
