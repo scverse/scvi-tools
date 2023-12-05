@@ -10,7 +10,7 @@ enriched in target cells from variations shared with background cells.
 
 ## Overview
 
-TODO
+Work in progress...
 
 [^ref1]:
     Ethan Weinberger, Chris Lin, Su-In Lee (2023),
