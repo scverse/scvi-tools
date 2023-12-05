@@ -62,6 +62,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/spatial/DestVI_tutorial`
+    2. :doc:`/tutorials/notebooks/spatial/DestVI_in_R`
     """
 
     _module_cls = MRDeconv
