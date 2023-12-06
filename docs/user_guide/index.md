@@ -63,6 +63,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - :cite:p:`Yuan2022`
    * - :doc: `/user_guide/models/poissonvi`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
+     - :cite:p:`Martens2023`
 ```
 
 ## Multimodal analysis
