@@ -70,7 +70,6 @@ editing = [
     "flake8",
     "jupyter",
     "nbformat",
-    "nbconvert",
     "pre-commit",
     "ruff",
 ]  # dependencies for editing and committing code
@@ -111,6 +110,7 @@ optional = [
 
 tutorials = [
     "cell2location",
+    "jupyter",
     "leidenalg",
     "muon",
     "plotnine",
