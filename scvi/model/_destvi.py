@@ -106,7 +106,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: CondSCVI,
         vamp_prior_p: int = 15,
-        celltype_reg: dict = {"l1": 0.0},
+        celltype_reg: dict | None = None,
         **module_kwargs,
     ):
         """Alternate constructor for exploiting a pre-trained model on a RNA-seq dataset.
@@ -140,6 +140,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             mean_vprior, var_vprior, mp_vprior = sc_model.get_vamp_prior(
                 sc_model.adata, p=vamp_prior_p
             )
+        if celltype_reg is None:
+            celltype_reg = {"l1": 0}
 
         return cls(
             st_adata,

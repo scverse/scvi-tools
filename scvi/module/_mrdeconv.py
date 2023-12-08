@@ -88,7 +88,7 @@ class MRDeconv(BaseModuleClass):
         var_vprior: np.ndarray = None,
         mp_vprior: np.ndarray = None,
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
-        celltype_reg: Tunable[float] = 0.0,
+        celltype_reg: Tunable[float] = None,
         beta_reg: Tunable[float] = 5.0,
         eta_reg: Tunable[float] = 1e-4,
         extra_encoder_kwargs: Optional[dict] = None,
@@ -103,7 +103,10 @@ class MRDeconv(BaseModuleClass):
         self.dropout_amortization = dropout_amortization
         self.n_genes = n_genes
         self.amortization = amortization
-        self.celltype_reg = celltype_reg
+        if celltype_reg is None:
+            celltype_reg = {}
+        else:
+            self.celltype_reg = celltype_reg
         self.beta_reg = beta_reg
         self.eta_reg = eta_reg
         # unpack and copy parameters
