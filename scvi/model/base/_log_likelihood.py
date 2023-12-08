@@ -21,15 +21,17 @@ def compute_elbo(vae, data_loader, feed_labels=True, return_mean=True, **kwargs)
     for tensors in data_loader:
         _, _, scvi_loss = vae(tensors, **kwargs)
 
-        recon_loss = scvi_loss.reconstruction_loss["reconstruction_loss"]
-        kl_local = np.sum(list(scvi_loss.kl_local.values()), axis=0)
+        recon_loss = np.sum(
+            [np.array(i) for i in scvi_loss.reconstruction_loss.values()], axis=0
+        )
+        kl_local = np.sum([np.array(i) for i in scvi_loss.kl_local.values()], axis=0)
 
         if return_mean:
             elbo += (recon_loss + kl_local).sum(0).item()
         else:
             elbo = np.concatenate((elbo, recon_loss + kl_local), axis=0)
 
-    kl_global = np.sum(list(scvi_loss.kl_global.values()))
+    kl_global = np.sum([np.array(i) for i in scvi_loss.kl_global.values()], axis=0)
     n_samples = len(data_loader.indices)
     if return_mean:
         elbo += kl_global
@@ -52,7 +54,6 @@ def compute_reconstruction_error(vae, data_loader, return_mean=True, **kwargs):
         _, _, losses = vae(tensors, loss_kwargs=loss_kwargs)
         if not isinstance(losses.reconstruction_loss, dict):
             rec_loss_dict = {"reconstruction_loss": losses.reconstruction_loss}
-            print("rec_loss_dict", rec_loss_dict.shape)
         else:
             rec_loss_dict = losses.reconstruction_loss
         for key, value in rec_loss_dict.items():
