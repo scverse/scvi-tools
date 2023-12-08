@@ -36,7 +36,9 @@ def test_destvi():
 
     for amor_scheme in ["both", "none", "proportion", "latent"]:
         if amor_scheme == "latent":
-            DestVI.setup_anndata(dataset, layer=None, expected_proportions="prior_proportions")
+            DestVI.setup_anndata(
+                dataset, layer=None, expected_proportions="prior_proportions"
+            )
         else:
             DestVI.setup_anndata(dataset, layer=None)
         # add l1_regularization to cell type proportions
