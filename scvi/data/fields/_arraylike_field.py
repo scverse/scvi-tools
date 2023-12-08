@@ -78,13 +78,8 @@ class ArrayLikeField(BaseArrayLikeField):
         colnames_uns_key: Optional[str] = None,
         is_count_data: bool = False,
         correct_data_format: bool = True,
-        required: bool = True,
     ) -> None:
         super().__init__(registry_key)
-        if required and attr_key is None:
-            raise ValueError(
-                "`attr_key` cannot be `None` if `required=True`. Please provide an `attr_key`."
-            )
         if field_type == "obsm":
             self._attr_name = _constants._ADATA_ATTRS.OBSM
         elif field_type == "varm":
@@ -93,7 +88,6 @@ class ArrayLikeField(BaseArrayLikeField):
             raise ValueError("`field_type` must be either 'obsm' or 'varm'.")
 
         self._attr_key = attr_key
-        self._is_empty = attr_key is None
         self.colnames_uns_key = colnames_uns_key
         self.is_count_data = is_count_data
         self.correct_data_format = correct_data_format
@@ -105,7 +99,7 @@ class ArrayLikeField(BaseArrayLikeField):
 
     @property
     def is_empty(self) -> bool:
-        return self._is_empty
+        return False
 
     def validate_field(self, adata: AnnData) -> None:
         """Validate the field."""
@@ -181,7 +175,7 @@ class ArrayLikeField(BaseArrayLikeField):
 
     def get_summary_stats(self, state_registry: dict) -> dict:
         """Get summary stats."""
-        n_array_cols = len(state_registry.get(self.COLUMN_NAMES_KEY, []))
+        n_array_cols = len(state_registry[self.COLUMN_NAMES_KEY])
         return {self.count_stat_key: n_array_cols}
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:

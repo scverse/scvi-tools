@@ -121,10 +121,8 @@ as a dummy cell type to represent gene specific noise. The dummy cell type's exp
 as $\epsilon_g := \mathrm{Softplus}(\eta_g)$ where $\eta_g \sim \mathrm{Normal}(0, 1)$.
 Like the other cell types, there is an associated cell type abundance parameter $\beta_{sc}$ associated with $\eta$.
 We suspect each spot to only contain a fraction of the different cell types. To increase sparsity of the cell type
-proportions, the stLVM supports L1 and entropy regularization on the cell types proportions $\beta_{sc}$. By default this loss is
-not used. For cell-type proportion amortization we found entropy regularization to work better than L1 regularization. In some
-experiments, we found cell-types to be predicted to be present in no spot. In these cases, it helps setting entropy regularization
-with a small negative value to increase diversity of predicted cell-types.
+proportions, the stLVM supports L1 regularization on the cell types proportions $\beta_{sc}$. By default this loss is
+not used.
 
 This generative process is also summarized in the following graphical model:
 
@@ -192,8 +190,7 @@ The loss is defined as:
 
 where $\mathrm{Var}(\alpha)$ refers to the empirical variance of the parameters alpha across all genes. We used this as a practical form of regularization (a similar regularizer is used in the ZINB-WaVE model [^ref3]).
 
-$\lambda_{\beta}$ (`celltype_reg` in code with key `l1` alternatively we support entropy regularization), $\lambda_{\eta}$ (`eta_reg` in code) and $\lambda_{\alpha}$ (`beta_reg` in code) are hyperparameters used to scale the loss term. Increasing $\lambda_{\beta}$ leads to increased sparsity of cell type proportions. Increasing $\lambda_{\alpha}$ leads to less model flexibility for technical variation between single cell and spatial sequencing dataset. Increasing $\lambda_{\eta}$ leads to more genes being explained by the dummy cell type (we recommend to not change the default value). We support defining `expected_proportions` as input to `scvi.module.DestVI.setup_anndata` this is an obsm field filled with expected cell-type proportions in each spot. This can be used to estimate cell-type activation state $\gamma^c of output of another deconvolution algorithm.
-
+$\lambda_{\beta}$ (`l1_reg` in code), $\lambda_{\eta}$ (`eta_reg` in code) and $\lambda_{\alpha}$ (`beta_reg` in code) are hyperparameters used to scale the loss term. Increasing $\lambda_{\beta}$ leads to increased sparsity of cell type proportions. Increasing $\lambda_{\alpha}$ leads to less model flexibility for technical variation between single cell and spatial sequencing dataset. Increasing $\lambda_{\eta}$ leads to more genes being explained by the dummy cell type (we recommend to not change the default value).
 To avoid overfitting, DestVI amortizes inference using a neural network to parametrize the latent variables.
 Via the `amortization` parameter of {class}`scvi.module.MRDeconv`, the user can specify which of
 $\beta$ and $\gamma^c$ will be parametrized by the neural network.
@@ -234,17 +231,6 @@ modeled cell-type-specific continuous covariates with:
 
 Assuming the user has identified key gene modules that vary within a cell type of interest, they can
 impute the spatial pattern of the cell-type-specific gene expression with:
-
-```
->>> # Filter spots with low abundance.
->>> indices = np.where(st_adata.obsm["proportions"][ct_name].values > 0.03)[0]
->>> imputed_counts = st_model.get_scale_for_ct("Monocyte", indices=indices)[["Cxcl9", "Cxcl10", "Fcgr1"]]
-```
-
-### Cell-type-specific gene expression assignment
-
-Assuming the user has identified key gene modules that vary within a cell type of interest, they can
-assign the measured expression to the spatial pattern of the cell-type-specific gene expression with:
 
 ```
 >>> # Filter spots with low abundance.

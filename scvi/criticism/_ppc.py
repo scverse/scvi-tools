@@ -62,21 +62,16 @@ class PosteriorPredictiveCheck:
     count_layer_key
         Key in adata.layers to use as raw counts, if None, use adata.X.
     n_samples
-        Number of posterior predictive samples to generate.
-    indices
-        Indices to subset adata and compute metrics only on subset.
+        Number of posterior predictive samples to generate
     """
 
     def __init__(
         self,
         adata: AnnData,
         models_dict: dict[str, BaseModelClass],
-        count_layer_key: str | None = None,
+        count_layer_key: Optional[str] = None,
         n_samples: int = 10,
-        indices: list | None = None,
     ):
-        if indices is not None:
-            adata = adata[indices]
         self.adata = adata
         self.count_layer_key = count_layer_key
         raw_counts = (
@@ -96,7 +91,7 @@ class PosteriorPredictiveCheck:
         self.models = models_dict
         self.metrics = {}
 
-        self._store_posterior_predictive_samples(indices=indices)
+        self._store_posterior_predictive_samples()
 
     def __repr__(self) -> str:
         return (
@@ -126,7 +121,7 @@ class PosteriorPredictiveCheck:
     def _store_posterior_predictive_samples(
         self,
         batch_size: int = 32,
-        indices: list[int] | None = None,
+        indices: list[int] = None,
     ):
         """
         Store posterior predictive samples for each model.
