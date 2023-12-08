@@ -34,8 +34,12 @@ def test_destvi():
     for amor_scheme in ["both", "none", "proportion", "latent"]:
         DestVI.setup_anndata(dataset, layer=None)
         # add l1_regularization to cell type proportions
+        if amor_scheme == "proportion":
+            celltype_reg = {"l1": 50}
+        else:
+            celltype_reg = {"entropy": 50}
         spatial_model = DestVI.from_rna_model(
-            dataset, sc_model, amortization=amor_scheme, l1_reg=50
+            dataset, sc_model, amortization=amor_scheme, celltype_reg=celltype_reg
         )
         spatial_model.view_anndata_setup()
         spatial_model.train(max_epochs=1)

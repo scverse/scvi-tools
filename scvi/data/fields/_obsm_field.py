@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -193,7 +193,7 @@ class JointObsField(BaseObsmField):
         Sequence of keys to combine to form the obsm field.
     """
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
+    def __init__(self, registry_key: str, obs_keys: Optional[list[str]]) -> None:
         super().__init__(registry_key)
         self._attr_key = f"_scvi_{registry_key}"
         self._obs_keys = obs_keys if obs_keys is not None else []
@@ -209,7 +209,7 @@ class JointObsField(BaseObsmField):
         adata.obsm[self.attr_key] = adata.obs[self.obs_keys].copy()
 
     @property
-    def obs_keys(self) -> List[str]:
+    def obs_keys(self) -> list[str]:
         """List of .obs keys that make up this joint field."""
         return self._obs_keys
 
@@ -238,7 +238,7 @@ class NumericalJointObsField(JointObsField):
 
     COLUMNS_KEY = "columns"
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
+    def __init__(self, registry_key: str, obs_keys: Optional[list[str]]) -> None:
         super().__init__(registry_key, obs_keys)
 
         self.count_stat_key = f"n_{self.registry_key}"
@@ -274,7 +274,7 @@ class NumericalJointObsField(JointObsField):
             overflow="fold",
         )
         for key in state_registry[self.COLUMNS_KEY]:
-            t.add_row("adata.obs['{}']".format(key))
+            t.add_row(f"adata.obs['{key}']")
         return t
 
 
@@ -300,7 +300,7 @@ class CategoricalJointObsField(JointObsField):
     FIELD_KEYS_KEY = "field_keys"
     N_CATS_PER_KEY = "n_cats_per_key"
 
-    def __init__(self, registry_key: str, obs_keys: Optional[List[str]]) -> None:
+    def __init__(self, registry_key: str, obs_keys: Optional[list[str]]) -> None:
         super().__init__(registry_key, obs_keys)
         self.count_stat_key = f"n_{self.registry_key}"
 
@@ -312,7 +312,7 @@ class CategoricalJointObsField(JointObsField):
         }
 
     def _make_obsm_categorical(
-        self, adata: AnnData, category_dict: Optional[Dict[str, List[str]]] = None
+        self, adata: AnnData, category_dict: Optional[dict[str, list[str]]] = None
     ) -> dict:
         if self.obs_keys != adata.obsm[self.attr_key].columns.tolist():
             raise ValueError(
@@ -402,7 +402,7 @@ class CategoricalJointObsField(JointObsField):
         for key, mappings in state_registry[self.MAPPINGS_KEY].items():
             for i, mapping in enumerate(mappings):
                 if i == 0:
-                    t.add_row("adata.obs['{}']".format(key), str(mapping), str(i))
+                    t.add_row(f"adata.obs['{key}']", str(mapping), str(i))
                 else:
                     t.add_row("", str(mapping), str(i))
             t.add_row("", "")

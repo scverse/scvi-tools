@@ -316,8 +316,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     def get_expression_for_ct(
         self,
         label: str,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> pd.DataFrame:
         r"""
         Return the per cell-type expression based on likelihood for every spot in queried cell types.
@@ -341,9 +341,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             raise ValueError("Unknown cell type")
         y = np.where(label == self.cell_type_mapping)[0][0]
 
-        stdl = self._make_data_loader(
-            self.adata, indices=indices, batch_size=batch_size
-        )
+        stdl = self._make_data_loader(self.adata, indices=indices, batch_size=batch_size)
         scale = []
         for tensors in stdl:
             generative_inputs = self.module._get_generative_input(tensors, None)

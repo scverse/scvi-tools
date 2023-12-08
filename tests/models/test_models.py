@@ -250,9 +250,7 @@ def test_scvi(save_path):
     )
     params = model.get_likelihood_parameters()
     assert params["mean"].shape == adata.shape
-    assert (
-        params["mean"].shape == params["dispersions"].shape == params["dropout"].shape
-    )
+    assert params["mean"].shape == params["dispersions"].shape == params["dropout"].shape
     params = model.get_likelihood_parameters(adata2, indices=[1, 2, 3])
     assert params["mean"].shape == (3, adata.n_vars)
     params = model.get_likelihood_parameters(
@@ -1425,6 +1423,13 @@ def test_destvi(save_path):
     for amor_scheme in ["both", "none", "proportion", "latent"]:
         DestVI.setup_anndata(dataset, layer=None)
         # add l1_regularization to cell type proportions
+        if amor_scheme == "latent":
+            spatial_model = DestVI.from_rna_model(
+                dataset,
+                sc_model,
+                amortization=amor_scheme,
+                celltype_reg={"entropy": 50.0},
+            )
         spatial_model = DestVI.from_rna_model(
             dataset, sc_model, amortization=amor_scheme, celltype_reg={"l1": 50.0}
         )

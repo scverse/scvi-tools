@@ -291,21 +291,18 @@ class MRDeconv(BaseModuleClass):
         glo_neg_log_likelihood_prior += self.beta_reg * torch.var(self.beta)
 
         if expected_proportion is not None:
-            v_sparsity_loss = self.celltype_reg.values[0] * torch.sum(
-                torch.abs(v[:, :-1] - expected_proportion), axis=1
-            )
-        elif "l1" in self.celltype_reg.keys():
-            v_sparsity_loss = self.celltype_reg["l1"] * torch.sum(v, axis=1)
-        elif "entropy" in self.celltype_reg.keys():
-            v_sparsity_loss = (
-                self.celltype_reg["entropy"]
-                * torch.distributions.Categorical(probs=v).entropy().mean()
+            v_sparsity_loss = self.celltype_reg.values[0] * torch.sqrt(
+                torch.sum(torch.square(v[:, :-1] - expected_proportion), axis=1)
             )
         else:
-            raise ValueError(
-                "celltype_reg must be one of ['l1', 'entropy'], but input was "
-                "{}.format(self.celltype_reg.keys[0])"
-            )
+            v_sparsity_loss = 0
+            if "l1" in self.celltype_reg.keys():
+                v_sparsity_loss += self.celltype_reg["l1"] * torch.sum(v, axis=1)
+            if "entropy" in self.celltype_reg.keys():
+                v_sparsity_loss += (
+                    self.celltype_reg["entropy"]
+                    * torch.distributions.Categorical(probs=v).entropy().mean()
+                )
 
         # gamma prior likelihood
         if self.mean_vprior is None:
@@ -480,7 +477,7 @@ class MRDeconv(BaseModuleClass):
             (-1, self.n_latent)
         )  # minibatch_size * n_labels, n_latent
         enum_label = (
-            torch.arange(0, self.n_labels).repeat((x.shape[0])).view((-1, 1))
+            torch.arange(0, self.n_labels).repeat(x.shape[0]).view((-1, 1))
         )  # minibatch_size * n_labels, 1
         h = self.decoder(gamma_reshape, enum_label)
         px_scale = self.px_decoder(h)  # (minibatch, n_genes)
