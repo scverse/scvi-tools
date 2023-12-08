@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import json
 import warnings
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -203,7 +205,7 @@ class PosteriorPredictiveCheck:
         self.metrics[METRIC_ZERO_FRACTION] = mean.to_dataframe()
 
     def calibration_error(
-        self, confidence_intervals: Optional[list[float]] = None
+        self, confidence_intervals: list[float] | float = None
     ) -> None:
         """Calibration error for each observed count.
 
