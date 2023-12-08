@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from anndata import AnnData
 from sparse import GCXS
 from xarray import Dataset
@@ -8,7 +9,7 @@ from scvi.data import synthetic_iid
 from scvi.model import SCVI
 
 
-def get_ppc_with_samples(adata: AnnData, n_samples: int = 2):
+def get_ppc_with_samples(adata: AnnData, n_samples: int = 2, indices = None):
     # create and train models
     SCVI.setup_anndata(
         adata,
@@ -27,20 +28,20 @@ def get_ppc_with_samples(adata: AnnData, n_samples: int = 2):
     model2.train(1)
 
     models_dict = {"model1": model1, "model2": model2}
-    ppc = PPC(adata, models_dict, n_samples=n_samples)
+    ppc = PPC(adata, models_dict, n_samples=n_samples, indices=indices)
     return ppc, models_dict
 
 
 def test_ppc_init():
     adata = synthetic_iid()
-    ppc, models_dict = get_ppc_with_samples(adata, n_samples=42)
+    ppc, models_dict = get_ppc_with_samples(adata, n_samples=42, indices=np.arange(100))
     assert isinstance(ppc.raw_counts, GCXS)
     assert isinstance(ppc.samples_dataset, Dataset)
     assert ppc.n_samples == 42
     assert ppc.models is models_dict
     assert ppc.metrics == {}
-    assert ppc.samples_dataset.model1.shape == (400, 100, 42)
-    assert ppc.samples_dataset.model2.shape == (400, 100, 42)
+    assert ppc.samples_dataset.model1.shape == (100, 100, 42)
+    assert ppc.samples_dataset.model2.shape == (100, 100, 42)
 
 
 def test_ppc_cv():
