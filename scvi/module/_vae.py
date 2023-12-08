@@ -609,6 +609,8 @@ class VAE(BaseMinifiedModeModuleClass):
                 q_l_x = ql.log_prob(library).sum(dim=-1)
 
                 log_prob_sum += p_l - q_l_x
+                if n_mc_samples_per_pass == 1:
+                    log_prob_sum = log_prob_sum.unsqueeze(0)
 
             to_sum.append(log_prob_sum)
         to_sum = torch.cat(to_sum, dim=0)

@@ -23,6 +23,7 @@ class VAEMixin:
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
+        return_mean: bool = True,
     ) -> float:
         """Return the ELBO for the data.
 
@@ -38,12 +39,15 @@ class VAEMixin:
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_mean
+            If False, return the ELBO for each observation.
+            Otherwise, return the mean ELBO.
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
-        elbo = compute_elbo(self.module, scdl)
+        elbo = compute_elbo(self.module, scdl, return_mean=return_mean)
         return -elbo
 
     @torch.inference_mode()
@@ -75,7 +79,7 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_mean
             If False, return the marginal log likelihood for each observation.
-            Otherwise, return the mmean arginal log likelihood.
+            Otherwise, return the mean marginal log likelihood.
         """
         adata = self._validate_anndata(adata)
         if indices is None:
@@ -98,7 +102,7 @@ class VAEMixin:
                     )
                 )
             if not return_mean:
-                return torch.cat(log_lkl, 0)
+                return torch.cat(log_lkl, dim=0)
             else:
                 return np.mean(log_lkl)
         else:
@@ -114,6 +118,7 @@ class VAEMixin:
         adata: Optional[AnnData] = None,
         indices: Optional[Sequence[int]] = None,
         batch_size: Optional[int] = None,
+        return_mean: Optional[bool] = True,
     ) -> float:
         r"""Return the reconstruction error for the data.
 
@@ -129,12 +134,17 @@ class VAEMixin:
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_mean
+            If False, return the reconstruction loss for each observation.
+            Otherwise, return the mean reconstruction loss.
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
         )
-        reconstruction_error = compute_reconstruction_error(self.module, scdl)
+        reconstruction_error = compute_reconstruction_error(
+            self.module, scdl, return_mean=return_mean
+        )
         return reconstruction_error
 
     @torch.inference_mode()

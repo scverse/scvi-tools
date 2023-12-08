@@ -1,5 +1,5 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 from sparse import GCXS
 from xarray import Dataset
@@ -9,7 +9,7 @@ from scvi.data import synthetic_iid
 from scvi.model import SCVI
 
 
-def get_ppc_with_samples(adata: AnnData, n_samples: int = 2, indices = None):
+def get_ppc_with_samples(adata: AnnData, n_samples: int = 2, indices=None):
     # create and train models
     SCVI.setup_anndata(
         adata,
