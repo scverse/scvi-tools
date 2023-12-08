@@ -151,7 +151,7 @@ class MRDeconv(BaseModuleClass):
         # additive gene bias
         self.beta = torch.nn.Parameter(0.01 * torch.randn(self.n_genes))
 
-        self.detection_efficiency = torch.nn.Parameter(torch.ones(self.n_spots))
+        self.detection_efficiency = torch.nn.Parameter(torch.ones(self.n_spots, 1))
 
         # create additional neural nets for amortization
         # within cell_type factor loadings
@@ -194,7 +194,7 @@ class MRDeconv(BaseModuleClass):
         x = torch.log1p(x)
         ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
         if tensors.get("expected_proportions") is not None:
-            library = self.detection_efficiency
+            library = self.detection_efficiency[ind_x]
         else:
             library = torch.sum(x, dim=1, keepdim=True)
 
@@ -254,6 +254,7 @@ class MRDeconv(BaseModuleClass):
         )  # M, n_labels + 1, n_genes
         # now combine them for convolution
         px_scale = torch.sum(v_ind.unsqueeze(2) * r_hat, dim=1)  # batch_size, n_genes
+        print(library.shape, px_scale.shape)
         px_rate = library * px_scale
 
         return {
@@ -291,7 +292,7 @@ class MRDeconv(BaseModuleClass):
         glo_neg_log_likelihood_prior += self.beta_reg * torch.var(self.beta)
 
         if expected_proportion is not None:
-            v_sparsity_loss = self.celltype_reg.values[0] * torch.sqrt(
+            v_sparsity_loss = self.celltype_reg.pop("expected", 1) * torch.sqrt(
                 torch.sum(torch.square(v[:, :-1] - expected_proportion), axis=1)
             )
         else:

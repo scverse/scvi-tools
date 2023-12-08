@@ -12,6 +12,9 @@ def test_destvi():
     n_layers = 2
     dataset = synthetic_iid(n_labels=n_labels)
     dataset.obs["overclustering_vamp"] = list(range(dataset.n_obs))
+    dataset.obsm["prior_proportions"] = np.random.dirichlet(
+        np.ones(n_labels), size=dataset.n_obs
+    )
     CondSCVI.setup_anndata(dataset, labels_key="labels")
     sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
     sc_model.train(1, train_size=1)
@@ -32,7 +35,10 @@ def test_destvi():
     # step 3 learn destVI with multiple amortization scheme
 
     for amor_scheme in ["both", "none", "proportion", "latent"]:
-        DestVI.setup_anndata(dataset, layer=None)
+        if amor_scheme == "latent":
+            DestVI.setup_anndata(dataset, layer=None, expected_proportions="prior_proportions")
+        else:
+            DestVI.setup_anndata(dataset, layer=None)
         # add l1_regularization to cell type proportions
         if amor_scheme == "proportion":
             celltype_reg = {"l1": 50}

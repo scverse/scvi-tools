@@ -432,7 +432,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         adata: AnnData,
         layer: str | None = None,
-        expected_proportions: str | None = None,
+        expected_proportions: pd.DataFrame | None = None,
         **kwargs,
     ):
         """%(summary)s.
