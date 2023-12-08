@@ -11,7 +11,7 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data.fields import LayerField, NumericalObsField, ObsmField
+from scvi.data.fields import LayerField, NumericalObsField
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
@@ -78,7 +78,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         n_latent: int,
         n_layers: int,
         dropout_decoder: float,
-        celltype_reg: dict,
+        l1_reg: float,
         **module_kwargs,
     ):
         super().__init__(st_adata)
@@ -93,7 +93,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_decoder=dropout_decoder,
-            celltype_reg=celltype_reg,
+            l1_reg=l1_reg,
             **module_kwargs,
         )
         self.cell_type_mapping = cell_type_mapping
@@ -106,7 +106,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         st_adata: AnnData,
         sc_model: CondSCVI,
         vamp_prior_p: int = 15,
-        celltype_reg: dict = {"l1": 0.0},
+        l1_reg: float = 0.0,
         **module_kwargs,
     ):
         """Alternate constructor for exploiting a pre-trained model on a RNA-seq dataset.
@@ -119,10 +119,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             trained CondSCVI model
         vamp_prior_p
             number of mixture parameter for VampPrior calculations
-        celltype_reg
-            Dictionary indicating the strength and type ("l1" and "entropy" supported of regularization on cell type proportions).
-            A value of 200 for entropy loss leads to sparser results. If cell-types are predicted to be not present setting
-            "entropy" to negative values increases chances of detecting all cell-types.
+        l1_reg
+            Scalar parameter indicating the strength of L1 regularization on cell type proportions.
+            A value of 50 leads to sparser results.
         **model_kwargs
             Keyword args for :class:`~scvi.model.DestVI`
         """
@@ -154,7 +153,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             var_vprior=var_vprior,
             mp_vprior=mp_vprior,
             dropout_decoder=dropout_decoder,
-            celltype_reg=celltype_reg,
+            l1_reg=l1_reg,
             **module_kwargs,
         )
 
@@ -163,7 +162,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         keep_noise: bool = False,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        normalize: bool = True,
     ) -> pd.DataFrame:
         """Returns the estimated cell type proportion for the spatial data.
 
@@ -173,8 +171,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
-        normalize
-            Normalize outputs of proportions to have sum 1.
         indices
             Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
         batch_size
@@ -195,7 +191,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             for tensors in stdl:
                 generative_inputs = self.module._get_generative_input(tensors, None)
                 prop_local = self.module.get_proportions(
-                    x=generative_inputs["x"], keep_noise=keep_noise, normalize=normalize
+                    x=generative_inputs["x"], keep_noise=keep_noise
                 )
                 prop_ += [prop_local.cpu()]
             data = torch.cat(prop_).numpy()
@@ -206,9 +202,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 logger.info(
                     "No amortization for proportions, ignoring indices and returning results for the full data"
                 )
-            data = self.module.get_proportions(
-                keep_noise=keep_noise, normalize=normalize
-            )
+            data = self.module.get_proportions(keep_noise=keep_noise)
 
         return pd.DataFrame(
             data=data,
@@ -275,52 +269,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         batch_size: int | None = None,
     ) -> pd.DataFrame:
         r"""Return the scaled parameter of the NB for every spot in queried cell types.
-
-        Parameters
-        ----------
-        label
-            cell type of interest
-        indices
-            Indices of cells in self.adata to use. If `None`, all cells are used.
-        batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-
-        Returns
-        -------
-        Pandas dataframe of gene_expression
-        """
-        self._check_if_trained()
-
-        if label not in self.cell_type_mapping:
-            raise ValueError("Unknown cell type")
-        y = np.where(label == self.cell_type_mapping)[0][0]
-
-        stdl = self._make_data_loader(self.adata, indices=indices, batch_size=batch_size)
-        scale = []
-        for tensors in stdl:
-            generative_inputs = self.module._get_generative_input(tensors, None)
-            x, ind_x = (
-                generative_inputs["x"],
-                generative_inputs["ind_x"],
-            )
-            px_scale = self.module.get_ct_specific_scale(x, ind_x, y)
-            scale += [px_scale.cpu()]
-
-        data = torch.cat(scale).numpy()
-        column_names = self.adata.var.index
-        index_names = self.adata.obs.index
-        if indices is not None:
-            index_names = index_names[indices]
-        return pd.DataFrame(data=data, columns=column_names, index=index_names)
-
-    def get_expression_for_ct(
-        self,
-        label: str,
-        indices: Sequence[int] | None = None,
-        batch_size: int | None = None,
-    ) -> pd.DataFrame:
-        r"""
-        Return the per cell-type expression based on likelihood for every spot in queried cell types.
 
         Parameters
         ----------
@@ -432,7 +380,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         adata: AnnData,
         layer: str | None = None,
-        expected_proportions: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -448,7 +395,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
-            ObsmField("expected_proportions", expected_proportions, required=False),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
