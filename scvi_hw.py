@@ -72,7 +72,7 @@ def main():
     SCVI.setup_anndata(adata, layer="counts", batch_key="study")
     model = SCVI(adata)
     model.view_anndata_setup(adata)
-    model.train(max_epochs=2)
+    model.train(max_epochs=10)
     umap(adata, model)
 
 if __name__ == '__main__':

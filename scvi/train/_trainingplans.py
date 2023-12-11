@@ -202,16 +202,15 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         rec_loss = ElboMetric("reconstruction_loss", mode, "obs")
         kl_local = ElboMetric("kl_local", mode, "obs")
         kl_global = ElboMetric("kl_global", mode, "batch")
-        mmd_loss = ElboMetric("mmd_loss", mode, "obs")
         # n_total can be 0 if there is no validation set, this won't ever be used
         # in that case anyway
         n = 1 if n_total is None or n_total < 1 else n_total
         elbo = rec_loss + kl_local + (1 / n) * kl_global
         elbo.name = f"elbo_{mode}"
         collection = OrderedDict(
-            [(metric.name, metric) for metric in [elbo, rec_loss, kl_local, kl_global, mmd_loss]]
+            [(metric.name, metric) for metric in [elbo, rec_loss, kl_local, kl_global]]
         )
-        return elbo, rec_loss, kl_local, kl_global, mmd_loss, collection
+        return elbo, rec_loss, kl_local, kl_global, collection
 
     def initialize_train_metrics(self):
         """Initialize train related metrics."""
@@ -220,7 +219,6 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             self.rec_loss_train,
             self.kl_local_train,
             self.kl_global_train,
-            self.mmd_loss_train,
             self.train_metrics,
         ) = self._create_elbo_metric_components(
             mode="train", n_total=self.n_obs_training
@@ -234,7 +232,6 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             self.rec_loss_val,
             self.kl_local_val,
             self.kl_global_val,
-            self.mmd_loss_val,
             self.val_metrics,
         ) = self._create_elbo_metric_components(
             mode="validation", n_total=self.n_obs_validation
@@ -317,7 +314,6 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             reconstruction_loss=rec_loss,
             kl_local=kl_local,
             kl_global=kl_global,
-            mmd_loss=mmd_loss,
             n_obs_minibatch=n_obs_minibatch,
         )
         # pytorch lightning handles everything with the torchmetric object
@@ -328,6 +324,15 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             batch_size=n_obs_minibatch,
             sync_dist=self.use_sync_dist,
         )
+        if mmd_loss is not None:
+            self.log(
+                f"mmd_loss_{mode}",
+                mmd_loss,
+                on_step=False,
+                on_epoch=True,
+                sync_dist=self.use_sync_dist,
+            )
+
 
         # accumlate extra metrics passed to loss recorder
         for key in loss_output.extra_metrics_keys:
