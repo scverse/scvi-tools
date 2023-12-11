@@ -57,6 +57,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Fix bug in {class}`scvi.module.SCANVAE` where classifier probabilities
     were interpreted as logits. This is backwards compatible as loading older
     models will use the old code path {pr}`2301`.
+-   Fix bug in {class}`scvi.external.GIMVI` where `batch_size` was not
+    properly used in inference methods {pr}`2366`.
 
 #### Changed
 
