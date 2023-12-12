@@ -17,7 +17,7 @@ def get_test_adata_marker_mat():
     return adata, marker_df
 
 
-def test_cellassign(save_path):
+def test_cellassign():
     adata, marker_df = get_test_adata_marker_mat()
     CellAssign.setup_anndata(
         adata,
@@ -29,7 +29,7 @@ def test_cellassign(save_path):
     model.predict()
 
 
-def test_cellassign_covariates(save_path):
+def test_cellassign_covariates():
     adata, marker_df = get_test_adata_marker_mat()
     adata.obs["test"] = np.ones((adata.n_obs,))
     CellAssign.setup_anndata(
