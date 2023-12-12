@@ -57,6 +57,10 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Fix bug in {class}`scvi.module.SCANVAE` where classifier probabilities
     were interpreted as logits. This is backwards compatible as loading older
     models will use the old code path {pr}`2301`.
+-   Fix compute_reconstruction_error and compute_elbo to allow computation
+    without averaging across cells.
+-   Fix marginal_ll with n_mc_samples_per_pass==1. ScANVI model now allows
+    importance weighting in DE function.
 
 #### Changed
 

@@ -473,7 +473,7 @@ class VAE(BaseMinifiedModeModuleClass):
                 generative_outputs["pl"],
             ).sum(dim=1)
         else:
-            kl_divergence_l = torch.tensor(0.0, device=x.device)
+            kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
         reconst_loss = -generative_outputs["px"].log_prob(x).sum(-1)
 

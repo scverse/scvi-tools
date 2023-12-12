@@ -332,8 +332,7 @@ class SCANVAE(VAE):
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
-            kl_divergence_l = 0.0
-
+            kl_divergence_l = torch.zeros_like(loss_z1_weight)
         if is_labelled:
             loss = reconst_loss + loss_z1_weight + loss_z1_unweight
             kl_locals = {
