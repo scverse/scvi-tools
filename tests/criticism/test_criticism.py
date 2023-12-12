@@ -35,6 +35,7 @@ def get_ppc_with_samples(adata: AnnData, n_samples: int = 2, indices=None):
 def test_ppc_init():
     adata = synthetic_iid()
     ppc, models_dict = get_ppc_with_samples(adata, n_samples=42, indices=np.arange(100))
+    ppc, models_dict = get_ppc_with_samples(adata, n_samples=42)
     assert isinstance(ppc.raw_counts, GCXS)
     assert isinstance(ppc.samples_dataset, Dataset)
     assert ppc.n_samples == 42

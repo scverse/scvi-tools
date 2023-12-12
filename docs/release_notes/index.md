@@ -57,6 +57,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Fix bug in {class}`scvi.module.SCANVAE` where classifier probabilities
     were interpreted as logits. This is backwards compatible as loading older
     models will use the old code path {pr}`2301`.
+-   scvi.criticism allows running metrics on a subset of the full adata set
+    by also subsetting model.adata.
 
 #### Changed
 
