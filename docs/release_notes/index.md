@@ -49,6 +49,11 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
 -   {attr}`scvi.settings.dl_num_workers` is now correctly applied as the default
     `num_workers` in {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
+-   Add argument `return_mean` to {meth}`scvi.model.base.VAEMixin.get_reconstruction_error` 
+    and {meth}`scvi.model.base.VAEMixin.get_elbo` to allow computation
+    without averaging across cells {pr}`2362`.
+-   Add support for setting `weights="importance"` in 
+    {meth}`scvi.model.SCANVI.differential_expression` {pr}`2362`.
 
 #### Fixed
 
@@ -57,10 +62,10 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Fix bug in {class}`scvi.module.SCANVAE` where classifier probabilities
     were interpreted as logits. This is backwards compatible as loading older
     models will use the old code path {pr}`2301`.
--   Fix compute_reconstruction_error and compute_elbo to allow computation
-    without averaging across cells.
--   Fix marginal_ll with n_mc_samples_per_pass==1. ScANVI model now allows
-    importance weighting in DE function.
+-   Fix {meth}`scvi.module.VAE.marginal_ll` when `n_mc_samples_per_pass=1` {pr}`2362`.
+-   Fix bug in {class}`scvi.external.GIMVI` where `batch_size` was not
+    properly used in inference methods {pr}`2366`.
+-   Fix error message formatting in {meth}`scvi.data.fields.LayerField.transfer_field` {pr}`2368`.
 
 #### Changed
 
