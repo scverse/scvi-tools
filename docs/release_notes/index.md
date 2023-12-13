@@ -59,6 +59,9 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     models will use the old code path {pr}`2301`.
 -   scvi.criticism allows running metrics on a subset of the full adata set
     by also subsetting model.adata.
+-   Fix bug in {class}`scvi.external.GIMVI` where `batch_size` was not
+    properly used in inference methods {pr}`2366`.
+-   Fix error message formatting in {meth}`scvi.data.fields.LayerField.transfer_field` {pr}`2368`.
 
 #### Changed
 

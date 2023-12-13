@@ -130,8 +130,8 @@ class LayerField(BaseAnnDataField):
         target_n_vars = adata_target.n_vars
         if target_n_vars != n_vars:
             raise ValueError(
-                "Number of vars in adata_target not the same as source. "
-                + f"Expected: {target_n_vars} Received: {n_vars}"
+                "Number of vars in `adata_target` not the same as source. "
+                + f"Expected: {n_vars} Received: {target_n_vars}"
             )
 
         return self.register_field(adata_target)
