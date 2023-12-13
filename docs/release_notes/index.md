@@ -49,10 +49,10 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
 -   {attr}`scvi.settings.dl_num_workers` is now correctly applied as the default
     `num_workers` in {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
--   Add argument `return_mean` to {meth}`scvi.model.base.VAEMixin.get_reconstruction_error` 
+-   Add argument `return_mean` to {meth}`scvi.model.base.VAEMixin.get_reconstruction_error`
     and {meth}`scvi.model.base.VAEMixin.get_elbo` to allow computation
     without averaging across cells {pr}`2362`.
--   Add support for setting `weights="importance"` in 
+-   Add support for setting `weights="importance"` in
     {meth}`scvi.model.SCANVI.differential_expression` {pr}`2362`.
 
 #### Fixed
