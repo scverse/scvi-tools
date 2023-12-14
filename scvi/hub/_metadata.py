@@ -78,7 +78,7 @@ class HubMetadata:
 
     def __post_init__(self):
         if self.training_data_url is not None:
-            validate_url(self.training_data_url, raise_error=True)
+            validate_url(self.training_data_url, error_format=True)
 
 
 @dataclass
@@ -155,9 +155,9 @@ class HubModelCardHelper:
         self.model_card = self._to_model_card()
 
         if self.training_data_url is not None:
-            validate_url(self.training_data_url, raise_error=True)
+            validate_url(self.training_data_url, error_format=True)
         if self.training_code_url is not None:
-            validate_url(self.training_code_url, raise_error=True)
+            validate_url(self.training_code_url, error_format=True)
 
     @classmethod
     def from_dir(
