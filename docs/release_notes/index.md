@@ -49,6 +49,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
 -   {attr}`scvi.settings.dl_num_workers` is now correctly applied as the default
     `num_workers` in {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
+-   Add argument `seed` to {func}`scvi.model.utils.mde` for reproducibility {pr}`xxxx`.
 
 #### Fixed
 
