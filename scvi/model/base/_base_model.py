@@ -19,15 +19,24 @@ from scvi._types import AnnOrMuData, MinifiedDataType, TunableMixin
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
+    _ADATA_MINIFY_TYPE_UNS_KEY,
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
+    ADATA_MINIFY_TYPE,
 )
 from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
+from scvi.data.fields import (
+    BaseAnnDataField,
+    NumericalObsField,
+    ObsmField,
+    StringUnsField,
+)
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_device_args
 from scvi.model.base._utils import _load_legacy_saved_files
+from scvi.model.utils import get_minified_adata_scrna
 from scvi.utils import attrdict, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -481,6 +490,101 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             else:
                 raise RuntimeError(message)
 
+    def minify_adata(
+        self,
+        minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
+        use_latent_qzm_key: str = "X_latent_qzm",
+        use_latent_qzv_key: str = "X_latent_qzv",
+    ):
+        """Minifies the model's adata.
+
+        Minifies the adata, and registers new anndata fields: latent qzm, latent qzv, adata uns
+        containing minified-adata type, and library size.
+        This also sets the appropriate property on the module to indicate that the adata is minified.
+
+        Parameters
+        ----------
+        minified_data_type
+            How to minify the data. Currently only supports `latent_posterior_parameters` and `add_posterior_parameters`,.
+            If minified_data_type == `latent_posterior_parameters`:
+
+            * the original count data is removed (`adata.X`, adata.raw, and any layers)
+            * the parameters of the latent representation of the original data is stored
+            * everything else is left untouched
+            If minified_data_type == `add_posterior_parameters`:
+
+            * the original count data is kept (`adata.X`, adata.raw, and any layers)
+            * the parameters of the latent representation of the original data is stored
+            * everything else is left untouched
+        use_latent_qzm_key
+            Key to use in `adata.obsm` where the latent qzm params are stored
+        use_latent_qzv_key
+            Key to use in `adata.obsm` where the latent qzv params are stored
+
+        Notes
+        -----
+        The modification is not done inplace -- instead the model is assigned a new (minified)
+        version of the adata.
+        """
+        # TODO(adamgayoso): Add support for a scenario where we want to cache the latent posterior
+        if not ADATA_MINIFY_TYPE.__contains__(minified_data_type):
+            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
+
+        if minified_data_type == ADATA_MINIFY_TYPE.ADD_POSTERIOR_PARAMETERS:
+            keep_count_data = True
+        elif minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+            keep_count_data = False
+
+        if not getattr(self.module, 'use_observed_lib_size', True):
+            raise ValueError(
+                "Cannot minify the data if `use_observed_lib_size` is False"
+            )
+
+        minified_adata = get_minified_adata_scrna(self.adata, minified_data_type, keep_count_data=keep_count_data)
+        minified_adata.obsm[self._LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+        minified_adata.obsm[self._LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+        counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+        minified_adata.obs[self._OBSERVED_LIB_SIZE] = np.squeeze(
+            np.asarray(counts.sum(axis=1))
+        )
+        self._update_adata_and_manager_post_minification(
+            minified_adata, minified_data_type
+        )
+        self.module.minified_data_type = minified_data_type
+
+    def _get_fields_for_adata_minification(
+        self,
+        minified_data_type: MinifiedDataType,
+    ) -> list[BaseAnnDataField]:
+        """Return the anndata fields required for adata minification of the given minified_data_type."""
+        assert self._LATENT_QZM, NotImplementedError("Minified mode is not defined for model.")
+        if ADATA_MINIFY_TYPE.__contains__(minified_data_type):
+            fields = [
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZM_KEY,
+                    self._LATENT_QZM,
+                ),
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZV_KEY,
+                    self._LATENT_QZV,
+                ),
+                NumericalObsField(
+                    REGISTRY_KEYS.OBSERVED_LIB_SIZE,
+                    self._OBSERVED_LIB_SIZE,
+                ),
+            ]
+        else:
+            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
+        fields.append(
+            StringUnsField(
+                REGISTRY_KEYS.MINIFY_TYPE_KEY,
+                _ADATA_MINIFY_TYPE_UNS_KEY,
+            ),
+        )
+        return fields
+
+
+
     @property
     def is_trained(self) -> bool:
         """Whether the model has been trained."""
@@ -892,28 +996,6 @@ class BaseMinifiedModeModelClass(BaseModelClass):
             if REGISTRY_KEYS.MINIFY_TYPE_KEY in self.adata_manager.data_registry
             else None
         )
-
-    @abstractmethod
-    def minify_adata(
-        self,
-        *args,
-        **kwargs,
-    ):
-        """Minifies the model's adata.
-
-        Minifies the adata, and registers new anndata fields as required (can be model-specific).
-        This also sets the appropriate property on the module to indicate that the adata is minified.
-
-        Notes
-        -----
-        The modification is not done inplace -- instead the model is assigned a new (minified)
-        version of the adata.
-        """
-
-    @staticmethod
-    @abstractmethod
-    def _get_fields_for_adata_minification(minified_data_type: MinifiedDataType):
-        """Return the anndata fields required for adata minification of the given type."""
 
     def _update_adata_and_manager_post_minification(
         self, minified_adata: AnnOrMuData, minified_data_type: MinifiedDataType

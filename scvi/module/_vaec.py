@@ -7,15 +7,16 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Tunable
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
 torch.backends.cudnn.benchmark = True
 
 
 # Conditional VAE model
-class VAEC(BaseModuleClass):
+class VAEC(BaseMinifiedModeModuleClass):
     """Conditional Variational auto-encoder model.
 
     This is an implementation of the CondSCVI model
@@ -114,13 +115,28 @@ class VAEC(BaseModuleClass):
         self.register_buffer("ct_weight", ct_weight)
 
     def _get_inference_input(self, tensors):
-        x = tensors[REGISTRY_KEYS.X_KEY]
-        y = tensors[REGISTRY_KEYS.LABELS_KEY]
+        if self.minified_data_type is None:
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            y = tensors[REGISTRY_KEYS.LABELS_KEY]
+            input_dict = {
+                "x": x,
+                "y": y,
+            }
+        else:
+            if ADATA_MINIFY_TYPE.__contains__(self.minified_data_type):
+                qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
+                qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
+                observed_lib_size = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
+                input_dict = {
+                    "qzm": qzm,
+                    "qzv": qzv,
+                    "observed_lib_size": observed_lib_size,
+                }
+            else:
+                raise NotImplementedError(
+                    f"Unknown minified-data type: {self.minified_data_type}"
+                )
 
-        input_dict = {
-            "x": x,
-            "y": y,
-        }
         return input_dict
 
     def _get_generative_input(self, tensors, inference_outputs):
@@ -136,7 +152,7 @@ class VAEC(BaseModuleClass):
         return input_dict
 
     @auto_move_data
-    def inference(self, x, y, n_samples=1):
+    def _regular_inference(self, x, y, n_samples=1):
         """High level inference method.
 
         Runs the inference (encoder) model.
@@ -155,6 +171,25 @@ class VAEC(BaseModuleClass):
                 (n_samples, library.size(0), library.size(1))
             )
 
+        outputs = {"z": z, "qz": qz, "library": library}
+        return outputs
+
+    @auto_move_data
+    def _cached_inference(self, qzm, qzv, observed_lib_size, n_samples=1):
+        if ADATA_MINIFY_TYPE.__contains__(self.minified_data_type):
+            qz = Normal(qzm, qzv.sqrt())
+            # use dist.sample() rather than rsample because we aren't optimizing the z here
+            untran_z = qz.sample() if n_samples == 1 else qz.sample((n_samples,))
+            z = self.z_encoder.z_transformation(untran_z)
+            library = observed_lib_size
+            if n_samples > 1:
+                library = library.unsqueeze(0).expand(
+                    (n_samples, library.size(0), library.size(1))
+                )
+        else:
+            raise NotImplementedError(
+                f"Unknown minified-data type: {self.minified_data_type}"
+            )
         outputs = {"z": z, "qz": qz, "library": library}
         return outputs
 

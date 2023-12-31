@@ -301,7 +301,7 @@ class BaseMinifiedModeModuleClass(BaseModuleClass):
         """
         if (
             self.minified_data_type is not None
-            and self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            and ADATA_MINIFY_TYPE.__contains__(self.minified_data_type)
         ):
             return self._cached_inference(*args, **kwargs)
         else:

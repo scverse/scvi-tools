@@ -324,8 +324,9 @@ def _get_adata_minify_type(adata: AnnData) -> Union[MinifiedDataType, None]:
 
 def _is_minified(adata: Union[AnnData, str]) -> bool:
     uns_key = _constants._ADATA_MINIFY_TYPE_UNS_KEY
+    layer_key = REGISTRY_KEYS.X_KEY
     if isinstance(adata, AnnData):
-        return adata.uns.get(uns_key, None) is not None
+        return adata.layers.get(layer_key, adata.X).sum()==0
     elif isinstance(adata, str):
         with h5py.File(adata) as fp:
             return uns_key in read_elem(fp["uns"]).keys()

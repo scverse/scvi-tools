@@ -5,7 +5,7 @@ import scvi
 from scvi.data import synthetic_iid
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _is_minified
-from scvi.model import SCANVI, SCVI
+from scvi.model import SCANVI, SCVI, CondSCVI, DestVI
 
 _SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 _SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
@@ -156,6 +156,28 @@ def test_scanvi_with_minified_adata_n_samples():
     run_test_for_model_with_minified_adata(
         SCANVI, n_samples=10, give_mean=True, use_size_factor=True
     )
+    
+def test_condscvi_with_minified_adata_one_sample():
+    run_test_for_model_with_minified_adata(CondSCVI)
+
+
+def test_condscvi_with_minified_adata_one_sample():
+    run_test_for_model_with_minified_adata(CondSCVI, layer="data_layer")
+
+
+def test_condscvi_with_minified_adata_one_sample():
+    run_test_for_model_with_minified_adata(CondSCVI, n_samples=10, give_mean=True)
+
+    
+def test_condscvi_downstream():
+    model, adata, _, adata_before_setup = prep_model(CondSCVI)
+    zm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
+    model.minify_adata()
+    model.get_vamp_prior()
+    scvi.model.DestVI.setup_anndata(adata_before_setup)
+    scvi.model.DestVI.from_rna_model(adata_before_setup, model, amortization="both", vamp_prior_p=10)
 
 
 def test_scanvi_from_scvi(save_path):
@@ -203,7 +225,13 @@ def test_scvi_with_minified_adata_get_normalized_expression():
     scvi.settings.seed = 1
     exprs_orig = model.get_normalized_expression()
 
+    model.minify_adata('add_posterior_parameters')
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.ADD_POSTERIOR_PARAMETERS
+    assert np.isfinite(model.adata.get_elbo())
+    assert np.isfinite(model.adata.get_reconstruction_error())
+
     model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1

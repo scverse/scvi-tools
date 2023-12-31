@@ -12,7 +12,7 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model.base import (
-    BaseModelClass,
+    BaseMinifiedModeModelClass,
     RNASeqMixin,
     UnsupervisedTrainingMixin,
     VAEMixin,
@@ -24,7 +24,7 @@ from scvi.utils._docstrings import devices_dsp
 logger = logging.getLogger(__name__)
 
 
-class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedModeModelClass):
     """Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez22`.
 
     Parameters
@@ -60,6 +60,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     """
 
     _module_cls = VAEC
+    _LATENT_QZM = "_condscvi_latent_qzm"
+    _LATENT_QZV = "_condscvi_latent_qzv"
+    _OBSERVED_LIB_SIZE = "_condscvi_observed_lib_size"
 
     def __init__(
         self,
@@ -140,19 +143,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         key = labels_state_registry.original_key
         mapping = labels_state_registry.categorical_mapping
 
-        scdl = self._make_data_loader(adata=adata, batch_size=p)
-
-        mean = []
-        var = []
-        for tensors in scdl:
-            x = tensors[REGISTRY_KEYS.X_KEY]
-            y = tensors[REGISTRY_KEYS.LABELS_KEY]
-            out = self.module.inference(x, y)
-            mean_, var_ = out["qz"].loc, (out["qz"].scale ** 2)
-            mean += [mean_.cpu()]
-            var += [var_.cpu()]
-
-        mean_cat, var_cat = torch.cat(mean).numpy(), torch.cat(var).numpy()
+        mean_cat, var_cat = self.get_latent_representation(adata, return_dist=True)
 
         for ct in range(self.summary_stats["n_labels"]):
             local_indices = np.where(adata.obs[key] == mapping[ct])[0]
