@@ -409,7 +409,6 @@ class RNASeqMixin:
 
         return result
 
-    @torch.inference_mode()
     def posterior_predictive_sample(
         self,
         adata: AnnData | None = None,
