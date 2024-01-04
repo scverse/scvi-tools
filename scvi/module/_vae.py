@@ -521,16 +521,11 @@ class VAE(BaseMinifiedModeModuleClass):
             tensors, inference_kwargs=inference_kwargs, compute_loss=False
         )
 
-        dist = generative_outputs["px"]
-        if self.gene_likelihood == "poisson":
-            rate = generative_outputs["px"].rate
-            rate = torch.clamp(rate, max=1e8)
-            dist = torch.distributions.Poisson(rate)
-
-        samples = dist.sample()  # (n_samples, n_obs, n_vars)
-        if n_samples > 1:
-            # (n_samples, n_obs, n_vars) -> (n_obs, n_vars, n_samples)
-            samples = torch.permute(samples, (1, 2, 0))
+        # (n_samples, n_obs, n_vars) if n_samples > 1
+        # (n_obs, n_vars) if n_samples == 1
+        samples = generative_outputs["px"].sample()
+        # (n_samples, n_obs, n_vars) -> (n_obs, n_vars, n_samples)
+        samples = torch.permute(samples, (1, 2, 0)) if n_samples > 1 else samples
 
         return samples.cpu()
 
