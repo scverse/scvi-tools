@@ -420,7 +420,7 @@ class RNASeqMixin:
         r"""Generate predictive samples from the posterior predictive distribution.
 
         The posterior predictive distribution is denoted as :math:`p(\hat{x} \mid x)`, where
-        :math:`x` is the input data and :math:`\hat{x}` is the sampled data. W
+        :math:`x` is the input data and :math:`\hat{x}` is the sampled data.
 
         We sample from this distribution by first sampling ``n_samples`` times from the posterior
         distribution :math:`q(z \mid x)` for a given observation, and then sampling from the
@@ -429,22 +429,23 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            :class`~anndata.AnnData` object wit an equivalent structure to the model's dataset. If
-            ``None``, defaults to the :class`~anndata.AnnData` object used to initialize the model.
+            :class:`~anndata.AnnData` object wit an equivalent structure to the model's dataset. If
+            ``None``, defaults to the :class:`~anndata.AnnData` object used to initialize the model.
         indices
-            Indicies of the observations in ``adata`` to use. If ``None``, defaults to all the
+            Indices of the observations in ``adata`` to use. If ``None``, defaults to all the
             observations.
         n_samples
             Number of Monte Carlo samples to draw from the posterior predictive distribution for
             each observation.
         gene_list
-            Names of the genes to subset to. If ``None``, defaults to all genes.
+            Names of the genes to which to subset. If ``None``, defaults to all genes.
         batch_size
-            Minibatch size for data loading into model. Defaults to ``scvi.settings.batch_size``.
+            Minibatch size to use for data loading and model inference. Defaults to
+            ``scvi.settings.batch_size``.
 
         Returns
         -------
-        Sparse nd-array of shape ``(n_obs, n_vars)`` if ``n_samples == 1``, else
+        Sparse multidimensional array of shape ``(n_obs, n_vars)`` if ``n_samples == 1``, else
         ``(n_obs, n_vars, n_samples)``.
         """
         adata = self._validate_anndata(adata)

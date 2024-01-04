@@ -500,7 +500,7 @@ class VAE(BaseMinifiedModeModuleClass):
         r"""Generate predictive samples from the posterior predictive distribution.
 
         The posterior predictive distribution is denoted as :math:`p(\hat{x} \mid x)`, where
-        :math:`x` is the input data and :math:`\hat{x}` is the sampled data. W
+        :math:`x` is the input data and :math:`\hat{x}` is the sampled data.
 
         We sample from this distribution by first sampling ``n_samples`` times from the posterior
         distribution :math:`q(z \mid x)` for a given observation, and then sampling from the
