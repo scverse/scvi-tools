@@ -3,7 +3,6 @@ from __future__ import annotations
 import inspect
 import logging
 import warnings
-from collections.abc import Iterable
 from functools import partial
 from typing import Literal
 
@@ -22,9 +21,7 @@ from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_pr
 from scvi.module.base._decorators import _move_data_to_device
 from scvi.utils import de_dsp, unsupported_if_adata_minified
 
-from ._utils import (
-    _de_core,
-)
+from ._utils import _de_core
 
 logger = logging.getLogger(__name__)
 
@@ -321,7 +318,7 @@ class RNASeqMixin:
         self,
         adata: AnnData | None = None,
         groupby: str | None = None,
-        group1: Iterable[str] | None = None,
+        group1: list[str] | None = None,
         group2: str | None = None,
         idx1: list[int] | list[bool] | str | None = None,
         idx2: list[int] | list[bool] | str | None = None,
@@ -330,8 +327,8 @@ class RNASeqMixin:
         batch_size: int | None = None,
         all_stats: bool = True,
         batch_correction: bool = False,
-        batchid1: Iterable[str] | None = None,
-        batchid2: Iterable[str] | None = None,
+        batchid1: list[str] | None = None,
+        batchid2: list[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
         weights: Literal["uniform", "importance"] | None = "uniform",
