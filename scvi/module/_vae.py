@@ -495,6 +495,7 @@ class VAE(BaseMinifiedModeModuleClass):
         self,
         tensors: dict[str, torch.Tensor],
         n_samples: int = 1,
+        max_poisson_rate: float = 1e8,
     ) -> torch.Tensor:
         r"""Generate predictive samples from the posterior predictive distribution.
 
@@ -511,19 +512,30 @@ class VAE(BaseMinifiedModeModuleClass):
             Dictionary of tensors passed into :meth:`~scvi.module.VAE.forward`.
         n_samples
             Number of Monte Carlo samples to draw from the distribution for each observation.
+        max_poisson_rate
+            The maximum value to which to clip the ``rate`` parameter of
+            :class:`~torch.distributions.Poisson`. Avoids numerical sampling
+            issues when the parameter is very large due to the variance of the
+            distribution.
 
         Returns
         -------
         Tensor on CPU with shape ``(n_obs, n_vars)`` if ``n_samples == 1``, else
-        ``(n_obs, n_vars, n_samples)``.
+        ``(n_obs, n_vars,)``.
         """
         inference_kwargs = {"n_samples": n_samples}
         _, generative_outputs = self.forward(
             tensors, inference_kwargs=inference_kwargs, compute_loss=False
         )
 
+        dist = generative_outputs["px"]
+        if self.gene_likelihood == "poisson":
+            dist = torch.distributions.Poisson(
+                torch.clamp(dist.rate, max=max_poisson_rate)
+            )
+
         # (n_obs, n_vars) if n_samples == 1, else (n_samples, n_obs, n_vars)
-        samples = generative_outputs["px"].sample()
+        samples = dist.sample()
         # (n_samples, n_obs, n_vars) -> (n_obs, n_vars, n_samples)
         samples = torch.permute(samples, (1, 2, 0)) if n_samples > 1 else samples
 
