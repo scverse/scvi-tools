@@ -514,15 +514,15 @@ class VAE(BaseMinifiedModeModuleClass):
 
         Returns
         -------
-        Tensor on CPU with shape ``(n_obs, n_vars, n_samples)``.
+        Tensor on CPU with shape ``(n_obs, n_vars)`` if ``n_samples == 1``, else
+        ``(n_obs, n_vars, n_samples)``.
         """
         inference_kwargs = {"n_samples": n_samples}
         _, generative_outputs = self.forward(
             tensors, inference_kwargs=inference_kwargs, compute_loss=False
         )
 
-        # (n_samples, n_obs, n_vars) if n_samples > 1
-        # (n_obs, n_vars) if n_samples == 1
+        # (n_obs, n_vars) if n_samples == 1, else (n_samples, n_obs, n_vars)
         samples = generative_outputs["px"].sample()
         # (n_samples, n_obs, n_vars) -> (n_obs, n_vars, n_samples)
         samples = torch.permute(samples, (1, 2, 0)) if n_samples > 1 else samples
