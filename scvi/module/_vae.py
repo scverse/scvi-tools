@@ -493,53 +493,46 @@ class VAE(BaseMinifiedModeModuleClass):
     @torch.inference_mode()
     def sample(
         self,
-        tensors,
-        n_samples=1,
-        library_size=1,
-    ) -> np.ndarray:
-        r"""Generate observation samples from the posterior predictive distribution.
+        tensors: dict[str, torch.Tensor],
+        n_samples: int = 1,
+    ) -> torch.Tensor:
+        r"""Generate predictive samples from the posterior predictive distribution.
 
-        The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
+        The posterior predictive distribution is denoted as :math:`p(\hat{x} \mid x)`, where
+        :math:`x` is the input data and :math:`\hat{x}` is the sampled data. W
+
+        We sample from this distribution by first sampling ``n_samples`` times from the posterior
+        distribution :math:`q(z \mid x)` for a given observation, and then sampling from the
+        likelihood :math:`p(\hat{x} \mid z)` for each of these.
 
         Parameters
         ----------
         tensors
-            Tensors dict
+            Dictionary of tensors passed into :meth:`~scvi.module.VAE.forward`.
         n_samples
-            Number of required samples for each cell
-        library_size
-            Library size to scale samples to
+            Number of Monte Carlo samples to draw from the distribution for each observation.
 
         Returns
         -------
-        x_new : :py:class:`torch.Tensor`
-            tensor with shape (n_cells, n_genes, n_samples)
+        Tensor on CPU with shape ``(n_obs, n_vars, n_samples)``.
         """
         inference_kwargs = {"n_samples": n_samples}
-        (
-            _,
-            generative_outputs,
-        ) = self.forward(
-            tensors,
-            inference_kwargs=inference_kwargs,
-            compute_loss=False,
+        _, generative_outputs = self.forward(
+            tensors, inference_kwargs=inference_kwargs, compute_loss=False
         )
 
         dist = generative_outputs["px"]
         if self.gene_likelihood == "poisson":
-            l_train = generative_outputs["px"].rate
-            l_train = torch.clamp(l_train, max=1e8)
-            dist = torch.distributions.Poisson(
-                l_train
-            )  # Shape : (n_samples, n_cells_batch, n_genes)
-        if n_samples > 1:
-            exprs = dist.sample().permute(
-                [1, 2, 0]
-            )  # Shape : (n_cells_batch, n_genes, n_samples)
-        else:
-            exprs = dist.sample()
+            rate = generative_outputs["px"].rate
+            rate = torch.clamp(rate, max=1e8)
+            dist = torch.distributions.Poisson(rate)
 
-        return exprs.cpu()
+        samples = dist.sample()  # (n_samples, n_obs, n_vars)
+        if n_samples > 1:
+            # (n_samples, n_obs, n_vars) -> (n_obs, n_vars, n_samples)
+            samples = torch.permute(samples, (1, 2, 0))
+
+        return samples.cpu()
 
     @torch.inference_mode()
     @auto_move_data
