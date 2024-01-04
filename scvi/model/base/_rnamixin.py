@@ -429,7 +429,7 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            :class:`~anndata.AnnData` object wit an equivalent structure to the model's dataset. If
+            :class:`~anndata.AnnData` object with an equivalent structure to the model's dataset. If
             ``None``, defaults to the :class:`~anndata.AnnData` object used to initialize the model.
         indices
             Indices of the observations in ``adata`` to use. If ``None``, defaults to all the
@@ -441,7 +441,8 @@ class RNASeqMixin:
             Names of the genes to which to subset. If ``None``, defaults to all genes.
         batch_size
             Minibatch size to use for data loading and model inference. Defaults to
-            ``scvi.settings.batch_size``.
+            ``scvi.settings.batch_size``. Passed into
+            :meth:`~scvi.model.base.BaseModelClass._make_data_loader`.
 
         Returns
         -------
