@@ -326,10 +326,13 @@ def _get_adata_minify_type(adata: AnnData) -> Union[MinifiedDataType, None]:
 def _is_minified(adata: Union[AnnData, str]) -> bool:
     uns_key = _constants._ADATA_MINIFY_TYPE_UNS_KEY
     if isinstance(adata, AnnData):
-        return adata.uns.get(uns_key, None)==ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        return adata.uns.get(uns_key, None) == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     elif isinstance(adata, str):
         with h5py.File(adata) as fp:
-            return read_elem(fp["uns"]).get(uns_key, None)==ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            return (
+                read_elem(fp["uns"]).get(uns_key, None)
+                == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            )
     else:
         raise TypeError(f"Unsupported type: {type(adata)}")
 

@@ -491,7 +491,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
         if adata_minify_type is not None:
-            anndata_fields += cls._get_fields_for_adata_minification(cls, adata_minify_type)
+            anndata_fields += cls._get_fields_for_adata_minification(
+                cls, adata_minify_type
+            )
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
         )

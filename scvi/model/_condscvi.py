@@ -24,7 +24,9 @@ from scvi.utils._docstrings import devices_dsp
 logger = logging.getLogger(__name__)
 
 
-class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedModeModelClass):
+class CondSCVI(
+    RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedModeModelClass
+):
     """Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez22`.
 
     Parameters

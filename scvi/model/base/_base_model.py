@@ -535,12 +535,14 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         elif minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             keep_count_data = False
 
-        if not getattr(self.module, 'use_observed_lib_size', True):
+        if not getattr(self.module, "use_observed_lib_size", True):
             raise ValueError(
                 "Cannot minify the data if `use_observed_lib_size` is False"
             )
 
-        minified_adata = get_minified_adata_scrna(self.adata, minified_data_type, keep_count_data=keep_count_data)
+        minified_adata = get_minified_adata_scrna(
+            self.adata, minified_data_type, keep_count_data=keep_count_data
+        )
         minified_adata.obsm[self._LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
         minified_adata.obsm[self._LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
         counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
@@ -557,7 +559,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         minified_data_type: MinifiedDataType,
     ) -> list[BaseAnnDataField]:
         """Return the anndata fields required for adata minification of the given minified_data_type."""
-        assert self._LATENT_QZM, NotImplementedError("Minified mode is not defined for model.")
+        assert self._LATENT_QZM, NotImplementedError(
+            "Minified mode is not defined for model."
+        )
         if ADATA_MINIFY_TYPE.__contains__(minified_data_type):
             fields = [
                 ObsmField(
@@ -582,8 +586,6 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             ),
         )
         return fields
-
-
 
     @property
     def is_trained(self) -> bool:

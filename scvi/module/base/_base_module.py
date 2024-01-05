@@ -299,9 +299,8 @@ class BaseMinifiedModeModuleClass(BaseModuleClass):
         Branches off to regular or cached inference depending on whether we have a minified adata
         that contains the latent posterior parameters.
         """
-        if (
-            self.minified_data_type is not None
-            and ADATA_MINIFY_TYPE.__contains__(self.minified_data_type)
+        if self.minified_data_type is not None and ADATA_MINIFY_TYPE.__contains__(
+            self.minified_data_type
         ):
             return self._cached_inference(*args, **kwargs)
         else:

@@ -388,7 +388,10 @@ class RNASeqMixin:
         )
 
         if all_stats is None:
-            all_stats = getattr(self, "minified_data_type", None)!=ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            all_stats = (
+                getattr(self, "minified_data_type", None)
+                != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            )
 
         result = _de_core(
             self.get_anndata_manager(adata, required=True),
