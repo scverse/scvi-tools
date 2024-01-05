@@ -11,7 +11,7 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data.fields import LayerField, NumericalObsField
+from scvi.data.fields import CategoricalJointObsField, LayerField, NumericalObsField
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
@@ -77,14 +77,28 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         n_hidden: int,
         n_latent: int,
         n_layers: int,
+        n_cats_per_cov: Sequence[int],
         dropout_decoder: float,
         l1_reg: float,
+        sc_covariate_registry: dict[str, list[str]],
         **module_kwargs,
     ):
         super().__init__(st_adata)
+        st_covariate_registry = dict(self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings)
+        assert not set(sc_covariate_registry.keys()) == set(st_covariate_registry.keys()), (
+            f'Spatial model has other covariates than single cell model, {set(sc_covariate_registry.keys()).symmetric_difference(st_covariate_registry.keys())}'
+        )
+        for key, value in st_covariate_registry.items():
+            assert not set(value).issubset(set(sc_covariate_registry[key])), (
+                f'Spatial model has other covariates than single cell model, {set(sc_covariate_registry.keys()).symmetric_difference(st_covariate_registry.keys())}'
+            )
+            self.adata.obsm['_scvi_extra_categorical_covs'][key] = self.adata.obsm['_scvi_extra_categorical_covs'][key].apply(
+                lambda x: sc_covariate_registry[key].index(value[x])
+            )
         self.module = self._module_cls(
             n_spots=st_adata.n_obs,
             n_labels=cell_type_mapping.shape[0],
+            n_cats_per_cov=n_cats_per_cov,
             decoder_state_dict=decoder_state_dict,
             px_decoder_state_dict=px_decoder_state_dict,
             px_r=px_r,
@@ -131,6 +145,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         mapping = sc_model.adata_manager.get_state_registry(
             REGISTRY_KEYS.LABELS_KEY
         ).categorical_mapping
+
         dropout_decoder = sc_model.module.dropout_rate
         if vamp_prior_p is None:
             mean_vprior = None
@@ -149,11 +164,13 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             sc_model.module.n_hidden,
             sc_model.module.n_latent,
             sc_model.module.n_layers,
+            sc_model.module.n_cats_per_cov,
             mean_vprior=mean_vprior,
             var_vprior=var_vprior,
             mp_vprior=mp_vprior,
             dropout_decoder=dropout_decoder,
             l1_reg=l1_reg,
+            sc_covariate_registry=dict(sc_model.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings),
             **module_kwargs,
         )
 
@@ -380,6 +397,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         adata: AnnData,
         layer: str | None = None,
+        categorical_covariate_keys: Sequence[str] | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -388,6 +406,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         %(param_adata)s
         %(param_layer)s
+        %(param_categorical_covariate_keys)s
+        Categorical covariate keys need to line up with single cell model.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         # add index for each cell (provided to pyro plate for correct minibatching)
@@ -395,6 +415,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
+            CategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args

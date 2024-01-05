@@ -82,6 +82,7 @@ class MRDeconv(BaseModuleClass):
         px_decoder_state_dict: OrderedDict,
         px_r: np.ndarray,
         dropout_decoder: float,
+        n_cats_per_cov: Optional[list] = None,
         dropout_amortization: float = 0.05,
         mean_vprior: np.ndarray = None,
         var_vprior: np.ndarray = None,
@@ -90,6 +91,7 @@ class MRDeconv(BaseModuleClass):
         l1_reg: Tunable[float] = 0.0,
         beta_reg: Tunable[float] = 5.0,
         eta_reg: Tunable[float] = 1e-4,
+        mode: Literal["mog", "normal"] = "normal",
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):
@@ -107,10 +109,12 @@ class MRDeconv(BaseModuleClass):
         self.eta_reg = eta_reg
         # unpack and copy parameters
         _extra_decoder_kwargs = extra_decoder_kwargs or {}
+        cat_list = [n_labels] + list([] if self.n_cats_per_cov is None else self.n_cats_per_cov)
+
         self.decoder = FCLayers(
             n_in=n_latent,
             n_out=n_hidden,
-            n_cat_list=[n_labels],
+            n_cat_list=cat_list,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_decoder,
@@ -153,6 +157,10 @@ class MRDeconv(BaseModuleClass):
         # create additional neural nets for amortization
         # within cell_type factor loadings
         _extra_encoder_kwargs = extra_encoder_kwargs or {}
+        if self.mode == "mog":
+            return_dist = 3
+        else:
+            return_dist = 1
         self.gamma_encoder = torch.nn.Sequential(
             FCLayers(
                 n_in=self.n_genes,
@@ -165,7 +173,7 @@ class MRDeconv(BaseModuleClass):
                 use_batch_norm=False,
                 **_extra_encoder_kwargs,
             ),
-            torch.nn.Linear(n_hidden, n_latent * n_labels),
+            torch.nn.Linear(n_hidden, return_dist * n_latent * n_labels),
         )
         # cell type loadings
         self.V_encoder = torch.nn.Sequential(

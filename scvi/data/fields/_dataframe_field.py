@@ -36,9 +36,10 @@ class BaseDataFrameField(BaseAnnDataField):
         attr_key: Optional[str],
         field_type: Literal["obs", "var"] = None,
         required: bool = True,
+        is_empty: bool = False,
     ) -> None:
         super().__init__()
-        if required and attr_key is None:
+        if required and (attr_key is None or is_empty):
             raise ValueError(
                 "`attr_key` cannot be `None` if `required=True`. Please provide an `attr_key`."
             )
@@ -51,7 +52,7 @@ class BaseDataFrameField(BaseAnnDataField):
 
         self._registry_key = registry_key
         self._attr_key = attr_key
-        self._is_empty = attr_key is None
+        self._is_empty = is_empty or attr_key is None
 
     @property
     def registry_key(self) -> str:
@@ -136,6 +137,8 @@ class CategoricalDataFrameField(BaseDataFrameField):
         Key to access the field in the AnnData obs or var mapping. If None, defaults to `registry_key`.
     field_type
         Type of field. Can be either "obs" or "var".
+    required
+        If False, allows for `attr_key is None` and marks the field as `is_empty`.
     """
 
     CATEGORICAL_MAPPING_KEY = "categorical_mapping"
@@ -146,14 +149,18 @@ class CategoricalDataFrameField(BaseDataFrameField):
         registry_key: str,
         attr_key: Optional[str],
         field_type: Literal["obs", "var"] = None,
+        required: bool = True,
     ) -> None:
         self.is_default = attr_key is None
         self._original_attr_key = attr_key or registry_key
+        is_empty = attr_key is None
 
         super().__init__(
             registry_key,
             f"_scvi_{registry_key}",
             field_type=field_type,
+            required=required,
+            is_empty=is_empty,
         )
 
         self.count_stat_key = f"n_{self.registry_key}"
@@ -237,12 +244,16 @@ class CategoricalDataFrameField(BaseDataFrameField):
 
     def get_summary_stats(self, state_registry: dict) -> dict:
         """Get summary stats."""
+        if self.is_empty:
+            return {}
         categorical_mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
         n_categories = len(np.unique(categorical_mapping))
         return {self.count_stat_key: n_categories}
 
     def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
         """View state registry."""
+        if self.is_empty:
+            return None
         source_key = state_registry[self.ORIGINAL_ATTR_KEY]
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
         t = rich.table.Table(title=f"{self.registry_key} State Registry")
