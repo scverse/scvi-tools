@@ -16,6 +16,7 @@ from pyro.distributions.util import deep_to
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions._utils import DistributionConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.module.base._decorators import _move_data_to_device
@@ -37,6 +38,7 @@ class RNASeqMixin:
                 "Transforming batches is not implemented for this model."
             )
 
+    @unsupported_if_adata_minified
     def _get_importance_weights(
         self,
         adata: AnnData | None,
@@ -325,7 +327,7 @@ class RNASeqMixin:
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
         batch_size: int | None = None,
-        all_stats: bool = True,
+        all_stats: bool | None = None,
         batch_correction: bool = False,
         batchid1: list[str] | None = None,
         batchid2: list[str] | None = None,
@@ -384,6 +386,9 @@ class RNASeqMixin:
         representation_fn = (
             self.get_latent_representation if filter_outlier_cells else None
         )
+
+        if all_stats is None:
+            all_stats = getattr(self, "minified_data_type", None)!=ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
         result = _de_core(
             self.get_anndata_manager(adata, required=True),

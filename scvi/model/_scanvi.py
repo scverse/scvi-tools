@@ -457,7 +457,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
-        """%(summary)s.
+        """
+        %(summary)s.
 
         Parameters
         ----------
@@ -470,8 +471,6 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
-        
-        print("XXXXX", cls._latent_qzm)
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),

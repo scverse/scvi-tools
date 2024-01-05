@@ -32,6 +32,7 @@ from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import AnnOrMuData, MinifiedDataType
+from scvi.data._constants import ADATA_MINIFY_TYPE
 
 from . import _constants
 
@@ -324,12 +325,11 @@ def _get_adata_minify_type(adata: AnnData) -> Union[MinifiedDataType, None]:
 
 def _is_minified(adata: Union[AnnData, str]) -> bool:
     uns_key = _constants._ADATA_MINIFY_TYPE_UNS_KEY
-    layer_key = REGISTRY_KEYS.X_KEY
     if isinstance(adata, AnnData):
-        return adata.layers.get(layer_key, adata.X).sum()==0
+        return adata.uns.get(uns_key, None)==ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     elif isinstance(adata, str):
         with h5py.File(adata) as fp:
-            return uns_key in read_elem(fp["uns"]).keys()
+            return read_elem(fp["uns"]).get(uns_key, None)==ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     else:
         raise TypeError(f"Unsupported type: {type(adata)}")
 
