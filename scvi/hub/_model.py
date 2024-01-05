@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import importlib
 import json
 import logging
@@ -5,13 +7,11 @@ import os
 import warnings
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, Union
 
 import anndata
 import rich
 from anndata import AnnData
 from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
-from lightning.pytorch.accelerators import Accelerator
 from rich.markdown import Markdown
 
 from scvi import settings
@@ -19,6 +19,7 @@ from scvi.data import cellxgene
 from scvi.data._download import _download
 from scvi.hub._metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
+from scvi.utils import dependencies
 
 from ._constants import _SCVI_HUB
 
@@ -26,20 +27,20 @@ logger = logging.getLogger(__name__)
 
 
 class HubModel:
-    """Provides functionality to interact with the scvi-hub backed by `huggingface <https://huggingface.co/models>`_.
+    """Wrapper for :class:`~scvi.model.base.BaseModelClass` backed by HuggingFace Hub.
 
     Parameters
     ----------
     local_dir
         Local directory where the data and pre-trained model reside.
     metadata
-        Either an instance of :class:`~scvi.hub.HubMetadata` that contains the required metadata for this model,
-        or a path to a file on disk where this metadata can be read from.
+        Either an instance of :class:`~scvi.hub.HubMetadata` that contains the required metadata for
+        this model, or a path to a file on disk where this metadata can be read from.
     model_card
-        The model card for this pre-trained model. Model card is a markdown file that describes the pre-trained
-        model/data and is displayed on huggingface. This can be either an instance of
-        :class:`~huggingface_hub.ModelCard` or an instance of :class:`~scvi.hub.HubModelCardHelper` that wraps
-        the model card or a path to a file on disk where the model card can be read from.
+        The model card for this pre-trained model. Model card is a markdown file that describes the
+        pre-trained model/data and is displayed on HuggingFace. This can be either an instance of
+        :class:`~huggingface_hub.ModelCard` or an instance of :class:`~scvi.hub.HubModelCardHelper`
+        that wraps the model card or a path to a file on disk where the model card can be read from.
 
     Notes
     -----
@@ -52,8 +53,8 @@ class HubModel:
     def __init__(
         self,
         local_dir: str,
-        metadata: Optional[Union[HubMetadata, str]] = None,
-        model_card: Optional[Union[HubModelCardHelper, ModelCard, str]] = None,
+        metadata: HubMetadata | str | None = None,
+        model_card: HubModelCardHelper | ModelCard | str | None = None,
     ):
         self._local_dir = local_dir
 
@@ -150,8 +151,8 @@ class HubModel:
     def pull_from_huggingface_hub(
         cls,
         repo_name: str,
-        cache_dir: Optional[str] = None,
-        revision: Optional[str] = None,
+        cache_dir: str | None = None,
+        revision: str | None = None,
         **kwargs,
     ):
         """Download the given model repo from huggingface.
@@ -187,6 +188,33 @@ class HubModel:
         )
         model_card = ModelCard.load(repo_name)
         return cls(snapshot_folder, model_card=model_card)
+
+    @classmethod
+    @dependencies("boto3")
+    def pull_from_s3(cls, s3_bucket: str, s3_path: str, cache_dir: str | None = None):
+        from boto3 import client
+        from botocore import UNSIGNED
+        from botocore.client import Config
+
+        if cache_dir is None:
+            cache_dir = os.getcwd()
+
+        client = client("s3", config=Config(signature_version=UNSIGNED))
+
+        card_s3_path = os.path.join(s3_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
+        card_local_path = os.path.join(cache_dir, _SCVI_HUB.MODEL_CARD_FILE_NAME)
+        client.download_file(s3_bucket, card_s3_path, card_local_path)
+
+        metadata_s3_path = os.path.join(s3_path, _SCVI_HUB.METADATA_FILE_NAME)
+        metadata_local_path = os.path.join(cache_dir, _SCVI_HUB.METADATA_FILE_NAME)
+        client.download_file(s3_bucket, metadata_s3_path, metadata_local_path)
+
+        model_s3_path = os.path.join(s3_path, "model.pt")
+        model_local_path = os.path.join(cache_dir, "model.pt")
+        client.download_file(s3_bucket, model_s3_path, model_local_path)
+
+        model_card = ModelCard.load(card_local_path)
+        return cls(cache_dir, model_card=model_card)
 
     def __repr__(self):
         def eval_obj(obj):
@@ -232,7 +260,7 @@ class HubModel:
         return self._model
 
     @property
-    def adata(self) -> Optional[AnnData]:
+    def adata(self) -> AnnData | None:
         """Returns the data for this model.
 
         If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_adata`.
@@ -243,7 +271,7 @@ class HubModel:
         return self._adata
 
     @property
-    def large_training_adata(self) -> Optional[AnnData]:
+    def large_training_adata(self) -> AnnData | None:
         """Returns the training data for this model, which might be too large to reside within the hub model.
 
         If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_large_training_adata`,
@@ -255,9 +283,9 @@ class HubModel:
 
     def load_model(
         self,
-        adata: Optional[AnnData] = None,
-        accelerator: Optional[Union[str, Accelerator]] = "auto",
-        device: Optional[Union[str, int]] = "auto",
+        adata: AnnData | None = None,
+        accelerator: str = "auto",
+        device: str | int | None = "auto",
     ):
         """Loads the model.
 
@@ -300,7 +328,7 @@ class HubModel:
                     device=device,
                 )
 
-    def read_adata(self):
+    def read_adata(self) -> None:
         """Reads the data from disk (``self._adata_path``) if it exists. Otherwise, this is a no-op."""
         if os.path.isfile(self._adata_path):
             logger.info("Reading adata...")
@@ -308,7 +336,7 @@ class HubModel:
         else:
             logger.info("No data found on disk. Skipping...")
 
-    def read_large_training_adata(self):
+    def read_large_training_adata(self) -> None:
         """Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op.
 
         Notes
