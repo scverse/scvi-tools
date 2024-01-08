@@ -92,6 +92,24 @@ class HubModel:
         else:
             raise ValueError("No model card found")
 
+    def save(self, overwrite: bool = False) -> None:
+        """Save the model card and metadata to the model directory.
+
+        Parameters
+        ----------
+        overwrite
+            Whether to overwrite existing files.
+        """
+        card_path = os.path.join(self._local_dir, _SCVI_HUB.MODEL_CARD_FILE_NAME)
+        if os.path.isfile(card_path) and not overwrite:
+            raise FileExistsError(
+                f"Model card already exists at {card_path}. To overwrite, pass `overwrite=True`."
+            )
+        self.model_card.save(card_path)
+
+        metadata_path = os.path.join(self._local_dir, _SCVI_HUB.METADATA_FILE_NAME)
+        self.metadata.save(metadata_path, overwrite=overwrite)
+
     def push_to_huggingface_hub(
         self, repo_name: str, repo_token: str, repo_create: bool
     ):
