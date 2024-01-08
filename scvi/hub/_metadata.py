@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import json
 import os
-from dataclasses import dataclass, field
-from typing import Optional, Union
+from dataclasses import asdict, dataclass, field
 
 import torch
 from huggingface_hub import ModelCard, ModelCardData
@@ -39,7 +40,7 @@ class HubMetadata:
     scvi_version: str
     anndata_version: str
     model_cls_name: str
-    training_data_url: Optional[str] = None
+    training_data_url: str | None = None
     model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
 
     @classmethod
@@ -47,7 +48,7 @@ class HubMetadata:
         cls,
         local_dir: str,
         anndata_version: str,
-        map_location: Optional[Union[torch.device, str, dict]] = "cpu",
+        map_location: torch.device | str | dict | None = "cpu",
         **kwargs,
     ):
         """Create a `HubMetadata` object from a local directory.
@@ -75,6 +76,23 @@ class HubMetadata:
             model_cls_name,
             **kwargs,
         )
+
+    def save(self, save_path: str, overwrite: bool = False) -> None:
+        """Save the metadata to a JSON file.
+
+        Parameters
+        ----------
+        save_path
+            The path to which to save the metadata as a JSON file.
+        overwrite
+            Whether to overwrite the file if it already exists.
+        """
+        if os.path.isfile(save_path) and not overwrite:
+            raise FileExistsError(
+                f"File already exists at {save_path}. To overwrite, pass `overwrite=True`."
+            )
+        with open(save_path, "w") as f:
+            json.dump(asdict(self), f, indent=4)
 
     def __post_init__(self):
         if self.training_data_url is not None:
@@ -143,10 +161,10 @@ class HubModelCardHelper:
     anndata_version: str
     data_modalities: list[str] = field(default_factory=list)
     tissues: list[str] = field(default_factory=list)
-    data_is_annotated: Optional[bool] = None
-    data_is_minified: Optional[bool] = None
-    training_data_url: Optional[str] = None
-    training_code_url: Optional[str] = None
+    data_is_annotated: bool | None = None
+    data_is_minified: bool | None = None
+    training_data_url: str | None = None
+    training_code_url: str | None = None
     model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
     description: str = _SCVI_HUB.DEFAULT_MISSING_FIELD
     references: str = _SCVI_HUB.DEFAULT_MISSING_FIELD
@@ -165,8 +183,8 @@ class HubModelCardHelper:
         local_dir: str,
         license_info: str,
         anndata_version: str,
-        data_is_minified: Optional[bool] = None,
-        map_location: Optional[Union[torch.device, str, dict]] = "cpu",
+        data_is_minified: bool | None = None,
+        map_location: torch.device | str | dict | None = "cpu",
         **kwargs,
     ):
         """Create a `HubModelCardHelper` object from a local directory.
