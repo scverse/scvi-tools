@@ -77,7 +77,16 @@ class HubMetadata:
             **kwargs,
         )
 
-    def save(self, save_path: str | None = None, overwrite: bool = False) -> None:
+    def save(self, save_path: str, overwrite: bool = False) -> None:
+        """Save the metadata to a JSON file.
+
+        Parameters
+        ----------
+        save_path
+            The path to which to save the metadata as a JSON file.
+        overwrite
+            Whether to overwrite the file if it already exists.
+        """
         if os.path.isfile(save_path) and not overwrite:
             raise FileExistsError(
                 f"File already exists at {save_path}. To overwrite, pass `overwrite=True`."

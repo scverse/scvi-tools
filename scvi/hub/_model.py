@@ -92,7 +92,13 @@ class HubModel:
             raise ValueError("No model card found")
 
     def save(self, overwrite: bool = False) -> None:
-        """Save the model card and metadata to disk."""
+        """Save the model card and metadata to the model directory.
+
+        Parameters
+        ----------
+        overwrite
+            Whether to overwrite existing files.
+        """
         card_path = os.path.join(self._local_dir, _SCVI_HUB.MODEL_CARD_FILE_NAME)
         if os.path.isfile(card_path) and not overwrite:
             raise FileExistsError(
