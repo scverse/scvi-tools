@@ -25,7 +25,11 @@ from scvi.utils import dependencies
 from ._constants import _SCVI_HUB
 
 logger = logging.getLogger(__name__)
-Config = type()
+
+try:
+    from botocore.client import Config
+except ImportError:
+    Config = None
 
 
 class HubModel:
