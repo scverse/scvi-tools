@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 try:
     from botocore.client import Config
 except ImportError:
-    Config = None
+    Config = type(None)
 
 
 class HubModel:
