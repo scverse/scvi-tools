@@ -4,6 +4,7 @@ import importlib
 import json
 import logging
 import os
+import tempfile
 import warnings
 from dataclasses import asdict
 from pathlib import Path
@@ -24,6 +25,7 @@ from scvi.utils import dependencies
 from ._constants import _SCVI_HUB
 
 logger = logging.getLogger(__name__)
+Config = type()
 
 
 class HubModel:
@@ -209,27 +211,75 @@ class HubModel:
 
     @classmethod
     @dependencies("boto3")
-    def pull_from_s3(cls, s3_bucket: str, s3_path: str, cache_dir: str | None = None):
+    def pull_from_s3(
+        cls,
+        s3_bucket: str,
+        s3_path: str,
+        pull_anndata: bool = True,
+        config: Config | None = None,
+        unsigned: bool = False,
+        cache_dir: str | None = None,
+    ) -> HubModel:
+        """Download a :class:`~scvi.hub.HubModel` from an S3 bucket.
+
+        Requires `boto3<https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ to be
+        installed.
+
+        Parameters
+        ----------
+        s3_bucket
+            The S3 bucket from which to download the model.
+        s3_path
+            The S3 path to the saved model.
+        pull_anndata
+            Whether to pull the :class:`~anndata.AnnData` object associated with the model.
+        config
+            The :class:`~botocore.client.Config` to use for the S3 client.
+        unsigned
+            Whether to use an unsigned S3 client.
+        cache_dir
+            The directory where the downloaded model files will be cached. Defaults to a temporary
+            directory created with :func:`tempfile.mkdtemp`.
+
+        Returns
+        -------
+        The pretrained model specified by the given S3 bucket and path.
+
+        Notes
+        -----
+        If both ``config`` is provided and ``unsigned`` is True, ``config`` will be used. If neither
+        ``config`` nor ``unsigned`` is provided, a signed S3 client will be used.
+        """
         from boto3 import client
         from botocore import UNSIGNED
         from botocore.client import Config
 
         if cache_dir is None:
-            cache_dir = os.getcwd()
+            cache_dir = tempfile.mkdtemp()
 
-        client = client("s3", config=Config(signature_version=UNSIGNED))
+        if config is not None:
+            s3_client = client("s3", config=config)
+        elif unsigned:
+            s3_client = client("s3", config=Config(signature_version=UNSIGNED))
+        else:
+            s3_client = client("s3")
 
         card_s3_path = os.path.join(s3_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
         card_local_path = os.path.join(cache_dir, _SCVI_HUB.MODEL_CARD_FILE_NAME)
-        client.download_file(s3_bucket, card_s3_path, card_local_path)
+        s3_client.download_file(s3_bucket, card_s3_path, card_local_path)
 
         metadata_s3_path = os.path.join(s3_path, _SCVI_HUB.METADATA_FILE_NAME)
         metadata_local_path = os.path.join(cache_dir, _SCVI_HUB.METADATA_FILE_NAME)
-        client.download_file(s3_bucket, metadata_s3_path, metadata_local_path)
+        s3_client.download_file(s3_bucket, metadata_s3_path, metadata_local_path)
 
         model_s3_path = os.path.join(s3_path, "model.pt")
         model_local_path = os.path.join(cache_dir, "model.pt")
-        client.download_file(s3_bucket, model_s3_path, model_local_path)
+        s3_client.download_file(s3_bucket, model_s3_path, model_local_path)
+
+        if pull_anndata:
+            adata_s3_path = os.path.join(s3_path, "adata.h5ad")
+            adata_local_path = os.path.join(cache_dir, "adata.h5ad")
+            s3_client.download_file(s3_bucket, adata_s3_path, adata_local_path)
 
         model_card = ModelCard.load(card_local_path)
         return cls(cache_dir, model_card=model_card)

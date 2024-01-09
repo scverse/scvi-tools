@@ -9,6 +9,7 @@ import pytest
 from huggingface_hub import delete_repo
 
 import scvi
+from scvi.data import synthetic_iid
 from scvi.hub import HubMetadata, HubModel, HubModelCardHelper
 from scvi.hub._constants import _SCVI_HUB
 
@@ -226,3 +227,44 @@ def test_hub_model_save(save_anndata: bool, save_path: str):
         hub_model.save(overwrite=False)
 
     hub_model.save(overwrite=True)
+
+
+def test_hub_model_pull_from_s3():
+    from botocore.exceptions import ClientError
+
+    hubmodel = HubModel.pull_from_s3(
+        "scvi-tools",
+        "tests/hub/test_scvi",
+        unsigned=True,
+    )
+    assert hubmodel.model is not None
+    assert hubmodel.adata is not None
+
+    hubmodel = HubModel.pull_from_s3(
+        "scvi-tools",
+        "tests/hub/test_scvi_minified",
+        unsigned=True,
+    )
+    assert hubmodel.model is not None
+    assert hubmodel.adata is not None
+
+    with pytest.raises(ClientError):
+        hubmodel = HubModel.pull_from_s3(
+            "scvi-tools",
+            "tests/hub/test_scvi_no_anndata",
+            unsigned=True,
+        )
+
+    hubmodel = HubModel.pull_from_s3(
+        "scvi-tools",
+        "tests/hub/test_scvi_no_anndata",
+        pull_anndata=False,
+        unsigned=True,
+    )
+    with pytest.raises(ValueError):
+        _ = hubmodel.model
+
+    adata = synthetic_iid()
+    hubmodel.load_model(adata=adata)
+    assert hubmodel.model is not None
+    assert hubmodel.adata is None
