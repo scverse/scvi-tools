@@ -3,6 +3,7 @@ import os
 from dataclasses import asdict
 from uuid import uuid4
 
+import anndata
 import numpy as np
 import pytest
 from huggingface_hub import delete_repo
@@ -197,3 +198,31 @@ def test_hub_model_push_to_hf(request, save_path):
 
     # delete the HF repo
     delete_repo(repo_name, token=repo_token)
+
+
+@pytest.mark.parametrize("save_anndata", [True, False])
+def test_hub_model_save(save_anndata: bool, save_path: str):
+    model = prep_model()
+    model_path = os.path.join(save_path, "model_save")
+    model.save(model_path, save_anndata=save_anndata, overwrite=True)
+
+    metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
+    card = HubModelCardHelper.from_dir(
+        model_path,
+        license_info="cc-by-4.0",
+        anndata_version=anndata.__version__,
+        data_modalities=["rna"],
+        data_is_annotated=False,
+    )
+    hub_model = HubModel(model_path, metadata=metadata, model_card=card)
+    hub_model.save(overwrite=True)
+
+    card_path = os.path.join(model_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
+    assert os.path.exists(card_path) and os.path.isfile(card_path)
+    metadata_path = os.path.join(model_path, _SCVI_HUB.METADATA_FILE_NAME)
+    assert os.path.exists(metadata_path) and os.path.isfile(metadata_path)
+
+    with pytest.raises(FileExistsError):
+        hub_model.save(overwrite=False)
+
+    hub_model.save(overwrite=True)

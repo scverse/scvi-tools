@@ -54,6 +54,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     without averaging across cells {pr}`2362`.
 -   Add support for setting `weights="importance"` in
     {meth}`scvi.model.SCANVI.differential_expression` {pr}`2362`.
+-   Add `seed` argument to {func}`scvi.model.utils.mde` for reproducibility {pr}`2373`.
+-   Add {meth}`scvi.hub.HubModel.save` and {meth}`scvi.hub.HubMetadata.save` {pr}`2382`.
 
 #### Fixed
 
@@ -89,6 +91,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Change {class}`scvi.train.SemiSupervisedTrainingPlan` and
     {class}`scvi.train.ClassifierTrainingPlan` accuracy and F1 score
     computations to use `"micro"` reduction rather than `"macro"` {pr}`2339`.
+-   Internal refactoring of {meth}`scvi.module.VAE.sample` and
+    {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` {pr}`2377`.
 
 #### Removed
 
