@@ -50,6 +50,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   {attr}`scvi.settings.dl_num_workers` is now correctly applied as the default
     `num_workers` in {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
 -   Passing in `indices` to {class}`scvi.criticism.PosteriorPredictiveCheck` allows
+-   Add `seed` argument to {func}`scvi.model.utils.mde` for reproducibility {pr}`2373`.
+-   Add {meth}`scvi.hub.HubModel.save` and {meth}`scvi.hub.HubMetadata.save` {pr}`2382`.
 
 #### Fixed
 
@@ -86,6 +88,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Change {class}`scvi.train.SemiSupervisedTrainingPlan` and
     {class}`scvi.train.ClassifierTrainingPlan` accuracy and F1 score
     computations to use `"micro"` reduction rather than `"macro"` {pr}`2339`.
+-   Internal refactoring of {meth}`scvi.module.VAE.sample` and
+    {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` {pr}`2377`.
 
 #### Removed
 
