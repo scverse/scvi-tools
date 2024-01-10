@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -9,7 +11,9 @@ from scvi.data import synthetic_iid
 from scvi.model import SCVI
 
 
-def get_ppc_with_samples(adata: AnnData, n_samples: int = 2, indices=None):
+def get_ppc_with_samples(
+    adata: AnnData, n_samples: int = 2, indices: list[int] | None = None
+):
     # create and train models
     SCVI.setup_anndata(
         adata,

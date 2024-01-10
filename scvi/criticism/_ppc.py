@@ -58,15 +58,16 @@ class PosteriorPredictiveCheck:
     Parameters
     ----------
     adata
-        AnnData object with raw counts.
+        :class:`~anndata.AnnData` object with raw counts in either ``adata.X`` or ``adata.layers``.
     models_dict
         Dictionary of models to compare.
     count_layer_key
-        Key in adata.layers to use as raw counts, if None, use adata.X.
+        Key in ``adata.layers`` to use as raw counts. If ``None``, defaults to ``adata.X``.
     n_samples
         Number of posterior predictive samples to generate.
     indices
-        Indices to subset adata and compute metrics only on subset.
+        Indices of observations in ``adata`` to subset to before generating posterior predictive
+        samples and computing metrics. If ``None``, defaults to all observations in ``adata``.
     """
 
     def __init__(
