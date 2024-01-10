@@ -49,7 +49,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
 -   {attr}`scvi.settings.dl_num_workers` is now correctly applied as the default
     `num_workers` in {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
--   Passing in `indices` to {class}`scvi.criticism.PosteriorPredictiveCheck` allows
+-   Passing in `indices` to {class}`scvi.criticism.PosteriorPredictiveCheck` allows for running
+    metrics on a subset of the data {pr}`2361`.
 -   Add `seed` argument to {func}`scvi.model.utils.mde` for reproducibility {pr}`2373`.
 -   Add {meth}`scvi.hub.HubModel.save` and {meth}`scvi.hub.HubMetadata.save` {pr}`2382`.
 
@@ -60,8 +61,6 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Fix bug in {class}`scvi.module.SCANVAE` where classifier probabilities
     were interpreted as logits. This is backwards compatible as loading older
     models will use the old code path {pr}`2301`.
--   scvi.criticism allows running metrics on a subset of the full adata set
-    by also subsetting model.adata.
 -   Fix bug in {class}`scvi.external.GIMVI` where `batch_size` was not
     properly used in inference methods {pr}`2366`.
 -   Fix error message formatting in {meth}`scvi.data.fields.LayerField.transfer_field` {pr}`2368`.
