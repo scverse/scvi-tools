@@ -213,6 +213,40 @@ class HubModel:
         model_card = ModelCard.load(repo_name)
         return cls(snapshot_folder, model_card=model_card)
 
+    @dependencies("boto3")
+    def push_to_s3(
+        self,
+        s3_bucket: str,
+        s3_path: str,
+        push_anndata: bool = True,
+        config: Config | None = None,
+    ):
+        from boto3 import client
+
+        self.save(overwrite=True)
+
+        if config is not None:
+            s3 = client("s3", config=config)
+        else:
+            s3 = client("s3")
+
+        card_local_path = os.path.join(self._local_dir, _SCVI_HUB.MODEL_CARD_FILE_NAME)
+        card_s3_path = os.path.join(s3_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
+        s3.upload_file(card_local_path, s3_bucket, card_s3_path)
+
+        metadata_local_path = os.path.join(self._local_dir, _SCVI_HUB.METADATA_FILE_NAME)
+        metadata_s3_path = os.path.join(s3_path, _SCVI_HUB.METADATA_FILE_NAME)
+        s3.upload_file(metadata_local_path, s3_bucket, metadata_s3_path)
+
+        model_local_path = os.path.join(self._local_dir, "model.pt")
+        model_s3_path = os.path.join(s3_path, "model.pt")
+        s3.upload_file(model_local_path, s3_bucket, model_s3_path)
+
+        if push_anndata:
+            adata_local_path = os.path.join(self._local_dir, "adata.h5ad")
+            adata_s3_path = os.path.join(s3_path, "adata.h5ad")
+            s3.upload_file(adata_local_path, s3_bucket, adata_s3_path)
+
     @classmethod
     @dependencies("boto3")
     def pull_from_s3(
@@ -262,28 +296,28 @@ class HubModel:
             cache_dir = tempfile.mkdtemp()
 
         if config is not None:
-            s3_client = client("s3", config=config)
+            s3 = client("s3", config=config)
         elif unsigned:
-            s3_client = client("s3", config=Config(signature_version=UNSIGNED))
+            s3 = client("s3", config=Config(signature_version=UNSIGNED))
         else:
-            s3_client = client("s3")
+            s3 = client("s3")
 
         card_s3_path = os.path.join(s3_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
         card_local_path = os.path.join(cache_dir, _SCVI_HUB.MODEL_CARD_FILE_NAME)
-        s3_client.download_file(s3_bucket, card_s3_path, card_local_path)
+        s3.download_file(s3_bucket, card_s3_path, card_local_path)
 
         metadata_s3_path = os.path.join(s3_path, _SCVI_HUB.METADATA_FILE_NAME)
         metadata_local_path = os.path.join(cache_dir, _SCVI_HUB.METADATA_FILE_NAME)
-        s3_client.download_file(s3_bucket, metadata_s3_path, metadata_local_path)
+        s3.download_file(s3_bucket, metadata_s3_path, metadata_local_path)
 
         model_s3_path = os.path.join(s3_path, "model.pt")
         model_local_path = os.path.join(cache_dir, "model.pt")
-        s3_client.download_file(s3_bucket, model_s3_path, model_local_path)
+        s3.download_file(s3_bucket, model_s3_path, model_local_path)
 
         if pull_anndata:
             adata_s3_path = os.path.join(s3_path, "adata.h5ad")
             adata_local_path = os.path.join(cache_dir, "adata.h5ad")
-            s3_client.download_file(s3_bucket, adata_s3_path, adata_local_path)
+            s3.download_file(s3_bucket, adata_s3_path, adata_local_path)
 
         model_card = ModelCard.load(card_local_path)
         return cls(cache_dir, model_card=model_card)

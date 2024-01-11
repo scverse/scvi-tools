@@ -229,13 +229,67 @@ def test_hub_model_save(save_anndata: bool, save_path: str):
     hub_model.save(overwrite=True)
 
 
+def test_hub_model_push_to_s3(save_path: str):
+    adata = scvi.data.synthetic_iid()
+    scvi.model.SCVI.setup_anndata(adata)
+
+    model = scvi.model.SCVI(adata)
+    model.train(max_epochs=1)
+
+    model_path = os.path.join(save_path, "test_scvi")
+    model.save(model_path, save_anndata=True, overwrite=True)
+
+    metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
+    card = HubModelCardHelper.from_dir(
+        model_path,
+        license_info="cc-by-4.0",
+        anndata_version=anndata.__version__,
+        data_modalities=["rna"],
+        data_is_annotated=False,
+        description="scVI model trained on synthetid IID data and uploaded with the full training data.",
+    )
+    hub_model = HubModel(model_path, metadata=metadata, model_card=card)
+    hub_model.push_to_s3("scvi-tools", "tests/hub/test_scvi")
+
+    metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
+    card = HubModelCardHelper.from_dir(
+        model_path,
+        license_info="cc-by-4.0",
+        anndata_version=anndata.__version__,
+        data_modalities=["rna"],
+        data_is_annotated=False,
+        description="scVI model trained on synthetid IID data and uploaded with no data.",
+    )
+    hub_model = HubModel(model_path, metadata=metadata, model_card=card)
+    hub_model.push_to_s3(
+        "scvi-tools", "tests/hub/test_scvi_no_anndata", push_anndata=False
+    )
+
+    qzm, qzv = model.get_latent_representation(return_dist=True, give_mean=False)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
+    model.minify_adata()
+    model_path = os.path.join(save_path, "test_scvi_minified")
+    model.save(model_path, save_anndata=True, overwrite=True)
+
+    metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
+    card = HubModelCardHelper.from_dir(
+        model_path,
+        license_info="cc-by-4.0",
+        anndata_version=anndata.__version__,
+        data_modalities=["rna"],
+        data_is_annotated=False,
+        description="scVI model trained on synthetid IID data and uploaded with the minified data.",
+    )
+    hub_model.push_to_s3("scvi-tools", "tests/hub/test_scvi_minified")
+
+
 def test_hub_model_pull_from_s3():
     from botocore.exceptions import ClientError
 
     hubmodel = HubModel.pull_from_s3(
         "scvi-tools",
         "tests/hub/test_scvi",
-        unsigned=True,
     )
     assert hubmodel.model is not None
     assert hubmodel.adata is not None
@@ -243,7 +297,6 @@ def test_hub_model_pull_from_s3():
     hubmodel = HubModel.pull_from_s3(
         "scvi-tools",
         "tests/hub/test_scvi_minified",
-        unsigned=True,
     )
     assert hubmodel.model is not None
     assert hubmodel.adata is not None
@@ -252,14 +305,12 @@ def test_hub_model_pull_from_s3():
         hubmodel = HubModel.pull_from_s3(
             "scvi-tools",
             "tests/hub/test_scvi_no_anndata",
-            unsigned=True,
         )
 
     hubmodel = HubModel.pull_from_s3(
         "scvi-tools",
         "tests/hub/test_scvi_no_anndata",
         pull_anndata=False,
-        unsigned=True,
     )
     with pytest.raises(ValueError):
         _ = hubmodel.model
