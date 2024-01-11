@@ -49,6 +49,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
 -   {attr}`scvi.settings.dl_num_workers` is now correctly applied as the default
     `num_workers` in {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
+-   Passing in `indices` to {class}`scvi.criticism.PosteriorPredictiveCheck` allows for running
+    metrics on a subset of the data {pr}`2361`.
 -   Add `seed` argument to {func}`scvi.model.utils.mde` for reproducibility {pr}`2373`.
 -   Add {meth}`scvi.hub.HubModel.save` and {meth}`scvi.hub.HubMetadata.save` {pr}`2382`.
 
