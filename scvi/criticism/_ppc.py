@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import json
 import warnings
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -56,22 +58,28 @@ class PosteriorPredictiveCheck:
     Parameters
     ----------
     adata
-        AnnData object with raw counts.
+        :class:`~anndata.AnnData` object with raw counts in either ``adata.X`` or ``adata.layers``.
     models_dict
         Dictionary of models to compare.
     count_layer_key
-        Key in adata.layers to use as raw counts, if None, use adata.X.
+        Key in ``adata.layers`` to use as raw counts. If ``None``, defaults to ``adata.X``.
     n_samples
-        Number of posterior predictive samples to generate
+        Number of posterior predictive samples to generate.
+    indices
+        Indices of observations in ``adata`` to subset to before generating posterior predictive
+        samples and computing metrics. If ``None``, defaults to all observations in ``adata``.
     """
 
     def __init__(
         self,
         adata: AnnData,
         models_dict: dict[str, BaseModelClass],
-        count_layer_key: Optional[str] = None,
+        count_layer_key: str | None = None,
         n_samples: int = 10,
+        indices: list | None = None,
     ):
+        if indices is not None:
+            adata = adata[indices]
         self.adata = adata
         self.count_layer_key = count_layer_key
         raw_counts = (
@@ -91,7 +99,7 @@ class PosteriorPredictiveCheck:
         self.models = models_dict
         self.metrics = {}
 
-        self._store_posterior_predictive_samples()
+        self._store_posterior_predictive_samples(indices=indices)
 
     def __repr__(self) -> str:
         return (
@@ -121,7 +129,7 @@ class PosteriorPredictiveCheck:
     def _store_posterior_predictive_samples(
         self,
         batch_size: int = 32,
-        indices: list[int] = None,
+        indices: list[int] | None = None,
     ):
         """
         Store posterior predictive samples for each model.
@@ -198,7 +206,7 @@ class PosteriorPredictiveCheck:
         self.metrics[METRIC_ZERO_FRACTION] = mean.to_dataframe()
 
     def calibration_error(
-        self, confidence_intervals: Optional[list[float]] = None
+        self, confidence_intervals: list[float] | float = None
     ) -> None:
         """Calibration error for each observed count.
 
