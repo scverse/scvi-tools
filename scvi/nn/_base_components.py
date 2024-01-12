@@ -55,12 +55,13 @@ class FCLayers(nn.Module):
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
-        use_batch_norm: bool = True,
-        use_layer_norm: bool = False,
+        use_batch_norm: bool = False,
+        use_layer_norm: bool = True,
         use_activation: bool = True,
         bias: bool = True,
         inject_covariates: bool = True,
         activation_fn: nn.Module = nn.ReLU,
+        dropout_on_input: bool = False,
     ):
         super().__init__()
         self.inject_covariates = inject_covariates
@@ -73,13 +74,14 @@ class FCLayers(nn.Module):
             self.n_cat_list = []
 
         cat_dim = sum(self.n_cat_list)
+        self.dropout_on_input = dropout_on_input
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
                     (
                         f"Layer {i}",
                         nn.Sequential(
-                            nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
+                            nn.Dropout(p=dropout_rate) if (dropout_rate > 0) and self.dropout_on_input else None,
                             nn.Linear(
                                 n_in + cat_dim * self.inject_into_layer(i),
                                 n_out,
@@ -93,6 +95,7 @@ class FCLayers(nn.Module):
                             if use_layer_norm
                             else None,
                             activation_fn() if use_activation else None,
+                            nn.Dropout(p=dropout_rate) if (dropout_rate > 0) and not self.dropout_on_input else None,
                         ),
                     )
                     for i, (n_in, n_out) in enumerate(
