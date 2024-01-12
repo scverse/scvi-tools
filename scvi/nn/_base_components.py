@@ -81,7 +81,9 @@ class FCLayers(nn.Module):
                     (
                         f"Layer {i}",
                         nn.Sequential(
-                            nn.Dropout(p=dropout_rate) if (dropout_rate > 0) and self.dropout_on_input else None,
+                            nn.Dropout(p=dropout_rate)
+                            if (dropout_rate > 0) and self.dropout_on_input
+                            else None,
                             nn.Linear(
                                 n_in + cat_dim * self.inject_into_layer(i),
                                 n_out,
@@ -95,7 +97,9 @@ class FCLayers(nn.Module):
                             if use_layer_norm
                             else None,
                             activation_fn() if use_activation else None,
-                            nn.Dropout(p=dropout_rate) if (dropout_rate > 0) and not self.dropout_on_input else None,
+                            nn.Dropout(p=dropout_rate)
+                            if (dropout_rate > 0) and not self.dropout_on_input
+                            else None,
                         ),
                     )
                     for i, (n_in, n_out) in enumerate(
