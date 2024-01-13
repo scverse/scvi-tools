@@ -4,6 +4,7 @@ from typing import Literal, Optional
 import numpy as np
 import torch
 from torch.distributions import Normal
+from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi._types import Tunable
@@ -90,8 +91,9 @@ class MRDeconv(BaseModuleClass):
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
         l1_reg: Tunable[float] = 0.0,
         beta_reg: Tunable[float] = 5.0,
-        eta_reg: Tunable[float] = 1e-4,
-        mode: Literal["mog", "normal"] = "normal",
+        eta_reg: Tunable[float] = 1e-7,
+        prior_mode: Literal["mog", "normal"] = "normal",
+        n_latent_amortization: Optional[int] = None,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):
@@ -107,9 +109,11 @@ class MRDeconv(BaseModuleClass):
         self.l1_reg = l1_reg
         self.beta_reg = beta_reg
         self.eta_reg = eta_reg
+        self.prior_mode = prior_mode
+        self.n_latent_amortization = n_latent_amortization
         # unpack and copy parameters
         _extra_decoder_kwargs = extra_decoder_kwargs or {}
-        cat_list = [n_labels] + list([] if self.n_cats_per_cov is None else self.n_cats_per_cov)
+        cat_list = [n_labels] + list([] if n_cats_per_cov is None else n_cats_per_cov)
 
         self.decoder = FCLayers(
             n_in=n_latent,
@@ -157,35 +161,55 @@ class MRDeconv(BaseModuleClass):
         # create additional neural nets for amortization
         # within cell_type factor loadings
         _extra_encoder_kwargs = extra_encoder_kwargs or {}
-        if self.mode == "mog":
-            return_dist = 3
+        if self.prior_mode == "mog":
+            return_dist = self.p * n_labels * n_latent + self.p * n_labels
         else:
-            return_dist = 1
+            return_dist = n_labels * n_latent
+        if self.n_latent_amortization is not None:
+            # Uses a combined latent space for proportions and gammas.
+            self.amortization_network = torch.nn.Sequential(
+                FCLayers(
+                    n_in=self.n_genes,
+                    n_out=n_hidden,
+                    n_cat_list=None,
+                    n_layers=1,
+                    n_hidden=n_hidden,
+                    dropout_rate=dropout_amortization,
+                    use_layer_norm=True,
+                    use_batch_norm=False,
+                ),
+                torch.nn.Linear(n_hidden, 2 * self.n_latent_amortization),
+            )
+            n_layers = 2
+
+        else:
+            self.amortization_network = torch.nn.Identity()
+            n_latent_amortization = self.n_genes
+            n_layers = 2
         self.gamma_encoder = torch.nn.Sequential(
             FCLayers(
-                n_in=self.n_genes,
+                n_in=n_latent_amortization,
                 n_out=n_hidden,
                 n_cat_list=None,
-                n_layers=2,
+                n_layers=n_layers,
                 n_hidden=n_hidden,
                 dropout_rate=dropout_amortization,
                 use_layer_norm=True,
                 use_batch_norm=False,
-                **_extra_encoder_kwargs,
             ),
-            torch.nn.Linear(n_hidden, return_dist * n_latent * n_labels),
+            torch.nn.Linear(n_hidden, return_dist),
         )
         # cell type loadings
         self.V_encoder = torch.nn.Sequential(
             FCLayers(
-                n_in=self.n_genes,
+                n_in=n_latent_amortization,
                 n_out=n_hidden,
-                n_layers=2,
+                n_cat_list=None,
+                n_layers=n_layers,
                 n_hidden=n_hidden,
                 dropout_rate=dropout_amortization,
                 use_layer_norm=True,
                 use_batch_norm=False,
-                **_extra_encoder_kwargs,
             ),
             torch.nn.Linear(n_hidden, n_labels + 1),
         )
@@ -197,8 +221,10 @@ class MRDeconv(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[REGISTRY_KEYS.X_KEY]
         ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
+        cat_covs = tensors[cat_key] + 2. if cat_key in tensors.keys() else None
 
-        input_dict = {"x": x, "ind_x": ind_x}
+        input_dict = {"x": x, "ind_x": ind_x, "cat_covs": cat_covs}
         return input_dict
 
     @auto_move_data
@@ -207,7 +233,7 @@ class MRDeconv(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, ind_x):
+    def generative(self, x, ind_x, cat_covs=None):
         """Build the deconvolution model for every cell in the minibatch."""
         m = x.shape[0]
         library = torch.sum(x, dim=1, keepdim=True)
@@ -215,35 +241,62 @@ class MRDeconv(BaseModuleClass):
         beta = torch.exp(self.beta)  # n_genes
         eps = torch.nn.functional.softplus(self.eta)  # n_genes
         x_ = torch.log(1 + x)
-        # subsample parameters
+        z_amortization_params = self.amortization_network(x_)
+        qz_amortization = Normal(
+            z_amortization_params[:, :self.n_latent_amortization],
+            torch.exp(z_amortization_params[:, self.n_latent_amortization:])+1e-4
+        )
+        z_amortization = qz_amortization.rsample()
 
         if self.amortization in ["both", "latent"]:
-            gamma_ind = torch.transpose(self.gamma_encoder(x_), 0, 1).reshape(
-                (self.n_latent, self.n_labels, -1)
-            )
+            if self.prior_mode == "mog":
+                gamma_ = self.gamma_encoder(z_amortization)
+                proportion_modes_logits = torch.transpose(
+                    gamma_[:, -self.p*self.n_labels:], 0, 1).reshape(
+                    (self.p, self.n_labels, m)
+                ).transpose(1, 2)
+                proportion_modes = torch.nn.functional.softmax(proportion_modes_logits, dim=0)
+                gamma_ind = torch.transpose(
+                    gamma_[:, :self.p*self.n_labels*self.n_latent], 0, 1).reshape(
+                        (self.p, self.n_latent, self.n_labels, -1)
+                )
+            else:
+                gamma_ind = torch.transpose(
+                    self.gamma_encoder(z_amortization), 0, 1).reshape(
+                        (1, self.n_latent, self.n_labels, -1)
+                )
+                proportion_modes_logits = proportion_modes = torch.ones((1, self.n_labels), device=x.device)
         else:
-            gamma_ind = self.gamma[:, :, ind_x]  # n_latent, n_labels, minibatch_size
+            gamma_ind = self.gamma[:, :, ind_x].unsqueeze(0)  # 1, n_latent, n_labels, minibatch_size
+            proportion_modes_logits = proportion_modes = torch.ones((1, self.n_labels), device=x.device)
 
         if self.amortization in ["both", "proportion"]:
-            v_ind = self.V_encoder(x_)
+            v_ind = self.V_encoder(z_amortization)
         else:
             v_ind = self.V[:, ind_x].T  # minibatch_size, labels + 1
         v_ind = torch.nn.functional.softplus(v_ind)
 
-        # reshape and get gene expression value for all minibatch
-        gamma_ind = torch.transpose(
-            gamma_ind, 2, 0
-        )  # minibatch_size, n_labels, n_latent
-        gamma_reshape = gamma_ind.reshape(
-            (-1, self.n_latent)
-        )  # minibatch_size * n_labels, n_latent
+        px_est = torch.zeros((x.shape[0], self.n_labels, self.n_genes), device=x.device)
         enum_label = (
             torch.arange(0, self.n_labels).repeat(m).view((-1, 1))
         )  # minibatch_size * n_labels, 1
-        h = self.decoder(gamma_reshape, enum_label.to(x.device))
-        px_rate = self.px_decoder(h).reshape(
-            (m, self.n_labels, -1)
-        )  # (minibatch, n_labels, n_genes)
+        if cat_covs is not None:
+            categorical_input = [i.repeat_interleave(self.n_labels, dim=0) for i in torch.split(cat_covs, 1, dim=1)]
+        else:
+            categorical_input = ()
+
+        for mode in range(gamma_ind.shape[0]):
+            # reshape and get gene expression value for all minibatch
+            gamma_ind_ = torch.transpose(
+                gamma_ind[mode, ...], 2, 0
+            )  # minibatch_size, n_labels, n_latent
+            gamma_reshape_ = gamma_ind_.reshape(
+                (-1, self.n_latent)
+            )  # minibatch_size * n_labels, n_latent
+            h = self.decoder(gamma_reshape_, enum_label.to(x.device), *categorical_input)
+            px_est += proportion_modes[mode, ...].unsqueeze(-1) * self.px_decoder(h).reshape(
+                (m, self.n_labels, -1)
+            )  # (minibatch, n_labels, n_genes)
 
         # add the dummy cell type
         eps = eps.repeat((m, 1)).view(
@@ -252,7 +305,7 @@ class MRDeconv(BaseModuleClass):
 
         # account for gene specific bias and add noise
         r_hat = torch.cat(
-            [beta.unsqueeze(0).unsqueeze(1) * px_rate, eps], dim=1
+            [beta.unsqueeze(0).unsqueeze(1) * px_est, eps], dim=1
         )  # M, n_labels + 1, n_genes
         # now combine them for convolution
         px_scale = torch.sum(v_ind.unsqueeze(2) * r_hat, dim=1)  # batch_size, n_genes
@@ -264,6 +317,9 @@ class MRDeconv(BaseModuleClass):
             "px_scale": px_scale,
             "gamma": gamma_ind,
             "v": v_ind,
+            "proportion_modes": proportion_modes,
+            "proportion_modes_logits": proportion_modes_logits,
+            "qz_amortization": qz_amortization,
         }
 
     def loss(
@@ -273,6 +329,7 @@ class MRDeconv(BaseModuleClass):
         generative_outputs,
         kl_weight: float = 1.0,
         n_obs: int = 1.0,
+        weighting_cross_entropy: float = 1.0
     ):
         """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
@@ -301,8 +358,8 @@ class MRDeconv(BaseModuleClass):
             neg_log_likelihood_prior = -Normal(mean, scale).log_prob(gamma).sum(2).sum(1)
         else:
             # vampprior
-            # gamma is of shape n_latent, n_labels, minibatch_size
-            gamma = gamma.unsqueeze(1)  # minibatch_size, 1, n_labels, n_latent
+            # gamma is of shape minibatch_size, 1, n_latent, n_labels
+            gamma = gamma.permute(3, 0, 2, 1) # minibatch_size, 1, n_labels, n_latent
             mean_vprior = torch.transpose(self.mean_vprior, 0, 1).unsqueeze(
                 0
             )  # 1, p, n_labels, n_latent
@@ -310,13 +367,28 @@ class MRDeconv(BaseModuleClass):
                 0
             )  # 1, p, n_labels, n_latent
             mp_vprior = torch.transpose(self.mp_vprior, 0, 1)  # p, n_labels
-            pre_lse = (
-                Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4).log_prob(gamma).sum(3)
-            ) + torch.log(mp_vprior)  # minibatch, p, n_labels
-            # Pseudocount for numerical stability
-            log_likelihood_prior = torch.logsumexp(pre_lse, 1)  # minibatch, n_labels
-            neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
-            # mean_vprior is of shape n_labels, p, n_latent
+            if self.prior_mode == "mog":
+                proportion_modes_logits = generative_outputs["proportion_modes_logits"]
+                proportion_modes = generative_outputs["proportion_modes"]
+                pre_lse = (
+                    Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4).log_prob(gamma).sum(3)
+                ) + torch.log(proportion_modes).permute(1, 0, 2)  # minibatch, p, n_labels
+                log_likelihood_prior = torch.logsumexp(pre_lse, 1)  # minibatch, n_labels
+                neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
+
+                neg_log_likelihood_prior += weighting_cross_entropy * torch.nn.functional.cross_entropy(
+                    proportion_modes_logits.permute(1, 0, 2), mp_vprior.repeat(x.shape[0], 1, 1), reduction='none').sum(1)
+            else:
+                pre_lse = (
+                    Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4).log_prob(gamma).sum(3)
+                ) + torch.log(mp_vprior)  # minibatch, p, n_labels
+                log_likelihood_prior = torch.logsumexp(pre_lse, 1)  # minibatch, n_labels
+                neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
+
+        neg_log_likelihood_prior += kl(
+            generative_outputs["qz_amortization"],
+            Normal(torch.zeros([self.n_latent_amortization], device=x.device), torch.ones([self.n_latent_amortization], device=x.device))
+        ).sum(dim=-1)
 
         # High v_sparsity_loss is detrimental early in training, scaling by kl_weight to increase over training epochs.
         loss = n_obs * (
@@ -350,7 +422,8 @@ class MRDeconv(BaseModuleClass):
         if self.amortization in ["both", "proportion"]:
             # get estimated unadjusted proportions
             x_ = torch.log(1 + x)
-            res = torch.nn.functional.softplus(self.V_encoder(x_))
+            z_amortization = self.amortization_network(x_)[:, :self.n_latent_amortization]
+            res = torch.nn.functional.softplus(self.V_encoder(z_amortization))
         else:
             res = (
                 torch.nn.functional.softplus(self.V).cpu().numpy().T
@@ -375,7 +448,19 @@ class MRDeconv(BaseModuleClass):
         # get estimated unadjusted proportions
         if self.amortization in ["latent", "both"]:
             x_ = torch.log(1 + x)
-            gamma = self.gamma_encoder(x_)
+            z_amortization = self.amortization_network(x_)[:, :self.n_latent_amortization]
+            gamma = self.gamma_encoder(z_amortization)
+            if self.prior_mode == "mog":
+                proportion_modes_logits = torch.transpose(
+                    gamma[:, -self.p*self.n_labels:], 0, 1).reshape(
+                    (self.p, 1, self.n_labels, x.shape[0])
+                )
+                proportion_modes = torch.nn.functional.softmax(proportion_modes_logits, dim=0)
+                gamma_ind = torch.transpose(
+                    gamma[:, :self.p*self.n_labels*self.n_latent], 0, 1).reshape(
+                        (self.p, self.n_latent, self.n_labels, x.shape[0])
+                )
+                gamma = torch.sum(proportion_modes * gamma_ind, dim=0)
             return torch.transpose(gamma, 0, 1).reshape(
                 (self.n_latent, self.n_labels, -1)
             )  # n_latent, n_labels, minibatch
@@ -385,7 +470,7 @@ class MRDeconv(BaseModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def get_ct_specific_expression(
-        self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None
+        self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None, cat_covs: torch.Tensor = None
     ):
         """Returns cell type specific gene expression at the queried spots.
 
@@ -397,24 +482,77 @@ class MRDeconv(BaseModuleClass):
             tensor of indices
         y
             integer for cell types
+        cat_covs
+            tensor of categorical covariates
         """
         # cell-type specific gene expression, shape (minibatch, celltype, gene).
         beta = torch.exp(self.beta)  # n_genes
         y_torch = (y * torch.ones_like(ind_x)).ravel()
+        if cat_covs is not None:
+            categorical_input = torch.split(cat_covs, 1, dim=1)
+        else:
+            categorical_input = ()
         # obtain the relevant gammas
         if self.amortization in ["both", "latent"]:
             x_ = torch.log(1 + x)
-            gamma_ind = torch.transpose(self.gamma_encoder(x_), 0, 1).reshape(
-                (self.n_latent, self.n_labels, -1)
-            )
+            z_amortization = self.amortization_network(x_)[:, :self.n_latent_amortization]
+            if self.prior_mode == "mog":
+                gamma_ = self.gamma_encoder(z_amortization)
+                proportion_modes_logits = torch.transpose(
+                    gamma_[:, -self.p*self.n_labels:], 0, 1).reshape(
+                    (self.p, 1, -1)
+                ).transpose(1, 2)
+                proportion_modes = torch.nn.functional.softmax(proportion_modes_logits, dim=0)
+                # shape (p, n_labels, minibatch_size)
+                gamma_ind = torch.transpose(
+                    gamma_[:, :self.p*self.n_labels*self.n_latent], 0, 1).reshape(
+                        (self.p, self.n_latent, self.n_labels, -1)
+                )
+            else:
+                gamma_ind = torch.transpose(
+                    self.gamma_encoder(z_amortization), 0, 1).reshape(
+                        (1, self.n_latent, self.n_labels, -1)
+                )
+                proportion_modes = torch.ones((1, self.n_labels), device=x.device)
         else:
-            gamma_ind = self.gamma[:, :, ind_x]  # n_latent, n_labels, minibatch_size
+            gamma_ind = self.gamma[:, :, ind_x].unsqueeze(0)  # 1, n_latent, n_labels, minibatch_size
+            proportion_modes = torch.ones((1, self.n_labels), device=x.device)
+        gamma_ind = gamma_ind[:, :, y, :]
+        proportion_modes = proportion_modes[:, y]
 
-        # calculate cell type specific expression
-        gamma_select = gamma_ind[
-            :, y_torch, torch.arange(ind_x.shape[0])
-        ].T  # minibatch_size, n_latent
-        h = self.decoder(gamma_select, y_torch.unsqueeze(1))
-        px_scale = self.px_decoder(h)  # (minibatch, n_genes)
-        px_ct = torch.exp(self.px_o).unsqueeze(0) * beta.unsqueeze(0) * px_scale
-        return px_ct  # shape (minibatch, genes)
+        px_est = torch.zeros((x.shape[0], self.n_genes), device=x.device)
+        for mode in range(gamma_ind.shape[0]):
+            # reshape and get gene expression value for all minibatch
+            gamma_ind_ = torch.transpose(
+                gamma_ind[mode, ...], 1, 0
+            )  # minibatch_size, n_latent
+            h = self.decoder(gamma_ind_, y_torch.unsqueeze(1), *categorical_input)
+            px_est += proportion_modes[mode, ...].unsqueeze(-1) * self.px_decoder(h).reshape(
+                (x.shape[0], -1)
+            )  # (minibatch, n_genes)
+
+        px_scale_ct = torch.exp(self.px_o).unsqueeze(0) * beta.unsqueeze(0) * px_est
+        return px_scale_ct  # shape (minibatch, genes)
+
+    @torch.inference_mode()
+    @auto_move_data
+    def get_latent_amortization(
+        self, x: torch.Tensor = None
+    ):
+        """
+        Returns cell type specific latent representation at the queried spots.
+
+        Parameters
+        ----------
+        x
+            tensor of data
+        ind_x
+            tensor of indices
+        y
+            integer for cell types
+        """
+        # cell-type specific gene expression, shape (minibatch, celltype, gene).
+        x_ = torch.log(1 + x)
+        z_amortized = self.amortization_network(x_)
+
+        return z_amortized  # shape (minibatch, genes)

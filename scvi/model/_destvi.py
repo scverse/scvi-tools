@@ -84,17 +84,21 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         **module_kwargs,
     ):
         super().__init__(st_adata)
-        st_covariate_registry = dict(self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings)
-        assert not set(sc_covariate_registry.keys()) == set(st_covariate_registry.keys()), (
-            f'Spatial model has other covariates than single cell model, {set(sc_covariate_registry.keys()).symmetric_difference(st_covariate_registry.keys())}'
-        )
-        for key, value in st_covariate_registry.items():
-            assert not set(value).issubset(set(sc_covariate_registry[key])), (
-                f'Spatial model has other covariates than single cell model, {set(sc_covariate_registry.keys()).symmetric_difference(st_covariate_registry.keys())}'
+        if sc_covariate_registry is not None:
+            st_covariate_registry = dict(self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings)
+            sc_covariate_mappings = dict(sc_covariate_registry.mappings)
+            assert set(sc_covariate_mappings.keys()) == set(st_covariate_registry.keys()), (
+                f'Spatial model has other covariates than single cell model, {set(sc_covariate_mappings.keys()).symmetric_difference(st_covariate_registry.keys())}'
             )
-            self.adata.obsm['_scvi_extra_categorical_covs'][key] = self.adata.obsm['_scvi_extra_categorical_covs'][key].apply(
-                lambda x: sc_covariate_registry[key].index(value[x])
+            for key, value in st_covariate_registry.items():
+                assert set(value).issubset(set(sc_covariate_mappings[key])), (
+                    f'Spatial model has other covariates than single cell model, {set(value) - set(sc_covariate_mappings[key])}')
+            n_cats_per_cov = (
+                sc_covariate_registry.n_cats_per_key
+                if sc_covariate_registry
+                else None
             )
+
         self.module = self._module_cls(
             n_spots=st_adata.n_obs,
             n_labels=cell_type_mapping.shape[0],
@@ -153,7 +157,15 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         else:
             mean_vprior, var_vprior, mp_vprior = sc_model.get_vamp_prior(
                 sc_model.adata, p=vamp_prior_p
+            ).values()
+
+        sc_covariate_registry = (
+            sc_model.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
             )
+            if REGISTRY_KEYS.CAT_COVS_KEY in sc_model.adata_manager.data_registry
+            else None
+        )
 
         return cls(
             st_adata,
@@ -170,7 +182,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             mp_vprior=mp_vprior,
             dropout_decoder=dropout_decoder,
             l1_reg=l1_reg,
-            sc_covariate_registry=dict(sc_model.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings),
+            sc_covariate_registry=sc_covariate_registry,
             **module_kwargs,
         )
 
@@ -279,6 +291,49 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 )
             return res
 
+    def get_latent_amortization(
+        self,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+        return_numpy: bool = False,
+    ) -> np.ndarray | dict[str, pd.DataFrame]:
+        """Returns the amortized latent space for the spatial data.
+
+        Parameters
+        ----------
+        indices
+            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
+        return_numpy
+            if activated, will return a numpy array of shape is n_spots x n_latent x n_labels.
+        """
+        self._check_if_trained()
+
+        if self.module.n_latent_amortization is None or self.module.amortization in ["none"]:
+            ValueError('Get latent amortization is not defined if n_latent_amortization is None or no amortization is used')
+
+        column_names = np.arange(self.module.n_latent_amortization)
+        index_names = self.adata.obs.index
+
+        stdl = self._make_data_loader(
+            self.adata, indices=indices, batch_size=batch_size
+        )
+
+        amortization = []
+        for tensors in stdl:
+            generative_inputs = self.module._get_generative_input(tensors, None)
+            x = generative_inputs["x"]
+            z_amortization = self.module.get_latent_amortization(x)
+            amortization += [z_amortization.cpu()]
+
+        data = torch.cat(amortization).numpy()
+        column_names = np.arange(self.module.n_latent_amortization)
+        index_names = self.adata.obs.index
+        if indices is not None:
+            index_names = index_names[indices]
+        return pd.DataFrame(data=data, columns=column_names, index=index_names)
+
     def get_scale_for_ct(
         self,
         label: str,
@@ -310,11 +365,12 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         scale = []
         for tensors in stdl:
             generative_inputs = self.module._get_generative_input(tensors, None)
-            x, ind_x = (
+            x, ind_x, cat_covs = (
                 generative_inputs["x"],
                 generative_inputs["ind_x"],
+                generative_inputs["cat_covs"],
             )
-            px_scale = self.module.get_ct_specific_expression(x, ind_x, y)
+            px_scale = self.module.get_ct_specific_expression(x, ind_x, y, cat_covs)
             scale += [px_scale.cpu()]
 
         data = torch.cat(scale).numpy()

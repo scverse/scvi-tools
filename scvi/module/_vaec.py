@@ -238,7 +238,7 @@ class VAEC(BaseMinifiedModeModuleClass):
         px_scale = self.px_decoder(h)
         px_rate = library * px_scale
         px = NegativeBinomial(px_rate, logits=self.px_r)
-        return {"px": px}
+        return {"px": px, "px_scale": px_scale}
 
     def loss(
         self,

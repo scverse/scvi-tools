@@ -149,7 +149,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
-    def get_vamp_prior(self, adata: AnnData | None = None, p: int = 10) -> np.ndarray:
+    def get_vamp_prior(self, adata: AnnData | None = None, p: int = 10, scales_prior_n_samples: int | None = None, default_cat: list | None = None) -> np.ndarray:
         r"""Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
 
         Parameters
@@ -159,6 +159,10 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
             AnnData object used to initialize the model.
         p
             number of clusters in kmeans clustering for cell-type sub-clustering for empirical prior
+        scales_prior_n_samples
+            return scales of negative binomial distribution for calculates prior means and variances using n_samples.
+        default_cat
+            default value for categorical covariates
 
         Returns
         -------
@@ -166,6 +170,10 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
             (n_labels, p, D) array
         var_vprior
             (n_labels, p, D) array
+        weights_vprior
+            (n_labels, p) array
+        scales_vprior
+            (n_labels, p, G) array
         """
         if self.is_trained_ is False:
             warnings.warn(
@@ -178,71 +186,90 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
         adata = self._validate_anndata(adata)
 
         if self.module.prior == "mog":
-            print('Using MoG')
-            return (
-                self.module.prior_means,
-                torch.exp(self.module.prior_log_scales)**2 + 1e-4,
-                torch.nn.functional.softmax(self.module.prior_logits, dim=-1)
+            results = {
+                "mean_vprior": self.module.prior_means,
+                "var_vprior": torch.exp(self.module.prior_log_scales)**2 + 1e-4,
+                "weights_vprior": torch.nn.functional.softmax(self.module.prior_logits, dim=-1)
+            }
+        else:
+
+            # Extracting latent representation of adata including variances.
+            mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
+            var_vprior = np.ones((self.summary_stats.n_labels, p, self.module.n_latent))
+            mp_vprior = np.zeros((self.summary_stats.n_labels, p))
+
+            labels_state_registry = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.LABELS_KEY
             )
+            key = labels_state_registry.original_key
+            mapping = labels_state_registry.categorical_mapping
 
-        # Extracting latent representation of adata including variances.
-        mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
-        var_vprior = np.ones((self.summary_stats.n_labels, p, self.module.n_latent))
-        mp_vprior = np.zeros((self.summary_stats.n_labels, p))
+            mean_cat, var_cat = self.get_latent_representation(adata, return_dist=True)
 
-        labels_state_registry = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
-        key = labels_state_registry.original_key
-        mapping = labels_state_registry.categorical_mapping
-
-        mean_cat, var_cat = self.get_latent_representation(adata, return_dist=True)
-
-        for ct in range(self.summary_stats["n_labels"]):
-            local_indices = np.where(adata.obs[key] == mapping[ct])[0]
-            n_local_indices = len(local_indices)
-            if "overclustering_vamp" not in adata.obs.columns:
-                if p < n_local_indices and p > 0:
-                    overclustering_vamp = KMeans(n_clusters=p, n_init=30).fit_predict(
-                        mean_cat[local_indices]
-                    )
+            for ct in range(self.summary_stats["n_labels"]):
+                local_indices = np.where(adata.obs[key] == mapping[ct])[0]
+                n_local_indices = len(local_indices)
+                if "overclustering_vamp" not in adata.obs.columns:
+                    if p < n_local_indices and p > 0:
+                        overclustering_vamp = KMeans(n_clusters=p, n_init=30).fit_predict(
+                            mean_cat[local_indices]
+                        )
+                    else:
+                        # Every cell is its own cluster
+                        overclustering_vamp = np.arange(n_local_indices)
                 else:
-                    # Every cell is its own cluster
-                    overclustering_vamp = np.arange(n_local_indices)
-            else:
-                overclustering_vamp = adata[local_indices, :].obs["overclustering_vamp"]
+                    overclustering_vamp = adata[local_indices, :].obs["overclustering_vamp"]
 
-            keys, counts = np.unique(overclustering_vamp, return_counts=True)
+                keys, counts = np.unique(overclustering_vamp, return_counts=True)
 
-            n_labels_overclustering = len(keys)
-            if n_labels_overclustering > p:
-                error_mess = """
-                    Given cell type specific clustering contains more clusters than vamp_prior_p.
-                    Increase value of vamp_prior_p to largest number of cell type specific clusters."""
+                n_labels_overclustering = len(keys)
+                if n_labels_overclustering > p:
+                    error_mess = """
+                        Given cell type specific clustering contains more clusters than vamp_prior_p.
+                        Increase value of vamp_prior_p to largest number of cell type specific clusters."""
 
-                raise ValueError(error_mess)
+                    raise ValueError(error_mess)
 
-            var_cluster = np.ones(
-                [
-                    n_labels_overclustering,
-                    self.module.n_latent,
-                ]
-            )
-            mean_cluster = np.zeros_like(var_cluster)
-
-            for index, cluster in enumerate(keys):
-                indices_curr = local_indices[np.where(overclustering_vamp == cluster)[0]]
-                var_cluster[index, :] = np.mean(var_cat[indices_curr], axis=0) + np.var(
-                    mean_cat[indices_curr], axis=0
+                var_cluster = np.ones(
+                    [
+                        n_labels_overclustering,
+                        self.module.n_latent,
+                    ]
                 )
-                mean_cluster[index, :] = np.mean(mean_cat[indices_curr], axis=0)
+                mean_cluster = np.zeros_like(var_cluster)
 
-            slicing = slice(n_labels_overclustering)
-            mean_vprior[ct, slicing, :] = mean_cluster
-            var_vprior[ct, slicing, :] = var_cluster
-            mp_vprior[ct, slicing] = counts / sum(counts)
+                for index, cluster in enumerate(keys):
+                    indices_curr = local_indices[np.where(overclustering_vamp == cluster)[0]]
+                    var_cluster[index, :] = np.mean(var_cat[indices_curr], axis=0) + np.var(
+                        mean_cat[indices_curr], axis=0
+                    )
+                    mean_cluster[index, :] = np.mean(mean_cat[indices_curr], axis=0)
 
-        return mean_vprior, var_vprior, mp_vprior
+                slicing = slice(n_labels_overclustering)
+                mean_vprior[ct, slicing, :] = mean_cluster
+                var_vprior[ct, slicing, :] = var_cluster
+                mp_vprior[ct, slicing] = counts / sum(counts)
+            results = {
+                "mean_vprior": mean_vprior,
+                "var_vprior": var_vprior,
+                "weights_vprior": mp_vprior
+            }
+
+        if scales_prior_n_samples is not None:
+            scales_vprior = np.zeros((self.summary_stats.n_labels, p, self.summary_stats.n_vars))
+            cat_covs = [
+                torch.full([scales_prior_n_samples, 1], float(np.where(value==default_cat[ind])[0]) if default_cat else 0, device=self.module.device)
+                           for ind, value in enumerate(self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings.values())]
+            for ct in range(self.summary_stats["n_labels"]):
+                for cluster in range(p):
+                    sampled_z = torch.distributions.Normal(
+                        results['mean_vprior'][ct, cluster, :], torch.sqrt(results['var_vprior'][ct, cluster, :])
+                    ).sample([scales_prior_n_samples,]).to(self.module.device)
+                    h = self.module.decoder(sampled_z, torch.full([scales_prior_n_samples, 1], ct, device=self.module.device), *cat_covs)
+                    scales_vprior[ct, cluster, :] = self.module.px_decoder(h).mean(0).cpu()
+            results["scales_vprior"] = scales_vprior
+
+        return results
 
     @devices_dsp.dedent
     def train(
