@@ -1,5 +1,6 @@
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
+from .csi.model import Model as SysVI
 from .gimvi import GIMVI
 from .poissonvi import POISSONVI
 from .scar import SCAR
@@ -19,4 +20,5 @@ __all__ = [
     "SCBASSET",
     "POISSONVI",
     "ContrastiveVI",
+    "SysVI",
 ]
