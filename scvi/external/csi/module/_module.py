@@ -32,36 +32,49 @@ class Module(BaseModuleClass):
         n_layers: int = 2,
         dropout_rate: float = 0.1,
         out_var_mode: str = "feature",
-        **kwargs,
+        **enc_dec_kwargs,
     ):
         """CVAE with optional VampPrior and latent cycle consistency loss.
 
         Parameters
         ----------
         n_input
-            Number of input genes
+            Number of input features.
+            Passed directly from Model.
         n_cov_const
-            Dimensionality of covariate data that will not be further embedded
+            Dimensionality of covariate data that will not be further embedded.
+            Passed directly from Model.
         cov_embed_sizes
-            Number of categories per every cov to be embedded, e.g. [cov1_n_categ, cov2_n_categ, ...]
+            Number of categories per every cov to be embedded, e.g. [cov1_n_categ, cov2_n_categ, ...].
+            Passed directly from Model.
         n_system
-            Number of systems
+            Number of systems.
+            Passed directly from Model.
         cov_embed_dims
-            Dimension for covariate embedding
+            Dimension for covariate embedding.
         prior
-            Which prior to use
+            Which prior distribution to use.
+            Passed directly from Model.
         n_prior_components
-            If VampPrior - how many prior components to use
+            If VampPrior - how many prior components to use.
+            Passed directly from Model.
         trainable_priors
-            If VampPrior- should prior components be trainable
+            If VampPrior - should prior components be trainable.
         pseudoinput_data
-            Initialisation data for VampPrior. Should match input tensors structure
+            Initialisation data for VampPrior. Should match input tensors structure.
+            Passed directly from Model.
         n_latent
+            Numer of latent space dimensions.
         n_hidden
+            Number of nodes in hidden layers.
         n_layers
+            Number of hidden layers.
         dropout_rate
+            Dropout rate.
         out_var_mode
-        kwargs
+            See :class:`~scvi.external.csi.nn.VarEncoder`
+        enc_dec_kwargs
+            Additional kwargs passed to encoder and decoder.
         """
         super().__init__()
 
@@ -89,7 +102,7 @@ class Module(BaseModuleClass):
             dropout_rate=dropout_rate,
             sample=True,
             var_mode="sample_feature",
-            **kwargs,
+            **enc_dec_kwargs,
         )
 
         self.decoder = EncoderDecoder(
@@ -101,7 +114,7 @@ class Module(BaseModuleClass):
             dropout_rate=dropout_rate,
             sample=True,
             var_mode=out_var_mode,
-            **kwargs,
+            **enc_dec_kwargs,
         )
 
         if prior == "standard_normal":

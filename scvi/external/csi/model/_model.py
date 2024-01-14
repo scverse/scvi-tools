@@ -33,19 +33,18 @@ class Model(TrainingCustom, BaseModelClass):
         pseudoinputs_data_indices: Optional[np.array] = None,
         **model_kwargs,
     ):
-        """CVAE integration model with optional VampPrior and latent cycle-consistency loss
+        """Integration model based on cVAE with optional VampPrior and latent cycle-consistency loss.
 
         Parameters
         ----------
         adata
-            AnnData object that has been registered via :meth:`~mypackage.MyModel.setup_anndata`.
+            AnnData object that has been registered via :meth:`~scvi-tools.SysVI.setup_anndata`.
         prior
-            The prior to be used. You can choose between "standard_normal" and "vamp".
+            The prior distribution to be used. You can choose between "standard_normal" and "vamp".
         n_prior_components
             Number of prior components in VampPrior.
         pseudoinputs_data_indices
-            By default (based on pseudoinputs_data_init),
-            VAMP prior pseudoinputs are randomly selected from data.
+            By default VampPrior pseudoinputs are randomly selected from data.
             Alternatively, one can specify pseudoinput indices using this parameter.
         **model_kwargs
             Keyword args for :class:`~scvi.external.csi.module.Module`
@@ -109,23 +108,22 @@ class Model(TrainingCustom, BaseModelClass):
         batch_size: Optional[int] = None,
         as_numpy: bool = True,
     ) -> Union[np.ndarray, torch.Tensor]:
-        """
-        Return the latent representation for each cell.
+        """Return the latent representation for each cell.
 
         Parameters
         ----------
         adata
-            Input adata based on which latent representation is obtained.
+            Input adata for which latent representation should be obtained.
         indices
-            Data indices to embed. If None embedd all.
+            Data indices to embed. If None embedd all cells.
         cycle
-            Return latent embedding of cycle pass.
+            Return latent embedding of the cycle pass.
         give_mean
-            Return posterior mean instead of a sample from posterior.
+            Return the posterior mean instead of a sample from the posterior.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         as_numpy
-            Return iin numpy rather than torch format.
+            Return in numpy rather than torch format.
 
         Returns
         -------
@@ -133,6 +131,7 @@ class Model(TrainingCustom, BaseModelClass):
         """
         # Check model and adata
         self._check_if_trained(warn=False)
+        # TODO extend to check if adata setup is correct wrt training data
         adata = self._validate_anndata(adata)
         if indices is None:
             indices = np.arange(adata.n_obs)
@@ -188,8 +187,7 @@ class Model(TrainingCustom, BaseModelClass):
         system_order: Optional[list[str]] = None,
         **kwargs,
     ) -> AnnData:
-        """
-        Prepare adata for input to Model
+        """Prepare adata for input to Model
 
         Parameters
         ----------
@@ -198,7 +196,8 @@ class Model(TrainingCustom, BaseModelClass):
         system_key
             Name of obs column with categorical system information.
         layer
-            AnnData layer to use, default X. Should contain normalized and log+1 transformed expression.
+            AnnData layer to use, default is X.
+            Should contain normalized and log+1 transformed expression.
         categorical_covariate_keys
             Name of obs column with additional categorical covariate information. Will be one hot encoded.
         categorical_covariate_embed_keys
