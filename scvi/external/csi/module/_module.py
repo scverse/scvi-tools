@@ -170,6 +170,7 @@ class Module(BaseModuleClass):
         input_dict = {"z": z, "cov": cov, "system": system}
         return input_dict
 
+    @auto_move_data
     def _get_cov(self, tensors: dict[str, torch.Tensor]) -> Optional[torch.Tensor]:
         """Merge all covariates into single tensor, including embedding of covariates"""
         cov = []
