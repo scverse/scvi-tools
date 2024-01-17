@@ -82,7 +82,3 @@ def test_zinb_distribution():
         dist1.log_prob(-x)
     with pytest.warns(UserWarning):
         dist2.log_prob(0.5 * x)
-
-
-if __name__ == "__main__":
-    test_zinb_distribution()
