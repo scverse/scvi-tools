@@ -54,8 +54,12 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     without averaging across cells {pr}`2362`.
 -   Add support for setting `weights="importance"` in
     {meth}`scvi.model.SCANVI.differential_expression` {pr}`2362`.
+-   Passing in `indices` to {class}`scvi.criticism.PosteriorPredictiveCheck` allows for running
+    metrics on a subset of the data {pr}`2361`.
 -   Add `seed` argument to {func}`scvi.model.utils.mde` for reproducibility {pr}`2373`.
 -   Add {meth}`scvi.hub.HubModel.save` and {meth}`scvi.hub.HubMetadata.save` {pr}`2382`.
+-   Add support for Optax 0.1.8 by renaming instances of {func}`optax.additive_weight_decay` to
+    {func}`optax.add_weight_decay` {pr}`2396`.
 
 #### Fixed
 
