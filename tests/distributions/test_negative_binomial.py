@@ -69,3 +69,20 @@ def test_zinb_distribution():
         dist1.log_prob(-x)  # ensures neg values raise warning
     with pytest.warns(UserWarning):
         dist2.log_prob(0.5 * x)  # ensures float values raise warning
+
+    # test with no scale
+    dist1 = ZeroInflatedNegativeBinomial(
+        mu=mu, theta=theta, zi_logits=pi, validate_args=True
+    )
+    dist2 = NegativeBinomial(mu=mu, theta=theta, validate_args=True)
+    assert dist1.log_prob(x).shape == size
+    assert dist2.log_prob(x).shape == size
+
+    with pytest.warns(UserWarning):
+        dist1.log_prob(-x)
+    with pytest.warns(UserWarning):
+        dist2.log_prob(0.5 * x)
+
+
+if __name__ == "__main__":
+    test_zinb_distribution()
