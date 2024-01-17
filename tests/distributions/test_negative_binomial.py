@@ -75,6 +75,8 @@ def test_zinb_distribution():
         mu=mu, theta=theta, zi_logits=pi, validate_args=True
     )
     dist2 = NegativeBinomial(mu=mu, theta=theta, validate_args=True)
+    dist1.__repr__()
+    dist2.__repr__()
     assert dist1.log_prob(x).shape == size
     assert dist2.log_prob(x).shape == size
 
