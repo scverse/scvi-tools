@@ -1,10 +1,6 @@
 name: Test (Linux, prerelease)
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   schedule:
     - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
   workflow_dispatch:
@@ -25,9 +21,6 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python: ["3.9", "3.10", "3.11", "3.12"]
-
-    environment:
-      name: approved_test
 
     name: ${{ matrix.name }} Python ${{ matrix.python }}
 
