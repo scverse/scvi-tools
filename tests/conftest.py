@@ -39,6 +39,12 @@ def pytest_addoption(parser):
         default=0,
         help="Option to specify which scvi-tools seed to use for tests.",
     )
+    parser.addoption(
+        "--private",
+        action="store_true",
+        default=False,
+        help="Run tests that are private.",
+    )
 
 
 def pytest_configure(config):
@@ -63,6 +69,14 @@ def pytest_collection_modifyitems(config, items):
         # `--optional` passed
         if not run_optional and ("optional" in item.keywords):
             item.add_marker(skip_optional)
+
+    run_private = config.getoption("--private")
+    skip_private = pytest.mark.skip(reason="need --private option to run")
+    for item in items:
+        # All tests marked with `pytest.mark.private` get skipped unless
+        # `--private` passed
+        if not run_private and ("private" in item.keywords):
+            item.add_marker(skip_private)
 
 
 @pytest.fixture(scope="session")
