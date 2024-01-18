@@ -6,6 +6,9 @@ on:
             - "*.*.*"
 
 jobs:
+    permissions:
+        id-token: write
+
     release:
         name: Release
         runs-on: ubuntu-latest
