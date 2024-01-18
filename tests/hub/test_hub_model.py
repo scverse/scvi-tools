@@ -286,6 +286,7 @@ def test_hub_model_push_to_s3(save_path: str):
     hub_model.push_to_s3("scvi-tools", "tests/hub/test_scvi_minified")
 
 
+@pytest.mark.private
 def test_hub_model_pull_from_s3():
     from botocore.exceptions import ClientError
 
