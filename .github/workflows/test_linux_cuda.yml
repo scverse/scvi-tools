@@ -35,7 +35,7 @@ jobs:
     environment:
       name: approved_test
 
-    name: ${{ matrix.name }} Python ${{ matrix.python }}
+    name: ${{ matrix.name }} Python ${{ matrix.python }} CUDA
 
     env:
       OS: ${{ matrix.os }}
@@ -43,20 +43,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
-          cache: "pip"
-          cache-dependency-path: "**/pyproject.toml"
-
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pip wheel
 
       - name: Install dependencies
         run: |
-          pip install --pre ".[tests]"
+          pip install ".[tests]"
 
       - name: Test
         env:
