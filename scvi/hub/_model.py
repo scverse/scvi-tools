@@ -26,11 +26,6 @@ from ._constants import _SCVI_HUB
 
 logger = logging.getLogger(__name__)
 
-try:
-    from botocore.client import Config
-except ImportError:
-    Config = type(None)
-
 
 class HubModel:
     """Wrapper for :class:`~scvi.model.base.BaseModelClass` backed by HuggingFace Hub.
@@ -231,16 +226,28 @@ class HubModel:
         s3_bucket: str,
         s3_path: str,
         push_anndata: bool = True,
-        config: Config | None = None,
+        **kwargs,
     ):
+        """Upload the :class:`~scvi.hub.HubModel` to an S3 bucket.
+
+        Requires `boto3<https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ to be
+        installed.
+
+        Parameters
+        ----------
+        s3_bucket
+            The S3 bucket to which to upload the model.
+        s3_path
+            The S3 path where the model will be saved.
+        push_anndata
+            Whether to push the :class:`~anndata.AnnData` object associated with the model.
+        **kwargs
+            Keyword arguments passed into :func:`boto3.client`.
+        """
         from boto3 import client
 
         self.save(overwrite=True)
-
-        if config is not None:
-            s3 = client("s3", config=config)
-        else:
-            s3 = client("s3")
+        s3 = client("s3", **kwargs)
 
         card_local_path = os.path.join(self._local_dir, _SCVI_HUB.MODEL_CARD_FILE_NAME)
         card_s3_path = os.path.join(s3_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
@@ -250,14 +257,17 @@ class HubModel:
         metadata_s3_path = os.path.join(s3_path, _SCVI_HUB.METADATA_FILE_NAME)
         s3.upload_file(metadata_local_path, s3_bucket, metadata_s3_path)
 
-        model_local_path = os.path.join(self._local_dir, "model.pt")
         model_s3_path = os.path.join(s3_path, "model.pt")
-        s3.upload_file(model_local_path, s3_bucket, model_s3_path)
+        s3.upload_file(self._model_path, s3_bucket, model_s3_path)
 
         if push_anndata:
-            adata_local_path = os.path.join(self._local_dir, "adata.h5ad")
+            if not os.path.isfile(self._adata_path):
+                raise ValueError(
+                    f"No AnnData file found at {self._adata_path}. Please provide an AnnData file "
+                    "or set `push_anndata=False`."
+                )
             adata_s3_path = os.path.join(s3_path, "adata.h5ad")
-            s3.upload_file(adata_local_path, s3_bucket, adata_s3_path)
+            s3.upload_file(self._adata_path, s3_bucket, adata_s3_path)
 
     @classmethod
     @dependencies("boto3")
@@ -266,9 +276,8 @@ class HubModel:
         s3_bucket: str,
         s3_path: str,
         pull_anndata: bool = True,
-        config: Config | None = None,
-        unsigned: bool = False,
         cache_dir: str | None = None,
+        **kwargs,
     ) -> HubModel:
         """Download a :class:`~scvi.hub.HubModel` from an S3 bucket.
 
@@ -283,13 +292,11 @@ class HubModel:
             The S3 path to the saved model.
         pull_anndata
             Whether to pull the :class:`~anndata.AnnData` object associated with the model.
-        config
-            The :class:`~botocore.client.Config` to use for the S3 client.
-        unsigned
-            Whether to use an unsigned S3 client.
         cache_dir
             The directory where the downloaded model files will be cached. Defaults to a temporary
             directory created with :func:`tempfile.mkdtemp`.
+        **kwargs
+            Keyword arguments passed into :func:`boto3.client`.
 
         Returns
         -------
@@ -301,18 +308,11 @@ class HubModel:
         ``config`` nor ``unsigned`` is provided, a signed S3 client will be used.
         """
         from boto3 import client
-        from botocore import UNSIGNED
-        from botocore.client import Config
 
         if cache_dir is None:
             cache_dir = tempfile.mkdtemp()
 
-        if config is not None:
-            s3 = client("s3", config=config)
-        elif unsigned:
-            s3 = client("s3", config=Config(signature_version=UNSIGNED))
-        else:
-            s3 = client("s3")
+        s3 = client("s3", **kwargs)
 
         card_s3_path = os.path.join(s3_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
         card_local_path = os.path.join(cache_dir, _SCVI_HUB.MODEL_CARD_FILE_NAME)
