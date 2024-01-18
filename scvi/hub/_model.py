@@ -117,7 +117,11 @@ class HubModel:
         self.metadata.save(metadata_path, overwrite=overwrite)
 
     def push_to_huggingface_hub(
-        self, repo_name: str, repo_token: str, repo_create: bool
+        self,
+        repo_name: str,
+        repo_token: str,
+        repo_create: bool,
+        push_anndata: bool = True,
     ):
         """Push this model to huggingface.
 
@@ -156,7 +160,7 @@ class HubModel:
             token=repo_token,
         )
         # upload the data if it exists
-        if os.path.isfile(self._adata_path):
+        if os.path.isfile(self._adata_path) and push_anndata:
             api.upload_file(
                 path_or_fileobj=self._adata_path,
                 path_in_repo=self._adata_path.split("/")[-1],
@@ -177,6 +181,7 @@ class HubModel:
         repo_name: str,
         cache_dir: str | None = None,
         revision: str | None = None,
+        pull_anndata: bool = True,
         **kwargs,
     ):
         """Download the given model repo from huggingface.
@@ -196,6 +201,9 @@ class HubModel:
             If None, the default (latest) revision is pulled.
         kwargs
             Additional keyword arguments to pass to :meth:`~huggingface_hub.snapshot_download`.
+        pull_anndata
+            Whether to pull the :class:`~anndata.AnnData` object associated with the model. If ``True`` but the
+            file does not exist, will fail silently.
         """
         if revision is None:
             warnings.warn(
@@ -203,9 +211,13 @@ class HubModel:
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
+        filenames = ["model.pt", _SCVI_HUB.METADATA_FILE_NAME]
+        if pull_anndata:
+            filenames.append("adata.h5ad")
+
         snapshot_folder = snapshot_download(
             repo_id=repo_name,
-            allow_patterns=["model.pt", "adata.h5ad", _SCVI_HUB.METADATA_FILE_NAME],
+            allow_patterns=filenames,
             cache_dir=cache_dir,
             revision=revision,
             **kwargs,
