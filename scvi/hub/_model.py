@@ -132,6 +132,8 @@ class HubModel:
             huggingface API token with write permissions
         repo_create
             Whether to create the repo
+        push_anndata
+            Whether to push the :class:`~anndata.AnnData` object associated with the model.
         """
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
