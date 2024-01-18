@@ -1,10 +1,8 @@
-name: test-linux-cpu-prerelease
+name: Test (Windows)
 
 on:
   schedule:
     - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
-  issue_comment:
-    types: [created] # runs if issue/PR has a specific comment
   workflow_dispatch:
 
 concurrency:
@@ -14,12 +12,6 @@ concurrency:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
-
-    timeout-minutes: 30
-
-    # run if scheduled or pr has the comment 'test linux cpu prelease'
-    if: github.event_name == 'schedule' || (github.event.issue.pull_request != '' && contains(github.event.comment.body, 'test linux cpu prerelease'))
-
     defaults:
       run:
         shell: bash -e {0} # -e to fail on error
@@ -27,16 +19,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        python: ["3.9", "3.10", "3.11", "3.12"]
+        os: [windows-latest]
+        python: ["3.9", "3.10", "3.11"]
+
+    name: ${{ matrix.name }} Python ${{ matrix.python }}
 
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python }}
 
     steps:
-      - uses: actions/checkout@v3
-
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v4
         with:
@@ -48,9 +41,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel
 
-      - name: Install scvi-tools test dependencies
+      - name: Install dependencies
         run: |
-          pip install --pre ".[tests]"
+          pip install ".[tests]"
 
       - name: Test
         env:
@@ -58,7 +51,9 @@ jobs:
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
         run: |
-          pytest -v --cov --color=yes
-
+          coverage run -m pytest -v --color=yes
+      - name: Report coverage
+        run: |
+          coverage report
       - name: Upload coverage
         uses: codecov/codecov-action@v3
