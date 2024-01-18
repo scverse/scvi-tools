@@ -242,7 +242,7 @@ class HubModel:
         push_anndata
             Whether to push the :class:`~anndata.AnnData` object associated with the model.
         **kwargs
-            Keyword arguments passed into :func:`boto3.client`.
+            Keyword arguments passed into :func:`~boto3.client`.
         """
         from boto3 import client
 
@@ -296,22 +296,15 @@ class HubModel:
             The directory where the downloaded model files will be cached. Defaults to a temporary
             directory created with :func:`tempfile.mkdtemp`.
         **kwargs
-            Keyword arguments passed into :func:`boto3.client`.
+            Keyword arguments passed into :func:`~boto3.client`.
 
         Returns
         -------
         The pretrained model specified by the given S3 bucket and path.
-
-        Notes
-        -----
-        If both ``config`` is provided and ``unsigned`` is True, ``config`` will be used. If neither
-        ``config`` nor ``unsigned`` is provided, a signed S3 client will be used.
         """
         from boto3 import client
 
-        if cache_dir is None:
-            cache_dir = tempfile.mkdtemp()
-
+        cache_dir = cache_dir or tempfile.mkdtemp()
         s3 = client("s3", **kwargs)
 
         card_s3_path = os.path.join(s3_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
