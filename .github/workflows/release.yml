@@ -1,33 +1,31 @@
-name: Upload release to PyPI
+name: Release
 
 on:
-    push:
-        tags:
-            - "*.*.*"
+    release:
+        types: [published]
 
 jobs:
     permissions:
         id-token: write
 
     release:
-        name: Release
+        name: Upload release to PyPI
         runs-on: ubuntu-latest
-
+        environment:
+            name: pypi
+            url: https://pypi.org/project/scvi-tools/
+        permissions:
+            id-token: write
         steps:
-            - name: Checkout code
-              uses: actions/checkout@v3
-
-            - name: Set up Python 3.11
-              uses: actions/setup-python@v4
+            - uses: actions/checkout@v4
               with:
-                  python-version: "3.11"
-
-            - name: Install hatch
-              run: |
-                  python -m pip install --upgrade hatch
-
-            - name: Build project for distribution
-              run: hatch build
-
-            - name: Publish a Python distribution to PyPI
+                  filter: blob:none
+                  fetch-depth: 0
+            - uses: actions/setup-python@v4
+              with:
+                  python-version: "3.x"
+                  cache: "pip"
+            - run: pip install build
+            - run: python -m build
+            - name: Publish package distributions to PyPI
               uses: pypa/gh-action-pypi-publish@release/v1
