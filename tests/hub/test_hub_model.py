@@ -271,6 +271,10 @@ def test_hub_model_push_to_s3(save_path: str):
     hub_model.push_to_s3("scvi-tools", "tests/hub/test_scvi")
 
     hub_model = prep_scvi_no_anndata_hub_model(save_path)
+    with pytest.raises(ValueError):
+        hub_model.push_to_s3(
+            "scvi-tools", "tests/hub/test_scvi_no_anndata", push_anndata=True
+        )
     hub_model.push_to_s3(
         "scvi-tools", "tests/hub/test_scvi_no_anndata", push_anndata=False
     )
