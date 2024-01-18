@@ -230,7 +230,7 @@ class HubModel:
     ):
         """Upload the :class:`~scvi.hub.HubModel` to an S3 bucket.
 
-        Requires `boto3<https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ to be
+        Requires `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ to be
         installed.
 
         Parameters
@@ -281,7 +281,7 @@ class HubModel:
     ) -> HubModel:
         """Download a :class:`~scvi.hub.HubModel` from an S3 bucket.
 
-        Requires `boto3<https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ to be
+        Requires `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ to be
         installed.
 
         Parameters
