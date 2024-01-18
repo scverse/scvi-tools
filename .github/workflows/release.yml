@@ -1,31 +1,29 @@
 name: Release
 
 on:
-    release:
-        types: [published]
+  release:
+    types: [published]
 
+# Use "trusted publishing", see https://docs.pypi.org/trusted-publishers/
 jobs:
+  release:
+    name: Upload release to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/scvi-tools
     permissions:
-        id-token: write
-
-    release:
-        name: Upload release to PyPI
-        runs-on: ubuntu-latest
-        environment:
-            name: pypi
-            url: https://pypi.org/project/scvi-tools/
-        permissions:
-            id-token: write
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  filter: blob:none
-                  fetch-depth: 0
-            - uses: actions/setup-python@v4
-              with:
-                  python-version: "3.x"
-                  cache: "pip"
-            - run: pip install build
-            - run: python -m build
-            - name: Publish package distributions to PyPI
-              uses: pypa/gh-action-pypi-publish@release/v1
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          fetch-depth: 0
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+          cache: "pip"
+      - run: pip install build
+      - run: python -m build
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
