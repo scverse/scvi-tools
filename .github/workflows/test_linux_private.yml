@@ -1,0 +1,75 @@
+name: Test (Linux, private)
+
+on:
+  push:
+    branches:
+      [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x, 1.1.x]
+  pull_request:
+    branches:
+      [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x, 1.1.x]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -e {0} # -e to fail on error
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.11"]
+
+    environment:
+      name: private_test
+
+    permissions:
+      id-token: write
+
+    name: ${{ matrix.name }} Python ${{ matrix.python }} private
+
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_IAM }}:role/scvi-tools_private_test
+          aws-region: us-west-2
+          role-duration-seconds: 3600
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+          cache: "pip"
+          cache-dependency-path: "**/pyproject.toml"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip wheel
+
+      - name: Install dependencies
+        run: |
+          pip install ".[tests]"
+
+      - name: Test
+        env:
+          MPLBACKEND: agg
+          PLATFORM: ${{ matrix.os }}
+          DISPLAY: :42
+        run: |
+          coverage run -m pytest -v --color=yes
+      - name: Report coverage
+        run: |
+          coverage report
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
