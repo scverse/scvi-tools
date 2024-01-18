@@ -160,7 +160,7 @@ def test_hub_model_pull_from_hf(save_path):
     assert hmo._local_dir.startswith(save_path)
 
 
-@pytest.mark.skip(reason="requires an auth token which breaks some CI pipelines")
+@pytest.mark.private
 @pytest.mark.internet
 def test_hub_model_push_to_hf(request, save_path):
     model = prep_model()
@@ -201,6 +201,7 @@ def test_hub_model_push_to_hf(request, save_path):
     delete_repo(repo_name, token=repo_token)
 
 
+@pytest.mark.private
 @pytest.mark.parametrize("save_anndata", [True, False])
 def test_hub_model_save(save_anndata: bool, save_path: str):
     model = prep_model()
@@ -229,6 +230,7 @@ def test_hub_model_save(save_anndata: bool, save_path: str):
     hub_model.save(overwrite=True)
 
 
+@pytest.mark.private
 def test_hub_model_push_to_s3(save_path: str):
     adata = scvi.data.synthetic_iid()
     scvi.model.SCVI.setup_anndata(adata)
