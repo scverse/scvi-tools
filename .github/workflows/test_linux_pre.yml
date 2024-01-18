@@ -22,7 +22,7 @@ jobs:
         os: [ubuntu-latest]
         python: ["3.9", "3.10", "3.11", "3.12"]
 
-    name: ${{ matrix.name }} Python ${{ matrix.python }}
+    name: ${{ matrix.name }} Python ${{ matrix.python }} prereleases
 
     env:
       OS: ${{ matrix.os }}
