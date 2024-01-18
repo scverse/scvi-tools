@@ -72,6 +72,12 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Fix bug in {class}`scvi.external.GIMVI` where `batch_size` was not
     properly used in inference methods {pr}`2366`.
 -   Fix error message formatting in {meth}`scvi.data.fields.LayerField.transfer_field` {pr}`2368`.
+-   Fix ambiguous error raised in {meth}`scvi.distributions.NegativeBinomial.log_prob` and
+    {meth}`scvi.distributions.ZeroInflatedNegativeBinomial.log_prob` when `scale` not passed in
+    and value not in support {pr}`2395`.
+-   Fix initialization of {class}`scvi.distributions.NegativeBinomial` and
+    {class}`scvi.distributions.ZeroInflatedNegativeBinomial` when `validate_args=True` and
+    optional parameters not passed in {pr}`2395`.
 
 #### Changed
 
