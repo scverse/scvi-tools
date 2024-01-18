@@ -110,7 +110,7 @@ def test_hub_model_load(request, save_path):
         print(hmo.model)
 
 
-@pytest.mark.internet
+@pytest.mark.private
 def test_hub_model_large_training_adata(request, save_path):
     training_data_url = "https://huggingface.co/datasets/scvi-tools/DATASET-FOR-UNIT-TESTING-1/resolve/main/adata.h5ad"
     model = prep_model()
@@ -132,7 +132,7 @@ def test_hub_model_large_training_adata(request, save_path):
     assert hmo.adata is None
 
 
-@pytest.mark.internet
+@pytest.mark.private
 def test_hub_model_pull_from_hf(save_path):
     # # the repo we are pulling from was populated with the contents of
     # # `test_save_path` as below
@@ -161,7 +161,6 @@ def test_hub_model_pull_from_hf(save_path):
 
 
 @pytest.mark.private
-@pytest.mark.internet
 def test_hub_model_push_to_hf(request, save_path):
     model = prep_model()
     test_save_path = os.path.join(save_path, request.node.name)
