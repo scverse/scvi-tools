@@ -77,6 +77,9 @@ def pytest_collection_modifyitems(config, items):
         # `--private` passed
         if not run_private and ("private" in item.keywords):
             item.add_marker(skip_private)
+        # Skip all tests not marked with `pytest.mark.private` if `--private` passed
+        elif run_private and ("private" not in item.keywords):
+            item.add_marker(skip_private)
 
 
 @pytest.fixture(scope="session")
