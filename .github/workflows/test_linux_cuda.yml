@@ -33,7 +33,7 @@ jobs:
       options: --user root --gpus all
 
     environment:
-      name: approved_test
+      name: private_test
 
     name: ${{ matrix.name }} Python ${{ matrix.python }} CUDA
 
