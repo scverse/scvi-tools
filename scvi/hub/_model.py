@@ -12,7 +12,7 @@ from pathlib import Path
 import anndata
 import rich
 from anndata import AnnData
-from huggingface_hub import HfApi, ModelCard, create_repo, snapshot_download
+from huggingface_hub import ModelCard, create_repo, snapshot_download
 from rich.markdown import Markdown
 
 from scvi import settings
@@ -111,12 +111,14 @@ class HubModel:
         metadata_path = os.path.join(self._local_dir, _SCVI_HUB.METADATA_FILE_NAME)
         self.metadata.save(metadata_path, overwrite=overwrite)
 
+    @dependencies("huggingface_hub")
     def push_to_huggingface_hub(
         self,
         repo_name: str,
         repo_token: str,
-        repo_create: bool,
+        repo_create: bool = False,
         push_anndata: bool = True,
+        **kwargs,
     ):
         """Push this model to huggingface.
 
@@ -134,7 +136,11 @@ class HubModel:
             Whether to create the repo
         push_anndata
             Whether to push the :class:`~anndata.AnnData` object associated with the model.
+        **kwargs
+            Additional keyword arguments passed into :meth:`~huggingface_hub.HfApi.upload_file`.
         """
+        from huggingface_hub import HfApi
+
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
         ):
@@ -155,6 +161,7 @@ class HubModel:
             path_in_repo=self._model_path.split("/")[-1],
             repo_id=repo_name,
             token=repo_token,
+            **kwargs,
         )
         # upload the data if it exists
         if os.path.isfile(self._adata_path) and push_anndata:
@@ -163,6 +170,7 @@ class HubModel:
                 path_in_repo=self._adata_path.split("/")[-1],
                 repo_id=repo_name,
                 token=repo_token,
+                **kwargs,
             )
         # upload the metadata
         api.upload_file(
@@ -170,6 +178,7 @@ class HubModel:
             path_in_repo=_SCVI_HUB.METADATA_FILE_NAME,
             repo_id=repo_name,
             token=repo_token,
+            **kwargs,
         )
 
     @classmethod
