@@ -92,7 +92,9 @@ def poisson_gene_selection(
     """
     data = adata.layers[layer] if layer is not None else adata.X
     if _check_nonnegative_integers(data) is False:
-        raise ValueError("`poisson_gene_selection` expects " "raw count data.")
+        raise ValueError(
+            "`poisson_gene_selection` expects raw count data (non-negative integers)."
+        )
 
     _, _, device = parse_device_args(
         accelerator=accelerator,
