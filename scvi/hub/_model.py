@@ -12,7 +12,7 @@ from pathlib import Path
 import anndata
 import rich
 from anndata import AnnData
-from huggingface_hub import ModelCard, create_repo, snapshot_download
+from huggingface_hub import ModelCard, snapshot_download
 from rich.markdown import Markdown
 
 from scvi import settings
@@ -118,6 +118,7 @@ class HubModel:
         repo_token: str,
         repo_create: bool = False,
         push_anndata: bool = True,
+        repo_create_kwargs: dict | None = None,
         **kwargs,
     ):
         """Push this model to huggingface.
@@ -136,10 +137,13 @@ class HubModel:
             Whether to create the repo
         push_anndata
             Whether to push the :class:`~anndata.AnnData` object associated with the model.
+        repo_create_kwargs
+            Keyword arguments passed into :meth:`~huggingface_hub.create_repo` if
+            ``repo_create=True``.
         **kwargs
             Additional keyword arguments passed into :meth:`~huggingface_hub.HfApi.upload_file`.
         """
-        from huggingface_hub import HfApi
+        from huggingface_hub import HfApi, create_repo
 
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
@@ -151,7 +155,8 @@ class HubModel:
         if os.path.isfile(repo_token):
             repo_token = Path(repo_token).read_text()
         if repo_create:
-            create_repo(repo_name, token=repo_token)
+            repo_create_kwargs = repo_create_kwargs or {}
+            create_repo(repo_name, token=repo_token, **repo_create_kwargs)
         api = HfApi()
         # upload the model card
         self.model_card.push_to_hub(repo_name, token=repo_token)
