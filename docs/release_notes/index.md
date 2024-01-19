@@ -57,6 +57,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     {func}`optax.add_weight_decay` {pr}`2396`.
 -   Add support for hosting {class}`scvi.hub.HubModel` on AWS S3 via
     {meth}`scvi.hub.HubModel.pull_from_s3` and {meth}`scvi.hub.HubModel.push_to_s3` {pr}`2378`.
+-   Add clearer error message for {func}`scvi.data.poisson_gene_selection` when input data does not
+    contain raw counts {pr}`2422`.
 
 #### Fixed
 
