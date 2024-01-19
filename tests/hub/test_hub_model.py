@@ -222,14 +222,14 @@ def test_hub_model_push_to_hf(save_path: str):
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test_scvi",
         os.environ["HF_API_TOKEN"],
-        repo_create=True,
+        repo_create=False,
     )
 
     hub_model = prep_scvi_no_anndata_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test_scvi_no_anndata",
         os.environ["HF_API_TOKEN"],
-        repo_create=True,
+        repo_create=False,
         push_anndata=False,
     )
 
@@ -237,7 +237,7 @@ def test_hub_model_push_to_hf(save_path: str):
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test_scvi_minified",
         os.environ["HF_API_TOKEN"],
-        repo_create=True,
+        repo_create=False,
     )
 
 
