@@ -210,11 +210,11 @@ class HubModel:
         revision
             The revision to pull from the repo. This can be a branch name, a tag, or a full-length commit hash.
             If None, the default (latest) revision is pulled.
-        kwargs
-            Additional keyword arguments to pass to :meth:`~huggingface_hub.snapshot_download`.
         pull_anndata
             Whether to pull the :class:`~anndata.AnnData` object associated with the model. If ``True`` but the
             file does not exist, will fail silently.
+        kwargs
+            Additional keyword arguments to pass to :meth:`~huggingface_hub.snapshot_download`.
         """
         if revision is None:
             warnings.warn(
