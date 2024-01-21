@@ -53,6 +53,10 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     metrics on a subset of the data {pr}`2361`.
 -   Add `seed` argument to {func}`scvi.model.utils.mde` for reproducibility {pr}`2373`.
 -   Add {meth}`scvi.hub.HubModel.save` and {meth}`scvi.hub.HubMetadata.save` {pr}`2382`.
+-   Add support for Optax 0.1.8 by renaming instances of {func}`optax.additive_weight_decay` to
+    {func}`optax.add_weight_decay` {pr}`2396`.
+-   Add support for hosting {class}`scvi.hub.HubModel` on AWS S3 via
+    {meth}`scvi.hub.HubModel.pull_from_s3` and {meth}`scvi.hub.HubModel.push_to_s3` {pr}`2378`.
 
 #### Fixed
 
@@ -64,6 +68,12 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Fix bug in {class}`scvi.external.GIMVI` where `batch_size` was not
     properly used in inference methods {pr}`2366`.
 -   Fix error message formatting in {meth}`scvi.data.fields.LayerField.transfer_field` {pr}`2368`.
+-   Fix ambiguous error raised in {meth}`scvi.distributions.NegativeBinomial.log_prob` and
+    {meth}`scvi.distributions.ZeroInflatedNegativeBinomial.log_prob` when `scale` not passed in
+    and value not in support {pr}`2395`.
+-   Fix initialization of {class}`scvi.distributions.NegativeBinomial` and
+    {class}`scvi.distributions.ZeroInflatedNegativeBinomial` when `validate_args=True` and
+    optional parameters not passed in {pr}`2395`.
 
 #### Changed
 

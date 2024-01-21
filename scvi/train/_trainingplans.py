@@ -1242,7 +1242,7 @@ class JaxTrainingPlan(TrainingPlan):
             # Replicates PyTorch Adam defaults
             optim = optax.chain(
                 clip_by,
-                optax.additive_weight_decay(weight_decay=self.weight_decay),
+                optax.add_decayed_weights(weight_decay=self.weight_decay),
                 optax.adam(self.lr, eps=self.eps),
             )
         elif self.optimizer_name == "AdamW":
