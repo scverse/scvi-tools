@@ -6,7 +6,7 @@ from anndata import AnnData
 from numpy.testing import assert_raises
 from scipy import sparse
 
-from scvi.external.csi.model import Model
+from scvi.external import SysVI
 
 
 def mock_adata():
@@ -54,9 +54,9 @@ def test_model():
     adata0 = mock_adata()
 
     # Run adata setup with all covariates
-    Model.setup_anndata(
+    SysVI.setup_anndata(
         adata0,
-        system_key="system",
+        batch_key="system",
         categorical_covariate_keys=["covariate_cat"],
         categorical_covariate_embed_keys=["covariate_cat_emb"],
         continuous_covariate_keys=["covariate_cont"],
@@ -65,9 +65,9 @@ def test_model():
     # Run adata setup transfer
     # TODO ensure this is actually done correctly, not just that it runs through
     adata = mock_adata()
-    Model.setup_anndata(
+    SysVI.setup_anndata(
         adata,
-        system_key="system",
+        batch_key="system",
         categorical_covariate_keys=["covariate_cat"],
         categorical_covariate_embed_keys=["covariate_cat_emb"],
         continuous_covariate_keys=["covariate_cont"],
@@ -77,9 +77,9 @@ def test_model():
     )
 
     # Check that setup of adata without covariates works
-    Model.setup_anndata(
+    SysVI.setup_anndata(
         adata0,
-        system_key="system",
+        batch_key="system",
     )
     assert "covariates" not in adata0.obsm
     assert "covariates_embed" not in adata0.obsm
@@ -87,15 +87,15 @@ def test_model():
     # Model
 
     # Check that model runs through with standard normal prior
-    model = Model(adata=adata, prior="standard_normal")
+    model = SysVI(adata=adata, prior="standard_normal")
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
-    # Check that model runs through without covariates
-    model = Model(adata=adata0)
+    # Check that mode runs through without covariates
+    model = SysVI(adata=adata0)
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
     # Check pre-specifying pseudoinput indices for vamp prior
-    _ = Model(
+    _ = SysVI(
         adata=adata,
         prior="vamp",
         pseudoinputs_data_indices=list(range(5)),
@@ -104,7 +104,7 @@ def test_model():
 
     # Check that model runs through with vamp prior without specifying pseudoinput indices,
     # all covariates, and weight scaling
-    model = Model(adata=adata, prior="vamp")
+    model = SysVI(adata=adata, prior="vamp")
     model.train(
         max_epochs=2,
         batch_size=math.ceil(adata.n_obs / 2.0),
@@ -131,7 +131,7 @@ def test_model():
 
     # Check that embedding default works
     assert (
-        model.embed(
+        model.get_latent_representation(
             adata=adata,
         ).shape[0]
         == adata.shape[0]
@@ -139,7 +139,7 @@ def test_model():
 
     # Check that indices in embedding works
     idx = [1, 2, 3]
-    embed = model.embed(
+    embed = model.get_latent_representation(
         adata=adata,
         indices=idx,
         give_mean=True,
@@ -149,7 +149,7 @@ def test_model():
     # Check predicting mean/sample
     np.testing.assert_allclose(
         embed,
-        model.embed(
+        model.get_latent_representation(
             adata=adata,
             indices=idx,
             give_mean=True,
@@ -158,7 +158,7 @@ def test_model():
     with assert_raises(AssertionError):
         np.testing.assert_allclose(
             embed,
-            model.embed(
+            model.get_latent_representation(
                 adata=adata,
                 indices=idx,
                 give_mean=False,
@@ -169,7 +169,7 @@ def test_model():
     with assert_raises(AssertionError):
         np.testing.assert_allclose(
             embed,
-            model.embed(
+            model.get_latent_representation(
                 adata=adata,
                 indices=idx,
                 give_mean=True,

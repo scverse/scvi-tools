@@ -1,15 +1,15 @@
-from typing import Optional, Union
+from __future__ import annotations
 
 import pandas as pd
 
 
 def prepare_metadata(
     meta_data: pd.DataFrame,
-    cov_cat_keys: Optional[list] = None,
-    cov_cat_embed_keys: Optional[list] = None,
-    cov_cont_keys: Optional[list] = None,
-    categ_orders: Optional[dict] = None,
-    key_orders: Optional[dict] = None,
+    cov_cat_keys: list | None = None,
+    cov_cat_embed_keys: list | None = None,
+    cov_cont_keys: list | None = None,
+    categ_orders: list | None = None,
+    key_orders: list | None = None,
 ):
     """
     Prepare content of dataframe columns for model training (one hot encoding, encoding for embedding, ...)
@@ -42,7 +42,7 @@ def prepare_metadata(
 
     """
 
-    def get_categories_order(values: pd.Series, categories: Union[list, None] = None):
+    def get_categories_order(values: pd.Series, categories: list | None = None):
         """
         Helper to get order of categories based on values and optional list of categories
 

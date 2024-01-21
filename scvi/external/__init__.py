@@ -1,12 +1,12 @@
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
-from .csi.model import Model as SysVI
 from .gimvi import GIMVI
 from .poissonvi import POISSONVI
 from .scar import SCAR
 from .scbasset import SCBASSET
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
+from .sysvi import SysVI
 from .tangram import Tangram
 
 __all__ = [

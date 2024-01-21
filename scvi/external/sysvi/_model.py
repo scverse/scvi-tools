@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Sequence
-from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -14,41 +15,52 @@ from scvi.data.fields import (
     LayerField,
     ObsmField,
 )
-from scvi.external.csi.module import Module
-from scvi.model.base import BaseModelClass
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.utils import setup_anndata_dsp
 
-from ._training import TrainingCustom
+from ._module import SysVAE
+from ._trainingplans import TrainingPlanCustom
 from ._utils import prepare_metadata
 
 logger = logging.getLogger(__name__)
 
 
-class Model(TrainingCustom, BaseModelClass):
+class TrainingCustom(UnsupervisedTrainingMixin):
+    """Train method with custom TrainingPlan."""
+
+    # TODO could make custom Trainer (in a custom TrainRunner) to have in init params for early stopping
+    #  "loss" rather than "elbo" components in available param specifications - for now just use
+    #  a loss that is against the param specification
+
+    _training_plan_cls = TrainingPlanCustom
+
+
+class SysVI(TrainingCustom, BaseModelClass):
+    """Integration model based on cVAE with optional VampPrior and latent cycle-consistency loss.
+
+    Parameters
+    ----------
+    adata
+        AnnData object that has been registered via :meth:`~scvi-tools.SysVI.setup_anndata`.
+    prior
+        The prior distribution to be used. You can choose between "standard_normal" and "vamp".
+    n_prior_components
+        Number of prior components in VampPrior.
+    pseudoinputs_data_indices
+        By default VampPrior pseudoinputs are randomly selected from data.
+        Alternatively, one can specify pseudoinput indices using this parameter.
+    **model_kwargs
+        Keyword args for :class:`~scvi.external.sysvi.module.Module`
+    """
+
     def __init__(
         self,
         adata: AnnData,
         prior: Literal["standard_normal", "vamp"] = "vamp",
         n_prior_components=5,
-        pseudoinputs_data_indices: Optional[np.array] = None,
+        pseudoinputs_data_indices: np.array | None = None,
         **model_kwargs,
     ):
-        """Integration model based on cVAE with optional VampPrior and latent cycle-consistency loss.
-
-        Parameters
-        ----------
-        adata
-            AnnData object that has been registered via :meth:`~scvi-tools.SysVI.setup_anndata`.
-        prior
-            The prior distribution to be used. You can choose between "standard_normal" and "vamp".
-        n_prior_components
-            Number of prior components in VampPrior.
-        pseudoinputs_data_indices
-            By default VampPrior pseudoinputs are randomly selected from data.
-            Alternatively, one can specify pseudoinput indices using this parameter.
-        **model_kwargs
-            Keyword args for :class:`~scvi.external.csi.module.Module`
-        """
         super().__init__(adata)
 
         if prior == "vamp":
@@ -79,7 +91,7 @@ class Model(TrainingCustom, BaseModelClass):
         )
 
         # self.summary_stats provides information about anndata dimensions and other tensor info
-        self.module = Module(
+        self.module = SysVAE(
             n_input=adata.shape[1],
             n_cov_const=n_cov_const,
             cov_embed_sizes=cov_embed_sizes,
@@ -99,15 +111,15 @@ class Model(TrainingCustom, BaseModelClass):
         logger.info("The model has been initialized")
 
     @torch.no_grad()
-    def embed(
+    def get_latent_representation(
         self,
         adata: AnnData,
-        indices: Optional[Sequence[int]] = None,
+        indices: Sequence[int] | None = None,
         cycle: bool = False,
         give_mean: bool = True,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         as_numpy: bool = True,
-    ) -> Union[np.ndarray, torch.Tensor]:
+    ) -> np.ndarray | torch.Tensor:
         """Return the latent representation for each cell.
 
         Parameters
@@ -177,14 +189,14 @@ class Model(TrainingCustom, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        system_key: str,
-        layer: Optional[str] = None,
-        categorical_covariate_keys: Optional[list[str]] = None,
-        categorical_covariate_embed_keys: Optional[list[str]] = None,
-        continuous_covariate_keys: Optional[list[str]] = None,
-        covariate_categ_orders: Optional[dict] = None,
-        covariate_key_orders: Optional[dict] = None,
-        system_order: Optional[list[str]] = None,
+        batch_key: str,
+        layer: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        categorical_covariate_embed_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        covariate_categ_orders: dict | None = None,
+        covariate_key_orders: dict | None = None,
+        system_order: list[str] | None = None,
         **kwargs,
     ) -> AnnData:
         """Prepare adata for input to Model
@@ -193,8 +205,10 @@ class Model(TrainingCustom, BaseModelClass):
         ----------
         adata
             Adata object - will be modified in place.
-        system_key
-            Name of obs column with categorical system information.
+        batch_key
+            Name of the obs column with the substantial batch effect covariate,
+            referred to as system in the original publication (Hrovatin, et al., 2023).
+            Should be categorical.
         layer
             AnnData layer to use, default is X.
             Should contain normalized and log+1 transformed expression.
@@ -237,9 +251,9 @@ class Model(TrainingCustom, BaseModelClass):
 
         # Define order of system categories
         if system_order is None:
-            system_order = sorted(adata.obs[system_key].unique())
+            system_order = sorted(adata.obs[batch_key].unique())
         # Validate that the provided system_order matches the categories in adata.obs[system_key]
-        if set(system_order) != set(adata.obs[system_key].unique()):
+        if set(system_order) != set(adata.obs[batch_key].unique()):
             raise ValueError(
                 "Provided system_order does not match the categories in adata.obs[system_key]"
             )
@@ -251,7 +265,7 @@ class Model(TrainingCustom, BaseModelClass):
         adata.uns["system_order"] = system_order
         system_cat = pd.Series(
             pd.Categorical(
-                values=adata.obs[system_key], categories=system_order, ordered=True
+                values=adata.obs[batch_key], categories=system_order, ordered=True
             ),
             index=adata.obs.index,
             name="system",
@@ -263,13 +277,13 @@ class Model(TrainingCustom, BaseModelClass):
 
         # System must not be in cov
         if categorical_covariate_keys is not None:
-            if system_key in categorical_covariate_keys:
+            if batch_key in categorical_covariate_keys:
                 raise ValueError("system_key should not be within covariate keys")
         if categorical_covariate_embed_keys is not None:
-            if system_key in categorical_covariate_embed_keys:
+            if batch_key in categorical_covariate_embed_keys:
                 raise ValueError("system_key should not be within covariate keys")
         if continuous_covariate_keys is not None:
-            if system_key in continuous_covariate_keys:
+            if batch_key in continuous_covariate_keys:
                 raise ValueError("system_key should not be within covariate keys")
 
         # Prepare covariate training representations/embedding

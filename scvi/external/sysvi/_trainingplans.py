@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 from inspect import getfullargspec
-from typing import Literal, Union
+from typing import Literal
 
 import torch
-from torchmetrics import MetricCollection
 
-from scvi.external.csi.module import LossRecorder
-from scvi.module.base import BaseModuleClass
+from scvi.module.base import BaseModuleClass, LossOutput
 from scvi.train import TrainingPlan
 
 # TODO could make new metric class to not be called elbo metric as used for other metrics as well
@@ -13,6 +13,27 @@ from scvi.train._metrics import ElboMetric
 
 
 class WeightScaling:
+    """Linearly scale loss weights between start and end weight accordingly to the current training stage
+
+    Parameters
+    ----------
+    weight_start
+        Starting weight value
+    weight_end
+        End weight vlue
+    point_start
+        Training point to start scaling - before weight is weight_start
+        Since the epochs are counted after they are run,
+        the start point must be set to 0 to represent 1st epoch
+    point_end
+        Training point to end scaling - after weight is weight_end
+        Since the epochs are counted after they are run,
+        the start point must be set to n-1 to represent the last epoch
+    update_on
+        Define training progression based on epochs or steps
+
+    """
+
     def __init__(
         self,
         weight_start: float,
@@ -21,26 +42,6 @@ class WeightScaling:
         point_end: int,
         update_on: Literal["epoch", "step"] = "step",
     ):
-        """Linearly scale loss weights between start and end weight accordingly to the current training stage
-
-        Parameters
-        ----------
-        weight_start
-            Starting weight value
-        weight_end
-            End weight vlue
-        point_start
-            Training point to start scaling - before weight is weight_start
-            Since the epochs are counted after they are run,
-            the start point must be set to 0 to represent 1st epoch
-        point_end
-            Training point to end scaling - after weight is weight_end
-            Since the epochs are counted after they are run,
-            the start point must be set to n-1 to represent the last epoch
-        update_on
-            Define training progression based on epochs or steps
-
-        """
         self.weight_start = weight_start
         self.weight_end = weight_end
         self.point_start = point_start
@@ -91,34 +92,35 @@ class WeightScaling:
 
 
 class TrainingPlanCustom(TrainingPlan):
+    """Extends scvi TrainingPlan for custom support for other losses.
+
+    Parameters
+    ----------
+    args
+        Passed to parent
+    log_on_epoch
+        See on_epoch of lightning Module log method
+    log_on_step
+        See on_step of lightning Module log method
+    loss_weights
+        Specifies how losses should be weighted and how it may change during training
+        Dict with keys being loss names and values being loss weights.
+        Loss weights can be floats for constant weight or dict of params passed to WeightScaling object
+        Note that other loss weight params from the parent class are ignored
+        (e.g. n_steps/epochs_kl_warmup and min/max_kl_weight)
+    kwargs
+        Passed to parent.
+        As described in param loss_weights the loss weighting params of parent are ignored
+    """
+
     def __init__(
         self,
         module: BaseModuleClass,
-        loss_weights: Union[None, dict[str, Union[float, WeightScaling]]] = None,
+        loss_weights: None | dict[str, float | WeightScaling] = None,
         log_on_epoch: bool = True,
         log_on_step: bool = False,
         **kwargs,
     ):
-        """Extends scvi TrainingPlan for custom support for other losses.
-
-        Parameters
-        ----------
-        args
-            Passed to parent
-        log_on_epoch
-            See on_epoch of lightning Module log method
-        log_on_step
-            See on_step of lightning Module log method
-        loss_weights
-            Specifies how losses should be weighted and how it may change during training
-            Dict with keys being loss names and values being loss weights.
-            Loss weights can be floats for constant weight or dict of params passed to WeightScaling object
-            Note that other loss weight params from the parent class are ignored
-            (e.g. n_steps/epochs_kl_warmup and min/max_kl_weight)
-        kwargs
-            Passed to parent.
-            As described in param loss_weights the loss weighting params of parent are ignored
-        """
         super().__init__(module, **kwargs)
 
         self.log_on_epoch = log_on_epoch
@@ -159,7 +161,7 @@ class TrainingPlanCustom(TrainingPlan):
     @staticmethod
     def _create_elbo_metric_components(
         mode: Literal["train", "validation"], **kwargs
-    ) -> (ElboMetric, MetricCollection):
+    ) -> ElboMetric:
         """
         Initialize the combined loss collection.
 
@@ -174,19 +176,15 @@ class TrainingPlanCustom(TrainingPlan):
             Objects for storing the combined loss
 
         """
-        loss = ElboMetric("loss", mode, "obs")
-        collection = MetricCollection({metric.name: metric for metric in [loss]})
-        return loss, collection
+        loss = ElboMetric("loss", mode, "batch")
+        return loss
 
     def initialize_train_metrics(self):
         """Initialize train combined loss.
 
         TODO could add other losses
         """
-        (
-            self.loss_train,
-            self.train_metrics,
-        ) = self._create_elbo_metric_components(
+        self.loss_train = self._create_elbo_metric_components(
             mode="train", n_total=self.n_obs_training
         )
         self.loss_train.reset()
@@ -196,10 +194,7 @@ class TrainingPlanCustom(TrainingPlan):
 
         TODO could add other losses
         """
-        (
-            self.loss_val,
-            self.val_metrics,
-        ) = self._create_elbo_metric_components(
+        self.loss_val = self._create_elbo_metric_components(
             mode="validation", n_total=self.n_obs_validation
         )
         self.loss_val.reset()
@@ -207,8 +202,8 @@ class TrainingPlanCustom(TrainingPlan):
     @torch.no_grad()
     def compute_and_log_metrics(
         self,
-        loss_recorder: LossRecorder,
-        metrics: MetricCollection,
+        loss_output: LossOutput,
+        loss_metric: ElboMetric,
         mode: str,
     ):
         """
@@ -216,36 +211,34 @@ class TrainingPlanCustom(TrainingPlan):
 
         Parameters
         ----------
-        loss_recorder
+        loss_output
             LossRecorder object from scvi-tools module
-        metrics
-            The loss Metric Collection to update
+        loss_metric
+            The loss Metric to update
         mode
             Postfix string to add to the metric name of
             extra metrics. If train also logs the loss in progress bar
         """
-        n_obs_minibatch = loss_recorder.n_obs
-        loss_sum = loss_recorder.loss_sum
+        n_obs_minibatch = loss_output.n_obs_minibatch
+        loss = loss_output.loss
 
-        # use the torchmetric object
-        metrics.update(
-            loss=loss_sum,
+        loss_metric.update(
+            loss=loss,
             n_obs_minibatch=n_obs_minibatch,
         )
 
         self.log(
             f"loss_{mode}",
-            loss_recorder.loss_sum,
+            loss,
             on_step=self.log_on_step,
             on_epoch=self.log_on_epoch,
-            batch_size=n_obs_minibatch,
             prog_bar=True if mode == "train" else False,
             sync_dist=self.use_sync_dist,
         )
 
         # accumulate extra metrics passed to loss recorder
-        for extra_metric in loss_recorder.extra_metric_attrs:
-            met = getattr(loss_recorder, extra_metric)
+        for extra_metric in loss_output.extra_metrics_keys:
+            met = loss_output.extra_metrics[extra_metric]
             if isinstance(met, torch.Tensor):
                 if met.shape != torch.Size([]):
                     raise ValueError("Extra tracked metrics should be 0-d tensors.")
@@ -255,7 +248,6 @@ class TrainingPlanCustom(TrainingPlan):
                 met,
                 on_step=self.log_on_step,
                 on_epoch=self.log_on_epoch,
-                batch_size=n_obs_minibatch,
                 sync_dist=self.use_sync_dist,
             )
 
@@ -264,13 +256,13 @@ class TrainingPlanCustom(TrainingPlan):
             self.loss_kwargs.update({loss: self.compute_loss_weight(weight=weight)})
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         # combined loss is logged via compute_and_log_metrics
-        self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
+        self.compute_and_log_metrics(scvi_loss, self.loss_train, "train")
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         # Combined loss is logged via compute_and_log_metrics
-        self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
+        self.compute_and_log_metrics(scvi_loss, self.loss_val, "validation")
 
     @property
     def kl_weight(self):

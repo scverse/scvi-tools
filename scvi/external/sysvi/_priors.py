@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import abc
 from abc import abstractmethod
-from typing import Optional
 
 import torch
 from torch.distributions import Normal, kl_divergence
@@ -21,6 +22,24 @@ class StandardPrior(Prior):
 
 
 class VampPrior(Prior):
+    """VampPrior adapted from https://github.com/jmtomczak/intro_dgm/main/vaes/vae_priors_example.ipynb
+
+    Parameters
+    ----------
+    n_components
+        Prior components
+    n_input
+        Model input dimensions
+    n_cov
+        Model input covariate dimensions
+    encoder
+        The encoder
+    data
+        Data for pseudoinputs initialisation tuple(input,covs)
+    trainable_priors
+        Are pseudoinput parameters trainable or fixed
+    """
+
     # K - components, I - inputs, L - latent, N - samples
 
     def __init__(
@@ -29,26 +48,9 @@ class VampPrior(Prior):
         n_input,
         n_cov,
         encoder,
-        data: Optional[tuple[torch.tensor, torch.tensor]] = None,
+        data: tuple[torch.tensor, torch.tensor] | None = None,
         trainable_priors=True,
     ):
-        """VampPrior adapted from https://github.com/jmtomczak/intro_dgm/main/vaes/vae_priors_example.ipynb
-
-        Parameters
-        ----------
-        n_components
-            Prior components
-        n_input
-            Model input dimensions
-        n_cov
-            Model input covariate dimensions
-        encoder
-            The encoder
-        data
-            Data for pseudoinputs initialisation tuple(input,covs)
-        trainable_priors
-            Are pseudoinput parameters trainable or fixed
-        """
         super().__init__()
 
         self.encoder = encoder

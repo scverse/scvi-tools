@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections import OrderedDict
-from typing import Literal, Union
+from typing import Literal
 
 import torch
 from torch.distributions import Normal
@@ -16,18 +18,19 @@ from torch.nn import (
 
 
 class Embedding(Module):
-    def __init__(self, size, cov_embed_dims: int = 10, normalize: bool = True):
-        """Module for obtaining embedding of categorical covariates
+    """Module for obtaining embedding of categorical covariates
 
-        Parameters
-        ----------
-        size
-            N categories
-        cov_embed_dims
-            Dimensions of embedding
-        normalize
-            Apply layer normalization
-        """
+    Parameters
+    ----------
+    size
+        N categories
+    cov_embed_dims
+        Dimensions of embedding
+    normalize
+        Apply layer normalization
+    """
+
+    def __init__(self, size, cov_embed_dims: int = 10, normalize: bool = True):
         super().__init__()
 
         self.normalize = normalize
@@ -50,6 +53,27 @@ class Embedding(Module):
 
 
 class EncoderDecoder(Module):
+    """Module that can be used as probabilistic encoder or decoder
+
+    Based on inputs and optional covariates predicts output mean and var
+
+    Parameters
+    ----------
+    n_input
+    n_output
+    n_cov
+    n_hidden
+    n_layers
+    var_eps
+        See :class:`~scvi.external.sysvi.nn.VarEncoder`
+    var_mode
+        See :class:`~scvi.external.sysvi.nn.VarEncoder`
+    sample
+        Return samples from predicted distribution
+    kwargs
+        Passed to :class:`~scvi.external.sysvi.nn.Layers`
+    """
+
     def __init__(
         self,
         n_input: int,
@@ -62,26 +86,6 @@ class EncoderDecoder(Module):
         sample: bool = False,
         **kwargs,
     ):
-        """Module that can be used as probabilistic encoder or decoder
-
-        Based on inputs and optional covariates predicts output mean and var
-
-        Parameters
-        ----------
-        n_input
-        n_output
-        n_cov
-        n_hidden
-        n_layers
-        var_eps
-            See :class:`~scvi.external.csi.nn.VarEncoder`
-        var_mode
-            See :class:`~scvi.external.csi.nn.VarEncoder`
-        sample
-            Return samples from predicted distribution
-        kwargs
-            Passed to :class:`~scvi.external.csi.nn.Layers`
-        """
         super().__init__()
         self.sample = sample
 
@@ -99,7 +103,7 @@ class EncoderDecoder(Module):
         self.mean_encoder = Linear(n_hidden, n_output)
         self.var_encoder = VarEncoder(n_hidden, n_output, mode=var_mode, eps=var_eps)
 
-    def forward(self, x, cov: Union[torch.Tensor, None] = None):
+    def forward(self, x, cov: torch.Tensor | None = None):
         y = self.decoder_y(x=x, cov=cov)
         # TODO better handling of inappropriate edge-case values than nan_to_num or at least warn
         y_m = torch.nan_to_num(self.mean_encoder(y))
@@ -116,11 +120,45 @@ class EncoderDecoder(Module):
 
 
 class Layers(Module):
+    """A helper class to build fully-connected layers for a neural network.
+
+    Adapted from scVI FCLayers to use covariates more flexibly
+
+    Parameters
+    ----------
+    n_in
+        The dimensionality of the main input
+    n_out
+        The dimensionality of the output
+    n_cov
+        Dimensionality of covariates.
+        If there are no cov this should be set to None -
+        in this case cov will not be used.
+    n_layers
+        The number of fully-connected hidden layers
+    n_hidden
+        The number of nodes per hidden layer
+    dropout_rate
+        Dropout rate to apply to each of the hidden layers
+    use_batch_norm
+        Whether to have `BatchNorm` layers or not
+    use_layer_norm
+        Whether to have `LayerNorm` layers or not
+    use_activation
+        Whether to have layer activation or not
+    bias
+        Whether to learn bias in linear layers or not
+    inject_covariates
+        Whether to inject covariates in each layer, or just the first.
+    activation_fn
+        Which activation function to use
+    """
+
     def __init__(
         self,
         n_in: int,
         n_out: int,
-        n_cov: Union[int, None] = None,
+        n_cov: int | None = None,
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
@@ -131,39 +169,6 @@ class Layers(Module):
         inject_covariates: bool = True,
         activation_fn: Module = ReLU,
     ):
-        """A helper class to build fully-connected layers for a neural network.
-
-        Adapted from scVI FCLayers to use covariates more flexibly
-
-        Parameters
-        ----------
-        n_in
-            The dimensionality of the main input
-        n_out
-            The dimensionality of the output
-        n_cov
-            Dimensionality of covariates.
-            If there are no cov this should be set to None -
-            in this case cov will not be used.
-        n_layers
-            The number of fully-connected hidden layers
-        n_hidden
-            The number of nodes per hidden layer
-        dropout_rate
-            Dropout rate to apply to each of the hidden layers
-        use_batch_norm
-            Whether to have `BatchNorm` layers or not
-        use_layer_norm
-            Whether to have `LayerNorm` layers or not
-        use_activation
-            Whether to have layer activation or not
-        bias
-            Whether to learn bias in linear layers or not
-        inject_covariates
-            Whether to inject covariates in each layer, or just the first.
-        activation_fn
-            Which activation function to use
-        """
         super().__init__()
 
         self.inject_covariates = inject_covariates
@@ -230,7 +235,7 @@ class Layers(Module):
                     b = layer.bias.register_hook(_hook_fn_zero_out)
                     self.hooks.append(b)
 
-    def forward(self, x: torch.Tensor, cov: Union[torch.Tensor, None] = None):
+    def forward(self, x: torch.Tensor, cov: torch.Tensor | None = None):
         """
         Forward computation on ``x``.
 
@@ -270,6 +275,23 @@ class Layers(Module):
 
 
 class VarEncoder(Module):
+    """Encode variance (strictly positive).
+
+    Parameters
+    ----------
+    n_input
+        Number of input dimensions, used if mode is sample_feature
+    n_output
+        Number of variances to predict
+    mode
+        How to compute var
+        'sample_feature' - learn per sample and feature
+        'feature' - learn per feature, constant across samples
+        'linear' - linear with respect to input mean, var = a1 * mean + a0;
+         not suggested to be used due to bad implementation for positive constraining
+    eps
+    """
+
     def __init__(
         self,
         n_input: int,
@@ -277,22 +299,6 @@ class VarEncoder(Module):
         mode: Literal["sample_feature", "feature", "linear"],
         eps: float = 1e-4,
     ):
-        """Encode variance (strictly positive).
-
-        Parameters
-        ----------
-        n_input
-            Number of input dimensions, used if mode is sample_feature
-        n_output
-            Number of variances to predict
-        mode
-            How to compute var
-            'sample_feature' - learn per sample and feature
-            'feature' - learn per feature, constant across samples
-            'linear' - linear with respect to input mean, var = a1 * mean + a0;
-             not suggested to be used due to bad implementation for positive constraining
-        eps
-        """
         super().__init__()
 
         self.eps = eps

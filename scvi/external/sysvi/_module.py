@@ -1,19 +1,61 @@
-from typing import Optional, Union
+from __future__ import annotations
 
 import torch
 from typing_extensions import Literal
 
 from scvi import REGISTRY_KEYS
-from scvi.external.csi.nn import Embedding, EncoderDecoder
-from scvi.module.base import BaseModuleClass, auto_move_data
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
-from . import LossRecorder
+from ._base_components import Embedding, EncoderDecoder
 from ._priors import StandardPrior, VampPrior
 
 torch.backends.cudnn.benchmark = True
 
 
-class Module(BaseModuleClass):
+class SysVAE(BaseModuleClass):
+    """CVAE with optional VampPrior and latent cycle consistency loss.
+
+    Parameters
+    ----------
+    n_input
+        Number of input features.
+        Passed directly from Model.
+    n_cov_const
+        Dimensionality of covariate data that will not be further embedded.
+        Passed directly from Model.
+    cov_embed_sizes
+        Number of categories per every cov to be embedded, e.g. [cov1_n_categ, cov2_n_categ, ...].
+        Passed directly from Model.
+    n_system
+        Number of systems.
+        Passed directly from Model.
+    cov_embed_dims
+        Dimension for covariate embedding.
+    prior
+        Which prior distribution to use.
+        Passed directly from Model.
+    n_prior_components
+        If VampPrior - how many prior components to use.
+        Passed directly from Model.
+    trainable_priors
+        If VampPrior - should prior components be trainable.
+    pseudoinput_data
+        Initialisation data for VampPrior. Should match input tensors structure.
+        Passed directly from Model.
+    n_latent
+        Numer of latent space dimensions.
+    n_hidden
+        Number of nodes in hidden layers.
+    n_layers
+        Number of hidden layers.
+    dropout_rate
+        Dropout rate.
+    out_var_mode
+        See :class:`~scvi.external.sysvi.nn.VarEncoder`
+    enc_dec_kwargs
+        Additional kwargs passed to encoder and decoder.
+    """
+
     # TODO could disable computation of cycle if predefined that cycle wil not be used
 
     def __init__(
@@ -26,7 +68,7 @@ class Module(BaseModuleClass):
         prior: Literal["standard_normal", "vamp"] = "vamp",
         n_prior_components: int = 5,
         trainable_priors: bool = True,
-        pseudoinput_data: Optional[dict[str, torch.Tensor]] = None,
+        pseudoinput_data: dict[str, torch.Tensor] | None = None,
         n_latent: int = 15,
         n_hidden: int = 256,
         n_layers: int = 2,
@@ -34,48 +76,6 @@ class Module(BaseModuleClass):
         out_var_mode: str = "feature",
         **enc_dec_kwargs,
     ):
-        """CVAE with optional VampPrior and latent cycle consistency loss.
-
-        Parameters
-        ----------
-        n_input
-            Number of input features.
-            Passed directly from Model.
-        n_cov_const
-            Dimensionality of covariate data that will not be further embedded.
-            Passed directly from Model.
-        cov_embed_sizes
-            Number of categories per every cov to be embedded, e.g. [cov1_n_categ, cov2_n_categ, ...].
-            Passed directly from Model.
-        n_system
-            Number of systems.
-            Passed directly from Model.
-        cov_embed_dims
-            Dimension for covariate embedding.
-        prior
-            Which prior distribution to use.
-            Passed directly from Model.
-        n_prior_components
-            If VampPrior - how many prior components to use.
-            Passed directly from Model.
-        trainable_priors
-            If VampPrior - should prior components be trainable.
-        pseudoinput_data
-            Initialisation data for VampPrior. Should match input tensors structure.
-            Passed directly from Model.
-        n_latent
-            Numer of latent space dimensions.
-        n_hidden
-            Number of nodes in hidden layers.
-        n_layers
-            Number of hidden layers.
-        dropout_rate
-            Dropout rate.
-        out_var_mode
-            See :class:`~scvi.external.csi.nn.VarEncoder`
-        enc_dec_kwargs
-            Additional kwargs passed to encoder and decoder.
-        """
         super().__init__()
 
         self.embed_cov = len(cov_embed_sizes) > 0  # Will any covs be embedded
@@ -171,7 +171,7 @@ class Module(BaseModuleClass):
         return input_dict
 
     @auto_move_data
-    def _get_cov(self, tensors: dict[str, torch.Tensor]) -> Optional[torch.Tensor]:
+    def _get_cov(self, tensors: dict[str, torch.Tensor]) -> torch.Tensor | None:
         """Merge all covariates into single tensor, including embedding of covariates"""
         cov = []
         if self.n_cov_const > 0:
@@ -187,12 +187,12 @@ class Module(BaseModuleClass):
         return cov
 
     @staticmethod
-    def _merge_cov(cov: Optional[torch.Tensor], system: torch.Tensor) -> torch.Tensor:
+    def _merge_cov(cov: torch.Tensor | None, system: torch.Tensor) -> torch.Tensor:
         """Merge full covariate data and system data to get cov for model input"""
         return torch.cat([cov, system], dim=1) if cov is not None else system
 
     @staticmethod
-    def _mock_cov(cov: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+    def _mock_cov(cov: torch.Tensor | None) -> torch.Tensor | None:
         """Make mock (all 0) covariates for cycle"""
         return torch.zeros_like(cov) if cov is not None else None
 
@@ -256,16 +256,16 @@ class Module(BaseModuleClass):
     def forward(
         self,
         tensors,
-        get_inference_input_kwargs: Optional[dict] = None,
-        get_generative_input_kwargs: Optional[dict] = None,
-        inference_kwargs: Optional[dict] = None,
-        generative_kwargs: Optional[dict] = None,
-        loss_kwargs: Optional[dict] = None,
+        get_inference_input_kwargs: dict | None = None,
+        get_generative_input_kwargs: dict | None = None,
+        inference_kwargs: dict | None = None,
+        generative_kwargs: dict | None = None,
+        loss_kwargs: dict | None = None,
         compute_loss=True,
-    ) -> Union[
-        tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]],
-        tuple[dict[str, torch.Tensor], dict[str, torch.Tensor], LossRecorder],
-    ]:
+    ) -> (
+        tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
+        | tuple[dict[str, torch.Tensor], dict[str, torch.Tensor], LossOutput]
+    ):
         """
         Forward pass through the network.
 
@@ -399,13 +399,14 @@ class Module(BaseModuleClass):
             + z_distance_cyc * z_distance_cycle_weight
         )
 
-        return LossRecorder(
-            n_obs=loss.shape[0],
+        return LossOutput(
+            n_obs_minibatch=loss.shape[0],
             loss=loss.mean(),
-            loss_sum=loss.sum(),
-            reconstruction_loss=reconst_loss.sum(),
-            kl_local=kl_divergence_z.sum(),
-            z_distance_cycle=z_distance_cyc.sum(),
+            extra_metrics={
+                "reconstruction_loss": reconst_loss.mean(),
+                "kl_local": kl_divergence_z.mean(),
+                "z_distance_cycle": z_distance_cyc.mean(),
+            },
         )
 
     @staticmethod
@@ -448,7 +449,7 @@ class Module(BaseModuleClass):
         raise NotImplementedError("")
 
 
-def _get_dict_if_none(param: Optional[dict]) -> dict:
+def _get_dict_if_none(param: dict | None) -> dict:
     """If not a dict return empty dict"""
     param = {} if not isinstance(param, dict) else param
     return param
