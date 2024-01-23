@@ -15,7 +15,6 @@ from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -607,7 +606,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         n_samples_overall: int | None = None,
-        transform_batch: Sequence[Number | str] | None = None,
+        transform_batch: Sequence[int | str] | None = None,
         gene_list: Sequence[str] | None = None,
         use_z_mean: bool = True,
         n_samples: int = 1,
@@ -942,7 +941,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
-        transform_batch: Sequence[Number | str] | None = None,
+        transform_batch: Sequence[int | str] | None = None,
         protein_list: Sequence[str] | None = None,
         n_samples: int = 1,
         batch_size: int | None = None,

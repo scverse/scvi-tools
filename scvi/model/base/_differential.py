@@ -14,7 +14,6 @@ from sklearn.covariance import EllipticEnvelope
 from sklearn.mixture import GaussianMixture
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
 from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
@@ -72,8 +71,8 @@ class DifferentialComputation:
         idx1: list[bool] | np.ndarray,
         idx2: list[bool] | np.ndarray,
         mode: Literal["vanilla", "change"] = "vanilla",
-        batchid1: Sequence[Number | str] | None = None,
-        batchid2: Sequence[Number | str] | None = None,
+        batchid1: Sequence[int | str] | None = None,
+        batchid2: Sequence[int | str] | None = None,
         use_observed_batches: bool | None = False,
         n_samples: int = 5000,
         use_permutation: bool = False,
@@ -383,7 +382,7 @@ class DifferentialComputation:
         selection: list[bool] | np.ndarray,
         n_samples: int | None = 5000,
         n_samples_per_cell: int | None = None,
-        batchid: Sequence[Number | str] | None = None,
+        batchid: Sequence[int | str] | None = None,
         use_observed_batches: bool | None = False,
         give_mean: bool | None = False,
     ) -> dict:

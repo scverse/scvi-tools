@@ -10,7 +10,6 @@ import torch
 
 from scvi.utils import classproperty
 
-Number = int | float
 AnnOrMuData = anndata.AnnData | mudata.MuData
 Tensor = torch.Tensor | jnp.ndarray
 LossRecord = dict[str, Tensor] | Tensor

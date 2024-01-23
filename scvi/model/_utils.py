@@ -8,7 +8,6 @@ import numpy as np
 import scipy.sparse as sp_sparse
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
 from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
@@ -204,7 +203,7 @@ def scatac_raw_counts_properties(
 
 def _get_batch_code_from_category(
     adata_manager: AnnDataManager,
-    category: list[Number | str] | Number | str,
+    category: list[int | str] | int | str,
 ):
     if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]

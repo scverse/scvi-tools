@@ -14,7 +14,6 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
 from scvi.data import AnnDataManager, fields
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
@@ -362,7 +361,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         adata=None,
         indices=None,
         n_samples_overall: int | None = None,
-        transform_batch: Sequence[Number | str] | None = None,
+        transform_batch: Sequence[int | str] | None = None,
         gene_list: Sequence[str] | None = None,
         protein_list: Sequence[str] | None = None,
         library_size: float | Literal["latent"] | None = 1,
@@ -554,7 +553,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
-        transform_batch: Sequence[Number | str] | None = None,
+        transform_batch: Sequence[int | str] | None = None,
         protein_list: Sequence[str] | None = None,
         n_samples: int = 1,
         batch_size: int | None = None,
@@ -679,7 +678,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         adata=None,
         indices=None,
         n_samples_overall=None,
-        transform_batch: Sequence[Number | str] | None = None,
+        transform_batch: Sequence[int | str] | None = None,
         scale_protein=False,
         batch_size: int | None = None,
         sample_protein_mixing=False,
@@ -965,7 +964,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_samples: int = 10,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Sequence[Number | str] | None = None,
+        transform_batch: Sequence[int | str] | None = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
         log_transform: bool = False,
     ) -> pd.DataFrame:

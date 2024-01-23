@@ -15,7 +15,6 @@ from anndata import AnnData
 from pyro.distributions.util import deep_to
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
 from scvi.distributions._utils import DistributionConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.module.base._decorators import _move_data_to_device
@@ -148,7 +147,7 @@ class RNASeqMixin:
         self,
         adata: AnnData | None = None,
         indices: list[int] | None = None,
-        transform_batch: list[Number | str] | None = None,
+        transform_batch: list[int | str] | None = None,
         gene_list: list[str] | None = None,
         library_size: float | Literal["latent"] = 1,
         n_samples: int = 1,
@@ -559,7 +558,7 @@ class RNASeqMixin:
         n_samples: int = 10,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: list[Number | str] | None = None,
+        transform_batch: list[int | str] | None = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
     ) -> pd.DataFrame:
         """Generate gene-gene correlation matrix using scvi uncertainty and expression.

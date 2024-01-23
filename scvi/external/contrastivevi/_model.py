@@ -11,7 +11,7 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number, Tunable
+from scvi._types import Tunable
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -338,7 +338,7 @@ class ContrastiveVI(BaseModelClass):
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
-        transform_batch: Sequence[Number | str] | None = None,
+        transform_batch: Sequence[int | str] | None = None,
         gene_list: Sequence[str] | None = None,
         library_size: float | str = 1.0,
         n_samples: int = 1,
@@ -495,7 +495,7 @@ class ContrastiveVI(BaseModelClass):
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
-        transform_batch: Sequence[Number | str] | None = None,
+        transform_batch: Sequence[int | str] | None = None,
         gene_list: Sequence[str] | None = None,
         library_size: float | str = 1.0,
         n_samples: int = 1,
@@ -565,7 +565,7 @@ class ContrastiveVI(BaseModelClass):
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
-        transform_batch: Sequence[Number | str] | None = None,
+        transform_batch: Sequence[int | str] | None = None,
         gene_list: Sequence[str] | None = None,
         library_size: float | str = 1,
         n_samples: int = 1,
