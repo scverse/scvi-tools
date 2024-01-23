@@ -1,15 +1,9 @@
-import numpy as np
-from scipy import sparse
-
-from scvi.data import (
-    add_dna_sequence,
-    poisson_gene_selection,
-    reads_to_fragments,
-    synthetic_iid,
-)
-
-
 def test_poisson_gene_selection():
+    import numpy as np
+    from pytest import raises
+
+    from scvi.data import poisson_gene_selection, synthetic_iid
+
     n_top_genes = 10
     adata = synthetic_iid()
     poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes)
@@ -24,13 +18,22 @@ def test_poisson_gene_selection():
     for key in keys:
         assert key in adata.var.keys()
     assert np.sum(adata.var["highly_variable"]) == n_top_genes
-    adata = synthetic_iid()
-    adata.X = sparse.csr_matrix(adata.X)
+    adata = synthetic_iid(sparse_format="csr_matrix")
     poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes)
     assert np.sum(adata.var["highly_variable"]) == n_top_genes
 
+    X = adata.X
+    adata.X = -X
+    with raises(ValueError):
+        poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes)
+    adata.X = 0.25 * X
+    with raises(ValueError):
+        poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes)
+
 
 def test_add_dna_sequence(save_path: str):
+    from scvi.data import add_dna_sequence, synthetic_iid
+
     adata = synthetic_iid()
     adata = adata[:, :2].copy()
     adata.var["chr"] = "chr1"
@@ -50,13 +53,14 @@ def test_add_dna_sequence(save_path: str):
 
 
 def test_reads_to_fragments():
+    from scvi.data import reads_to_fragments, synthetic_iid
+
     adata = synthetic_iid()
     reads_to_fragments(adata)
 
     assert "fragments" in adata.layers.keys()
 
-    adata = synthetic_iid()
-    adata.X = sparse.csr_matrix(adata.X)
+    adata = synthetic_iid(sparse_format="csr_matrix")
     reads_to_fragments(adata)
 
     assert "fragments" in adata.layers.keys()

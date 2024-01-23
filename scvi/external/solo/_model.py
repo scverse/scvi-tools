@@ -33,6 +33,8 @@ LABELS_KEY = "_solo_doub_sim"
 class SOLO(BaseModelClass):
     """Doublet detection in scRNA-seq :cite:p:`Bernstein20`.
 
+    Original implementation: https://github.com/calico/solo.
+
     Most users will initialize the model using the class method
     :meth:`~scvi.external.SOLO.from_scvi_model`, which takes as
     input a pre-trained :class:`~scvi.model.SCVI` object.

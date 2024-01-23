@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
-    """Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez21`. Most users will use the alternate constructor (see example).
+    """Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez22`. Most users will use the alternate constructor (see example).
 
     Parameters
     ----------
@@ -62,6 +62,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/spatial/DestVI_tutorial`
+    2. :doc:`/tutorials/notebooks/spatial/DestVI_in_R`
     """
 
     _module_cls = MRDeconv

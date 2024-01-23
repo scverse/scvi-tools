@@ -5,7 +5,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.0.4"
+version = "1.1.0rc2"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -70,7 +70,6 @@ editing = [
     "flake8",
     "jupyter",
     "nbformat",
-    "nbconvert",
     "pre-commit",
     "ruff",
 ]  # dependencies for editing and committing code
@@ -99,6 +98,7 @@ autotune = [
     "scib-metrics>=0.4.1",
     "tensorboard",
 ]  # scvi.autotune
+aws = ["boto3"] # scvi.hub.HubModel.pull_from_s3
 census = ["cellxgene-census"]  # scvi.data.cellxgene
 hub = ["huggingface_hub"]  # scvi.hub dependencies
 pymde = ["pymde"]  # scvi.model.utils.mde dependencies
@@ -106,11 +106,13 @@ regseq = ["biopython>=1.81", "genomepy"]  # scvi.data.add_dna_sequence
 loompy = ["loompy>=3.0.6"]  # read loom
 scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
 optional = [
-    "scvi-tools[autotune,census,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,census,hub,loompy,pymde,regseq,scanpy]"
 ]  # all optional user functionality
 
 tutorials = [
     "cell2location",
+    "gdown",
+    "jupyter",
     "leidenalg",
     "muon",
     "plotnine",

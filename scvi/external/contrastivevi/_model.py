@@ -14,7 +14,7 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.autotune._types import Tunable
+from scvi._types import Tunable
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -68,6 +68,12 @@ class ContrastiveVI(BaseModelClass):
     wasserstein_penalty
         Weight of the Wasserstein distance loss that further discourages background
         shared variations from leaking into the salient latent space.
+
+    Notes
+    -----
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/tutorials/notebooks/scrna/contrastiveVI_tutorial`
     """
 
     _module_cls = ContrastiveVAE
@@ -167,7 +173,7 @@ class ContrastiveVI(BaseModelClass):
             Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
             sequential order of the data according to `validation_size` and `train_size` percentages.
         load_sparse_tensor
-            `EXPERIMENTAL` If ``True``, loads data with sparse CSR or CSC layout as a
+            ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
             :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
             GPUs, depending on the sparsity of the data.
         batch_size

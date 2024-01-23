@@ -9,7 +9,7 @@ from torch.distributions import kl_divergence as kld
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi.autotune._types import Tunable
+from scvi._types import Tunable
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,

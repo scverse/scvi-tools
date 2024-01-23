@@ -8,7 +8,7 @@ from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi.autotune._types import Tunable
+from scvi._types import Tunable
 from scvi.data import _constants
 from scvi.model.base import BaseModelClass
 from scvi.module.base import LossOutput, auto_move_data
@@ -396,10 +396,16 @@ class SCANVAE(VAE):
         )
 
     def on_load(self, model: BaseModelClass):
-        manager = model.get_anndata_manager(model.adata)
-        version_split = manager.registry[_constants._SCVI_VERSION_KEY].split(".")
+        manager = model.get_anndata_manager(model.adata, required=True)
+        source_version = manager._source_registry[_constants._SCVI_VERSION_KEY]
+        version_split = source_version.split(".")
+
         if int(version_split[0]) >= 1 and int(version_split[1]) >= 1:
             return
+
+        # need this if <1.1 model is resaved with >=1.1 as new registry is
+        # updated on setup
+        manager.registry[_constants._SCVI_VERSION_KEY] = source_version
 
         # pre 1.1 logits fix
         model_kwargs = model.init_params_.get("model_kwargs", {})

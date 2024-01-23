@@ -4,7 +4,7 @@ from typing import Optional, Union
 
 from anndata import AnnData, read_h5ad
 
-from scvi._decorators import dependencies
+from scvi.utils import dependencies
 
 
 def _parse_dataset_id(url: str):

@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 from scipy.sparse import spmatrix
 
+from scvi import settings
 from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
 
@@ -18,6 +19,7 @@ def mde(
     data: np.ndarray | pd.DataFrame | spmatrix | torch.Tensor,
     accelerator: str = "auto",
     device: int | str = "auto",
+    seed: int | None = None,
     **kwargs,
 ) -> np.ndarray:
     """Util to run :func:`pymde.preserve_neighbors` for visualization of scvi-tools embeddings.
@@ -29,6 +31,9 @@ def mde(
         in scvi-tools that produces an embedding (e.g., :class:`~scvi.model.SCVI`.)
     %(param_accelerator)s
     %(param_devices)s
+    seed
+        Random seed for reproducibility passed into :func:`pymde.seed`. Defaults to
+        :attr:`scvi.settings.seed`.
     kwargs
         Keyword args to :func:`pymde.preserve_neighbors`
 
@@ -63,6 +68,11 @@ def mde(
         raise ImportError(
             "Please install pymde package via `pip install pymde`"
         ) from err
+
+    if seed is None and settings.seed is not None:
+        seed = settings.seed
+    if seed is not None:
+        pymde.seed(seed)
 
     if isinstance(data, pd.DataFrame):
         data = data.values

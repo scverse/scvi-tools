@@ -33,6 +33,8 @@ B = 10
 class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     """Reimplementation of CellAssign for reference-based annotation :cite:p:`Zhang19`.
 
+    Original implementation: https://github.com/irrationone/cellassign.
+
     Parameters
     ----------
     adata
@@ -60,6 +62,10 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     Size factors in the R implementation of CellAssign are computed using scran. An approximate approach
     computes the sum of UMI counts (library size) over all genes and divides by the mean library size.
+
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/tutorials/notebooks/scrna/cellassign_tutorial`
     """
 
     def __init__(

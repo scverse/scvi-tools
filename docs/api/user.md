@@ -58,6 +58,7 @@ import scvi
    external.Tangram
    external.SCBASSET
    external.ContrastiveVI
+   external.POISSONVI
 
 ```
 

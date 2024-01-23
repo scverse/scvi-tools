@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """Automatic identification of ZI genes :cite:p:`Clivio19`.
+    """Automatic identification of zero-inflated genes :cite:p:`Clivio19`.
 
     Parameters
     ----------

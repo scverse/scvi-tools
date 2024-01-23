@@ -9,9 +9,8 @@ import pandas as pd
 import torch
 from scipy.sparse import issparse
 
-from scvi._decorators import dependencies
 from scvi.model._utils import parse_device_args
-from scvi.utils import track
+from scvi.utils import dependencies, track
 from scvi.utils._docstrings import devices_dsp
 
 from ._utils import _check_nonnegative_integers
@@ -93,7 +92,9 @@ def poisson_gene_selection(
     """
     data = adata.layers[layer] if layer is not None else adata.X
     if _check_nonnegative_integers(data) is False:
-        raise ValueError("`poisson_gene_selection` expects " "raw count data.")
+        raise ValueError(
+            "`poisson_gene_selection` expects raw count data (non-negative integers)."
+        )
 
     _, _, device = parse_device_args(
         accelerator=accelerator,

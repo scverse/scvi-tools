@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from scvi.autotune._types import Tunable
+from scvi._types import Tunable
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner
@@ -48,7 +48,7 @@ class UnsupervisedTrainingMixin:
             Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
             sequential order of the data according to `validation_size` and `train_size` percentages.
         load_sparse_tensor
-            `EXPERIMENTAL` If ``True``, loads data with sparse CSR or CSC layout as a
+            ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
             :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
             GPUs, depending on the sparsity of the data.
         batch_size

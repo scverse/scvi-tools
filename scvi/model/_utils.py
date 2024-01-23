@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def use_distributed_sampler(strategy: Union[str, Strategy]) -> bool:
-    """Return whether to use a distributed sampler.
+    """``EXPERIMENTAL`` Return whether to use a distributed sampler.
 
     Currently only supports DDP.
     """

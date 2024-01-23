@@ -102,10 +102,10 @@ class ModelTuner:
             fractional allocations are supported.
         experiment_name
             Name of the experiment, used for logging purposes. Defaults to a unique
-            string with the format `"tune_{model_cls}_{timestamp}"`.
+            string formatted with the current timestamp and model class name.
         logging_dir
-            Directory to store experiment logs. Defaults to a directory named `ray` in
-            the current working directory.
+            Directory to store experiment logs. Defaults to a directory named ``"autotune"``
+            inside ``scvi.settings.logging_dir``.
 
         Returns
         -------

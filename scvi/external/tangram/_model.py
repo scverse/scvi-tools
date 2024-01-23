@@ -29,10 +29,9 @@ def _asarray(x: np.ndarray, device: Device) -> jnp.ndarray:
 class Tangram(BaseModelClass):
     """Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell RNA-seq data to spatial data.
 
-    Currently the "cells" and "constrained" modes are implemented.
+    Original implementation: https://github.com/broadinstitute/Tangram.
 
-    Original code:
-    https://github.com/broadinstitute/Tangram.
+    Currently the "cells" and "constrained" modes are implemented.
 
     Parameters
     ----------
