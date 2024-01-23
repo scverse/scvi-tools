@@ -1,11 +1,11 @@
 import pytest
 
-import scvi
+from scvi.autotune import TunerManager
+from scvi.model import SCVI
 
 
 def test_tuner_manager_init():
-    model_cls = scvi.model.SCVI
-    manager = scvi.autotune.TunerManager(model_cls)
+    manager = TunerManager(SCVI)
     assert hasattr(manager, "_model_cls")
     assert hasattr(manager, "_defaults")
     assert hasattr(manager, "_registry")
@@ -16,8 +16,7 @@ def test_tuner_manager_init():
 
 
 def test_tuner_manager_basic_validation():
-    model_cls = scvi.model.SCVI
-    manager = scvi.autotune.TunerManager(model_cls)
+    manager = TunerManager(SCVI)
 
     # invalid params should raise an exception
     with pytest.raises(ValueError):

@@ -1,4 +1,3 @@
-import scvi
 from scvi._types import Tunable, TunableMixin
 
 
@@ -28,8 +27,10 @@ class DummyModel(TunableMixin, DummyTrainingMixin):
 
 
 def test_tunable_mixin():
+    from scvi.autotune import TunerManager
+
     model_cls = DummyModel
-    manager = scvi.autotune.TunerManager(model_cls)
+    manager = TunerManager(model_cls)
 
     # check all tunables are registered
     registry = manager._registry["tunables"]

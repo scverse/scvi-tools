@@ -1,18 +1,17 @@
-import scvi
 from scvi.autotune import ModelTuner
+from scvi.data import synthetic_iid
+from scvi.model import SCVI
 
 
 def test_model_tuner_init():
-    model_cls = scvi.model.SCVI
-    ModelTuner(model_cls)
+    ModelTuner(SCVI)
 
 
 def test_model_tuner_fit(save_path: str):
-    model_cls = scvi.model.SCVI
-    tuner = ModelTuner(model_cls)
+    tuner = ModelTuner(SCVI)
 
-    adata = scvi.data.synthetic_iid()
-    model_cls.setup_anndata(adata)
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata)
     results = tuner.fit(
         adata,
         use_defaults=True,
@@ -24,7 +23,6 @@ def test_model_tuner_fit(save_path: str):
 
 
 def test_model_tuner_info():
-    model_cls = scvi.model.SCVI
-    tuner = ModelTuner(model_cls)
+    tuner = ModelTuner(SCVI)
 
     tuner.info()

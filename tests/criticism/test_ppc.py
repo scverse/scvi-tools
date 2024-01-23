@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 from anndata import AnnData
-from sparse import GCXS
-from xarray import Dataset
 
-from scvi.criticism import PosteriorPredictiveCheck as PPC
 from scvi.data import synthetic_iid
-from scvi.model import SCVI
 
 
 def get_ppc_with_samples(
     adata: AnnData, n_samples: int = 2, indices: list[int] | None = None
 ):
+    from scvi.criticism import PosteriorPredictiveCheck as PPC
+    from scvi.model import SCVI
+
     # create and train models
     SCVI.setup_anndata(
         adata,
@@ -37,6 +35,10 @@ def get_ppc_with_samples(
 
 
 def test_ppc_init():
+    import numpy as np
+    from sparse import GCXS
+    from xarray import Dataset
+
     adata = synthetic_iid()
     ppc, models_dict = get_ppc_with_samples(adata, n_samples=42)
     assert isinstance(ppc.raw_counts, GCXS)
