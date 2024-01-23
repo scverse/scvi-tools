@@ -33,7 +33,7 @@ from scvi.model.utils import use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils import devices_dsp, setup_anndata_dsp
 
-from ._contrastive_data_splitting import ContrastiveDataSplitter
+from ._data_splitting import ContrastiveDataSplitter
 from ._module import ContrastiveVAE
 
 logger = logging.getLogger(__name__)

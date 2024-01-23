@@ -7,7 +7,7 @@ from scvi.data import AnnDataManager
 from scvi.dataloaders import DataSplitter
 from scvi.dataloaders._data_splitting import validate_data_split
 
-from ._contrastive_dataloader import ContrastiveDataLoader
+from ._dataloader import ContrastiveDataLoader
 
 
 class ContrastiveDataSplitter(DataSplitter):

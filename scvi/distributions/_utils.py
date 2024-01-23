@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 import torch
+from torch import Tensor
+from torch.distributions import Distribution
 
 
 def subset_distribution(
-    my_distribution: torch.distributions.Distribution,
-    index: torch.Tensor,
+    dist: Distribution,
+    index: Tensor,
     dim: int = 0,
 ) -> torch.distributions.Distribution:
     """Utility function to subset the parameter of a Pytorch distribution."""
-    return my_distribution.__class__(
+    return dist.__class__(
         **{
-            name: torch.index_select(
-                getattr(my_distribution, name), dim=dim, index=index
-            )
-            for name in my_distribution.arg_constraints.keys()
+            name: torch.index_select(getattr(dist, name), dim=dim, index=index)
+            for name in dist.arg_constraints.keys()
         }
     )
 

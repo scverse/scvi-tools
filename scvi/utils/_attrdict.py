@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from ml_collections.config_dict import FrozenConfigDict
 
 

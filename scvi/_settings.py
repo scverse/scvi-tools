@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 import os
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal
 
 import torch
 from lightning.pytorch import seed_everything
@@ -99,7 +101,7 @@ class ScviConfig:
         return self._logging_dir
 
     @logging_dir.setter
-    def logging_dir(self, logging_dir: Union[str, Path]):
+    def logging_dir(self, logging_dir: str | Path):
         self._logging_dir = Path(logging_dir).resolve()
 
     @property
@@ -205,7 +207,7 @@ class ScviConfig:
         return self._jax_gpu
 
     @jax_preallocate_gpu_memory.setter
-    def jax_preallocate_gpu_memory(self, value: Union[float, bool]):
+    def jax_preallocate_gpu_memory(self, value: float | bool):
         # see https://jax.readthedocs.io/en/latest/gpu_memory_allocation.html#gpu-memory-allocation
         if value is False:
             os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
