@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from math import ceil, floor
-from typing import Optional, Union
 
 import lightning.pytorch as pl
 import numpy as np
@@ -21,7 +22,7 @@ from scvi.utils import devices_dsp, parse_device_args
 
 
 def validate_data_split(
-    n_samples: int, train_size: float, validation_size: Optional[float] = None
+    n_samples: int, train_size: float, validation_size: float | None = None
 ):
     """Check data splitting parameters and return n_train and n_val.
 
@@ -102,7 +103,7 @@ class DataSplitter(pl.LightningDataModule):
         self,
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
         pin_memory: bool = False,
@@ -121,7 +122,7 @@ class DataSplitter(pl.LightningDataModule):
             self.adata_manager.adata.n_obs, self.train_size, self.validation_size
         )
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, stage: str | None = None):
         """Split indices in train/test/val sets."""
         n_train = self.n_train
         n_val = self.n_val
@@ -231,9 +232,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self,
         adata_manager: AnnDataManager,
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
-        n_samples_per_label: Optional[int] = None,
+        n_samples_per_label: int | None = None,
         pin_memory: bool = False,
         **kwargs,
     ):
@@ -260,7 +261,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, stage: str | None = None):
         """Split indices in train/test/val sets."""
         n_labeled_idx = len(self._labeled_indices)
         n_unlabeled_idx = len(self._unlabeled_indices)
@@ -410,13 +411,13 @@ class DeviceBackedDataSplitter(DataSplitter):
         self,
         adata_manager: AnnDataManager,
         train_size: float = 1.0,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
+        device: int | str = "auto",
         pin_memory: bool = False,
         shuffle: bool = False,
         shuffle_test_val: bool = False,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -433,7 +434,7 @@ class DeviceBackedDataSplitter(DataSplitter):
             accelerator=accelerator, devices=device, return_device="torch"
         )
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, stage: str | None = None):
         """Create the train, validation, and test indices."""
         super().setup()
 

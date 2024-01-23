@@ -11,8 +11,9 @@ from lightning.pytorch.trainer.connectors.accelerator_connector import (
 )
 
 from scvi import settings
-from scvi.utils import devices_dsp
-from scvi.utils._exceptions import InvalidParameterError
+
+from ._docstrings import devices_dsp
+from ._exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
 

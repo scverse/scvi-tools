@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from scvi._types import AnnOrMuData
 from scvi.model.base import BaseModelClass
 

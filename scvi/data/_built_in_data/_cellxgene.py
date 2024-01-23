@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import os
 import re
-from typing import Optional, Union
 
 from anndata import AnnData, read_h5ad
 
@@ -18,10 +19,10 @@ def _parse_dataset_id(url: str):
 @dependencies("cellxgene_census")
 def _load_cellxgene_dataset(
     url: str,
-    filename: Optional[str] = None,
+    filename: str | None = None,
     save_path: str = "data/",
     return_path: bool = False,
-) -> Union[AnnData, str]:
+) -> AnnData | str:
     """Loads a file from `cellxgene <https://cellxgene.cziscience.com/>`_ portal.
 
     Parameters

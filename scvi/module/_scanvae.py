@@ -1,5 +1,7 @@
-from collections.abc import Iterable, Sequence
-from typing import Literal, Optional
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Literal
 
 import numpy as np
 import torch
@@ -90,7 +92,7 @@ class SCANVAE(VAE):
         n_latent: Tunable[int] = 10,
         n_layers: Tunable[int] = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: list[int] | None = None,
         dropout_rate: Tunable[float] = 0.1,
         dispersion: Tunable[
             Literal["gene", "gene-batch", "gene-label", "gene-cell"]
@@ -101,7 +103,7 @@ class SCANVAE(VAE):
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
         linear_classifier: bool = False,
-        classifier_parameters: Optional[dict] = None,
+        classifier_parameters: dict | None = None,
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
         **vae_kwargs,
@@ -203,9 +205,9 @@ class SCANVAE(VAE):
     def classify(
         self,
         x: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        cont_covs: Optional[torch.Tensor] = None,
-        cat_covs: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        cont_covs: torch.Tensor | None = None,
+        cat_covs: torch.Tensor | None = None,
         use_posterior_mean: bool = True,
     ) -> torch.Tensor:
         """Forward pass through the encoder and classifier.

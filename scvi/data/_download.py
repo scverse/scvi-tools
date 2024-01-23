@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import logging
 import os
 import urllib
-from typing import Optional
 
 import numpy as np
 
@@ -10,7 +11,7 @@ from scvi.utils import track
 logger = logging.getLogger(__name__)
 
 
-def _download(url: Optional[str], save_path: str, filename: str):
+def _download(url: str | None, save_path: str, filename: str):
     """Writes data from url to file."""
     if os.path.exists(os.path.join(save_path, filename)):
         logger.info(f"File {os.path.join(save_path, filename)} already downloaded")

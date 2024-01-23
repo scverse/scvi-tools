@@ -9,7 +9,7 @@ class InvalidParameterError(Exception):
         param: str,
         value: Any,
         valid: Optional[list[Any]] = None,
-        additional_message: Optional[str] = None,
+        additional_message: str | None = None,
     ):
         self.message = f"Invalid value for `{param}`: {value}."
         if valid is not None:

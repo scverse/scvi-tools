@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import logging
 import warnings
 from copy import deepcopy
-from typing import Optional, Union
 
 import anndata
 import numpy as np
@@ -32,10 +33,10 @@ class ArchesMixin:
     def load_query_data(
         cls,
         adata: AnnData,
-        reference_model: Union[str, BaseModelClass],
+        reference_model: str | BaseModelClass,
         inplace_subset_query_vars: bool = False,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
+        device: int | str = "auto",
         unfrozen: bool = False,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
@@ -162,10 +163,10 @@ class ArchesMixin:
     @staticmethod
     def prepare_query_anndata(
         adata: AnnData,
-        reference_model: Union[str, BaseModelClass],
+        reference_model: str | BaseModelClass,
         return_reference_var_names: bool = False,
         inplace: bool = True,
-    ) -> Optional[Union[AnnData, pd.Index]]:
+    ) -> AnnData | pd.Index | None:
         """Prepare data for query integration.
 
         This function will return a new AnnData object with padded zeros

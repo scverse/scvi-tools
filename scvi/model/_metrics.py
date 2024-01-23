@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import logging
-from typing import Union
 
 import numpy as np
 import scipy
@@ -41,7 +42,7 @@ def nearest_neighbor_overlap(x1, x2, k=100):
 
 
 def unsupervised_clustering_accuracy(
-    y: Union[np.ndarray, torch.Tensor], y_pred: Union[np.ndarray, torch.Tensor]
+    y: np.ndarray | torch.Tensor, y_pred: np.ndarray | torch.Tensor
 ) -> tuple:
     """Unsupervised Clustering Accuracy."""
     if len(y_pred) != len(y):

@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Iterable
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
@@ -285,7 +287,7 @@ class MULTIVAE(BaseModuleClass):
         n_layers_encoder: Tunable[int] = 2,
         n_layers_decoder: Tunable[int] = 2,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: list[int] | None = None,
         dropout_rate: Tunable[float] = 0.1,
         region_factors: Tunable[bool] = True,
         use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
@@ -294,8 +296,8 @@ class MULTIVAE(BaseModuleClass):
         deeply_inject_covariates: Tunable[bool] = False,
         encode_covariates: Tunable[bool] = False,
         use_size_factor_key: bool = False,
-        protein_background_prior_mean: Optional[np.ndarray] = None,
-        protein_background_prior_scale: Optional[np.ndarray] = None,
+        protein_background_prior_mean: np.ndarray | None = None,
+        protein_background_prior_scale: np.ndarray | None = None,
         protein_dispersion: str = "protein",
     ):
         super().__init__()

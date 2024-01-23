@@ -1,7 +1,7 @@
+from __future__ import annotations
+
 import logging
 import tempfile
-from pathlib import Path
-from typing import Optional, Union
 
 import anndata
 import numpy as np
@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 @devices_dsp.dedent
 def poisson_gene_selection(
     adata,
-    layer: Optional[str] = None,
+    layer: str | None = None,
     n_top_genes: int = 4000,
     accelerator: str = "auto",
-    device: Union[int, str] = "auto",
+    device: int | str = "auto",
     subset: bool = False,
     inplace: bool = True,
     n_samples: int = 10000,
     batch_key: str = None,
     silent: bool = False,
     minibatch_size: int = 5000,
-) -> Optional[pd.DataFrame]:
+) -> pd.DataFrame | None:
     """Rank and select genes based on the enrichment of zero counts.
 
     Enrichment is considered by comparing data to a Poisson count model.
@@ -236,7 +236,7 @@ def poisson_gene_selection(
 
 def organize_cite_seq_10x(
     adata: anndata.AnnData, copy: bool = False
-) -> Optional[anndata.AnnData]:
+) -> anndata.AnnData | None:
     """Organize anndata object loaded from 10x for scvi models.
 
     Parameters
@@ -284,8 +284,8 @@ def organize_cite_seq_10x(
 
 def organize_multiome_anndatas(
     multi_anndata: anndata.AnnData,
-    rna_anndata: Optional[anndata.AnnData] = None,
-    atac_anndata: Optional[anndata.AnnData] = None,
+    rna_anndata: anndata.AnnData | None = None,
+    atac_anndata: anndata.AnnData | None = None,
     modality_key: str = "modality",
 ) -> anndata.AnnData:
     """Concatenate multiome and single-modality input anndata objects.
@@ -373,8 +373,8 @@ def add_dna_sequence(
     adata: anndata.AnnData,
     seq_len: int = 1344,
     genome_name: str = "hg38",
-    genome_dir: Optional[Path] = None,
-    genome_provider: Optional[str] = None,
+    genome_dir: str | None = None,
+    genome_provider: str | None = None,
     install_genome: bool = True,
     chr_var_key: str = "chr",
     start_var_key: str = "start",
@@ -457,7 +457,7 @@ def add_dna_sequence(
 
 def reads_to_fragments(
     adata: anndata.AnnData,
-    read_layer: Optional[str] = None,
+    read_layer: str | None = None,
     fragment_layer: str = "fragments",
 ) -> None:
     """Convert scATAC-seq read counts to appoximate fragment counts.

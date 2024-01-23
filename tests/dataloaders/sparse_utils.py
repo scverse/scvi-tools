@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import torch
 from anndata import AnnData
@@ -74,8 +74,8 @@ class TestSparseModel(scvi.model.base.BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
+        layer: str | None = None,
+        batch_key: str | None = None,
     ):
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
@@ -92,7 +92,7 @@ class TestSparseModel(scvi.model.base.BaseModelClass):
         self,
         max_epochs: int = 1,
         accelerator: str = "auto",
-        devices: Union[int, list[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         expected_sparse_layout: Literal["csr", "csc"] = None,
     ):
         data_splitter = TestSparseDataSplitter(

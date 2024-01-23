@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import collections
 from collections.abc import Iterable
-from typing import Callable, Literal, Optional
+from typing import Literal
 
 import torch
 from torch import nn
@@ -234,7 +236,7 @@ class Encoder(nn.Module):
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
-        var_activation: Optional[Callable] = None,
+        var_activation: callable | None = None,
         return_dist: bool = False,
         **kwargs,
     ):

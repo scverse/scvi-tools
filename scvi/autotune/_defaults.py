@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from lightning.pytorch import LightningDataModule, LightningModule, Trainer
 
 from scvi import model

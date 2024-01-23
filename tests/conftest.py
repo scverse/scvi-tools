@@ -4,7 +4,6 @@ from distutils.dir_util import copy_tree
 import pytest
 
 import scvi
-from tests.data.utils import generic_setup_adata_manager
 
 
 def pytest_addoption(parser):
@@ -154,15 +153,15 @@ def mock_contrastive_adata():
     return adata
 
 
-@pytest.fixture(scope="session")
-def mock_contrastive_adata_manager(mock_contrastive_adata):
-    """Anndata manager for synthetic contrastive data."""
-    return generic_setup_adata_manager(
-        adata=mock_contrastive_adata,
-        batch_key="batch",
-        labels_key="labels",
-        layer="raw_counts",
-    )
+# @pytest.fixture(scope="session")
+# def mock_contrastive_adata_manager(mock_contrastive_adata):
+#     """Anndata manager for synthetic contrastive data."""
+#     return generic_setup_adata_manager(
+#         adata=mock_contrastive_adata,
+#         batch_key="batch",
+#         labels_key="labels",
+#         layer="raw_counts",
+#     )
 
 
 @pytest.fixture(scope="session")

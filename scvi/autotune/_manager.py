@@ -8,7 +8,7 @@ import os
 import warnings
 from collections import OrderedDict
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 import lightning.pytorch as pl
 import ray
@@ -22,10 +22,9 @@ from scvi import settings
 from scvi._types import AnnOrMuData, TunableMeta
 from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model.base import BaseModelClass
-from scvi.utils import InvalidParameterError
+from scvi.utils import InvalidParameterError, in_notebook
 
 from ._defaults import COLORS, COLUMN_KWARGS, DEFAULTS, TUNABLE_TYPES
-from ._utils import in_notebook
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +105,7 @@ class TunerManager:
                     return tunable_type
             return None
 
-        def _parse_func_params(func: Callable, parent: Any, tunable_type: str) -> dict:
+        def _parse_func_params(func: callable, parent: Any, tunable_type: str) -> dict:
             # get function kwargs that are tunable
             tunables = {}
             for param, metadata in inspect.signature(func).parameters.items():
@@ -407,7 +406,7 @@ class TunerManager:
         experiment_name: str,
         logging_dir: str,
         monitor_device_stats: bool,
-    ) -> Callable:
+    ) -> callable:
         """Returns a trainable function consumable by :class:`~ray.tune.Tuner`."""
 
         def _trainable(

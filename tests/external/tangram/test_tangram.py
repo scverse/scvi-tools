@@ -1,5 +1,3 @@
-from typing import Optional
-
 import mudata
 import numpy as np
 import pytest
@@ -10,7 +8,7 @@ from scvi.external import Tangram
 modalities = {"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"}
 
 
-def _get_mdata(sparse_format: Optional[str] = None):
+def _get_mdata(sparse_format: str | None = None):
     dataset1 = synthetic_iid(batch_size=100, sparse_format=sparse_format)
     dataset2 = dataset1[-25:].copy()
     dataset1 = dataset1[:-25].copy()

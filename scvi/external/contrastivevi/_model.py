@@ -1,12 +1,9 @@
-"""Model class for contrastive-VI for single cell expression data."""
-
 from __future__ import annotations
 
 import logging
 import warnings
 from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -14,7 +11,7 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Tunable
+from scvi._types import Number, Tunable
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -40,7 +37,6 @@ from ._contrastive_data_splitting import ContrastiveDataSplitter
 from ._module import ContrastiveVAE
 
 logger = logging.getLogger(__name__)
-Number = Union[int, float]
 
 
 class ContrastiveVI(BaseModelClass):

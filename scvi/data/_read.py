@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import os
-from pathlib import Path
-from typing import Union
 
 import pandas as pd
 from anndata import AnnData
 from scipy.io import mmread
 
 
-def read_10x_atac(base_path: Union[str, Path]) -> AnnData:
+def read_10x_atac(base_path: str) -> AnnData:
     """Read scATAC-seq data outputted by 10x Genomics software.
 
     Parameters
@@ -43,7 +43,7 @@ def read_10x_atac(base_path: Union[str, Path]) -> AnnData:
     return AnnData(data.tocsr(), var=coords, obs=cell_annot)
 
 
-def read_10x_multiome(base_path: Union[str, Path]) -> AnnData:
+def read_10x_multiome(base_path: str) -> AnnData:
     """Read Multiome (scRNA + scATAC) data outputted by 10x Genomics software.
 
     Parameters

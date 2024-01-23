@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 
 from lightning.pytorch.callbacks import ProgressBar as ProgressBarBase

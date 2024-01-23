@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal, Union
 
 import torch
 from lightning.pytorch import seed_everything
@@ -47,7 +47,7 @@ class ScviConfig:
         verbosity: int = logging.INFO,
         progress_bar_style: Literal["rich", "tqdm"] = "tqdm",
         batch_size: int = 128,
-        seed: Optional[int] = None,
+        seed: int | None = None,
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
         jax_preallocate_gpu_memory: bool = False,
@@ -129,7 +129,7 @@ class ScviConfig:
         return self._seed
 
     @seed.setter
-    def seed(self, seed: Union[int, None] = None):
+    def seed(self, seed: int | None = None):
         """Random seed for torch and numpy."""
         if seed is None:
             self._seed = None
@@ -145,7 +145,7 @@ class ScviConfig:
         return self._verbosity
 
     @verbosity.setter
-    def verbosity(self, level: Union[str, int]):
+    def verbosity(self, level: str | int):
         """Sets logging configuration for scvi based on chosen level of verbosity.
 
         If "scvi" logger has no StreamHandler, add one.
