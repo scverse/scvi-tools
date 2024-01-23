@@ -22,8 +22,7 @@ from scvi.model.base import BaseModelClass
 from scvi.module import Classifier
 from scvi.module.base import auto_move_data
 from scvi.train import ClassifierTrainingPlan, LoudEarlyStopping, TrainRunner
-from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 

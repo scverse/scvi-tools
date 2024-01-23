@@ -29,13 +29,12 @@ from scvi.model._utils import (
     _init_library_size,
     get_max_epochs_heuristic,
     scrna_raw_counts_properties,
-    use_distributed_sampler,
 )
 from scvi.model.base import BaseModelClass
 from scvi.model.base._utils import _de_core
+from scvi.model.utils import use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner
-from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, setup_anndata_dsp
 
 from ._contrastive_data_splitting import ContrastiveDataSplitter
 from ._module import ContrastiveVAE

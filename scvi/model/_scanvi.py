@@ -37,8 +37,7 @@ from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
-from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, setup_anndata_dsp
 
 from ._scvi import SCVI
 from .base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin

@@ -120,8 +120,8 @@ def test_saving_and_loading(save_path):
     test_save_load_model(TOTALVI, adata, save_path, prefix=f"{TOTALVI.__name__}_")
 
 
-@pytest.mark.internet
-def test_backup_url(save_path):
+@pytest.mark.slow
+def test_backup_url(save_path: str):
     backup_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models_0150"
     a = synthetic_iid()
     a.obs["cat1"] = np.random.randint(0, 5, size=(a.shape[0],))

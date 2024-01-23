@@ -8,9 +8,9 @@ import pandas as pd
 
 from scvi import settings
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
-from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
+from scvi.utils import parse_device_args
 
 logger = logging.getLogger(__name__)
 

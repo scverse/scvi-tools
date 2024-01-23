@@ -28,7 +28,7 @@ from scvi.model._utils import (
 from scvi.model.base._utils import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
-from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
+from scvi.utils import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 

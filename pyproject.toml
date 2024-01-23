@@ -139,6 +139,9 @@ omit = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 xfail_strict = true
+addopts = [
+    "--import-mode=importlib",  # allow using test files with same name
+]
 
 [tool.ruff]
 src = ["."]

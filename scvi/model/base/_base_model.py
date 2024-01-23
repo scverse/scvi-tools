@@ -26,10 +26,8 @@ from scvi.data._constants import (
 )
 from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
 from scvi.dataloaders import AnnDataLoader
-from scvi.model._utils import parse_device_args
 from scvi.model.base._utils import _load_legacy_saved_files
-from scvi.utils import attrdict, setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import attrdict, devices_dsp, parse_device_args, setup_anndata_dsp
 
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 

@@ -13,8 +13,7 @@ from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
-from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 

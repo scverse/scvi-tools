@@ -8,8 +8,7 @@ import torch
 from scipy.sparse import spmatrix
 
 from scvi import settings
-from scvi.model._utils import parse_device_args
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, parse_device_args
 
 logger = logging.getLogger(__name__)
 

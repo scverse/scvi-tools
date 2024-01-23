@@ -4,7 +4,7 @@ from scvi._types import Tunable
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp
 
 
 class UnsupervisedTrainingMixin:

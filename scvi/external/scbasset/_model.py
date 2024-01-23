@@ -17,8 +17,7 @@ from scvi.dataloaders import DataSplitter
 from scvi.external.scbasset._module import REGISTRY_KEYS, ScBassetModule
 from scvi.model.base import BaseModelClass
 from scvi.train import TrainingPlan, TrainRunner
-from scvi.utils import dependencies, setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import dependencies, devices_dsp, setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 

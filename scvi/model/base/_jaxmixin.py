@@ -4,9 +4,9 @@ import logging
 import warnings
 
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
+from scvi.model._utils import get_max_epochs_heuristic
 from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, parse_device_args
 
 logger = logging.getLogger(__name__)
 

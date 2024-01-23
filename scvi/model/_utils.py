@@ -1,40 +1,21 @@
+from __future__ import annotations
+
 import logging
 import warnings
 from collections.abc import Iterable as IterableClass
-from collections.abc import Sequence
-from typing import Literal, Optional, Union
 
-import jax
 import numpy as np
 import scipy.sparse as sp_sparse
-import torch
-from lightning.pytorch.strategies import DDPStrategy, Strategy
-from lightning.pytorch.trainer.connectors.accelerator_connector import (
-    _AcceleratorConnector,
-)
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
-from scvi.utils._docstrings import devices_dsp
-from scvi.utils._exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
 
 
-def use_distributed_sampler(strategy: Union[str, Strategy]) -> bool:
-    """``EXPERIMENTAL`` Return whether to use a distributed sampler.
-
-    Currently only supports DDP.
-    """
-    if isinstance(strategy, str):
-        # ["ddp", "ddp_spawn", "ddp_find_unused_parameters_true"]
-        return "ddp" in strategy
-    return isinstance(strategy, DDPStrategy)
-
-
 def get_max_epochs_heuristic(
-    n_obs: int, epochs_cap: int = 400, decay_at_n_obs: int = 20000
+    n_obs: int, epochs_cap: int = 400, decay_at_n_obs: int = 20_000
 ) -> int:
     """Compute a heuristic for the default number of maximum epochs.
 
@@ -71,91 +52,11 @@ def get_max_epochs_heuristic(
     return max_epochs
 
 
-@devices_dsp.dedent
-def parse_device_args(
-    accelerator: str = "auto",
-    devices: Union[int, list[int], str] = "auto",
-    return_device: Optional[Literal["torch", "jax"]] = None,
-    validate_single_device: bool = False,
-):
-    """Parses device-related arguments.
-
-    Parameters
-    ----------
-    %(param_accelerator)s
-    %(param_devices)s
-    %(param_return_device)s
-    %(param_validate_single_device)s
-    """
-    valid = [None, "torch", "jax"]
-    if return_device not in valid:
-        raise InvalidParameterError(
-            param="return_device", value=return_device, valid=valid
-        )
-
-    _validate_single_device = validate_single_device and devices != "auto"
-    cond1 = isinstance(devices, list) and len(devices) > 1
-    cond2 = isinstance(devices, str) and "," in devices
-    cond3 = devices == -1
-    if _validate_single_device and (cond1 or cond2 or cond3):
-        raise ValueError("Only a single device can be specified for `device`.")
-
-    connector = _AcceleratorConnector(accelerator=accelerator, devices=devices)
-    _accelerator = connector._accelerator_flag
-    _devices = connector._devices_flag
-
-    if _accelerator in ["tpu", "ipu", "hpu"]:
-        warnings.warn(
-            f"The selected accelerator `{_accelerator}` has not been extensively "
-            "tested in scvi-tools. Please report any issues in the GitHub repo.",
-            UserWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
-    elif _accelerator == "mps" and accelerator == "auto":
-        # auto accelerator should not default to mps
-        connector = _AcceleratorConnector(accelerator="cpu", devices=devices)
-        _accelerator = connector._accelerator_flag
-        _devices = connector._devices_flag
-    elif _accelerator == "mps" and accelerator != "auto":
-        warnings.warn(
-            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
-            "operations are supported with this backend. Refer to "
-            "https://github.com/pytorch/pytorch/issues/77764 for more details.",
-            UserWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
-
-    # get the first device index
-    if isinstance(_devices, list):
-        device_idx = _devices[0]
-    elif isinstance(_devices, str) and "," in _devices:
-        device_idx = _devices.split(",")[0]
-    else:
-        device_idx = _devices
-
-    if devices == "auto" and _accelerator != "cpu":
-        # auto device should not use multiple devices for non-cpu accelerators
-        _devices = [device_idx]
-
-    if return_device == "torch":
-        device = torch.device("cpu")
-        if _accelerator != "cpu":
-            device = torch.device(f"{_accelerator}:{device_idx}")
-        return _accelerator, _devices, device
-    elif return_device == "jax":
-        device = jax.devices("cpu")[0]
-        if _accelerator != "cpu":
-            device = jax.devices(_accelerator)[device_idx]
-        return _accelerator, _devices, device
-
-    return _accelerator, _devices
-
-
 def scrna_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[list[int], np.ndarray],
-    idx2: Union[list[int], np.ndarray],
-    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+    idx1: list[int] | np.ndarray,
+    idx2: list[int] | np.ndarray,
+    var_idx: list[int] | np.ndarray | None = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -220,8 +121,8 @@ def scrna_raw_counts_properties(
 
 def cite_seq_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[list[int], np.ndarray],
-    idx2: Union[list[int], np.ndarray],
+    idx1: list[int] | np.ndarray,
+    idx2: list[int] | np.ndarray,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -267,9 +168,9 @@ def cite_seq_raw_counts_properties(
 
 def scatac_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[list[int], np.ndarray],
-    idx2: Union[list[int], np.ndarray],
-    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+    idx1: list[int] | np.ndarray,
+    idx2: list[int] | np.ndarray,
+    var_idx: list[int] | np.ndarray | None = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -302,7 +203,8 @@ def scatac_raw_counts_properties(
 
 
 def _get_batch_code_from_category(
-    adata_manager: AnnDataManager, category: Sequence[Union[Number, str]]
+    adata_manager: AnnDataManager,
+    category: list[Number | str] | Number | str,
 ):
     if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]

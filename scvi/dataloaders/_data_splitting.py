@@ -17,8 +17,7 @@ from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
-from scvi.model._utils import parse_device_args
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, parse_device_args
 
 
 def validate_data_split(

@@ -26,7 +26,7 @@ from scvi.model._utils import (
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import PEAKVAE
 from scvi.train._callbacks import SaveBestState
-from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
+from scvi.utils import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin
 from .base._utils import _de_core

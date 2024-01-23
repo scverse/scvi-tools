@@ -44,6 +44,6 @@ def test_pbmc_cite(save_path):
     unsupervised_training_one_epoch(dataset)
 
 
-@pytest.mark.internet
+@pytest.mark.slow
 def test_download_dataset_10x(save_path):
     dataset_10x("hgmm_1k_v3", save_path=save_path)

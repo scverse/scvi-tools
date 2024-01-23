@@ -13,11 +13,9 @@ from mudata import MuData
 
 from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
-from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import JaxTrainingPlan
-from scvi.utils import setup_anndata_dsp, track
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, parse_device_args, setup_anndata_dsp, track
 
 logger = logging.getLogger(__name__)
 

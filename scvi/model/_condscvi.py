@@ -18,8 +18,7 @@ from scvi.model.base import (
     VAEMixin,
 )
 from scvi.module import VAEC
-from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 

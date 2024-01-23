@@ -9,9 +9,7 @@ import pandas as pd
 import torch
 from scipy.sparse import issparse
 
-from scvi.model._utils import parse_device_args
-from scvi.utils import dependencies, track
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import dependencies, devices_dsp, parse_device_args, track
 
 from ._utils import _check_nonnegative_integers
 

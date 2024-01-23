@@ -15,8 +15,7 @@ from scvi.data.fields import LayerField, NumericalObsField
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
-from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 

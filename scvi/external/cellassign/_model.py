@@ -22,8 +22,7 @@ from scvi.external.cellassign._module import CellAssignModule
 from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
-from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
+from scvi.utils import devices_dsp, setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 

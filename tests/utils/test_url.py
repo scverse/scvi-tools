@@ -1,4 +1,4 @@
-from scvi.utils import validate_url
+from scvi.hub._url import validate_url
 
 
 def test_validate_url():

@@ -28,8 +28,7 @@ from scvi.model.base._utils import (
     _de_core,
 )
 from scvi.module import VAE
-from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import de_dsp
+from scvi.utils import de_dsp, setup_anndata_dsp
 
 logger = logging.getLogger(__name__)
 

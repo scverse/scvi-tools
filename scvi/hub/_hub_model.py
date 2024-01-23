@@ -18,7 +18,7 @@ from rich.markdown import Markdown
 from scvi import settings
 from scvi.data import cellxgene
 from scvi.data._download import _download
-from scvi.hub._metadata import HubMetadata, HubModelCardHelper
+from scvi.hub._hub_metadata import HubMetadata, HubModelCardHelper
 from scvi.model.base import BaseModelClass
 from scvi.utils import dependencies
 
