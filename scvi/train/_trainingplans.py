@@ -4,7 +4,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 from functools import partial
 from inspect import signature
-from typing import Any, Callable, Literal
+from typing import Any, Literal, callable
 
 import jax
 import jax.numpy as jnp
@@ -32,8 +32,8 @@ from scvi.nn import one_hot
 
 from ._metrics import ElboMetric
 
-JaxOptimizerCreator = Callable[[], optax.GradientTransformation]
-TorchOptimizerCreator = Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
+JaxOptimizerCreator = callable[[], optax.GradientTransformation]
+TorchOptimizerCreator = callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
 
 
 def _compute_kl_weight(
@@ -1120,7 +1120,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
         optimizer: Literal["Adam", "AdamW"] = "Adam",
         data_key: str = REGISTRY_KEYS.X_KEY,
         labels_key: str = REGISTRY_KEYS.LABELS_KEY,
-        loss: Callable = torch.nn.CrossEntropyLoss,
+        loss: callable = torch.nn.CrossEntropyLoss,
     ):
         super().__init__()
         self.module = classifier

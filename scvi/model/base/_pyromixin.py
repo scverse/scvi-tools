@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from typing import callable
 
 import numpy as np
 import torch
@@ -480,7 +480,7 @@ class PyroSampleMixin:
         batch_size: int | None = None,
         return_observed: bool = False,
         return_samples: bool = False,
-        summary_fun: dict[str, Callable] | None = None,
+        summary_fun: dict[str, callable] | None = None,
     ):
         """Summarise posterior distribution.
 

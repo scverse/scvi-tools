@@ -218,7 +218,7 @@ class Encoder(nn.Module):
         Minimum value for the variance;
         used for numerical stability
     var_activation
-        Callable used to ensure positivity of the variance.
+        callable used to ensure positivity of the variance.
         Defaults to :meth:`torch.exp`.
     return_dist
         Return directly the distribution of z instead of its parameters.

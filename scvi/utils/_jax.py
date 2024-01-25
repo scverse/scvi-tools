@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import callable
 
 import jax
 from jax import random
 
 
-def device_selecting_PRNGKey(use_cpu: bool = True) -> Callable:
+def device_selecting_PRNGKey(use_cpu: bool = True) -> callable:
     """Returns a PRNGKey that is either on CPU or GPU."""
     # if key is generated on CPU, model params will be on CPU
     if use_cpu is True:

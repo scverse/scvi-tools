@@ -8,7 +8,7 @@ import os
 import warnings
 from collections import OrderedDict
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any, callable
 
 import lightning.pytorch as pl
 import ray
@@ -106,7 +106,7 @@ class TunerManager:
                     return tunable_type
             return None
 
-        def _parse_func_params(func: Callable, parent: Any, tunable_type: str) -> dict:
+        def _parse_func_params(func: callable, parent: Any, tunable_type: str) -> dict:
             # get function kwargs that are tunable
             tunables = {}
             for param, metadata in inspect.signature(func).parameters.items():
@@ -407,7 +407,7 @@ class TunerManager:
         experiment_name: str,
         logging_dir: str,
         monitor_device_stats: bool,
-    ) -> Callable:
+    ) -> callable:
         """Returns a trainable function consumable by :class:`~ray.tune.Tuner`."""
 
         def _trainable(

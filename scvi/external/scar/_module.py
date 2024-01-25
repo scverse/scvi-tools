@@ -217,7 +217,7 @@ class SCAR_VAE(VAE):
         1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
     var_activation
-        Callable used to ensure positivity of the variational distributions' variance.
+        callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
     """
 

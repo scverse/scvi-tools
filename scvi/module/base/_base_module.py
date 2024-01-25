@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Iterable
 from dataclasses import field
-from typing import Any, Callable
+from typing import Any, callable
 
 import chex
 import flax
@@ -394,9 +394,9 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
 
     def create_predictive(
         self,
-        model: Callable | None = None,
+        model: callable | None = None,
         posterior_samples: dict | None = None,
-        guide: Callable | None = None,
+        guide: callable | None = None,
         num_samples: int | None = None,
         return_sites: tuple[str] = (),
         parallel: bool = False,
@@ -671,7 +671,7 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
         self,
         get_inference_input_kwargs: dict[str, Any] | None = None,
         inference_kwargs: dict[str, Any] | None = None,
-    ) -> Callable[
+    ) -> callable[
         [dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]
     ]:
         """Create a method to run inference using the bound module.

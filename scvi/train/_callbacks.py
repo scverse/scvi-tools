@@ -5,7 +5,7 @@ import warnings
 from copy import deepcopy
 from datetime import datetime
 from shutil import rmtree
-from typing import Callable
+from typing import callable
 
 import flax
 import lightning.pytorch as pl
@@ -19,7 +19,7 @@ from scvi import settings
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
 
-MetricCallable = Callable[[BaseModelClass], float]
+Metriccallable = callable[[BaseModelClass], float]
 
 
 class SaveCheckpoint(ModelCheckpoint):
@@ -144,20 +144,20 @@ class MetricsCallback(Callback):
     metric_fns
         Validation metrics to compute and log. One of the following:
 
-        * `:class:`~scvi.train._callbacks.MetricCallable`: A function that takes in a
+        * `:class:`~scvi.train._callbacks.Metriccallable`: A function that takes in a
             :class:`~scvi.model.base.BaseModelClass` and returns a `float`.
             The function's `__name__`is used as the logging name.
 
-        * `List[:class:`~scvi.train._callbacks.MetricCallable`]`: Same as above but in
+        * `List[:class:`~scvi.train._callbacks.Metriccallable`]`: Same as above but in
             a list.
 
-        * `Dict[str, :class:`~scvi.train._callbacks.MetricCallable`]`: Same as above,
+        * `Dict[str, :class:`~scvi.train._callbacks.Metriccallable`]`: Same as above,
             but the keys are used as the logging names instead.
     """
 
     def __init__(
         self,
-        metric_fns: MetricCallable | list[MetricCallable] | dict[str, MetricCallable],
+        metric_fns: Metriccallable | list[Metriccallable] | dict[str, Metriccallable],
     ):
         super().__init__()
 

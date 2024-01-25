@@ -14,7 +14,7 @@ from scvi._types import Tunable, TunableMixin
 
 from ._callbacks import (
     LoudEarlyStopping,
-    MetricCallable,
+    Metriccallable,
     MetricsCallback,
     SaveCheckpoint,
 )
@@ -113,9 +113,9 @@ class Trainer(TunableMixin, pl.Trainer):
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
-        additional_val_metrics: MetricCallable
-        | list[MetricCallable]
-        | dict[str, MetricCallable]
+        additional_val_metrics: Metriccallable
+        | list[Metriccallable]
+        | dict[str, Metriccallable]
         | None = None,
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,

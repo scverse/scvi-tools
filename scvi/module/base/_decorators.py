@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from functools import wraps
-from typing import Any, Callable
+from typing import Any, callable
 
 import flax.linen as nn
 import torch
 from torch.nn import Module
 
 
-def auto_move_data(fn: Callable) -> Callable:
+def auto_move_data(fn: callable) -> callable:
     """Decorator for :class:`~torch.nn.Module` methods to move data to correct device.
 
     Input arguments are moved automatically to the correct device.
@@ -74,7 +74,7 @@ def _move_data_to_device(batch: Any, device: torch.device):
 def _apply_to_collection(
     data: Any,
     dtype: type | tuple,
-    function: Callable,
+    function: callable,
     *args,
     **kwargs,
 ) -> Any:
@@ -124,7 +124,7 @@ def _apply_to_collection(
     return data
 
 
-def flax_configure(cls: nn.Module) -> Callable:
+def flax_configure(cls: nn.Module) -> callable:
     """Decorator to raise an error if a boolean `training` param is missing in the call."""
     original_init = cls.__init__
 

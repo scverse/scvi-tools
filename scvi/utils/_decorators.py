@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from functools import wraps
-from typing import Callable
+from typing import callable
 
 
-def unsupported_if_adata_minified(fn: Callable) -> Callable:
+def unsupported_if_adata_minified(fn: callable) -> callable:
     """Decorator to raise an error if the model's `adata` is minified."""
 
     @wraps(fn)

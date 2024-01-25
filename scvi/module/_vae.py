@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import Callable, Literal
+from typing import Literal, callable
 
 import numpy as np
 import torch
@@ -89,7 +89,7 @@ class VAE(BaseMinifiedModeModuleClass):
         1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
     var_activation
-        Callable used to ensure positivity of the variational distributions' variance.
+        callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
     extra_encoder_kwargs
         Extra keyword arguments passed into :class:`~scvi.nn.Encoder`.
@@ -122,7 +122,7 @@ class VAE(BaseMinifiedModeModuleClass):
         use_observed_lib_size: Tunable[bool] = True,
         library_log_means: np.ndarray | None = None,
         library_log_vars: np.ndarray | None = None,
-        var_activation: Tunable[Callable] = None,
+        var_activation: Tunable[callable] = None,
         extra_encoder_kwargs: dict | None = None,
         extra_decoder_kwargs: dict | None = None,
     ):

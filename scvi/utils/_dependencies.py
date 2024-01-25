@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 from functools import wraps
-from typing import Callable
+from typing import callable
 
 
 def error_on_missing_dependencies(*modules):
@@ -18,10 +18,10 @@ def error_on_missing_dependencies(*modules):
         )
 
 
-def dependencies(*modules) -> Callable:
+def dependencies(*modules) -> callable:
     """Decorator to check for dependencies."""
 
-    def decorator(fn: Callable) -> Callable:
+    def decorator(fn: callable) -> callable:
         @wraps(fn)
         def wrapper(*args, **kwargs):
             error_on_missing_dependencies(*modules)

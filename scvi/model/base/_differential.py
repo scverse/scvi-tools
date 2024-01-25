@@ -4,7 +4,7 @@ import inspect
 import logging
 import warnings
 from collections.abc import Sequence
-from typing import Callable, Literal
+from typing import Literal, callable
 
 import numpy as np
 import pandas as pd
@@ -30,17 +30,17 @@ class DifferentialComputation:
     Parameters
     ----------
     model_fn
-        Callable in model API to get values from.
+        callable in model API to get values from.
     representation_fn
-        Callable providing latent representations, e.g., :meth:`~scvi.model.SCVI.get_latent_representation`, for scVI.
+        callable providing latent representations, e.g., :meth:`~scvi.model.SCVI.get_latent_representation`, for scVI.
     adata_manager
         AnnDataManager created by :meth:`~scvi.model.SCVI.setup_anndata`.
     """
 
     def __init__(
         self,
-        model_fn: Callable,
-        representation_fn: Callable,
+        model_fn: callable,
+        representation_fn: callable,
         adata_manager: AnnDataManager,
     ):
         self.adata_manager = adata_manager
