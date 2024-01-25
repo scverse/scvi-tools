@@ -39,7 +39,7 @@ jobs:
     permissions:
       id-token: write
 
-    name: Unit
+    name: Unit (Private)
 
     env:
       OS: ${{ matrix.os }}

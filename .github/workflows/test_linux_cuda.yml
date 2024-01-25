@@ -37,7 +37,7 @@ jobs:
       image: scverse/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
       options: --user root --gpus all
 
-    name: Integration
+    name: Integration (CUDA)
 
     env:
       OS: ${{ matrix.os }}
