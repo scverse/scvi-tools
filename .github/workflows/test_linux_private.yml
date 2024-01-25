@@ -1,4 +1,4 @@
-name: Test (Linux, private)
+name: Test (Linux)
 
 on:
   pull_request:
