@@ -110,7 +110,7 @@ class BaseAnnDataField(ABC):
         """
 
     @abstractmethod
-    def view_state_registry(self, state_registry: dict) -> rich.table.Table:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table | None:
         """Returns a :class:`rich.table.Table` summarizing a state registry produced by this field.
 
         Parameters
