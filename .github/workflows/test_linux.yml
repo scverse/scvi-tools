@@ -2,9 +2,9 @@ name: Test (Linux)
 
 on:
   push:
-    branches: [main, 1.0.x, 1.1.x]
+    branches: [main, 1.1.x]
   pull_request:
-    branches: [main, 1.0.x, 1.1.x]
+    branches: [main, 1.1.x]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
