@@ -2,7 +2,7 @@ name: Test (Windows)
 
 on:
   schedule:
-    - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
   workflow_dispatch:
 
 concurrency:
@@ -22,7 +22,7 @@ jobs:
         os: [windows-latest]
         python: ["3.9", "3.10", "3.11"]
 
-    name: ${{ matrix.name }} Python ${{ matrix.python }}
+    name: Python
 
     env:
       OS: ${{ matrix.os }}
