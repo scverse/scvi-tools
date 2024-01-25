@@ -144,7 +144,7 @@ class LayerField(BaseAnnDataField):
             summary_stats[self.N_CELLS_KEY] = state_registry[self.N_OBS_KEY]
         return summary_stats
 
-    def view_state_registry(self, _state_registry: dict) -> rich.table.Table:
+    def view_state_registry(self, _state_registry: dict) -> rich.table.Table | None:
         """View the state registry."""
         return None
 
