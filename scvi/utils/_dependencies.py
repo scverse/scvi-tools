@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib
 from functools import wraps
-from typing import callable
 
 
 def error_on_missing_dependencies(*modules):

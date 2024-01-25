@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from functools import wraps
-from typing import Any, callable
+from typing import Any
 
 import flax.linen as nn
 import torch

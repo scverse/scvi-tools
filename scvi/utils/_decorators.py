@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from functools import wraps
-from typing import callable
 
 
 def unsupported_if_adata_minified(fn: callable) -> callable:

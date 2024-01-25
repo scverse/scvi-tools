@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import Literal, callable
+from typing import Literal
 
 import numpy as np
 import torch

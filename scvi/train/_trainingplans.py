@@ -4,7 +4,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 from functools import partial
 from inspect import signature
-from typing import Any, Literal, callable
+from typing import Any, Literal
 
 import jax
 import jax.numpy as jnp

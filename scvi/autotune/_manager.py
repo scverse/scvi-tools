@@ -8,7 +8,7 @@ import os
 import warnings
 from collections import OrderedDict
 from datetime import datetime
-from typing import Any, callable
+from typing import Any
 
 import lightning.pytorch as pl
 import ray

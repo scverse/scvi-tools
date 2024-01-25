@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Iterable
 from dataclasses import field
-from typing import Any, callable
+from typing import Any
 
 import chex
 import flax

@@ -5,7 +5,6 @@ import warnings
 from copy import deepcopy
 from datetime import datetime
 from shutil import rmtree
-from typing import callable
 
 import flax
 import lightning.pytorch as pl

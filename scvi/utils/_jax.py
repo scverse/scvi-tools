@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import callable
-
 import jax
 from jax import random
 
