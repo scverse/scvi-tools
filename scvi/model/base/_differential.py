@@ -381,7 +381,7 @@ class DifferentialComputation:
     def scale_sampler(
         self,
         selection: list[bool] | np.ndarray,
-        n_samples: int | None = 5000,
+        n_samples: int | None = 5_000,
         n_samples_per_cell: int | None = None,
         batchid: Sequence[Number | str] | None = None,
         use_observed_batches: bool | None = False,
@@ -434,7 +434,7 @@ class DifferentialComputation:
                 raise ValueError("Unconsistent batch policy")
             batchid = [None]
         if n_samples is None and n_samples_per_cell is None:
-            n_samples = 5000
+            n_samples = 5_000
         elif n_samples_per_cell is not None and n_samples is None:
             n_samples = n_samples_per_cell * len(selection)
         if (n_samples_per_cell is not None) and (n_samples is not None):

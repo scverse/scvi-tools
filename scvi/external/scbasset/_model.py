@@ -99,7 +99,7 @@ class SCBASSET(BaseModelClass):
     @devices_dsp.dedent
     def train(
         self,
-        max_epochs: int = 1000,
+        max_epochs: int = 1_000,
         lr: float = 0.01,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",

@@ -130,7 +130,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    def get_feature_by_topic(self, n_samples=5000) -> pd.DataFrame:
+    def get_feature_by_topic(self, n_samples=5_000) -> pd.DataFrame:
         """Gets a Monte-Carlo estimate of the expectation of the feature by topic matrix.
 
         Parameters
@@ -160,7 +160,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        n_samples: int = 5000,
+        n_samples: int = 5_000,
     ) -> pd.DataFrame:
         """Converts a count matrix to an inferred topic distribution.
 

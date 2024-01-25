@@ -480,7 +480,7 @@ class RNASeqMixin:
         indices: list[int] | None = None,
         n_samples: int = 25,
         batch_size: int = 64,
-        rna_size_factor: int = 1000,
+        rna_size_factor: int = 1_000,
         transform_batch: list[int] | None = None,
     ) -> np.ndarray:
         """Return samples from an adjusted posterior predictive.
@@ -558,7 +558,7 @@ class RNASeqMixin:
         indices: list[int] | None = None,
         n_samples: int = 10,
         batch_size: int = 64,
-        rna_size_factor: int = 1000,
+        rna_size_factor: int = 1_000,
         transform_batch: list[Number | str] | None = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
     ) -> pd.DataFrame:

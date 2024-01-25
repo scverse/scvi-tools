@@ -35,7 +35,7 @@ def _download(url: str | None, save_path: str, filename: str):
         raise exc
     logger.info("Downloading file at %s" % os.path.join(save_path, filename))
 
-    def read_iter(file, block_size=1000):
+    def read_iter(file, block_size=1_000):
         """Iterates through file.
 
         Given a file 'file', returns an iterator that returns bytes of
@@ -50,7 +50,7 @@ def _download(url: str | None, save_path: str, filename: str):
     # Create the path to save the data
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    block_size = 1000
+    block_size = 1_000
 
     filesize = int(r.getheader("Content-Length"))
     filesize = np.rint(filesize / block_size)

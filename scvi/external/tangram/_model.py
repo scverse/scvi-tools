@@ -122,7 +122,7 @@ class Tangram(BaseModelClass):
     @devices_dsp.dedent
     def train(
         self,
-        max_epochs: int = 1000,
+        max_epochs: int = 1_000,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
         lr: float = 0.1,

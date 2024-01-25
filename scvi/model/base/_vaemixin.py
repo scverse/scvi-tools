@@ -53,7 +53,7 @@ class VAEMixin:
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
-        n_mc_samples: int = 1000,
+        n_mc_samples: int = 1_000,
         batch_size: int | None = None,
         return_mean: bool | None = True,
         **kwargs,
@@ -144,7 +144,7 @@ class VAEMixin:
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         give_mean: bool = True,
-        mc_samples: int = 5000,
+        mc_samples: int = 5_000,
         batch_size: int | None = None,
         return_dist: bool = False,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:

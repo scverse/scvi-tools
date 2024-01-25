@@ -137,7 +137,7 @@ class PyroSviTrainMixin:
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            max_epochs = get_max_epochs_heuristic(self.adata.n_obs, epochs_cap=1000)
+            max_epochs = get_max_epochs_heuristic(self.adata.n_obs, epochs_cap=1_000)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
         if lr is not None and "optim" not in plan_kwargs.keys():
@@ -257,7 +257,7 @@ class PyroSampleMixin:
         self,
         args,
         kwargs,
-        num_samples: int = 1000,
+        num_samples: int = 1_000,
         return_sites: list | None = None,
         return_observed: bool = False,
         show_progress: bool = True,
@@ -473,7 +473,7 @@ class PyroSampleMixin:
     @devices_dsp.dedent
     def sample_posterior(
         self,
-        num_samples: int = 1000,
+        num_samples: int = 1_000,
         return_sites: list | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",

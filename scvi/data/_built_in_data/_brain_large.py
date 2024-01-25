@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 
 def _load_brainlarge_dataset(
     save_path: str = "data/",
-    sample_size_gene_var: int = 10000,
+    sample_size_gene_var: int = 10_000,
     max_cells_to_keep: int = None,
     n_genes_to_keep: int = 720,
-    loading_batch_size: int = 100000,
+    loading_batch_size: int = 100_000,
 ) -> anndata.AnnData:
     """Loads brain-large dataset."""
     url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/1M_neurons_filtered_gene_bc_matrices_h5.h5"

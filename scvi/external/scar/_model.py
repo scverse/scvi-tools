@@ -193,7 +193,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         min_raw_counts: int = 2,
         iterations: int = 3,
         n_batch: int = 1,
-        sample: int = 50000,
+        sample: int = 50_000,
     ):
         """Calculate ambient profile for relevant features.
 

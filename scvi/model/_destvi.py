@@ -310,7 +310,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     @devices_dsp.dedent
     def train(
         self,
-        max_epochs: int = 2000,
+        max_epochs: int = 2_000,
         lr: float = 0.003,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",

@@ -166,7 +166,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
-        n_mc_samples: int = 1000,
+        n_mc_samples: int = 1_000,
         batch_size: int | None = None,
     ) -> float:
         """Return the marginal LL for the data.

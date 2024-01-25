@@ -419,10 +419,10 @@ def spleen_lymph_cite_seq(
 
 def brainlarge_dataset(
     save_path: str = "data/",
-    sample_size_gene_var: int = 10000,
+    sample_size_gene_var: int = 10_000,
     max_cells_to_keep: int | None = None,
     n_genes_to_keep: int = 720,
-    loading_batch_size: int = 100000,
+    loading_batch_size: int = 100_000,
 ) -> anndata.AnnData:
     """Loads brain-large dataset.
 
