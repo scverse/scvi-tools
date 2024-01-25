@@ -1,4 +1,4 @@
-name: Test (Linux)
+name: Test (Linux, private)
 
 on:
   pull_request:
@@ -39,7 +39,7 @@ jobs:
     permissions:
       id-token: write
 
-    name: Private
+    name: Unit
 
     env:
       OS: ${{ matrix.os }}
