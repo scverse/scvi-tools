@@ -1,8 +1,8 @@
-name: Test (Linux, prerelease)
+name: Test (Linux, prereleases)
 
 on:
   schedule:
-    - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
   workflow_dispatch:
 
 concurrency:
@@ -22,7 +22,7 @@ jobs:
         os: [ubuntu-latest]
         python: ["3.9", "3.10", "3.11", "3.12"]
 
-    name: ${{ matrix.name }} Python ${{ matrix.python }} prereleases
+    name: Prereleases
 
     env:
       OS: ${{ matrix.os }}
