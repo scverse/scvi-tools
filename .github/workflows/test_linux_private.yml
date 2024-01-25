@@ -2,8 +2,10 @@ name: Test (Linux)
 
 on:
   pull_request:
-    branches: [main, 1.0.x, 1.1.x]
-    types: [labeled, synchronize]
+    branches: [main, 1.1.x]
+    types: [labeled, synchronize, opened]
+  push:
+    branches: [main, 1.1.x]
   schedule:
     - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
   workflow_dispatch:
@@ -14,13 +16,14 @@ concurrency:
 
 jobs:
   test:
-    # if PR has label "private tests" or "all tests" or if scheduled or manually triggered
+    # if PR has label "private tests" or "all tests" or if scheduled or manually triggered or on push
     if: >-
       (
         contains(github.event.pull_request.labels.*.name, 'private tests') ||
         contains(github.event.pull_request.labels.*.name, 'all tests') ||
         contains(github.event_name, 'schedule') ||
-        contains(github.event_name, 'workflow_dispatch')
+        contains(github.event_name, 'workflow_dispatch') ||
+        contains(github.event_name, 'push')
       )
     runs-on: ${{ matrix.os }}
     defaults:
