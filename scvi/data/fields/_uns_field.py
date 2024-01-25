@@ -83,6 +83,6 @@ class StringUnsField(BaseUnsField):
         """Get summary stats."""
         return {}
 
-    def view_state_registry(self, _state_registry: dict) -> rich.table.Table:
+    def view_state_registry(self, _state_registry: dict) -> rich.table.Table | None:
         """View the state registry."""
         return None
