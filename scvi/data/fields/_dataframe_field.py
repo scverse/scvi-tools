@@ -243,7 +243,7 @@ class CategoricalDataFrameField(BaseDataFrameField):
         n_categories = len(np.unique(categorical_mapping))
         return {self.count_stat_key: n_categories}
 
-    def view_state_registry(self, state_registry: dict) -> rich.table.Table:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table | None:
         """View state registry."""
         source_key = state_registry[self.ORIGINAL_ATTR_KEY]
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]
