@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Sequence
-from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -20,9 +21,9 @@ class VAEMixin:
     @unsupported_if_adata_minified
     def get_elbo(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> float:
         """Return the ELBO for the data.
 
@@ -50,13 +51,13 @@ class VAEMixin:
     @unsupported_if_adata_minified
     def get_marginal_ll(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         n_mc_samples: int = 1000,
-        batch_size: Optional[int] = None,
-        return_mean: Optional[bool] = True,
+        batch_size: int | None = None,
+        return_mean: bool | None = True,
         **kwargs,
-    ) -> Union[torch.Tensor, float]:
+    ) -> torch.Tensor | float:
         """Return the marginal LL for the data.
 
         The computation here is a biased estimator of the marginal log likelihood of the data.
@@ -111,9 +112,9 @@ class VAEMixin:
     @unsupported_if_adata_minified
     def get_reconstruction_error(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> float:
         r"""Return the reconstruction error for the data.
 
@@ -140,13 +141,13 @@ class VAEMixin:
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         give_mean: bool = True,
         mc_samples: int = 5000,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         return_dist: bool = False,
-    ) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
+    ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         """Return the latent representation for each cell.
 
         This is typically denoted as :math:`z_n`.

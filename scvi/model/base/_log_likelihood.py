@@ -1,4 +1,5 @@
-"""File for computing log likelihood of the data."""
+from __future__ import annotations
+
 import torch
 
 

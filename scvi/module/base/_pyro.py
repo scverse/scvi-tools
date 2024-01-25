@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pyro.infer import Predictive
 
 from ._decorators import auto_move_data

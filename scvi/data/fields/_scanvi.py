@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional, Union
 
 import numpy as np
 from anndata import AnnData
@@ -32,8 +33,8 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
     def __init__(
         self,
         registry_key: str,
-        obs_key: Optional[str],
-        unlabeled_category: Union[str, int, float],
+        obs_key: str | None,
+        unlabeled_category: str | int | float,
     ) -> None:
         super().__init__(registry_key, obs_key)
         self._unlabeled_category = unlabeled_category

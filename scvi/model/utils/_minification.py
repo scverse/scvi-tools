@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from anndata import AnnData
 from scipy.sparse import csr_matrix
 

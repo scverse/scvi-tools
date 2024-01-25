@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from __future__ import annotations
 
 import rich
 from anndata import AnnData
@@ -23,9 +23,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         If ``True``, raises ``ValueError`` when ``mod_key`` is ``None``.
     """
 
-    def __init__(
-        self, mod_key: Optional[str] = None, mod_required: bool = False
-    ) -> None:
+    def __init__(self, mod_key: str | None = None, mod_required: bool = False) -> None:
         super().__init__()
         if mod_required and mod_key is None:
             raise ValueError(
@@ -45,7 +43,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         return self.adata_field.registry_key
 
     @property
-    def mod_key(self) -> Optional[str]:
+    def mod_key(self) -> str | None:
         """The modality key of the data field within the MuData (if applicable)."""
         return self._mod_key
 
@@ -55,7 +53,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         return self.adata_field.attr_name
 
     @property
-    def attr_key(self) -> Optional[str]:
+    def attr_key(self) -> str | None:
         """The key of the data field within the relevant AnnData/MuData attribute."""
         return self.adata_field.attr_key
 
@@ -108,13 +106,13 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         """Get summary stats."""
         return self.adata_field.get_summary_stats(state_registry)
 
-    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table:
         """View the state registry."""
         return self.adata_field.view_state_registry(state_registry)
 
 
 def MuDataWrapper(
-    adata_field_cls: AnnDataField, preregister_fn: Optional[Callable] = None
+    adata_field_cls: AnnDataField, preregister_fn: callable | None = None
 ) -> AnnDataField:
     """Wraps an AnnDataField with :class:`~scvi.data.fields.BaseMuDataWrapperClass`.
 
@@ -130,7 +128,7 @@ def MuDataWrapper(
         raise ValueError("`adata_field_cls` must be a class, not an instance.")
 
     def mudata_field_init(
-        self, *args, mod_key: Optional[str] = None, mod_required: bool = False, **kwargs
+        self, *args, mod_key: str | None = None, mod_required: bool = False, **kwargs
     ):
         BaseMuDataWrapperClass.__init__(self, mod_key=mod_key, mod_required=mod_required)
         self._adata_field = adata_field_cls(*args, **kwargs)

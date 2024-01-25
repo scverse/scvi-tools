@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -80,7 +82,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
-        ambient_profile: Union[str, np.ndarray, pd.DataFrame, torch.tensor] = None,
+        ambient_profile: str | np.ndarray | pd.DataFrame | torch.tensor | None = None,
         n_hidden: int = 150,
         n_latent: int = 15,
         n_layers: int = 2,
@@ -156,8 +158,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
+        layer: str | None = None,
+        size_factor_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -275,9 +277,9 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     @torch.no_grad()
     def get_denoised_counts(
         self,
-        adata: Optional[AnnData] = None,
+        adata: AnnData | None = None,
         n_samples: int = 1,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> np.ndarray:
         r"""Generate observation samples from the posterior predictive distribution.
 

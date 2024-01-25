@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import flax
 import jax
@@ -70,7 +72,7 @@ class Tangram(BaseModelClass):
         self,
         sc_adata: AnnData,
         constrained: bool = False,
-        target_count: Optional[int] = None,
+        target_count: int | None = None,
         **model_kwargs,
     ):
         super().__init__(sc_adata)
@@ -122,9 +124,9 @@ class Tangram(BaseModelClass):
         self,
         max_epochs: int = 1000,
         accelerator: str = "auto",
-        devices: Union[int, list[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         lr: float = 0.1,
-        plan_kwargs: Optional[dict] = None,
+        plan_kwargs: dict | None = None,
     ):
         """Train the model.
 
@@ -192,12 +194,12 @@ class Tangram(BaseModelClass):
     def setup_mudata(
         cls,
         mdata: MuData,
-        density_prior_key: Union[
-            str, Literal["rna_count_based", "uniform"], None
-        ] = "rna_count_based",
-        sc_layer: Optional[str] = None,
-        sp_layer: Optional[str] = None,
-        modalities: Optional[dict[str, str]] = None,
+        density_prior_key: str
+        | Literal["rna_count_based", "uniform"]
+        | None = "rna_count_based",
+        sc_layer: str | None = None,
+        sp_layer: str | None = None,
+        modalities: dict[str, str] | None = None,
         **kwargs,
     ):
         """%(summary)s.

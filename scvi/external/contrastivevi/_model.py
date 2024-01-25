@@ -1,5 +1,3 @@
-"""Model class for contrastive-VI for single cell expression data."""
-
 from __future__ import annotations
 
 import logging

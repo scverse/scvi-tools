@@ -1,4 +1,6 @@
-from typing import NamedTuple, Optional
+from __future__ import annotations
+
+from typing import NamedTuple
 
 import chex
 import jax
@@ -41,7 +43,7 @@ class TangramMapper(JaxBaseModuleClass):
     lambda_count: float = 1.0
     lambda_f_reg: float = 1.0
     constrained: bool = False
-    target_count: Optional[int] = None
+    target_count: int | None = None
     training: bool = True
 
     def setup(self):

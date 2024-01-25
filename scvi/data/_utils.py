@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 import warnings
-from typing import Optional, Union
+from typing import Union
 from uuid import uuid4
 
 import h5py
@@ -98,9 +100,9 @@ def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
 def get_anndata_attribute(
     adata: AnnOrMuData,
     attr_name: str,
-    attr_key: Optional[str],
-    mod_key: Optional[str] = None,
-) -> Union[np.ndarray, pd.DataFrame]:
+    attr_key: str | None,
+    mod_key: str | None = None,
+) -> np.ndarray | pd.DataFrame:
     """Returns the requested data from a given AnnData/MuData object."""
     if mod_key is not None:
         if isinstance(adata, AnnData):
@@ -129,9 +131,9 @@ def get_anndata_attribute(
 
 def _set_data_in_registry(
     adata: AnnData,
-    data: Union[np.ndarray, pd.DataFrame],
+    data: np.ndarray | pd.DataFrame,
     attr_name: str,
-    attr_key: Optional[str],
+    attr_key: str | None,
 ):
     """Sets the data in the AnnData object according to the attr_name and attr_key.
 
@@ -163,7 +165,7 @@ def _set_data_in_registry(
 
 
 def _verify_and_correct_data_format(
-    adata: AnnData, attr_name: str, attr_key: Optional[str]
+    adata: AnnData, attr_name: str, attr_key: str | None
 ):
     """Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
 
@@ -207,7 +209,7 @@ def _make_column_categorical(
     df: pd.DataFrame,
     column_key: str,
     alternate_column_key: str,
-    categorical_dtype: Optional[Union[str, CategoricalDtype]] = None,
+    categorical_dtype: str | CategoricalDtype | None = None,
 ):
     """Makes the data in column_key in DataFrame all categorical.
 
@@ -255,7 +257,7 @@ def _assign_adata_uuid(adata: AnnOrMuData, overwrite: bool = False) -> None:
 
 
 def _check_nonnegative_integers(
-    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix, h5py.Dataset],
+    data: pd.DataFrame | np.ndarray | sp_sparse.spmatrix | h5py.Dataset,
     n_to_check: int = 20,
 ):
     """Approximately checks values of data to ensure it is count data."""
@@ -318,11 +320,11 @@ def _check_mudata_fully_paired(mdata: MuData):
             )
 
 
-def _get_adata_minify_type(adata: AnnData) -> Union[MinifiedDataType, None]:
+def _get_adata_minify_type(adata: AnnData) -> MinifiedDataType | None:
     return adata.uns.get(_constants._ADATA_MINIFY_TYPE_UNS_KEY, None)
 
 
-def _is_minified(adata: Union[AnnData, str]) -> bool:
+def _is_minified(adata: AnnData | str) -> bool:
     uns_key = _constants._ADATA_MINIFY_TYPE_UNS_KEY
     if isinstance(adata, AnnData):
         return adata.uns.get(uns_key, None) is not None
@@ -334,7 +336,7 @@ def _is_minified(adata: Union[AnnData, str]) -> bool:
 
 
 def _check_fragment_counts(
-    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix, h5py.Dataset],
+    data: pd.DataFrame | np.ndarray | sp_sparse.spmatrix | h5py.Dataset,
     n_to_check: int = 100,
 ):
     """Approximately checks values of data to ensure it is fragment count data."""

@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import math
 from collections.abc import Iterable, Sequence
-from typing import Optional, Union
 
 import pyro
 import pyro.distributions as dist
@@ -97,9 +98,7 @@ class AmortizedLDAPyroModel(PyroModule):
         self._dummy = torch.nn.Parameter(torch.zeros(1), requires_grad=False)
 
     @staticmethod
-    def _get_fn_args_from_batch(
-        tensor_dict: dict[str, torch.Tensor],
-    ) -> Union[Iterable, dict]:
+    def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         library = torch.sum(x, dim=1)
         return (x, library), {}
@@ -109,7 +108,7 @@ class AmortizedLDAPyroModel(PyroModule):
         self,
         x: torch.Tensor,
         library: torch.Tensor,
-        n_obs: Optional[int] = None,
+        n_obs: int | None = None,
         kl_weight: float = 1.0,
     ):
         """Forward pass."""
@@ -187,7 +186,7 @@ class AmortizedLDAPyroGuide(PyroModule):
         self,
         x: torch.Tensor,
         _library: torch.Tensor,
-        n_obs: Optional[int] = None,
+        n_obs: int | None = None,
         kl_weight: float = 1.0,
     ):
         """Forward pass."""
@@ -246,8 +245,8 @@ class AmortizedLDAPyroModule(PyroBaseModuleClass):
         n_input: int,
         n_topics: int,
         n_hidden: int,
-        cell_topic_prior: Optional[Union[float, Sequence[float]]] = None,
-        topic_feature_prior: Optional[Union[float, Sequence[float]]] = None,
+        cell_topic_prior: float | Sequence[float] | None = None,
+        topic_feature_prior: float | Sequence[float] | None = None,
     ):
         super().__init__()
 

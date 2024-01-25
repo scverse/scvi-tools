@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import rich
@@ -33,7 +35,7 @@ class BaseDataFrameField(BaseAnnDataField):
     def __init__(
         self,
         registry_key: str,
-        attr_key: Optional[str],
+        attr_key: str | None,
         field_type: Literal["obs", "var"] = None,
         required: bool = True,
     ) -> None:
@@ -102,7 +104,7 @@ class NumericalDataFrameField(BaseDataFrameField):
         """Get summary stats."""
         return {}
 
-    def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, _state_registry: dict) -> rich.table.Table:
         """View state registry."""
         return None
 
@@ -144,7 +146,7 @@ class CategoricalDataFrameField(BaseDataFrameField):
     def __init__(
         self,
         registry_key: str,
-        attr_key: Optional[str],
+        attr_key: str | None,
         field_type: Literal["obs", "var"] = None,
     ) -> None:
         self.is_default = attr_key is None
@@ -241,7 +243,7 @@ class CategoricalDataFrameField(BaseDataFrameField):
         n_categories = len(np.unique(categorical_mapping))
         return {self.count_stat_key: n_categories}
 
-    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table:
         """View state registry."""
         source_key = state_registry[self.ORIGINAL_ATTR_KEY]
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]

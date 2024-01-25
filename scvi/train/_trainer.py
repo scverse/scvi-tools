@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import sys
 import warnings
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import lightning.pytorch as pl
 from lightning.pytorch.accelerators import Accelerator
@@ -94,12 +96,12 @@ class Trainer(TunableMixin, pl.Trainer):
 
     def __init__(
         self,
-        accelerator: Optional[Union[str, Accelerator]] = None,
-        devices: Optional[Union[list[int], str, int]] = None,
+        accelerator: str | Accelerator | None = None,
+        devices: list[int] | str | int | None = None,
         benchmark: bool = True,
-        check_val_every_n_epoch: Optional[int] = None,
+        check_val_every_n_epoch: int | None = None,
         max_epochs: Tunable[int] = 400,
-        default_root_dir: Optional[str] = None,
+        default_root_dir: str | None = None,
         enable_checkpointing: bool = False,
         checkpointing_monitor: str = "validation_loss",
         num_sanity_val_steps: int = 0,
@@ -111,13 +113,14 @@ class Trainer(TunableMixin, pl.Trainer):
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
-        additional_val_metrics: Union[
-            MetricCallable, list[MetricCallable], dict[str, MetricCallable]
-        ] = None,
+        additional_val_metrics: MetricCallable
+        | list[MetricCallable]
+        | dict[str, MetricCallable]
+        | None = None,
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
-        logger: Union[Optional[Logger], bool] = None,
+        logger: Logger | bool | None = None,
         log_every_n_steps: int = 10,
         learning_rate_monitor: bool = False,
         **kwargs,

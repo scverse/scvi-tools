@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 import numpy as np
 import torch
@@ -54,8 +54,8 @@ class VAEC(BaseModuleClass):
         log_variational: bool = True,
         ct_weight: np.ndarray = None,
         dropout_rate: Tunable[float] = 0.05,
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
     ):
         super().__init__()
         self.dispersion = "gene"

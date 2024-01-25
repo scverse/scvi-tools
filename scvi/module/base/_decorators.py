@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from collections.abc import Mapping, Sequence
 from functools import wraps
-from typing import Any, Callable, Union
+from typing import Any, Callable
 
 import flax.linen as nn
 import torch
@@ -71,7 +73,7 @@ def _move_data_to_device(batch: Any, device: torch.device):
 
 def _apply_to_collection(
     data: Any,
-    dtype: Union[type, tuple],
+    dtype: type | tuple,
     function: Callable,
     *args,
     **kwargs,

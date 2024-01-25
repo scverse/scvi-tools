@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging
 import os
 import warnings
 from collections.abc import Iterable as IterableClass
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import anndata
 import mudata
@@ -25,7 +27,7 @@ def _load_legacy_saved_files(
     dir_path: str,
     file_name_prefix: str,
     load_adata: bool,
-) -> tuple[dict, np.ndarray, dict, Optional[AnnData]]:
+) -> tuple[dict, np.ndarray, dict, AnnData | None]:
     model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
     var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
     setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
@@ -54,9 +56,9 @@ def _load_legacy_saved_files(
 def _load_saved_files(
     dir_path: str,
     load_adata: bool,
-    prefix: Optional[str] = None,
-    map_location: Optional[Literal["cpu", "cuda"]] = None,
-    backup_url: Optional[str] = None,
+    prefix: str | None = None,
+    map_location: Literal["cpu", "cuda"] | None = None,
+    backup_url: str | None = None,
 ) -> tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
@@ -147,8 +149,8 @@ def _validate_var_names(adata, source_var_names):
 
 
 def _prepare_obs(
-    idx1: Union[list[bool], np.ndarray, str],
-    idx2: Union[list[bool], np.ndarray, str],
+    idx1: list[bool] | np.ndarray | str,
+    idx2: list[bool] | np.ndarray | str,
     adata: anndata.AnnData,
 ):
     """Construct an array used for masking.

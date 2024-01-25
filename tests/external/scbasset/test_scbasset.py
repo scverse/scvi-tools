@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pytest
@@ -10,7 +9,7 @@ from scvi.external import SCBASSET
 _DNA_CODE_KEY = "code"
 
 
-def _get_adata(sparse_format: Optional[str] = None):
+def _get_adata(sparse_format: str | None = None):
     dataset1 = synthetic_iid(batch_size=100, sparse_format=sparse_format).transpose()
     dataset1.X = (dataset1.X > 0).astype(float)
     dataset1.obsm[_DNA_CODE_KEY] = np.random.randint(0, 3, size=(dataset1.n_obs, 1344))

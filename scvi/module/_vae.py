@@ -1,7 +1,8 @@
-"""Main module."""
+from __future__ import annotations
+
 import logging
 from collections.abc import Iterable
-from typing import Callable, Literal, Optional
+from typing import Callable, Literal
 
 import numpy as np
 import torch
@@ -105,7 +106,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_latent: Tunable[int] = 10,
         n_layers: Tunable[int] = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: Tunable[float] = 0.1,
         dispersion: Tunable[
             Literal["gene", "gene-batch", "gene-label", "gene-cell"]
@@ -119,11 +120,11 @@ class VAE(BaseMinifiedModeModuleClass):
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
         use_size_factor_key: bool = False,
         use_observed_lib_size: Tunable[bool] = True,
-        library_log_means: Optional[np.ndarray] = None,
-        library_log_vars: Optional[np.ndarray] = None,
+        library_log_means: np.ndarray | None = None,
+        library_log_vars: np.ndarray | None = None,
         var_activation: Tunable[Callable] = None,
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
     ):
         super().__init__()
         self.dispersion = dispersion

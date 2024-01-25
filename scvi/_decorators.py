@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 class classproperty:
     """Read-only class property decorator.
 
