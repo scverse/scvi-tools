@@ -156,7 +156,7 @@ class MetricsCallback(Callback):
 
     def __init__(
         self,
-        metric_fns: Metriccallable | list[Metriccallable] | dict[str, Metriccallable],
+        metric_fns: MetricCallable | list[MetricCallable] | dict[str, MetricCallable],
     ):
         super().__init__()
 
