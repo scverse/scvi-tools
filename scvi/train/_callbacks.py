@@ -143,7 +143,7 @@ class MetricsCallback(Callback):
     metric_fns
         Validation metrics to compute and log. One of the following:
 
-        * `:class:`~scvi.train._callbacks.Metriccallable`: A function that takes in a
+        * `:class:`~scvi.train._callbacks.MetricCallable`: A function that takes in a
             :class:`~scvi.model.base.BaseModelClass` and returns a `float`.
             The function's `__name__`is used as the logging name.
 
