@@ -22,7 +22,7 @@ jobs:
         os: [macos-latest]
         python: ["3.9", "3.10", "3.11"]
 
-    name: ${{ matrix.name }} Python ${{ matrix.python }}
+    name: Integration
 
     env:
       OS: ${{ matrix.os }}
