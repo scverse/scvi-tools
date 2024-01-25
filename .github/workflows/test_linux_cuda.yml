@@ -2,8 +2,8 @@ name: Test (Linux)
 
 on:
   pull_request:
-    branches: [main, 1.0.x, 1.1.x]
-    types: [labeled, synchronize]
+    branches: [main, 1.1.x]
+    types: [labeled, synchronize, opened]
   schedule:
     - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
   workflow_dispatch:
