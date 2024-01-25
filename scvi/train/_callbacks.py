@@ -18,7 +18,7 @@ from scvi import settings
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
 
-Metriccallable = callable[[BaseModelClass], float]
+MetricCallable = callable[[BaseModelClass], float]
 
 
 class SaveCheckpoint(ModelCheckpoint):
