@@ -36,8 +36,6 @@ jobs:
     permissions:
       id-token: write
 
-    name: Python private
-
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python }}

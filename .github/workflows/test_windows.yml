@@ -22,8 +22,6 @@ jobs:
         os: [windows-latest]
         python: ["3.9", "3.10", "3.11"]
 
-    name: Python
-
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python }}
