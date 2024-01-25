@@ -104,7 +104,7 @@ class NumericalDataFrameField(BaseDataFrameField):
         """Get summary stats."""
         return {}
 
-    def view_state_registry(self, _state_registry: dict) -> rich.table.Table:
+    def view_state_registry(self, _state_registry: dict) -> rich.table.Table | None:
         """View state registry."""
         return None
 
