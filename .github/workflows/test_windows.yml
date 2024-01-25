@@ -2,7 +2,7 @@ name: Test (Windows)
 
 on:
   schedule:
-    - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
   workflow_dispatch:
 
 concurrency:
@@ -22,7 +22,7 @@ jobs:
         os: [windows-latest]
         python: ["3.9", "3.10", "3.11"]
 
-    name: ${{ matrix.name }} Python ${{ matrix.python }}
+    name: Integration
 
     env:
       OS: ${{ matrix.os }}
@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
