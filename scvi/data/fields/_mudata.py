@@ -106,7 +106,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         """Get summary stats."""
         return self.adata_field.get_summary_stats(state_registry)
 
-    def view_state_registry(self, state_registry: dict) -> rich.table.Table:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table | None:
         """View the state registry."""
         return self.adata_field.view_state_registry(state_registry)
 
