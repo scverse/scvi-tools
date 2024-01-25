@@ -26,7 +26,7 @@ jobs:
         cuda: ["11"]
 
     container:
-      image: martinkim0/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
+      image: scverse/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
       options: --user root --gpus all
 
     environment:
