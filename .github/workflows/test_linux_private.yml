@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  private-test:
     # if PR has label "private tests" or "all tests" or if scheduled or manually triggered
     if: >-
       (
