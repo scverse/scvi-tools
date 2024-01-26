@@ -121,12 +121,7 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         # since we are combining datasets, we need to increment the batch_idx
         # of one of the datasets
-        adata_seq_n_batches = sum_stats[0]["n_batch"]
-        adata_spatial.obs[
-            self.adata_managers["spatial"]
-            .data_registry[REGISTRY_KEYS.BATCH_KEY]
-            .attr_key
-        ] += adata_seq_n_batches
+        self.n_seq_batch = sum_stats[0]["n_batch"]
 
         n_batches = sum(s["n_batch"] for s in sum_stats)
 
@@ -217,6 +212,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         )
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
         train_dls, test_dls, val_dls = [], [], []
+        # seq and then spatial
         for i, adm in enumerate(self.adata_managers.values()):
             ds = DataSplitter(
                 adm,
@@ -242,6 +238,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             self.module,
             adversarial_classifier=True,
             scale_adversarial_loss=kappa,
+            n_seq_batch=self.n_seq_batch,
             **plan_kwargs,
         )
 

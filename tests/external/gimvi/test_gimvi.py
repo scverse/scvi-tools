@@ -169,3 +169,22 @@ def test_gimvi_model_library_size():
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.get_latent_representation()
     model.get_imputed_values()
+
+
+def test_gimvi_reinit():
+    adata_seq = synthetic_iid()
+    adata_spatial = synthetic_iid()
+    GIMVI.setup_anndata(
+        adata_seq,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    GIMVI.setup_anndata(
+        adata_spatial,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = GIMVI(adata_seq, adata_spatial)
+    model.train(max_epochs=1)
+    model = GIMVI(adata_seq, adata_spatial)
+    model.train(max_epochs=1)
