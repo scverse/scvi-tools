@@ -8,7 +8,7 @@ from scvi.train import AdversarialTrainingPlan
 class GIMVITrainingPlan(AdversarialTrainingPlan):
     """gimVI training plan."""
 
-    def __init__(self, *args, n_seq_batch: int = 0, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if kwargs["adversarial_classifier"] is True:
             self.n_output_classifier = 2
@@ -23,8 +23,6 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
             self.adversarial_classifier = kwargs["adversarial_classifier"]
         self.automatic_optimization = False
         self.validation_step_outputs = []
-
-        self.n_seq_batch = n_seq_batch
 
     def training_step(self, batch, batch_idx):
         """Training step."""
@@ -45,10 +43,6 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
         zs = []
         for i, tensors in enumerate(batch):
             n_obs += tensors[REGISTRY_KEYS.X_KEY].shape[0]
-            if i == 1:  # spatial
-                # since we are combining datasets, we need to increment the batch_idx
-                # of one of the datasets
-                tensors[REGISTRY_KEYS.BATCH_KEY] += self.n_seq_batch
             self.loss_kwargs.update({"kl_weight": self.kl_weight, "mode": i})
             inference_kwargs = {"mode": i}
             generative_kwargs = {"mode": i}
