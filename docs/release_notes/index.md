@@ -76,6 +76,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Fix initialization of {class}`scvi.distributions.NegativeBinomial` and
     {class}`scvi.distributions.ZeroInflatedNegativeBinomial` when `validate_args=True` and
     optional parameters not passed in {pr}`2395`.
+-   Fix error when re-initializing {class}`scvi.external.GIMVI` with the same datasets {pr}`2446`.
 
 #### Changed
 
