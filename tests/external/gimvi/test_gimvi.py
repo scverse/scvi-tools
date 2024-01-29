@@ -172,6 +172,7 @@ def test_gimvi_model_library_size():
 
 
 def test_gimvi_reinit():
+    # see #2446
     adata_seq = synthetic_iid()
     adata_spatial = synthetic_iid()
     GIMVI.setup_anndata(
