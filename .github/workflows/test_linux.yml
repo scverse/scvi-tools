@@ -1,0 +1,60 @@
+name: Test (Linux)
+
+on:
+  push:
+    branches: [main, 1.1.x]
+  pull_request:
+    branches: [main, 1.1.x]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -e {0} # -e to fail on error
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.9", "3.10", "3.11"]
+
+    name: Integration
+
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: "pip"
+          cache-dependency-path: "**/pyproject.toml"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip wheel
+
+      - name: Install dependencies
+        run: |
+          pip install --pre ".[tests]"
+
+      - name: Test
+        env:
+          MPLBACKEND: agg
+          PLATFORM: ${{ matrix.os }}
+          DISPLAY: :42
+        run: |
+          coverage run -m pytest -v --color=yes
+      - name: Report coverage
+        run: |
+          coverage report
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
