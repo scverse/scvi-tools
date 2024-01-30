@@ -66,8 +66,6 @@ tests = [
     "scvi-tools[optional]"
 ]  # dependencies for running the test suite
 editing = [
-    "black",
-    "flake8",
     "jupyter",
     "nbformat",
     "pre-commit",
