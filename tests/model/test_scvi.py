@@ -211,8 +211,11 @@ def test_scvi(n_latent: int = 5):
     assert z.shape == (adata.shape[0], n_latent)
     assert len(model.history["elbo_train"]) == 2
     model.get_elbo()
+    model.get_elbo(return_mean=False)
     model.get_marginal_ll(n_mc_samples=3)
+    model.get_marginal_ll(n_mc_samples=3, return_mean=False)
     model.get_reconstruction_error()
+    model.get_reconstruction_error(return_mean=False)
     model.get_normalized_expression(transform_batch="batch_1")
     model.get_normalized_expression(n_samples=2)
 
