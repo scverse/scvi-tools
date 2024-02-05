@@ -909,3 +909,42 @@ def test_set_seed(n_latent: int = 5, seed: int = 1):
         model1.module.z_encoder.encoder.fc_layers[0][0].weight,
         model2.module.z_encoder.encoder.fc_layers[0][0].weight,
     )
+
+
+def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
+    from scvi.dataloaders import DataSplitter
+
+    adata = synthetic_iid(n_batches=n_batches)
+    SCVI.setup_anndata(adata, batch_key="batch")
+    manager = SCVI._get_most_recent_anndata_manager(adata)
+
+    data_module = DataSplitter(manager)
+    data_module.n_vars = adata.n_vars
+    data_module.n_batch = n_batches
+
+    model = SCVI(n_latent=5)
+    assert model._module_init_on_train
+    assert model.module is None
+
+    # cannot infer default max_epochs without n_obs set in data_module
+    with pytest.raises(ValueError):
+        model.train(data_module=data_module)
+
+    # must pass in data_module if not initialized with adata
+    with pytest.raises(ValueError):
+        model.train()
+
+    model.train(max_epochs=1, data_module=data_module)
+
+    # must set n_obs for defaulting max_epochs
+    data_module.n_obs = 100_000_000  # large number for fewer default epochs
+    model.train(data_module=data_module)
+
+    model = SCVI(adata, n_latent=5)
+    assert not model._module_init_on_train
+    assert model.module is not None
+    assert hasattr(model, "adata")
+
+    # initialized with adata, cannot pass in data_module
+    with pytest.raises(ValueError):
+        model.train(data_module=data_module)
