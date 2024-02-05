@@ -87,7 +87,7 @@ def test_hub_modelcardhelper(request, save_path):
     assert hmch.license_info == "cc-by-4.0"
     assert hmch.model_cls_name == "SCVI"
     assert hmch.model_init_params == {
-        "kwargs": {"model_kwargs": {}},
+        "kwargs": {"kwargs": {}},
         "non_kwargs": {
             "n_hidden": 128,
             "n_latent": 10,
