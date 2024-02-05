@@ -5,7 +5,7 @@ import scvi
 from scvi.data import synthetic_iid
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _is_minified
-from scvi.model import SCANVI, SCVI
+from scvi.model import SCANVI, SCVI, CondSCVI
 
 _SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 _SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
@@ -33,6 +33,8 @@ def prep_model(cls=SCVI, layer=None, use_size_factor=False):
     }
     if cls == SCANVI:
         setup_kwargs["unlabeled_category"] = "unknown"
+    if cls == CondSCVI:
+        setup_kwargs.pop("batch_key")
     if use_size_factor:
         setup_kwargs["size_factor_key"] = "size_factor"
     cls.setup_anndata(
@@ -89,7 +91,7 @@ def run_test_for_model_with_minified_adata(
 
     assert adata_orig.layers.keys() == model.adata.layers.keys()
     orig_obs_df = adata_orig.obs
-    obs_keys = _SCANVI_OBSERVED_LIB_SIZE if cls == SCANVI else _SCVI_OBSERVED_LIB_SIZE
+    obs_keys = model._OBSERVED_LIB_SIZE
     orig_obs_df[obs_keys] = adata_lib_size
     assert model.adata.obs.equals(orig_obs_df)
     assert model.adata.var_names.equals(adata_orig.var_names)
@@ -101,6 +103,8 @@ def run_test_for_model_with_minified_adata(
 
     scvi.settings.seed = 1
     keys = ["mean", "dispersions", "dropout"]
+    if cls == CondSCVI:
+        keys.remove("dropout")
     if n_samples == 1:
         params_latent = model.get_likelihood_parameters(
             n_samples=n_samples, give_mean=give_mean
@@ -158,6 +162,31 @@ def test_scanvi_with_minified_adata_n_samples():
     )
 
 
+def test_condscvi_with_minified_adata_one_sample():
+    run_test_for_model_with_minified_adata(CondSCVI)
+
+
+def test_condscvi_with_minified_adata_one_sample():
+    run_test_for_model_with_minified_adata(CondSCVI, layer="data_layer")
+
+
+def test_condscvi_with_minified_adata_n_samples():
+    run_test_for_model_with_minified_adata(CondSCVI, n_samples=10, give_mean=True)
+
+
+def test_condscvi_downstream():
+    model, adata, _, adata_before_setup = prep_model(CondSCVI)
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    adata.obsm["X_latent_qzm"] = qzm
+    adata.obsm["X_latent_qzv"] = qzv
+    model.minify_adata()
+    model.get_vamp_prior()
+    scvi.model.DestVI.setup_anndata(adata_before_setup)
+    scvi.model.DestVI.from_rna_model(
+        adata_before_setup, model, amortization="both", vamp_prior_p=10
+    )
+
+
 def test_scanvi_from_scvi(save_path):
     model, adata, _, adata_before_setup = prep_model(SCVI)
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
@@ -203,7 +232,14 @@ def test_scvi_with_minified_adata_get_normalized_expression():
     scvi.settings.seed = 1
     exprs_orig = model.get_normalized_expression()
 
+    model.minify_adata("add_posterior_parameters")
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.ADD_POSTERIOR_PARAMETERS
+    assert np.isfinite(model.get_elbo())
+    print("XXXX", model.get_reconstruction_error())
+    assert np.isfinite(model.get_reconstruction_error()["reconstruction_loss"])
+
     model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
@@ -358,6 +394,26 @@ def test_scvi_save_then_load_with_minified_adata(save_path):
 
 
 def test_scvi_with_minified_adata_get_latent_representation():
+    model, _, _, _ = prep_model()
+
+    scvi.settings.seed = 1
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+
+    scvi.settings.seed = 1
+    latent_repr_orig = model.get_latent_representation()
+
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+
+    scvi.settings.seed = 1
+    latent_repr_new = model.get_latent_representation()
+
+    np.testing.assert_array_equal(latent_repr_new, latent_repr_orig)
+
+
+def test_scvi_with_minified_adata_differential_expression():
     model, _, _, _ = prep_model()
 
     scvi.settings.seed = 1

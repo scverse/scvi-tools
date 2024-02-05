@@ -245,7 +245,7 @@ class VAE(BaseMinifiedModeModuleClass):
                 "cat_covs": cat_covs,
             }
         else:
-            if self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+            if ADATA_MINIFY_TYPE.__contains__(self.minified_data_type):
                 qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
                 qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
                 observed_lib_size = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
@@ -356,11 +356,12 @@ class VAE(BaseMinifiedModeModuleClass):
 
     @auto_move_data
     def _cached_inference(self, qzm, qzv, observed_lib_size, n_samples=1):
-        if self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        if ADATA_MINIFY_TYPE.__contains__(self.minified_data_type):
             dist = Normal(qzm, qzv.sqrt())
             # use dist.sample() rather than rsample because we aren't optimizing the z here
             untran_z = dist.sample() if n_samples == 1 else dist.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
+            qz = Normal(qzm, qzv.sqrt())
             library = torch.log(observed_lib_size)
             if n_samples > 1:
                 library = library.unsqueeze(0).expand(
@@ -370,7 +371,7 @@ class VAE(BaseMinifiedModeModuleClass):
             raise NotImplementedError(
                 f"Unknown minified-data type: {self.minified_data_type}"
             )
-        outputs = {"z": z, "qz_m": qzm, "qz_v": qzv, "ql": None, "library": library}
+        outputs = {"z": z, "qz": qz, "ql": None, "library": library}
         return outputs
 
     @auto_move_data
