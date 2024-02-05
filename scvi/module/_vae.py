@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import logsumexp
-from torch.distributions import Normal
+from torch.distributions import Exponential, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
@@ -87,14 +87,24 @@ class VAE(BaseMinifiedModeModuleClass):
     library_log_vars
         1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
+    library_log_vars_weight
+        Weight that allows adjusting the expected variance in library sizes that can be attributed to technical
+        rather than biological effect. Set library_log_vars_weight < 1.0 to regularise technical effect.
+    library_n_hidden
+        Number of hidden layers to use for the encoder that learns library sizes. Default: use n_hidden.
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
+    scale_activation
+        String naming the activation function to use for transforming decoder output
+        before applying per cell normalisation.
     extra_encoder_kwargs
         Extra keyword arguments passed into :class:`~scvi.nn.Encoder`.
     extra_decoder_kwargs
         Extra keyword arguments passed into :class:`~scvi.nn.DecoderSCVI`.
     """
+
+    regularise_dispersion_prior = 3.0
 
     def __init__(
         self,
@@ -121,7 +131,13 @@ class VAE(BaseMinifiedModeModuleClass):
         use_observed_lib_size: Tunable[bool] = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
-        var_activation: Tunable[Callable] = None,
+        library_log_vars_weight: float = 1.0,
+        library_n_hidden: Optional[int] = None,
+        var_activation: Optional[Callable] = None,
+        scale_activation: Optional[Literal["softplus", "softmax"]] = None,
+        use_additive_background: bool = False,
+        use_batch_in_decoder: bool = True,
+        regularise_dispersion: bool = False,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):
@@ -149,7 +165,8 @@ class VAE(BaseMinifiedModeModuleClass):
                 "library_log_means", torch.from_numpy(library_log_means).float()
             )
             self.register_buffer(
-                "library_log_vars", torch.from_numpy(library_log_vars).float()
+                "library_log_vars",
+                torch.from_numpy(library_log_vars * library_log_vars_weight).float(),
             )
 
         if self.dispersion == "gene":
@@ -166,6 +183,12 @@ class VAE(BaseMinifiedModeModuleClass):
                 " 'gene-label', 'gene-cell'], but input was "
                 "{}.format(self.dispersion)"
             )
+        self.regularise_dispersion = regularise_dispersion
+
+        self.use_additive_background = use_additive_background
+        self.use_batch_in_decoder = use_batch_in_decoder
+        if self.use_additive_background:
+            self.additive_background = torch.nn.Parameter(torch.randn(n_input, n_batch))
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
@@ -194,12 +217,14 @@ class VAE(BaseMinifiedModeModuleClass):
             **_extra_encoder_kwargs,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
+        if library_n_hidden is None:
+            library_n_hidden = n_hidden
         self.l_encoder = Encoder(
             n_input_encoder,
             1,
             n_layers=1,
             n_cat_list=encoder_cat_list,
-            n_hidden=n_hidden,
+            n_hidden=library_n_hidden,
             dropout_rate=dropout_rate,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_encoder,
@@ -210,7 +235,12 @@ class VAE(BaseMinifiedModeModuleClass):
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         n_input_decoder = n_latent + n_continuous_cov
+
+        if scale_activation is None:
+            scale_activation = "softplus" if use_size_factor_key else "softmax"
         _extra_decoder_kwargs = extra_decoder_kwargs or {}
+        _extra_decoder_kwargs["scale_activation"] = scale_activation
+
         self.decoder = DecoderSCVI(
             n_input_decoder,
             n_input,
@@ -220,7 +250,6 @@ class VAE(BaseMinifiedModeModuleClass):
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
-            scale_activation="softplus" if use_size_factor_key else "softmax",
             **_extra_decoder_kwargs,
         )
 
@@ -407,15 +436,34 @@ class VAE(BaseMinifiedModeModuleClass):
 
         if not self.use_size_factor_key:
             size_factor = library
+        if self.use_additive_background:
+            additive_background = (
+                one_hot(batch_index, self.n_batch)
+                @ torch.exp(self.additive_background).T
+            )
+        else:
+            additive_background = torch.zeros_like(library)
+        if self.use_batch_in_decoder:
+            px_scale, px_r, px_rate, px_dropout = self.decoder(
+                self.dispersion,
+                decoder_input,
+                size_factor,
+                additive_background,
+                batch_index,
+                *categorical_input,
+                y,
+            )
+        else:
+            px_scale, px_r, px_rate, px_dropout = self.decoder(
+                self.dispersion,
+                decoder_input,
+                size_factor,
+                additive_background,
+                # batch_index,
+                *categorical_input,
+                y,
+            )
 
-        px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion,
-            decoder_input,
-            size_factor,
-            batch_index,
-            *categorical_input,
-            y,
-        )
         if self.dispersion == "gene-label":
             px_r = F.linear(
                 one_hot(y, self.n_labels), self.px_r
@@ -461,6 +509,7 @@ class VAE(BaseMinifiedModeModuleClass):
         inference_outputs,
         generative_outputs,
         kl_weight: float = 1.0,
+        n_obs: int = 1.0,
     ):
         """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
@@ -483,6 +532,19 @@ class VAE(BaseMinifiedModeModuleClass):
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
 
         loss = torch.mean(reconst_loss + weighted_kl_local)
+
+        if self.regularise_dispersion:
+            # prior likelihood
+            # (dispersion not overdispersion is used here)
+            # overdispersion = 1 / disp -> mean = 9
+            # disp = dist ^ 2 -> mean = 1/9
+            # disp_prior ~ Exponential(rate=3) -> mean = 1/3
+            rate = torch.ones_like(self.px_r) * torch.tensor(
+                self.regularise_dispersion_prior, device=x.device
+            )  # 3
+            px_r = torch.exp(self.px_r).pow(0.5)
+            neg_log_likelihood_prior = -Exponential(rate).log_prob(px_r).sum()
+            loss = loss + neg_log_likelihood_prior / n_obs
 
         kl_local = {
             "kl_divergence_l": kl_divergence_l,

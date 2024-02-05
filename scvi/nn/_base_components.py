@@ -55,12 +55,13 @@ class FCLayers(nn.Module):
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
-        use_batch_norm: bool = True,
-        use_layer_norm: bool = False,
+        use_batch_norm: bool = False,
+        use_layer_norm: bool = True,
         use_activation: bool = True,
         bias: bool = True,
         inject_covariates: bool = True,
         activation_fn: nn.Module = nn.ReLU,
+        dropout_on_input: bool = False,
     ):
         super().__init__()
         self.inject_covariates = inject_covariates
@@ -73,12 +74,16 @@ class FCLayers(nn.Module):
             self.n_cat_list = []
 
         cat_dim = sum(self.n_cat_list)
+        self.dropout_on_input = dropout_on_input
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
                     (
                         f"Layer {i}",
                         nn.Sequential(
+                            nn.Dropout(p=dropout_rate)
+                            if (dropout_rate > 0) and self.dropout_on_input
+                            else None,
                             nn.Linear(
                                 n_in + cat_dim * self.inject_into_layer(i),
                                 n_out,
@@ -92,7 +97,9 @@ class FCLayers(nn.Module):
                             if use_layer_norm
                             else None,
                             activation_fn() if use_activation else None,
-                            nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
+                            nn.Dropout(p=dropout_rate)
+                            if (dropout_rate > 0) and not self.dropout_on_input
+                            else None,
                         ),
                     )
                     for i, (n_in, n_out) in enumerate(
@@ -257,6 +264,8 @@ class Encoder(nn.Module):
 
         if distribution == "ln":
             self.z_transformation = nn.Softmax(dim=-1)
+        elif distribution == "softplus":
+            self.z_transformation = nn.Softplus()
         else:
             self.z_transformation = _identity
         self.var_activation = torch.exp if var_activation is None else var_activation
@@ -322,6 +331,8 @@ class DecoderSCVI(nn.Module):
         Whether to use layer norm in layers
     scale_activation
         Activation layer to use for px_scale_decoder
+    library_activation
+        Activation layer to use for library / scale factor. Use "softplus" for computational stability.
     **kwargs
         Keyword args for :class:`~scvi.nn.FCLayers`.
     """
@@ -337,6 +348,7 @@ class DecoderSCVI(nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         scale_activation: Literal["softmax", "softplus"] = "softmax",
+        library_activation: Literal["exp", "softplus"] = "exp",
         **kwargs,
     ):
         super().__init__()
@@ -369,11 +381,18 @@ class DecoderSCVI(nn.Module):
         # dropout
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
 
+        # library
+        if library_activation == "exp":
+            self.library_activation = torch.exp
+        elif library_activation == "softplus":
+            self.library_activation = nn.Softplus()
+
     def forward(
         self,
         dispersion: str,
         z: torch.Tensor,
         library: torch.Tensor,
+        additive_background: torch.Tensor = None,
         *cat_list: int,
     ):
         """The forward computation for a single sample.
@@ -409,7 +428,14 @@ class DecoderSCVI(nn.Module):
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
-        px_rate = torch.exp(library) * px_scale  # torch.clamp( , max=12)
+        if additive_background is not None:
+            px_rate = self.library_activation(library) * (
+                px_scale + additive_background
+            )  # torch.clamp( , max=12)
+        else:
+            px_rate = (
+                self.library_activation(library) * px_scale
+            )  # torch.clamp( , max=12)
         px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
         return px_scale, px_r, px_rate, px_dropout
 
