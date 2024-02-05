@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from lightning.pytorch import LightningDataModule
+from lightning import LightningDataModule
 
 from scvi._types import Tunable
 from scvi.dataloaders import DataSplitter
@@ -70,9 +70,8 @@ class UnsupervisedTrainingMixin:
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         data_module
-            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.LightningDataModule` instance to use for
-            training. Can only be passed in if the model was not initialized with
-            :class:`~anndata.AnnData`.
+            ``EXPERIMENTAL`` A :class:`~lightning.LightningDataModule` instance to use for training.
+            Can only be passed in if the model was not initialized with :class:`~anndata.AnnData`.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
