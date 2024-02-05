@@ -7,7 +7,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-### 1.1.0 (2023-12-DD)
+### 1.1.0 (2024-02-DD)
 
 #### Added
 
@@ -76,6 +76,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Fix initialization of {class}`scvi.distributions.NegativeBinomial` and
     {class}`scvi.distributions.ZeroInflatedNegativeBinomial` when `validate_args=True` and
     optional parameters not passed in {pr}`2395`.
+-   Fix error when re-initializing {class}`scvi.external.GIMVI` with the same datasets {pr}`2446`.
 
 #### Changed
 
@@ -110,7 +111,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 ## Version 1.0
 
-### 1.0.4 (2023-10-xx)
+### 1.0.4 (2023-10-13)
 
 ### Added
 

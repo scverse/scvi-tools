@@ -1,8 +1,8 @@
-name: Test (Windows)
+name: Test (MacOS M1)
 
 on:
   schedule:
-    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
+    - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
   workflow_dispatch:
 
 concurrency:
@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [macos-14]
         python: ["3.9", "3.10", "3.11"]
 
     name: Integration
