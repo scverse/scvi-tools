@@ -127,12 +127,12 @@ class SCVI(
             "latent_distribution": latent_distribution,
             **kwargs,
         }
-        self._model_summary_string = f"""
-        SCVI model with the following parameters: \n
-        n_hidden: {n_hidden}, n_latent: {n_latent}, n_layers: {n_layers},
-        dropout_rate: {dropout_rate}, dispersion: {dispersion},
-        gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}.
-        """
+        self._model_summary_string = (
+            "SCVI model with the following parameters: \n"
+            f"n_hidden: {n_hidden}, n_latent: {n_latent}, n_layers: {n_layers}, "
+            f"dropout_rate: {dropout_rate}, dispersion: {dispersion}, "
+            f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}."
+        )
 
         if self._module_init_on_train:
             self.module = None
