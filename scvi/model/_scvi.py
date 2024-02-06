@@ -137,8 +137,8 @@ class SCVI(
         if self._module_init_on_train:
             self.module = None
             warnings.warn(
-                "Model was initialized without `adata`. The module will be initialized during "
-                "training. This behavior is experimental and may change in the future.",
+                "Model was initialized without `adata`. The module will be initialized when "
+                "calling `train`. This behavior is experimental and may change in the future.",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
