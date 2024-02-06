@@ -61,4 +61,4 @@ jobs:
         run: |
           coverage report
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
