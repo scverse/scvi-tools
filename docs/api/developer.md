@@ -287,6 +287,7 @@ Utility functions used by scvi-tools.
    utils.track
    utils.setup_anndata_dsp
    utils.attrdict
+   model.get_max_epochs_heuristic
 ```
 
 [ray tune]: https://docs.ray.io/en/latest/tune/index.html
