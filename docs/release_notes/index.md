@@ -110,6 +110,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Remove deprecated `use_gpu argument in favor of PyTorch Lightning arguments
 `accelerator`and`devices` {pr}`2114`.
 -   Remove deprecated `scvi._compat.Literal` class {pr}`2115`.
+-   Remove chex dependency {pr}`2482`.
 
 ## Version 1.0
 
