@@ -15,7 +15,7 @@ from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
-from scvi.dataloaders import DataSplitter
+from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.model._utils import _init_library_size, parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
@@ -71,7 +71,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/gimvi_tutorial`
+    1. :doc:`/tutorials/notebooks/spatial/gimvi_tutorial`
     """
 
     def __init__(
@@ -119,14 +119,21 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         total_genes = n_inputs[0]
 
-        # since we are combining datasets, we need to increment the batch_idx
-        # of one of the datasets
         adata_seq_n_batches = sum_stats[0]["n_batch"]
-        adata_spatial.obs[
+        adata_spatial_batch = adata_spatial.obs[
             self.adata_managers["spatial"]
             .data_registry[REGISTRY_KEYS.BATCH_KEY]
             .attr_key
-        ] += adata_seq_n_batches
+        ]
+        if np.min(adata_spatial_batch) == 0:
+            # see #2446
+            # since we are combining datasets, we need to increment the batch_idx of one of the
+            # datasets. we only need to do this once so we check if the min is 0
+            adata_spatial.obs[
+                self.adata_managers["spatial"]
+                .data_registry[REGISTRY_KEYS.BATCH_KEY]
+                .attr_key
+            ] += adata_seq_n_batches
 
         n_batches = sum(s["n_batch"] for s in sum_stats)
 
@@ -260,10 +267,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         self.to_device(device)
         self.is_trained_ = True
 
-    def _make_scvi_dls(self, adatas: list[AnnData] = None, batch_size=128):
+    def _make_scvi_dls(
+        self, adatas: list[AnnData] = None, batch_size: int = 128
+    ) -> list[AnnDataLoader]:
         if adatas is None:
             adatas = self.adatas
-        post_list = [self._make_data_loader(ad) for ad in adatas]
+        post_list = [self._make_data_loader(ad, batch_size=batch_size) for ad in adatas]
         for i, dl in enumerate(post_list):
             dl.mode = i
 

@@ -1,23 +1,81 @@
 import json
 import os
 from dataclasses import asdict
-from uuid import uuid4
 
+import anndata
 import numpy as np
 import pytest
-from huggingface_hub import delete_repo
 
 import scvi
+from scvi.data import synthetic_iid
 from scvi.hub import HubMetadata, HubModel, HubModelCardHelper
 from scvi.hub._constants import _SCVI_HUB
 
 
-def prep_model():
+def prep_model() -> scvi.model.SCVI:
     adata = scvi.data.synthetic_iid()
     scvi.model.SCVI.setup_anndata(adata)
     model = scvi.model.SCVI(adata)
     model.train(1)
     return model
+
+
+def prep_scvi_hub_model(save_path: str) -> HubModel:
+    model = prep_model()
+    model_path = os.path.join(save_path, "test_scvi")
+    model.save(model_path, save_anndata=True, overwrite=True)
+
+    metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
+    card = HubModelCardHelper.from_dir(
+        model_path,
+        license_info="cc-by-4.0",
+        anndata_version=anndata.__version__,
+        data_modalities=["rna"],
+        data_is_annotated=False,
+        description="scVI model trained on synthetic IID data and uploaded with the full training data.",
+    )
+    return HubModel(model_path, metadata=metadata, model_card=card)
+
+
+def prep_scvi_no_anndata_hub_model(save_path: str) -> HubModel:
+    model = prep_model()
+    model_path = os.path.join(save_path, "test_scvi_no_anndata")
+    model.save(model_path, save_anndata=False, overwrite=True)
+
+    metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
+    card = HubModelCardHelper.from_dir(
+        model_path,
+        license_info="cc-by-4.0",
+        anndata_version=anndata.__version__,
+        data_modalities=["rna"],
+        data_is_annotated=False,
+        description="scVI model trained on synthetic IID data and uploaded with no data.",
+    )
+    return HubModel(model_path, metadata=metadata, model_card=card)
+
+
+def prep_scvi_minified_hub_model(save_path: str) -> HubModel:
+    model = prep_model()
+    model_path = os.path.join(save_path, "test_scvi_minified")
+    model.save(model_path, save_anndata=False, overwrite=True)
+
+    qzm, qzv = model.get_latent_representation(return_dist=True, give_mean=False)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+    model.minify_adata()
+    model_path = os.path.join(save_path, "test_scvi_minified")
+    model.save(model_path, save_anndata=True, overwrite=True)
+
+    metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
+    card = HubModelCardHelper.from_dir(
+        model_path,
+        license_info="cc-by-4.0",
+        anndata_version=anndata.__version__,
+        data_modalities=["rna"],
+        data_is_annotated=False,
+        description="scVI model trained on synthetic IID data and uploaded with the minified data.",
+    )
+    return HubModel(model_path, metadata=metadata, model_card=card)
 
 
 def test_hub_model_init(request, save_path):
@@ -108,7 +166,35 @@ def test_hub_model_load(request, save_path):
         print(hmo.model)
 
 
-@pytest.mark.internet
+@pytest.mark.parametrize("save_anndata", [True, False])
+def test_hub_model_save(save_anndata: bool, save_path: str):
+    model = prep_model()
+    model_path = os.path.join(save_path, "model_save")
+    model.save(model_path, save_anndata=save_anndata, overwrite=True)
+
+    metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
+    card = HubModelCardHelper.from_dir(
+        model_path,
+        license_info="cc-by-4.0",
+        anndata_version=anndata.__version__,
+        data_modalities=["rna"],
+        data_is_annotated=False,
+    )
+    hub_model = HubModel(model_path, metadata=metadata, model_card=card)
+    hub_model.save(overwrite=True)
+
+    card_path = os.path.join(model_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
+    assert os.path.exists(card_path) and os.path.isfile(card_path)
+    metadata_path = os.path.join(model_path, _SCVI_HUB.METADATA_FILE_NAME)
+    assert os.path.exists(metadata_path) and os.path.isfile(metadata_path)
+
+    with pytest.raises(FileExistsError):
+        hub_model.save(overwrite=False)
+
+    hub_model.save(overwrite=True)
+
+
+@pytest.mark.private
 def test_hub_model_large_training_adata(request, save_path):
     training_data_url = "https://huggingface.co/datasets/scvi-tools/DATASET-FOR-UNIT-TESTING-1/resolve/main/adata.h5ad"
     model = prep_model()
@@ -130,70 +216,113 @@ def test_hub_model_large_training_adata(request, save_path):
     assert hmo.adata is None
 
 
-@pytest.mark.internet
-def test_hub_model_pull_from_hf(save_path):
-    # # the repo we are pulling from was populated with the contents of
-    # # `test_save_path` as below
-    # model = prep_model()
-    # test_save_path = os.path.join(save_path, request.node.name)
-    # model.save(test_save_path, overwrite=True, save_anndata=True)
-    # hm = HubMetadata("0.17.0", "0.8.0")
-    # with open(os.path.join(test_save_path, _SCVI_HUB.METADATA_FILE_NAME), "w") as fp:
-    #     json.dump(asdict(hm), fp, indent=4)
+@pytest.mark.private
+def test_hub_model_create_repo_hf(save_path: str):
+    from huggingface_hub import delete_repo
 
-    hmo = HubModel.pull_from_huggingface_hub(
-        repo_name="scvi-tools/MODEL-FOR-UNIT-TESTING-1"
+    hub_model = prep_scvi_hub_model(save_path)
+    hub_model.push_to_huggingface_hub(
+        "scvi-tools/test-scvi-create",
+        os.environ["HF_API_TOKEN"],
+        repo_create=True,
     )
-    assert hmo.metadata == HubMetadata("0.17.0", "0.8.0", "SCVI")
-    assert hmo.model_card.content == "---\nlicense: cc-by-4.0\n---\n"
-    assert isinstance(hmo.model, scvi.model.SCVI)
-    assert isinstance(hmo.model.module, scvi.module.VAE)
-    assert hmo.adata.shape == (400, 100)
-    assert hmo.large_training_adata is None
-
-    # pull to a custom directory
-    hmo = HubModel.pull_from_huggingface_hub(
-        repo_name="scvi-tools/MODEL-FOR-UNIT-TESTING-1", cache_dir=save_path
-    )
-    assert hmo._local_dir.startswith(save_path)
+    delete_repo("scvi-tools/test-scvi-create", token=os.environ["HF_API_TOKEN"])
 
 
-@pytest.mark.skip(reason="requires an auth token which breaks some CI pipelines")
-@pytest.mark.internet
-def test_hub_model_push_to_hf(request, save_path):
-    model = prep_model()
-    test_save_path = os.path.join(save_path, request.node.name)
-    model.save(test_save_path, overwrite=True, save_anndata=True)
-
-    hm = HubMetadata("0.17.0", "0.8.0")
-    with open(os.path.join(test_save_path, _SCVI_HUB.METADATA_FILE_NAME), "w") as fp:
-        json.dump(asdict(hm), fp, indent=4)
-
-    hmch = HubModelCardHelper.from_dir(
-        test_save_path,
-        license_info="cc-by-4.0",
-        anndata_version="0.8.0",
+@pytest.mark.private
+def test_hub_model_push_to_hf(save_path: str):
+    hub_model = prep_scvi_hub_model(save_path)
+    hub_model.push_to_huggingface_hub(
+        "scvi-tools/test-scvi",
+        os.environ["HF_API_TOKEN"],
+        repo_create=False,
     )
 
-    hmo = HubModel(test_save_path, metadata=hm, model_card=hmch.model_card)
-    # # use this with path to your local token file if you want to test locally
-    # repo_token = Path(your_token_path).read_text()
-    repo_token = os.environ["HF_API_TOKEN"]
-    repo_name = f"scvi-tools/MODEL-FOR-UNIT-TESTING-{str(uuid4())}"
-    hmo.push_to_huggingface_hub(
-        repo_name=repo_name, repo_token=repo_token, repo_create=True
+    hub_model = prep_scvi_no_anndata_hub_model(save_path)
+    hub_model.push_to_huggingface_hub(
+        "scvi-tools/test-scvi-no-anndata",
+        os.environ["HF_API_TOKEN"],
+        repo_create=False,
+        push_anndata=False,
     )
 
-    # pull back down and validate
-    hmo = HubModel.pull_from_huggingface_hub(repo_name=repo_name)
-    assert hmo.metadata == hm
-    assert hmo.model_card.content == hmch.model_card.content
-    assert isinstance(hmo.model, scvi.model.SCVI)
-    assert isinstance(hmo.model.module, scvi.module.VAE)
-    assert np.array_equal(hmo.adata.X, model.adata.X)
-    assert hmo.adata.obs.equals(model.adata.obs)
-    assert hmo.adata.var.equals(model.adata.var)
-    assert hmo.large_training_adata is None
+    hub_model = prep_scvi_minified_hub_model(save_path)
+    hub_model.push_to_huggingface_hub(
+        "scvi-tools/test-scvi-minified",
+        os.environ["HF_API_TOKEN"],
+        repo_create=False,
+    )
 
-    # delete the HF repo
-    delete_repo(repo_name, token=repo_token)
+
+@pytest.mark.private
+def test_hub_model_pull_from_hf():
+    hub_model = HubModel.pull_from_huggingface_hub(repo_name="scvi-tools/test-scvi")
+    assert hub_model.model is not None
+    assert hub_model.adata is not None
+
+    hub_model = HubModel.pull_from_huggingface_hub(
+        repo_name="scvi-tools/test-scvi-minified"
+    )
+    assert hub_model.model is not None
+    assert hub_model.adata is not None
+
+    hub_model = HubModel.pull_from_huggingface_hub(
+        repo_name="scvi-tools/test-scvi-no-anndata"
+    )
+    with pytest.raises(ValueError):
+        _ = hub_model.model
+
+    adata = synthetic_iid()
+    hub_model.load_model(adata=adata)
+    assert hub_model.model is not None
+    assert hub_model.adata is None
+
+
+@pytest.mark.private
+def test_hub_model_push_to_s3(save_path: str):
+    hub_model = prep_scvi_hub_model(save_path)
+    hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi")
+
+    hub_model = prep_scvi_no_anndata_hub_model(save_path)
+    with pytest.raises(ValueError):
+        hub_model.push_to_s3(
+            "scvi-tools", "tests/hub/test-scvi-no-anndata", push_anndata=True
+        )
+    hub_model.push_to_s3(
+        "scvi-tools", "tests/hub/test-scvi-no-anndata", push_anndata=False
+    )
+
+    hub_model = prep_scvi_minified_hub_model(save_path)
+    hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi-minified")
+
+
+@pytest.mark.private
+def test_hub_model_pull_from_s3():
+    from botocore.exceptions import ClientError
+
+    hub_model = HubModel.pull_from_s3(
+        "scvi-tools",
+        "tests/hub/test-scvi",
+    )
+    assert hub_model.model is not None
+    assert hub_model.adata is not None
+
+    hub_model = HubModel.pull_from_s3("scvi-tools", "tests/hub/test-scvi-minified")
+    assert hub_model.model is not None
+    assert hub_model.adata is not None
+
+    with pytest.raises(ClientError):
+        hub_model = HubModel.pull_from_s3("scvi-tools", "tests/hub/test-scvi-no-anndata")
+
+    hub_model = HubModel.pull_from_s3(
+        "scvi-tools",
+        "tests/hub/test-scvi-no-anndata",
+        pull_anndata=False,
+    )
+    with pytest.raises(ValueError):
+        _ = hub_model.model
+
+    adata = synthetic_iid()
+    hub_model.load_model(adata=adata)
+    assert hub_model.model is not None
+    assert hub_model.adata is None

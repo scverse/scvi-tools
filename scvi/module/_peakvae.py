@@ -7,7 +7,7 @@ from torch import nn
 from torch.distributions import Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
-from scvi.autotune._types import Tunable
+from scvi._types import Tunable
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
 

@@ -1,15 +1,15 @@
-# ScBasset
+# scBasset
 
-**ScBasset** [^ref1] (Python class {class}`~scvi.external.SCBASSET`) posits a sequence-based method for representation learning of scATAC-seq data.
+**scBasset** [^ref1] (Python class {class}`~scvi.external.SCBASSET`) posits a sequence-based method for representation learning of scATAC-seq data.
 
 The advantages of ScBasset are:
 
 -   Sequence representations allow for TF motif discovery and other sequence-based analyses.
--   ScBasset is fast and scalable.
+-   scBasset is fast and scalable.
 
-The limitations of ScBasset include:
+The limitations of scBasset include:
 
--   ScBasset cannot currently leverage unobserved data and thus cannot curently be used for tranfer learning tasks.
+-   scBasset cannot currently leverage unobserved data and thus cannot curently be used for tranfer learning tasks.
 
 ## Overview
 

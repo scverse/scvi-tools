@@ -17,7 +17,7 @@ from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import METRIC_KEYS, REGISTRY_KEYS
-from scvi.autotune._types import Tunable, TunableMixin
+from scvi._types import Tunable, TunableMixin
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -753,11 +753,13 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             predicted_labels,
             true_labels,
             self.n_classes,
+            average="micro",
         )
         f1 = tmf.classification.multiclass_f1_score(
             predicted_labels,
             true_labels,
             self.n_classes,
+            average="micro",
         )
         ce = tmf.classification.multiclass_calibration_error(
             logits,
@@ -1240,7 +1242,7 @@ class JaxTrainingPlan(TrainingPlan):
             # Replicates PyTorch Adam defaults
             optim = optax.chain(
                 clip_by,
-                optax.additive_weight_decay(weight_decay=self.weight_decay),
+                optax.add_decayed_weights(weight_decay=self.weight_decay),
                 optax.adam(self.lr, eps=self.eps),
             )
         elif self.optimizer_name == "AdamW":

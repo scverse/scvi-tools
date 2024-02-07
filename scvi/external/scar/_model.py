@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """Ambient RNA removal in scRNA-seq data :cite:p:`Sheng22`.
 
-    Original Github: https://github.com/Novartis/scar.
+    Original implementation: https://github.com/Novartis/scar.
     The models are parameter matched in architecture, activations, dropout, sparsity, and batch normalization.
 
     Parameters

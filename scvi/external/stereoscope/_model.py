@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
-    https://github.com/almaan/stereoscope.
+    Original implementation: https://github.com/almaan/stereoscope.
 
     Parameters
     ----------
@@ -37,6 +37,12 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     >>> scvi.external.RNAStereoscope.setup_anndata(sc_adata, labels_key="labels")
     >>> stereo = scvi.external.stereoscope.RNAStereoscope(sc_adata)
     >>> stereo.train()
+
+    Notes
+    -----
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/tutorials/notebooks/spatial/stereoscope_heart_LV_tutorial`
     """
 
     def __init__(
@@ -151,7 +157,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
 class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
 
-    https://github.com/almaan/stereoscope.
+    Original implementation: https://github.com/almaan/stereoscope.
 
     Parameters
     ----------
@@ -183,7 +189,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/stereoscope_heart_LV_tutorial`
+    1. :doc:`/tutorials/notebooks/spatial/stereoscope_heart_LV_tutorial`
     """
 
     def __init__(

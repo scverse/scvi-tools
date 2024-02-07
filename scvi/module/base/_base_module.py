@@ -20,8 +20,7 @@ from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._types import LossRecord, MinifiedDataType, Tensor
-from scvi.autotune._types import TunableMixin
+from scvi._types import LossRecord, MinifiedDataType, Tensor, TunableMixin
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.utils._jax import device_selecting_PRNGKey
 

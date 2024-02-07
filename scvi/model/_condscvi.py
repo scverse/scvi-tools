@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez21`.
+    """Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez22`.
 
     Parameters
     ----------
@@ -51,6 +51,12 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     >>> vae = scvi.model.CondSCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_CondSCVI"] = vae.get_latent_representation()
+
+    Notes
+    -----
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/tutorials/notebooks/spatial/DestVI_tutorial`
     """
 
     _module_cls = VAEC

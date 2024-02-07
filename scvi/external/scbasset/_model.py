@@ -9,7 +9,6 @@ import pandas as pd
 import torch
 from anndata import AnnData
 
-from scvi._decorators import dependencies
 from scvi.data import AnnDataManager
 from scvi.data._download import _download
 from scvi.data._preprocessing import _dna_to_code
@@ -18,17 +17,18 @@ from scvi.dataloaders import DataSplitter
 from scvi.external.scbasset._module import REGISTRY_KEYS, ScBassetModule
 from scvi.model.base import BaseModelClass
 from scvi.train import TrainingPlan, TrainRunner
-from scvi.utils import setup_anndata_dsp
+from scvi.utils import dependencies, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
 
 class SCBASSET(BaseModelClass):
-    """Reimplementation of ScBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
+    """``EXPERIMENTAL`` Reimplementation of scBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
 
-    This implementation is EXPERIMENTAL. We are working to measure the performance of this model
-    compared to the original.
+    Original implementation: https://github.com/calico/scBasset.
+
+    We are working to measure the performance of this model compared to the original.
 
     Parameters
     ----------

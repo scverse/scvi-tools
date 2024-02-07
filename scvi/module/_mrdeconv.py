@@ -6,7 +6,7 @@ import torch
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
-from scvi.autotune._types import Tunable
+from scvi._types import Tunable
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import FCLayers

@@ -1,42 +1,64 @@
-name: test-linux-cuda
+name: Test (Linux, CUDA)
 
 on:
-    schedule:
-        - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+  pull_request:
+    branches: [main, 1.1.x]
+    types: [labeled, synchronize, opened]
+  schedule:
+    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
+  workflow_dispatch:
 
-    workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-    test:
-        runs-on: [self-hosted, Linux, X64, CUDA]
+  test:
+    # if PR has label "cuda tests" or "all tests" or if scheduled or manually triggered
+    if: >-
+      (
+        contains(github.event.pull_request.labels.*.name, 'cuda tests') ||
+        contains(github.event.pull_request.labels.*.name, 'all tests') ||
+        contains(github.event_name, 'schedule') ||
+        contains(github.event_name, 'workflow_dispatch')
+      )
+    runs-on: [self-hosted, Linux, X64, CUDA]
+    defaults:
+      run:
+        shell: bash -e {0} # -e to fail on error
 
-        timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11"]
+        cuda: ["11"]
 
-        strategy:
-            fail-fast: false
-            matrix:
-                python: ["3.11"]
-                cuda: ["11"]
+    container:
+      image: scverse/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
+      options: --user root --gpus all
 
-        container:
-            image: martinkim0/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
-            options: --user root --gpus all
+    name: Integration (CUDA)
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v3
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python }}
 
-            - name: Install dependencies
-              run: |
-                  pip install ".[tests]"
+    steps:
+      - uses: actions/checkout@v4
 
-            - name: Test
-              env:
-                  MPLBACKEND: agg
-                  PLATFORM: ubuntu
-                  DISPLAY: :42
-              run: |
-                  pytest -v --cov --color=yes --accelerator cuda --devices auto
+      - name: Install dependencies
+        run: |
+          pip install ".[tests]"
 
-            - name: Upload coverage
-              uses: codecov/codecov-action@v3
+      - name: Test
+        env:
+          MPLBACKEND: agg
+          PLATFORM: ${{ matrix.os }}
+          DISPLAY: :42
+        run: |
+          coverage run -m pytest -v --color=yes --accelerator cuda --devices auto
+      - name: Report coverage
+        run: |
+          coverage report
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4

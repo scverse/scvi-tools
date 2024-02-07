@@ -1,5 +1,5 @@
 import scvi
-from scvi.autotune import Tunable, TunableMixin
+from scvi._types import Tunable, TunableMixin
 
 
 class DummyTrainingMixin:

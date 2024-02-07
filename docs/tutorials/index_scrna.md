@@ -14,4 +14,6 @@ notebooks/scrna/AutoZI_tutorial
 notebooks/scrna/cellassign_tutorial
 notebooks/scrna/amortized_lda
 notebooks/scrna/scVI_DE_worm
+notebooks/scrna/contrastiveVI_tutorial
+notebooks/scrna/scanvi_fix
 ```

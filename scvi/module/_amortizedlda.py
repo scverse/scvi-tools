@@ -11,7 +11,7 @@ from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 
 from scvi._constants import REGISTRY_KEYS
-from scvi.autotune._types import Tunable
+from scvi._types import Tunable
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import Encoder
 
@@ -98,7 +98,7 @@ class AmortizedLDAPyroModel(PyroModule):
 
     @staticmethod
     def _get_fn_args_from_batch(
-        tensor_dict: dict[str, torch.Tensor]
+        tensor_dict: dict[str, torch.Tensor],
     ) -> Union[Iterable, dict]:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         library = torch.sum(x, dim=1)
