@@ -60,18 +60,25 @@ class EncoderDecoder(Module):
     Parameters
     ----------
     n_input
+        The dimensionality of the main input
     n_output
+        The dimensionality of the output
     n_cov
+        Dimensionality of covariates.
+        If there are no cov this should be set to None -
+        in this case cov will not be used.
     n_hidden
+        The number of fully-connected hidden layers
     n_layers
+        Number of hidden layers
     var_eps
-        See :class:`~scvi.external.sysvi.nn.VarEncoder`
+        See :class:`~scvi.external.sysvi.VarEncoder`
     var_mode
-        See :class:`~scvi.external.sysvi.nn.VarEncoder`
+        See :class:`~scvi.external.sysvi.VarEncoder`
     sample
         Return samples from predicted distribution
     kwargs
-        Passed to :class:`~scvi.external.sysvi.nn.Layers`
+        Passed to :class:`~scvi.external.sysvi.Layers`
     """
 
     def __init__(
@@ -82,7 +89,7 @@ class EncoderDecoder(Module):
         n_hidden: int = 256,
         n_layers: int = 3,
         var_eps: float = 1e-4,
-        var_mode: str = "feature",
+        var_mode: Literal["sample_feature", "feature", "linear"] = "feature",
         sample: bool = False,
         **kwargs,
     ):

@@ -22,7 +22,7 @@ class StandardPrior(Prior):
 
 
 class VampPrior(Prior):
-    """VampPrior adapted from https://github.com/jmtomczak/intro_dgm/main/vaes/vae_priors_example.ipynb
+    """VampPrior adapted from https://github.com/jmtomczak/intro_dgm/blob/main/vaes/vae_priors_example.ipynb
 
     Parameters
     ----------

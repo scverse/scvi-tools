@@ -11,6 +11,8 @@ from typing_extensions import Literal
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
+from scvi.data._constants import _SCVI_UUID_KEY
+from scvi.data._utils import _check_if_view
 from scvi.data.fields import (
     LayerField,
     ObsmField,
@@ -143,7 +145,6 @@ class SysVI(TrainingCustom, BaseModelClass):
         """
         # Check model and adata
         self._check_if_trained(warn=False)
-        # TODO extend to check if adata setup is correct wrt training data
         adata = self._validate_anndata(adata)
         if indices is None:
             indices = np.arange(adata.n_obs)
@@ -178,11 +179,62 @@ class SysVI(TrainingCustom, BaseModelClass):
             else:
                 predicted += [inference_outputs["z"]]
 
-        predicted = torch.cat(predicted)
+        predicted = torch.cat(predicted).cpu()
 
         if as_numpy:
-            predicted = predicted.cpu().numpy()
+            predicted = predicted.numpy()
         return predicted
+
+    def _validate_anndata(
+        self, adata: AnnData | None = None, copy_if_view: bool = True
+    ) -> AnnData:
+        """Validate anndata has been properly registered"
+
+        Parameters
+        ----------
+        adata
+            Adata to validate. If None use SysVI's adata.
+        copy_if_view
+            Whether to copy adata before
+
+        Returns
+        -------
+
+        """ ""
+        if adata is None:
+            adata = self.adata
+
+        _check_if_view(adata, copy_if_view=copy_if_view)
+
+        if _SCVI_UUID_KEY not in adata.uns:
+            raise ValueError("Adata is not set up. Use SysVI.setup_anndata first.")
+        else:
+            # Check that all required fields are present and match the Model's adata
+            assert (
+                self.adata.uns["layer_information"]["layer"]
+                == adata.uns["layer_information"]["layer"]
+            )
+            assert (
+                self.adata.uns["layer_information"]["var_names"]
+                == adata.uns["layer_information"]["var_names"]
+            )
+            assert self.adata.uns["system_order"] == adata.uns["system_order"]
+            for covariate_type, covariate_keys in self.adata.uns[
+                "covariate_key_orders"
+            ].items():
+                assert (
+                    covariate_keys == adata.uns["covariate_key_orders"][covariate_type]
+                )
+                if "categorical" in covariate_type:
+                    for covariate_key in covariate_keys:
+                        assert (
+                            self.adata.uns["covariate_categ_orders"][covariate_key]
+                            == adata.uns["covariate_categ_orders"][covariate_key]
+                        )
+        # Ensures that manager is set up
+        super()._validate_anndata(adata)
+
+        return adata
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -198,7 +250,7 @@ class SysVI(TrainingCustom, BaseModelClass):
         covariate_key_orders: dict | None = None,
         system_order: list[str] | None = None,
         **kwargs,
-    ) -> AnnData:
+    ):
         """Prepare adata for input to Model
 
         Parameters
@@ -232,9 +284,15 @@ class SysVI(TrainingCustom, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
 
-        # Make sure var names are unique
         if adata.shape[1] != len(set(adata.var_names)):
             raise ValueError("Adata var_names are not unique")
+
+        # The used layer argument
+        # This could be also done via registry, but that is too cumbersome
+        adata.uns["layer_information"] = {
+            "layer": layer,
+            "var_names": list(adata.var_names),
+        }
 
         # If setup is to be prepared wtr another adata specs make sure all relevant info is present
         if covariate_categ_orders or covariate_key_orders or system_order:

@@ -392,7 +392,6 @@ class SysVAE(BaseModuleClass):
             z_x_m=inference_outputs["z_m"], z_y_m=inference_outputs["z_cyc_m"]
         )
 
-        # Overall loss
         loss = (
             reconst_loss * reconstruction_weight
             + kl_divergence_z * kl_weight

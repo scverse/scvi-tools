@@ -77,12 +77,13 @@ def test_model():
     )
 
     # Check that setup of adata without covariates works
+    adata_no_cov = mock_adata()
     SysVI.setup_anndata(
-        adata0,
+        adata_no_cov,
         batch_key="system",
     )
-    assert "covariates" not in adata0.obsm
-    assert "covariates_embed" not in adata0.obsm
+    assert "covariates" not in adata_no_cov.obsm
+    assert "covariates_embed" not in adata_no_cov.obsm
 
     # Model
 
@@ -91,7 +92,7 @@ def test_model():
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
     # Check that mode runs through without covariates
-    model = SysVI(adata=adata0)
+    model = SysVI(adata=adata_no_cov)
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
     # Check pre-specifying pseudoinput indices for vamp prior
@@ -136,6 +137,12 @@ def test_model():
         ).shape[0]
         == adata.shape[0]
     )
+
+    # Ensure that embedding with another adata properly checks if it was setu up correctly
+    _ = model.get_latent_representation(adata=adata0)
+    with assert_raises(AssertionError):
+        # TODO could add more check for each property separately
+        _ = model.get_latent_representation(adata=adata_no_cov)
 
     # Check that indices in embedding works
     idx = [1, 2, 3]
