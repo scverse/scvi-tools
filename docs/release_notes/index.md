@@ -59,6 +59,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     {meth}`scvi.hub.HubModel.pull_from_s3` and {meth}`scvi.hub.HubModel.push_to_s3` {pr}`2378`.
 -   Add clearer error message for {func}`scvi.data.poisson_gene_selection` when input data does not
     contain raw counts {pr}`2422`.
+-   Add support for `ray[tune]>=2.8` in {class}`scvi.autotune.ModelTuner` {pr}`2472`.
 
 #### Fixed
 
@@ -102,12 +103,18 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     computations to use `"micro"` reduction rather than `"macro"` {pr}`2339`.
 -   Internal refactoring of {meth}`scvi.module.VAE.sample` and
     {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` {pr}`2377`.
+-   Change `xarray` and `sparse` from mandatory to optional dependencies {pr}`2472`.
+-   Change {class}`scvi.autotune.TuneAnalysis` to inherit from {class}`dataclassses.dataclass`
+    instead of {class}`chex.dataclass` for compatibility {pr}`2472`.
+-   Change {class}`scvi.module.base.LossOutput` to inherit from {class}`flax.struct.dataclass`
+    instead of {class}`chex.dataclass` for compatibility {pr}`2472`.
 
 #### Removed
 
 -   Remove deprecated `use_gpu argument in favor of PyTorch Lightning arguments
 `accelerator`and`devices` {pr}`2114`.
 -   Remove deprecated `scvi._compat.Literal` class {pr}`2115`.
+-   Remove `chex` as mandatory dependency {pr}`2472`.
 
 ## Version 1.0
 
