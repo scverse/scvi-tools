@@ -34,13 +34,14 @@ def use_distributed_sampler(strategy: Union[str, Strategy]) -> bool:
 
 
 def get_max_epochs_heuristic(
-    n_obs: int, epochs_cap: int = 400, decay_at_n_obs: int = 20000
+    n_obs: int, epochs_cap: int = 400, decay_at_n_obs: int = 20_000
 ) -> int:
     """Compute a heuristic for the default number of maximum epochs.
 
-    If `n_obs <= decay_at_n_obs`, the number of maximum epochs is set to
-    `epochs_cap`. Otherwise, the number of maximum epochs decays according to
-    `(decay_at_n_obs / n_obs) * epochs_cap`, with a minimum of 1.
+    If ``n_obs <= decay_at_n_obs``, the number of maximum epochs is set to
+    ``epochs_cap``. Otherwise, the number of maximum epochs decays according to
+    ``(decay_at_n_obs / n_obs) * epochs_cap``, with a minimum of 1. Raises a
+    warning if the number of maximum epochs is set to 1.
 
     Parameters
     ----------
@@ -53,8 +54,7 @@ def get_max_epochs_heuristic(
 
     Returns
     -------
-    `int`
-        A heuristic for the default number of maximum epochs.
+    A heuristic for the number of maximum training epochs.
     """
     max_epochs = min(round((decay_at_n_obs / n_obs) * epochs_cap), epochs_cap)
     max_epochs = max(max_epochs, 1)

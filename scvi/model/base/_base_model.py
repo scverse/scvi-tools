@@ -98,6 +98,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             self.registry_ = self._adata_manager.registry
             self.summary_stats = self._adata_manager.summary_stats
 
+        self._module_init_on_train = adata is None
         self.is_trained_ = False
         self._model_summary_string = ""
         self.train_indices_ = None
