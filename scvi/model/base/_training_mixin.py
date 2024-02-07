@@ -116,7 +116,7 @@ class UnsupervisedTrainingMixin:
                 load_sparse_tensor=load_sparse_tensor,
                 **datasplitter_kwargs,
             )
-        else:
+        elif self.module is None:
             self.module = self._module_cls(
                 data_module.n_vars,
                 n_batch=data_module.n_batch,
