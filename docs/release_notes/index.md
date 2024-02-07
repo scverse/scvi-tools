@@ -130,6 +130,9 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Disable the default selection of MPS when `accelerator="auto"` in Lightning {pr}`2167`.
 -   Change JAX models to use `dict` instead of {class}`flax.core.FrozenDict` according
     to the Flax migration guide https://github.com/google/flax/discussions/3191 {pr}`2222`.
+-   Use {class}`anndata.experimental.CSCDataset` and {class}`anndata.experimental.CSRDataset`
+    instead of the deprecated {class}`anndata._core.sparse_dataset.SparseDataset` for type checks
+    {pr}`2485`.
 
 ### Fixed
 
