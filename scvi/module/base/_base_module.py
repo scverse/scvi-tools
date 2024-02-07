@@ -5,7 +5,6 @@ from collections.abc import Iterable
 from dataclasses import field
 from typing import Any, Callable
 
-import chex
 import flax
 import jax
 import jax.numpy as jnp
@@ -28,7 +27,7 @@ from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
 
-@chex.dataclass
+@flax.struct.dataclass
 class LossOutput:
     """Loss signature for models.
 
