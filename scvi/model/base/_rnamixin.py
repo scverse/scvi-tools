@@ -8,7 +8,6 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
-import sparse
 import torch
 import torch.distributions as db
 from anndata import AnnData
@@ -19,9 +18,14 @@ from scvi._types import Number
 from scvi.distributions._utils import DistributionConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.module.base._decorators import _move_data_to_device
-from scvi.utils import de_dsp, unsupported_if_adata_minified
+from scvi.utils import de_dsp, dependencies, unsupported_if_adata_minified
 
 from ._utils import _de_core
+
+try:
+    from sparse import GCXS
+except ImportError:
+    GCXS = type(None)
 
 logger = logging.getLogger(__name__)
 
@@ -409,6 +413,7 @@ class RNASeqMixin:
 
         return result
 
+    @dependencies("sparse")
     def posterior_predictive_sample(
         self,
         adata: AnnData | None = None,
@@ -416,7 +421,7 @@ class RNASeqMixin:
         n_samples: int = 1,
         gene_list: list[str] | None = None,
         batch_size: int | None = None,
-    ) -> sparse.GCXS:
+    ) -> GCXS:
         r"""Generate predictive samples from the posterior predictive distribution.
 
         The posterior predictive distribution is denoted as :math:`p(\hat{x} \mid x)`, where
@@ -449,6 +454,8 @@ class RNASeqMixin:
         Sparse multidimensional array of shape ``(n_obs, n_vars)`` if ``n_samples == 1``, else
         ``(n_obs, n_vars, n_samples)``.
         """
+        import sparse
+
         adata = self._validate_anndata(adata)
         dataloader = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size
