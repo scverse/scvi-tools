@@ -103,6 +103,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     computations to use `"micro"` reduction rather than `"macro"` {pr}`2339`.
 -   Internal refactoring of {meth}`scvi.module.VAE.sample` and
     {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` {pr}`2377`.
+-   Change `xarray` and `sparse` from mandatory to optional dependencies {pr}`2480`.
 
 #### Removed
 
