@@ -62,6 +62,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Add API for using custom dataloaders with {class}`scvi.model.SCVI` by making `adata` argument
     optional on initialization and adding optional argument `data_module` to
     {meth}`scvi.model.base.UnsupervisedTrainingMixin.train` {pr}`2467`.
+-   Add support for Ray 2.8 - 2.9 in {class}`scvi.autotune.ModelTuner` {pr}`2478`.
 
 #### Fixed
 
@@ -105,12 +106,14 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     computations to use `"micro"` reduction rather than `"macro"` {pr}`2339`.
 -   Internal refactoring of {meth}`scvi.module.VAE.sample` and
     {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` {pr}`2377`.
+-   Change `xarray` and `sparse` from mandatory to optional dependencies {pr}`2480`.
 
 #### Removed
 
 -   Remove deprecated `use_gpu argument in favor of PyTorch Lightning arguments
 `accelerator`and`devices` {pr}`2114`.
 -   Remove deprecated `scvi._compat.Literal` class {pr}`2115`.
+-   Remove chex dependency {pr}`2482`.
 
 ## Version 1.0
 

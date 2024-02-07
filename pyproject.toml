@@ -33,14 +33,13 @@ classifiers = [
 ]
 dependencies = [
     "anndata>=0.7.5",
-    "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
     "jaxlib>=0.4.3",
     "optax",
     "numpy>=1.21.0",
-    "pandas>=1.0,!=2.1.2",
+    "pandas>=1.0",
     "scipy",
     "scikit-learn>=0.21.2",
     "rich>=12.0.0",
@@ -54,8 +53,6 @@ dependencies = [
     "numpyro>=0.12.1",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
-    "sparse>=0.14.0",
-    "xarray>=2023.2.0",
 ]
 
 
@@ -91,20 +88,21 @@ docsbuild = ["scvi-tools[docs,optional]"]  # docs build dependencies
 
 autotune = [
     "hyperopt>=0.2",
-    "ray[tune]>=2.5.0,<2.8.0",
+    "ray[tune]>=2.5.0,<2.10.0",
     "ipython",
     "scib-metrics>=0.4.1",
     "tensorboard",
 ]  # scvi.autotune
 aws = ["boto3"] # scvi.hub.HubModel.pull_from_s3
 census = ["cellxgene-census"]  # scvi.data.cellxgene
+criticism = ["sparse>=0.14.0", "xarray>=2023.2.0"]  # scvi.criticism
 hub = ["huggingface_hub"]  # scvi.hub dependencies
 pymde = ["pymde"]  # scvi.model.utils.mde dependencies
 regseq = ["biopython>=1.81", "genomepy"]  # scvi.data.add_dna_sequence
 loompy = ["loompy>=3.0.6"]  # read loom
 scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
 optional = [
-    "scvi-tools[autotune,aws,census,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,criticism,hub,loompy,pymde,regseq,scanpy]"
 ]  # all optional user functionality
 
 tutorials = [
