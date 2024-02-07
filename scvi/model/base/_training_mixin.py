@@ -76,9 +76,9 @@ class UnsupervisedTrainingMixin:
             this argument can be overwritten by arguments directly passed into this method, when
             appropriate.
         data_module
-            ``EXPERIMENTAL`` A :class:`~lightning.LightningDataModule` instance to use for training
-            in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only be passed in
-            if the model was not initialized with :class:`~anndata.AnnData`.
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
+            be passed in if the model was not initialized with :class:`~anndata.AnnData`.
         **kwargs
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
