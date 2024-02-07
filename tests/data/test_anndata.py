@@ -7,7 +7,6 @@ import pandas as pd
 import pytest
 import torch
 from scipy import sparse
-from scipy.sparse.csr import csr_matrix
 
 import scvi
 from scvi import REGISTRY_KEYS
@@ -534,7 +533,7 @@ def test_backed_anndata(adata, save_path):
 
 def test_backed_anndata_sparse(adata, save_path):
     # sparse
-    adata.X = csr_matrix(adata.X)
+    adata.X = sparse.csr_matrix(adata.X)
     path = os.path.join(save_path, "test_data2.h5ad")
     adata.write_h5ad(path)
     adata = anndata.read_h5ad(path, backed="r+")
