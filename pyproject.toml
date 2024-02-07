@@ -54,8 +54,6 @@ dependencies = [
     "numpyro>=0.12.1",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
-    "sparse>=0.14.0",
-    "xarray>=2023.2.0",
 ]
 
 
@@ -98,13 +96,14 @@ autotune = [
 ]  # scvi.autotune
 aws = ["boto3"] # scvi.hub.HubModel.pull_from_s3
 census = ["cellxgene-census"]  # scvi.data.cellxgene
+criticism = ["sparse>=0.14.0", "xarray>=2023.2.0"]  # scvi.criticism
 hub = ["huggingface_hub"]  # scvi.hub dependencies
 pymde = ["pymde"]  # scvi.model.utils.mde dependencies
 regseq = ["biopython>=1.81", "genomepy"]  # scvi.data.add_dna_sequence
 loompy = ["loompy>=3.0.6"]  # read loom
 scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
 optional = [
-    "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,criticism,hub,loompy,pymde,regseq,scanpy]"
 ]  # all optional user functionality
 
 tutorials = [
