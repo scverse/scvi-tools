@@ -33,7 +33,7 @@ classifiers = [
 ]
 dependencies = [
     "anndata>=0.7.5",
-    "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
+    "chex",
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
@@ -104,7 +104,7 @@ regseq = ["biopython>=1.81", "genomepy"]  # scvi.data.add_dna_sequence
 loompy = ["loompy>=3.0.6"]  # read loom
 scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
 optional = [
-    "scvi-tools[autotune,aws,census,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
 ]  # all optional user functionality
 
 tutorials = [
