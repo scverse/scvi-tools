@@ -83,12 +83,12 @@ class LossOutput:
     true_labels: Tensor | None = None
     extra_metrics: dict[str, Tensor] | None = field(default_factory=dict)
     n_obs_minibatch: int | None = None
-    reconstruction_loss_sum: Tensor = field(default=None, init=False)
-    kl_local_sum: Tensor = field(default=None, init=False)
-    kl_global_sum: Tensor = field(default=None, init=False)
+    reconstruction_loss_sum: Tensor = field(default=None)
+    kl_local_sum: Tensor = field(default=None)
+    kl_global_sum: Tensor = field(default=None)
 
     def __post_init__(self):
-        self.loss = self.dict_sum(self.loss)
+        object.__setattr__(self, "loss", self.dict_sum(self.loss))
 
         if self.n_obs_minibatch is None and self.reconstruction_loss is None:
             raise ValueError(
@@ -97,21 +97,30 @@ class LossOutput:
 
         default = 0 * self.loss
         if self.reconstruction_loss is None:
-            self.reconstruction_loss = default
+            object.__setattr__(self, "reconstruction_loss", default)
         if self.kl_local is None:
-            self.kl_local = default
+            object.__setattr__(self, "kl_local", default)
         if self.kl_global is None:
-            self.kl_global = default
-        self.reconstruction_loss = self._as_dict("reconstruction_loss")
-        self.kl_local = self._as_dict("kl_local")
-        self.kl_global = self._as_dict("kl_global")
-        self.reconstruction_loss_sum = self.dict_sum(self.reconstruction_loss).sum()
-        self.kl_local_sum = self.dict_sum(self.kl_local).sum()
-        self.kl_global_sum = self.dict_sum(self.kl_global)
+            object.__setattr__(self, "kl_global", default)
+
+        object.__setattr__(
+            self, "reconstruction_loss", self._as_dict("reconstruction_loss")
+        )
+        object.__setattr__(self, "kl_local", self._as_dict("kl_local"))
+        object.__setattr__(self, "kl_global", self._as_dict("kl_global"))
+        object.__setattr__(
+            self,
+            "reconstruction_loss_sum",
+            self.dict_sum(self.reconstruction_loss).sum(),
+        )
+        object.__setattr__(self, "kl_local_sum", self.dict_sum(self.kl_local).sum())
+        object.__setattr__(self, "kl_global_sum", self.dict_sum(self.kl_global))
 
         if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
             rec_loss = self.reconstruction_loss
-            self.n_obs_minibatch = list(rec_loss.values())[0].shape[0]
+            object.__setattr__(
+                self, "n_obs_minibatch", list(rec_loss.values())[0].shape[0]
+            )
 
         if self.classification_loss is not None and (
             self.logits is None or self.true_labels is None
