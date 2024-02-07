@@ -2,11 +2,9 @@ name: Test (Linux)
 
 on:
   push:
-    branches:
-      [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x, 1.1.x]
+    branches: [main, 1.1.x]
   pull_request:
-    branches:
-      [main, 0.15.x, 0.16.x, 0.17.x, 0.18.x, 0.19.x, 0.20.x, 1.0.x, 1.1.x]
+    branches: [main, 1.1.x]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,7 +23,7 @@ jobs:
         os: [ubuntu-latest]
         python: ["3.9", "3.10", "3.11"]
 
-    name: ${{ matrix.name }} Python ${{ matrix.python }}
+    name: Integration
 
     env:
       OS: ${{ matrix.os }}
@@ -34,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"

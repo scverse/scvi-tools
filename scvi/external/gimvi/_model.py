@@ -119,14 +119,21 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         total_genes = n_inputs[0]
 
-        # since we are combining datasets, we need to increment the batch_idx
-        # of one of the datasets
         adata_seq_n_batches = sum_stats[0]["n_batch"]
-        adata_spatial.obs[
+        adata_spatial_batch = adata_spatial.obs[
             self.adata_managers["spatial"]
             .data_registry[REGISTRY_KEYS.BATCH_KEY]
             .attr_key
-        ] += adata_seq_n_batches
+        ]
+        if np.min(adata_spatial_batch) == 0:
+            # see #2446
+            # since we are combining datasets, we need to increment the batch_idx of one of the
+            # datasets. we only need to do this once so we check if the min is 0
+            adata_spatial.obs[
+                self.adata_managers["spatial"]
+                .data_registry[REGISTRY_KEYS.BATCH_KEY]
+                .attr_key
+            ] += adata_seq_n_batches
 
         n_batches = sum(s["n_batch"] for s in sum_stats)
 
