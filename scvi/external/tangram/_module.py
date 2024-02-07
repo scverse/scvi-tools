@@ -1,6 +1,5 @@
 from typing import NamedTuple, Optional
 
-import chex
 import jax
 import jax.numpy as jnp
 
@@ -111,7 +110,6 @@ class TangramMapper(JaxBaseModuleClass):
             sc = sc * filter
 
         g_pred = mapper.transpose() @ sc
-        chex.assert_equal_shape([sp, g_pred])
 
         # Expression term
         if self.lambda_g1 > 0:
