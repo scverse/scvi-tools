@@ -9,6 +9,7 @@ import warnings
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable
 
 import lightning.pytorch as pl
@@ -446,7 +447,8 @@ class TunerManager:
             callbacks = [callback_cls(metric, on="validation_end")]
 
             logs_dir = os.path.join(logging_dir, experiment_name)
-            trial_name = air.session.get_trial_name() + "_lightning"
+            Path(logs_dir).mkdir(parents=True, exist_ok=True)
+            trial_name = ray.train.get_context().get_trial_name() + "_lightning"
             logger = pl.loggers.TensorBoardLogger(logs_dir, name=trial_name)
 
             if monitor_device_stats:
