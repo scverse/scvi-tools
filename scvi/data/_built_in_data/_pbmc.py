@@ -16,7 +16,7 @@ def _load_purified_pbmc_dataset(
     save_fn = "PurifiedPBMCDataset.h5ad"
     _download(url, save_path, save_fn)
     path_to_file = os.path.join(save_path, save_fn)
-    adata = anndata.read(path_to_file)
+    adata = anndata.read_h5ad(path_to_file)
 
     dataset_names = [
         "cd4_t_helper",
