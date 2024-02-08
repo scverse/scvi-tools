@@ -334,14 +334,14 @@ def test_setup_anndata_create_label_batch(adata):
 
 def test_setup_anndata_nan(adata):
     # test error is thrown when categorical obs field contains nans
-    adata.obs["batch"][:10] = np.nan
+    adata.obs.loc[:10, "batch"] = np.nan
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata, batch_key="batch")
 
 
 def test_setup_anndata_cat(adata):
     # test error is thrown when categorical joint obsm field contains nans
-    adata.obs["cat1"][:10] = np.nan
+    adata.obs.loc[:10, "cat1"] = np.nan
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata, categorical_covariate_keys=["cat1"])
 
@@ -503,8 +503,8 @@ def test_view_registry(adata):
 def test_saving(adata, save_path):
     save_path = os.path.join(save_path, "tmp_adata.h5ad")
     adata.obs["cat1"] = np.random.randint(0, 3, adata.n_obs).astype(str)
-    adata.obs["cat1"][1] = "asdf"
-    adata.obs["cat1"][2] = "f34"
+    adata.obs.loc[1, "cat1"] = "asdf"
+    adata.obs.loc[2, "cat1"] = "f34"
     adata.obs["cat2"] = np.random.randint(0, 7, adata.n_obs)
 
     generic_setup_adata_manager(
