@@ -135,6 +135,10 @@ omit = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 xfail_strict = true
+markers = [
+    "internet",
+    "private",
+]
 
 [tool.ruff]
 src = ["."]

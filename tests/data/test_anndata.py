@@ -58,7 +58,7 @@ def test_transfer_fields_correct_mapping(adata1, adata2):
     adata1_manager.transfer_fields(adata2)
     labels_mapping = adata1_manager.get_state_registry("labels").categorical_mapping
     correct_label = np.where(labels_mapping == "label_1")[0][0]
-    assert adata2.obs["_scvi_labels"][0] == correct_label
+    assert adata2.obs["_scvi_labels"].iloc[0] == correct_label
 
 
 def test_transfer_fields_correct_batch(adata1, adata2):
@@ -75,8 +75,8 @@ def test_transfer_fields_same_batch_and_label(adata1, adata2):
     adata1_manager = generic_setup_adata_manager(adata1)
     del adata2.obs["batch"]
     adata1_manager.transfer_fields(adata2)
-    assert adata2.obs["_scvi_batch"][0] == 0
-    assert adata2.obs["_scvi_labels"][0] == 0
+    assert adata2.obs["_scvi_batch"].iloc[0] == 0
+    assert adata2.obs["_scvi_labels"].iloc[0] == 0
 
 
 def test_transfer_fields_subset(adata1, adata2):
