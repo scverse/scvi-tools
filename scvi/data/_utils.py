@@ -13,12 +13,12 @@ import torch
 from anndata import AnnData
 
 try:
-    from anndata._core.sparse_dataset import SparseDataset
-except ImportError:
     # anndata >= 0.10.0
     from anndata.experimental import CSCDataset, CSRDataset
 
     SparseDataset = (CSRDataset, CSCDataset)
+except ImportError:
+    from anndata._core.sparse_dataset import SparseDataset
 
 # TODO use the experimental api once we lower bound to anndata 0.8
 try:
