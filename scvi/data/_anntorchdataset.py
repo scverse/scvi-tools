@@ -12,9 +12,9 @@ try:
     from anndata._core.sparse_dataset import SparseDataset
 except ImportError:
     # anndata >= 0.10.0
-    from anndata._core.sparse_dataset import (
-        BaseCompressedSparseDataset as SparseDataset,
-    )
+    from anndata.experimental import CSCDataset, CSRDataset
+
+    SparseDataset = (CSRDataset, CSCDataset)
 
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
