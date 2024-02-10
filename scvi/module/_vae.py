@@ -225,12 +225,8 @@ class VAE(BaseMinifiedModeModuleClass):
         tensors: dict[str, Tensor],
     ) -> dict[str, Tensor | None]:
         batch_index: Int[Tensor, "N 1"] = tensors[REGISTRY_KEYS.BATCH_KEY]
-
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs: Float[Tensor, "N C"] | None = tensors[cont_key] if cont_key in tensors else None
-
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs: Int[Tensor, "N K"] | None = tensors[cat_key] if cat_key in tensors else None
+        cat_covs: Int[Tensor, "N K"] | None = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
+        cont_covs: Float[Tensor, "N C"] | None = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
 
         if self.minified_data_type is None:
             x: Float[Tensor, "N G"] = tensors[REGISTRY_KEYS.X_KEY]
@@ -240,18 +236,17 @@ class VAE(BaseMinifiedModeModuleClass):
                 "cont_covs": cont_covs,
                 "cat_covs": cat_covs,
             }
+        elif self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+            qzm: Float[Tensor, "N L"] = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
+            qzv: Float[Tensor, "N L"] = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
+            observed_lib_size: Float[Tensor, "N 1"] = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
+            input_dict = {
+                "qzm": qzm,
+                "qzv": qzv,
+                "observed_lib_size": observed_lib_size,
+            }
         else:
-            if self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-                qzm: Float[Tensor, "N L"] = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
-                qzv: Float[Tensor, "N L"] = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
-                observed_lib_size: Float[Tensor, "N 1"] = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
-                input_dict = {
-                    "qzm": qzm,
-                    "qzv": qzv,
-                    "observed_lib_size": observed_lib_size,
-                }
-            else:
-                raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
+            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
         return input_dict
 
@@ -263,16 +258,11 @@ class VAE(BaseMinifiedModeModuleClass):
         batch_index: Int[Tensor, "N 1"] = tensors[REGISTRY_KEYS.BATCH_KEY]
         y: Int[Tensor, "N 1"] | None = tensors[REGISTRY_KEYS.LABELS_KEY]
 
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs: Float[Tensor, "N C"] | None = tensors[cont_key] if cont_key in tensors else None
+        cat_covs: Int[Tensor, "N K"] = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
+        cont_covs: Float[Tensor, "N C"] | None = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
 
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs: Int[Tensor, "N K"] = tensors[cat_key] if cat_key in tensors else None
-
-        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
-        size_factor: Float[Tensor, "N 1"] | None = (
-            torch.log(tensors[size_factor_key]) if size_factor_key in tensors else None
-        )
+        size_factor: Float[Tensor, "N 1"] | None = tensors.get(REGISTRY_KEYS.SIZE_FACTOR_KEY, None)
+        size_factor = torch.log(size_factor) if size_factor is not None else None
 
         input_dict = {
             "z": z,
@@ -313,10 +303,9 @@ class VAE(BaseMinifiedModeModuleClass):
         Runs the inference (encoder) model.
         """
         x_ = x
-        if self.use_observed_lib_size:
-            library = torch.log(x.sum(1)).unsqueeze(1)
+
         if self.log_variational:
-            x_ = torch.log(1 + x_)
+            x_: Float[Tensor, "N G"] = torch.log(1 + x_)
 
         if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
@@ -326,23 +315,32 @@ class VAE(BaseMinifiedModeModuleClass):
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = ()
-        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-        ql = None
-        if not self.use_observed_lib_size:
-            ql, library_encoded = self.l_encoder(encoder_input, batch_index, *categorical_input)
-            library = library_encoded
 
+        z_encoder_outputs = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        qz: Distribution = z_encoder_outputs[0]
         if n_samples > 1:
-            untran_z = qz.sample((n_samples,))
-            z = self.z_encoder.z_transformation(untran_z)
-            if self.use_observed_lib_size:
+            z = self.z_encoder.z_transformation(qz.sample((n_samples,)))
+        else:
+            z: Float[Tensor, "N L"] = z_encoder_outputs[1]
+
+        if self.use_observed_lib_size:
+            ql: None
+            library: Float[Tensor, "N 1"] = torch.log(x.sum(1)).unsqueeze(1)
+
+            if n_samples > 1:
                 library = library.unsqueeze(0).expand(
                     (n_samples, library.size(0), library.size(1))
                 )
-            else:
+        else:
+            l_encoder_outputs = self.l_encoder(encoder_input, batch_index, *categorical_input)
+            ql: Distribution = l_encoder_outputs[0]
+
+            if n_samples > 1:
                 library = ql.sample((n_samples,))
-        outputs = {"z": z, "qz": qz, "ql": ql, "library": library}
-        return outputs
+            else:
+                library: Float[Tensor, "N 1"] = l_encoder_outputs[1]
+
+        return {"z": z, "qz": qz, "ql": ql, "library": library}
 
     @auto_move_data
     def _cached_inference(
@@ -492,7 +490,7 @@ class VAE(BaseMinifiedModeModuleClass):
         tensors: dict[str, Tensor],
         n_samples: int = 1,
         max_poisson_rate: float = 1e8,
-    ) -> Tensor:
+    ) -> Float[Tensor, "N G (S)"]:
         r"""Generate predictive samples from the posterior predictive distribution.
 
         The posterior predictive distribution is denoted as :math:`p(\hat{x} \mid x)`, where
@@ -520,18 +518,17 @@ class VAE(BaseMinifiedModeModuleClass):
         ``(n_obs, n_vars,)``.
         """
         inference_kwargs = {"n_samples": n_samples}
-        _, generative_outputs = self.forward(
+        generative_outputs: dict[str, Distribution | None] = self.forward(
             tensors, inference_kwargs=inference_kwargs, compute_loss=False
-        )
+        )[1]
 
         dist = generative_outputs["px"]
         if self.gene_likelihood == "poisson":
             dist = torch.distributions.Poisson(torch.clamp(dist.rate, max=max_poisson_rate))
 
-        # (n_obs, n_vars) if n_samples == 1, else (n_samples, n_obs, n_vars)
-        samples = dist.sample()
-        # (n_samples, n_obs, n_vars) -> (n_obs, n_vars, n_samples)
-        samples = torch.permute(samples, (1, 2, 0)) if n_samples > 1 else samples
+        samples: Float[Tensor, "(S) N G"] = dist.sample()
+        if n_samples > 1:
+            samples: Float[Tensor, "N G (S)"] = torch.permute(samples, (1, 2, 0))
 
         return samples.cpu()
 
@@ -539,10 +536,10 @@ class VAE(BaseMinifiedModeModuleClass):
     @auto_move_data
     def marginal_ll(
         self,
-        tensors,
-        n_mc_samples,
-        return_mean=False,
-        n_mc_samples_per_pass=1,
+        tensors: dict[str, Tensor],
+        n_mc_samples: int,
+        return_mean: bool = False,
+        n_mc_samples_per_pass: int = 1,
     ):
         """Computes the marginal log likelihood of the model.
 
@@ -557,7 +554,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_mc_samples_per_pass
             Number of Monte Carlo samples to use per pass. This is useful to avoid memory issues.
         """
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        batch_index: Int[Tensor, "N 1"] = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         to_sum = []
         if n_mc_samples_per_pass > n_mc_samples:
@@ -571,10 +568,10 @@ class VAE(BaseMinifiedModeModuleClass):
             inference_outputs, _, losses = self.forward(
                 tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass}
             )
-            qz = inference_outputs["qz"]
-            ql = inference_outputs["ql"]
-            z = inference_outputs["z"]
-            library = inference_outputs["library"]
+            qz: Distribution = inference_outputs["qz"]
+            ql: Distribution = inference_outputs["ql"]
+            z: Float[Tensor, "N L"] = inference_outputs["z"]
+            library: Float[Tensor, "N 1"] = inference_outputs["library"]
 
             # Reconstruction Loss
             reconst_loss = losses.dict_sum(losses.reconstruction_loss)
