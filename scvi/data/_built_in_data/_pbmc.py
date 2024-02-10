@@ -79,9 +79,7 @@ def _load_pbmc_dataset(
     subset_cells = []
     barcodes_metadata = pbmc_metadata["barcodes"].index.values.ravel().astype(str)
     for barcode in barcodes_metadata:
-        if (
-            barcode in dict_barcodes
-        ):  # barcodes with end -11 filtered on 10X website (49 cells)
+        if barcode in dict_barcodes:  # barcodes with end -11 filtered on 10X website (49 cells)
             subset_cells += [dict_barcodes[barcode]]
     adata = adata[np.asarray(subset_cells), :].copy()
     idx_metadata = np.asarray(

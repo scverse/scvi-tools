@@ -157,9 +157,7 @@ class SCBASSET(BaseModelClass):
         """
         custom_plan_kwargs = {
             "optimizer": "Custom",
-            "optimizer_creator": lambda p: torch.optim.Adam(
-                p, lr=lr, betas=(0.95, 0.9995)
-            ),
+            "optimizer_creator": lambda p: torch.optim.Adam(p, lr=lr, betas=(0.95, 0.9995)),
         }
         if plan_kwargs is not None:
             custom_plan_kwargs.update(plan_kwargs)
@@ -188,9 +186,7 @@ class SCBASSET(BaseModelClass):
             "early_stopping_min_delta": early_stopping_min_delta,
         }
         for k, v in es.items():
-            trainer_kwargs[k] = (
-                v if k not in trainer_kwargs.keys() else trainer_kwargs[k]
-            )
+            trainer_kwargs[k] = v if k not in trainer_kwargs.keys() else trainer_kwargs[k]
         runner = TrainRunner(
             self,
             training_plan=training_plan,
@@ -348,9 +344,7 @@ class SCBASSET(BaseModelClass):
         # download if none is found
         # `motif_seqs` is a List of str sequences where each char is in "ACTGN".
         # `bg_seqs` is the same, but background sequences rather than motif injected
-        motif_seqs, bg_seqs = self._get_motif_library(
-            tf=tf, genome=genome, motif_dir=motif_dir
-        )
+        motif_seqs, bg_seqs = self._get_motif_library(tf=tf, genome=genome, motif_dir=motif_dir)
 
         # SCBASSET.module.inference(...) takes `dna_code: torch.Tensor` as input
         # where `dna_code` is [batch_size, seq_length] and each value is [0,1,2,3]
@@ -364,9 +358,9 @@ class SCBASSET(BaseModelClass):
         # NOTE: SCBASSET uses a fixed size of 1344 bp. If motifs from a different source
         # than the above are used, we may need to truncate to match the model size.
         # We should be cautious about doing this, so we throw a warning to the user.
-        model_input_size = self.adata_manager.get_from_registry(
-            REGISTRY_KEYS.DNA_CODE_KEY
-        ).shape[1]
+        model_input_size = self.adata_manager.get_from_registry(REGISTRY_KEYS.DNA_CODE_KEY).shape[
+            1
+        ]
         n_diff = motif_codes.shape[1] - model_input_size
         if n_diff > 0:
             n_cut = n_diff // 2
@@ -441,8 +435,6 @@ class SCBASSET(BaseModelClass):
             ObsmField(REGISTRY_KEYS.DNA_CODE_KEY, dna_code_key, is_count_data=True),
             CategoricalVarField(REGISTRY_KEYS.BATCH_KEY, batch_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

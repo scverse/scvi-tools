@@ -23,14 +23,10 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         If ``True``, raises ``ValueError`` when ``mod_key`` is ``None``.
     """
 
-    def __init__(
-        self, mod_key: Optional[str] = None, mod_required: bool = False
-    ) -> None:
+    def __init__(self, mod_key: Optional[str] = None, mod_required: bool = False) -> None:
         super().__init__()
         if mod_required and mod_key is None:
-            raise ValueError(
-                f"Modality required for {self.__class__.__name__} but not provided."
-            )
+            raise ValueError(f"Modality required for {self.__class__.__name__} but not provided.")
         self._mod_key = mod_key
         self._preregister = lambda _self, _mdata: None
 
@@ -96,9 +92,7 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
         bdata = self.get_modality(mdata)
         return self.adata_field.register_field(bdata)
 
-    def transfer_field(
-        self, state_registry: dict, mdata_target: MuData, **kwargs
-    ) -> dict:
+    def transfer_field(self, state_registry: dict, mdata_target: MuData, **kwargs) -> dict:
         """Transfer the field."""
         self.preregister(mdata_target)
         bdata_target = self.get_modality(mdata_target)

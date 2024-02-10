@@ -76,9 +76,7 @@ class RNADeconv(BaseModuleClass):
     @auto_move_data
     def generative(self, x, y):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
-        px_scale = torch.nn.functional.softplus(self.W)[
-            :, y.long().ravel()
-        ].T  # cells per gene
+        px_scale = torch.nn.functional.softplus(self.W)[:, y.long().ravel()].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
         px_rate = library * px_scale
         scaling_factor = self.ct_weight[y.long().ravel()]
@@ -164,9 +162,7 @@ class SpatialDeconv(BaseModuleClass):
     def get_proportions(self, keep_noise=False) -> np.ndarray:
         """Returns the loadings."""
         # get estimated unadjusted proportions
-        res = (
-            torch.nn.functional.softplus(self.V).cpu().numpy().T
-        )  # n_spots, n_labels + 1
+        res = torch.nn.functional.softplus(self.V).cpu().numpy().T  # n_spots, n_labels + 1
         # remove dummy cell type proportion values
         if not keep_noise:
             res = res[:, :-1]
@@ -204,9 +200,7 @@ class SpatialDeconv(BaseModuleClass):
         )  # n_genes, n_labels + 1
         # subsample observations
         v_ind = v[:, ind_x]  # labels + 1, batch_size
-        px_rate = torch.transpose(
-            torch.matmul(r_hat, v_ind), 0, 1
-        )  # batch_size, n_genes
+        px_rate = torch.transpose(torch.matmul(r_hat, v_ind), 0, 1)  # batch_size, n_genes
 
         return {"px_o": self.px_o, "px_rate": px_rate, "eta": self.eta}
 

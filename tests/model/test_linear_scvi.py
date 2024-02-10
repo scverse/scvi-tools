@@ -92,9 +92,7 @@ def test_saving_and_loading(save_path):
 
         # Test legacy loading
         legacy_save_path = os.path.join(save_path, "legacy/")
-        legacy_save(
-            model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
-        )
+        legacy_save(model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix)
         with pytest.raises(ValueError):
             cls.load(legacy_save_path, adata=adata, prefix=prefix)
         cls.convert_legacy_save(
