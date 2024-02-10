@@ -1,11 +1,13 @@
-"""Main module."""
+from __future__ import annotations
+
 import logging
-from collections.abc import Iterable
-from typing import Callable, Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+from jaxtyping import Array, Float, Int
+from numpy.typing import ArrayLike
 from torch import logsumexp
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
@@ -105,7 +107,7 @@ class VAE(BaseMinifiedModeModuleClass):
         n_latent: Tunable[int] = 10,
         n_layers: Tunable[int] = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: list[int] | None = None,
         dropout_rate: Tunable[float] = 0.1,
         dispersion: Tunable[
             Literal["gene", "gene-batch", "gene-label", "gene-cell"]
@@ -119,11 +121,11 @@ class VAE(BaseMinifiedModeModuleClass):
         use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
         use_size_factor_key: bool = False,
         use_observed_lib_size: Tunable[bool] = True,
-        library_log_means: Optional[np.ndarray] = None,
-        library_log_vars: Optional[np.ndarray] = None,
-        var_activation: Tunable[Callable] = None,
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        library_log_means: ArrayLike | None = None,
+        library_log_vars: ArrayLike | None = None,
+        var_activation: Tunable[callable] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -226,18 +228,22 @@ class VAE(BaseMinifiedModeModuleClass):
 
     def _get_inference_input(
         self,
-        tensors,
-    ):
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        tensors: dict[str, torch.Tensor | None],
+    ) -> dict[str, torch.Tensor | None]:
+        batch_index: Int[Array, "N 1"] = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
+        cont_covs: Float[Array, "N C"] | None = (
+            tensors[cont_key] if cont_key in tensors else None
+        )
 
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+        cat_covs: Int[Array, "N K"] | None = (
+            tensors[cat_key] if cat_key in tensors else None
+        )
 
         if self.minified_data_type is None:
-            x = tensors[REGISTRY_KEYS.X_KEY]
+            x: Float[Array, "N G"] = tensors[REGISTRY_KEYS.X_KEY]
             input_dict = {
                 "x": x,
                 "batch_index": batch_index,
@@ -246,9 +252,11 @@ class VAE(BaseMinifiedModeModuleClass):
             }
         else:
             if self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-                qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
-                qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
-                observed_lib_size = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
+                qzm: Float[Array, "N L"] = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
+                qzv: Float[Array, "N L"] = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
+                observed_lib_size: Float[Array, "N 1"] = tensors[
+                    REGISTRY_KEYS.OBSERVED_LIB_SIZE
+                ]
                 input_dict = {
                     "qzm": qzm,
                     "qzv": qzv,

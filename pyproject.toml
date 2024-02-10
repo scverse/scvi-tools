@@ -53,6 +53,7 @@ dependencies = [
     "numpyro>=0.12.1",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
+    "jaxtyping",
 ]
 
 
@@ -209,6 +210,8 @@ ignore = [
     "D213",
     # Missing argument description in the docstring TODO: enable
     "D417",
+    # Forward annotation syntax for jaxtyping
+    "F722",
 ]
 
 [tool.ruff.format]
