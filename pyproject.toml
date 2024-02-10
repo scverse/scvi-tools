@@ -139,7 +139,7 @@ xfail_strict = true
 
 [tool.ruff]
 src = ["."]
-line-length = 89
+line-length = 99
 indent-width = 4
 target-version = "py39"
 
