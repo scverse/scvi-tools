@@ -123,3 +123,13 @@ def test_linear_scvi():
     model.get_loadings()
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+
+
+def test_linear_scvi_use_observed_lib_size():
+    adata = synthetic_iid()
+    LinearSCVI.setup_anndata(adata)
+    model = LinearSCVI(adata, n_latent=10, use_observed_lib_size=True)
+    model.train(max_epochs=1)
+    model.get_loadings()
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
