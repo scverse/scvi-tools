@@ -669,6 +669,14 @@ class LDVAE(VAE):
         Bool whether to use batch norm in decoder
     bias
         Bool whether to have bias term in linear decoder
+    latent_distribution
+        One of
+
+        * ``'normal'`` - Isotropic normal
+        * ``'ln'`` - Logistic normal with normal params N(0, 1)
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution.
+    **kwargs
     """
 
     def __init__(
@@ -686,7 +694,8 @@ class LDVAE(VAE):
         use_batch_norm: bool = True,
         bias: bool = False,
         latent_distribution: str = "normal",
-        **vae_kwargs,
+        use_observed_lib_size: bool = False,
+        **kwargs,
     ):
         super().__init__(
             n_input=n_input,
@@ -700,8 +709,8 @@ class LDVAE(VAE):
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
-            use_observed_lib_size=False,
-            **vae_kwargs,
+            use_observed_lib_size=use_observed_lib_size,
+            **kwargs,
         )
         self.use_batch_norm = use_batch_norm
         self.z_encoder = Encoder(
