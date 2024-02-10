@@ -101,6 +101,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Use {class}`anndata.experimental.CSCDataset` and {class}`anndata.experimental.CSRDataset`
     instead of the deprecated {class}`anndata._core.sparse_dataset.SparseDataset` for type checks
     {pr}`2485`.
+-   Make `use_observed_lib_size` argument adjustable in {class}`scvi.module.LDVAE` `pr`{2494}.
 
 #### Removed
 
