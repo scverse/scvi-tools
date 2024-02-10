@@ -230,7 +230,7 @@ class VAE(BaseMinifiedModeModuleClass):
 
         if self.minified_data_type is None:
             x: Float[Tensor, "N G"] = tensors[REGISTRY_KEYS.X_KEY]
-            input_dict = {
+            tensor_dict = {
                 "x": x,
                 "batch_index": batch_index,
                 "cont_covs": cont_covs,
@@ -240,7 +240,7 @@ class VAE(BaseMinifiedModeModuleClass):
             qzm: Float[Tensor, "N L"] = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
             qzv: Float[Tensor, "N L"] = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
             observed_lib_size: Float[Tensor, "N 1"] = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
-            input_dict = {
+            tensor_dict = {
                 "qzm": qzm,
                 "qzv": qzv,
                 "observed_lib_size": observed_lib_size,
@@ -248,7 +248,7 @@ class VAE(BaseMinifiedModeModuleClass):
         else:
             raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
-        return input_dict
+        return tensor_dict
 
     def _get_generative_input(
         self, tensors: dict[str, Tensor], inference_outputs: dict[str, Tensor]
@@ -297,7 +297,7 @@ class VAE(BaseMinifiedModeModuleClass):
         cont_covs: Float[Tensor, "N C"] | None = None,
         cat_covs: Int[Tensor, "N K"] | None = None,
         n_samples: int = 1,
-    ) -> dict[str, Tensor | Distribution]:
+    ) -> dict[str, Tensor | Distribution | None]:
         """High level inference method.
 
         Runs the inference (encoder) model.
@@ -324,7 +324,7 @@ class VAE(BaseMinifiedModeModuleClass):
             z: Float[Tensor, "N L"] = z_encoder_outputs[1]
 
         if self.use_observed_lib_size:
-            ql: None
+            ql = None
             library: Float[Tensor, "N 1"] = torch.log(x.sum(1)).unsqueeze(1)
 
             if n_samples > 1:
