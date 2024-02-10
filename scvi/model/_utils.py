@@ -89,9 +89,7 @@ def parse_device_args(
     """
     valid = [None, "torch", "jax"]
     if return_device not in valid:
-        raise InvalidParameterError(
-            param="return_device", value=return_device, valid=valid
-        )
+        raise InvalidParameterError(param="return_device", value=return_device, valid=valid)
 
     _validate_single_device = validate_single_device and devices != "auto"
     cond1 = isinstance(devices, list) and len(devices) > 1
@@ -252,12 +250,8 @@ def cite_seq_raw_counts_properties(
     properties = {
         "raw_mean1": np.concatenate([gp["raw_mean1"], mean1_pro]),
         "raw_mean2": np.concatenate([gp["raw_mean2"], mean2_pro]),
-        "non_zeros_proportion1": np.concatenate(
-            [gp["non_zeros_proportion1"], nonz1_pro]
-        ),
-        "non_zeros_proportion2": np.concatenate(
-            [gp["non_zeros_proportion2"], nonz2_pro]
-        ),
+        "non_zeros_proportion1": np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
+        "non_zeros_proportion2": np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
         "raw_normalized_mean1": np.concatenate([gp["raw_normalized_mean1"], nan]),
         "raw_normalized_mean2": np.concatenate([gp["raw_normalized_mean2"], nan]),
     }
@@ -307,9 +301,7 @@ def _get_batch_code_from_category(
     if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]
 
-    batch_mappings = adata_manager.get_state_registry(
-        REGISTRY_KEYS.BATCH_KEY
-    ).categorical_mapping
+    batch_mappings = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).categorical_mapping
     batch_code = []
     for cat in category:
         if cat is None:
@@ -352,9 +344,7 @@ def _init_library_size(
 
     for i_batch in np.unique(batch_indices):
         idx_batch = np.squeeze(batch_indices == i_batch)
-        batch_data = data[
-            idx_batch.nonzero()[0]
-        ]  # h5ad requires integer indexing arrays.
+        batch_data = data[idx_batch.nonzero()[0]]  # h5ad requires integer indexing arrays.
         sum_counts = batch_data.sum(axis=1)
         masked_log_sum = np.ma.log(sum_counts)
         if np.ma.is_masked(masked_log_sum):

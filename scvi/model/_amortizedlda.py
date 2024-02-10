@@ -123,9 +123,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -188,9 +186,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         transformed_xs = []
         for tensors in dl:
             x = tensors[REGISTRY_KEYS.X_KEY]
-            transformed_xs.append(
-                self.module.get_topic_distribution(x, n_samples=n_samples)
-            )
+            transformed_xs.append(self.module.get_topic_distribution(x, n_samples=n_samples))
         transformed_x = torch.cat(transformed_xs).numpy()
 
         return pd.DataFrame(
@@ -267,6 +263,5 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         total_counts = sum(tensors[REGISTRY_KEYS.X_KEY].sum().item() for tensors in dl)
 
         return np.exp(
-            self.get_elbo(adata=adata, indices=indices, batch_size=batch_size)
-            / total_counts
+            self.get_elbo(adata=adata, indices=indices, batch_size=batch_size) / total_counts
         )

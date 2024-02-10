@@ -83,9 +83,7 @@ class ArchesMixin:
             validate_single_device=True,
         )
 
-        attr_dict, var_names, load_state_dict = _get_loaded_data(
-            reference_model, device=device
-        )
+        attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)
 
         if inplace_subset_query_vars:
             logger.debug("Subsetting query vars to reference vars.")
@@ -94,9 +92,7 @@ class ArchesMixin:
 
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
-            raise ValueError(
-                "It appears you are loading a model from a different class."
-            )
+            raise ValueError("It appears you are loading a model from a different class.")
 
         if _SETUP_ARGS_KEY not in registry:
             raise ValueError(
