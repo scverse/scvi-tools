@@ -149,9 +149,7 @@ class ArrayLikeField(BaseArrayLikeField):
 
         return {self.COLUMN_NAMES_KEY: column_names}
 
-    def transfer_field(
-        self, state_registry: dict, adata_target: AnnData, **kwargs
-    ) -> dict:
+    def transfer_field(self, state_registry: dict, adata_target: AnnData, **kwargs) -> dict:
         """Transfer the field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         self.validate_field(adata_target)
@@ -163,9 +161,7 @@ class ArrayLikeField(BaseArrayLikeField):
                 f"the source adata.{self.attr_name}['{self.attr_key}'] column count of {len(source_cols)}."
             )
 
-        if isinstance(target_data, pd.DataFrame) and source_cols != list(
-            target_data.columns
-        ):
+        if isinstance(target_data, pd.DataFrame) and source_cols != list(target_data.columns):
             raise ValueError(
                 f"Target adata.{self.attr_name}['{self.attr_key}'] column names do not match "
                 f"the source adata.{self.attr_name}['{self.attr_key}'] column names."
@@ -301,11 +297,7 @@ class NumericalJointField(BaseJointField):
         """Register the field."""
         super().register_field(adata)
         self._combine_fields(adata)
-        return {
-            self.COLUMNS_KEY: getattr(adata, self.attr_name)[
-                self.attr_key
-            ].columns.to_numpy()
-        }
+        return {self.COLUMNS_KEY: getattr(adata, self.attr_name)[self.attr_key].columns.to_numpy()}
 
     def transfer_field(
         self,
@@ -398,10 +390,7 @@ class CategoricalJointField(BaseJointField):
         self, adata: AnnData, category_dict: Optional[dict[str, list[str]]] = None
     ) -> dict:
         """Make the .obsm categorical."""
-        if (
-            self.attr_keys
-            != getattr(adata, self.attr_name)[self.attr_key].columns.tolist()
-        ):
+        if self.attr_keys != getattr(adata, self.attr_name)[self.attr_key].columns.tolist():
             raise ValueError(
                 f"Original .{self.source_attr_name} keys do not match the columns in the ",
                 f"generated .{self.attr_name} field.",
@@ -415,9 +404,7 @@ class CategoricalJointField(BaseJointField):
                 if category_dict is not None
                 else None
             )
-            mapping = _make_column_categorical(
-                df, key, key, categorical_dtype=categorical_dtype
-            )
+            mapping = _make_column_categorical(df, key, key, categorical_dtype=categorical_dtype)
             categories[key] = mapping
 
         store_cats = categories if category_dict is None else category_dict
@@ -481,9 +468,7 @@ class CategoricalJointField(BaseJointField):
             no_wrap=True,
             overflow="fold",
         )
-        t.add_column(
-            "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
-        )
+        t.add_column("Categories", justify="center", style="green", no_wrap=True, overflow="fold")
         t.add_column(
             "scvi-tools Encoding",
             justify="center",
@@ -494,9 +479,7 @@ class CategoricalJointField(BaseJointField):
         for key, mappings in state_registry[self.MAPPINGS_KEY].items():
             for i, mapping in enumerate(mappings):
                 if i == 0:
-                    t.add_row(
-                        f"adata.{self.source_attr_name}['{key}']", str(mapping), str(i)
-                    )
+                    t.add_row(f"adata.{self.source_attr_name}['{key}']", str(mapping), str(i))
                 else:
                     t.add_row("", str(mapping), str(i))
             t.add_row("", "")

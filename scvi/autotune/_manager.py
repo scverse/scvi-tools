@@ -112,9 +112,7 @@ class TunerManager:
             tunables = {}
             for param, metadata in inspect.signature(func).parameters.items():
                 cond1 = isinstance(metadata.annotation, TunableMeta)
-                cond2 = "Tunable" in str(
-                    metadata.annotation
-                )  # needed for new type annotation
+                cond2 = "Tunable" in str(metadata.annotation)  # needed for new type annotation
                 if not cond1 and not cond2:
                     continue
 
@@ -133,9 +131,7 @@ class TunerManager:
                         annotation = str(annotation)
                 else:
                     annotation = metadata.annotation
-                    annotation = annotation[
-                        annotation.find("[") + 1 : annotation.rfind("]")
-                    ]
+                    annotation = annotation[annotation.find("[") + 1 : annotation.rfind("]")]
 
                 tunables[param] = {
                     "tunable_type": tunable_type,
@@ -145,17 +141,13 @@ class TunerManager:
                 }
             return tunables
 
-        def _get_tunables(
-            attr: Any, parent: Any = None, tunable_type: str | None = None
-        ) -> dict:
+        def _get_tunables(attr: Any, parent: Any = None, tunable_type: str | None = None) -> dict:
             tunables = {}
             if inspect.isfunction(attr):
                 return _parse_func_params(attr, parent, tunable_type)
             for child in getattr(attr, "_tunables", []):
                 tunables.update(
-                    _get_tunables(
-                        child, parent=attr, tunable_type=_cls_to_tunable_type(attr)
-                    )
+                    _get_tunables(child, parent=attr, tunable_type=_cls_to_tunable_type(attr))
                 )
             return tunables
 
@@ -210,17 +202,13 @@ class TunerManager:
                 _search_space[param] = sample_fn(*fn_args, **fn_kwargs)
 
             # exclude defaults if requested
-            logger.info(
-                f"Merging search space with defaults for {self._model_cls.__name__}."
-            )
+            logger.info(f"Merging search space with defaults for {self._model_cls.__name__}.")
 
         # priority given to user-provided search space
         _search_space.update(search_space)
         return _search_space
 
-    def _validate_metrics(
-        self, metric: str, additional_metrics: list[str]
-    ) -> OrderedDict:
+    def _validate_metrics(self, metric: str, additional_metrics: list[str]) -> OrderedDict:
         """Validates a set of metrics against the metric registry."""
         registry_metrics = self._registry["metrics"]
         _metrics = OrderedDict()
@@ -354,15 +342,11 @@ class TunerManager:
             )
 
         _scheduler = self._validate_scheduler(scheduler, metrics, scheduler_kwargs)
-        _searcher = self._validate_search_algorithm(
-            searcher, metrics, searcher_kwargs, seed
-        )
+        _searcher = self._validate_search_algorithm(searcher, metrics, searcher_kwargs, seed)
         return _scheduler, _searcher
 
     @staticmethod
-    def _validate_reporter(
-        reporter: bool, search_space: dict, metrics: OrderedDict
-    ) -> Any:
+    def _validate_reporter(reporter: bool, search_space: dict, metrics: OrderedDict) -> Any:
         """Validates a reporter depending on the execution environment."""
         _metric_keys = list(metrics.keys())
         _param_keys = list(search_space.keys())
@@ -441,9 +425,7 @@ class TunerManager:
             model = model_cls(adata, **model_kwargs)
 
             # This is to get around lightning import changes
-            callback_cls = type(
-                "_TuneReportCallback", (TuneReportCallback, pl.Callback), {}
-            )
+            callback_cls = type("_TuneReportCallback", (TuneReportCallback, pl.Callback), {})
             callbacks = [callback_cls(metric, on="validation_end")]
 
             logs_dir = os.path.join(logging_dir, experiment_name)
@@ -522,9 +504,7 @@ class TunerManager:
         logging_dir: str | None = None,
         monitor_device_stats: bool = False,
     ) -> tuple[Any, dict]:
-        metric = (
-            metric or self._get_primary_metric_and_mode(self._registry["metrics"])[0]
-        )
+        metric = metric or self._get_primary_metric_and_mode(self._registry["metrics"])[0]
         additional_metrics = additional_metrics or []
         search_space = search_space or {}
         model_kwargs = model_kwargs or {}

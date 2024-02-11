@@ -65,9 +65,7 @@ def mde(
     try:
         import pymde
     except ImportError as err:
-        raise ImportError(
-            "Please install pymde package via `pip install pymde`"
-        ) from err
+        raise ImportError("Please install pymde package via `pip install pymde`") from err
 
     if seed is None and settings.seed is not None:
         seed = settings.seed

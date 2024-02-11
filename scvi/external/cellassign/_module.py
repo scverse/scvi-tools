@@ -182,8 +182,7 @@ class CellAssignModule(BaseModuleClass):
             n_cells, self.n_genes, self.n_labels, B
         )  # (n, g, c, B)
         phi = (  # (n, g, c)
-            torch.sum(a * torch.exp(-b * torch.square(mu_ngcb - basis_means)), 3)
-            + LOWER_BOUND
+            torch.sum(a * torch.exp(-b * torch.square(mu_ngcb - basis_means)), 3) + LOWER_BOUND
         )
 
         # compute gamma
@@ -193,9 +192,7 @@ class CellAssignModule(BaseModuleClass):
         theta_log = theta_log.expand(n_cells, self.n_labels)
         p_x_c = torch.sum(x_log_prob_raw, 1) + theta_log  # (n, c)
         normalizer_over_c = torch.logsumexp(p_x_c, 1)
-        normalizer_over_c = normalizer_over_c.unsqueeze(-1).expand(
-            n_cells, self.n_labels
-        )
+        normalizer_over_c = normalizer_over_c.unsqueeze(-1).expand(n_cells, self.n_labels)
         gamma = torch.exp(p_x_c - normalizer_over_c)  # (n, c)
 
         return {
@@ -226,13 +223,9 @@ class CellAssignModule(BaseModuleClass):
         # third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit, dim=-1)
         theta_log_prior = Dirichlet(self.dirichlet_concentration)
-        theta_log_prob = -theta_log_prior.log_prob(
-            torch.exp(theta_log) + THETA_LOWER_BOUND
-        )
+        theta_log_prob = -theta_log_prior.log_prob(torch.exp(theta_log) + THETA_LOWER_BOUND)
         prior_log_prob = theta_log_prob
-        delta_log_prior = Normal(
-            self.delta_log_mean, self.delta_log_log_scale.exp().sqrt()
-        )
+        delta_log_prior = Normal(self.delta_log_mean, self.delta_log_log_scale.exp().sqrt())
         delta_log_prob = torch.masked_select(
             delta_log_prior.log_prob(self.delta_log), (self.rho > 0)
         )
