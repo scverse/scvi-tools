@@ -51,9 +51,7 @@ def test_hub_metadata(request, save_path):
     model = prep_model()
     test_save_path = os.path.join(save_path, request.node.name)
     model.save(test_save_path, overwrite=True)
-    hm = HubMetadata.from_dir(
-        test_save_path, anndata_version="0.9.0", model_parent_module="foo"
-    )
+    hm = HubMetadata.from_dir(test_save_path, anndata_version="0.9.0", model_parent_module="foo")
     assert hm.scvi_version == scvi.__version__
     assert hm.anndata_version == "0.9.0"
     assert hm.training_data_url is None
@@ -62,9 +60,7 @@ def test_hub_metadata(request, save_path):
 
 def test_hub_metadata_invalid_url():
     with pytest.raises(ValueError):
-        HubMetadata(
-            "0.17.4", "0.8.0", "SCVI", training_data_url="https//invalid_url.org/"
-        )
+        HubMetadata("0.17.4", "0.8.0", "SCVI", training_data_url="https//invalid_url.org/")
 
 
 def test_hub_modelcardhelper(request, save_path):
@@ -74,9 +70,7 @@ def test_hub_modelcardhelper(request, save_path):
         license_info="cc-by-4.0",
         model_cls_name="SCVI",
         model_init_params=model.init_params_,
-        model_setup_anndata_args=model.adata_manager._get_setup_method_args()[
-            "setup_args"
-        ],
+        model_setup_anndata_args=model.adata_manager._get_setup_method_args()["setup_args"],
         model_summary_stats=model.summary_stats,
         model_data_registry=model.adata_manager.data_registry,
         scvi_version="0.17.8",
@@ -162,8 +156,7 @@ def test_hub_modelcardhelper(request, save_path):
     assert hmch.model_cls_name == "SCVI"
     assert hmch.model_init_params == model.init_params_
     assert (
-        hmch.model_setup_anndata_args
-        == model.adata_manager._get_setup_method_args()["setup_args"]
+        hmch.model_setup_anndata_args == model.adata_manager._get_setup_method_args()["setup_args"]
     )
     assert hmch.model_summary_stats == dict(model.summary_stats)
     assert hmch.model_data_registry == dict(model.adata_manager.data_registry)

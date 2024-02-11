@@ -135,12 +135,8 @@ class SOLO(BaseModelClass):
         """
         _validate_scvi_model(scvi_model, restrict_to_batch=restrict_to_batch)
         orig_adata_manager = scvi_model.adata_manager
-        orig_batch_key_registry = orig_adata_manager.get_state_registry(
-            REGISTRY_KEYS.BATCH_KEY
-        )
-        orig_labels_key_registry = orig_adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
+        orig_batch_key_registry = orig_adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)
+        orig_labels_key_registry = orig_adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         orig_batch_key = orig_batch_key_registry.original_key
         orig_labels_key = orig_labels_key_registry.original_key
 
@@ -221,9 +217,7 @@ class SOLO(BaseModelClass):
         latent_adata.obs[LABELS_KEY] = "singlet"
         orig_obs_names = adata.obs_names
         latent_adata.obs_names = (
-            orig_obs_names[batch_indices]
-            if batch_indices is not None
-            else orig_obs_names
+            orig_obs_names[batch_indices] if batch_indices is not None else orig_obs_names
         )
 
         logger.info("Creating doublets, preparing SOLO model.")
@@ -391,9 +385,7 @@ class SOLO(BaseModelClass):
         return runner()
 
     @torch.inference_mode()
-    def predict(
-        self, soft: bool = True, include_simulated_doublets: bool = False
-    ) -> pd.DataFrame:
+    def predict(self, soft: bool = True, include_simulated_doublets: bool = False) -> pd.DataFrame:
         """Return doublet predictions.
 
         Parameters
@@ -430,9 +422,7 @@ class SOLO(BaseModelClass):
 
         preds = y_pred[mask]
 
-        cols = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        ).categorical_mapping
+        cols = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY).categorical_mapping
         preds_df = pd.DataFrame(preds, columns=cols, index=self.adata.obs_names[mask])
 
         if not soft:
@@ -461,9 +451,7 @@ class SOLO(BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=False),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 

@@ -246,9 +246,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
-        labels_state_registry = adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
+        labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         labels = get_anndata_attribute(
             adata_manager.adata,
             adata_manager.data_registry.labels.attr_name,
@@ -304,9 +302,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             unlabeled_idx_train = unlabeled_permutation[
                 n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
             ]
-            unlabeled_idx_test = unlabeled_permutation[
-                (n_unlabeled_val + n_unlabeled_train) :
-            ]
+            unlabeled_idx_test = unlabeled_permutation[(n_unlabeled_val + n_unlabeled_train) :]
         else:
             unlabeled_idx_train = []
             unlabeled_idx_val = []
@@ -440,16 +436,10 @@ class DeviceBackedDataSplitter(DataSplitter):
 
         if self.shuffle is False:
             self.train_idx = np.sort(self.train_idx)
-            self.val_idx = (
-                np.sort(self.val_idx) if len(self.val_idx) > 0 else self.val_idx
-            )
-            self.test_idx = (
-                np.sort(self.test_idx) if len(self.test_idx) > 0 else self.test_idx
-            )
+            self.val_idx = np.sort(self.val_idx) if len(self.val_idx) > 0 else self.val_idx
+            self.test_idx = np.sort(self.test_idx) if len(self.test_idx) > 0 else self.test_idx
 
-        self.train_tensor_dict = self._get_tensor_dict(
-            self.train_idx, device=self.device
-        )
+        self.train_tensor_dict = self._get_tensor_dict(self.train_idx, device=self.device)
         self.test_tensor_dict = self._get_tensor_dict(self.test_idx, device=self.device)
         self.val_tensor_dict = self._get_tensor_dict(self.val_idx, device=self.device)
 

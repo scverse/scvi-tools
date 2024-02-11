@@ -236,22 +236,14 @@ class DifferentialComputation:
             # First case: same batch normalization in two groups
             logger.debug("Same batches in both cell groups")
             n_batches = len(set(batchid1_vals))
-            n_samples_per_batch = (
-                m_permutation // n_batches if m_permutation is not None else None
-            )
-            logger.debug(
-                f"Using {n_samples_per_batch} samples per batch for pair matching"
-            )
+            n_samples_per_batch = m_permutation // n_batches if m_permutation is not None else None
+            logger.debug(f"Using {n_samples_per_batch} samples per batch for pair matching")
             scales_1 = []
             scales_2 = []
             for batch_val in set(batchid1_vals):
                 # Select scale samples that originate from the same batch id
-                scales_1_batch = scales_batches_1["scale"][
-                    scales_batches_1["batch"] == batch_val
-                ]
-                scales_2_batch = scales_batches_2["scale"][
-                    scales_batches_2["batch"] == batch_val
-                ]
+                scales_1_batch = scales_batches_1["scale"][scales_batches_1["batch"] == batch_val]
+                scales_2_batch = scales_batches_2["scale"][scales_batches_2["batch"] == batch_val]
 
                 # Create more pairs
                 scales_1_local, scales_2_local = pairs_sampler(
@@ -324,9 +316,7 @@ class DifferentialComputation:
 
                 def m1_domain_fn(samples):
                     delta_ = (
-                        delta
-                        if delta is not None
-                        else estimate_delta(lfc_means=samples.mean(0))
+                        delta if delta is not None else estimate_delta(lfc_means=samples.mean(0))
                     )
                     logger.debug(f"Using delta ~ {delta_:.2f}")
                     return np.abs(samples) >= delta_
@@ -423,9 +413,7 @@ class DifferentialComputation:
         """
         # Get overall number of desired samples and desired batches
         if batchid is None and not use_observed_batches:
-            batch_registry = self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.BATCH_KEY
-            )
+            batch_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)
             batchid = batch_registry.categorical_mapping
         if use_observed_batches:
             if batchid is not None:
@@ -534,8 +522,7 @@ def estimate_pseudocounts_offset(
     max_scales_a = np.max(scales_a, 0)
     max_scales_b = np.max(scales_b, 0)
     asserts = (
-        (max_scales_a.shape == where_zero_a.shape)
-        and (max_scales_b.shape == where_zero_b.shape)
+        (max_scales_a.shape == where_zero_a.shape) and (max_scales_b.shape == where_zero_b.shape)
     ) and (where_zero_a.shape == where_zero_b.shape)
     if not asserts:
         raise ValueError(
@@ -704,9 +691,7 @@ def describe_continuous_distrib(
     return dist_props
 
 
-def save_cluster_xlsx(
-    filepath: str, de_results: list[pd.DataFrame], cluster_names: list
-):
+def save_cluster_xlsx(filepath: str, de_results: list[pd.DataFrame], cluster_names: list):
     """Saves multi-clusters DE in an xlsx sheet.
 
     Parameters

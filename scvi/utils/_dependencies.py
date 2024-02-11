@@ -11,9 +11,7 @@ def error_on_missing_dependencies(*modules):
         except ImportError:
             missing_modules.append(module)
     if len(missing_modules) > 0:
-        raise ModuleNotFoundError(
-            f"Please install {missing_modules} to use this functionality."
-        )
+        raise ModuleNotFoundError(f"Please install {missing_modules} to use this functionality.")
 
 
 def dependencies(*modules) -> Callable:
