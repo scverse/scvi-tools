@@ -99,14 +99,10 @@ class ContrastiveDataSplitter(DataSplitter):
         self.background_train_idx = background_indices[
             n_background_val : (n_background_val + n_background_train)
         ]
-        self.background_test_idx = background_indices[
-            (n_background_val + n_background_train) :
-        ]
+        self.background_test_idx = background_indices[(n_background_val + n_background_train) :]
 
         self.target_val_idx = target_indices[:n_target_val]
-        self.target_train_idx = target_indices[
-            n_target_val : (n_target_val + n_target_train)
-        ]
+        self.target_train_idx = target_indices[n_target_val : (n_target_val + n_target_train)]
         self.target_test_idx = target_indices[(n_target_val + n_target_train) :]
 
         self.val_idx = self.background_val_idx + self.target_val_idx

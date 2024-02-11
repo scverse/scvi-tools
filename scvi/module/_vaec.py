@@ -151,9 +151,7 @@ class VAEC(BaseModuleClass):
         if n_samples > 1:
             untran_z = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
-            library = library.unsqueeze(0).expand(
-                (n_samples, library.size(0), library.size(1))
-            )
+            library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
 
         outputs = {"z": z, "qz": qz, "library": library}
         return outputs
@@ -189,9 +187,7 @@ class VAEC(BaseModuleClass):
         scaling_factor = self.ct_weight[y.long()[:, 0]]
         loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
 
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence_z
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence_z)
 
     @torch.inference_mode()
     def sample(
@@ -227,9 +223,7 @@ class VAEC(BaseModuleClass):
 
         dist = NegativeBinomial(px_rate, logits=px_r)
         if n_samples > 1:
-            exprs = dist.sample().permute(
-                [1, 2, 0]
-            )  # Shape : (n_cells_batch, n_genes, n_samples)
+            exprs = dist.sample().permute([1, 2, 0])  # Shape : (n_cells_batch, n_genes, n_samples)
         else:
             exprs = dist.sample()
 

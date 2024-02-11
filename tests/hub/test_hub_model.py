@@ -260,15 +260,11 @@ def test_hub_model_pull_from_hf():
     assert hub_model.model is not None
     assert hub_model.adata is not None
 
-    hub_model = HubModel.pull_from_huggingface_hub(
-        repo_name="scvi-tools/test-scvi-minified"
-    )
+    hub_model = HubModel.pull_from_huggingface_hub(repo_name="scvi-tools/test-scvi-minified")
     assert hub_model.model is not None
     assert hub_model.adata is not None
 
-    hub_model = HubModel.pull_from_huggingface_hub(
-        repo_name="scvi-tools/test-scvi-no-anndata"
-    )
+    hub_model = HubModel.pull_from_huggingface_hub(repo_name="scvi-tools/test-scvi-no-anndata")
     with pytest.raises(ValueError):
         _ = hub_model.model
 
@@ -285,12 +281,8 @@ def test_hub_model_push_to_s3(save_path: str):
 
     hub_model = prep_scvi_no_anndata_hub_model(save_path)
     with pytest.raises(ValueError):
-        hub_model.push_to_s3(
-            "scvi-tools", "tests/hub/test-scvi-no-anndata", push_anndata=True
-        )
-    hub_model.push_to_s3(
-        "scvi-tools", "tests/hub/test-scvi-no-anndata", push_anndata=False
-    )
+        hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi-no-anndata", push_anndata=True)
+    hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi-no-anndata", push_anndata=False)
 
     hub_model = prep_scvi_minified_hub_model(save_path)
     hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi-minified")
