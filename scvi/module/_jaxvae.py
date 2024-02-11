@@ -92,9 +92,7 @@ class FlaxDecoder(nn.Module):
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
 
-    def __call__(
-        self, z: jnp.ndarray, batch: jnp.ndarray, training: Optional[bool] = None
-    ):
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training: Optional[bool] = None):
         """Forward pass."""
         # TODO(adamgayoso): Test this
         training = nn.merge_param("training", self.training, training)

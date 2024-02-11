@@ -95,9 +95,7 @@ class ContrastiveVI(BaseModelClass):
         super().__init__(adata)
 
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
@@ -105,9 +103,7 @@ class ContrastiveVI(BaseModelClass):
 
         library_log_means, library_log_vars = None, None
         if not use_observed_lib_size:
-            library_log_means, library_log_vars = _init_library_size(
-                self.adata_manager, n_batch
-            )
+            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -203,9 +199,7 @@ class ContrastiveVI(BaseModelClass):
             validation_size=validation_size,
             batch_size=batch_size,
             shuffle_set_split=shuffle_set_split,
-            distributed_sampler=use_distributed_sampler(
-                trainer_kwargs.get("strategy", None)
-            ),
+            distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
             load_sparse_tensor=load_sparse_tensor,
             **datasplitter_kwargs,
         )
@@ -256,19 +250,11 @@ class ContrastiveVI(BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            NumericalObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -321,9 +307,7 @@ class ContrastiveVI(BaseModelClass):
         for tensors in data_loader:
             x = tensors[REGISTRY_KEYS.X_KEY]
             batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-            outputs = self.module._generic_inference(
-                x=x, batch_index=batch_index, n_samples=1
-            )
+            outputs = self.module._generic_inference(x=x, batch_index=batch_index, n_samples=1)
 
             if representation_kind == "background":
                 latent_m = outputs["qz_m"]
@@ -489,9 +473,7 @@ class ContrastiveVI(BaseModelClass):
         if return_numpy is None or return_numpy is False:
             genes = adata.var_names[gene_mask]
             samples = adata.obs_names[indices]
-            background_exprs = pd.DataFrame(
-                background_exprs, columns=genes, index=samples
-            )
+            background_exprs = pd.DataFrame(background_exprs, columns=genes, index=samples)
             salient_exprs = pd.DataFrame(salient_exprs, columns=genes, index=samples)
         return {"background": background_exprs, "salient": salient_exprs}
 
@@ -852,9 +834,7 @@ class ContrastiveVI(BaseModelClass):
         self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]

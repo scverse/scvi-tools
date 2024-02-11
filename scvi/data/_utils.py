@@ -90,8 +90,7 @@ def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
         )
     else:
         raise TypeError(
-            "`x` must be of type `scipy.sparse.csr_matrix` or "
-            "`scipy.sparse.csc_matrix`."
+            "`x` must be of type `scipy.sparse.csr_matrix` or " "`scipy.sparse.csc_matrix`."
         )
 
 
@@ -114,9 +113,7 @@ def get_anndata_attribute(
     else:
         if isinstance(adata_attr, pd.DataFrame):
             if attr_key not in adata_attr.columns:
-                raise ValueError(
-                    f"{attr_key} is not a valid column in adata.{attr_name}."
-                )
+                raise ValueError(f"{attr_key} is not a valid column in adata.{attr_name}.")
             field = adata_attr.loc[:, attr_key]
         else:
             if attr_key not in adata_attr.keys():
@@ -162,9 +159,7 @@ def _set_data_in_registry(
         setattr(adata, attr_name, attribute)
 
 
-def _verify_and_correct_data_format(
-    adata: AnnData, attr_name: str, attr_key: Optional[str]
-):
+def _verify_and_correct_data_format(adata: AnnData, attr_name: str, attr_key: Optional[str]):
     """Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
 
     Parameters
@@ -178,9 +173,7 @@ def _verify_and_correct_data_format(
     """
     data = get_anndata_attribute(adata, attr_name, attr_key)
     data_loc_str = (
-        f"adata.{attr_name}[{attr_key}]"
-        if attr_key is not None
-        else f"adata.{attr_name}"
+        f"adata.{attr_name}[{attr_key}]" if attr_key is not None else f"adata.{attr_name}"
     )
     if sp_sparse.isspmatrix(data) and (data.getformat() != "csr"):
         warnings.warn(
@@ -192,9 +185,7 @@ def _verify_and_correct_data_format(
         logger.debug(f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.")
         data = np.asarray(data, order="C")
         _set_data_in_registry(adata, data, attr_name, attr_key)
-    elif isinstance(data, pd.DataFrame) and (
-        data.to_numpy().flags["C_CONTIGUOUS"] is False
-    ):
+    elif isinstance(data, pd.DataFrame) and (data.to_numpy().flags["C_CONTIGUOUS"] is False):
         logger.debug(f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.")
         index = data.index
         vals = data.to_numpy()
@@ -306,9 +297,7 @@ def _check_if_view(adata: AnnOrMuData, copy_if_view: bool = False):
 
 def _check_mudata_fully_paired(mdata: MuData):
     if isinstance(mdata, AnnData):
-        raise AssertionError(
-            "Cannot call ``_check_mudata_fully_paired`` with AnnData object."
-        )
+        raise AssertionError("Cannot call ``_check_mudata_fully_paired`` with AnnData object.")
     for mod_key in mdata.mod:
         if not mdata.obsm[mod_key].all():
             raise ValueError(

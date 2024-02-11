@@ -253,9 +253,7 @@ class ScBassetModule(BaseModuleClass):
         tower_layers = []
         curr_n_filters = n_filters_init
         for i in range(n_repeat_blocks_tower):
-            new_n_filters = (
-                _round(curr_n_filters * filters_mult) if i > 0 else curr_n_filters
-            )
+            new_n_filters = _round(curr_n_filters * filters_mult) if i > 0 else curr_n_filters
             tower_layers.append(
                 _ConvBlock(
                     in_channels=curr_n_filters,

@@ -9,9 +9,7 @@ def subset_distribution(
     """Utility function to subset the parameter of a Pytorch distribution."""
     return my_distribution.__class__(
         **{
-            name: torch.index_select(
-                getattr(my_distribution, name), dim=dim, index=index
-            )
+            name: torch.index_select(getattr(my_distribution, name), dim=dim, index=index)
             for name in my_distribution.arg_constraints.keys()
         }
     )
@@ -38,15 +36,11 @@ class DistributionConcatenator:
         if self._params is None:
             self._params = {name: [] for name in dist.arg_constraints.keys()}
             self.distribution_cls = dist.__class__
-        new_params = {
-            name: getattr(dist, name).cpu() for name in dist.arg_constraints.keys()
-        }
+        new_params = {name: getattr(dist, name).cpu() for name in dist.arg_constraints.keys()}
         for param_name, param in new_params.items():
             self._params[param_name].append(param)
 
     def get_concatenated_distributions(self, axis=0):
         """Returns a concatenated `Distribution` object along the specified axis."""
-        concat_params = {
-            key: torch.cat(value, dim=axis) for key, value in self._params.items()
-        }
+        concat_params = {key: torch.cat(value, dim=axis) for key, value in self._params.items()}
         return self.distribution_cls(**concat_params)
