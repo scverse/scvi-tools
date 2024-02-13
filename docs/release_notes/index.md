@@ -7,7 +7,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-### 1.1.0 (2024-02-DD)
+### 1.1.0 (2024-02-13)
 
 #### Added
 
