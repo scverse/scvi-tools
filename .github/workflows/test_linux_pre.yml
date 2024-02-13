@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   test:
-    # if PR has label "cuda tests" or "all tests" or if scheduled or manually triggered
+    # if PR has label "prerelease tests" or "all tests" or if scheduled or manually triggered
     if: >-
       (
         contains(github.event.pull_request.labels.*.name, 'prerelease tests') ||
