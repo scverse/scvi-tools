@@ -102,7 +102,7 @@ regseq = ["biopython>=1.81", "genomepy"]  # scvi.data.add_dna_sequence
 loompy = ["loompy>=3.0.6"]  # read loom
 scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
 optional = [
-    "scvi-tools[autotune,aws,criticism,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,census,criticism,hub,loompy,pymde,regseq,scanpy]"
 ]  # all optional user functionality
 
 tutorials = [
