@@ -208,22 +208,24 @@ class TunerManager:
         _search_space.update(search_space)
         return _search_space
 
-    def _validate_metrics(self, metric: str, additional_metrics: list[str]) -> OrderedDict:
+    def _validate_metrics(
+        self, metric: str, additional_metrics: list[str], validate: bool
+    ) -> OrderedDict:
         """Validates a set of metrics against the metric registry."""
         registry_metrics = self._registry["metrics"]
         _metrics = OrderedDict()
 
         # validate primary metric
-        if metric not in registry_metrics:
+        if validate and metric not in registry_metrics:
             raise ValueError(
                 f"Provided metric `{metric}` is invalid for {self._model_cls.__name__}. "
                 "Please see available metrics with `ModelTuner.info()`. ",
             )
-        _metrics[metric] = registry_metrics[metric]
+        _metrics[metric] = registry_metrics.get(metric, "max")
 
         # validate additional metrics
         for m in additional_metrics:
-            if m not in registry_metrics:
+            if validate and m not in registry_metrics:
                 warnings.warn(
                     f"Provided metric {m} is invalid for {self._model_cls.__name__}. "
                     "Please see available metrics with `ModelTuner.info()`. "
@@ -232,7 +234,7 @@ class TunerManager:
                     stacklevel=settings.warnings_stacklevel,
                 )
                 continue
-            _metrics[m] = registry_metrics[m]
+            _metrics[m] = registry_metrics.get(m, "max")
 
         return _metrics
 
@@ -426,7 +428,9 @@ class TunerManager:
 
             # This is to get around lightning import changes
             callback_cls = type("_TuneReportCallback", (TuneReportCallback, pl.Callback), {})
-            callbacks = [callback_cls(metric, on="validation_end")]
+            callbacks = train_kwargs.get("callbacks", [])
+            callbacks.append(callback_cls(metric, on="validation_end"))
+            train_kwargs["callbacks"] = callbacks
 
             logs_dir = os.path.join(logging_dir, experiment_name)
             Path(logs_dir).mkdir(parents=True, exist_ok=True)
@@ -441,7 +445,6 @@ class TunerManager:
                 accelerator=accelerator,
                 devices=devices,
                 check_val_every_n_epoch=1,
-                callbacks=callbacks,
                 enable_progress_bar=False,
                 logger=logger,
                 **train_kwargs,
@@ -503,6 +506,7 @@ class TunerManager:
         experiment_name: str | None = None,
         logging_dir: str | None = None,
         monitor_device_stats: bool = False,
+        validate_metrics: bool = True,
     ) -> tuple[Any, dict]:
         metric = metric or self._get_primary_metric_and_mode(self._registry["metrics"])[0]
         additional_metrics = additional_metrics or []
@@ -517,7 +521,7 @@ class TunerManager:
         searcher_kwargs = searcher_kwargs or {}
         resources = resources or {}
 
-        _metrics = self._validate_metrics(metric, additional_metrics)
+        _metrics = self._validate_metrics(metric, additional_metrics, validate_metrics)
         _search_space = self._validate_search_space(search_space, use_defaults)
         _scheduler, _searcher = self._validate_scheduler_and_search_algorithm(
             scheduler,
