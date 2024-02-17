@@ -44,7 +44,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install .[tests]
+          uv pip install "scvi-tools[tests] @ ."
 
       - name: Test
         env:
