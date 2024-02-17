@@ -42,9 +42,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
 
+      - name: Create virtual environment
+        run: |
+          python -m uv venv
+
+      - name: Create virtual environment
+        run: |
+          python -m uv venv
+
       - name: Install dependencies
         run: |
-          uv pip install "scvi-tools[tests] @ ."
+          source .venv/bin/activate
 
       - name: Test
         env:
