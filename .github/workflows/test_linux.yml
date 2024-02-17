@@ -44,7 +44,7 @@ jobs:
 
       - name: Create virtual environment
         run: |
-          python -m uv venv
+          uv venv
 
       - name: Activate virtual environment
         run: |
@@ -52,7 +52,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m uv pip install "scvi-tools[tests] @ ."
+          uv pip install "scvi-tools[tests] @ ."
 
       - name: Test
         env:
