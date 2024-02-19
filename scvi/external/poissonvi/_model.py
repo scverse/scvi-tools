@@ -79,14 +79,13 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         adata: AnnData,
         n_hidden: int | None = None,
         n_latent: int | None = None,
-        n_layers: int | None = None,
-        dropout_rate: float | None = None,
+        n_layers: int = 2,
+        dropout_rate: float = 0.1,
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super().__init__(
-            adata,
-        )
+        # need to pass these in to get the correct defaults for peakvi
+        super().__init__(adata, n_hidden=n_hidden, n_latent=n_latent)
 
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
@@ -104,11 +103,11 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             n_cats_per_cov=self.module.n_cats_per_cov,
             n_hidden=self.module.n_hidden,
             n_latent=self.module.n_latent,
-            n_layers=self.module.n_layers_encoder,
-            dropout_rate=self.module.dropout_rate,
+            n_layers=n_layers,
+            dropout_rate=dropout_rate,
             dispersion="gene",  # not needed here
             gene_likelihood="poisson",  # fixed value for now, but we could think of also allowing nb
-            latent_distribution=self.module.latent_distribution,
+            latent_distribution=latent_distribution,
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
