@@ -107,7 +107,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             dropout_rate=dropout_rate,
             dispersion="gene",  # not needed here
             gene_likelihood="poisson",  # fixed value for now, but we could think of also allowing nb
-            latent_distribution=self.module.latent_distribution,
+            latent_distribution=latent_distribution,
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
