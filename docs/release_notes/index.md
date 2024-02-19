@@ -11,6 +11,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 #### Fixed
 
+-   Correctly apply non-default user parameters in {class}`scvi.external.POISSONVI` {pr}`2522`.
+
 ### 1.1.0 (2024-02-13)
 
 #### Added
