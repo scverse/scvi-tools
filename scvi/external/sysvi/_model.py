@@ -83,9 +83,7 @@ class SysVI(TrainingCustom, BaseModelClass):
         else:
             pseudoinput_data = None
 
-        n_cov_const = (
-            adata.obsm["covariates"].shape[1] if "covariates" in adata.obsm else 0
-        )
+        n_cov_const = adata.obsm["covariates"].shape[1] if "covariates" in adata.obsm else 0
         cov_embed_sizes = (
             pd.DataFrame(adata.obsm["covariates_embed"]).nunique(axis=0).to_list()
             if "covariates_embed" in adata.obsm
@@ -219,12 +217,8 @@ class SysVI(TrainingCustom, BaseModelClass):
                 == adata.uns["layer_information"]["var_names"]
             )
             assert self.adata.uns["system_order"] == adata.uns["system_order"]
-            for covariate_type, covariate_keys in self.adata.uns[
-                "covariate_key_orders"
-            ].items():
-                assert (
-                    covariate_keys == adata.uns["covariate_key_orders"][covariate_type]
-                )
+            for covariate_type, covariate_keys in self.adata.uns["covariate_key_orders"].items():
+                assert covariate_keys == adata.uns["covariate_key_orders"][covariate_type]
                 if "categorical" in covariate_type:
                     for covariate_key in covariate_keys:
                         assert (
@@ -317,14 +311,10 @@ class SysVI(TrainingCustom, BaseModelClass):
             )
 
         # Make one-hot embedding with specified order
-        systems_dict = dict(
-            zip(system_order, ([float(i) for i in range(0, len(system_order))]))
-        )
+        systems_dict = dict(zip(system_order, ([float(i) for i in range(0, len(system_order))])))
         adata.uns["system_order"] = system_order
         system_cat = pd.Series(
-            pd.Categorical(
-                values=adata.obs[batch_key], categories=system_order, ordered=True
-            ),
+            pd.Categorical(values=adata.obs[batch_key], categories=system_order, ordered=True),
             index=adata.obs.index,
             name="system",
         )
@@ -357,10 +347,7 @@ class SysVI(TrainingCustom, BaseModelClass):
         # Save covariate representation and order information
         adata.uns["covariate_categ_orders"] = orders_dict
         adata.uns["covariate_key_orders"] = cov_dict
-        if (
-            continuous_covariate_keys is not None
-            or categorical_covariate_keys is not None
-        ):
+        if continuous_covariate_keys is not None or categorical_covariate_keys is not None:
             adata.obsm["covariates"] = covariates
         else:
             # Remove if present since the presence of this key
@@ -380,15 +367,10 @@ class SysVI(TrainingCustom, BaseModelClass):
             ObsmField("system", "system"),
         ]
         # Covariate fields are optional
-        if (
-            continuous_covariate_keys is not None
-            or categorical_covariate_keys is not None
-        ):
+        if continuous_covariate_keys is not None or categorical_covariate_keys is not None:
             anndata_fields.append(ObsmField("covariates", "covariates"))
         if categorical_covariate_embed_keys is not None:
             anndata_fields.append(ObsmField("covariates_embed", "covariates_embed"))
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

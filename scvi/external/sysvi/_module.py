@@ -87,10 +87,7 @@ class SysVAE(BaseModuleClass):
 
         if self.embed_cov:
             self.cov_embeddings = torch.nn.ModuleList(
-                [
-                    Embedding(size=size, cov_embed_dims=cov_embed_dims)
-                    for size in cov_embed_sizes
-                ]
+                [Embedding(size=size, cov_embed_dims=cov_embed_dims) for size in cov_embed_sizes]
             )
 
         self.encoder = EncoderDecoder(
@@ -300,9 +297,7 @@ class SysVAE(BaseModuleClass):
         get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
 
         # Inference
-        inference_inputs = self._get_inference_input(
-            tensors, **get_inference_input_kwargs
-        )
+        inference_inputs = self._get_inference_input(tensors, **get_inference_input_kwargs)
         inference_outputs = self.inference(**inference_inputs, **inference_kwargs)
         # Generative
         selected_system = self.random_select_systems(tensors["system"])
@@ -322,9 +317,7 @@ class SysVAE(BaseModuleClass):
             selected_system=selected_system,
             **get_inference_input_kwargs,
         )
-        inference_cycle_outputs = self.inference(
-            **inference_cycle_inputs, **inference_kwargs
-        )
+        inference_cycle_outputs = self.inference(**inference_cycle_inputs, **inference_kwargs)
 
         # Combine outputs of all forward pass components
         inference_outputs_merged = dict(**inference_outputs)
@@ -384,13 +377,11 @@ class SysVAE(BaseModuleClass):
             def standardize(x):
                 return (x - means) / stds
 
-            return torch.nn.MSELoss(reduction="none")(
-                standardize(z_x_m), standardize(z_y_m)
-            ).sum(dim=1)
+            return torch.nn.MSELoss(reduction="none")(standardize(z_x_m), standardize(z_y_m)).sum(
+                dim=1
+            )
 
-        z_distance_cyc = z_dist(
-            z_x_m=inference_outputs["z_m"], z_y_m=inference_outputs["z_cyc_m"]
-        )
+        z_distance_cyc = z_dist(z_x_m=inference_outputs["z_m"], z_y_m=inference_outputs["z_cyc_m"])
 
         loss = (
             reconst_loss * reconstruction_weight

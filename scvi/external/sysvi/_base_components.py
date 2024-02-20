@@ -40,9 +40,7 @@ class Embedding(Module):
         if self.normalize:
             # TODO this could probably be implemented more efficiently as embed gives same result for every sample in
             #  a give class. However, if we have many balanced classes there wont be many repetitions within minibatch
-            self.layer_norm = torch.nn.LayerNorm(
-                cov_embed_dims, elementwise_affine=False
-            )
+            self.layer_norm = torch.nn.LayerNorm(cov_embed_dims, elementwise_affine=False)
 
     def forward(self, x):
         x = self.embedding(x)
@@ -198,16 +196,12 @@ class Layers(Module):
                             BatchNorm1d(n_out, momentum=0.01, eps=0.001)
                             if use_batch_norm
                             else None,
-                            LayerNorm(n_out, elementwise_affine=False)
-                            if use_layer_norm
-                            else None,
+                            LayerNorm(n_out, elementwise_affine=False) if use_layer_norm else None,
                             activation_fn() if use_activation else None,
                             Dropout(p=dropout_rate) if dropout_rate > 0 else None,
                         ),
                     )
-                    for i, (n_in, n_out) in enumerate(
-                        zip(layers_dim[:-1], layers_dim[1:])
-                    )
+                    for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))
                 ]
             )
         )
@@ -264,9 +258,7 @@ class Layers(Module):
                 if layer is not None:
                     if isinstance(layer, BatchNorm1d):
                         if x.dim() == 3:
-                            x = torch.cat(
-                                [(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0
-                            )
+                            x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
                         else:
                             x = layer(x)
                     else:
