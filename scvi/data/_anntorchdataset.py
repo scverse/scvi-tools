@@ -12,9 +12,9 @@ try:
     from anndata._core.sparse_dataset import SparseDataset
 except ImportError:
     # anndata >= 0.10.0
-    from anndata._core.sparse_dataset import (
-        BaseCompressedSparseDataset as SparseDataset,
-    )
+    from anndata.experimental import CSCDataset, CSRDataset
+
+    SparseDataset = (CSRDataset, CSCDataset)
 
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
@@ -61,9 +61,7 @@ class AnnTorchDataset(Dataset):
         super().__init__()
 
         if adata_manager.adata is None:
-            raise ValueError(
-                "Please run ``register_fields`` on ``adata_manager`` first."
-            )
+            raise ValueError("Please run ``register_fields`` on ``adata_manager`` first.")
         self.adata_manager = adata_manager
         self.keys_and_dtypes = getitem_tensors
         self.load_sparse_tensor = load_sparse_tensor
@@ -85,9 +83,7 @@ class AnnTorchDataset(Dataset):
         Raises an error if any of the keys are not in the data registry.
         """
         if isinstance(getitem_tensors, list):
-            keys_to_dtypes = {
-                key: registry_key_to_default_dtype(key) for key in getitem_tensors
-            }
+            keys_to_dtypes = {key: registry_key_to_default_dtype(key) for key in getitem_tensors}
         elif isinstance(getitem_tensors, dict):
             keys_to_dtypes = getitem_tensors
         elif getitem_tensors is None:
@@ -117,8 +113,7 @@ class AnnTorchDataset(Dataset):
         """
         if not hasattr(self, "_data"):
             self._data = {
-                key: self.adata_manager.get_from_registry(key)
-                for key in self.keys_and_dtypes
+                key: self.adata_manager.get_from_registry(key) for key in self.keys_and_dtypes
             }
         return self._data
 

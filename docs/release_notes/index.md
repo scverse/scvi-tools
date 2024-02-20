@@ -7,48 +7,52 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-### 1.1.0 (2024-02-DD)
+### 1.1.1 (unreleased)
+
+#### Fixed
+
+-   Correctly apply non-default user parameters in {class}`scvi.external.POISSONVI` {pr}`2522`.
+
+### 1.1.0 (2024-02-13)
 
 #### Added
 
 -   Add {class}`scvi.external.ContrastiveVI` for contrastiveVI {pr}`2242`.
 -   Add {class}`scvi.dataloaders.BatchDistributedSampler` for distributed training {pr}`2102`.
--   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to
-    specify additional metrics to compute and log during the validation loop using
+-   Add `additional_val_metrics` argument to {class}`scvi.train.Trainer`, allowing to specify
+    additional metrics to compute and log during the validation loop using
     {class}`scvi.train._callbacks.MetricsCallback` {pr}`2136`.
--   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model`
-    `pr`{2166}.
--   Add `load_sparse_tensor` argument in {class}`scvi.data.AnnTorchDataset` for directly
-    loading SciPy CSR and CSC data structures to their PyTorch counterparts, leading to
-    faster data loading depending on the sparsity of the data {pr}`2158`.
--   Add per-group LFC information to the
-    {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
-    method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
-    stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
-    per-group LFC.
+-   Expose `accelerator` and `device` arguments in {meth}`scvi.hub.HubModel.load_model` `pr`{2166}.
+-   Add `load_sparse_tensor` argument in {class}`scvi.data.AnnTorchDataset` for directly loading
+    SciPy CSR and CSC data structures to their PyTorch counterparts, leading to faster data loading
+    depending on the sparsity of the data {pr}`2158`.
+-   Add per-group LFC information to
+    {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`. `metrics["diff_exp"]`
+    is now a dictionary where `summary` stores the summary dataframe, and `lfc_per_model_per_group`
+    stores the per-group LFC {pr}`2173`.
 -   Expose {meth}`torch.save` keyword arguments in {class}`scvi.model.base.BaseModelClass.save`
     and {class}`scvi.external.GIMVI.save` {pr}`2200`.
 -   Add `model_kwargs` and `train_kwargs` arguments to {meth}`scvi.autotune.ModelTuner.fit`
     {pr}`2203`.
 -   Add `datasplitter_kwargs` to model `train` methods {pr}`2204`.
--   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for
-    stochastic prediction of celltype labels {pr}`2224`.
+-   Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for stochastic prediction
+    of celltype labels {pr}`2224`.
 -   Add support for Python 3.10+ type annotations in {class}`scvi.autotune.ModelTuner` {pr}`2239`.
--   Add option to log device statistics in {meth}`scvi.autotune.ModelTuner.fit`
-    with argument `monitor_device_stats` {pr}`2260`.
--   Add option to pass in a random seed to {meth}`scvi.autotune.ModelTuner.fit`
-    with argument `seed` {pr}`2260`.
--   Automatically log the learning rate when `reduce_lr_on_plateau=True` in
-    training plans {pr}`2280`.
+-   Add option to log device statistics in {meth}`scvi.autotune.ModelTuner.fit` with argument
+    `monitor_device_stats` {pr}`2260`.
+-   Add option to pass in a random seed to {meth}`scvi.autotune.ModelTuner.fit` with argument `seed`
+    {pr}`2260`.
+-   Automatically log the learning rate when `reduce_lr_on_plateau=True` in training plans
+    {pr}`2280`.
 -   Add {class}`scvi.external.POISSONVI` to model scATAC-seq fragment counts with a Poisson
     distribution {pr}`2249`
--   {class}`scvi.train.SemiSupervisedTrainingPlan` now logs the classifier
-    calibration error {pr}`2299`.
--   Passing `enable_checkpointing=True` into `train` methods is now
-    compatible with our model saves. Additional options can be specified
-    by initializing with {class}`scvi.train.SaveCheckpoint` {pr}`2317`.
--   {attr}`scvi.settings.dl_num_workers` is now correctly applied as the default
-    `num_workers` in {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
+-   {class}`scvi.train.SemiSupervisedTrainingPlan` now logs the classifier calibration error
+    {pr}`2299`.
+-   Passing `enable_checkpointing=True` into `train` methods is now compatible with our model saves.
+    Additional options can be specified by initializing with {class}`scvi.train.SaveCheckpoint`
+    {pr}`2317`.
+-   {attr}`scvi.settings.dl_num_workers` is now correctly applied as the default `num_workers` in
+    {class}`scvi.dataloaders.AnnDataLoader` {pr}`2322`.
 -   Passing in `indices` to {class}`scvi.criticism.PosteriorPredictiveCheck` allows for running
     metrics on a subset of the data {pr}`2361`.
 -   Add `seed` argument to {func}`scvi.model.utils.mde` for reproducibility {pr}`2373`.
@@ -59,16 +63,20 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     {meth}`scvi.hub.HubModel.pull_from_s3` and {meth}`scvi.hub.HubModel.push_to_s3` {pr}`2378`.
 -   Add clearer error message for {func}`scvi.data.poisson_gene_selection` when input data does not
     contain raw counts {pr}`2422`.
+-   Add API for using custom dataloaders with {class}`scvi.model.SCVI` by making `adata` argument
+    optional on initialization and adding optional argument `data_module` to
+    {meth}`scvi.model.base.UnsupervisedTrainingMixin.train` {pr}`2467`.
+-   Add support for Ray 2.8-2.9 in {class}`scvi.autotune.ModelTuner` {pr}`2478`.
 
 #### Fixed
 
--   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder`
-    in {class}`scvi.model.AmortizedLDA` {pr}`2229`
--   Fix bug in {class}`scvi.module.SCANVAE` where classifier probabilities
-    were interpreted as logits. This is backwards compatible as loading older
-    models will use the old code path {pr}`2301`.
--   Fix bug in {class}`scvi.external.GIMVI` where `batch_size` was not
-    properly used in inference methods {pr}`2366`.
+-   Fix bug where `n_hidden` was not being passed into {class}`scvi.nn.Encoder` in
+    {class}`scvi.model.AmortizedLDA` {pr}`2229`
+-   Fix bug in {class}`scvi.module.SCANVAE` where classifier probabilities were interpreted as
+    logits. This is backwards compatible as loading older models will use the old code path
+    {pr}`2301`.
+-   Fix bug in {class}`scvi.external.GIMVI` where `batch_size` was not properly used in inference
+    methods {pr}`2366`.
 -   Fix error message formatting in {meth}`scvi.data.fields.LayerField.transfer_field` {pr}`2368`.
 -   Fix ambiguous error raised in {meth}`scvi.distributions.NegativeBinomial.log_prob` and
     {meth}`scvi.distributions.ZeroInflatedNegativeBinomial.log_prob` when `scale` not passed in
@@ -80,34 +88,33 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 #### Changed
 
--   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid`
-    for increased flexibility over dataset format {pr}`2163`.
--   Add per-group LFC information to the
-    {meth}`scvi.criticism.PosteriorPredictiveCheck.differential_expression`
-    method {pr}`2173`. `metrics["diff_exp"]` is now a dictionary where the `summary`
-    stores the summary dataframe, and the `lfc_per_model_per_group` key stores the
-    per-group LFC.
--   Revalidate `devices` when automatically switching from MPS to CPU
-    accelerator in {func}`scvi.model._utils.parse_device_args` {pr}`2247`.
--   Refactor {class}`scvi.data.AnnTorchDataset`, now loads continuous data as
-    {class}`numpy.float32` and categorical data as {class}`numpy.int64` by
-    default {pr}`2250`.
+-   Replace `sparse` with `sparse_format` argument in {meth}`scvi.data.synthetic_iid` for increased
+    flexibility over dataset format {pr}`2163`.
+-   Revalidate `devices` when automatically switching from MPS to CPU accelerator in
+    {func}`scvi.model._utils.parse_device_args` {pr}`2247`.
+-   Refactor {class}`scvi.data.AnnTorchDataset`, now loads continuous data as {class}`numpy.float32`
+    and categorical data as {class}`numpy.int64` by default {pr}`2250`.
 -   Support fractional GPU usage in {class}`scvi.autotune.ModelTuner` `pr`{2252}.
--   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner`
-    `pr`{2260}.
--   Match `momentum` and `epsilon` in {class}`scvi.module.JaxVAE` to the
-    default values in PyTorch {pr}`2309`.
+-   Tensorboard is now the default logger in {class}`scvi.autotune.ModelTuner` `pr`{2260}.
+-   Match `momentum` and `epsilon` in {class}`scvi.module.JaxVAE` to the default values in PyTorch
+    {pr}`2309`.
 -   Change {class}`scvi.train.SemiSupervisedTrainingPlan` and
     {class}`scvi.train.ClassifierTrainingPlan` accuracy and F1 score
     computations to use `"micro"` reduction rather than `"macro"` {pr}`2339`.
 -   Internal refactoring of {meth}`scvi.module.VAE.sample` and
     {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` {pr}`2377`.
+-   Change `xarray` and `sparse` from mandatory to optional dependencies {pr}`2480`.
+-   Use {class}`anndata.experimental.CSCDataset` and {class}`anndata.experimental.CSRDataset`
+    instead of the deprecated {class}`anndata._core.sparse_dataset.SparseDataset` for type checks
+    {pr}`2485`.
+-   Make `use_observed_lib_size` argument adjustable in {class}`scvi.module.LDVAE` `pr`{2494}.
 
 #### Removed
 
--   Remove deprecated `use_gpu argument in favor of PyTorch Lightning arguments
-`accelerator`and`devices` {pr}`2114`.
+-   Remove deprecated `use_gpu` argument in favor of PyTorch Lightning arguments `accelerator` and
+    `devices` {pr}`2114`.
 -   Remove deprecated `scvi._compat.Literal` class {pr}`2115`.
+-   Remove chex dependency {pr}`2482`.
 
 ## Version 1.0
 

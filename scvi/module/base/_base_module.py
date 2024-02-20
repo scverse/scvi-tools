@@ -5,7 +5,6 @@ from collections.abc import Iterable
 from dataclasses import field
 from typing import Any, Callable
 
-import chex
 import flax
 import jax
 import jax.numpy as jnp
@@ -28,7 +27,7 @@ from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
 
-@chex.dataclass
+@flax.struct.dataclass
 class LossOutput:
     """Loss signature for models.
 
@@ -84,42 +83,44 @@ class LossOutput:
     true_labels: Tensor | None = None
     extra_metrics: dict[str, Tensor] | None = field(default_factory=dict)
     n_obs_minibatch: int | None = None
-    reconstruction_loss_sum: Tensor = field(default=None, init=False)
-    kl_local_sum: Tensor = field(default=None, init=False)
-    kl_global_sum: Tensor = field(default=None, init=False)
+    reconstruction_loss_sum: Tensor = field(default=None)
+    kl_local_sum: Tensor = field(default=None)
+    kl_global_sum: Tensor = field(default=None)
 
     def __post_init__(self):
-        self.loss = self.dict_sum(self.loss)
+        object.__setattr__(self, "loss", self.dict_sum(self.loss))
 
         if self.n_obs_minibatch is None and self.reconstruction_loss is None:
-            raise ValueError(
-                "Must provide either n_obs_minibatch or reconstruction_loss"
-            )
+            raise ValueError("Must provide either n_obs_minibatch or reconstruction_loss")
 
         default = 0 * self.loss
         if self.reconstruction_loss is None:
-            self.reconstruction_loss = default
+            object.__setattr__(self, "reconstruction_loss", default)
         if self.kl_local is None:
-            self.kl_local = default
+            object.__setattr__(self, "kl_local", default)
         if self.kl_global is None:
-            self.kl_global = default
-        self.reconstruction_loss = self._as_dict("reconstruction_loss")
-        self.kl_local = self._as_dict("kl_local")
-        self.kl_global = self._as_dict("kl_global")
-        self.reconstruction_loss_sum = self.dict_sum(self.reconstruction_loss).sum()
-        self.kl_local_sum = self.dict_sum(self.kl_local).sum()
-        self.kl_global_sum = self.dict_sum(self.kl_global)
+            object.__setattr__(self, "kl_global", default)
+
+        object.__setattr__(self, "reconstruction_loss", self._as_dict("reconstruction_loss"))
+        object.__setattr__(self, "kl_local", self._as_dict("kl_local"))
+        object.__setattr__(self, "kl_global", self._as_dict("kl_global"))
+        object.__setattr__(
+            self,
+            "reconstruction_loss_sum",
+            self.dict_sum(self.reconstruction_loss).sum(),
+        )
+        object.__setattr__(self, "kl_local_sum", self.dict_sum(self.kl_local).sum())
+        object.__setattr__(self, "kl_global_sum", self.dict_sum(self.kl_global))
 
         if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
             rec_loss = self.reconstruction_loss
-            self.n_obs_minibatch = list(rec_loss.values())[0].shape[0]
+            object.__setattr__(self, "n_obs_minibatch", list(rec_loss.values())[0].shape[0])
 
         if self.classification_loss is not None and (
             self.logits is None or self.true_labels is None
         ):
             raise ValueError(
-                "Must provide `logits` and `true_labels` if `classification_loss` is "
-                "provided."
+                "Must provide `logits` and `true_labels` if `classification_loss` is " "provided."
             )
 
     @staticmethod
@@ -178,9 +179,7 @@ class BaseModuleClass(TunableMixin, nn.Module):
         generative_kwargs: dict | None = None,
         loss_kwargs: dict | None = None,
         compute_loss=True,
-    ) -> (
-        tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, LossOutput]
-    ):
+    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, LossOutput]:
         """Forward pass through the network.
 
         Parameters
@@ -641,9 +640,7 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
             raise RuntimeError(
                 "Train state is not set. Train for one iteration prior to loading state dict."
             )
-        self.train_state = flax.serialization.from_state_dict(
-            self.train_state, state_dict
-        )
+        self.train_state = flax.serialization.from_state_dict(self.train_state, state_dict)
 
     def to(self, device: Device):
         """Move module to device."""
@@ -671,9 +668,7 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
         self,
         get_inference_input_kwargs: dict[str, Any] | None = None,
         inference_kwargs: dict[str, Any] | None = None,
-    ) -> Callable[
-        [dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]
-    ]:
+    ) -> Callable[[dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]]:
         """Create a method to run inference using the bound module.
 
         Parameters
@@ -747,9 +742,7 @@ def _generic_forward(
     )
     generative_outputs = module.generative(**generative_inputs, **generative_kwargs)
     if compute_loss:
-        losses = module.loss(
-            tensors, inference_outputs, generative_outputs, **loss_kwargs
-        )
+        losses = module.loss(tensors, inference_outputs, generative_outputs, **loss_kwargs)
         return inference_outputs, generative_outputs, losses
     else:
         return inference_outputs, generative_outputs

@@ -90,9 +90,7 @@ def mock_target_batch(mock_contrastive_adata_manager, mock_target_indices):
     return target_batch.item()
 
 
-@pytest.fixture(
-    params=[True, False], ids=["with_observed_lib_size", "without_observed_lib_size"]
-)
+@pytest.fixture(params=[True, False], ids=["with_observed_lib_size", "without_observed_lib_size"])
 def mock_contrastive_vae(
     mock_n_input, mock_n_batch, mock_library_log_means, mock_library_log_vars, request
 ):
@@ -130,9 +128,7 @@ def mock_contrastive_vi_data(
 ):
     concat_tensors = mock_contrastive_batch
     inference_input = mock_contrastive_vae._get_inference_input(concat_tensors)
-    inference_outputs = mock_contrastive_vae.inference(
-        **inference_input, n_samples=request.param
-    )
+    inference_outputs = mock_contrastive_vae.inference(**inference_input, n_samples=request.param)
     generative_input = mock_contrastive_vae._get_generative_input(
         concat_tensors, inference_outputs
     )
@@ -171,9 +167,7 @@ class TestContrastiveVAEInference:
         mock_background_batch,
         mock_target_batch,
     ):
-        inference_input = mock_contrastive_vae._get_inference_input(
-            mock_contrastive_batch
-        )
+        inference_input = mock_contrastive_vae._get_inference_input(mock_contrastive_batch)
         for data_source in REQUIRED_DATA_SOURCES:
             assert data_source in inference_input.keys()
 
@@ -244,9 +238,7 @@ class TestContrastiveVAEInference:
         mock_contrastive_vae,
         mock_contrastive_batch,
     ):
-        inference_input = mock_contrastive_vae._get_inference_input(
-            mock_contrastive_batch
-        )
+        inference_input = mock_contrastive_vae._get_inference_input(mock_contrastive_batch)
         inference_outputs = mock_contrastive_vae.inference(**inference_input)
         for data_source in REQUIRED_DATA_SOURCES:
             assert data_source in inference_outputs.keys()
@@ -263,10 +255,8 @@ class TestContrastiveVAEGenerative:
         mock_contrastive_batch,
         mock_n_input,
     ):
-        generative_input = (
-            mock_contrastive_vae._get_generative_input_from_concat_tensors(
-                mock_contrastive_batch, "background"
-            )
+        generative_input = mock_contrastive_vae._get_generative_input_from_concat_tensors(
+            mock_contrastive_batch, "background"
         )
         for key in REQUIRED_GENERATIVE_INPUT_KEYS_FROM_CONCAT_TENSORS:
             assert key in generative_input.keys()
@@ -281,10 +271,8 @@ class TestContrastiveVAEGenerative:
         inference_outputs = mock_contrastive_vae.inference(
             **mock_contrastive_vae._get_inference_input(mock_contrastive_batch)
         )
-        generative_input = (
-            mock_contrastive_vae._get_generative_input_from_inference_outputs(
-                inference_outputs, REQUIRED_DATA_SOURCES[0]
-            )
+        generative_input = mock_contrastive_vae._get_generative_input_from_inference_outputs(
+            inference_outputs, REQUIRED_DATA_SOURCES[0]
         )
         for key in REQUIRED_GENERATIVE_INPUT_KEYS_FROM_INFERENCE_OUTPUTS:
             assert key in generative_input
@@ -325,9 +313,7 @@ class TestContrastiveVAEGenerative:
             assert key in target_generative_input_keys
 
         # Check background vs. target labels are consistent.
-        assert (
-            background_generative_input["batch_index"] != mock_background_batch
-        ).sum() == 0
+        assert (background_generative_input["batch_index"] != mock_background_batch).sum() == 0
         assert (target_generative_input["batch_index"] != mock_target_batch).sum() == 0
 
     @pytest.mark.parametrize("n_samples", [1, 2])
@@ -388,9 +374,7 @@ class TestContrastiveVAELoss:
         px_rate = generative_outputs["px_rate"]
         px_r = generative_outputs["px_r"]
         px_dropout = generative_outputs["px_dropout"]
-        recon_loss = mock_contrastive_vae.reconstruction_loss(
-            x, px_rate, px_r, px_dropout
-        )
+        recon_loss = mock_contrastive_vae.reconstruction_loss(x, px_rate, px_r, px_dropout)
         if len(px_rate.shape) == 3:
             expected_shape = px_rate.shape[:2]
         else:
@@ -416,18 +400,16 @@ class TestContrastiveVAELoss:
         ql_m = inference_outputs["ql_m"]
         ql_v = inference_outputs["ql_v"]
         library = inference_outputs["library"]
-        kl_library = mock_contrastive_vae.library_kl_divergence(
-            batch_index, ql_m, ql_v, library
-        )
+        kl_library = mock_contrastive_vae.library_kl_divergence(batch_index, ql_m, ql_v, library)
         expected_shape = library.shape[:-1]
         assert kl_library.shape == expected_shape
         if mock_contrastive_vae.use_observed_lib_size:
             assert torch.equal(kl_library, torch.zeros(expected_shape))
 
     def test_loss(self, mock_contrastive_vae, mock_contrastive_vi_data):
-        expected_shape = mock_contrastive_vi_data["inference_outputs"]["background"][
-            "qz_m"
-        ].shape[:-1]
+        expected_shape = mock_contrastive_vi_data["inference_outputs"]["background"]["qz_m"].shape[
+            :-1
+        ]
         losses = mock_contrastive_vae.loss(
             mock_contrastive_vi_data["concat_tensors"],
             mock_contrastive_vi_data["inference_outputs"],

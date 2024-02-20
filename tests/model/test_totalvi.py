@@ -100,9 +100,7 @@ def test_saving_and_loading(save_path):
 
         # Test legacy loading
         legacy_save_path = os.path.join(save_path, "legacy/")
-        legacy_save(
-            model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
-        )
+        legacy_save(model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix)
         with pytest.raises(ValueError):
             cls.load(legacy_save_path, adata=adata, prefix=prefix)
         cls.convert_legacy_save(
@@ -167,15 +165,11 @@ def test_totalvi(save_path):
     assert post_pred.shape == (n_obs, n_vars + n_proteins, 2)
     post_pred = model.posterior_predictive_sample(n_samples=1)
     assert post_pred.shape == (n_obs, n_vars + n_proteins)
-    feature_correlation_matrix1 = model.get_feature_correlation_matrix(
-        correlation_type="spearman"
-    )
+    feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
         correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
     )
-    feature_correlation_matrix2 = model.get_feature_correlation_matrix(
-        correlation_type="pearson"
-    )
+    feature_correlation_matrix2 = model.get_feature_correlation_matrix(correlation_type="pearson")
     assert feature_correlation_matrix1.shape == (
         n_vars + n_proteins,
         n_vars + n_proteins,
@@ -283,9 +277,7 @@ def test_totalvi_model_library_size(save_path):
     n_latent = 10
 
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
-    assert hasattr(model.module, "library_log_means") and hasattr(
-        model.module, "library_log_vars"
-    )
+    assert hasattr(model.module, "library_log_means") and hasattr(model.module, "library_log_vars")
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     model.get_elbo()
@@ -397,15 +389,11 @@ def test_totalvi_mudata():
     assert post_pred.shape == (n_obs, n_genes + n_proteins, 2)
     post_pred = model.posterior_predictive_sample(n_samples=1)
     assert post_pred.shape == (n_obs, n_genes + n_proteins)
-    feature_correlation_matrix1 = model.get_feature_correlation_matrix(
-        correlation_type="spearman"
-    )
+    feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
         correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
     )
-    feature_correlation_matrix2 = model.get_feature_correlation_matrix(
-        correlation_type="pearson"
-    )
+    feature_correlation_matrix2 = model.get_feature_correlation_matrix(correlation_type="pearson")
     assert feature_correlation_matrix1.shape == (
         n_genes + n_proteins,
         n_genes + n_proteins,
@@ -542,9 +530,7 @@ def test_totalvi_model_library_size_mudata():
 
     n_latent = 10
     model = TOTALVI(mdata, n_latent=n_latent, use_observed_lib_size=False)
-    assert hasattr(model.module, "library_log_means") and hasattr(
-        model.module, "library_log_vars"
-    )
+    assert hasattr(model.module, "library_log_means") and hasattr(model.module, "library_log_vars")
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     model.get_elbo()
@@ -618,9 +604,7 @@ def test_totalvi_saving_and_loading_mudata(save_path):
 
     # Load with different batches.
     tmp_adata = synthetic_iid()
-    tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(
-        ["batch_2", "batch_3"]
-    )
+    tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(["batch_2", "batch_3"])
     tmp_protein_adata = synthetic_iid(n_genes=50)
     tmp_mdata = MuData({"rna": tmp_adata, "protein": tmp_protein_adata})
     with pytest.raises(ValueError):

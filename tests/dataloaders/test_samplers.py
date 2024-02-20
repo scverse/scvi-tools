@@ -143,7 +143,5 @@ def test_batchdistributedsampler_indices(
             assert len(sampler_indices[i].intersection(sampler_indices[j])) == 0
 
     # check that all indices are covered
-    covered_indices = np.concatenate(
-        [np.array(list(indices)) for indices in sampler_indices]
-    )
+    covered_indices = np.concatenate([np.array(list(indices)) for indices in sampler_indices])
     assert len(covered_indices) == len(dataset)

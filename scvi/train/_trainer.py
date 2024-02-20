@@ -138,9 +138,7 @@ class Trainer(TunableMixin, pl.Trainer):
             callbacks.append(early_stopping_callback)
             check_val_every_n_epoch = 1
 
-        if enable_checkpointing and not any(
-            isinstance(c, SaveCheckpoint) for c in callbacks
-        ):
+        if enable_checkpointing and not any(isinstance(c, SaveCheckpoint) for c in callbacks):
             callbacks.append(SaveCheckpoint(monitor=checkpointing_monitor))
             check_val_every_n_epoch = 1
         elif any(isinstance(c, SaveCheckpoint) for c in callbacks):

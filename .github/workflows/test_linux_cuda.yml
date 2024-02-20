@@ -31,7 +31,7 @@ jobs:
       fail-fast: false
       matrix:
         python: ["3.11"]
-        cuda: ["11"]
+        cuda: ["11", "12"]
 
     container:
       image: scverse/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
@@ -61,4 +61,6 @@ jobs:
         run: |
           coverage report
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
