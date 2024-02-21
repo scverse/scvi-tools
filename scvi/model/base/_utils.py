@@ -83,7 +83,7 @@ def _load_saved_files(
             if is_mudata:
                 adata = mudata.read(adata_path)
             else:
-                adata = anndata.read(adata_path)
+                adata = anndata.read_h5ad(adata_path)
         else:
             raise ValueError("Save path contains no saved anndata and no adata was passed.")
     else:
