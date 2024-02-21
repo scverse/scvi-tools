@@ -4,7 +4,7 @@ from typing import Literal, Optional
 
 import numpy as np
 import torch
-from anndata import AnnData, read
+from anndata import AnnData, read_h5ad
 
 from scvi.data._download import _download
 
@@ -32,13 +32,13 @@ def _load_legacy_saved_gimvi_files(
     if load_seq_adata:
         seq_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_seq.h5ad")
         if os.path.exists(seq_data_path):
-            adata_seq = read(seq_data_path)
+            adata_seq = read_h5ad(seq_data_path)
         elif not os.path.exists(seq_data_path):
             raise ValueError("Save path contains no saved anndata and no adata was passed.")
     if load_spatial_adata:
         spatial_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_spatial.h5ad")
         if os.path.exists(spatial_data_path):
-            adata_spatial = read(spatial_data_path)
+            adata_spatial = read_h5ad(spatial_data_path)
         elif not os.path.exists(spatial_data_path):
             raise ValueError("Save path contains no saved anndata and no adata was passed.")
 
@@ -83,13 +83,13 @@ def _load_saved_gimvi_files(
     if load_seq_adata:
         seq_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_seq.h5ad")
         if os.path.exists(seq_data_path):
-            adata_seq = read(seq_data_path)
+            adata_seq = read_h5ad(seq_data_path)
         elif not os.path.exists(seq_data_path):
             raise ValueError("Save path contains no saved anndata and no adata was passed.")
     if load_spatial_adata:
         spatial_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_spatial.h5ad")
         if os.path.exists(spatial_data_path):
-            adata_spatial = read(spatial_data_path)
+            adata_spatial = read_h5ad(spatial_data_path)
         elif not os.path.exists(spatial_data_path):
             raise ValueError("Save path contains no saved anndata and no adata was passed.")
 
