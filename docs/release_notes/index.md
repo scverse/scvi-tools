@@ -17,7 +17,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     by replacing instances with {class}`anndata.experimental.CSCDataset` and
     {class}`anndata.experimental.CSRDataset` {pr}`2531`.
 
-### 1.1.1 (unreleased)
+### 1.1.1 (2024-02-19)
 
 #### Fixed
 
