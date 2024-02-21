@@ -7,6 +7,13 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
+### 1.2.0 (unreleased)
+
+#### Changed
+
+-   Deprecate {func}`scvi.data.cellxgene`, to be removed in v1.3. Please directly use the
+    [cellxgene-census](https://chanzuckerberg.github.io/cellxgene-census/) instead {pr}`2542`.
+
 ### 1.1.2 (unreleased)
 
 #### Changed
