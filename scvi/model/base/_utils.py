@@ -9,7 +9,7 @@ import mudata
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData, read
+from anndata import AnnData, read_h5ad
 
 from scvi import settings
 from scvi.data._constants import _SETUP_METHOD_NAME
@@ -40,7 +40,7 @@ def _load_legacy_saved_files(
     if load_adata:
         adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
         if os.path.exists(adata_path):
-            adata = read(adata_path)
+            adata = read_h5ad(adata_path)
         elif not os.path.exists(adata_path):
             raise ValueError("Save path contains no saved anndata and no adata was passed.")
     else:
