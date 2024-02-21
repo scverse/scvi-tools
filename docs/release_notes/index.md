@@ -7,6 +7,16 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
+### 1.1.2 (unreleased)
+
+#### Changed
+
+-   Address AnnData >= 0.10 deprecation warning for {func}`anndata.read` by replacing instances with
+    {func}`anndata.read_h5ad` {pr}`2531`.
+-   Address AnnData >= 0.10 deprecation warning for {class}`anndata._core.sparse_dataset.SparseDataset`
+    by replacing instances with {class}`anndata.experimental.CSCDataset` and
+    {class}`anndata.experimental.CSRDataset` {pr}`2531`.
+
 ### 1.1.1 (unreleased)
 
 #### Fixed

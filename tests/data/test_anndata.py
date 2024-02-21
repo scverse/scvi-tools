@@ -503,7 +503,7 @@ def test_saving(adata, save_path):
         continuous_covariate_keys=["cont1", "cont2"],
     )
     adata.write(save_path)
-    anndata.read(save_path)
+    anndata.read_h5ad(save_path)
 
 
 def test_backed_anndata(adata, save_path):
