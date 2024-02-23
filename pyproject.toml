@@ -88,7 +88,7 @@ docsbuild = ["scvi-tools[docs,optional]"]  # docs build dependencies
 
 autotune = [
     "hyperopt>=0.2",
-    "ray[tune]>=2.5.0,<2.10.0",
+    "ray[tune]>=2.5.0,<2.10.0,!=2.9.3",
     "ipython",
     "scib-metrics>=0.4.1",
     "tensorboard",
