@@ -44,7 +44,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install --pre ".[tests]"
+          pip install ".[tests]"
 
       - name: Test
         env:
