@@ -5,6 +5,7 @@ import inspect
 import logging
 import math
 import os
+import sys
 import warnings
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -26,7 +27,6 @@ from scvi.model.base import BaseModelClass
 from scvi.utils import InvalidParameterError
 
 from ._defaults import COLORS, COLUMN_KWARGS, TUNABLE_TYPES
-from ._utils import in_notebook
 
 logger = logging.getLogger(__name__)
 
@@ -318,27 +318,6 @@ class TunerManager:
         _searcher = self._validate_search_algorithm(searcher, metrics, searcher_kwargs, seed)
         return _scheduler, _searcher
 
-    @staticmethod
-    def _validate_reporter(reporter: bool, search_space: dict, metrics: OrderedDict) -> Any:
-        """Validates a reporter depending on the execution environment."""
-        _metric_keys = list(metrics.keys())
-        _param_keys = list(search_space.keys())
-        _kwargs = {
-            "metric_columns": _metric_keys,
-            "parameter_columns": _param_keys,
-            "metric": _metric_keys[0],
-            "mode": metrics[_metric_keys[0]],
-        }
-
-        if not reporter:
-            _reporter = None
-        elif in_notebook():
-            _reporter = tune.JupyterNotebookReporter(**_kwargs)
-        else:
-            _reporter = tune.CLIReporter(**_kwargs)
-
-        return _reporter
-
     def _validate_resources(self, resources: dict) -> dict:
         """Validates a resource-use specification."""
         # TODO: perform resource checking
@@ -469,7 +448,6 @@ class TunerManager:
         scheduler_kwargs: dict | None = None,
         searcher: str | None = None,
         searcher_kwargs: dict | None = None,
-        reporter: bool = True,
         resources: dict | None = None,
         seed: int | None = None,
         experiment_name: str | None = None,
@@ -499,7 +477,6 @@ class TunerManager:
             searcher_kwargs,
             seed,
         )
-        _reporter = self._validate_reporter(reporter, _search_space, _metrics)
         _resources = self._validate_resources(resources)
         _setup_method_name, _setup_args = self._get_setup_info(adata)
 
@@ -530,7 +507,6 @@ class TunerManager:
         run_config = air.config.RunConfig(
             name=_experiment_name,
             local_dir=_logging_dir,
-            progress_reporter=_reporter,
             log_to_file=True,
             verbose=1,
         )
@@ -598,7 +574,9 @@ class TunerManager:
         show_resources
             Whether to show available resources.
         """
-        console = rich.console.Console(force_jupyter=in_notebook())
+        in_colab = "google.colab" in sys.modules
+        force_jupyter = None if not in_colab else True
+        console = rich.console.Console(force_jupyter=force_jupyter)
         console.print(f"ModelTuner registry for {self._model_cls.__name__}")
 
         tunables_table = self._add_columns(

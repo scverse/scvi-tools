@@ -16,7 +16,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 #### Removed
 
--   Remove `use_defaults` argument from {class}`scvi.autotune.ModelTuner` {pr}`2552`.
+-   Remove `use_defaults` argument in {class}`scvi.autotune.ModelTuner` {pr}`2552`.
+-   Remove `reporter` argument in {class}`scvi.autotune.ModelTuner` {pr}`2552`.
 
 ### 1.1.2 (unreleased)
 
