@@ -52,9 +52,10 @@ class MRDeconv(BaseModuleClass):
         Mixture proportion in cell type sub-clustering of each component in the empirical prior
     amortization
         which of the latent variables to amortize inference over (gamma, proportions, both or none)
-    l1_reg
-        Scalar parameter indicating the strength of L1 regularization on cell type proportions.
-        A value of 50 leads to sparser results.
+    celltype_reg
+        Dictionary indicating the strength and type ("l1" and "entropy" supported of regularization on cell type proportions).
+        A value of 200 for entropy loss leads to sparser results. If cell-types are predicted to be not present setting
+        "entropy" to negative values increases chances of detecting all cell-types.
     beta_reg
         Scalar parameter indicating the strength of the variance penalty for
         the multiplicative offset in gene expression values (beta parameter). Default is 5
@@ -87,7 +88,7 @@ class MRDeconv(BaseModuleClass):
         var_vprior: np.ndarray = None,
         mp_vprior: np.ndarray = None,
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
-        l1_reg: Tunable[float] = 0.0,
+        celltype_reg: Tunable[float] = None,
         beta_reg: Tunable[float] = 5.0,
         eta_reg: Tunable[float] = 1e-4,
         extra_encoder_kwargs: Optional[dict] = None,
@@ -102,7 +103,10 @@ class MRDeconv(BaseModuleClass):
         self.dropout_amortization = dropout_amortization
         self.n_genes = n_genes
         self.amortization = amortization
-        self.l1_reg = l1_reg
+        if celltype_reg is None:
+            celltype_reg = {}
+        else:
+            self.celltype_reg = celltype_reg
         self.beta_reg = beta_reg
         self.eta_reg = eta_reg
         # unpack and copy parameters
@@ -148,6 +152,8 @@ class MRDeconv(BaseModuleClass):
         # additive gene bias
         self.beta = torch.nn.Parameter(0.01 * torch.randn(self.n_genes))
 
+        self.detection_efficiency = torch.nn.Parameter(torch.ones(self.n_spots, 1))
+
         # create additional neural nets for amortization
         # within cell_type factor loadings
         _extra_encoder_kwargs = extra_encoder_kwargs or {}
@@ -186,9 +192,14 @@ class MRDeconv(BaseModuleClass):
 
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[REGISTRY_KEYS.X_KEY]
+        x = torch.log1p(x)
         ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
+        if tensors.get("expected_proportions") is not None:
+            library = self.detection_efficiency[ind_x]
+        else:
+            library = torch.sum(x, dim=1, keepdim=True)
 
-        input_dict = {"x": x, "ind_x": ind_x}
+        input_dict = {"x": x, "ind_x": ind_x, "library": library}
         return input_dict
 
     @auto_move_data
@@ -197,27 +208,25 @@ class MRDeconv(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, ind_x):
+    def generative(self, x, ind_x, library):
         """Build the deconvolution model for every cell in the minibatch."""
         m = x.shape[0]
-        library = torch.sum(x, dim=1, keepdim=True)
         # setup all non-linearities
         beta = torch.exp(self.beta)  # n_genes
         eps = torch.nn.functional.softplus(self.eta)  # n_genes
-        x_ = torch.log(1 + x)
         # subsample parameters
 
         if self.amortization in ["both", "latent"]:
-            gamma_ind = torch.transpose(self.gamma_encoder(x_), 0, 1).reshape(
+            gamma_ind = torch.transpose(self.gamma_encoder(x), 0, 1).reshape(
                 (self.n_latent, self.n_labels, -1)
             )
         else:
             gamma_ind = self.gamma[:, :, ind_x]  # n_latent, n_labels, minibatch_size
 
         if self.amortization in ["both", "proportion"]:
-            v_ind = self.V_encoder(x_)
+            v_ind = self.V_encoder(x)
         else:
-            v_ind = self.V[:, ind_x].T  # minibatch_size, labels + 1
+            v_ind = self.V[:, ind_x].T  # minibatch_size, labels
         v_ind = torch.nn.functional.softplus(v_ind)
 
         # reshape and get gene expression value for all minibatch
@@ -242,6 +251,7 @@ class MRDeconv(BaseModuleClass):
         )  # M, n_labels + 1, n_genes
         # now combine them for convolution
         px_scale = torch.sum(v_ind.unsqueeze(2) * r_hat, dim=1)  # batch_size, n_genes
+        print(library.shape, px_scale.shape)
         px_rate = library * px_scale
 
         return {
@@ -266,6 +276,7 @@ class MRDeconv(BaseModuleClass):
         px_o = generative_outputs["px_o"]
         gamma = generative_outputs["gamma"]
         v = generative_outputs["v"]
+        expected_proportion = tensors.get("expected_proportions")
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
 
@@ -275,7 +286,19 @@ class MRDeconv(BaseModuleClass):
         glo_neg_log_likelihood_prior = -self.eta_reg * Normal(mean, scale).log_prob(self.eta).sum()
         glo_neg_log_likelihood_prior += self.beta_reg * torch.var(self.beta)
 
-        v_sparsity_loss = self.l1_reg * torch.abs(v).mean(1)
+        if expected_proportion is not None:
+            v_sparsity_loss = self.celltype_reg.pop("expected", 1) * torch.sqrt(
+                torch.sum(torch.square(v[:, :-1] - expected_proportion), axis=1)
+            )
+        else:
+            v_sparsity_loss = 0
+            if "l1" in self.celltype_reg.keys():
+                v_sparsity_loss += self.celltype_reg["l1"] * torch.sum(v, axis=1)
+            if "entropy" in self.celltype_reg.keys():
+                v_sparsity_loss += (
+                    self.celltype_reg["entropy"]
+                    * torch.distributions.Categorical(probs=v).entropy().mean()
+                )
 
         # gamma prior likelihood
         if self.mean_vprior is None:
@@ -327,19 +350,19 @@ class MRDeconv(BaseModuleClass):
 
     @torch.inference_mode()
     @auto_move_data
-    def get_proportions(self, x=None, keep_noise=False) -> np.ndarray:
+    def get_proportions(self, x=None, keep_noise=False, normalize=True) -> np.ndarray:
         """Returns the loadings."""
         if self.amortization in ["both", "proportion"]:
             # get estimated unadjusted proportions
-            x_ = torch.log(1 + x)
-            res = torch.nn.functional.softplus(self.V_encoder(x_))
+            res = torch.nn.functional.softplus(self.V_encoder(x))
         else:
             res = torch.nn.functional.softplus(self.V).cpu().numpy().T  # n_spots, n_labels + 1
         # remove dummy cell type proportion values
         if not keep_noise:
             res = res[:, :-1]
         # normalize to obtain adjusted proportions
-        res = res / res.sum(axis=1).reshape(-1, 1)
+        if normalize:
+            res = res / res.sum(axis=1).reshape(-1, 1)
         return res
 
     @torch.inference_mode()
@@ -354,8 +377,7 @@ class MRDeconv(BaseModuleClass):
         """
         # get estimated unadjusted proportions
         if self.amortization in ["latent", "both"]:
-            x_ = torch.log(1 + x)
-            gamma = self.gamma_encoder(x_)
+            gamma = self.gamma_encoder(x)
             return torch.transpose(gamma, 0, 1).reshape(
                 (self.n_latent, self.n_labels, -1)
             )  # n_latent, n_labels, minibatch
@@ -364,7 +386,7 @@ class MRDeconv(BaseModuleClass):
 
     @torch.inference_mode()
     @auto_move_data
-    def get_ct_specific_expression(
+    def get_ct_specific_scale(
         self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None
     ):
         """Returns cell type specific gene expression at the queried spots.
@@ -383,8 +405,7 @@ class MRDeconv(BaseModuleClass):
         y_torch = (y * torch.ones_like(ind_x)).ravel()
         # obtain the relevant gammas
         if self.amortization in ["both", "latent"]:
-            x_ = torch.log(1 + x)
-            gamma_ind = torch.transpose(self.gamma_encoder(x_), 0, 1).reshape(
+            gamma_ind = torch.transpose(self.gamma_encoder(x), 0, 1).reshape(
                 (self.n_latent, self.n_labels, -1)
             )
         else:
@@ -398,3 +419,71 @@ class MRDeconv(BaseModuleClass):
         px_scale = self.px_decoder(h)  # (minibatch, n_genes)
         px_ct = torch.exp(self.px_o).unsqueeze(0) * beta.unsqueeze(0) * px_scale
         return px_ct  # shape (minibatch, genes)
+
+    @torch.no_grad()
+    @auto_move_data
+    def get_ct_specific_expression(
+        self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None
+    ):
+        """
+        Returns cell type specific gene expression at the queried spots.
+
+        Parameters
+        ----------
+        x
+            tensor of data
+        ind_x
+            tensor of indices
+        y
+            integer for cell types
+        """
+        # cell-type specific gene expression, shape (minibatch, celltype, gene).
+        eps = torch.nn.functional.softplus(self.eta)  # n_genes
+        eps = eps.repeat((x.shape[0], 1)).view(
+            x.shape[0], 1, x.shape[1]
+        )  # (M, 1, n_genes) <- this is the dummy cell type
+        beta = torch.exp(self.beta)  # n_genes
+
+        if self.amortization in ["both", "proportion"]:
+            # get estimated unadjusted proportions
+            v_ind = torch.nn.functional.softplus(self.V_encoder(x))
+        else:
+            v_ind = torch.nn.functional.softplus(
+                self.V[:, ind_x]
+            ).T  # n_spots, n_labels + 1
+        # remove dummy cell type proportion values
+
+        if self.amortization in ["both", "latent"]:
+            gamma_ind = torch.transpose(self.gamma_encoder(x), 0, 1).reshape(
+                (self.n_latent, self.n_labels, -1)
+            )
+        else:
+            gamma_ind = self.gamma[:, :, ind_x]  # n_latent, n_labels, minibatch_size
+
+        # calculate cell type specific expression
+        gamma_select = torch.transpose(
+            gamma_ind[:, :, torch.arange(ind_x.shape[0])], 2, 0
+        )  # minibatch_size, n_latent
+
+        gamma_reshape = gamma_select.reshape(
+            (-1, self.n_latent)
+        )  # minibatch_size * n_labels, n_latent
+        enum_label = (
+            torch.arange(0, self.n_labels).repeat(x.shape[0]).view((-1, 1))
+        )  # minibatch_size * n_labels, 1
+        h = self.decoder(gamma_reshape, enum_label)
+        px_scale = self.px_decoder(h)  # (minibatch, n_genes)
+        px_ct = torch.cat(
+            [
+                beta.unsqueeze(0).unsqueeze(1)
+                * px_scale.reshape(-1, self.n_labels, self.n_genes),
+                eps,
+            ],
+            dim=1,
+        )
+        expression = torch.expm1(x) * (
+            (v_ind[:, y].unsqueeze(1) * px_ct[:, y, :])
+            / torch.sum(v_ind.unsqueeze(2) * px_ct, dim=1)
+        )
+
+        return expression  # shape (minibatch, genes)
