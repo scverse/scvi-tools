@@ -25,7 +25,7 @@ from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model.base import BaseModelClass
 from scvi.utils import InvalidParameterError
 
-from ._defaults import COLORS, COLUMN_KWARGS, DEFAULTS, TUNABLE_TYPES
+from ._defaults import COLORS, COLUMN_KWARGS, TUNABLE_TYPES
 from ._utils import in_notebook
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,6 @@ class TunerManager:
 
     def __init__(self, model_cls: BaseModelClass):
         self._model_cls = self._validate_model_cls(model_cls)
-        self._defaults = self._get_defaults(self._model_cls)
         self._registry = self._get_registry(self._model_cls)
 
     @staticmethod
@@ -67,17 +66,6 @@ class TunerManager:
                 "property to define tunable hyperparameters."
             )
         return model_cls
-
-    @staticmethod
-    def _get_defaults(model_cls: BaseModelClass) -> dict:
-        """Returns the model class's default search space if available."""
-        if model_cls not in DEFAULTS:
-            warnings.warn(
-                f"No default search space available for {model_cls.__name__}.",
-                UserWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
-        return DEFAULTS.get(model_cls, {})
 
     @staticmethod
     def _get_registry(model_cls: BaseModelClass) -> dict:
@@ -180,7 +168,7 @@ class TunerManager:
         train_kwargs["plan_kwargs"] = plan_kwargs
         return model_kwargs, train_kwargs
 
-    def _validate_search_space(self, search_space: dict, use_defaults: bool) -> dict:
+    def _validate_search_space(self, search_space: dict) -> dict:
         """Validates a search space against the hyperparameter registry."""
         # validate user-provided search space
         for param in search_space:
@@ -191,22 +179,7 @@ class TunerManager:
                 " Please see available parameters with `ModelTuner.info()`. "
             )
 
-        # add defaults if requested
-        _search_space = {}
-        if use_defaults:
-            # parse defaults into tune sample functions
-            for param, metadata in self._defaults.items():
-                sample_fn = getattr(tune, metadata["fn"])
-                fn_args = metadata.get("args", [])
-                fn_kwargs = metadata.get("kwargs", {})
-                _search_space[param] = sample_fn(*fn_args, **fn_kwargs)
-
-            # exclude defaults if requested
-            logger.info(f"Merging search space with defaults for {self._model_cls.__name__}.")
-
-        # priority given to user-provided search space
-        _search_space.update(search_space)
-        return _search_space
+        return search_space
 
     def _validate_metrics(self, metric: str, additional_metrics: list[str]) -> OrderedDict:
         """Validates a set of metrics against the metric registry."""
@@ -490,7 +463,6 @@ class TunerManager:
         search_space: dict | None = None,
         model_kwargs: dict | None = None,
         train_kwargs: dict | None = None,
-        use_defaults: bool = False,
         num_samples: int | None = None,
         max_epochs: int | None = None,
         scheduler: str | None = None,
@@ -518,7 +490,7 @@ class TunerManager:
         resources = resources or {}
 
         _metrics = self._validate_metrics(metric, additional_metrics)
-        _search_space = self._validate_search_space(search_space, use_defaults)
+        _search_space = self._validate_search_space(search_space)
         _scheduler, _searcher = self._validate_scheduler_and_search_algorithm(
             scheduler,
             searcher,
@@ -661,19 +633,6 @@ class TunerManager:
         for metric, mode in self._registry["metrics"].items():
             metrics_table.add_row(str(metric), str(mode))
         console.print(metrics_table)
-
-        defaults_table = self._add_columns(
-            rich.table.Table(title="Default search space"),
-            ["Hyperparameter", "Sample function", "Arguments", "Keyword arguments"],
-        )
-        for param, metadata in self._defaults.items():
-            defaults_table.add_row(
-                str(param),
-                str(metadata["fn"]),
-                str(metadata.get("args", [])),
-                str(metadata.get("kwargs", {})),
-            )
-        console.print(defaults_table)
 
         if show_resources:
             resources = self._get_resources(available=True)
