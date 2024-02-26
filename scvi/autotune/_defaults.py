@@ -1,6 +1,5 @@
 from lightning.pytorch import LightningDataModule, LightningModule, Trainer
 
-from scvi import model
 from scvi.module.base import BaseModuleClass, JaxBaseModuleClass, PyroBaseModuleClass
 from scvi.train import TrainRunner
 
@@ -37,11 +36,4 @@ TUNABLE_TYPES = {
     "training_plan": [
         LightningModule,
     ],
-}
-
-# default hyperparameter search spaces for each model class
-DEFAULTS = {
-    model.SCVI: {
-        "n_hidden": {"fn": "choice", "args": [[64, 128]]},
-    }
 }
