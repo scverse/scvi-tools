@@ -1,3 +1,5 @@
+from ray import tune
+
 import scvi
 from scvi.autotune import ModelTuner
 
@@ -15,10 +17,12 @@ def test_model_tuner_fit(save_path: str):
     model_cls.setup_anndata(adata)
     results = tuner.fit(
         adata,
-        use_defaults=True,
         num_samples=1,
         max_epochs=1,
         logging_dir=save_path,
+        search_space={
+            "n_layers": tune.choice([1, 2, 3]),
+        },
     )
     assert results is not None
 
