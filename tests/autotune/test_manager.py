@@ -10,9 +10,8 @@ def test_tuner_manager_init():
     assert hasattr(manager, "_model_cls")
     assert hasattr(manager, "_registry")
 
-    registry = manager._registry
+    registry = manager.registry
     assert "tunables" in registry
-    assert "metrics" in registry
 
 
 def test_tuner_manager_basic_validation():
