@@ -79,12 +79,6 @@ class ModelTuner:
             * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
         searcher_kwargs
             Keyword arguments to pass to the search algorithm.
-        reporter
-            Whether to display progress with a Ray Tune reporter. Defaults to `True`.
-            Depending on the execution environment, one of the following:
-
-            * :class:`~ray.tune.CLIReporter` if running non-interactively
-            * :class:`~ray.tune.JupyterNotebookReporter` if running interatively
         resources
             Dictionary of maximum resources to allocate for the experiment. Available
             keys include:
