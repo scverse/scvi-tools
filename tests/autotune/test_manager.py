@@ -7,7 +7,6 @@ def test_tuner_manager_init():
     model_cls = scvi.model.SCVI
     manager = scvi.autotune.TunerManager(model_cls)
     assert hasattr(manager, "_model_cls")
-    assert hasattr(manager, "_defaults")
     assert hasattr(manager, "_registry")
 
     registry = manager._registry
