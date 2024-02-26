@@ -54,11 +54,6 @@ class ModelTuner:
         train_kwargs
             Keyword arguments passed to the model's `train` method. Arguments must not
             overlap with those in `search_space`.
-        use_defaults
-            Whether to use the model class's default search space, which can be viewed
-            with :meth:`~scvi.autotune.ModelTuner.info`. If `True` and `search_space` is
-            provided, the two will be merged, giving priority to user-provided values.
-            Defaults to `False`.
         num_samples
             Number of hyperparameter configurations to sample. Defaults to 10.
         max_epochs

@@ -14,6 +14,10 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Deprecate {func}`scvi.data.cellxgene`, to be removed in v1.3. Please directly use the
     [cellxgene-census](https://chanzuckerberg.github.io/cellxgene-census/) instead {pr}`2542`.
 
+#### Removed
+
+-   Remove `use_defaults` argument from {class}`scvi.autotune.ModelTuner` {pr}`2552`.
+
 ### 1.1.2 (unreleased)
 
 #### Changed
