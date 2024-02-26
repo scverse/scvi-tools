@@ -1,6 +1,7 @@
 from typing import Any, Literal
 
 from ray import tune
+from ray.tune import ResultGrid
 from ray.tune.schedulers import TrialScheduler
 from ray.tune.search import SearchAlgorithm
 
@@ -19,11 +20,10 @@ class Experiment:
         self,
         model_cls: BaseModelClass,
         adata: AnnOrMuData,
-        metric: str,
+        metrics: str | list[str],
         mode: Literal["min", "max"],
         search_space: dict[str, callable],
         num_samples: int,
-        additional_metrics: list[str] | None = None,
         model_kwargs: dict | None = None,
         train_kwargs: dict | None = None,
         max_epochs: int | None = None,
@@ -39,11 +39,10 @@ class Experiment:
         self.model_cls = model_cls
         self.adata = adata
 
-        self.metric = metric
+        self.metrics = metrics
         self.mode = mode
         self.search_space = search_space
         self.num_samples = num_samples
-        self.additional_metrics = additional_metrics
 
         self.model_kwargs = model_kwargs
         self.train_kwargs = train_kwargs
@@ -103,14 +102,18 @@ class Experiment:
         self._model_cls = value
 
     @property
-    def metric(self) -> str:
-        return self._metric
+    def metrics(self) -> list[str]:
+        return self._metrics
 
-    @metric.setter
-    def metric(self, value: str) -> None:
-        if hasattr(self, "_metric"):
-            raise AttributeError("Cannot reassign `metric`")
-        self._metric = value
+    @metrics.setter
+    def metrics(self, value: str | list[str]) -> None:
+        if hasattr(self, "_metrics"):
+            raise AttributeError("Cannot reassign `metrics`")
+        elif not isinstance(value, str) and not isinstance(value, list):
+            raise TypeError("`metrics` must be a string or a list of strings")
+        elif isinstance(value, str):
+            value = [value]
+        self._metrics = value
 
     @property
     def mode(self) -> Literal["min", "max"]:
@@ -150,18 +153,6 @@ class Experiment:
         elif not isinstance(value, int):
             raise TypeError("`num_samples` must be an integer")
         self._num_samples = value
-
-    @property
-    def additional_metrics(self) -> list[str]:
-        return self._additional_metrics
-
-    @additional_metrics.setter
-    def additional_metrics(self, value: list[str] | None) -> None:
-        if hasattr(self, "_additional_metrics"):
-            raise AttributeError("Cannot reassign `additional_metrics`")
-        elif value is not None and not isinstance(value, list):
-            raise TypeError("`additional_metrics` must be a list")
-        self._additional_metrics = value or []
 
     @property
     def model_kwargs(self) -> dict[str, Any]:
@@ -229,7 +220,7 @@ class Experiment:
             )
 
         kwargs = {
-            "metric": self.metric,
+            "metric": self.metrics[0],
             "mode": self.mode,
         }
         if value == "asha":
@@ -284,7 +275,7 @@ class Experiment:
             raise ValueError("`searcher` must be one of 'hyperopt', 'random'")
 
         kwargs = {
-            "metric": self.metric,
+            "metric": self.metrics[0],
             "mode": self.mode,
         }
         if value == "random":
@@ -390,3 +381,18 @@ class Experiment:
         elif value is not None and not isinstance(value, str):
             raise TypeError("`logging_dir` must be a string")
         self._logging_dir = value or settings.logging_dir
+
+    @property
+    def result_grid(self) -> ResultGrid:
+        if not hasattr(self, "_result_grid"):
+            raise AttributeError("`result_grid` not yet available.")
+        return self._result_grid
+
+    @result_grid.setter
+    def result_grid(self, value: ResultGrid) -> None:
+        if hasattr(self, "_result_grid"):
+            raise AttributeError("Cannot reassign `result_grid`")
+        self._result_grid = value
+
+    def __repr__(self) -> str:
+        return f"Experiment {self.experiment_name} for {self.model_cls.__name__}"
