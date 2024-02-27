@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from ray.tune import ResultGrid
+from ray.tune import ResultGrid, Tuner
 from ray.tune.schedulers import TrialScheduler
 from ray.tune.search import SearchAlgorithm
 
@@ -455,3 +455,102 @@ class AutotuneExperiment:
 
     def __repr__(self) -> str:
         return f"Experiment {self.name}"
+
+    def get_tuner(self) -> Tuner:
+        """Configure a :class:`~ray.tune.Tuner` from this experiment."""
+        from ray.train import RunConfig
+        from ray.tune import with_parameters, with_resources
+        from ray.tune.tune_config import TuneConfig
+
+        trainable = with_parameters(_trainable, experiment=self)
+        trainable = with_resources(trainable, resources=self.resources)
+
+        tune_config = TuneConfig(
+            scheduler=self.scheduler,
+            search_alg=self.searcher,
+            num_samples=self.num_samples,
+        )
+        run_config = RunConfig(
+            name=self.name,
+            storage_path=self.logging_dir,
+            local_dir=self.logging_dir,
+            log_to_file=True,
+            verbose=1,
+        )
+        return Tuner(
+            trainable=trainable,
+            param_space=self.search_space,
+            tune_config=tune_config,
+            run_config=run_config,
+        )
+
+
+def _trainable(
+    search_space: dict[str, callable],
+    experiment: AutotuneExperiment,
+) -> None:
+    """Implements a Ray Tune trainable function for an :class:`~scvi.autotune.AutotuneExperiment`.
+
+    Setup on the :class:`~anndata.AnnData` or :class:`~mudata.MuData` has to be performed since Ray
+    opens a new process per trial and thus the initial setup on the main process is not transferred.
+
+    Parameters
+    ----------
+    search_space
+        Hyperparameter configuration to evaluate. Note: this is different from
+        :attr:`~scvi.autotune.AutotuneExperiment.search_space` in that it is a single configuration
+        sampled from the search space, not the specification of the search space itself.
+    experiment
+        :class:`~scvi.autotune.AutotuneExperiment` to evaluate.
+
+    Notes
+    -----
+    See the Ray Tune
+    `documentation <https://docs.ray.io/en/latest/tune/api/trainable.html#function-trainable-api>`_
+    for more details.
+    """
+    from os.path import join
+
+    from lightning.pytorch.callbacks import Callback
+    from lightning.pytorch.loggers import TensorBoardLogger
+    from ray.train import get_context
+    from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
+
+    from scvi import settings
+
+    # This is to get around lightning import changes
+    tune_callback_cls = type(
+        "_TuneReportCheckpointCallback",
+        (TuneReportCheckpointCallback, Callback),
+        {},
+    )
+
+    callbacks = [
+        tune_callback_cls(metrics=experiment.metrics, on="validation_end", save_checkpoints=False)
+    ]
+    log_dir = join(
+        experiment.logging_dir,
+        experiment.name,
+        f"{get_context().get_trial_name()}_tensorboard",
+    )
+
+    model_args = search_space.get("model_args", {})
+    train_args = search_space.get("train_args", {})
+    train_args = {
+        "max_epochs": experiment.max_epochs,
+        "accelerator": "auto",
+        "devices": "auto",
+        "check_val_every_n_epoch": 1,
+        "enable_progress_bar": False,
+        "logger": TensorBoardLogger(log_dir),
+        "callbacks": callbacks,
+        **train_args,
+    }
+
+    settings.seed = experiment.seed
+    getattr(experiment.model_cls, experiment.setup_method_name)(
+        experiment.adata,
+        **experiment.setup_method_args,
+    )
+    model = experiment.model_cls(experiment.adata, **model_args)
+    model.train(**train_args)

@@ -89,8 +89,6 @@ docsbuild = ["scvi-tools[docs,optional]"]  # docs build dependencies
 autotune = [
     "hyperopt>=0.2",
     "ray[tune]>=2.5.0,<2.10.0",
-    "ipython",
-    "scib-metrics>=0.4.1",
     "tensorboard",
 ]  # scvi.autotune
 aws = ["boto3"] # scvi.hub.HubModel.pull_from_s3

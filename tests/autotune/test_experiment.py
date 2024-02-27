@@ -426,3 +426,26 @@ def test_experiment_invalid_seed():
             num_samples=1,
             seed="invalid type",
         )
+
+
+def test_experiment_get_tuner(save_path: str):
+    from ray.tune import Tuner
+
+    settings.logging_dir = save_path
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata)
+
+    experiment = AutotuneExperiment(
+        SCVI,
+        adata,
+        metrics=["elbo_validation"],
+        mode="min",
+        search_space={
+            "model_args": {
+                "n_hidden": [1, 2],
+            }
+        },
+        num_samples=1,
+    )
+    tuner = experiment.get_tuner()
+    assert isinstance(tuner, Tuner)
