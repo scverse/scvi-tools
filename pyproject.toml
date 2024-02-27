@@ -59,7 +59,7 @@ dependencies = [
 [project.optional-dependencies]
 tests = [
     "pytest",
-    "pytest-cov",
+    "coverage",
     "scvi-tools[optional]"
 ]  # dependencies for running the test suite
 editing = [
