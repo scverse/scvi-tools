@@ -39,15 +39,15 @@ def _trainable(
 
     from scvi import settings
 
-    tune_callback_cls = type("_TuneReportCallback", (TuneReportCheckpointCallback, Callback), {})
+    # This is to get around lightning import changes
+    tune_callback_cls = type(
+        "_TuneReportCheckpointCallback",
+        (TuneReportCheckpointCallback, Callback),
+        {},
+    )
 
-    settings.seed = experiment.seed
     callbacks = [
-        tune_callback_cls(
-            metrics=experiment.metrics,
-            on="validation_end",
-            save_checkpoints=False,
-        )
+        tune_callback_cls(metrics=experiment.metrics, on="validation_end", save_checkpoints=False)
     ]
     log_dir = join(
         experiment.logging_dir,
@@ -68,6 +68,7 @@ def _trainable(
         **train_args,
     }
 
+    settings.seed = experiment.seed
     getattr(experiment.model_cls, experiment.setup_method_name)(
         experiment.adata,
         **experiment.setup_method_args,
@@ -131,8 +132,8 @@ def run_autotune(
     adata
         :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with ``model_cls``.
     metrics
-        Either a single metric or a list of metrics to track during the experiment. If a list
-        is provided, the primary metric will be the first element in the list.
+        Either a single metric or a list of metrics to track during the experiment. If a list is
+        provided, the primary metric will be the first element in the list.
     mode
         Optimization mode for the primary metric. One of ``"min"`` or ``"max"``.
     search_space
