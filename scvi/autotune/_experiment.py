@@ -49,7 +49,6 @@ class AutotuneExperiment:
         * ``"asha"``: :class:`~ray.tune.schedulers.AsyncHyperBandScheduler`
         * ``"hyperband"``: :class:`~ray.tune.schedulers.HyperBandScheduler`
         * ``"median"``: :class:`~ray.tune.schedulers.MedianStoppingRule`
-        * ``"pbt"``: :class:`~ray.tune.schedulers.PopulationBasedTraining`
         * ``"fifo"``: :class:`~ray.tune.schedulers.FIFOScheduler`
 
         Note that that not all schedulers are compatible with all search algorithms. See the

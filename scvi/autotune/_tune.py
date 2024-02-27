@@ -17,7 +17,7 @@ def run_autotune(
     mode: Literal["min", "max"],
     search_space: dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]],
     num_samples: int,
-    scheduler: Literal["asha", "hyperband", "median", "pbt", "fifo"] = "asha",
+    scheduler: Literal["asha", "hyperband", "median", "fifo"] = "asha",
     searcher: Literal["hyperopt", "random"] = "hyperopt",
     seed: int | None = None,
     resources: dict[Literal["cpu", "gpu", "memory"], float] | None = None,
@@ -55,7 +55,6 @@ def run_autotune(
         * ``"asha"``: :class:`~ray.tune.schedulers.AsyncHyperBandScheduler`
         * ``"hyperband"``: :class:`~ray.tune.schedulers.HyperBandScheduler`
         * ``"median"``: :class:`~ray.tune.schedulers.MedianStoppingRule`
-        * ``"pbt"``: :class:`~ray.tune.schedulers.PopulationBasedTraining`
         * ``"fifo"``: :class:`~ray.tune.schedulers.FIFOScheduler`
 
         Note that that not all schedulers are compatible with all search algorithms. See the
