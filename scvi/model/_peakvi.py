@@ -218,6 +218,10 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
+
+        Notes
+        -----
+        ``save_best`` is deprecated in v1.2 and will be removed in v1.3. Please use ``enable_checkpointing`` instead.
         """
         update_dict = {
             "lr": lr,
@@ -234,7 +238,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if save_best:
             warnings.warn(
                 "`save_best` is deprecated in v1.2 and will be removed in v1.3. Please use "
-                "`enable_checkpoint` instead.",
+                "`enable_checkpointing` instead.",
                 DeprecationWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
