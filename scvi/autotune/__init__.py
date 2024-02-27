@@ -1,9 +1,9 @@
 from scvi.utils import error_on_missing_dependencies
 
-error_on_missing_dependencies("hyperopt", "ray.tune")
+error_on_missing_dependencies("hyperopt", "ray.tune", "tensorboard")
 
 
-from ._experiment import Experiment  # noqa
-from ._tuner import ModelTuner  # noqa
+from ._experiment import AutotuneExperiment  # noqa
+from ._tune import run_autotune  # noqa
 
-__all__ = ["Experiment", "ModelTuner"]
+__all__ = ["AutotuneExperiment", "run_autotune"]
