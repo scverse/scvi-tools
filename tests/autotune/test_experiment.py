@@ -2,6 +2,7 @@ from pytest import raises
 
 from scvi import settings
 from scvi.autotune import AutotuneExperiment
+from scvi.autotune._experiment import _trainable
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
 
@@ -449,3 +450,28 @@ def test_experiment_get_tuner(save_path: str):
     )
     tuner = experiment.get_tuner()
     assert isinstance(tuner, Tuner)
+
+
+def test_trainable(save_path: str):
+    settings.logging_dir = save_path
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata)
+
+    experiment = AutotuneExperiment(
+        SCVI,
+        adata,
+        metrics=["elbo_validation"],
+        mode="min",
+        search_space={
+            "model_args": {
+                "n_hidden": [1, 2],
+            }
+        },
+        num_samples=1,
+    )
+    sample = {
+        "model_args": {
+            "n_hidden": 1,
+        }
+    }
+    _trainable(sample, experiment)
