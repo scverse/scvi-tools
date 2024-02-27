@@ -34,15 +34,17 @@ class AutotuneExperiment:
     mode
         Optimization mode for the primary metric. One of ``"min"`` or ``"max"``.
     search_space
-        Dictionary of hyperparameter names and their respective search spaces. See
-        the `API <https://docs.ray.io/en/latest/tune/api/search_space.html>`_ for available
-        search specifications. Must only contain the following top-level keys:
+        Dictionary of hyperparameter names and their respective search spaces. See the
+        `API <https://docs.ray.io/en/latest/tune/api/search_space.html>`_ for available search
+        specifications. Must only contain the following top-level keys:
 
         * ``"model_args"``: parameters to pass to the model constructor.
         * ``"train_args"``: parameters to pass to the model's ``train`` method.
+
+        Passed into :class:`~ray.tune.Tuner` as ``param_space``.
     num_samples
-        Total number of hyperparameter configurations to sample from the search space. Passed
-        into :class:`~ray.tune.tune_config.TuneConfig`.
+        Total number of hyperparameter configurations to sample from the search space. Passed into
+        :class:`~ray.tune.tune_config.TuneConfig`.
     scheduler
         Ray Tune scheduler to use. One of the following:
 
@@ -51,27 +53,29 @@ class AutotuneExperiment:
         * ``"median"``: :class:`~ray.tune.schedulers.MedianStoppingRule`
         * ``"fifo"``: :class:`~ray.tune.schedulers.FIFOScheduler`
 
-        Note that that not all schedulers are compatible with all search algorithms. See the
-        `documentation <https://docs.ray.io/en/latest/tune/key-concepts.html#schedulers>`_
-        for more details.
+        Configured with reasonable defaults, which can be overridden with ``scheduler_kwargs``. Note
+        that that not all schedulers are compatible with all search algorithms. See the
+        `documentation <https://docs.ray.io/en/latest/tune/key-concepts.html#schedulers>`_ for more
+        details.
     searcher
         Ray Tune search algorithm to use. One of the following:
 
         * ``"hyperopt"``: :class:`~ray.tune.search.hyperopt.HyperOptSearch`
         * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
+
+        Configured with reasonable defaults, which can be overridden with ``searcher_kwargs``.
     seed
-        Random seed to use for the experiment. Propagated to :attr:`~scvi.settings.seed` and
-        search algorithms. If not provided, defaults to :attr:`~scvi.settings.seed`.
+        Random seed to use for the experiment. Propagated to :attr:`~scvi.settings.seed` and search
+        algorithms. If not provided, defaults to :attr:`~scvi.settings.seed`.
     resources
-        Dictionary of resources to allocate per trial in the experiment. Available keys
-        include:
+        Dictionary of resources to allocate per trial in the experiment. Available keys include:
 
         * ``"cpu"``: number of CPU cores
         * ``"gpu"``: number of GPUs
         * ``"memory"``: amount of memory
 
-        If not provided, defaults to using all available resources. Note that fractional
-        allocations are supported.
+        If not provided, defaults to using all available resources. Note that fractional allocations
+        are supported. Passed into :func:`~ray.tune.with_resources`.
     name
         Name of the experiment, used for logging purposes. Defaults to a unique ID.
     logging_dir
