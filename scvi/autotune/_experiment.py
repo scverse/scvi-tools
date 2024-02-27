@@ -53,10 +53,7 @@ class AutotuneExperiment:
         * ``"median"``: :class:`~ray.tune.schedulers.MedianStoppingRule`
         * ``"fifo"``: :class:`~ray.tune.schedulers.FIFOScheduler`
 
-        Configured with reasonable defaults, which can be overridden with ``scheduler_kwargs``. Note
-        that that not all schedulers are compatible with all search algorithms. See the
-        `documentation <https://docs.ray.io/en/latest/tune/key-concepts.html#schedulers>`_ for more
-        details.
+        Configured with reasonable defaults, which can be overridden with ``scheduler_kwargs``.
     searcher
         Ray Tune search algorithm to use. One of the following:
 
@@ -313,8 +310,8 @@ class AutotuneExperiment:
 
     @searcher.setter
     def searcher(self, value: Literal["hyperopt", "random"]) -> None:
-        from ray.tune import search
         from ray.tune.search import BasicVariantGenerator
+        from ray.tune.search.hyperopt import HyperOptSearch
 
         if hasattr(self, "_searcher"):
             raise AttributeError("Cannot reassign `searcher`")
@@ -332,9 +329,7 @@ class AutotuneExperiment:
                 "mode": self.mode,
                 "random_state_seed": self.seed,
             }
-            # tune does not import hyperopt by default
-            search.SEARCH_ALG_IMPORT[value]()
-            searcher_cls = search.hyperopt.HyperOptSearch
+            searcher_cls = HyperOptSearch
 
         kwargs.update(self.searcher_kwargs)
         self._searcher = searcher_cls(**kwargs)

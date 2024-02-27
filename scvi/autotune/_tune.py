@@ -59,10 +59,7 @@ def run_autotune(
         * ``"median"``: :class:`~ray.tune.schedulers.MedianStoppingRule`
         * ``"fifo"``: :class:`~ray.tune.schedulers.FIFOScheduler`
 
-        Configured with reasonable defaults, which can be overridden with ``scheduler_kwargs``. Note
-        that that not all schedulers are compatible with all search algorithms. See the
-        `documentation <https://docs.ray.io/en/latest/tune/key-concepts.html#schedulers>`_ for more
-        details.
+        Configured with reasonable defaults, which can be overridden with ``scheduler_kwargs``.
     searcher
         Ray Tune search algorithm to use. One of the following:
 
