@@ -17,8 +17,10 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 #### Changed
 
--   Deprecate {func}`scvi.data.cellxgene`, to be removed in v1.3. Please directly use the
+-   Deprecate {func}`scvi.data.cellxgene`, to be removed in v1.3. Please directly use
     [cellxgene-census](https://chanzuckerberg.github.io/cellxgene-census/) instead {pr}`2542`.
+-   Deprecate {class}`scvi.train.SaveBestState`, to be removed in v1.3. Please use
+    {class}`scvi.train.ModelCheckpoint` instead {pr}`2567`.
 
 #### Removed
 
