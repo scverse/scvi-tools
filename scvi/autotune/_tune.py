@@ -120,7 +120,7 @@ def run_autotune(
         scheduler_kwargs=scheduler_kwargs,
         searcher_kwargs=searcher_kwargs,
     )
-    logging.info(f"Running autotune experiment {experiment.name}.")
+    logger.info(f"Running autotune experiment {experiment.name}.")
     init(log_to_driver=False, ignore_reinit_error=True)
     experiment.result_grid = experiment.get_tuner().fit()
     return experiment
