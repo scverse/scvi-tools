@@ -419,7 +419,7 @@ class AutotuneExperiment:
             raise TypeError("`name` must be a string or `None`")
 
         if value is None:
-            default = f"{self._model_cls.__name__.lower()}"
+            default = f"{self._model_cls.__name__.lower()}_"
             default += self.id
         self._name = value or default
 

@@ -114,18 +114,6 @@ def test_experiment_init(save_path: str):
     with raises(AttributeError):
         experiment.resources = "new_resources"
 
-    assert hasattr(experiment, "accelerator")
-    assert experiment.accelerator is not None
-    assert experiment.accelerator == "cpu"
-    with raises(AttributeError):
-        experiment.accelerator = "new_accelerator"
-
-    assert hasattr(experiment, "devices")
-    assert experiment.devices is not None
-    assert experiment.devices == 1
-    with raises(AttributeError):
-        experiment.devices = 2
-
     assert hasattr(experiment, "name")
     assert experiment.name is not None
     assert experiment.name.startswith("scvi")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Literal
 
 from ray.tune import Tuner
@@ -7,6 +8,8 @@ from ray.tune import Tuner
 from scvi._types import AnnOrMuData
 from scvi.autotune._experiment import AutotuneExperiment
 from scvi.model.base import BaseModelClass
+
+logger = logging.getLogger(__name__)
 
 
 def _trainable(
@@ -219,6 +222,7 @@ def run_autotune(
         scheduler_kwargs=scheduler_kwargs,
         searcher_kwargs=searcher_kwargs,
     )
+    logging.info(f"Running autotune experiment {experiment.name}.")
     init(log_to_driver=False)
     experiment.result_grid = _configure_tuner(experiment).fit()
     return experiment
