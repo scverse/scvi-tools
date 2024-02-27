@@ -23,24 +23,15 @@ MetricCallable = Callable[[BaseModelClass], float]
 
 
 class SaveCheckpoint(ModelCheckpoint):
-    """``EXPERIMENTAL`` Saves model checkpoints based on a monitored metric.
+    """``BETA`` Save model checkpoints based on a monitored metric.
 
-    Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and
-    modifies the default behavior to save the full model state instead of just
-    the state dict. This is necessary for compatibility with
-    :class:`~scvi.model.base.BaseModelClass`.
+    Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and modifies the default
+    behavior to save the full model state instead of just the state dict. This is necessary for
+    compatibility with :class:`~scvi.model.base.BaseModelClass`.
 
-    The best model save and best model score based on ``monitor`` can be
-    accessed post-training with the ``best_model_path`` and ``best_model_score``
-    attributes, respectively.
-
-    Known issues:
-
-    * Does not set ``train_indices``, ``validation_indices``, and
-      ``test_indices`` for checkpoints.
-    * Does not set ``history`` for checkpoints. This can be accessed in the
-      final model however.
-    * Unsupported arguments: ``save_weights_only`` and ``save_last``
+    The best model save and best model score based on ``monitor`` can be accessed post-training
+    with :attr:`~scvi.train.SaveCheckpoint.best_model_path` and
+    :attr:`~scvi.train.SaveCheckpoint.best_model_score`, respectively.
 
     Parameters
     ----------
@@ -56,6 +47,15 @@ class SaveCheckpoint(ModelCheckpoint):
     **kwargs
         Additional keyword arguments passed into
         :class:`~lightning.pytorch.callbacks.ModelCheckpoint`.
+
+    Notes
+    -----
+    Lifecycle: beta
+
+    Known issues:
+    * Does not set ``train_indices``, ``validation_indices``, and ``test_indices`` for checkpoints.
+    * Does not set ``history`` for checkpoints. This can be accessed in the final model however.
+    * Unsupported arguments: ``save_weights_only`` and ``save_last``
     """
 
     def __init__(
@@ -211,7 +211,7 @@ class SubSampleLabels(Callback):
 
 
 class SaveBestState(Callback):
-    r"""Save the best module state and restore into model.
+    r"""``DEPRECATED`` Save the best module state and restore into model.
 
     Parameters
     ----------
@@ -238,6 +238,13 @@ class SaveBestState(Callback):
         period=1,
     ):
         super().__init__()
+
+        warnings.warn(
+            "`SaveBestState` is deprecated in v1.2 and will be removed in v1.3. Please use "
+            "`SaveCheckpoint` instead.",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
 
         self.monitor = monitor
         self.verbose = verbose
