@@ -17,7 +17,6 @@ def run_autotune(
     mode: Literal["min", "max"],
     search_space: dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]],
     num_samples: int,
-    max_epochs: int | None = None,
     scheduler: Literal["asha", "hyperband", "median", "pbt", "fifo"] = "asha",
     searcher: Literal["hyperopt", "random"] = "hyperopt",
     seed: int | None = None,
@@ -50,8 +49,6 @@ def run_autotune(
     num_samples
         Total number of hyperparameter configurations to sample from the search space. Passed
         into :class:`~ray.tune.tune_config.TuneConfig`.
-    max_epochs
-        Maximum number of epochs to train hyperparameter configurations.
     scheduler
         Ray Tune scheduler to use. One of the following:
 
@@ -114,7 +111,6 @@ def run_autotune(
         mode,
         search_space,
         num_samples,
-        max_epochs=max_epochs,
         scheduler=scheduler,
         searcher=searcher,
         seed=seed,

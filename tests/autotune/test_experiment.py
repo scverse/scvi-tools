@@ -76,11 +76,6 @@ def test_experiment_init(save_path: str):
     with raises(AttributeError):
         experiment.num_samples = 2
 
-    assert hasattr(experiment, "max_epochs")
-    assert experiment.max_epochs is None
-    with raises(AttributeError):
-        experiment.max_epochs = 2
-
     assert hasattr(experiment, "scheduler")
     assert experiment.scheduler is not None
     with raises(AttributeError):
@@ -278,26 +273,6 @@ def test_experiment_invalid_num_samples():
                 }
             },
             num_samples=None,
-        )
-
-
-def test_experiment_invalid_max_epochs():
-    adata = synthetic_iid()
-    SCVI.setup_anndata(adata)
-
-    with raises(TypeError):
-        _ = AutotuneExperiment(
-            SCVI,
-            adata,
-            metrics=["elbo_validation"],
-            mode="min",
-            search_space={
-                "model_args": {
-                    "n_hidden": [1, 2],
-                }
-            },
-            num_samples=1,
-            max_epochs="invalid type",
         )
 
 

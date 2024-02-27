@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from os.path import join
 from typing import Any, Literal
 
+from lightning.pytorch.callbacks import Callback
 from ray.tune import ResultGrid, Tuner
 from ray.tune.schedulers import TrialScheduler
 from ray.tune.search import SearchAlgorithm
@@ -17,7 +19,7 @@ _ASHA_DEFAULT_KWARGS = {
 
 
 class AutotuneExperiment:
-    """``BETA`` Track hyperparameter tuning experients.
+    """``BETA`` Track hyperparameter tuning experiments.
 
     Parameters
     ----------
@@ -41,8 +43,6 @@ class AutotuneExperiment:
     num_samples
         Total number of hyperparameter configurations to sample from the search space. Passed
         into :class:`~ray.tune.tune_config.TuneConfig`.
-    max_epochs
-        Maximum number of epochs to train hyperparameter configurations.
     scheduler
         Ray Tune scheduler to use. One of the following:
 
@@ -99,7 +99,6 @@ class AutotuneExperiment:
         mode: Literal["min", "max"],
         search_space: dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]],
         num_samples: int,
-        max_epochs: int | None = None,
         scheduler: Literal["asha", "hyperband", "median", "fifo"] = "asha",
         searcher: Literal["hyperopt", "random"] = "hyperopt",
         seed: int | None = None,
@@ -115,7 +114,6 @@ class AutotuneExperiment:
         self.mode = mode
         self.search_space = search_space
         self.num_samples = num_samples
-        self.max_epochs = max_epochs
         self.seed = seed
         self.scheduler_kwargs = scheduler_kwargs
         self.searcher_kwargs = searcher_kwargs
@@ -246,25 +244,6 @@ class AutotuneExperiment:
         elif not isinstance(value, int):
             raise TypeError("`num_samples` must be an integer")
         self._num_samples = value
-
-    @property
-    def max_epochs(self) -> int | None:
-        """Maximum number of epochs to train hyperparameter configurations.
-
-        Configurations can be stopped early by the scheduler. If not provided, defaults to the
-        maximum number of epochs in the model's ``train`` method.
-        """
-        if not hasattr(self, "_max_epochs"):
-            raise AttributeError("`max_epochs` not yet available.")
-        return self._max_epochs
-
-    @max_epochs.setter
-    def max_epochs(self, value: int | None) -> None:
-        if hasattr(self, "_max_epochs"):
-            raise AttributeError("Cannot reassign `max_epochs`")
-        elif value is not None and not isinstance(value, int):
-            raise TypeError("`max_epochs` must be an integer")
-        self._max_epochs = value
 
     @property
     def scheduler(self) -> TrialScheduler:
@@ -438,7 +417,22 @@ class AutotuneExperiment:
             raise AttributeError("Cannot reassign `logging_dir`")
         elif value is not None and not isinstance(value, str):
             raise TypeError("`logging_dir` must be a string")
-        self._logging_dir = value or settings.logging_dir
+        self._logging_dir = value or join(settings.logging_dir, self.name)
+
+    @property
+    def metrics_callback(self) -> Callback:
+        from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
+
+        if not hasattr(self, "_metrics"):
+            raise AttributeError("`metrics_callback` not yet available.")
+
+        # this is to get around lightning import changes
+        callback_cls = type(
+            "_TuneReportCheckpointCallback",
+            (TuneReportCheckpointCallback, Callback),
+            {},
+        )
+        return callback_cls(metrics=self.metrics, on="validation_end", save_checkpoints=False)
 
     @property
     def result_grid(self) -> ResultGrid:
@@ -486,7 +480,7 @@ class AutotuneExperiment:
 
 
 def _trainable(
-    search_space: dict[str, callable],
+    param_sample: dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]],
     experiment: AutotuneExperiment,
 ) -> None:
     """Implements a Ray Tune trainable function for an :class:`~scvi.autotune.AutotuneExperiment`.
@@ -496,8 +490,8 @@ def _trainable(
 
     Parameters
     ----------
-    search_space
-        Hyperparameter configuration to evaluate. Note: this is different from
+    param_sample
+        Hyperparameter configuration on which to train. Note: this is different from
         :attr:`~scvi.autotune.AutotuneExperiment.search_space` in that it is a single configuration
         sampled from the search space, not the specification of the search space itself.
     experiment
@@ -509,41 +503,20 @@ def _trainable(
     `documentation <https://docs.ray.io/en/latest/tune/api/trainable.html#function-trainable-api>`_
     for more details.
     """
-    from os.path import join
-
-    from lightning.pytorch.callbacks import Callback
     from lightning.pytorch.loggers import TensorBoardLogger
     from ray.train import get_context
-    from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 
     from scvi import settings
 
-    # This is to get around lightning import changes
-    tune_callback_cls = type(
-        "_TuneReportCheckpointCallback",
-        (TuneReportCheckpointCallback, Callback),
-        {},
-    )
-
-    callbacks = [
-        tune_callback_cls(metrics=experiment.metrics, on="validation_end", save_checkpoints=False)
-    ]
-    log_dir = join(
-        experiment.logging_dir,
-        experiment.name,
-        f"{get_context().get_trial_name()}_tensorboard",
-    )
-
-    model_args = search_space.get("model_args", {})
-    train_args = search_space.get("train_args", {})
+    log_dir = join(experiment.logging_dir, f"{get_context().get_trial_name()}_tensorboard")
+    model_args, train_args = param_sample.get("model_args", {}), param_sample.get("train_args", {})
     train_args = {
-        "max_epochs": experiment.max_epochs,
         "accelerator": "auto",
         "devices": "auto",
         "check_val_every_n_epoch": 1,
         "enable_progress_bar": False,
         "logger": TensorBoardLogger(log_dir),
-        "callbacks": callbacks,
+        "callbacks": [experiment.metrics_callback],
         **train_args,
     }
 

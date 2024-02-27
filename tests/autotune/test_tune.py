@@ -20,9 +20,11 @@ def test_run_autotune_scvi_basic(save_path: str):
         search_space={
             "model_args": {
                 "n_hidden": tune.choice([1, 2]),
-            }
+            },
+            "train_args": {
+                "max_epochs": 1,
+            },
         },
-        max_epochs=1,
         num_samples=1,
         seed=0,
         scheduler="asha",
