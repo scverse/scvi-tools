@@ -11,7 +11,6 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
@@ -101,25 +100,25 @@ class VAE(BaseMinifiedModeModuleClass):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: Tunable[int] = 128,
-        n_latent: Tunable[int] = 10,
-        n_layers: Tunable[int] = 1,
+        n_hidden: int = 128,
+        n_latent: int = 10,
+        n_layers: int = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: Tunable[float] = 0.1,
-        dispersion: Tunable[Literal["gene", "gene-batch", "gene-label", "gene-cell"]] = "gene",
-        log_variational: Tunable[bool] = True,
-        gene_likelihood: Tunable[Literal["zinb", "nb", "poisson"]] = "zinb",
-        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
-        encode_covariates: Tunable[bool] = False,
-        deeply_inject_covariates: Tunable[bool] = True,
-        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
-        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        dropout_rate: float = 0.1,
+        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
+        log_variational: bool = True,
+        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        latent_distribution: Literal["normal", "ln"] = "normal",
+        encode_covariates: bool = False,
+        deeply_inject_covariates: bool = True,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_size_factor_key: bool = False,
-        use_observed_lib_size: Tunable[bool] = True,
+        use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
-        var_activation: Tunable[Callable] = None,
+        var_activation: Callable = None,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):
