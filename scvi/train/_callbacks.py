@@ -224,10 +224,9 @@ class SaveBestState(Callback):
     period
         Interval (number of epochs) between checkpoints.
 
-    Examples
-    --------
-    from scvi.train import Trainer
-    from scvi.train import SaveBestState
+    Notes
+    -----
+    Lifecycle: deprecated in v1.2 and to be removed in v1.3.
     """
 
     def __init__(
