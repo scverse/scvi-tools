@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Iterable, Sequence
 from functools import partial
 from typing import Literal
@@ -11,6 +12,7 @@ import torch
 from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 
+from scvi import settings
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
@@ -197,8 +199,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         early_stopping_patience
             How many epochs to wait for improvement before early stopping
         save_best
-            Save the best model state with respect to the validation loss (default), or use the final
-            state in the training procedure
+            ``DEPRECATED`` Save the best model state with respect to the validation loss (default), or use the final
+            state in the training procedure.
         check_val_every_n_epoch
             Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
             If so, val is checked every epoch.
@@ -230,6 +232,12 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         else:
             plan_kwargs = update_dict
         if save_best:
+            warnings.warn(
+                "`save_best` is deprecated in v1.2 and will be removed in v1.3. Please use "
+                "`enable_checkpoint` instead.",
+                DeprecationWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
             kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))

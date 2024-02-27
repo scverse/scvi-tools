@@ -282,7 +282,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         early_stopping
             Whether to perform early stopping with respect to the validation set.
         save_best
-            Save the best model state with respect to the validation loss, or use the final
+            ``DEPRECATED`` Save the best model state with respect to the validation loss, or use the final
             state in the training procedure
         check_val_every_n_epoch
             Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
@@ -322,6 +322,12 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         datasplitter_kwargs = datasplitter_kwargs or {}
 
         if save_best:
+            warnings.warn(
+                "`save_best` is deprecated in v1.2 and will be removed in v1.3. Please use "
+                "`enable_checkpoint` instead.",
+                DeprecationWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
             kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
