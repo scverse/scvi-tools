@@ -4,6 +4,7 @@ from os.path import join
 from typing import Any, Literal
 
 from lightning.pytorch.callbacks import Callback
+from lightning.pytorch.loggers import TensorBoardLogger
 from ray.tune import ResultGrid, Tuner
 from ray.tune.schedulers import TrialScheduler
 from ray.tune.search import SearchAlgorithm
@@ -71,8 +72,7 @@ class AutotuneExperiment:
         * ``"gpu"``: number of GPUs
         * ``"memory"``: amount of memory
 
-        If not provided, defaults to using all available resources. Note that fractional allocations
-        are supported. Passed into :func:`~ray.tune.with_resources`.
+        Passed into :func:`~ray.tune.with_resources`.
     name
         Name of the experiment, used for logging purposes. Defaults to a unique ID.
     logging_dir
@@ -476,6 +476,10 @@ class AutotuneExperiment:
             run_config=run_config,
         )
 
+    def get_logger(self, trial_name: str) -> TensorBoardLogger:
+        """Configure TensorBoard logger for a trial in this experiment."""
+        return TensorBoardLogger(join(self.logging_dir, f"{trial_name}_tensorboard"))
+
 
 def _trainable(
     param_sample: dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]],
@@ -501,19 +505,17 @@ def _trainable(
     `documentation <https://docs.ray.io/en/latest/tune/api/trainable.html#function-trainable-api>`_
     for more details.
     """
-    from lightning.pytorch.loggers import TensorBoardLogger
     from ray.train import get_context
 
     from scvi import settings
 
-    log_dir = join(experiment.logging_dir, f"{get_context().get_trial_name()}_tensorboard")
     model_args, train_args = param_sample.get("model_args", {}), param_sample.get("train_args", {})
     train_args = {
         "accelerator": "auto",
         "devices": "auto",
         "check_val_every_n_epoch": 1,
         "enable_progress_bar": False,
-        "logger": TensorBoardLogger(log_dir),
+        "logger": experiment.get_logger(get_context().get_trial_name()),
         "callbacks": [experiment.metrics_callback],
         **train_args,
     }

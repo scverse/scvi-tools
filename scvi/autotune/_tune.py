@@ -78,8 +78,7 @@ def run_autotune(
         * ``"gpu"``: number of GPUs
         * ``"memory"``: amount of memory
 
-        If not provided, defaults to using all available resources. Note that fractional
-        allocations are supported. Passed into :func:`~ray.tune.with_resources`.
+        Passed into :func:`~ray.tune.with_resources`.
     experiment_name
         Name of the experiment, used for logging purposes. Defaults to a unique ID concatenated
         to the model class name.
@@ -122,6 +121,6 @@ def run_autotune(
         searcher_kwargs=searcher_kwargs,
     )
     logging.info(f"Running autotune experiment {experiment.name}.")
-    init(log_to_driver=False)
+    init(log_to_driver=False, ignore_reinit_error=True)
     experiment.result_grid = experiment.get_tuner().fit()
     return experiment
