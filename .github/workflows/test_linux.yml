@@ -40,19 +40,16 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          python -m pip install --upgrade pip wheel uv
+          python -m pip install --upgrade pip wheel
 
-      - name: Create virtual environment
+      - name: Setup uv
         run: |
-          python -m uv venv
-
-      - name: Activate virtual environment
-        run: |
-          source .venv/bin/activate
+          echo "VIRTUAL_ENV=${Python_ROOT_DIR}" >> $GITHUB_ENV
+          python -m pip install --upgrade uv
 
       - name: Install dependencies
         run: |
-          uv pip install "scvi-tools[tests] @ ."
+          python -m uv pip install "scvi-tools[tests] @ ."
 
       - name: Test
         env:
