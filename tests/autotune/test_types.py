@@ -1,14 +1,14 @@
 import scvi
-from scvi._types import Tunable, TunableMixin
+from scvi._types import TunableMixin
 
 
 class DummyTrainingMixin:
-    def train(self, lr: Tunable[int] = 1e-3):
+    def train(self, lr: int = 1e-3):
         pass
 
 
 class DummyDataSplitter(TunableMixin):
-    def __init__(self, n_train: Tunable[int] = 1000, n_val: Tunable[int] = 100):
+    def __init__(self, n_train: int = 1000, n_val: int = 100):
         self.n_train = n_train
         self.n_val = n_val
 
@@ -19,8 +19,8 @@ class DummyModel(TunableMixin, DummyTrainingMixin):
     def __init__(
         self,
         n_input: int = 100,
-        n_hidden: Tunable[int] = 128,
-        n_latent: Tunable[int] = 10,
+        n_hidden: int = 128,
+        n_latent: int = 10,
     ):
         self.n_input = n_input
         self.n_hidden = n_hidden

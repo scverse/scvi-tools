@@ -17,7 +17,6 @@ from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import METRIC_KEYS, REGISTRY_KEYS
-from scvi._types import Tunable, TunableMixin
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -78,7 +77,7 @@ def _compute_kl_weight(
     return max_kl_weight
 
 
-class TrainingPlan(TunableMixin, pl.LightningModule):
+class TrainingPlan(pl.LightningModule):
     """Lightning module task to train scvi-tools modules.
 
     The training plan is a PyTorch Lightning Module that is initialized
@@ -143,23 +142,23 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         self,
         module: BaseModuleClass,
         *,
-        optimizer: Tunable[Literal["Adam", "AdamW", "Custom"]] = "Adam",
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: Optional[TorchOptimizerCreator] = None,
-        lr: Tunable[float] = 1e-3,
-        weight_decay: Tunable[float] = 1e-6,
-        eps: Tunable[float] = 0.01,
-        n_steps_kl_warmup: Tunable[int] = None,
-        n_epochs_kl_warmup: Tunable[int] = 400,
-        reduce_lr_on_plateau: Tunable[bool] = False,
-        lr_factor: Tunable[float] = 0.6,
-        lr_patience: Tunable[int] = 30,
-        lr_threshold: Tunable[float] = 0.0,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        eps: float = 0.01,
+        n_steps_kl_warmup: int = None,
+        n_epochs_kl_warmup: int = 400,
+        reduce_lr_on_plateau: bool = False,
+        lr_factor: float = 0.6,
+        lr_patience: int = 30,
+        lr_threshold: float = 0.0,
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
-        lr_min: Tunable[float] = 0,
-        max_kl_weight: Tunable[float] = 1.0,
-        min_kl_weight: Tunable[float] = 0.0,
+        lr_min: float = 0,
+        max_kl_weight: float = 1.0,
+        min_kl_weight: float = 0.0,
         **loss_kwargs,
     ):
         super().__init__()
@@ -480,16 +479,16 @@ class AdversarialTrainingPlan(TrainingPlan):
         self,
         module: BaseModuleClass,
         *,
-        optimizer: Tunable[Literal["Adam", "AdamW", "Custom"]] = "Adam",
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: Optional[TorchOptimizerCreator] = None,
-        lr: Tunable[float] = 1e-3,
-        weight_decay: Tunable[float] = 1e-6,
-        n_steps_kl_warmup: Tunable[int] = None,
-        n_epochs_kl_warmup: Tunable[int] = 400,
-        reduce_lr_on_plateau: Tunable[bool] = False,
-        lr_factor: Tunable[float] = 0.6,
-        lr_patience: Tunable[int] = 30,
-        lr_threshold: Tunable[float] = 0.0,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        n_steps_kl_warmup: int = None,
+        n_epochs_kl_warmup: int = 400,
+        reduce_lr_on_plateau: bool = False,
+        lr_factor: float = 0.6,
+        lr_patience: int = 30,
+        lr_threshold: float = 0.0,
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
@@ -843,7 +842,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
 
-class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
+class LowLevelPyroTrainingPlan(pl.LightningModule):
     """Lightning module task to train Pyro scvi-tools modules.
 
     Parameters
@@ -1071,7 +1070,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         pass
 
 
-class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
+class ClassifierTrainingPlan(pl.LightningModule):
     """Lightning module task to train a simple MLP classifier.
 
     Parameters

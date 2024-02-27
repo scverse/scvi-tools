@@ -22,10 +22,8 @@ class Experiment:
         adata: AnnOrMuData,
         metrics: str | list[str],
         mode: Literal["min", "max"],
-        search_space: dict[str, callable],
+        search_space: dict[str, Any],
         num_samples: int,
-        model_kwargs: dict | None = None,
-        train_kwargs: dict | None = None,
         max_epochs: int | None = None,
         scheduler: Literal["asha", "hyperband", "median", "pbt", "fifo"] = "asha",
         searcher: Literal["hyperopt", "random"] = "hyperopt",
@@ -43,10 +41,8 @@ class Experiment:
         self.mode = mode
         self.search_space = search_space
         self.num_samples = num_samples
-
-        self.model_kwargs = model_kwargs
-        self.train_kwargs = train_kwargs
         self.max_epochs = max_epochs
+        self.seed = seed
 
         self.scheduler_kwargs = scheduler_kwargs
         self.searcher_kwargs = searcher_kwargs
@@ -54,7 +50,6 @@ class Experiment:
         self.searcher = searcher
         self.validate_scheduler_searcher_compat(scheduler, searcher)
 
-        self.seed = seed
         self.resources = resources
         self.experiment_name = experiment_name
         self.logging_dir = logging_dir
@@ -128,17 +123,19 @@ class Experiment:
         self._mode = value
 
     @property
-    def search_space(self) -> dict[str, callable]:
+    def search_space(self) -> dict[str, Any]:
         return self._search_space
 
     @search_space.setter
-    def search_space(self, value: dict[str, callable]) -> None:
+    def search_space(self, value: dict[str, Any]) -> None:
         if hasattr(self, "_search_space"):
             raise AttributeError("Cannot reassign `search_space`")
         elif not isinstance(value, dict):
             raise TypeError("`search_space` must be a dictionary")
         elif len(value) == 0:
             raise ValueError("`search_space` must not be empty")
+        elif any(key not in ["model_args", "train_args"] for key in value.keys()):
+            raise ValueError("`search_space` must only contain 'model_args' and 'train_args' keys")
 
         self._search_space = value
 
@@ -153,44 +150,6 @@ class Experiment:
         elif not isinstance(value, int):
             raise TypeError("`num_samples` must be an integer")
         self._num_samples = value
-
-    @property
-    def model_kwargs(self) -> dict[str, Any]:
-        return self._model_kwargs
-
-    @model_kwargs.setter
-    def model_kwargs(self, value: dict | None) -> None:
-        if hasattr(self, "_model_kwargs"):
-            raise AttributeError("Cannot reassign `model_kwargs`")
-        elif value is not None and not isinstance(value, dict):
-            raise TypeError("`model_kwargs` must be a dictionary")
-
-        value = value or {}
-        for param in value:
-            if param in self.search_space:
-                raise ValueError(
-                    f"`model_kwargs` contains a parameter `{param}` that is also in `search_space`."
-                )
-        self._model_kwargs = value
-
-    @property
-    def train_kwargs(self) -> dict[str, Any]:
-        return self._train_kwargs
-
-    @train_kwargs.setter
-    def train_kwargs(self, value: dict | None) -> None:
-        if hasattr(self, "_train_kwargs"):
-            raise AttributeError("Cannot reassign `train_kwargs`")
-        elif value is not None and not isinstance(value, dict):
-            raise TypeError("`train_kwargs` must be a dictionary")
-
-        value = value or {}
-        for param in value:
-            if param in self.search_space:
-                raise ValueError(
-                    f"`train_kwargs` contains a parameter `{param}` that is also in `search_space`."
-                )
-        self._train_kwargs = value
 
     @property
     def max_epochs(self) -> int | None:
@@ -274,16 +233,17 @@ class Experiment:
         elif value not in ["hyperopt", "random"]:
             raise ValueError("`searcher` must be one of 'hyperopt', 'random'")
 
-        kwargs = {
-            "metric": self.metrics[0],
-            "mode": self.mode,
-        }
         if value == "random":
             from ray.tune.search import BasicVariantGenerator
 
-            kwargs = {}
+            kwargs = {"random_state": self.seed}
             searcher_cls = BasicVariantGenerator
         else:
+            kwargs = {
+                "metric": self.metrics[0],
+                "mode": self.mode,
+                "random_state_seed": self.seed,
+            }
             # tune does not import hyperopt by default
             tune.search.SEARCH_ALG_IMPORT[value]()
             searcher_cls = tune.search.hyperopt.HyperOptSearch
@@ -395,4 +355,4 @@ class Experiment:
         self._result_grid = value
 
     def __repr__(self) -> str:
-        return f"Experiment {self.experiment_name} for {self.model_cls.__name__}"
+        return f"Experiment {self.experiment_name}"

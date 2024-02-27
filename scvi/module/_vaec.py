@@ -6,7 +6,6 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
@@ -48,12 +47,12 @@ class VAEC(BaseModuleClass):
         self,
         n_input: int,
         n_labels: int = 0,
-        n_hidden: Tunable[int] = 128,
-        n_latent: Tunable[int] = 5,
-        n_layers: Tunable[int] = 2,
+        n_hidden: int = 128,
+        n_latent: int = 5,
+        n_layers: int = 2,
         log_variational: bool = True,
         ct_weight: np.ndarray = None,
-        dropout_rate: Tunable[float] = 0.05,
+        dropout_rate: float = 0.05,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):

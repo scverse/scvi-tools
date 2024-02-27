@@ -6,7 +6,6 @@ from ray.tune import Tuner
 
 from scvi._types import AnnOrMuData
 from scvi.autotune._experiment import Experiment
-from scvi.autotune._utils import add_rich_table_columns
 from scvi.model.base import BaseModelClass
 
 
@@ -18,8 +17,7 @@ class ModelTuner:
     Parameters
     ----------
     model_cls
-        A model class on which to tune hyperparameters. Must have a class property
-        `_tunables` that defines tunable elements.
+        A model class on which to tune hyperparameters.
 
     Examples
     --------
@@ -62,60 +60,7 @@ class ModelTuner:
         NotImplementedError
             If ``value`` is unsupported.
         """
-        if hasattr(self, "_model_cls"):
-            raise AttributeError("Cannot reassign `model_cls`.")
-        elif not hasattr(value, "_tunables"):
-            raise NotImplementedError(
-                f"{value} is unsupported. Please implement a `_tunables` class property to define"
-                "tunable hyperparameters."
-            )
         self._model_cls = value
-
-    @property
-    def registry(self) -> dict:
-        from scvi.autotune._utils import get_tunables
-
-        if hasattr(self, "_registry"):
-            return self._registry
-
-        self._registry = get_tunables(self._model_cls)
-        return self._registry
-
-    def view_registry(self, extended_info: bool = False) -> None:
-        """Print the registry of tunable hyperparameters.
-
-        Parameters
-        ----------
-        extended_info
-            If ``True``, print extended information about the tunable hyperparameters.
-        """
-        import sys
-
-        from rich.console import Console
-        from rich.table import Table
-
-        in_colab = "google.colab" in sys.modules
-        force_jupyter = None if not in_colab else True
-        console = Console(force_jupyter=force_jupyter)
-
-        table = add_rich_table_columns(
-            Table(title=f"{self._model_cls.__name__} tunable hyperparameters"),
-            columns=["Parameter", "Default value", "Source"],
-        )
-        for param, metadata in self.registry.items():
-            table.add_row(str(param), str(metadata["default_value"]), str(metadata["source"]))
-        console.print(table)
-
-        if extended_info:
-            info_table = add_rich_table_columns(
-                Table(title="Extended information"),
-                columns=["Parameter", "Annotation", "Tunable type"],
-            )
-            for param, metadata in self.registry.items():
-                info_table.add_row(
-                    str(param), str(metadata["annotation"]), str(metadata["tunable_type"])
-                )
-            console.print(info_table)
 
     @property
     def history(self) -> dict[str, Experiment]:
@@ -164,34 +109,8 @@ class ModelTuner:
             del history[key]
             self._history = history
 
-    def _validate_search_space(self, search_space: dict[str, callable]) -> None:
-        for param in search_space:
-            if param in self.registry:
-                continue
-            raise ValueError(f"Parameter {param} is not in the registry.")
-
-    def _parse_search_space(
-        self,
-        search_space: dict[str, callable],
-    ) -> tuple[dict[str, callable], dict[str, callable]]:
-        model_kwargs = {}
-        train_kwargs = {}
-        plan_kwargs = {}
-
-        for param, value in search_space.items():
-            type_ = self.registry[param]["tunable_type"]
-            if type_ == "model":
-                model_kwargs[param] = value
-            elif type_ == "train":
-                train_kwargs[param] = value
-            elif type_ == "plan":
-                plan_kwargs[param] = value
-
-        train_kwargs["plan_kwargs"] = plan_kwargs
-        return model_kwargs, train_kwargs
-
     def _get_trainable(self, experiment: Experiment) -> callable:
-        import os
+        from os.path import join
 
         from lightning.pytorch.callbacks import Callback
         from lightning.pytorch.loggers import TensorBoardLogger
@@ -199,13 +118,13 @@ class ModelTuner:
         from ray.tune import with_parameters, with_resources
         from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 
-        from scvi import settings
-
         tune_callback_cls = type(
             "_TuneReportCallback", (TuneReportCheckpointCallback, Callback), {}
         )
 
         def _trainable(search_space: dict[str, callable], experiment: Experiment) -> None:
+            from scvi import settings
+
             settings.seed = experiment.seed
 
             callbacks = [
@@ -215,31 +134,31 @@ class ModelTuner:
                     save_checkpoints=False,
                 )
             ]
+            log_dir = join(
+                experiment.logging_dir,
+                experiment.experiment_name,
+                f"{get_context().get_trial_name()}_tensorboard",
+            )
 
-            base_dir = os.path.join(experiment.logging_dir, experiment.experiment_name)
-            log_dir = os.path.join(base_dir, f"{get_context().get_trial_name()}_tensorboard")
-            logger = TensorBoardLogger(log_dir)
-
-            model_kwargs, train_kwargs = self._parse_search_space(search_space)
-            model_kwargs = {**experiment.model_kwargs, **model_kwargs}
-            train_kwargs = {
+            model_args = search_space.get("model_kwargs", {})
+            train_args = search_space.get("train_kwargs", {})
+            train_args = {
                 "max_epochs": experiment.max_epochs,
                 "accelerator": experiment.accelerator,
                 "devices": experiment.devices,
                 "check_val_every_n_epoch": 1,
                 "enable_progress_bar": False,
-                "logger": logger,
+                "logger": TensorBoardLogger(log_dir),
                 "callbacks": callbacks,
-                **experiment.train_kwargs,
-                **train_kwargs,
+                **train_args,
             }
 
             getattr(self.model_cls, experiment.setup_method_name)(
                 experiment.adata,
                 **experiment.setup_args,
             )
-            model = self.model_cls(experiment.adata, **model_kwargs)
-            model.train(**train_kwargs)
+            model = self.model_cls(experiment.adata, **model_args)
+            model.train(**train_args)
 
         trainable_with_params = with_parameters(_trainable, experiment=experiment)
         return with_resources(trainable_with_params, resources=experiment.resources)
@@ -251,8 +170,6 @@ class ModelTuner:
         mode: Literal["min", "max"],
         search_space: dict[str, callable],
         num_samples: int,
-        model_kwargs: dict | None = None,
-        train_kwargs: dict | None = None,
         max_epochs: int | None = None,
         scheduler: str | None = None,
         searcher: str | None = None,
@@ -263,7 +180,6 @@ class ModelTuner:
         scheduler_kwargs: dict | None = None,
         searcher_kwargs: dict | None = None,
     ) -> Experiment:
-        self._validate_search_space(search_space)
         experiment = Experiment(
             self.model_cls,
             adata,
@@ -271,9 +187,6 @@ class ModelTuner:
             mode,
             search_space,
             num_samples,
-            model_kwargs=model_kwargs,
-            train_kwargs=train_kwargs,
-            max_epochs=max_epochs,
             scheduler=scheduler,
             searcher=searcher,
             seed=seed,
@@ -316,8 +229,6 @@ class ModelTuner:
         mode: Literal["min", "max"],
         search_space: dict[str, callable],
         num_samples: int,
-        model_kwargs: dict | None = None,
-        train_kwargs: dict | None = None,
         max_epochs: int | None = None,
         scheduler: Literal["asha", "hyperband", "median", "pbt", "fifo"] = "asha",
         searcher: Literal["hyperopt", "random"] = "hyperopt",
@@ -343,18 +254,15 @@ class ModelTuner:
         search_space
             Dictionary of hyperparameter names and their respective search spaces. See
             the `API <https://docs.ray.io/en/latest/tune/api/search_space.html>`_ for available
-            search specifications.
+            search specifications. Must only contain the following top-level keys:
+
+            * ``"model_args"``: parameters to pass to the model constructor.
+            * ``"train_args"``: parameters to pass to the model's ``train`` method.
         num_samples
             Total number of hyperparameter configurations to sample from the search space. Passed
             into :class:`~ray.tune.tune_config.TuneConfig`.
-        model_kwargs
-            Keyword arguments passed to the model class's constructor. Arguments must not overlap
-            with those in ``search_space``.
-        train_kwargs
-            Keyword arguments passed to the model's ``train`` method. Arguments must not overlap
-            with those in ``search_space``.
         max_epochs
-            Maximum number of epochs to train each hyperparameter configuration.
+            Maximum number of epochs to train hyperparameter configurations.
         scheduler
             Ray Tune scheduler to use. One of the following:
 
@@ -373,9 +281,10 @@ class ModelTuner:
             * ``"hyperopt"``: :class:`~ray.tune.search.hyperopt.HyperOptSearch`
             * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
         seed
-            Random seed to use for the experiment.
+            Random seed to use for the experiment. Propagated to :attr:`~scvi.settings.seed` and
+            search algorithms. If not provided, defaults to :attr:`~scvi.settings.seed`.
         resources
-            Dictionary of resources to allocate for each trial in the experiment. Available keys
+            Dictionary of resources to allocate per trial in the experiment. Available keys
             include:
 
             * ``"cpu"``: number of CPU cores
@@ -385,11 +294,9 @@ class ModelTuner:
             If not provided, defaults to using all available resources. Note that fractional
             allocations are supported.
         experiment_name
-            Name of the experiment, used for logging purposes. Defaults to a unique
-            string formatted with the current timestamp and model class name.
+            Name of the experiment, used for logging purposes. Defaults to a unique ID.
         logging_dir
-            Directory to store experiment logs. Defaults to a directory named ``"autotune"``
-            in :attr:``scvi.settings.logging_dir``.
+            Base directory to store experiment logs. Defaults to :attr:``scvi.settings.logging_dir``.
         scheduler_kwargs
             Additional keyword arguments to pass to the scheduler.
         searcher_kwargs
@@ -401,8 +308,6 @@ class ModelTuner:
             mode,
             search_space,
             num_samples,
-            model_kwargs=model_kwargs,
-            train_kwargs=train_kwargs,
             max_epochs=max_epochs,
             scheduler=scheduler,
             searcher=searcher,
@@ -413,10 +318,8 @@ class ModelTuner:
             scheduler_kwargs=scheduler_kwargs,
             searcher_kwargs=searcher_kwargs,
         )
-        result_grid = self._configure_tuner(experiment).fit()
-        experiment.result_grid = result_grid
+        experiment.result_grid = self._configure_tuner(experiment).fit()
         self._update_history(experiment)
-
         return experiment
 
     def __repr__(self) -> str:

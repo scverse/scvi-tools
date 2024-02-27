@@ -19,7 +19,7 @@ from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._types import LossRecord, MinifiedDataType, Tensor, TunableMixin
+from scvi._types import LossRecord, MinifiedDataType, Tensor
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.utils._jax import device_selecting_PRNGKey
 
@@ -144,7 +144,7 @@ class LossOutput:
             return {attr_name: attr}
 
 
-class BaseModuleClass(TunableMixin, nn.Module):
+class BaseModuleClass(nn.Module):
     """Abstract class for scvi-tools modules.
 
     Notes
@@ -313,7 +313,7 @@ def _get_dict_if_none(param):
     return param
 
 
-class PyroBaseModuleClass(TunableMixin, nn.Module):
+class PyroBaseModuleClass(nn.Module):
     """Base module class for Pyro models.
 
     In Pyro, ``model`` and ``guide`` should have the same signature. Out of convenience,
@@ -451,7 +451,7 @@ class TrainStateWithState(train_state.TrainState):
     state: dict[str, Any]
 
 
-class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
+class JaxBaseModuleClass(flax.linen.Module):
     """Abstract class for Jax-based scvi-tools modules.
 
     The :class:`~scvi.module.base.JaxBaseModuleClass` provides an interface for Jax-backed

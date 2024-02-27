@@ -118,7 +118,7 @@ Here we maintain a few package specific utilities for feature selection, etc.
    :nosignatures:
 
    autotune.ModelTuner
-   autotune.TuneAnalysis
+   autotune.Experiment
 ```
 
 ## Model hub
