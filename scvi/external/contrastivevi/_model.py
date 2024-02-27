@@ -14,7 +14,6 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Tunable
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -145,7 +144,7 @@ class ContrastiveVI(BaseModelClass):
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
-        batch_size: Tunable[int] = 128,
+        batch_size: int = 128,
         early_stopping: bool = False,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,

@@ -8,7 +8,6 @@ from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import Logger
 
 from scvi import settings
-from scvi._types import Tunable, TunableMixin
 
 from ._callbacks import (
     LoudEarlyStopping,
@@ -21,7 +20,7 @@ from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
 
 
-class Trainer(TunableMixin, pl.Trainer):
+class Trainer(pl.Trainer):
     """Lightweight wrapper of Pytorch Lightning Trainer.
 
     Appropriate defaults are set for scvi-tools models, as well as callbacks like
@@ -98,7 +97,7 @@ class Trainer(TunableMixin, pl.Trainer):
         devices: Optional[Union[list[int], str, int]] = None,
         benchmark: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
-        max_epochs: Tunable[int] = 400,
+        max_epochs: int = 400,
         default_root_dir: Optional[str] = None,
         enable_checkpointing: bool = False,
         checkpointing_monitor: str = "validation_loss",
