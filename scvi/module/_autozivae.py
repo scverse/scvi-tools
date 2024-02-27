@@ -8,7 +8,6 @@ from torch.distributions import Beta, Gamma, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import LossOutput, auto_move_data
 from scvi.nn import one_hot
@@ -59,10 +58,10 @@ class AutoZIVAE(VAE):
     def __init__(
         self,
         n_input: int,
-        alpha_prior: Tunable[float] = 0.5,
-        beta_prior: Tunable[float] = 0.5,
-        minimal_dropout: Tunable[float] = 0.01,
-        zero_inflation: Tunable[Literal["gene", "gene-batch", "gene-label", "gene-cell"]] = "gene",
+        alpha_prior: float = 0.5,
+        beta_prior: float = 0.5,
+        minimal_dropout: float = 0.01,
+        zero_inflation: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         **kwargs,
     ) -> None:
         if "reconstruction_loss" in kwargs:

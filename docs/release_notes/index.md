@@ -9,6 +9,12 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 ### 1.2.0 (unreleased)
 
+#### Added
+
+-   Add new functional API for hyperparameter tuning with {func}`scvi.autotune.run_autotune` and
+    {class}`scvi.autotune.AutotuneExperiment` to replace {class}`scvi.autotune.ModelTuner`,
+    {class}`scvi.autotune.TunerManager`, and {class}`scvi.autotune.TuneAnalysis` {pr}`2561`.
+
 #### Changed
 
 -   Deprecate {func}`scvi.data.cellxgene`, to be removed in v1.3. Please directly use the
@@ -16,8 +22,9 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 #### Removed
 
--   Remove `use_defaults` argument in {class}`scvi.autotune.ModelTuner` {pr}`2552`.
--   Remove `reporter` argument in {class}`scvi.autotune.ModelTuner` {pr}`2552`.
+-   Remove {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
+    {class}`scvi.autotune.TuneAnalysis` in favor of new functional API with
+    {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` {pr}`2561`.
 
 ### 1.1.2 (unreleased)
 
