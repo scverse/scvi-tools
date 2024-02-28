@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from typing import Callable
+
 import torch
 from torch import nn
 
 
-def _partial_freeze_hook_factory(freeze: int) -> callable:
+def _partial_freeze_hook_factory(freeze: int) -> Callable[[torch.Tensor], torch.Tensor]:
     """Factory for a hook that freezes the first ``freeze`` entries in the gradient.
 
     Parameters
