@@ -11,13 +11,14 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS, settings
+from muon import MuData
 from scvi.data import _constants
-from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
+from scvi._types import AnnOrMuData
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
-from mudata import MuData
-from scvi.data._constants import _SETUP_METHOD_NAME
+from typing import Dict
 
 from ._base_model import BaseModelClass
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
@@ -34,7 +35,7 @@ class ArchesMixin:
     @devices_dsp.dedent
     def load_query_data(
         cls,
-        adata: AnnData,
+        adata: AnnOrMuData,
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
         accelerator: str = "auto",
@@ -89,10 +90,18 @@ class ArchesMixin:
             reference_model, device=device
         )
 
-        if inplace_subset_query_vars:
-            logger.debug("Subsetting query vars to reference vars.")
-            adata._inplace_subset_var(var_names)
-        _validate_var_names(adata, var_names)
+        if isinstance(adata, MuData):
+            for modality in adata.mod:
+                if inplace_subset_query_vars:
+                    logger.debug("Subsetting query vars to reference vars.")
+                    adata[modality]._inplace_subset_var(var_names[modality])
+                _validate_var_names(adata[modality], var_names[modality])
+
+        else:
+            if inplace_subset_query_vars:
+                logger.debug("Subsetting query vars to reference vars.")
+                adata._inplace_subset_var(var_names)
+            _validate_var_names(adata, var_names)
 
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
@@ -167,9 +176,9 @@ class ArchesMixin:
     def prepare_query_anndata(
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
+        var_names: Optional[pd.Index] = None,
         return_reference_var_names: bool = False,
         inplace: bool = True,
-        modality: str = None
     ) -> Optional[Union[AnnData, pd.Index]]:
         """Prepare data for query integration.
 
@@ -185,6 +194,8 @@ class ArchesMixin:
         reference_model
             Either an already instantiated model of the same class, or a path to
             saved outputs for reference model.
+        var_names
+            Variable names used to train reference model.
         return_reference_var_names
             Only load and return reference var names if True.
         inplace
@@ -195,13 +206,10 @@ class ArchesMixin:
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-        _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
 
-        if modality is not None:
-            adata = adata[modality]
-            var_names = var_names[modality]
-
-        var_names = pd.Index(var_names)
+        if var_names is None:
+            _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+            var_names = pd.Index(var_names)
 
         if return_reference_var_names:
             return var_names
@@ -261,7 +269,7 @@ class ArchesMixin:
         reference_model: Union[str, BaseModelClass],
         return_reference_var_names: bool = False,
         inplace: bool = True,
-    ) -> Optional[Union[MuData, pd.Index]]:
+    ) -> Optional[Union[MuData, Dict[str, pd.Index]]]:
         """Prepare data for query integration.
 
         This function will return a new AnnData object with padded zeros
@@ -279,7 +287,7 @@ class ArchesMixin:
         return_reference_var_names
             Only load and return reference var names if True.
         inplace
-            Whether to subset and rearrange query vars inplace or return new AnnData.
+            Whether to subset and rearrange query vars inplace or return new MuData.
 
         Returns
         -------
@@ -287,6 +295,13 @@ class ArchesMixin:
         in which case a pd.Index of reference var names is returned.
         """
         attr_dict, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+
+        for modality in var_names.keys():
+            var_names[modality] = pd.Index(var_names[modality])
+
+        if return_reference_var_names:
+            return var_names
+
         reference_modalities_dict = attr_dict['registry_']['setup_args']['modalities']
 
         reference_modalities = reference_modalities_dict.values()
@@ -302,16 +317,17 @@ class ArchesMixin:
         adata_dict = {}
         for modality in reference_modalities:
             adata_out = ArchesMixin.prepare_query_anndata(
-                adata=mdata,
+                adata=mdata[modality],
                 reference_model=reference_model,
+                var_names=var_names[modality],
                 return_reference_var_names=return_reference_var_names,
                 inplace=inplace,
-                modality=modality
             )
             adata_dict[modality] = adata_out
 
         if not inplace:
             return MuData(adata_dict)
+
 
 def _set_params_online_update(
     module,
@@ -396,7 +412,6 @@ def _get_loaded_data(reference_model, device=None):
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
-
         if isinstance(reference_model.adata, MuData):
             var_names = {
                 mod: reference_model.adata[mod].var_names for mod in reference_model.adata.mod.keys()
