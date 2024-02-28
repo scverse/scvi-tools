@@ -24,7 +24,12 @@ def _partial_freeze_hook_factory(freeze: int) -> Callable[[torch.Tensor], torch.
 
 
 class Embedding(nn.Embedding):
-    """Embedding layer with utility methods for extending."""
+    """``EXPERIMENTAL`` Embedding layer with utility methods for extending.
+
+    Notes
+    -----
+    Lifecycle: experimental in v1.2.
+    """
 
     @classmethod
     def extend(
