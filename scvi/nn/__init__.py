@@ -9,6 +9,7 @@ from ._base_components import (
     MultiDecoder,
     MultiEncoder,
 )
+from ._embedding import Embedding
 from ._utils import one_hot
 
 __all__ = [
@@ -22,4 +23,6 @@ __all__ = [
     "MultiEncoder",
     "MultiDecoder",
     "one_hot",
+    "Embedding",
+    "extend_embedding",
 ]
