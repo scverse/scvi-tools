@@ -14,6 +14,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Add new functional API for hyperparameter tuning with {func}`scvi.autotune.run_autotune` and
     {class}`scvi.autotune.AutotuneExperiment` to replace {class}`scvi.autotune.ModelTuner`,
     {class}`scvi.autotune.TunerManager`, and {class}`scvi.autotune.TuneAnalysis` {pr}`2561`.
+-   Add {class}`scvi.nn.Embedding` {pr}`2574`.
 
 #### Changed
 
