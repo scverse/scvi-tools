@@ -5,12 +5,12 @@ from torch import nn
 
 
 def _partial_freeze_hook_factory(freeze: int) -> callable:
-    """Factory for a hook that partially freezes gradients.
+    """Factory for a hook that freezes the first ``freeze`` entries in the gradient.
 
     Parameters
     ----------
     freeze
-        Freeze the first ``freeze`` entries in the gradient.
+        Specifies the number of entries to freeze in the gradient.
     """
 
     def _partial_freeze_hook(grad: torch.Tensor) -> torch.Tensor:
@@ -31,44 +31,48 @@ class Embedding(nn.Embedding):
         init: int | list[int],
         freeze_prev: bool = True,
     ) -> Embedding:
-        """Factory method for extending an :class:`~scvi.nn.Embedding`.
+        """Factory class method for extending an existing :class:`~scvi.nn.Embedding`.
+
+        Initializes new embeddings with random values or copies from the original embedding.
 
         Parameters
         ----------
         embedding
             Embedding layer to extend. Not modified in-place as a new instance is returned.
         init
-            If an ``int``, the number of new embeddings to initialize with
+            If an ``int``, specifies the number of new random embeddings to initialize with
             :func:`~torch.nn.init.normal_`. If a ``list[int]``, initializes ``len(init)`` new
             embeddings with the values of the given indices in the original embedding.
         freeze_prev
             If ``True``, gradients for the original embeddings are set to zero.
-        """
-        old_weight = embedding.weight.clone()  # (E, D)
 
+        Returns
+        -------
+        New :class:`~scvi.nn.Embedding` instance with :attr:`~scvi.nn.Embedding.num_embeddings`
+        increased by the specified ``init`` and with gradients frozen for the first
+        ``embedding.num_embeddings`` entries if ``freeze_prev`` is ``True``.
+        """
         if isinstance(init, int):
             if init <= 0:
                 raise ValueError(f"`init` must be greater than 0, got {init}")
-            n_init = init
-            # (F, D)
-            new_weight = torch.empty((init, old_weight.shape[1]), device=old_weight.device)
-            nn.init.normal_(new_weight)
+            weight = torch.empty((init, embedding.embedding_dim), device=embedding.weight.device)
+            nn.init.normal_(weight)
         elif isinstance(init, list):
-            n_init = len(init)
-            # (F, D)
-            new_weight = old_weight[init]
+            weight = embedding.weight[init].clone()
+        else:
+            raise TypeError(f"`init` must be an `int` or a `list[int]`, got {type(init)}")
 
+        weight = torch.cat([embedding.weight.clone(), weight], dim=0)
         new_embedding = cls(
-            num_embeddings=embedding.num_embeddings + n_init,
-            embedding_dim=embedding.embedding_dim,
-            _weight=torch.cat([old_weight, new_weight], dim=0),  # (E + F, D)
+            num_embeddings=weight.shape[0],
+            embedding_dim=weight.shape[1],
+            _weight=weight,
             padding_idx=embedding.padding_idx,
             max_norm=embedding.max_norm,
             norm_type=embedding.norm_type,
             scale_grad_by_freq=embedding.scale_grad_by_freq,
             sparse=embedding.sparse,
         )
-
         if freeze_prev:
             new_embedding.weight.register_hook(
                 _partial_freeze_hook_factory(embedding.num_embeddings)
@@ -77,10 +81,12 @@ class Embedding(nn.Embedding):
         return new_embedding
 
     def _load_from_state_dict(self, state_dict: dict[str, torch.Tensor], *args, **kwargs):
-        """Load from a state dict. Overrides the initialization parameters with the state dict."""
-        weight_tensor = state_dict.get("weight")
-        self.weight = nn.Parameter(weight_tensor)
-        self.num_embeddings = weight_tensor.shape[0]
-        self.embedding_dim = weight_tensor.shape[1]
+        """Load from a state dict. Overrides initialization parameters with the state dict.
 
+        This is necessary because model constructors will pass in the original parameters, which
+        will not match the state dict if the embedding was extended. This method overrides the
+        correct attributes based on the state dict.
+        """
+        self.weight = nn.Parameter(state_dict.get("weight"))
+        self.num_embeddings, self.embedding_dim = self.weight.shape[0], self.weight.shape[1]
         return super()._load_from_state_dict(state_dict, *args, **kwargs)
