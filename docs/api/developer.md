@@ -220,6 +220,7 @@ Basic neural network building blocks.
    nn.Encoder
    nn.Decoder
    nn.one_hot
+   nn.Embedding
 
 ```
 
