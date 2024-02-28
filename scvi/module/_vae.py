@@ -13,7 +13,12 @@ from torch.distributions import kl_divergence as kl
 from scvi import REGISTRY_KEYS
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
-from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
+from scvi.module.base import (
+    BaseMinifiedModeModuleClass,
+    EmbeddingModuleMixin,
+    LossOutput,
+    auto_move_data,
+)
 from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
 
 torch.backends.cudnn.benchmark = True
@@ -21,7 +26,7 @@ torch.backends.cudnn.benchmark = True
 logger = logging.getLogger(__name__)
 
 
-class VAE(BaseMinifiedModeModuleClass):
+class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     """Variational auto-encoder model.
 
     This is an implementation of the scVI model described in :cite:p:`Lopez18`.
@@ -71,6 +76,11 @@ class VAE(BaseMinifiedModeModuleClass):
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
+    batch_representation
+        How to encoder batch information. One of the following:
+
+        * ``"one-hot"``: one-hot representation of batches
+        * ``"embedding"``: representation of batches with continuously-valued embeddings
     use_batch_norm
         Whether to use batch norm in layers.
     use_layer_norm
@@ -93,6 +103,8 @@ class VAE(BaseMinifiedModeModuleClass):
         Extra keyword arguments passed into :class:`~scvi.nn.Encoder`.
     extra_decoder_kwargs
         Extra keyword arguments passed into :class:`~scvi.nn.DecoderSCVI`.
+    batch_embedding_kwargs
+        Keyword arguments passed into :class:`~scvi.nn.Embedding` if ``batch_representation`` is set to ``"embedding"``.
     """
 
     def __init__(
@@ -112,6 +124,7 @@ class VAE(BaseMinifiedModeModuleClass):
         latent_distribution: Literal["normal", "ln"] = "normal",
         encode_covariates: bool = False,
         deeply_inject_covariates: bool = True,
+        batch_representation: Literal["one-hot", "embedding"] = "one-hot",
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_size_factor_key: bool = False,
@@ -121,6 +134,7 @@ class VAE(BaseMinifiedModeModuleClass):
         var_activation: Callable = None,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
+        batch_embedding_kwargs: Optional[dict] = None,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -160,6 +174,13 @@ class VAE(BaseMinifiedModeModuleClass):
                 "{}.format(self.dispersion)"
             )
 
+        if batch_representation == "embedding":
+            self.init_embedding(REGISTRY_KEYS.BATCH_KEY, n_batch, **(batch_embedding_kwargs or {}))
+            batch_dim = self.get_embedding(REGISTRY_KEYS.BATCH_KEY).embedding_dim
+        elif batch_representation != "one-hot":
+            raise ValueError("`batch_representation` must be one of 'one-hot', 'embedding'.")
+        self.batch_representation = batch_representation
+
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
@@ -168,7 +189,13 @@ class VAE(BaseMinifiedModeModuleClass):
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
-        cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
+
+        if self.batch_representation == "embedding":
+            n_input_encoder += batch_dim
+            cat_list = list([] if n_cats_per_cov is None else n_cats_per_cov)
+        else:
+            cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
+
         encoder_cat_list = cat_list if encode_covariates else None
         _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.z_encoder = Encoder(
@@ -203,6 +230,9 @@ class VAE(BaseMinifiedModeModuleClass):
         )
         # decoder goes from n_latent-dimensional space to n_input-d data
         n_input_decoder = n_latent + n_continuous_cov
+        if self.batch_representation == "embedding":
+            n_input_decoder += batch_dim
+
         _extra_decoder_kwargs = extra_decoder_kwargs or {}
         self.decoder = DecoderSCVI(
             n_input_decoder,
@@ -319,10 +349,22 @@ class VAE(BaseMinifiedModeModuleClass):
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = ()
-        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+
+        if self.batch_representation == "embedding":
+            batch_rep = self.compute_embedding(batch_index.flatten(), REGISTRY_KEYS.BATCH_KEY)
+            encoder_input = torch.cat([encoder_input, batch_rep], dim=-1)
+            qz, z = self.z_encoder(encoder_input, *categorical_input)
+        else:
+            qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+
         ql = None
         if not self.use_observed_lib_size:
-            ql, library_encoded = self.l_encoder(encoder_input, batch_index, *categorical_input)
+            if self.batch_representation == "embedding":
+                ql, library_encoded = self.l_encoder(encoder_input, *categorical_input)
+            else:
+                ql, library_encoded = self.l_encoder(
+                    encoder_input, batch_index, *categorical_input
+                )
             library = library_encoded
 
         if n_samples > 1:
@@ -385,18 +427,30 @@ class VAE(BaseMinifiedModeModuleClass):
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
+        if self.batch_representation == "embedding":
+            batch_rep = self.compute_embedding(batch_index.flatten(), REGISTRY_KEYS.BATCH_KEY)
 
         if not self.use_size_factor_key:
             size_factor = library
 
-        px_scale, px_r, px_rate, px_dropout = self.decoder(
-            self.dispersion,
-            decoder_input,
-            size_factor,
-            batch_index,
-            *categorical_input,
-            y,
-        )
+        if self.batch_representation == "embedding":
+            decoder_input = torch.cat([decoder_input, batch_rep], dim=-1)
+            px_scale, px_r, px_rate, px_dropout = self.decoder(
+                self.dispersion,
+                decoder_input,
+                size_factor,
+                *categorical_input,
+                y,
+            )
+        else:
+            px_scale, px_r, px_rate, px_dropout = self.decoder(
+                self.dispersion,
+                decoder_input,
+                size_factor,
+                batch_index,
+                *categorical_input,
+                y,
+            )
         if self.dispersion == "gene-label":
             px_r = F.linear(
                 one_hot(y, self.n_labels), self.px_r

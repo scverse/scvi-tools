@@ -930,3 +930,34 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     # initialized with adata, cannot pass in data_module
     with pytest.raises(ValueError):
         model.train(data_module=data_module)
+
+
+def test_scvi_batch_embeddings(n_batches: int = 3):
+    adata = synthetic_iid(n_batches=n_batches)
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, batch_representation="embedding")
+    model.train(max_epochs=1)
+    _ = model.get_batch_representation()
+
+    model = SCVI(adata, batch_representation="embedding", encode_covariates=True)
+    model.train(max_epochs=1)
+    _ = model.get_batch_representation()
+
+    model = SCVI(
+        adata,
+        batch_representation="embedding",
+        encode_covariates=True,
+        use_observed_lib_size=False,
+    )
+    model.train(max_epochs=1)
+    _ = model.get_batch_representation()
+
+    model = SCVI(
+        adata,
+        batch_representation="embedding",
+        encode_covariates=True,
+        deeply_inject_covariates=True,
+    )
+    model.train(max_epochs=1)
+    _ = model.get_batch_representation()
