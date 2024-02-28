@@ -24,5 +24,4 @@ __all__ = [
     "MultiDecoder",
     "one_hot",
     "Embedding",
-    "extend_embedding",
 ]
