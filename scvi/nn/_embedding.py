@@ -82,7 +82,7 @@ class Embedding(nn.Embedding):
 
         return new_embedding
 
-    def _load_from_state_dict(self, state_dict: dict[str, torch.Tensor], *args, **kwargs):
+    def _load_from_state_dict(self, state_dict: dict[str, torch.Tensor], *args, **kwargs) -> None:
         """Load from a state dict. Overrides initialization parameters with the state dict.
 
         This is necessary because model constructors will pass in the original parameters, which
