@@ -1,24 +1,23 @@
 import logging
 import warnings
 from copy import deepcopy
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
 import anndata
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from muon import MuData
 from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS, settings
-from muon import MuData
-from scvi.data import _constants
 from scvi._types import AnnOrMuData
+from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
-from typing import Dict
 
 from ._base_model import BaseModelClass
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
@@ -206,7 +205,6 @@ class ArchesMixin:
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-
         if var_names is None:
             _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
             var_names = pd.Index(var_names)
@@ -302,7 +300,7 @@ class ArchesMixin:
         if return_reference_var_names:
             return var_names
 
-        reference_modalities_dict = attr_dict['registry_']['setup_args']['modalities']
+        reference_modalities_dict = attr_dict["registry_"]["setup_args"]["modalities"]
 
         reference_modalities = reference_modalities_dict.values()
         query_modalities = mdata.mod
@@ -414,7 +412,8 @@ def _get_loaded_data(reference_model, device=None):
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
         if isinstance(reference_model.adata, MuData):
             var_names = {
-                mod: reference_model.adata[mod].var_names for mod in reference_model.adata.mod.keys()
+                mod: reference_model.adata[mod].var_names
+                for mod in reference_model.adata.mod.keys()
             }
         else:
             var_names = reference_model.adata.var_names
