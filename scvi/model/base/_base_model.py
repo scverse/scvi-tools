@@ -619,8 +619,13 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
 
-        var_names = self.adata.var_names.astype(str)
-        var_names = var_names.to_numpy()
+        if isinstance(self.adata, MuData):
+            var_names = {
+                mod: self.adata[mod].var_names.astype(str).to_numpy() for mod in self.adata.mod.keys()
+            }
+        else:
+            var_names = self.adata.var_names.astype(str)
+            var_names = var_names.to_numpy()
 
         # get all the user attributes
         user_attributes = self._get_user_attributes()
