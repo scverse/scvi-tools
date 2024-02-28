@@ -76,19 +76,11 @@ class Embedding(nn.Embedding):
 
         return new_embedding
 
-    def _load_from_state_dict(
-        self,
-        state_dict: dict[str, torch.Tensor],
-        *args,
-        **kwargs,
-    ):
+    def _load_from_state_dict(self, state_dict: dict[str, torch.Tensor], *args, **kwargs):
         """Load from a state dict. Overrides the initialization parameters with the state dict."""
-        for key, tensor in state_dict.items():
-            if key != "weight":
-                continue
-            self.weight = nn.Parameter(tensor)
-            self.num_embeddings = tensor.shape[0]
-            self.embedding_dim = tensor.shape[1]
-            break
+        weight_tensor = state_dict.get("weight")
+        self.weight = nn.Parameter(weight_tensor)
+        self.num_embeddings = weight_tensor.shape[0]
+        self.embedding_dim = weight_tensor.shape[1]
 
         return super()._load_from_state_dict(state_dict, *args, **kwargs)
