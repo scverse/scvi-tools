@@ -3,7 +3,7 @@ from __future__ import annotations
 from os.path import join
 
 import torch
-from pytest import mark
+from pytest import mark, raises
 
 from scvi.nn import Embedding
 
@@ -12,7 +12,7 @@ from scvi.nn import Embedding
 @mark.parametrize("embedding_dim", [5])
 @mark.parametrize("init", [2, [0, 1]])
 @mark.parametrize("freeze_prev", [True, False])
-def test_embedding(
+def test_embedding_extend(
     num_embeddings: int,
     embedding_dim: int,
     init: int | list[int],
@@ -44,6 +44,14 @@ def test_embedding(
         assert not torch.equal(new_grad, torch.zeros_like(new_grad))
     else:
         assert not torch.equal(grad, torch.zeros_like(grad))
+
+
+def test_embedding_extend_invalid_init(num_embeddings: int = 10, embedding_dim: int = 5):
+    embedding = Embedding(num_embeddings, embedding_dim)
+    with raises(ValueError):
+        Embedding.extend(embedding, init=0)
+    with raises(TypeError):
+        Embedding.extend(embedding, init="invalid")
 
 
 def test_embedding_save_load(
