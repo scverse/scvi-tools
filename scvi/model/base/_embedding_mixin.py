@@ -33,5 +33,5 @@ class EmbeddingMixin:
         dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         key = REGISTRY_KEYS.BATCH_KEY
-        tensors = [self.module.compute_embedding(tensors[key], key) for tensors in dataloader]
+        tensors = [self.module.compute_embedding(key, tensors[key]) for tensors in dataloader]
         return torch.cat(tensors).detach().cpu().numpy()
