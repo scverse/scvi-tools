@@ -6,6 +6,8 @@ from scvi.nn import Embedding
 
 
 class EmbeddingModuleMixin:
+    """Mixin class for initializing and using embeddings in a module."""
+
     @property
     def embeddings_dict(self) -> ModuleDict:
         """Dictionary of embeddings."""
@@ -42,8 +44,7 @@ class EmbeddingModuleMixin:
         self.add_embedding(key, Embedding(num_embeddings, embedding_dim, **kwargs))
 
     @auto_move_data
-    def compute_embedding(self, indices: torch.Tensor, key: str) -> torch.Tensor:
+    def compute_embedding(self, key: str, indices: torch.Tensor) -> torch.Tensor:
         """Forward pass for an embedding."""
-        if indices.ndim > 1:
-            indices = indices.flatten()
+        indices = indices.flatten() if indices.ndim > 1 else indices
         return self.get_embedding(key)(indices)

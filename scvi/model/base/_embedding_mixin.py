@@ -9,6 +9,11 @@ from scvi.module.base import EmbeddingModuleMixin
 
 
 class EmbeddingMixin:
+    """Mixin class for initializing and using embeddings in a model.
+
+    Must be used with a module that inherits from :class:`~scvi.module.base.EmbeddingModuleMixin`.
+    """
+
     @torch.inference_mode()
     def get_batch_representation(
         self,
@@ -16,6 +21,7 @@ class EmbeddingMixin:
         indices: list[int] | None = None,
         batch_size: int | None = None,
     ) -> np.ndarray:
+        """Get the batch representation for a given set of indices."""
         if not isinstance(self.module, EmbeddingModuleMixin):
             raise ValueError("The current `module` must inherit from `EmbeddingModuleMixin`.")
 

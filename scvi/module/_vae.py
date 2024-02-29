@@ -77,10 +77,11 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     batch_representation
-        How to encode batch labels in the data. One of the following:
+        ``EXPERIMENTAL`` How to encode batch labels in the data. One of the following:
 
         * ``"one-hot"``: represent batches with one-hot encodings.
-        * ``"embedding"``: represent batches with continuously-valued embeddings using :class:`~scvi.nn.Embedding`.
+        * ``"embedding"``: represent batches with continuously-valued embeddings
+            using :class:`~scvi.nn.Embedding`.
     use_batch_norm
         Whether to use batch norm in layers.
     use_layer_norm
@@ -105,6 +106,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Extra keyword arguments passed into :class:`~scvi.nn.DecoderSCVI`.
     batch_embedding_kwargs
         Keyword arguments passed into :class:`~scvi.nn.Embedding` if ``batch_representation`` is set to ``"embedding"``.
+
+    Notes
+    -----
+    Lifecycle: argument ``batch_representation`` is experimental in v1.2.
     """
 
     def __init__(
@@ -354,7 +359,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             categorical_input = ()
 
         if self.batch_representation == "embedding" and self.encode_covariates:
-            batch_rep = self.compute_embedding(batch_index, REGISTRY_KEYS.BATCH_KEY)
+            batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
             encoder_input = torch.cat([encoder_input, batch_rep], dim=-1)
             qz, z = self.z_encoder(encoder_input, *categorical_input)
         else:
@@ -430,13 +435,12 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
-        if self.batch_representation == "embedding":
-            batch_rep = self.compute_embedding(batch_index, REGISTRY_KEYS.BATCH_KEY)
 
         if not self.use_size_factor_key:
             size_factor = library
 
         if self.batch_representation == "embedding":
+            batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
             decoder_input = torch.cat([decoder_input, batch_rep], dim=-1)
             px_scale, px_r, px_rate, px_dropout = self.decoder(
                 self.dispersion,
