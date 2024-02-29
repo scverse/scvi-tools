@@ -44,4 +44,6 @@ class EmbeddingModuleMixin:
     @auto_move_data
     def compute_embedding(self, indices: torch.Tensor, key: str) -> torch.Tensor:
         """Forward pass for an embedding."""
+        if indices.ndim > 1:
+            indices = indices.flatten()
         return self.get_embedding(key)(indices)

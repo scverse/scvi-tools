@@ -77,10 +77,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
         only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
     batch_representation
-        How to encoder batch information. One of the following:
+        How to encode batch labels in the data. One of the following:
 
-        * ``"one-hot"``: one-hot representation of batches
-        * ``"embedding"``: representation of batches with continuously-valued embeddings
+        * ``"one-hot"``: represent batches with one-hot encodings.
+        * ``"embedding"``: represent batches with continuously-valued embeddings using :class:`~scvi.nn.Embedding`.
     use_batch_norm
         Whether to use batch norm in layers.
     use_layer_norm
@@ -174,12 +174,12 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 "{}.format(self.dispersion)"
             )
 
-        if batch_representation == "embedding":
+        self.batch_representation = batch_representation
+        if self.batch_representation == "embedding":
             self.init_embedding(REGISTRY_KEYS.BATCH_KEY, n_batch, **(batch_embedding_kwargs or {}))
             batch_dim = self.get_embedding(REGISTRY_KEYS.BATCH_KEY).embedding_dim
-        elif batch_representation != "one-hot":
+        elif self.batch_representation != "one-hot":
             raise ValueError("`batch_representation` must be one of 'one-hot', 'embedding'.")
-        self.batch_representation = batch_representation
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
@@ -191,7 +191,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
 
         if self.batch_representation == "embedding":
-            n_input_encoder += batch_dim
+            # batch embeddings are concatenated to the input of the encoder
+            n_input_encoder += batch_dim * encode_covariates
+            # don't pass in batch index if using embeddings
             cat_list = list([] if n_cats_per_cov is None else n_cats_per_cov)
         else:
             cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
@@ -231,6 +233,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         # decoder goes from n_latent-dimensional space to n_input-d data
         n_input_decoder = n_latent + n_continuous_cov
         if self.batch_representation == "embedding":
+            # batch embeddings are concatenated to the input of the decoder
             n_input_decoder += batch_dim
 
         _extra_decoder_kwargs = extra_decoder_kwargs or {}
@@ -350,8 +353,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         else:
             categorical_input = ()
 
-        if self.batch_representation == "embedding":
-            batch_rep = self.compute_embedding(batch_index.flatten(), REGISTRY_KEYS.BATCH_KEY)
+        if self.batch_representation == "embedding" and self.encode_covariates:
+            batch_rep = self.compute_embedding(batch_index, REGISTRY_KEYS.BATCH_KEY)
             encoder_input = torch.cat([encoder_input, batch_rep], dim=-1)
             qz, z = self.z_encoder(encoder_input, *categorical_input)
         else:
@@ -428,7 +431,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
         if self.batch_representation == "embedding":
-            batch_rep = self.compute_embedding(batch_index.flatten(), REGISTRY_KEYS.BATCH_KEY)
+            batch_rep = self.compute_embedding(batch_index, REGISTRY_KEYS.BATCH_KEY)
 
         if not self.use_size_factor_key:
             size_factor = library
@@ -451,6 +454,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 *categorical_input,
                 y,
             )
+
         if self.dispersion == "gene-label":
             px_r = F.linear(
                 one_hot(y, self.n_labels), self.px_r
