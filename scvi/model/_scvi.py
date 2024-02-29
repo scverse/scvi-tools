@@ -23,7 +23,7 @@ from scvi.data.fields import (
     StringUnsField,
 )
 from scvi.model._utils import _init_library_size
-from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.model.base import EmbeddingMixin, UnsupervisedTrainingMixin
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 class SCVI(
+    EmbeddingMixin,
     RNASeqMixin,
     VAEMixin,
     ArchesMixin,
