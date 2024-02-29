@@ -80,8 +80,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         ``EXPERIMENTAL`` How to encode batch labels in the data. One of the following:
 
         * ``"one-hot"``: represent batches with one-hot encodings.
-        * ``"embedding"``: represent batches with continuously-valued embeddings
-            using :class:`~scvi.nn.Embedding`.
+        * ``"embedding"``: represent batches with continuously-valued embeddings using :class:`~scvi.nn.Embedding`.
     use_batch_norm
         Whether to use batch norm in layers.
     use_layer_norm
