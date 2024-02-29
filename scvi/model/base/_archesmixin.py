@@ -194,8 +194,8 @@ class ArchesMixin:
             Either an already instantiated model of the same class, or a path to
             saved outputs for reference model.
         reference_var_names
-            Variable names used to train reference model. If not provided, variable
-            names will be loaded from disk.
+            Variable names used to train reference model. If not provided, will attempt
+            to infer them automatically.
         return_reference_var_names
             Only load and return reference var names if True.
         inplace
