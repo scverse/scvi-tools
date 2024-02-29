@@ -94,6 +94,7 @@ class Embedding(nn.Embedding):
         will not match the state dict if the embedding was extended. This method overrides the
         correct attributes based on the state dict.
         """
-        self.weight = nn.Parameter(state_dict.get("weight"))
+        key = [key for key in state_dict.keys() if "weight" in key][0]
+        self.weight = nn.Parameter(state_dict[key])
         self.num_embeddings, self.embedding_dim = self.weight.shape[0], self.weight.shape[1]
         return super()._load_from_state_dict(state_dict, *args, **kwargs)

@@ -11,10 +11,16 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 #### Added
 
--   Add new functional API for hyperparameter tuning with {func}`scvi.autotune.run_autotune` and
-    {class}`scvi.autotune.AutotuneExperiment` to replace {class}`scvi.autotune.ModelTuner`,
-    {class}`scvi.autotune.TunerManager`, and {class}`scvi.autotune.TuneAnalysis` {pr}`2561`.
--   Add {class}`scvi.nn.Embedding` {pr}`2574`.
+-   Add new experimental functional API for hyperparameter tuning with
+    {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` to replace
+    {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
+    {class}`scvi.autotune.TuneAnalysis` {pr}`2561`.
+-   Add experimental class {class}`scvi.nn.Embedding` implementing methods for extending embeddings
+    {pr}`2574`.
+-   Add experimental support for representing batches with continuously-valued embeddings by passing
+    in `batch_representation="embedding"` to {class}`scvi.model.SCVI` {pr}`2576`.
+-   Add experimental mixin classes {class}`scvi.model.base.EmbeddingMixin` and
+    {class}`scvi.module.base.EmbeddingModuleMixin` {pr}`2576`.
 
 #### Changed
 
@@ -24,7 +30,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 #### Removed
 
 -   Remove {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
-    {class}`scvi.autotune.TuneAnalysis` in favor of new functional API with
+    {class}`scvi.autotune.TuneAnalysis` in favor of new experimental functional API with
     {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` {pr}`2561`.
 
 ### 1.1.2 (unreleased)
