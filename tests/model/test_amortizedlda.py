@@ -9,9 +9,7 @@ from scvi.model import AmortizedLDA
 def test_lda_model_single_step(n_topics: int = 5):
     adata = synthetic_iid()
     AmortizedLDA.setup_anndata(adata)
-    mod1 = AmortizedLDA(
-        adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5
-    )
+    mod1 = AmortizedLDA(adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5)
     mod1.train(max_steps=1, max_epochs=10)
     assert len(mod1.history["elbo_train"]) == 1
 
@@ -21,9 +19,7 @@ def test_lda_model(n_topics: int = 5):
 
     # Test with float and Sequence priors.
     AmortizedLDA.setup_anndata(adata)
-    mod1 = AmortizedLDA(
-        adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5
-    )
+    mod1 = AmortizedLDA(adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5)
     mod1.train(
         max_epochs=1,
         batch_size=256,

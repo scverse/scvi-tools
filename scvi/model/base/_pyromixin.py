@@ -226,9 +226,9 @@ class PyroSampleMixin:
             sample = self.module.guide(*args, **kwargs)
         else:
             guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
-            model_trace = poutine.trace(
-                poutine.replay(self.module.model, guide_trace)
-            ).get_trace(*args, **kwargs)
+            model_trace = poutine.trace(poutine.replay(self.module.model, guide_trace)).get_trace(
+                *args, **kwargs
+            )
             sample = {
                 name: site["value"]
                 for name, site in model_trace.nodes.items()
@@ -398,9 +398,7 @@ class PyroSampleMixin:
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
 
-        train_dl = AnnDataLoader(
-            self.adata_manager, shuffle=False, batch_size=batch_size
-        )
+        train_dl = AnnDataLoader(self.adata_manager, shuffle=False, batch_size=batch_size)
         # sample local parameters
         i = 0
         for tensor_dict in track(
@@ -424,20 +422,14 @@ class PyroSampleMixin:
                 obs_plate_dim = list(obs_plate_sites.values())[0]
 
                 sample_kwargs_obs_plate = sample_kwargs.copy()
-                sample_kwargs_obs_plate[
-                    "return_sites"
-                ] = self._get_obs_plate_return_sites(
+                sample_kwargs_obs_plate["return_sites"] = self._get_obs_plate_return_sites(
                     sample_kwargs["return_sites"], list(obs_plate_sites.keys())
                 )
                 sample_kwargs_obs_plate["show_progress"] = False
 
-                samples = self._get_posterior_samples(
-                    args, kwargs, **sample_kwargs_obs_plate
-                )
+                samples = self._get_posterior_samples(args, kwargs, **sample_kwargs_obs_plate)
             else:
-                samples_ = self._get_posterior_samples(
-                    args, kwargs, **sample_kwargs_obs_plate
-                )
+                samples_ = self._get_posterior_samples(args, kwargs, **sample_kwargs_obs_plate)
 
                 samples = {
                     k: np.array(
@@ -446,9 +438,7 @@ class PyroSampleMixin:
                                 [samples[k][j], samples_[k][j]],
                                 axis=obs_plate_dim,
                             )
-                            for j in range(
-                                len(samples[k])
-                            )  # for each sample (in 0 dimension
+                            for j in range(len(samples[k]))  # for each sample (in 0 dimension
                         ]
                     )
                     for k in samples.keys()  # for each variable
@@ -458,9 +448,7 @@ class PyroSampleMixin:
         # sample global parameters
         global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
         global_samples = {
-            k: v
-            for k, v in global_samples.items()
-            if k not in list(obs_plate_sites.keys())
+            k: v for k, v in global_samples.items() if k not in list(obs_plate_sites.keys())
         }
 
         for k in global_samples.keys():
@@ -549,8 +537,6 @@ class PyroSampleMixin:
                 "q95": lambda x, axis: np.quantile(x, 0.95, axis=axis),
             }
         for k, fun in summary_fun.items():
-            results[f"post_sample_{k}"] = {
-                v: fun(samples[v], axis=0) for v in param_names
-            }
+            results[f"post_sample_{k}"] = {v: fun(samples[v], axis=0) for v in param_names}
 
         return results

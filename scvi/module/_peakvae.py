@@ -7,7 +7,6 @@ from torch import nn
 from torch.distributions import Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
@@ -70,9 +69,7 @@ class Decoder(nn.Module):
             inject_covariates=deep_inject_covariates,
             **kwargs,
         )
-        self.output = torch.nn.Sequential(
-            torch.nn.Linear(n_hidden, n_output), torch.nn.Sigmoid()
-        )
+        self.output = torch.nn.Sequential(torch.nn.Linear(n_hidden, n_output), torch.nn.Sigmoid())
 
     def forward(self, z: torch.Tensor, *cat_list: int):
         """Forward pass."""
@@ -141,19 +138,19 @@ class PEAKVAE(BaseModuleClass):
         self,
         n_input_regions: int,
         n_batch: int = 0,
-        n_hidden: Tunable[int] = None,
-        n_latent: Tunable[int] = None,
-        n_layers_encoder: Tunable[int] = 2,
-        n_layers_decoder: Tunable[int] = 2,
+        n_hidden: int = None,
+        n_latent: int = None,
+        n_layers_encoder: int = 2,
+        n_layers_decoder: int = 2,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: Tunable[float] = 0.1,
+        dropout_rate: float = 0.1,
         model_depth: bool = True,
         region_factors: bool = True,
-        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
-        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
-        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
-        deeply_inject_covariates: Tunable[bool] = False,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        latent_distribution: Literal["normal", "ln"] = "normal",
+        deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
@@ -161,9 +158,7 @@ class PEAKVAE(BaseModuleClass):
         super().__init__()
 
         self.n_input_regions = n_input_regions
-        self.n_hidden = (
-            int(np.sqrt(self.n_input_regions)) if n_hidden is None else n_hidden
-        )
+        self.n_hidden = int(np.sqrt(self.n_input_regions)) if n_hidden is None else n_hidden
         self.n_latent = int(np.sqrt(self.n_hidden)) if n_latent is None else n_latent
         self.n_layers_encoder = n_layers_encoder
         self.n_layers_decoder = n_layers_decoder
@@ -329,9 +324,7 @@ class PEAKVAE(BaseModuleClass):
 
         return {"p": p}
 
-    def loss(
-        self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
-    ):
+    def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0):
         """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         qz = inference_outputs["qz"]

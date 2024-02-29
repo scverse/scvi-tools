@@ -157,16 +157,10 @@ def _load_pbmc_seurat_v4_cite_seq(
     if apply_filters:
         adata.obs["total_counts"] = np.ravel(adata.X.sum(axis=1).A)
         adata.var["mt"] = adata.var_names.str.startswith("MT-")
-        adata.obs["total_counts_mt"] = np.ravel(
-            adata.X[:, adata.var["mt"].values].sum(axis=1).A
-        )
-        adata.obs["pct_counts_mt"] = (
-            adata.obs["total_counts_mt"] / adata.obs["total_counts"] * 100
-        )
+        adata.obs["total_counts_mt"] = np.ravel(adata.X[:, adata.var["mt"].values].sum(axis=1).A)
+        adata.obs["pct_counts_mt"] = adata.obs["total_counts_mt"] / adata.obs["total_counts"] * 100
 
-        adata.obs["Protein log library size"] = np.log(
-            adata.obsm["protein_counts"].sum(1)
-        )
+        adata.obs["Protein log library size"] = np.log(adata.obsm["protein_counts"].sum(1))
         adata.obs["Number proteins detected"] = (adata.obsm["protein_counts"] > 0).sum(1)
         adata.obs["RNA log library size"] = np.log(adata.X.sum(1).A)
 

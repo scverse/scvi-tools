@@ -81,14 +81,10 @@ def test_saving_and_loading(save_path):
 
     # Test legacy loading
     legacy_save_path = os.path.join(save_path, "legacy/")
-    legacy_save(
-        model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
-    )
+    legacy_save(model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix)
     with pytest.raises(ValueError):
         AUTOZI.load(legacy_save_path, adata=adata, prefix=prefix)
-    AUTOZI.convert_legacy_save(
-        legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix
-    )
+    AUTOZI.convert_legacy_save(legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix)
     m = AUTOZI.load(legacy_save_path, adata=adata, prefix=prefix)
     m.train(1)
 

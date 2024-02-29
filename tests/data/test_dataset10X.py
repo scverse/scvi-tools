@@ -37,9 +37,7 @@ def test_pbmc_cite(save_path):
     tar = tarfile.open(file_path, "r:gz")
     tar.extractall(path=sp)
     tar.close()
-    dataset = sc.read_10x_mtx(
-        os.path.join(sp, "filtered_feature_bc_matrix"), gex_only=False
-    )
+    dataset = sc.read_10x_mtx(os.path.join(sp, "filtered_feature_bc_matrix"), gex_only=False)
     organize_cite_seq_10x(dataset)
     unsupervised_training_one_epoch(dataset)
 

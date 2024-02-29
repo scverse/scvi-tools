@@ -26,9 +26,7 @@ LEGACY_REGISTRY_KEY_MAP = {
 }
 
 
-def _infer_setup_args(
-    model_cls, setup_dict: dict, unlabeled_category: Optional[str]
-) -> dict:
+def _infer_setup_args(model_cls, setup_dict: dict, unlabeled_category: Optional[str]) -> dict:
     setup_args = {}
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
     categorical_mappings = setup_dict["categorical_mappings"]
@@ -127,20 +125,17 @@ def registry_from_setup_dict(
         elif attr_name == _constants._ADATA_ATTRS.OBS:
             categorical_mapping = categorical_mappings[attr_key]
             # Default labels field for TOTALVI
-            if (
-                model_cls.__name__ == "TOTALVI"
-                and new_registry_key == REGISTRY_KEYS.LABELS_KEY
-            ):
-                field_state_registry[
-                    CategoricalObsField.CATEGORICAL_MAPPING_KEY
-                ] = np.zeros(1, dtype=np.int64)
+            if model_cls.__name__ == "TOTALVI" and new_registry_key == REGISTRY_KEYS.LABELS_KEY:
+                field_state_registry[CategoricalObsField.CATEGORICAL_MAPPING_KEY] = np.zeros(
+                    1, dtype=np.int64
+                )
             else:
                 field_state_registry[
                     CategoricalObsField.CATEGORICAL_MAPPING_KEY
                 ] = categorical_mapping["mapping"]
-            field_state_registry[
-                CategoricalObsField.ORIGINAL_ATTR_KEY
-            ] = categorical_mapping["original_key"]
+            field_state_registry[CategoricalObsField.ORIGINAL_ATTR_KEY] = categorical_mapping[
+                "original_key"
+            ]
             if new_registry_key == REGISTRY_KEYS.BATCH_KEY:
                 field_summary_stats[f"n_{new_registry_key}"] = summary_stats["n_batch"]
             elif new_registry_key == REGISTRY_KEYS.LABELS_KEY:
@@ -168,12 +163,10 @@ def registry_from_setup_dict(
                     "protein_names"
                 ].copy()
                 if "totalvi_batch_mask" in setup_dict:
-                    field_state_registry[
-                        ProteinObsmField.PROTEIN_BATCH_MASK
-                    ] = setup_dict["totalvi_batch_mask"].copy()
-                field_summary_stats[f"n_{new_registry_key}"] = len(
-                    setup_dict["protein_names"]
-                )
+                    field_state_registry[ProteinObsmField.PROTEIN_BATCH_MASK] = setup_dict[
+                        "totalvi_batch_mask"
+                    ].copy()
+                field_summary_stats[f"n_{new_registry_key}"] = len(setup_dict["protein_names"])
 
     registry.update(_infer_setup_args(model_cls, setup_dict, unlabeled_category))
 

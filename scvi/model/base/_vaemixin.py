@@ -40,9 +40,7 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         elbo = compute_elbo(self.module, scdl)
         return -elbo
 
@@ -131,9 +129,7 @@ class VAEMixin:
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         reconstruction_error = compute_reconstruction_error(self.module, scdl)
         return reconstruction_error
 
@@ -178,9 +174,7 @@ class VAEMixin:
         self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         latent_qzm = []
         latent_qzv = []

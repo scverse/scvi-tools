@@ -148,9 +148,7 @@ def test_saving_and_loading(save_path):
 
         # Test legacy loading
         legacy_save_path = os.path.join(save_path, "legacy/")
-        legacy_save(
-            model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
-        )
+        legacy_save(model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix)
         with pytest.raises(ValueError):
             cls.load(legacy_save_path, adata=adata, prefix=prefix)
         cls.convert_legacy_save(
@@ -194,9 +192,7 @@ def test_scvi(n_latent: int = 5):
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # Test without observed lib size.
-    model = SCVI(
-        adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False
-    )
+    model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
@@ -242,9 +238,7 @@ def test_scvi(n_latent: int = 5):
     assert denoised.shape == (3, adata2.n_vars)
     sample = model.posterior_predictive_sample(adata2)
     assert sample.shape == adata2.shape
-    sample = model.posterior_predictive_sample(
-        adata2, indices=[1, 2, 3], gene_list=["1", "2"]
-    )
+    sample = model.posterior_predictive_sample(adata2, indices=[1, 2, 3], gene_list=["1", "2"])
     assert sample.shape == (3, 2)
     sample = model.posterior_predictive_sample(
         adata2, indices=[1, 2, 3], gene_list=["1", "2"], n_samples=3
@@ -316,9 +310,7 @@ def test_scvi(n_latent: int = 5):
 
     # test differential expression
     model.differential_expression(groupby="labels", group1="label_1")
-    model.differential_expression(
-        groupby="labels", group1="label_1", weights="importance"
-    )
+    model.differential_expression(groupby="labels", group1="label_1", weights="importance")
     model.differential_expression(
         groupby="labels", group1="label_1", group2="label_2", mode="change"
     )
@@ -505,9 +497,7 @@ def test_new_setup_compat():
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
     # Handle edge case where registry_key != obs_key.
-    adata.obs.rename(
-        columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True
-    )
+    adata.obs.rename(columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True)
     adata2 = adata.copy()
 
     SCVI.setup_anndata(
@@ -544,9 +534,7 @@ def test_new_setup_compat():
 @pytest.mark.internet
 def test_backwards_compatible_loading(save_path):
     def download_080_models(save_path):
-        file_path = (
-            "https://github.com/yoseflab/scVI-data/raw/master/testing_models.tar.gz"
-        )
+        file_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models.tar.gz"
         save_fn = "testing_models.tar.gz"
         _download(file_path, save_path, save_fn)
         saved_file_path = os.path.join(save_path, save_fn)
@@ -556,9 +544,7 @@ def test_backwards_compatible_loading(save_path):
 
     download_080_models(save_path)
     pretrained_scvi_path = os.path.join(save_path, "testing_models/080_scvi")
-    pretrained_scvi_updated_path = os.path.join(
-        save_path, "testing_models/080_scvi_updated"
-    )
+    pretrained_scvi_updated_path = os.path.join(save_path, "testing_models/080_scvi_updated")
     a = synthetic_iid()
     # Fail legacy load.
     with pytest.raises(ValueError):
@@ -707,9 +693,7 @@ def test_scarches_data_prep(save_path):
     SCVI.prepare_query_anndata(adata4, dir_path)
     # should be padded 0s
     assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
-    np.testing.assert_equal(
-        adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy()
-    )
+    np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
 
     adata5 = SCVI.prepare_query_anndata(adata4, dir_path, inplace=False)
@@ -736,9 +720,7 @@ def test_scarches_data_prep_layer(save_path):
     SCVI.prepare_query_anndata(adata4, dir_path)
     # should be padded 0s
     assert np.sum(adata4[:, adata4.var_names[:10]].layers["counts"]) == 0
-    np.testing.assert_equal(
-        adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy()
-    )
+    np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
 
 
@@ -909,3 +891,42 @@ def test_set_seed(n_latent: int = 5, seed: int = 1):
         model1.module.z_encoder.encoder.fc_layers[0][0].weight,
         model2.module.z_encoder.encoder.fc_layers[0][0].weight,
     )
+
+
+def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
+    from scvi.dataloaders import DataSplitter
+
+    adata = synthetic_iid(n_batches=n_batches)
+    SCVI.setup_anndata(adata, batch_key="batch")
+    manager = SCVI._get_most_recent_anndata_manager(adata)
+
+    data_module = DataSplitter(manager)
+    data_module.n_vars = adata.n_vars
+    data_module.n_batch = n_batches
+
+    model = SCVI(n_latent=5)
+    assert model._module_init_on_train
+    assert model.module is None
+
+    # cannot infer default max_epochs without n_obs set in data_module
+    with pytest.raises(ValueError):
+        model.train(data_module=data_module)
+
+    # must pass in data_module if not initialized with adata
+    with pytest.raises(ValueError):
+        model.train()
+
+    model.train(max_epochs=1, data_module=data_module)
+
+    # must set n_obs for defaulting max_epochs
+    data_module.n_obs = 100_000_000  # large number for fewer default epochs
+    model.train(data_module=data_module)
+
+    model = SCVI(adata, n_latent=5)
+    assert not model._module_init_on_train
+    assert model.module is not None
+    assert hasattr(model, "adata")
+
+    # initialized with adata, cannot pass in data_module
+    with pytest.raises(ValueError):
+        model.train(data_module=data_module)

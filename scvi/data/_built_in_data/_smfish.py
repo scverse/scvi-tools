@@ -58,9 +58,7 @@ def _load_smfish(
     return adata
 
 
-def _load_smfish_data(
-    path_to_file: str, use_high_level_cluster: bool
-) -> anndata.AnnData:
+def _load_smfish_data(path_to_file: str, use_high_level_cluster: bool) -> anndata.AnnData:
     import loompy
 
     logger.info("Loading smFISH dataset")
@@ -86,9 +84,7 @@ def _load_smfish_data(
             "Pyramidals",
         ]
         row_indices = [
-            i
-            for i in range(data.shape[0])
-            if ds.ca["ClusterName"][i] in cell_types_to_keep
+            i for i in range(data.shape[0]) if ds.ca["ClusterName"][i] in cell_types_to_keep
         ]
         str_labels = str_labels[row_indices]
         data = data[row_indices, :]

@@ -21,7 +21,7 @@ repos:
         # https://github.com/jupyterlab/jupyterlab/issues/12675
         language_version: "17.9.1"
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.11
+    rev: v0.2.1
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]

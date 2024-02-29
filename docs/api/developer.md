@@ -220,6 +220,7 @@ Basic neural network building blocks.
    nn.Encoder
    nn.Decoder
    nn.one_hot
+   nn.Embedding
 
 ```
 
@@ -252,25 +253,6 @@ TrainingPlans define train/test/val optimization steps for modules.
 
 ```
 
-## Model hyperparameter tuning
-
-`scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune]. These
-classes allow for new model classes to be easily integrated with the module.
-
-```{eval-rst}
-.. currentmodule:: scvi
-```
-
-```{eval-rst}
-.. autosummary::
-   :toctree: reference/
-   :nosignatures:
-
-   autotune.TunerManager
-   autotune.Tunable
-   autotune.TunableMixin
-```
-
 ## Utilities
 
 ```{eval-rst}
@@ -287,6 +269,7 @@ Utility functions used by scvi-tools.
    utils.track
    utils.setup_anndata_dsp
    utils.attrdict
+   model.get_max_epochs_heuristic
 ```
 
 [ray tune]: https://docs.ray.io/en/latest/tune/index.html

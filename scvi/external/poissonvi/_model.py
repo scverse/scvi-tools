@@ -79,24 +79,19 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         adata: AnnData,
         n_hidden: int | None = None,
         n_latent: int | None = None,
-        n_layers: int | None = None,
-        dropout_rate: float | None = None,
+        n_layers: int = 2,
+        dropout_rate: float = 0.1,
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super().__init__(
-            adata,
-        )
+        # need to pass these in to get the correct defaults for peakvi
+        super().__init__(adata, n_hidden=n_hidden, n_latent=n_latent)
 
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = (
-            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-        )
+        use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
         if use_size_factor_key is not None:
-            library_log_means, library_log_vars = _init_library_size(
-                self.adata_manager, n_batch
-            )
+            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self._module_cls = VAE
 
@@ -108,11 +103,11 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             n_cats_per_cov=self.module.n_cats_per_cov,
             n_hidden=self.module.n_hidden,
             n_latent=self.module.n_latent,
-            n_layers=self.module.n_layers_encoder,
-            dropout_rate=self.module.dropout_rate,
+            n_layers=n_layers,
+            dropout_rate=dropout_rate,
             dispersion="gene",  # not needed here
             gene_likelihood="poisson",  # fixed value for now, but we could think of also allowing nb
-            latent_distribution=self.module.latent_distribution,
+            latent_distribution=latent_distribution,
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
@@ -231,9 +226,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         )
         if not normalize_regions:
             # reset region_factors (bias)
-            self.module.decoder.px_scale_decoder[-2].bias = torch.nn.Parameter(
-                region_factors
-            )
+            self.module.decoder.px_scale_decoder[-2].bias = torch.nn.Parameter(region_factors)
         return accs
 
     def get_normalized_expression(
@@ -337,9 +330,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             weights=weights,
             **importance_weighting_kwargs,
         )
-        representation_fn = (
-            self.get_latent_representation if filter_outlier_cells else None
-        )
+        representation_fn = self.get_latent_representation if filter_outlier_cells else None
 
         if two_sided:
 
@@ -422,18 +413,10 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             LayerField(REGISTRY_KEYS.X_KEY, layer, check_fragment_counts=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            NumericalObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

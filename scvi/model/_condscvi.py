@@ -134,9 +134,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         var_vprior = np.ones((self.summary_stats.n_labels, p, self.module.n_latent))
         mp_vprior = np.zeros((self.summary_stats.n_labels, p))
 
-        labels_state_registry = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
+        labels_state_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         key = labels_state_registry.original_key
         mapping = labels_state_registry.categorical_mapping
 
@@ -285,8 +283,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

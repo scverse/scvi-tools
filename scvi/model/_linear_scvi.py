@@ -85,9 +85,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
-        library_log_means, library_log_vars = _init_library_size(
-            self.adata_manager, n_batch
-        )
+        library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -126,9 +124,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         """
         cols = [f"Z_{i}" for i in range(self.n_latent)]
         var_names = self.adata.var_names
-        loadings = pd.DataFrame(
-            self.module.get_loadings(), index=var_names, columns=cols
-        )
+        loadings = pd.DataFrame(self.module.get_loadings(), index=var_names, columns=cols)
 
         return loadings
 
@@ -157,8 +153,6 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

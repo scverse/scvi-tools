@@ -212,12 +212,8 @@ class HubModelCardHelper:
         model_cls_name = registry["model_name"]
         scvi_version = registry["scvi_version"]
         model_setup_anndata_args = registry["setup_args"]
-        model_summary_stats = dict(
-            AnnDataManager._get_summary_stats_from_registry(registry)
-        )
-        model_data_registry = dict(
-            AnnDataManager._get_data_registry_from_registry(registry)
-        )
+        model_summary_stats = dict(AnnDataManager._get_summary_stats_from_registry(registry))
+        model_data_registry = dict(AnnDataManager._get_data_registry_from_registry(registry))
 
         # get `is_minified` from the param if it is given, else from adata if it on disk, else set it to None
         is_minified = data_is_minified
@@ -269,13 +265,9 @@ class HubModelCardHelper:
             kwargs = self.model_init_params["kwargs"]
         else:
             non_kwargs = {
-                k: v
-                for k, v in self.model_init_params.items()
-                if not isinstance(v, dict)
+                k: v for k, v in self.model_init_params.items() if not isinstance(v, dict)
             }
-            kwargs = {
-                k: v for k, v in self.model_init_params.items() if isinstance(v, dict)
-            }
+            kwargs = {k: v for k, v in self.model_init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         # kwargs and non_kwargs keys should be disjoint but if not, we'll just use the original model_init_params
         if len(set(kwargs.keys()).intersection(set(non_kwargs.keys()))) == 0:

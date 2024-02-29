@@ -485,8 +485,6 @@ class HubModel:
             else:
                 _download(training_data_url, dn, fn)
             logger.info("Reading large training data...")
-            self._large_training_adata = anndata.read_h5ad(
-                self._large_training_adata_path
-            )
+            self._large_training_adata = anndata.read_h5ad(self._large_training_adata_path)
         else:
             logger.info("No training_data_url found in the model card. Skipping...")

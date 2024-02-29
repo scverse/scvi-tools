@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import logging
-from typing import Literal, Optional
+import warnings
+from typing import Literal
 
 import numpy as np
 from anndata import AnnData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi._types import MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
@@ -46,7 +49,10 @@ class SCVI(
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`. If
+        ``None``, then the underlying module will not be initialized until training, and a
+        :class:`~lightning.pytorch.core.LightningDataModule` must be passed in during training
+        (``EXPERIMENTAL``).
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -73,8 +79,8 @@ class SCVI(
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
-    **model_kwargs
-        Keyword args for :class:`~scvi.module.VAE`
+    **kwargs
+        Additional keyword arguments for :class:`~scvi.module.VAE`.
 
     Examples
     --------
@@ -99,7 +105,7 @@ class SCVI(
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -107,58 +113,68 @@ class SCVI(
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        **model_kwargs,
+        **kwargs,
     ):
         super().__init__(adata)
 
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
-        )
-        n_batch = self.summary_stats.n_batch
-        use_size_factor_key = (
-            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-        )
-        library_log_means, library_log_vars = None, None
-        if not use_size_factor_key and self.minified_data_type is None:
-            library_log_means, library_log_vars = _init_library_size(
-                self.adata_manager, n_batch
-            )
-
-        self.module = self._module_cls(
-            n_input=self.summary_stats.n_vars,
-            n_batch=n_batch,
-            n_labels=self.summary_stats.n_labels,
-            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
-            n_cats_per_cov=n_cats_per_cov,
-            n_hidden=n_hidden,
-            n_latent=n_latent,
-            n_layers=n_layers,
-            dropout_rate=dropout_rate,
-            dispersion=dispersion,
-            gene_likelihood=gene_likelihood,
-            latent_distribution=latent_distribution,
-            use_size_factor_key=use_size_factor_key,
-            library_log_means=library_log_means,
-            library_log_vars=library_log_vars,
-            **model_kwargs,
-        )
-        self.module.minified_data_type = self.minified_data_type
+        self._module_kwargs = {
+            "n_hidden": n_hidden,
+            "n_latent": n_latent,
+            "n_layers": n_layers,
+            "dropout_rate": dropout_rate,
+            "dispersion": dispersion,
+            "gene_likelihood": gene_likelihood,
+            "latent_distribution": latent_distribution,
+            **kwargs,
+        }
         self._model_summary_string = (
-            "SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
-            "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
-        ).format(
-            n_hidden,
-            n_latent,
-            n_layers,
-            dropout_rate,
-            dispersion,
-            gene_likelihood,
-            latent_distribution,
+            "SCVI model with the following parameters: \n"
+            f"n_hidden: {n_hidden}, n_latent: {n_latent}, n_layers: {n_layers}, "
+            f"dropout_rate: {dropout_rate}, dispersion: {dispersion}, "
+            f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}."
         )
+
+        if self._module_init_on_train:
+            self.module = None
+            warnings.warn(
+                "Model was initialized without `adata`. The module will be initialized when "
+                "calling `train`. This behavior is experimental and may change in the future.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+        else:
+            n_cats_per_cov = (
+                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                else None
+            )
+            n_batch = self.summary_stats.n_batch
+            use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+            library_log_means, library_log_vars = None, None
+            if not use_size_factor_key and self.minified_data_type is None:
+                library_log_means, library_log_vars = _init_library_size(
+                    self.adata_manager, n_batch
+                )
+            self.module = self._module_cls(
+                n_input=self.summary_stats.n_vars,
+                n_batch=n_batch,
+                n_labels=self.summary_stats.n_labels,
+                n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
+                n_cats_per_cov=n_cats_per_cov,
+                n_hidden=n_hidden,
+                n_latent=n_latent,
+                n_layers=n_layers,
+                dropout_rate=dropout_rate,
+                dispersion=dispersion,
+                gene_likelihood=gene_likelihood,
+                latent_distribution=latent_distribution,
+                use_size_factor_key=use_size_factor_key,
+                library_log_means=library_log_means,
+                library_log_vars=library_log_vars,
+                **kwargs,
+            )
+            self.module.minified_data_type = self.minified_data_type
+
         self.init_params_ = self._get_init_params(locals())
 
     @classmethod
@@ -166,12 +182,12 @@ class SCVI(
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[list[str]] = None,
-        continuous_covariate_keys: Optional[list[str]] = None,
+        layer: str | None = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -191,23 +207,15 @@ class SCVI(
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            NumericalObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
         if adata_minify_type is not None:
             anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -278,18 +286,12 @@ class SCVI(
             raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
 
         if self.module.use_observed_lib_size is False:
-            raise ValueError(
-                "Cannot minify the data if `use_observed_lib_size` is False"
-            )
+            raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
 
         minified_adata = get_minified_adata_scrna(self.adata, minified_data_type)
         minified_adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
         minified_adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
         counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
-        minified_adata.obs[_SCVI_OBSERVED_LIB_SIZE] = np.squeeze(
-            np.asarray(counts.sum(axis=1))
-        )
-        self._update_adata_and_manager_post_minification(
-            minified_adata, minified_data_type
-        )
+        minified_adata.obs[_SCVI_OBSERVED_LIB_SIZE] = np.squeeze(np.asarray(counts.sum(axis=1)))
+        self._update_adata_and_manager_post_minification(minified_adata, minified_data_type)
         self.module.minified_data_type = minified_data_type

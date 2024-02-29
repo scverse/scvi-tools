@@ -117,8 +117,8 @@ Here we maintain a few package specific utilities for feature selection, etc.
    :toctree: reference/
    :nosignatures:
 
-   autotune.ModelTuner
-   autotune.TuneAnalysis
+   autotune.run_autotune
+   autotune.AutotuneExperiment
 ```
 
 ## Model hub

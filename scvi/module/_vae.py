@@ -11,7 +11,6 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
@@ -101,27 +100,25 @@ class VAE(BaseMinifiedModeModuleClass):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: Tunable[int] = 128,
-        n_latent: Tunable[int] = 10,
-        n_layers: Tunable[int] = 1,
+        n_hidden: int = 128,
+        n_latent: int = 10,
+        n_layers: int = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: Tunable[float] = 0.1,
-        dispersion: Tunable[
-            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
-        ] = "gene",
-        log_variational: Tunable[bool] = True,
-        gene_likelihood: Tunable[Literal["zinb", "nb", "poisson"]] = "zinb",
-        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
-        encode_covariates: Tunable[bool] = False,
-        deeply_inject_covariates: Tunable[bool] = True,
-        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
-        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        dropout_rate: float = 0.1,
+        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
+        log_variational: bool = True,
+        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        latent_distribution: Literal["normal", "ln"] = "normal",
+        encode_covariates: bool = False,
+        deeply_inject_covariates: bool = True,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_size_factor_key: bool = False,
-        use_observed_lib_size: Tunable[bool] = True,
+        use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
-        var_activation: Tunable[Callable] = None,
+        var_activation: Callable = None,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):
@@ -145,12 +142,8 @@ class VAE(BaseMinifiedModeModuleClass):
                     "must provide library_log_means and library_log_vars."
                 )
 
-            self.register_buffer(
-                "library_log_means", torch.from_numpy(library_log_means).float()
-            )
-            self.register_buffer(
-                "library_log_vars", torch.from_numpy(library_log_vars).float()
-            )
+            self.register_buffer("library_log_means", torch.from_numpy(library_log_means).float())
+            self.register_buffer("library_log_vars", torch.from_numpy(library_log_vars).float())
 
         if self.dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input))
@@ -255,9 +248,7 @@ class VAE(BaseMinifiedModeModuleClass):
                     "observed_lib_size": observed_lib_size,
                 }
             else:
-                raise NotImplementedError(
-                    f"Unknown minified-data type: {self.minified_data_type}"
-                )
+                raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
         return input_dict
 
@@ -275,9 +266,7 @@ class VAE(BaseMinifiedModeModuleClass):
 
         size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
         size_factor = (
-            torch.log(tensors[size_factor_key])
-            if size_factor_key in tensors.keys()
-            else None
+            torch.log(tensors[size_factor_key]) if size_factor_key in tensors.keys() else None
         )
 
         input_dict = {
@@ -299,12 +288,8 @@ class VAE(BaseMinifiedModeModuleClass):
         log library sizes in the batch the cell corresponds to.
         """
         n_batch = self.library_log_means.shape[1]
-        local_library_log_means = F.linear(
-            one_hot(batch_index, n_batch), self.library_log_means
-        )
-        local_library_log_vars = F.linear(
-            one_hot(batch_index, n_batch), self.library_log_vars
-        )
+        local_library_log_means = F.linear(one_hot(batch_index, n_batch), self.library_log_means)
+        local_library_log_vars = F.linear(one_hot(batch_index, n_batch), self.library_log_vars)
         return local_library_log_means, local_library_log_vars
 
     @auto_move_data
@@ -337,9 +322,7 @@ class VAE(BaseMinifiedModeModuleClass):
         qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
         ql = None
         if not self.use_observed_lib_size:
-            ql, library_encoded = self.l_encoder(
-                encoder_input, batch_index, *categorical_input
-            )
+            ql, library_encoded = self.l_encoder(encoder_input, batch_index, *categorical_input)
             library = library_encoded
 
         if n_samples > 1:
@@ -367,9 +350,7 @@ class VAE(BaseMinifiedModeModuleClass):
                     (n_samples, library.size(0), library.size(1))
                 )
         else:
-            raise NotImplementedError(
-                f"Unknown minified-data type: {self.minified_data_type}"
-            )
+            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
         outputs = {"z": z, "qz_m": qzm, "qz_v": qzv, "ql": None, "library": library}
         return outputs
 
@@ -464,9 +445,7 @@ class VAE(BaseMinifiedModeModuleClass):
     ):
         """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
-        kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(
-            dim=-1
-        )
+        kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(dim=-1)
         if not self.use_observed_lib_size:
             kl_divergence_l = kl(
                 inference_outputs["ql"],
@@ -530,9 +509,7 @@ class VAE(BaseMinifiedModeModuleClass):
 
         dist = generative_outputs["px"]
         if self.gene_likelihood == "poisson":
-            dist = torch.distributions.Poisson(
-                torch.clamp(dist.rate, max=max_poisson_rate)
-            )
+            dist = torch.distributions.Poisson(torch.clamp(dist.rate, max=max_poisson_rate))
 
         # (n_obs, n_vars) if n_samples == 1, else (n_samples, n_obs, n_vars)
         samples = dist.sample()
@@ -587,9 +564,7 @@ class VAE(BaseMinifiedModeModuleClass):
 
             # Log-probabilities
             p_z = (
-                Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale))
-                .log_prob(z)
-                .sum(dim=-1)
+                Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale)).log_prob(z).sum(dim=-1)
             )
             p_x_zl = -reconst_loss
             q_z_x = qz.log_prob(z).sum(dim=-1)
@@ -669,6 +644,14 @@ class LDVAE(VAE):
         Bool whether to use batch norm in decoder
     bias
         Bool whether to have bias term in linear decoder
+    latent_distribution
+        One of
+
+        * ``'normal'`` - Isotropic normal
+        * ``'ln'`` - Logistic normal with normal params N(0, 1)
+    use_observed_lib_size
+        Use observed library size for RNA as scaling factor in mean of conditional distribution.
+    **kwargs
     """
 
     def __init__(
@@ -686,7 +669,8 @@ class LDVAE(VAE):
         use_batch_norm: bool = True,
         bias: bool = False,
         latent_distribution: str = "normal",
-        **vae_kwargs,
+        use_observed_lib_size: bool = False,
+        **kwargs,
     ):
         super().__init__(
             n_input=n_input,
@@ -700,8 +684,8 @@ class LDVAE(VAE):
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
             latent_distribution=latent_distribution,
-            use_observed_lib_size=False,
-            **vae_kwargs,
+            use_observed_lib_size=use_observed_lib_size,
+            **kwargs,
         )
         self.use_batch_norm = use_batch_norm
         self.z_encoder = Encoder(

@@ -1,12 +1,16 @@
-# Run to check if valid
-# curl --data-binary @codecov.yml https://codecov.io/validate
+codecov:
+  require_ci_to_pass: no
+
 coverage:
   status:
     project:
       default:
         target: 85%
         threshold: 1%
-    patch: off
+    patch: false
+    changes: false
 
-ignore:
-  - "scvi/_compat.py"
+comment:
+  layout: diff, flags, files
+  behavior: once
+  require_base: no

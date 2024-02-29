@@ -91,8 +91,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
                 zs.append(outputs["z"])
 
             batch_tensor = [
-                torch.zeros((z.shape[0], 1), device=z.device) + i
-                for i, z in enumerate(zs)
+                torch.zeros((z.shape[0], 1), device=z.device) + i for i, z in enumerate(zs)
             ]
             loss = self.loss_adversarial_classifier(
                 torch.cat(zs).detach(), torch.cat(batch_tensor), True

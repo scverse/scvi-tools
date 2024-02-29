@@ -184,9 +184,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             column_names = np.append(column_names, "noise_term")
 
         if self.module.amortization in ["both", "proportion"]:
-            stdl = self._make_data_loader(
-                adata=self.adata, indices=indices, batch_size=batch_size
-            )
+            stdl = self._make_data_loader(adata=self.adata, indices=indices, batch_size=batch_size)
             prop_ = []
             for tensors in stdl:
                 generative_inputs = self.module._get_generative_input(tensors, None)
@@ -233,9 +231,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         index_names = self.adata.obs.index
 
         if self.module.amortization in ["both", "latent"]:
-            stdl = self._make_data_loader(
-                adata=self.adata, indices=indices, batch_size=batch_size
-            )
+            stdl = self._make_data_loader(adata=self.adata, indices=indices, batch_size=batch_size)
             gamma_ = []
             for tensors in stdl:
                 generative_inputs = self.module._get_generative_input(tensors, None)
@@ -257,9 +253,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         else:
             res = {}
             for i, ct in enumerate(self.cell_type_mapping):
-                res[ct] = pd.DataFrame(
-                    data=data[:, :, i], columns=column_names, index=index_names
-                )
+                res[ct] = pd.DataFrame(data=data[:, :, i], columns=column_names, index=index_names)
             return res
 
     def get_scale_for_ct(
@@ -396,8 +390,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

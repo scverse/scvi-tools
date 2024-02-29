@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import warnings
+
 import anndata
 
+from scvi import settings
 from scvi._types import AnnOrMuData
 
 from ._built_in_data._brain_large import _load_brainlarge_dataset
@@ -141,6 +144,14 @@ def cellxgene(
     -------
     adata initialized with cellxgene data
     """
+    # TODO: remove in 1.3.0
+    warnings.warn(
+        "The `cellxgene` function is deprecated and will be removed in scvi-tools 1.3. "
+        "Please directly use the `cellxgene_census` package instead.",
+        DeprecationWarning,
+        stacklevel=settings.warnings_stacklevel,
+    )
+
     return _load_cellxgene_dataset(
         url=url,
         filename=filename,

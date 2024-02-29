@@ -33,9 +33,7 @@ def test_setup_mudata():
         protein_expression_mod="protein",
         protein_expression_layer=None,
     )
-    np.testing.assert_array_equal(
-        adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), adata.X
-    )
+    np.testing.assert_array_equal(adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), adata.X)
     np.testing.assert_array_equal(
         adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY),
         np.array(adata.obs["_scvi_batch"]).reshape((-1, 1)),
@@ -73,9 +71,7 @@ def test_setup_mudata_unpaired():
     protein_adata = synthetic_iid(batch_size=100)
     mdata = mudata.MuData({"rna": adata, "protein": protein_adata})
     with pytest.raises(ValueError):
-        generic_setup_mudata_manager(
-            mdata, layer_mod="rna", protein_expression_mod="protein"
-        )
+        generic_setup_mudata_manager(mdata, layer_mod="rna", protein_expression_mod="protein")
 
     # Pad unpaired with zeros
     unpaired_adata = adata[mdata.obsm["rna"] & ~(mdata.obsm["protein"])]
@@ -87,9 +83,7 @@ def test_setup_mudata_unpaired():
     )
     mdata.mod["protein"] = anndata.concat([protein_adata, pad_adata])
     mdata.update()
-    generic_setup_mudata_manager(
-        mdata, layer_mod="rna", protein_expression_mod="protein"
-    )
+    generic_setup_mudata_manager(mdata, layer_mod="rna", protein_expression_mod="protein")
 
 
 def test_setup_mudata_anndata():
@@ -107,9 +101,7 @@ def test_setup_mudata_layer():
     adata.X = np.ones_like(adata.X)
     mdata = mudata.MuData({"rna": adata})
     adata_manager = generic_setup_mudata_manager(mdata, layer_mod="rna", layer="X")
-    np.testing.assert_array_equal(
-        adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), true_x
-    )
+    np.testing.assert_array_equal(adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY), true_x)
 
 
 def test_setup_mudata_default_batch():
@@ -133,9 +125,7 @@ def test_setup_mudata_nan_batch():
     adata.obs["batch"][:10] = np.nan
     mdata = mudata.MuData({"rna": adata})
     with pytest.raises(ValueError):
-        generic_setup_mudata_manager(
-            mdata, layer_mod="rna", batch_mod="rna", batch_key="batch"
-        )
+        generic_setup_mudata_manager(mdata, layer_mod="rna", batch_mod="rna", batch_key="batch")
 
 
 def test_save_setup_mudata(save_path):
@@ -259,9 +249,7 @@ def test_transfer_fields_diff_batch_mapping():
         mdata1, layer_mod="rna", batch_mod="rna", batch_key="batch"
     )
     adata1_manager.transfer_fields(mdata2)
-    batch_mapping = adata1_manager.get_state_registry(
-        REGISTRY_KEYS.BATCH_KEY
-    ).categorical_mapping
+    batch_mapping = adata1_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).categorical_mapping
     print(batch_mapping)
     correct_batch = np.where(batch_mapping == "batch_1")[0][0]
     assert adata2.obs["_scvi_batch"][0] == correct_batch
@@ -330,12 +318,7 @@ def test_transfer_fields_covariates():
     # give it a new category
     adata2.obs["cat1"] = 6
     adata_manager2 = adata_manager.transfer_fields(mdata2, extend_categories=True)
-    assert (
-        adata_manager2.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings["cat1"][
-            -1
-        ]
-        == 6
-    )
+    assert adata_manager2.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings["cat1"][-1] == 6
 
 
 def test_data_format():

@@ -51,9 +51,7 @@ class LayerField(BaseAnnDataField):
         super().__init__()
         self._registry_key = registry_key
         self._attr_name = (
-            _constants._ADATA_ATTRS.X
-            if layer is None
-            else _constants._ADATA_ATTRS.LAYERS
+            _constants._ADATA_ATTRS.X if layer is None else _constants._ADATA_ATTRS.LAYERS
         )
         self._attr_key = layer
         self.is_count_data = is_count_data
@@ -121,9 +119,7 @@ class LayerField(BaseAnnDataField):
             self.COLUMN_NAMES_KEY: np.asarray(adata.var_names),
         }
 
-    def transfer_field(
-        self, state_registry: dict, adata_target: AnnData, **kwargs
-    ) -> dict:
+    def transfer_field(self, state_registry: dict, adata_target: AnnData, **kwargs) -> dict:
         """Transfer the field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         n_vars = state_registry[self.N_VARS_KEY]

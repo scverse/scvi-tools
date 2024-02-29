@@ -17,7 +17,6 @@ from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import METRIC_KEYS, REGISTRY_KEYS
-from scvi._types import Tunable, TunableMixin
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -78,7 +77,7 @@ def _compute_kl_weight(
     return max_kl_weight
 
 
-class TrainingPlan(TunableMixin, pl.LightningModule):
+class TrainingPlan(pl.LightningModule):
     """Lightning module task to train scvi-tools modules.
 
     The training plan is a PyTorch Lightning Module that is initialized
@@ -143,23 +142,23 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         self,
         module: BaseModuleClass,
         *,
-        optimizer: Tunable[Literal["Adam", "AdamW", "Custom"]] = "Adam",
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: Optional[TorchOptimizerCreator] = None,
-        lr: Tunable[float] = 1e-3,
-        weight_decay: Tunable[float] = 1e-6,
-        eps: Tunable[float] = 0.01,
-        n_steps_kl_warmup: Tunable[int] = None,
-        n_epochs_kl_warmup: Tunable[int] = 400,
-        reduce_lr_on_plateau: Tunable[bool] = False,
-        lr_factor: Tunable[float] = 0.6,
-        lr_patience: Tunable[int] = 30,
-        lr_threshold: Tunable[float] = 0.0,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        eps: float = 0.01,
+        n_steps_kl_warmup: int = None,
+        n_epochs_kl_warmup: int = 400,
+        reduce_lr_on_plateau: bool = False,
+        lr_factor: float = 0.6,
+        lr_patience: int = 30,
+        lr_threshold: float = 0.0,
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
-        lr_min: Tunable[float] = 0,
-        max_kl_weight: Tunable[float] = 1.0,
-        min_kl_weight: Tunable[float] = 0.0,
+        lr_min: float = 0,
+        max_kl_weight: float = 1.0,
+        min_kl_weight: float = 0.0,
         **loss_kwargs,
     ):
         super().__init__()
@@ -182,9 +181,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         self.optimizer_creator = optimizer_creator
 
         if self.optimizer_name == "Custom" and self.optimizer_creator is None:
-            raise ValueError(
-                "If optimizer is 'Custom', `optimizer_creator` must be provided."
-            )
+            raise ValueError("If optimizer is 'Custom', `optimizer_creator` must be provided.")
 
         self._n_obs_training = None
         self._n_obs_validation = None
@@ -221,9 +218,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             self.kl_local_train,
             self.kl_global_train,
             self.train_metrics,
-        ) = self._create_elbo_metric_components(
-            mode="train", n_total=self.n_obs_training
-        )
+        ) = self._create_elbo_metric_components(mode="train", n_total=self.n_obs_training)
         self.elbo_train.reset()
 
     def initialize_val_metrics(self):
@@ -234,9 +229,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
             self.kl_local_val,
             self.kl_global_val,
             self.val_metrics,
-        ) = self._create_elbo_metric_components(
-            mode="validation", n_total=self.n_obs_validation
-        )
+        ) = self._create_elbo_metric_components(mode="validation", n_total=self.n_obs_validation)
         self.elbo_val.reset()
 
     @property
@@ -372,9 +365,7 @@ class TrainingPlan(TunableMixin, pl.LightningModule):
         )
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
-    def _optimizer_creator_fn(
-        self, optimizer_cls: Union[torch.optim.Adam, torch.optim.AdamW]
-    ):
+    def _optimizer_creator_fn(self, optimizer_cls: Union[torch.optim.Adam, torch.optim.AdamW]):
         """Create optimizer for the model.
 
         This type of function can be passed as the `optimizer_creator`
@@ -488,16 +479,16 @@ class AdversarialTrainingPlan(TrainingPlan):
         self,
         module: BaseModuleClass,
         *,
-        optimizer: Tunable[Literal["Adam", "AdamW", "Custom"]] = "Adam",
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: Optional[TorchOptimizerCreator] = None,
-        lr: Tunable[float] = 1e-3,
-        weight_decay: Tunable[float] = 1e-6,
-        n_steps_kl_warmup: Tunable[int] = None,
-        n_epochs_kl_warmup: Tunable[int] = 400,
-        reduce_lr_on_plateau: Tunable[bool] = False,
-        lr_factor: Tunable[float] = 0.6,
-        lr_patience: Tunable[int] = 30,
-        lr_threshold: Tunable[float] = 0.0,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        n_steps_kl_warmup: int = None,
+        n_epochs_kl_warmup: int = 400,
+        reduce_lr_on_plateau: bool = False,
+        lr_factor: float = 0.6,
+        lr_patience: int = 30,
+        lr_threshold: float = 0.0,
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
@@ -572,9 +563,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         else:
             opt1, opt2 = opts
 
-        inference_outputs, _, scvi_loss = self.forward(
-            batch, loss_kwargs=self.loss_kwargs
-        )
+        inference_outputs, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         z = inference_outputs["z"]
         loss = scvi_loss.loss
         # fool classifier if doing adversarial training
@@ -638,9 +627,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             )
 
         if self.adversarial_classifier is not False:
-            params2 = filter(
-                lambda p: p.requires_grad, self.adversarial_classifier.parameters()
-            )
+            params2 = filter(lambda p: p.requires_grad, self.adversarial_classifier.parameters())
             optimizer2 = torch.optim.Adam(
                 params2, lr=1e-3, eps=0.01, weight_decay=self.weight_decay
             )
@@ -855,7 +842,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
 
-class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
+class LowLevelPyroTrainingPlan(pl.LightningModule):
     """Lightning module task to train Pyro scvi-tools modules.
 
     Parameters
@@ -907,16 +894,12 @@ class LowLevelPyroTrainingPlan(TunableMixin, pl.LightningModule):
         self.n_epochs_kl_warmup = n_epochs_kl_warmup
         self.use_kl_weight = False
         if isinstance(self.module.model, PyroModule):
-            self.use_kl_weight = (
-                "kl_weight" in signature(self.module.model.forward).parameters
-            )
+            self.use_kl_weight = "kl_weight" in signature(self.module.model.forward).parameters
         elif callable(self.module.model):
             self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
         self.scale_elbo = scale_elbo
         self.scale_fn = (
-            lambda obj: pyro.poutine.scale(obj, self.scale_elbo)
-            if self.scale_elbo != 1
-            else obj
+            lambda obj: pyro.poutine.scale(obj, self.scale_elbo) if self.scale_elbo != 1 else obj
         )
         self.differentiable_loss_fn = self.loss_fn.differentiable_loss
         self.training_step_outputs = []
@@ -1087,7 +1070,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         pass
 
 
-class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
+class ClassifierTrainingPlan(pl.LightningModule):
     """Lightning module task to train a simple MLP classifier.
 
     Parameters
@@ -1133,9 +1116,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
         self.loss_fn = loss()
 
         if self.module.logits is False and loss == torch.nn.CrossEntropyLoss:
-            raise UserWarning(
-                "classifier should return logits when using CrossEntropyLoss."
-            )
+            raise UserWarning("classifier should return logits when using CrossEntropyLoss.")
 
     def forward(self, *args, **kwargs):
         """Passthrough to the module's forward function."""
@@ -1165,9 +1146,7 @@ class ClassifierTrainingPlan(TunableMixin, pl.LightningModule):
             optim_cls = torch.optim.AdamW
         else:
             raise ValueError("Optimizer not understood.")
-        optimizer = optim_cls(
-            params, lr=self.lr, eps=self.eps, weight_decay=self.weight_decay
-        )
+        optimizer = optim_cls(params, lr=self.lr, eps=self.eps, weight_decay=self.weight_decay)
 
         return optimizer
 
@@ -1233,11 +1212,7 @@ class JaxTrainingPlan(TrainingPlan):
 
     def get_optimizer_creator(self) -> JaxOptimizerCreator:
         """Get optimizer creator for the model."""
-        clip_by = (
-            optax.clip_by_global_norm(self.max_norm)
-            if self.max_norm
-            else optax.identity()
-        )
+        clip_by = optax.clip_by_global_norm(self.max_norm) if self.max_norm else optax.identity()
         if self.optimizer_name == "Adam":
             # Replicates PyTorch Adam defaults
             optim = optax.chain(
@@ -1291,9 +1266,9 @@ class JaxTrainingPlan(TrainingPlan):
             loss = loss_output.loss
             return loss, (loss_output, new_model_state)
 
-        (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(
-            loss_fn, has_aux=True
-        )(state.params)
+        (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(loss_fn, has_aux=True)(
+            state.params
+        )
         new_state = state.apply_gradients(grads=grads, state=new_model_state)
         return new_state, loss, loss_output
 

@@ -6,7 +6,6 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
@@ -48,12 +47,12 @@ class VAEC(BaseModuleClass):
         self,
         n_input: int,
         n_labels: int = 0,
-        n_hidden: Tunable[int] = 128,
-        n_latent: Tunable[int] = 5,
-        n_layers: Tunable[int] = 2,
+        n_hidden: int = 128,
+        n_latent: int = 5,
+        n_layers: int = 2,
         log_variational: bool = True,
         ct_weight: np.ndarray = None,
-        dropout_rate: Tunable[float] = 0.05,
+        dropout_rate: float = 0.05,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):
@@ -151,9 +150,7 @@ class VAEC(BaseModuleClass):
         if n_samples > 1:
             untran_z = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
-            library = library.unsqueeze(0).expand(
-                (n_samples, library.size(0), library.size(1))
-            )
+            library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
 
         outputs = {"z": z, "qz": qz, "library": library}
         return outputs
@@ -189,9 +186,7 @@ class VAEC(BaseModuleClass):
         scaling_factor = self.ct_weight[y.long()[:, 0]]
         loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
 
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence_z
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence_z)
 
     @torch.inference_mode()
     def sample(
@@ -227,9 +222,7 @@ class VAEC(BaseModuleClass):
 
         dist = NegativeBinomial(px_rate, logits=px_r)
         if n_samples > 1:
-            exprs = dist.sample().permute(
-                [1, 2, 0]
-            )  # Shape : (n_cells_batch, n_genes, n_samples)
+            exprs = dist.sample().permute([1, 2, 0])  # Shape : (n_cells_batch, n_genes, n_samples)
         else:
             exprs = dist.sample()
 

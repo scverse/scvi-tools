@@ -3,9 +3,7 @@ import re
 import requests
 
 
-def validate_url(
-    url: str, error_format: bool = False, error_response: bool = False
-) -> bool:
+def validate_url(url: str, error_format: bool = False, error_response: bool = False) -> bool:
     """Validates a URL.
 
     Source: https://stackoverflow.com/questions/7160737/how-to-validate-a-url-in-python-malformed-or-not

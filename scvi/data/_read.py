@@ -24,11 +24,7 @@ def read_10x_atac(base_path: Union[str, Path]) -> AnnData:
     )
     coords.rename({0: "chr", 1: "start", 2: "end"}, axis="columns", inplace=True)
     coords.set_index(
-        coords.chr.astype(str)
-        + ":"
-        + coords.start.astype(str)
-        + "-"
-        + coords.end.astype(str),
+        coords.chr.astype(str) + ":" + coords.start.astype(str) + "-" + coords.end.astype(str),
         inplace=True,
     )
     coords.index = coords.index.astype(str)

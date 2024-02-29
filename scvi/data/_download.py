@@ -16,9 +16,7 @@ def _download(url: Optional[str], save_path: str, filename: str):
         logger.info(f"File {os.path.join(save_path, filename)} already downloaded")
         return
     elif url is None:
-        logger.info(
-            f"No backup URL provided for missing file {os.path.join(save_path, filename)}"
-        )
+        logger.info(f"No backup URL provided for missing file {os.path.join(save_path, filename)}")
         return
     req = urllib.request.Request(url, headers={"User-Agent": "Magic Browser"})
     try:
@@ -55,7 +53,5 @@ def _download(url: Optional[str], save_path: str, filename: str):
     filesize = np.rint(filesize / block_size)
     with open(os.path.join(save_path, filename), "wb") as f:
         iterator = read_iter(r, block_size=block_size)
-        for data in track(
-            iterator, style="tqdm", total=filesize, description="Downloading..."
-        ):
+        for data in track(iterator, style="tqdm", total=filesize, description="Downloading..."):
             f.write(data)

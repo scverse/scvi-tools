@@ -9,7 +9,6 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
@@ -108,21 +107,19 @@ class TOTALVAE(BaseModuleClass):
         n_input_proteins: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: Tunable[int] = 256,
-        n_latent: Tunable[int] = 20,
-        n_layers_encoder: Tunable[int] = 2,
-        n_layers_decoder: Tunable[int] = 1,
+        n_hidden: int = 256,
+        n_latent: int = 20,
+        n_layers_encoder: int = 2,
+        n_layers_decoder: int = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate_decoder: Tunable[float] = 0.2,
-        dropout_rate_encoder: Tunable[float] = 0.2,
-        gene_dispersion: Tunable[Literal["gene", "gene-batch", "gene-label"]] = "gene",
-        protein_dispersion: Tunable[
-            Literal["protein", "protein-batch", "protein-label"]
-        ] = "protein",
+        dropout_rate_decoder: float = 0.2,
+        dropout_rate_encoder: float = 0.2,
+        gene_dispersion: Literal["gene", "gene-batch", "gene-label"] = "gene",
+        protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
         log_variational: bool = True,
-        gene_likelihood: Tunable[Literal["zinb", "nb"]] = "nb",
-        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
+        gene_likelihood: Literal["zinb", "nb"] = "nb",
+        latent_distribution: Literal["normal", "ln"] = "normal",
         protein_batch_mask: dict[Union[str, int], np.ndarray] = None,
         encode_covariates: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
@@ -131,8 +128,8 @@ class TOTALVAE(BaseModuleClass):
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
-        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
-        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):
@@ -158,12 +155,8 @@ class TOTALVAE(BaseModuleClass):
                     "must provide library_log_means and library_log_vars."
                 )
 
-            self.register_buffer(
-                "library_log_means", torch.from_numpy(library_log_means).float()
-            )
-            self.register_buffer(
-                "library_log_vars", torch.from_numpy(library_log_vars).float()
-            )
+            self.register_buffer("library_log_means", torch.from_numpy(library_log_means).float())
+            self.register_buffer("library_log_vars", torch.from_numpy(library_log_vars).float())
 
         # parameters for prior on rate_back (background protein mean)
         if protein_background_prior_mean is None:
@@ -175,9 +168,7 @@ class TOTALVAE(BaseModuleClass):
                     torch.clamp(torch.randn(n_input_proteins, n_batch), -10, 1)
                 )
             else:
-                self.background_pro_alpha = torch.nn.Parameter(
-                    torch.randn(n_input_proteins)
-                )
+                self.background_pro_alpha = torch.nn.Parameter(torch.randn(n_input_proteins))
                 self.background_pro_log_beta = torch.nn.Parameter(
                     torch.clamp(torch.randn(n_input_proteins), -10, 1)
                 )
@@ -207,13 +198,9 @@ class TOTALVAE(BaseModuleClass):
         if self.protein_dispersion == "protein":
             self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins))
         elif self.protein_dispersion == "protein-batch":
-            self.py_r = torch.nn.Parameter(
-                2 * torch.rand(self.n_input_proteins, n_batch)
-            )
+            self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins, n_batch))
         elif self.protein_dispersion == "protein-label":
-            self.py_r = torch.nn.Parameter(
-                2 * torch.rand(self.n_input_proteins, n_labels)
-            )
+            self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins, n_labels))
         else:  # protein-cell
             pass
 
@@ -284,9 +271,7 @@ class TOTALVAE(BaseModuleClass):
         type
             tensors of dispersions of the negative binomial distribution
         """
-        outputs = self.inference(
-            x, y, batch_index=batch_index, label=label, n_samples=n_samples
-        )
+        outputs = self.inference(x, y, batch_index=batch_index, label=label, n_samples=n_samples)
         px_r = outputs["px_"]["r"]
         py_r = outputs["py_"]["r"]
         return px_r, py_r
@@ -324,9 +309,7 @@ class TOTALVAE(BaseModuleClass):
         )
         reconst_loss_protein_full = -py_conditional.log_prob(y)
         if pro_batch_mask_minibatch is not None:
-            temp_pro_loss_full = (
-                pro_batch_mask_minibatch.bool() * reconst_loss_protein_full
-            )
+            temp_pro_loss_full = pro_batch_mask_minibatch.bool() * reconst_loss_protein_full
             reconst_loss_protein = temp_pro_loss_full.sum(dim=-1)
         else:
             reconst_loss_protein = reconst_loss_protein_full.sum(dim=-1)
@@ -366,9 +349,7 @@ class TOTALVAE(BaseModuleClass):
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
-        size_factor = (
-            tensors[size_factor_key] if size_factor_key in tensors.keys() else None
-        )
+        size_factor = tensors[size_factor_key] if size_factor_key in tensors.keys() else None
 
         return {
             "z": z,
@@ -571,9 +552,7 @@ class TOTALVAE(BaseModuleClass):
         generative_outputs,
         pro_recons_weight=1.0,  # double check these defaults
         kl_weight=1.0,
-    ) -> tuple[
-        torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor
-    ]:
+    ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
         """Returns the reconstruction loss and the Kullback divergences.
 
         Parameters
@@ -623,9 +602,7 @@ class TOTALVAE(BaseModuleClass):
             local_library_log_means = F.linear(
                 one_hot(batch_index, n_batch), self.library_log_means
             )
-            local_library_log_vars = F.linear(
-                one_hot(batch_index, n_batch), self.library_log_vars
-            )
+            local_library_log_vars = F.linear(one_hot(batch_index, n_batch), self.library_log_vars)
             kl_div_l_gene = kl(
                 ql,
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
@@ -659,9 +636,7 @@ class TOTALVAE(BaseModuleClass):
             "kl_div_back_pro": kl_div_back_pro,
         }
 
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local)
 
     @torch.inference_mode()
     def sample(self, tensors, n_samples=1):
@@ -742,9 +717,7 @@ class TOTALVAE(BaseModuleClass):
             p_xy_zl = -(reconst_loss_gene + reconst_loss_protein)
             q_z_x = qz.log_prob(z).sum(dim=-1)
             q_mu_back = (
-                Normal(py_["back_alpha"], py_["back_beta"])
-                .log_prob(log_pro_back_mean)
-                .sum(dim=-1)
+                Normal(py_["back_alpha"], py_["back_beta"]).log_prob(log_pro_back_mean).sum(dim=-1)
             )
             log_prob_sum += p_z + p_mu_back + p_xy_zl - q_z_x - q_mu_back
 

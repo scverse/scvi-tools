@@ -45,9 +45,7 @@ class SimpleExperiment:
 class SimpleLogger(Logger):
     """Simple logger class."""
 
-    def __init__(
-        self, name: str = "lightning_logs", version: Optional[Union[int, str]] = None
-    ):
+    def __init__(self, name: str = "lightning_logs", version: Optional[Union[int, str]] = None):
         super().__init__()
         self._name = name
         self._experiment = None

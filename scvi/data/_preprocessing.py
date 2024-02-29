@@ -132,9 +132,7 @@ def poisson_gene_selection(
         expected_fraction_zeros = torch.zeros(scaled_means.shape, device=device)
 
         for i in range(n_batches):
-            total_counts_batch = total_counts[
-                i * minibatch_size : (i + 1) * minibatch_size
-            ]
+            total_counts_batch = total_counts[i * minibatch_size : (i + 1) * minibatch_size]
             # Use einsum for outer product.
             expected_fraction_zeros += torch.exp(
                 -torch.einsum("i,j->ij", [scaled_means, total_counts_batch])
@@ -218,16 +216,12 @@ def poisson_gene_selection(
         adata.var["highly_variable"] = df["highly_variable"].values
         adata.var["observed_fraction_zeros"] = df["observed_fraction_zeros"].values
         adata.var["expected_fraction_zeros"] = df["expected_fraction_zeros"].values
-        adata.var["prob_zero_enriched_nbatches"] = df[
-            "prob_zero_enriched_nbatches"
-        ].values
+        adata.var["prob_zero_enriched_nbatches"] = df["prob_zero_enriched_nbatches"].values
         adata.var["prob_zero_enrichment"] = df["prob_zero_enrichment"].values
         adata.var["prob_zero_enrichment_rank"] = df["prob_zero_enrichment_rank"].values
 
         if batch_key is not None:
-            adata.var["prob_zero_enriched_nbatches"] = df[
-                "prob_zero_enriched_nbatches"
-            ].values
+            adata.var["prob_zero_enriched_nbatches"] = df["prob_zero_enriched_nbatches"].values
         if subset:
             adata._inplace_subset_var(df["highly_variable"].values)
     else:
@@ -236,9 +230,7 @@ def poisson_gene_selection(
         return df
 
 
-def organize_cite_seq_10x(
-    adata: anndata.AnnData, copy: bool = False
-) -> Optional[anndata.AnnData]:
+def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False) -> Optional[anndata.AnnData]:
     """Organize anndata object loaded from 10x for scvi models.
 
     Parameters
@@ -270,9 +262,7 @@ def organize_cite_seq_10x(
         adata = adata.copy()
 
     pro_array = adata[:, adata.var["feature_types"] == "Antibody Capture"].X.copy().A
-    pro_names = np.array(
-        adata.var_names[adata.var["feature_types"] == "Antibody Capture"]
-    )
+    pro_names = np.array(adata.var_names[adata.var["feature_types"] == "Antibody Capture"])
 
     genes = (adata.var["feature_types"] != "Antibody Capture").values
     adata._inplace_subset_var(genes)
@@ -323,9 +313,7 @@ def organize_multiome_anndatas(
     obs_names = list(multi_anndata.obs.index.values)
 
     def _concat_anndata(multi_anndata, other):
-        shared_features = np.intersect1d(
-            other.var.index.values, multi_anndata.var.index.values
-        )
+        shared_features = np.intersect1d(other.var.index.values, multi_anndata.var.index.values)
         if not len(shared_features) > 0:
             raise ValueError("No shared features between Multiome and other AnnData.")
 
@@ -346,9 +334,7 @@ def organize_multiome_anndatas(
 
     # set .obs stuff
     res_anndata.obs[modality_key] = modality_ann
-    res_anndata.obs.index = (
-        pd.Series(obs_names) + "_" + res_anndata.obs[modality_key].values
-    )
+    res_anndata.obs.index = pd.Series(obs_names) + "_" + res_anndata.obs[modality_key].values
 
     # keep the feature order as the original order in the multiomic anndata
     res_anndata = res_anndata[:, multi_anndata.var.index.values]
@@ -481,8 +467,6 @@ def reads_to_fragments(
         adata.layers[read_layer].copy() if read_layer else adata.X.copy()
     )
     if issparse(adata.layers[fragment_layer]):
-        adata.layers[fragment_layer].data = np.ceil(
-            adata.layers[fragment_layer].data / 2
-        )
+        adata.layers[fragment_layer].data = np.ceil(adata.layers[fragment_layer].data / 2)
     else:
         adata.layers[fragment_layer] = np.ceil(adata.layers[fragment_layer] / 2)
