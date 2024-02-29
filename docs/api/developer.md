@@ -124,6 +124,7 @@ These classes should be used to construct user-facing model classes.
     model.base.PyroJitGuideWarmup
     model.base.PyroModelGuideWarmup
     model.base.DifferentialComputation
+    model.base.EmbeddingMixin
 ```
 
 ## Module
@@ -197,6 +198,7 @@ These classes should be used to construct module classes that define generative 
    module.base.BaseMinifiedModeModuleClass
    module.base.PyroBaseModuleClass
    module.base.JaxBaseModuleClass
+   module.base.EmbeddingModuleMixin
    module.base.LossOutput
    module.base.auto_move_data
 
