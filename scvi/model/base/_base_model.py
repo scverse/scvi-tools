@@ -621,7 +621,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
         if isinstance(self.adata, MuData):
             var_names = {
-                mod: self.adata[mod].var_names.astype(str).to_numpy() for mod in self.adata.mod.keys()
+                mod: self.adata[mod].var_names.astype(str).to_numpy()
+                for mod in self.adata.mod.keys()
             }
         else:
             var_names = self.adata.var_names.astype(str)

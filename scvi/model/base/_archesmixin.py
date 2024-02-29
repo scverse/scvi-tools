@@ -8,17 +8,16 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from muon import MuData
 from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS, settings
-from muon import MuData
-from scvi.data import _constants
 from scvi._types import AnnOrMuData
+from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
-from typing import Dict
 
 from ._base_model import BaseModelClass
 from ._utils import _initialize_model, _load_saved_files, _validate_var_names
@@ -176,7 +175,7 @@ class ArchesMixin:
     def prepare_query_anndata(
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
-        var_names: Optional[pd.Index] = None,
+        reference_var_names: Optional[pd.Index] = None,
         return_reference_var_names: bool = False,
         inplace: bool = True,
     ) -> Optional[Union[AnnData, pd.Index]]:
@@ -194,8 +193,9 @@ class ArchesMixin:
         reference_model
             Either an already instantiated model of the same class, or a path to
             saved outputs for reference model.
-        var_names
-            Variable names used to train reference model.
+        reference_var_names
+            Variable names used to train reference model. If not provided, variable
+            names will be loaded from disk.
         return_reference_var_names
             Only load and return reference var names if True.
         inplace
@@ -206,10 +206,11 @@ class ArchesMixin:
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-
-        if var_names is None:
+        if reference_var_names is None:
             _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
             var_names = pd.Index(var_names)
+        else:
+            var_names = reference_var_names
 
         if return_reference_var_names:
             return var_names
@@ -269,18 +270,19 @@ class ArchesMixin:
         reference_model: Union[str, BaseModelClass],
         return_reference_var_names: bool = False,
         inplace: bool = True,
-    ) -> Optional[Union[MuData, Dict[str, pd.Index]]]:
-        """Prepare data for query integration.
+    ) -> Optional[Union[MuData, dict[str, pd.Index]]]:
+        """Prepare multimodal dataset for query integration.
 
-        This function will return a new AnnData object with padded zeros
+        This function will return a new MuData object such that the
+        AnnData objects for individual modalities are given padded zeros
         for missing features, as well as correctly sorted features.
 
         Parameters
         ----------
-        adata
-            AnnData organized in the same way as data used to train model.
-            It is not necessary to run setup_anndata,
-            as AnnData is validated against the ``registry``.
+        mdata
+            MuData organized in the same way as data used to train model.
+            It is not necessary to run setup_mudata,
+            as MuData is validated against the ``registry``.
         reference_model
             Either an already instantiated model of the same class, or a path to
             saved outputs for reference model.
@@ -291,8 +293,8 @@ class ArchesMixin:
 
         Returns
         -------
-        Query adata ready to use in `load_query_data` unless `return_reference_var_names`
-        in which case a pd.Index of reference var names is returned.
+        Query mudata ready to use in `load_query_data` unless `return_reference_var_names`
+        in which case a dictionary of pd.Index of reference var names is returned.
         """
         attr_dict, var_names, _ = _get_loaded_data(reference_model, device="cpu")
 
@@ -302,7 +304,7 @@ class ArchesMixin:
         if return_reference_var_names:
             return var_names
 
-        reference_modalities_dict = attr_dict['registry_']['setup_args']['modalities']
+        reference_modalities_dict = attr_dict["registry_"][_SETUP_ARGS_KEY]["modalities"]
 
         reference_modalities = reference_modalities_dict.values()
         query_modalities = mdata.mod
@@ -319,7 +321,7 @@ class ArchesMixin:
             adata_out = ArchesMixin.prepare_query_anndata(
                 adata=mdata[modality],
                 reference_model=reference_model,
-                var_names=var_names[modality],
+                reference_var_names=var_names[modality],
                 return_reference_var_names=return_reference_var_names,
                 inplace=inplace,
             )
@@ -414,7 +416,8 @@ def _get_loaded_data(reference_model, device=None):
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
         if isinstance(reference_model.adata, MuData):
             var_names = {
-                mod: reference_model.adata[mod].var_names for mod in reference_model.adata.mod.keys()
+                mod: reference_model.adata[mod].var_names
+                for mod in reference_model.adata.mod.keys()
             }
         else:
             var_names = reference_model.adata.var_names
