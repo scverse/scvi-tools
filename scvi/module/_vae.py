@@ -1,18 +1,20 @@
-"""Main module."""
+from __future__ import annotations
+
 import logging
 from collections.abc import Iterable
-from typing import Callable, Literal, Optional
+from typing import Callable, Literal
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import logsumexp
-from torch.distributions import Normal
+from torch.distributions import Distribution, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
+from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import (
     BaseMinifiedModeModuleClass,
     EmbeddingModuleMixin,
@@ -123,7 +125,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         n_latent: int = 10,
         n_layers: int = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         log_variational: bool = True,
@@ -136,12 +138,12 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
-        library_log_means: Optional[np.ndarray] = None,
-        library_log_vars: Optional[np.ndarray] = None,
-        var_activation: Callable = None,
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
-        batch_embedding_kwargs: Optional[dict] = None,
+        library_log_means: np.ndarray | None = None,
+        library_log_vars: np.ndarray | None = None,
+        var_activation: Callable[[torch.Tensor], torch.Tensor] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
+        batch_embedding_kwargs: dict | None = None,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -259,68 +261,47 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
     def _get_inference_input(
         self,
-        tensors,
-    ):
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
-
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-
+        tensors: dict[str, torch.Tensor | None],
+    ) -> dict[str, torch.Tensor | None]:
         if self.minified_data_type is None:
-            x = tensors[REGISTRY_KEYS.X_KEY]
-            input_dict = {
-                "x": x,
-                "batch_index": batch_index,
-                "cont_covs": cont_covs,
-                "cat_covs": cat_covs,
+            return {
+                REGISTRY_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
+                MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
+                MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
+                MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
+            }
+        elif self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+            return {
+                MODULE_KEYS.QZM_KEY: tensors[REGISTRY_KEYS.LATENT_QZM_KEY],
+                MODULE_KEYS.QZV_KEY: tensors[REGISTRY_KEYS.LATENT_QZV_KEY],
+                REGISTRY_KEYS.OBSERVED_LIB_SIZE: tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE],
             }
         else:
-            if self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-                qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
-                qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
-                observed_lib_size = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
-                input_dict = {
-                    "qzm": qzm,
-                    "qzv": qzv,
-                    "observed_lib_size": observed_lib_size,
-                }
-            else:
-                raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
+            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
-        return input_dict
+    def _get_generative_input(
+        self,
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor | Distribution | None],
+    ) -> dict[str, torch.Tensor | None]:
+        size_factor = tensors.get(REGISTRY_KEYS.SIZE_FACTOR_KEY, None)
+        if size_factor is not None:
+            size_factor = torch.log(size_factor)
 
-    def _get_generative_input(self, tensors, inference_outputs):
-        z = inference_outputs["z"]
-        library = inference_outputs["library"]
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-        y = tensors[REGISTRY_KEYS.LABELS_KEY]
-
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
-
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-
-        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
-        size_factor = (
-            torch.log(tensors[size_factor_key]) if size_factor_key in tensors.keys() else None
-        )
-
-        input_dict = {
-            "z": z,
-            "library": library,
-            "batch_index": batch_index,
-            "y": y,
-            "cont_covs": cont_covs,
-            "cat_covs": cat_covs,
-            "size_factor": size_factor,
+        return {
+            MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
+            MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
+            MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
+            MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
+            MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
+            MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
+            MODULE_KEYS.SIZE_FACTOR_KEY: size_factor,
         }
-        return input_dict
 
-    def _compute_local_library_params(self, batch_index):
+    def _compute_local_library_params(
+        self,
+        batch_index: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Computes local library parameters.
 
         Compute two tensors of shape (batch_index.shape[0], 1) where each
@@ -335,12 +316,12 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     @auto_move_data
     def _regular_inference(
         self,
-        x,
-        batch_index,
-        cont_covs=None,
-        cat_covs=None,
-        n_samples=1,
-    ):
+        x: torch.Tensor,
+        batch_index: torch.Tensor,
+        cont_covs: torch.Tensor | None = None,
+        cat_covs: torch.Tensor | None = None,
+        n_samples: int = 1,
+    ) -> dict[str, torch.Tensor | Distribution | None]:
         """High level inference method.
 
         Runs the inference (encoder) model.
@@ -386,38 +367,53 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 )
             else:
                 library = ql.sample((n_samples,))
-        outputs = {"z": z, "qz": qz, "ql": ql, "library": library}
-        return outputs
+
+        return {
+            MODULE_KEYS.Z_KEY: z,
+            MODULE_KEYS.QZ_KEY: qz,
+            MODULE_KEYS.QL_KEY: ql,
+            MODULE_KEYS.LIBRARY_KEY: library,
+        }
 
     @auto_move_data
-    def _cached_inference(self, qzm, qzv, observed_lib_size, n_samples=1):
-        if self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            dist = Normal(qzm, qzv.sqrt())
-            # use dist.sample() rather than rsample because we aren't optimizing the z here
-            untran_z = dist.sample() if n_samples == 1 else dist.sample((n_samples,))
-            z = self.z_encoder.z_transformation(untran_z)
-            library = torch.log(observed_lib_size)
-            if n_samples > 1:
-                library = library.unsqueeze(0).expand(
-                    (n_samples, library.size(0), library.size(1))
-                )
-        else:
+    def _cached_inference(
+        self,
+        qzm: torch.Tensor,
+        qzv: torch.Tensor,
+        observed_lib_size: torch.Tensor,
+        n_samples: int = 1,
+    ) -> dict[str, torch.Tensor | None]:
+        if self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
-        outputs = {"z": z, "qz_m": qzm, "qz_v": qzv, "ql": None, "library": library}
-        return outputs
+
+        dist = Normal(qzm, qzv.sqrt())
+        # use dist.sample() rather than rsample because we aren't optimizing the z here
+        untran_z = dist.sample() if n_samples == 1 else dist.sample((n_samples,))
+        z = self.z_encoder.z_transformation(untran_z)
+        library = torch.log(observed_lib_size)
+        if n_samples > 1:
+            library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
+
+        return {
+            MODULE_KEYS.Z_KEY: z,
+            MODULE_KEYS.QZM_KEY: qzm,
+            MODULE_KEYS.QZV_KEY: qzv,
+            MODULE_KEYS.QL_KEY: None,
+            MODULE_KEYS.LIBRARY_KEY: library,
+        }
 
     @auto_move_data
     def generative(
         self,
-        z,
-        library,
-        batch_index,
-        cont_covs=None,
-        cat_covs=None,
-        size_factor=None,
-        y=None,
-        transform_batch=None,
-    ):
+        z: torch.Tensor,
+        library: torch.Tensor,
+        batch_index: torch.Tensor,
+        cont_covs: torch.Tensor | None = None,
+        cat_covs: torch.Tensor | None = None,
+        size_factor: torch.Tensor | None = None,
+        y: torch.Tensor | None = None,
+        transform_batch: torch.Tensor | None = None,
+    ) -> dict[str, Distribution | None]:
         """Runs the generative model."""
         # TODO: refactor forward function to not rely on y
         # Likelihood distribution
@@ -494,31 +490,33 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             ) = self._compute_local_library_params(batch_index)
             pl = Normal(local_library_log_means, local_library_log_vars.sqrt())
         pz = Normal(torch.zeros_like(z), torch.ones_like(z))
+
         return {
-            "px": px,
-            "pl": pl,
-            "pz": pz,
+            MODULE_KEYS.PX_KEY: px,
+            MODULE_KEYS.PL_KEY: pl,
+            MODULE_KEYS.PZ_KEY: pz,
         }
 
     def loss(
         self,
-        tensors,
-        inference_outputs,
-        generative_outputs,
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor | Distribution | None],
+        generative_outputs: dict[str, Distribution | None],
         kl_weight: float = 1.0,
-    ):
+    ) -> LossOutput:
         """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
-        kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(dim=-1)
+        kl_divergence_z = kl(
+            inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
+        ).sum(dim=-1)
         if not self.use_observed_lib_size:
             kl_divergence_l = kl(
-                inference_outputs["ql"],
-                generative_outputs["pl"],
+                inference_outputs[MODULE_KEYS.QL_KEY], generative_outputs[MODULE_KEYS.PL_KEY]
             ).sum(dim=1)
         else:
             kl_divergence_l = torch.tensor(0.0, device=x.device)
 
-        reconst_loss = -generative_outputs["px"].log_prob(x).sum(-1)
+        reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
 
         kl_local_for_warmup = kl_divergence_z
         kl_local_no_warmup = kl_divergence_l
@@ -527,11 +525,14 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         loss = torch.mean(reconst_loss + weighted_kl_local)
 
-        kl_local = {
-            "kl_divergence_l": kl_divergence_l,
-            "kl_divergence_z": kl_divergence_z,
-        }
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_local={
+                MODULE_KEYS.KL_L_KEY: kl_divergence_l,
+                MODULE_KEYS.KL_Z_KEY: kl_divergence_z,
+            },
+        )
 
     @torch.inference_mode()
     def sample(
@@ -571,7 +572,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             tensors, inference_kwargs=inference_kwargs, compute_loss=False
         )
 
-        dist = generative_outputs["px"]
+        dist = generative_outputs[MODULE_KEYS.PX_KEY]
         if self.gene_likelihood == "poisson":
             dist = torch.distributions.Poisson(torch.clamp(dist.rate, max=max_poisson_rate))
 
@@ -586,10 +587,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     @auto_move_data
     def marginal_ll(
         self,
-        tensors,
-        n_mc_samples,
-        return_mean=False,
-        n_mc_samples_per_pass=1,
+        tensors: dict[str, torch.Tensor],
+        n_mc_samples: int,
+        return_mean: bool = False,
+        n_mc_samples_per_pass: int = 1,
     ):
         """Computes the marginal log likelihood of the model.
 
@@ -619,10 +620,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             inference_outputs, _, losses = self.forward(
                 tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass}
             )
-            qz = inference_outputs["qz"]
-            ql = inference_outputs["ql"]
-            z = inference_outputs["z"]
-            library = inference_outputs["library"]
+            qz = inference_outputs[MODULE_KEYS.QZ_KEY]
+            ql = inference_outputs[MODULE_KEYS.QL_KEY]
+            z = inference_outputs[MODULE_KEYS.Z_KEY]
+            library = inference_outputs[MODULE_KEYS.LIBRARY_KEY]
 
             # Reconstruction Loss
             reconst_loss = losses.dict_sum(losses.reconstruction_loss)
