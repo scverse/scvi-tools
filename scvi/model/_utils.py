@@ -17,7 +17,6 @@ from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.utils._docstrings import devices_dsp
-from scvi.utils._exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +88,7 @@ def parse_device_args(
     """
     valid = [None, "torch", "jax"]
     if return_device not in valid:
-        raise InvalidParameterError(param="return_device", value=return_device, valid=valid)
+        return ValueError(f"`return_device` must be one of {valid}")
 
     _validate_single_device = validate_single_device and devices != "auto"
     cond1 = isinstance(devices, list) and len(devices) > 1
