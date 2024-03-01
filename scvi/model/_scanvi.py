@@ -36,7 +36,7 @@ from scvi.model._utils import _init_library_size, get_max_epochs_heuristic
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
-from scvi.train._callbacks import SubSampleLabels
+from scvi.train.callbacks import SubSampleLabels
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 

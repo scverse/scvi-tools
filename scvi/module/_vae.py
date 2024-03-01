@@ -10,7 +10,7 @@ from torch import logsumexp
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
-from scvi import REGISTRY_KEYS
+from scvi import METRIC_KEYS, REGISTRY_KEYS
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
 from scvi.module.base import (
@@ -503,6 +503,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         inference_outputs,
         generative_outputs,
         kl_weight: float = 1.0,
+        return_outputs: bool = False,
     ):
         """Computes the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
@@ -528,7 +529,17 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             "kl_divergence_l": kl_divergence_l,
             "kl_divergence_z": kl_divergence_z,
         }
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)
+        ret = LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local)
+        if return_outputs:
+            outputs = {
+                REGISTRY_KEYS.X_KEY: x,
+                REGISTRY_KEYS.BATCH_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
+                REGISTRY_KEYS.LABELS_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
+                METRIC_KEYS.LATENT_KEY: inference_outputs["z"],
+            }
+            ret = (ret, outputs)
+
+        return ret
 
     @torch.inference_mode()
     def sample(

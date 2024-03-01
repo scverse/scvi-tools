@@ -133,6 +133,8 @@ class TrainingPlan(pl.LightningModule):
         Maximum scaling factor on KL divergence during training.
     min_kl_weight
         Minimum scaling factor on KL divergence during training.
+    store_validation_outputs
+        Whether to store validation outputs in the model for use in callbacks.
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -159,6 +161,7 @@ class TrainingPlan(pl.LightningModule):
         lr_min: float = 0,
         max_kl_weight: float = 1.0,
         min_kl_weight: float = 0.0,
+        store_validation_outputs: bool = False,
         **loss_kwargs,
     ):
         super().__init__()
@@ -179,6 +182,7 @@ class TrainingPlan(pl.LightningModule):
         self.min_kl_weight = min_kl_weight
         self.max_kl_weight = max_kl_weight
         self.optimizer_creator = optimizer_creator
+        self.store_validation_outputs = store_validation_outputs
 
         if self.optimizer_name == "Custom" and self.optimizer_creator is None:
             raise ValueError("If optimizer is 'Custom', `optimizer_creator` must be provided.")
@@ -190,6 +194,8 @@ class TrainingPlan(pl.LightningModule):
         self._loss_args = set(signature(self.module.loss).parameters.keys())
         if "kl_weight" in self._loss_args:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        if self.store_validation_outputs:
+            self.loss_kwargs["return_outputs"] = True
 
         self.initialize_train_metrics()
         self.initialize_val_metrics()
@@ -340,7 +346,11 @@ class TrainingPlan(pl.LightningModule):
             kl_weight = self.kl_weight
             self.loss_kwargs.update({"kl_weight": kl_weight})
             self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
+
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
+        if self.store_validation_outputs:
+            scvi_loss = scvi_loss[0]
+
         self.log(
             "train_loss",
             scvi_loss.loss,
@@ -357,6 +367,9 @@ class TrainingPlan(pl.LightningModule):
         # so when relevant, the actual loss value is rescaled to number
         # of training examples
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
+        if self.store_validation_outputs:
+            scvi_loss, validation_outputs = scvi_loss
+
         self.log(
             "validation_loss",
             scvi_loss.loss,
@@ -364,6 +377,16 @@ class TrainingPlan(pl.LightningModule):
             sync_dist=self.use_sync_dist,
         )
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
+
+        if not hasattr(self, "_validation_outputs") or self._validation_outputs is None:
+            self._validation_outputs = {
+                key: val.squeeze() for key, val in validation_outputs.items()
+            }
+        else:
+            self._validation_outputs = {
+                key: torch.cat([self._validation_outputs[key], val.squeeze()], dim=0)
+                for key, val in validation_outputs.items()
+            }
 
     def _optimizer_creator_fn(self, optimizer_cls: Union[torch.optim.Adam, torch.optim.AdamW]):
         """Create optimizer for the model.

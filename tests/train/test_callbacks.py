@@ -3,7 +3,7 @@ import os
 import pytest
 
 import scvi
-from scvi.train._callbacks import MetricsCallback, SaveCheckpoint
+from scvi.train.callbacks import MetricsCallback, SaveCheckpoint
 
 
 def test_modelcheckpoint_callback(save_path: str):

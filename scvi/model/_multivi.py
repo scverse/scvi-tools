@@ -38,7 +38,7 @@ from scvi.model.base import (
 )
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan
-from scvi.train._callbacks import SaveBestState
+from scvi.train.callbacks._callbacks import SaveBestState
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base._utils import _de_core
