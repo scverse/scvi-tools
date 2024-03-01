@@ -84,7 +84,8 @@ class FCLayers(nn.Module):
                                 n_out,
                                 bias=bias,
                             ),
-                            # non-default params come from defaults in original Tensorflow implementation
+                            # non-default params come from defaults in original Tensorflow
+                            # implementation
                             nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
                             if use_batch_norm
                             else None,
@@ -260,7 +261,8 @@ class Encoder(nn.Module):
 
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
-         #. Samples a new value from an i.i.d. multivariate normal \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
+         #. Samples a new value from an i.i.d. multivariate normal
+            \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
 
         Parameters
         ----------
@@ -837,11 +839,11 @@ class DecoderTOTALVI(nn.Module):
          `scale` refers to the quanity upon which differential expression is performed. For genes,
          this can be viewed as the mean of the underlying gamma distribution.
 
-         We use the dictionary `py_` to contain the parameters of the Mixture NB distribution for proteins.
-         `rate_fore` refers to foreground mean, while `rate_back` refers to background mean. `scale` refers to
-         foreground mean adjusted for background probability and scaled to reside in simplex.
-         `back_alpha` and `back_beta` are the posterior parameters for `rate_back`.  `fore_scale` is the scaling
-         factor that enforces `rate_fore` > `rate_back`.
+         We use the dictionary `py_` to contain the parameters of the Mixture NB distribution for
+         proteins. `rate_fore` refers to foreground mean, while `rate_back` refers to background
+         mean. `scale` refers to foreground mean adjusted for background probability and scaled to
+         reside in simplex. `back_alpha` and `back_beta` are the posterior parameters for
+         `rate_back`. `fore_scale` is the scaling factor that enforces `rate_fore` > `rate_back`.
 
         Parameters
         ----------
@@ -988,10 +990,11 @@ class EncoderTOTALVI(nn.Module):
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
          #. Samples a new value from an i.i.d. latent distribution
 
-        The dictionary ``latent`` contains the samples of the latent variables, while ``untran_latent``
-        contains the untransformed versions of these latent variables. For example, the library size is log normally distributed,
-        so ``untran_latent["l"]`` gives the normal sample that was later exponentiated to become ``latent["l"]``.
-        The logistic normal distribution is equivalent to applying softmax to a normal sample.
+        The dictionary ``latent`` contains the samples of the latent variables, while
+        ``untran_latent`` contains the untransformed versions of these latent variables. For
+        example, the library size is log normally distributed, so ``untran_latent["l"]`` gives the
+        normal sample that was later exponentiated to become ``latent["l"]``. The logistic normal
+        distribution is equivalent to applying softmax to a normal sample.
 
         Parameters
         ----------

@@ -40,18 +40,24 @@ class AutoZIVAE(VAE):
         the mixture problem ill-defined.
     zero_inflation: One of the following
 
-        * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across cells
-        * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different batches
+        * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across
+          cells
+        * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different
+          batches
         * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different labels
-        * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every cell
+        * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every
+          cell
 
 
-    See VAE docstring (scvi/models/vae.py) for more parameters. ``reconstruction_loss`` should not be specified.
+    See VAE docstring (scvi/models/vae.py) for more parameters. ``reconstruction_loss`` should not
+    be specified.
 
     Examples
     --------
     >>> gene_dataset = CortexDataset()
-    >>> autozivae = AutoZIVAE(gene_dataset.nb_genes, alpha_prior=0.5, beta_prior=0.5, minimal_dropout=0.01)
+    >>> autozivae = AutoZIVAE(
+            gene_dataset.nb_genes, alpha_prior=0.5, beta_prior=0.5, minimal_dropout=0.01
+        )
 
     """
 
@@ -74,14 +80,16 @@ class AutoZIVAE(VAE):
         self.reconstruction_loss = "autozinb"
         self.minimal_dropout = minimal_dropout
 
-        # Parameters of prior Bernoulli Beta distribution : alpha + beta = 1 if only one is specified
+        # Parameters of prior Bernoulli Beta distribution : alpha + beta = 1 if only one is
+        # specified
         if beta_prior is None and alpha_prior is not None:
             beta_prior = 1.0 - alpha_prior
         if alpha_prior is None and beta_prior is not None:
             alpha_prior = 1.0 - beta_prior
 
         # Create parameters for Bernoulli Beta prior and posterior distributions
-        # Each parameter, whose values are in (0,1), is encoded as its logit, in the set of real numbers
+        # Each parameter, whose values are in (0,1), is encoded as its logit, in the set of real
+        # numbers
 
         if self.zero_inflation == "gene":
             self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input))
@@ -151,7 +159,8 @@ class AutoZIVAE(VAE):
         """Sample from a beta distribution."""
         # Sample from a Beta distribution using the reparameterization trick.
         # Problem : it is not implemented in CUDA yet
-        # Workaround : sample X and Y from Gamma(alpha,1) and Gamma(beta,1), the Beta sample is X/(X+Y)
+        # Workaround : sample X and Y from Gamma(alpha,1) and Gamma(beta,1), the Beta sample is
+        # X/(X+Y)
         # Warning : use logs and perform logsumexp to avoid numerical issues
 
         # Sample from Gamma
