@@ -20,7 +20,6 @@ from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
 from scvi._constants import REGISTRY_KEYS
-from scvi.utils._exceptions import InvalidParameterError
 
 if TYPE_CHECKING:
     from ._manager import AnnDataManager
@@ -91,11 +90,7 @@ class AnnTorchDataset(Dataset):
                 key: registry_key_to_default_dtype(key) for key in self.registered_keys
             }
         else:
-            raise InvalidParameterError(
-                param="getitem_tensors",
-                value=getitem_tensors.__class__,
-                valid=[list, dict, None],
-            )
+            raise ValueError("`getitem_tensors` must be a `list`, `dict`, or `None`")
 
         for key in keys_to_dtypes:
             if key not in self.registered_keys:
