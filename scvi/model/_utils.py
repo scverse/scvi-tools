@@ -172,7 +172,8 @@ def scrna_raw_counts_properties(
     -------
     type
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population),
-        mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
+        mean expression per gene, proportion of non-zero expression per gene, mean of normalized
+        expression.
     """
     adata = adata_manager.adata
     data = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
@@ -236,7 +237,8 @@ def cite_seq_raw_counts_properties(
     -------
     type
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population),
-        mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
+        mean expression per gene, proportion of non-zero expression per gene, mean of normalized
+        expression.
     """
     gp = scrna_raw_counts_properties(adata_manager, idx1, idx2)
     protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)

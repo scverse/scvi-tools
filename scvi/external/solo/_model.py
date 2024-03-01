@@ -316,14 +316,15 @@ class SOLO(BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
-            Keyword args for :class:`~scvi.train.ClassifierTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.ClassifierTrainingPlan`.
         early_stopping
             Adds callback for early stopping on validation_loss
         early_stopping_patience
@@ -459,7 +460,8 @@ class SOLO(BaseModelClass):
 def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):
     if scvi_model.summary_stats.n_batch > 1 and restrict_to_batch is None:
         warnings.warn(
-            "Solo should only be trained on one lane of data using `restrict_to_batch`. Performance may suffer.",
+            "Solo should only be trained on one lane of data using `restrict_to_batch`. "
+            "Performance may suffer.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )

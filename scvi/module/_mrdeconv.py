@@ -302,7 +302,8 @@ class MRDeconv(BaseModuleClass):
             neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
             # mean_vprior is of shape n_labels, p, n_latent
 
-        # High v_sparsity_loss is detrimental early in training, scaling by kl_weight to increase over training epochs.
+        # High v_sparsity_loss is detrimental early in training, scaling by kl_weight to increase
+        # over training epochs.
         loss = n_obs * (
             torch.mean(reconst_loss + kl_weight * (neg_log_likelihood_prior + v_sparsity_loss))
             + glo_neg_log_likelihood_prior

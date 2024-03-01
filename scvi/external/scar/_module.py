@@ -168,7 +168,7 @@ class DecoderSCAR(nn.Module):
 
 
 class SCAR_VAE(VAE):
-    """Slightly modified version of scVI's VAE model to enable ambient RNA removal in scRNA-seq data.
+    """Modified version of scVI's VAE model to enable ambient RNA removal in scRNA-seq data.
 
     Parameters
     ----------
@@ -204,16 +204,16 @@ class SCAR_VAE(VAE):
     use_layer_norm
         Whether to use layer norm in layers
     use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
-        Takes priority over `use_observed_lib_size`.
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
+        distribution. Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
     library_log_vars
-        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
-        not using observed library size.
+        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library
+        size if not using observed library size.
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.

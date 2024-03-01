@@ -48,8 +48,8 @@ class LossOutput:
         KL divergence associated with each observation in the minibatch. If a tensor, converted to
         a dictionary with key "kl_local" and value as tensor.
     kl_global
-        Global KL divergence term. Should be one dimensional with one value. If a tensor, converted to
-        a dictionary with key "kl_global" and value as tensor.
+        Global KL divergence term. Should be one dimensional with one value. If a tensor, converted
+        to a dictionary with key "kl_global" and value as tensor.
     classification_loss
         Classification loss.
     logits
@@ -167,7 +167,7 @@ class BaseModuleClass(TunableMixin, nn.Module):
         return device[0]
 
     def on_load(self, model):
-        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict."""
+        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`."""
 
     @auto_move_data
     def forward(
@@ -321,15 +321,15 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
 
     There are two ways this class can be equipped with a model and a guide. First,
     ``model`` and ``guide`` can be class attributes that are :class:`~pyro.nn.PyroModule`
-    instances. The implemented ``model`` and ``guide`` class method can then return the (private) attributes.
-    Second, ``model`` and ``guide`` methods can be written directly (see Pyro scANVI example)
-    https://pyro.ai/examples/scanvi.html.
+    instances. The implemented ``model`` and ``guide`` class method can then return the (private)
+    attributes. Second, ``model`` and ``guide`` methods can be written directly (see Pyro scANVI
+    example) https://pyro.ai/examples/scanvi.html.
 
     The ``model`` and ``guide`` may also be equipped with ``n_obs`` attributes, which can be set
     to ``None`` (e.g., ``self.n_obs = None``). This attribute may be helpful in designating the
     size of observation-specific Pyro plates. The value will be updated automatically by
-    :class:`~scvi.train.PyroTrainingPlan`, provided that it is given the number of training examples
-    upon initialization.
+    :class:`~scvi.train.PyroTrainingPlan`, provided that it is given the number of training
+    examples upon initialization.
 
     Parameters
     ----------
@@ -347,8 +347,8 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
         """Parse the minibatched data to get the correct inputs for ``model`` and ``guide``.
 
         In Pyro, ``model`` and ``guide`` must have the same signature. This is a helper method
-        that gets the args and kwargs for these two methods. This helper method aids ``forward`` and
-        ``guide`` in having transparent signatures, as well as allows use of our generic
+        that gets the args and kwargs for these two methods. This helper method aids ``forward``
+        and ``guide`` in having transparent signatures, as well as allows use of our generic
         :class:`~scvi.dataloaders.AnnDataLoader`.
 
         Returns
@@ -372,7 +372,8 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
 
         A dictionary with:
         1. "name" - the name of observation/minibatch plate;
-        2. "in" - indexes of model args to provide to encoder network when using amortised inference;
+        2. "in" - indexes of model args to provide to encoder network when using amortised
+            inference;
         3. "sites" - dictionary with
             keys - names of variables that belong to the observation plate (used to recognise
              and merge posterior samples for minibatch variables)
@@ -382,7 +383,7 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
         return {"name": "", "in": [], "sites": {}}
 
     def on_load(self, model):
-        """Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
+        """Callback function run in :method:`~scvi.model.base.BaseModelClass.load`.
 
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """
@@ -704,7 +705,7 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
 
     @staticmethod
     def on_load(model):
-        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
+        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`.
 
         Run one training step prior to loading state dict in order to initialize params.
         """
