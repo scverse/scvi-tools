@@ -67,10 +67,14 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     zero_inflation
         One of the following:
 
-        * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across cells
-        * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different batches
-        * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different labels
-        * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every cell
+        * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across
+          cells
+        * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different
+          batches
+        * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different
+          labels
+        * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every
+          cell
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     **model_kwargs

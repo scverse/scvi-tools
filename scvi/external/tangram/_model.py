@@ -27,9 +27,10 @@ def _asarray(x: np.ndarray, device: Device) -> jnp.ndarray:
 
 
 class Tangram(BaseModelClass):
-    """Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell RNA-seq data to spatial data.
+    """Reimplementation of Tangram :cite:p:`Biancalani21`.
 
-    Original implementation: https://github.com/broadinstitute/Tangram.
+    Maps single-cell RNA-seq data to spatial data. Original implementation:
+    https://github.com/broadinstitute/Tangram.
 
     Currently the "cells" and "constrained" modes are implemented.
 
@@ -50,13 +51,24 @@ class Tangram(BaseModelClass):
     >>> ad_sc = anndata.read_h5ad(path_to_sc_anndata)
     >>> ad_sp = anndata.read_h5ad(path_to_sp_anndata)
     >>> markers = pd.read_csv(path_to_markers, index_col=0) # genes to use for mapping
-    >>> mdata = mudata.MuData({"sp_full": ad_sp, "sc_full": ad_sc, "sp": ad_sp[:, markers].copy(), "sc": ad_sc[:, markers].copy()})
+    >>> mdata = mudata.MuData(
+            {
+                "sp_full": ad_sp,
+                "sc_full": ad_sc,
+                "sp": ad_sp[:, markers].copy(),
+                "sc": ad_sc[:, markers].copy()
+            }
+        )
     >>> modalities = {"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"}
-    >>> Tangram.setup_mudata(mdata, density_prior_key="rna_count_based_density", modalities=modalities)
+    >>> Tangram.setup_mudata(
+            mdata, density_prior_key="rna_count_based_density", modalities=modalities
+        )
     >>> tangram = Tangram(sc_adata)
     >>> tangram.train()
     >>> ad_sc.obsm["tangram_mapper"] = tangram.get_mapper_matrix()
-    >>> ad_sp.obsm["tangram_cts"] = tangram.project_cell_annotations(ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"], ad_sc.obs["labels"])
+    >>> ad_sp.obsm["tangram_cts"] = tangram.project_cell_annotations(
+            ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"], ad_sc.obs["labels"]
+        )
     >>> projected_ad_sp = tangram.project_genes(ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"])
 
     Notes
@@ -93,7 +105,10 @@ class Tangram(BaseModelClass):
             target_count=target_count,
             **model_kwargs,
         )
-        self._model_summary_string = f"TangramMapper Model with params: \nn_obs_sc: {self.n_obs_sc}, n_obs_sp: {self.n_obs_sp}"
+        self._model_summary_string = (
+            f"TangramMapper Model with params: \nn_obs_sc: {self.n_obs_sc}, "
+            "n_obs_sp: {self.n_obs_sp}"
+        )
         self.init_params_ = self._get_init_params(locals())
 
     def get_mapper_matrix(self) -> np.ndarray:

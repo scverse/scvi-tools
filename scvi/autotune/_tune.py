@@ -33,7 +33,8 @@ def run_autotune(
     model_cls
         Model class on which to tune hyperparameters.
     adata
-        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with ``model_cls``.
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with
+        `model_cls``.
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
         provided, the primary metric will be the first element in the list.

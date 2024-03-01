@@ -198,9 +198,9 @@ class PosteriorPredictiveCheck:
     def calibration_error(self, confidence_intervals: list[float] | float = None) -> None:
         """Calibration error for each observed count.
 
-        For a series of credible intervals of the samples, the fraction of observed counts that fall
-        within the credible interval is computed. The calibration error is then the squared difference
-        between the observed fraction and the true interval width.
+        For a series of credible intervals of the samples, the fraction of observed counts that
+        fall within the credible interval is computed. The calibration error is then the squared
+        difference between the observed fraction and the true interval width.
 
         For this metric, lower is better.
 

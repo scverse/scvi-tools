@@ -74,28 +74,30 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     encode_covariates
         Whether to concatenate covariates to expression in encoder
     deeply_inject_covariates
-        Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
-        only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
+        Whether to concatenate covariates into output of hidden layers in encoder/decoder.
+        This option only applies when `n_layers` > 1. The covariates are concatenated to the input
+        of subsequent hidden layers.
     batch_representation
         ``EXPERIMENTAL`` How to encode batch labels in the data. One of the following:
 
         * ``"one-hot"``: represent batches with one-hot encodings.
-        * ``"embedding"``: represent batches with continuously-valued embeddings using :class:`~scvi.nn.Embedding`.
+        * ``"embedding"``: represent batches with continuously-valued embeddings using
+            :class:`~scvi.nn.Embedding`.
     use_batch_norm
         Whether to use batch norm in layers.
     use_layer_norm
         Whether to use layer norm in layers.
     use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
-        Takes priority over `use_observed_lib_size`.
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
+        distribution. Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
     library_log_vars
-        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
-        not using observed library size.
+        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library
+        size if not using observed library size.
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
@@ -104,7 +106,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     extra_decoder_kwargs
         Extra keyword arguments passed into :class:`~scvi.nn.DecoderSCVI`.
     batch_embedding_kwargs
-        Keyword arguments passed into :class:`~scvi.nn.Embedding` if ``batch_representation`` is set to ``"embedding"``.
+        Keyword arguments passed into :class:`~scvi.nn.Embedding` if ``batch_representation`` is
+        set to ``"embedding"``.
 
     Notes
     -----
@@ -617,7 +620,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         to_sum = []
         if n_mc_samples_per_pass > n_mc_samples:
             logger.warn(
-                "Number of chunks is larger than the total number of samples, setting it to the number of samples"
+                "Number of chunks is larger than the total number of samples, setting it to the "
+                "number of samples"
             )
             n_mc_samples_per_pass = n_mc_samples
         n_passes = int(np.ceil(n_mc_samples / n_mc_samples_per_pass))
@@ -792,7 +796,7 @@ class LDVAE(VAE):
 
     @torch.inference_mode()
     def get_loadings(self) -> np.ndarray:
-        """Extract per-gene weights (for each Z, shape is genes by dim(Z)) in the linear decoder."""
+        """Extract per-gene weights in the linear decoder."""
         # This is BW, where B is diag(b) batch norm, W is weight matrix
         if self.use_batch_norm is True:
             w = self.decoder.factor_regressor.fc_layers[0][0].weight

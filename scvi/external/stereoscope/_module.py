@@ -9,7 +9,7 @@ from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 
 class RNADeconv(BaseModuleClass):
-    """Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
+    """Model of scRNA-seq for deconvolution of spatial transriptomics.
 
     Reimplementation of the ScModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
@@ -129,7 +129,8 @@ class SpatialDeconv(BaseModuleClass):
     n_spots
         Number of input spots
     sc_params
-        Tuple of ndarray of shapes [(n_genes, n_labels), (n_genes)] containing the dictionnary and log dispersion parameters
+        Tuple of ndarray of shapes [(n_genes, n_labels), (n_genes)] containing the dictionnary and
+        log dispersion parameters
     prior_weight
         Whether to sample the minibatch by the number of total observations or the monibatch size
     """
@@ -227,7 +228,8 @@ class SpatialDeconv(BaseModuleClass):
             # the correct way to reweight observations while performing stochastic optimization
             loss = n_obs * torch.mean(reconst_loss) + neg_log_likelihood_prior
         else:
-            # the original way it is done in Stereoscope; we use this option to show reproducibility of their codebase
+            # the original way it is done in Stereoscope; we use this option to show
+            # reproducibility of their codebase
             loss = torch.sum(reconst_loss) + neg_log_likelihood_prior
         return LossOutput(
             loss=loss,
