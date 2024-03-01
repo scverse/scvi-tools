@@ -6,8 +6,8 @@ class _MODULE_KEYS(NamedTuple):
     # inference
     Z_KEY: str = "z"
     QZ_KEY: str = "qz"
-    QZM_KEY: str = "qz_m"
-    QZV_KEY: str = "qz_v"
+    QZM_KEY: str = "qzm"
+    QZV_KEY: str = "qzv"
     LIBRARY_KEY: str = "library"
     QL_KEY: str = "ql"
     BATCH_INDEX_KEY: str = "batch_index"

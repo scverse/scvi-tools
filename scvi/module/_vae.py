@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
 from typing import Callable, Literal
 
 import numpy as np
@@ -29,84 +28,104 @@ logger = logging.getLogger(__name__)
 
 
 class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
-    """Variational auto-encoder model.
-
-    This is an implementation of the scVI model described in :cite:p:`Lopez18`.
+    """Variational auto-encoder :cite:p:`Lopez18`.
 
     Parameters
     ----------
     n_input
-        Number of input genes
+        Number of input features.
     n_batch
-        Number of batches, if 0, no batch correction is performed.
+        Number of batches. If ``0``, no batch correction is performed.
     n_labels
-        Number of labels
+        Number of labels.
     n_hidden
-        Number of nodes per hidden layer
+        Number of nodes per hidden layer. Passed into :class:`~scvi.nn.Encoder` and
+        :class:`~scvi.nn.DecoderSCVI`.
     n_latent
-        Dimensionality of the latent space
+        Dimensionality of the latent space.
     n_layers
-        Number of hidden layers used for encoder and decoder NNs
+        Number of hidden layers. Passed into :class:`~scvi.nn.Encoder` and
+        :class:`~scvi.nn.DecoderSCVI`.
     n_continuous_cov
-        Number of continuous covarites
+        Number of continuous covariates.
     n_cats_per_cov
-        Number of categories for each extra categorical covariate
+        A list of integers containing the number of categories for each categorical covariate.
     dropout_rate
-        Dropout rate for neural networks
+        Dropout rate. Passed into :class:`~scvi.nn.Encoder` but not :class:`~scvi.nn.DecoderSCVI`.
     dispersion
-        One of the following
+        Constraints on the dispersion parameter when ``gene_likelihood`` is either ``"nb"`` or
+        ``"zinb"``. One of the following:
 
-        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-        * ``'gene-batch'`` - dispersion can differ between different batches
-        * ``'gene-label'`` - dispersion can differ between different labels
-        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+        * ``"gene"``: dispersion parameter of NB is constant per gene across cells.
+        * ``"gene-batch"``: dispersion can differ between different batches.
+        * ``"gene-label"``: dispersion can differ between different labels.
+        * ``"gene-cell"``: dispersion can differ for every gene in every cell.
     log_variational
-        Log(data+1) prior to encoding for numerical stability. Not normalization.
+        If ``True``, use :func:`~torch.log1p` on input data before encoding for numerical stability
+        (not normalization).
     gene_likelihood
-        One of
+        Distribution to use for reconstruction in the generative process. One of the following:
 
-        * ``'nb'`` - Negative binomial distribution
-        * ``'zinb'`` - Zero-inflated negative binomial distribution
-        * ``'poisson'`` - Poisson distribution
+        * ``"nb"``: :class:`~scvi.distributions.NegativeBinomial`.
+        * ``"zinb"``: :class:`~scvi.distributions.ZeroInflatedNegativeBinomial`.
+        * ``"poisson"``: :class:`~scvi.distributions.Poisson`.
     latent_distribution
-        One of
+        Distribution to use for the latent space. One of the following:
 
-        * ``'normal'`` - Isotropic normal
-        * ``'ln'`` - Logistic normal with normal params N(0, 1)
+        * ``"normal"``: isotropic normal.
+        * ``"ln"``: logistic normal with normal params N(0, 1).
     encode_covariates
-        Whether to concatenate covariates to expression in encoder
+        If ``True``, covariates are concatenated to gene expression prior to passing through
+        the encoder(s). Else, only gene expression is used.
     deeply_inject_covariates
-        Whether to concatenate covariates into output of hidden layers in encoder/decoder.
-        This option only applies when `n_layers` > 1. The covariates are concatenated to the input
-        of subsequent hidden layers.
+        If ``True``, covariates are concatenated to the outputs of hidden layers in the encoder(s)
+        (if ``encoder_covariates`` is ``True``) and the decoder prior to passing through the next
+        layer. Only applies when ``n_layers`` > 1.
     batch_representation
-        ``EXPERIMENTAL`` How to encode batch labels in the data. One of the following:
+        ``EXPERIMENTAL`` Method for encoding batch information. One of the following:
 
         * ``"one-hot"``: represent batches with one-hot encodings.
         * ``"embedding"``: represent batches with continuously-valued embeddings using
-            :class:`~scvi.nn.Embedding`.
+          :class:`~scvi.nn.Embedding`.
+
+        Note that batch representations are only passed into the encoder(s) if
+        ``encode_covariates`` is ``True``.
     use_batch_norm
-        Whether to use batch norm in layers.
+        Specifies where to use :class:`~torch.nn.BatchNorm1d` in the model. One of the following:
+
+        * ``"none"``: don't use batch norm in either encoder(s) or decoder.
+        * ``"encoder"``: use batch norm only in the encoder(s).
+        * ``"decoder"``: use batch norm only in the decoder.
+        * ``"both"``: use batch norm in both encoder(s) and decoder.
     use_layer_norm
-        Whether to use layer norm in layers.
+        Specifies where to use :class:`~torch.nn.LayerNorm` in the model. One of the following:
+
+        * ``"none"``: don't use layer norm in either encoder(s) or decoder.
+        * ``"encoder"``: use layer norm only in the encoder(s).
+        * ``"decoder"``: use layer norm only in the decoder.
+        * ``"both"``: use layer norm in both encoder(s) and decoder.
     use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
-        distribution. Takes priority over `use_observed_lib_size`.
+        If ``True``, use the information in :attr:`~anndata.AnnData.obs` as defined by the
+        ``size_factor_key`` parameter in the model's ``setup_anndata`` method as the scaling
+        factor in the mean of the conditional distribution. Takes priority over
+        ``use_observed_lib_size``.
     use_observed_lib_size
-        Use observed library size for RNA as scaling factor in mean of conditional distribution
+        If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
+        conditional distribution. If ``False`` and ``use_size_factor_key`` is ``False``, use the
+        outputs of the library encoder.
     library_log_means
-        1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
-        not using observed library size.
+        :class:`~numpy.ndarray` of shape ``(1, n_batch)`` of means of the log library sizes that
+        parameterize the prior on library size if ``use_observed_lib_size`` is ``False``.
     library_log_vars
-        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library
-        size if not using observed library size.
+        :class:`~numpy.ndarray` of shape ``(1, n_batch)`` of variances of the log library sizes
+        that parameterize the prior on library size if ``use_observed_lib_size`` is ``False``.
     var_activation
-        Callable used to ensure positivity of the variational distributions' variance.
-        When `None`, defaults to `torch.exp`.
+        Callable used to ensure positivity of the variance of the variational distributions. Passed
+        into :class:`~scvi.nn.Encoder`. Defaults to :func:`~torch.exp`.
     extra_encoder_kwargs
-        Extra keyword arguments passed into :class:`~scvi.nn.Encoder`.
+        Additional keyword arguments passed into :class:`~scvi.nn.Encoder`.
     extra_decoder_kwargs
-        Extra keyword arguments passed into :class:`~scvi.nn.DecoderSCVI`.
+        Additional keyword arguments passed into :class:`~scvi.nn.DecoderSCVI`.
     batch_embedding_kwargs
         Keyword arguments passed into :class:`~scvi.nn.Embedding` if ``batch_representation`` is
         set to ``"embedding"``.
@@ -125,7 +144,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         n_latent: int = 10,
         n_layers: int = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Iterable[int] | None = None,
+        n_cats_per_cov: list[int] | None = None,
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         log_variational: bool = True,
@@ -263,6 +282,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self,
         tensors: dict[str, torch.Tensor | None],
     ) -> dict[str, torch.Tensor | None]:
+        """Get input tensors for the inference process."""
         if self.minified_data_type is None:
             return {
                 MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
@@ -284,6 +304,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         tensors: dict[str, torch.Tensor],
         inference_outputs: dict[str, torch.Tensor | Distribution | None],
     ) -> dict[str, torch.Tensor | None]:
+        """Get input tensors for the generative process."""
         size_factor = tensors.get(REGISTRY_KEYS.SIZE_FACTOR_KEY, None)
         if size_factor is not None:
             size_factor = torch.log(size_factor)
@@ -322,15 +343,12 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         cat_covs: torch.Tensor | None = None,
         n_samples: int = 1,
     ) -> dict[str, torch.Tensor | Distribution | None]:
-        """High level inference method.
-
-        Runs the inference (encoder) model.
-        """
+        """Run the regular inference process."""
         x_ = x
         if self.use_observed_lib_size:
             library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
-            x_ = torch.log(1 + x_)
+            x_ = torch.log1p(1 + x_)
 
         if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
@@ -383,6 +401,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         observed_lib_size: torch.Tensor,
         n_samples: int = 1,
     ) -> dict[str, torch.Tensor | None]:
+        """Run the cached inference process."""
         if self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
@@ -414,7 +433,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         y: torch.Tensor | None = None,
         transform_batch: torch.Tensor | None = None,
     ) -> dict[str, Distribution | None]:
-        """Runs the generative model."""
+        """Run the generative process."""
         # TODO: refactor forward function to not rely on y
         # Likelihood distribution
         if cont_covs is None:
@@ -504,7 +523,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         generative_outputs: dict[str, Distribution | None],
         kl_weight: float = 1.0,
     ) -> LossOutput:
-        """Computes the loss function for the model."""
+        """Compute the loss function for the model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         kl_divergence_z = kl(
             inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
