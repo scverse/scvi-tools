@@ -18,7 +18,6 @@ from scvi.module.base import (
 )
 from scvi.nn import one_hot
 
-torch.backends.cudnn.benchmark = True
 logger = logging.getLogger(__name__)
 
 
@@ -194,9 +193,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             pass
         else:
             raise ValueError(
-                "dispersion must be one of ['gene', 'gene-batch',"
-                " 'gene-label', 'gene-cell'], but input was "
-                "{}.format(self.dispersion)"
+                "`dispersion` must be one of 'gene', 'gene-batch', 'gene-label', 'gene-cell'."
             )
 
         self.batch_representation = batch_representation
@@ -211,14 +208,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
         use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
 
-        # z encoder goes from the n_input-dimensional data to an n_latent-d
-        # latent space representation
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
-
         if self.batch_representation == "embedding":
-            # batch embeddings are concatenated to the input of the encoder
             n_input_encoder += batch_dim * encode_covariates
-            # don't pass in batch index if using embeddings
             cat_list = list([] if n_cats_per_cov is None else n_cats_per_cov)
         else:
             cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
@@ -255,10 +247,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             return_dist=True,
             **_extra_encoder_kwargs,
         )
-        # decoder goes from n_latent-dimensional space to n_input-d data
         n_input_decoder = n_latent + n_continuous_cov
         if self.batch_representation == "embedding":
-            # batch embeddings are concatenated to the input of the decoder
             n_input_decoder += batch_dim
 
         _extra_decoder_kwargs = extra_decoder_kwargs or {}
