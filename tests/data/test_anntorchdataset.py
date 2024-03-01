@@ -10,7 +10,6 @@ from torch.utils.data import Dataset
 
 import scvi
 from scvi import REGISTRY_KEYS
-from scvi.utils._exceptions import InvalidParameterError
 from tests.data.utils import generic_setup_adata_manager
 
 
@@ -70,7 +69,7 @@ def test_getitem_tensors():
     with pytest.raises(KeyError):
         manager.create_torch_dataset(data_and_attributes=[REGISTRY_KEYS.CAT_COVS_KEY])
 
-    with pytest.raises(InvalidParameterError):
+    with pytest.raises(ValueError):
         manager.create_torch_dataset(data_and_attributes=1)
 
 
