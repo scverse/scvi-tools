@@ -579,7 +579,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             Number of Monte Carlo samples to draw from the distribution for each observation.
         max_poisson_rate
             The maximum value to which to clip the ``rate`` parameter of
-            :class:`~torch.distributions.Poisson`. Avoids numerical sampling issues when the
+            :class:`~scvi.distributions.Poisson`. Avoids numerical sampling issues when the
             parameter is very large due to the variance of the distribution.
 
         Returns
@@ -587,6 +587,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Tensor on CPU with shape ``(n_obs, n_vars)`` if ``n_samples == 1``, else
         ``(n_obs, n_vars,)``.
         """
+        from scvi.distributions import Poisson
+
         inference_kwargs = {"n_samples": n_samples}
         _, generative_outputs = self.forward(
             tensors, inference_kwargs=inference_kwargs, compute_loss=False
@@ -594,7 +596,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         dist = generative_outputs[MODULE_KEYS.PX_KEY]
         if self.gene_likelihood == "poisson":
-            dist = torch.distributions.Poisson(torch.clamp(dist.rate, max=max_poisson_rate))
+            dist = Poisson(torch.clamp(dist.rate, max=max_poisson_rate))
 
         # (n_obs, n_vars) if n_samples == 1, else (n_samples, n_obs, n_vars)
         samples = dist.sample()
