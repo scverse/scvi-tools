@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import Callable, Literal
 
 import numpy as np
 import torch
-import torch.nn.functional as F
-from torch import logsumexp
-from torch.distributions import Distribution, Normal
-from torch.distributions import kl_divergence as kl
+from torch.distributions import Distribution
 
-from scvi import REGISTRY_KEYS
-from scvi.data._constants import ADATA_MINIFY_TYPE
-from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
+from scvi import REGISTRY_KEYS, settings
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import (
     BaseMinifiedModeModuleClass,
@@ -20,10 +16,9 @@ from scvi.module.base import (
     LossOutput,
     auto_move_data,
 )
-from scvi.nn import DecoderSCVI, Encoder, LinearDecoderSCVI, one_hot
+from scvi.nn import one_hot
 
 torch.backends.cudnn.benchmark = True
-
 logger = logging.getLogger(__name__)
 
 
@@ -164,6 +159,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         extra_decoder_kwargs: dict | None = None,
         batch_embedding_kwargs: dict | None = None,
     ):
+        from scvi.nn import DecoderSCVI, Encoder
+
         super().__init__()
         self.dispersion = dispersion
         self.n_latent = n_latent
@@ -283,6 +280,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         tensors: dict[str, torch.Tensor | None],
     ) -> dict[str, torch.Tensor | None]:
         """Get input tensors for the inference process."""
+        from scvi.data._constants import ADATA_MINIFY_TYPE
+
         if self.minified_data_type is None:
             return {
                 MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
@@ -329,9 +328,11 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         element corresponds to the mean and variances, respectively, of the
         log library sizes in the batch the cell corresponds to.
         """
+        from torch.nn.functional import linear
+
         n_batch = self.library_log_means.shape[1]
-        local_library_log_means = F.linear(one_hot(batch_index, n_batch), self.library_log_means)
-        local_library_log_vars = F.linear(one_hot(batch_index, n_batch), self.library_log_vars)
+        local_library_log_means = linear(one_hot(batch_index, n_batch), self.library_log_means)
+        local_library_log_vars = linear(one_hot(batch_index, n_batch), self.library_log_vars)
         return local_library_log_means, local_library_log_vars
 
     @auto_move_data
@@ -402,6 +403,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         n_samples: int = 1,
     ) -> dict[str, torch.Tensor | None]:
         """Run the cached inference process."""
+        from torch.distributions import Normal
+
+        from scvi.data._constants import ADATA_MINIFY_TYPE
+
         if self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
@@ -434,6 +439,11 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         transform_batch: torch.Tensor | None = None,
     ) -> dict[str, Distribution | None]:
         """Run the generative process."""
+        from torch.distributions import Normal
+        from torch.nn.functional import linear
+
+        from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
+
         # TODO: refactor forward function to not rely on y
         # Likelihood distribution
         if cont_covs is None:
@@ -477,11 +487,11 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             )
 
         if self.dispersion == "gene-label":
-            px_r = F.linear(
+            px_r = linear(
                 one_hot(y, self.n_labels), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = linear(one_hot(batch_index, self.n_batch), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r
 
@@ -523,13 +533,15 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         generative_outputs: dict[str, Distribution | None],
         kl_weight: float = 1.0,
     ) -> LossOutput:
-        """Compute the loss function for the model."""
+        """Compute the loss."""
+        from torch.distributions import kl_divergence
+
         x = tensors[REGISTRY_KEYS.X_KEY]
-        kl_divergence_z = kl(
+        kl_divergence_z = kl_divergence(
             inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
         ).sum(dim=-1)
         if not self.use_observed_lib_size:
-            kl_divergence_l = kl(
+            kl_divergence_l = kl_divergence(
                 inference_outputs[MODULE_KEYS.QL_KEY], generative_outputs[MODULE_KEYS.PL_KEY]
             ).sum(dim=1)
         else:
@@ -577,9 +589,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             Number of Monte Carlo samples to draw from the distribution for each observation.
         max_poisson_rate
             The maximum value to which to clip the ``rate`` parameter of
-            :class:`~torch.distributions.Poisson`. Avoids numerical sampling
-            issues when the parameter is very large due to the variance of the
-            distribution.
+            :class:`~torch.distributions.Poisson`. Avoids numerical sampling issues when the
+            parameter is very large due to the variance of the distribution.
 
         Returns
         -------
@@ -611,26 +622,31 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         return_mean: bool = False,
         n_mc_samples_per_pass: int = 1,
     ):
-        """Computes the marginal log likelihood of the model.
+        """Compute the marginal log-likelihood of the data under the model.
 
         Parameters
         ----------
         tensors
-            Dict of input tensors, typically corresponding to the items of the data loader.
+            Dictionary of tensors passed into :meth:`~scvi.module.VAE.forward`.
         n_mc_samples
-            Number of Monte Carlo samples to use for the estimation of the marginal log likelihood.
+            Number of Monte Carlo samples to use for the estimation of the marginal log-likelihood.
         return_mean
             Whether to return the mean of marginal likelihoods over cells.
         n_mc_samples_per_pass
             Number of Monte Carlo samples to use per pass. This is useful to avoid memory issues.
         """
+        from torch import logsumexp
+        from torch.distributions import Normal
+
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         to_sum = []
         if n_mc_samples_per_pass > n_mc_samples:
-            logger.warn(
+            warnings.warn(
                 "Number of chunks is larger than the total number of samples, setting it to the "
-                "number of samples"
+                "number of samples",
+                RuntimeWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
             n_mc_samples_per_pass = n_mc_samples
         n_passes = int(np.ceil(n_mc_samples / n_mc_samples_per_pass))
@@ -757,6 +773,8 @@ class LDVAE(VAE):
         use_observed_lib_size: bool = False,
         **kwargs,
     ):
+        from scvi.nn import Encoder, LinearDecoderSCVI
+
         super().__init__(
             n_input=n_input,
             n_batch=n_batch,
