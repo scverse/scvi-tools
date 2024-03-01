@@ -115,8 +115,9 @@ class PyroSviTrainMixin:
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training. If `None`, no minibatching occurs and all
             data is copied to device (e.g., GPU).
@@ -324,7 +325,8 @@ class PyroSampleMixin:
     ):
         """Automatically guess which model sites belong to observation/minibatch plate.
 
-        This function requires minibatch plate name specified in `self.module.list_obs_plate_vars["name"]`.
+        This function requires minibatch plate name specified in
+        `self.module.list_obs_plate_vars["name"]`.
 
         Parameters
         ----------
@@ -373,8 +375,9 @@ class PyroSampleMixin:
     ):
         """Generate samples of the posterior distribution in minibatches.
 
-        Generate samples of the posterior distribution of each parameter, separating local (minibatch) variables
-        and global variables, which is necessary when performing minibatch inference.
+        Generate samples of the posterior distribution of each parameter, separating local
+        (minibatch) variables and global variables, which is necessary when performing minibatch
+        inference.
 
         Parameters
         ----------
@@ -486,17 +489,21 @@ class PyroSampleMixin:
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_observed
-            Return observed sites/variables? Observed count matrix can be very large so not returned by default.
+            Return observed sites/variables? Observed count matrix can be very large so not
+            returned by default.
         return_samples
-            Return all generated posterior samples in addition to sample mean, 5th/95th quantile and SD?
+            Return all generated posterior samples in addition to sample mean, 5th/95th quantile
+            and SD?
         summary_fun
-             a dict in the form {"means": np.mean, "std": np.std} which specifies posterior distribution
-             summaries to compute and which names to use. See below for default returns.
+            a dict in the form {"means": np.mean, "std": np.std} which specifies posterior
+            distribution summaries to compute and which names to use. See below for default
+            returns.
 
         Returns
         -------
         post_sample_means: Dict[str, :class:`np.ndarray`]
-            Mean of the posterior distribution for each variable, a dictionary of numpy arrays for each variable;
+            Mean of the posterior distribution for each variable, a dictionary of numpy arrays for
+            each variable;
         post_sample_q05: Dict[str, :class:`np.ndarray`]
             5th quantile of the posterior distribution for each variable;
         post_sample_q05: Dict[str, :class:`np.ndarray`]
@@ -504,15 +511,17 @@ class PyroSampleMixin:
         post_sample_q05: Dict[str, :class:`np.ndarray`]
             Standard deviation of the posterior distribution for each variable;
         posterior_samples: Optional[Dict[str, :class:`np.ndarray`]]
-            Posterior distribution samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional).
+            Posterior distribution samples for each variable as numpy arrays of shape
+            `(n_samples, ...)` (Optional).
 
         Notes
         -----
-        Note for developers: requires overwritten :attr:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` property.
-        which lists observation/minibatch plate name and variables.
-        See :attr:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` for details of the variables it should contain.
-        This dictionary can be returned by model class property `self.module.model.list_obs_plate_vars`
-        to keep all model-specific variables in one place.
+        Note for developers: requires overwritten
+        :attr:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` property, which lists
+        observation/minibatch plate name and variables. See
+        :attr:`~scvi.module.base.PyroBaseModuleClass.list_obs_plate_vars` for details of the
+        variables it should contain. This dictionary can be returned by model class property
+        `self.module.model.list_obs_plate_vars` to keep all model-specific variables in one place.
         """
         # sample using minibatches (if full data, data is moved to GPU only once anyway)
         samples = self._posterior_samples_minibatch(
