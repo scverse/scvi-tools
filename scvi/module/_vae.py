@@ -47,7 +47,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     dropout_rate
         Dropout rate. Passed into :class:`~scvi.nn.Encoder` but not :class:`~scvi.nn.DecoderSCVI`.
     dispersion
-        Constraints on the dispersion parameter when ``gene_likelihood`` is either ``"nb"`` or
+        Flexibility of the dispersion parameter when ``gene_likelihood`` is either ``"nb"`` or
         ``"zinb"``. One of the following:
 
         * ``"gene"``: dispersion parameter of NB is constant per gene across cells.
@@ -72,9 +72,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         If ``True``, covariates are concatenated to gene expression prior to passing through
         the encoder(s). Else, only gene expression is used.
     deeply_inject_covariates
-        If ``True``, covariates are concatenated to the outputs of hidden layers in the encoder(s)
-        (if ``encoder_covariates`` is ``True``) and the decoder prior to passing through the next
-        layer. Only applies when ``n_layers`` > 1.
+        If ``True`` and ``n_layers > 1``, covariates are concatenated to the outputs of hidden
+        layers in the encoder(s) (if ``encoder_covariates`` is ``True``) and the decoder prior to
+        passing through the next layer.
     batch_representation
         ``EXPERIMENTAL`` Method for encoding batch information. One of the following:
 
@@ -91,6 +91,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         * ``"encoder"``: use batch norm only in the encoder(s).
         * ``"decoder"``: use batch norm only in the decoder.
         * ``"both"``: use batch norm in both encoder(s) and decoder.
+
+        Note: if ``use_layer_norm`` is also specified, both will be applied (first
+        :class:`~torch.nn.BatchNorm1d`, then :class:`~torch.nn.LayerNorm`).
     use_layer_norm
         Specifies where to use :class:`~torch.nn.LayerNorm` in the model. One of the following:
 
@@ -98,23 +101,27 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         * ``"encoder"``: use layer norm only in the encoder(s).
         * ``"decoder"``: use layer norm only in the decoder.
         * ``"both"``: use layer norm in both encoder(s) and decoder.
+
+        Note: if ``use_batch_norm`` is also specified, both will be applied (first
+        :class:`~torch.nn.BatchNorm1d`, then :class:`~torch.nn.LayerNorm`).
     use_size_factor_key
-        If ``True``, use the information in :attr:`~anndata.AnnData.obs` as defined by the
+        If ``True``, use the :attr:`~anndata.AnnData.obs` column as defined by the
         ``size_factor_key`` parameter in the model's ``setup_anndata`` method as the scaling
         factor in the mean of the conditional distribution. Takes priority over
         ``use_observed_lib_size``.
     use_observed_lib_size
         If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
-        conditional distribution. If ``False`` and ``use_size_factor_key`` is ``False``, use the
-        outputs of the library encoder.
+        conditional distribution.
     library_log_means
         :class:`~numpy.ndarray` of shape ``(1, n_batch)`` of means of the log library sizes that
-        parameterize the prior on library size if ``use_observed_lib_size`` is ``False``.
+        parameterize the prior on library size if ``use_size_factor_key`` is ``False`` and
+        ``use_observed_lib_size`` is ``False``.
     library_log_vars
         :class:`~numpy.ndarray` of shape ``(1, n_batch)`` of variances of the log library sizes
-        that parameterize the prior on library size if ``use_observed_lib_size`` is ``False``.
+        that parameterize the prior on library size if ``use_size_factor_key`` is ``False`` and
+        ``use_observed_lib_size`` is ``False``.
     var_activation
-        Callable used to ensure positivity of the variance of the variational distributions. Passed
+        Callable used to ensure positivity of the variance of the variational distribution. Passed
         into :class:`~scvi.nn.Encoder`. Defaults to :func:`~torch.exp`.
     extra_encoder_kwargs
         Additional keyword arguments passed into :class:`~scvi.nn.Encoder`.
@@ -339,7 +346,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if self.use_observed_lib_size:
             library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
-            x_ = torch.log1p(1 + x_)
+            x_ = torch.log1p(x_)
 
         if cont_covs is not None and self.encode_covariates:
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
