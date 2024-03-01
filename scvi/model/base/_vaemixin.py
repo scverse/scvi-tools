@@ -115,8 +115,8 @@ class VAEMixin:
     ) -> float:
         r"""Return the reconstruction error for the data.
 
-        This is typically written as :math:`p(x \mid z)`, the likelihood term given one posterior sample.
-        Note, this is not the negative likelihood, higher is better.
+        This is typically written as :math:`p(x \mid z)`, the likelihood term given one posterior
+        sample. Note, this is not the negative likelihood, higher is better.
 
         Parameters
         ----------
@@ -157,8 +157,8 @@ class VAEMixin:
         give_mean
             Give mean of distribution or sample from it.
         mc_samples
-            For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
-            samples to take for computing mean.
+            For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte
+            Carlo samples to take for computing mean.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_dist

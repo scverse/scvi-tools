@@ -908,7 +908,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         """Training step for Pyro training."""
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         # Set KL weight if necessary.
-        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
+        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the
+        # true ELBO.
         if self.use_kl_weight:
             kwargs.update({"kl_weight": self.kl_weight})
         # pytorch lightning requires a Tensor object for loss
@@ -1038,7 +1039,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         """Training step for Pyro training."""
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         # Set KL weight if necessary.
-        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
+        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the
+        # true ELBO.
         if self.use_kl_weight:
             kwargs.update({"kl_weight": self.kl_weight})
         # pytorch lightning requires a Tensor object for loss

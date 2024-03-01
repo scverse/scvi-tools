@@ -26,13 +26,14 @@ def prep_scvi_hub_model(save_path: str) -> HubModel:
     model.save(model_path, save_anndata=True, overwrite=True)
 
     metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
+    desc = "scVI model trained on synthetic IID data and uploaded with the full training data."
     card = HubModelCardHelper.from_dir(
         model_path,
         license_info="cc-by-4.0",
         anndata_version=anndata.__version__,
         data_modalities=["rna"],
         data_is_annotated=False,
-        description="scVI model trained on synthetic IID data and uploaded with the full training data.",
+        description=desc,
     )
     return HubModel(model_path, metadata=metadata, model_card=card)
 
@@ -67,13 +68,14 @@ def prep_scvi_minified_hub_model(save_path: str) -> HubModel:
     model.save(model_path, save_anndata=True, overwrite=True)
 
     metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
+    desc = "scVI model trained on synthetic IID data and uploaded with the minified data."
     card = HubModelCardHelper.from_dir(
         model_path,
         license_info="cc-by-4.0",
         anndata_version=anndata.__version__,
         data_modalities=["rna"],
         data_is_annotated=False,
-        description="scVI model trained on synthetic IID data and uploaded with the minified data.",
+        description=desc,
     )
     return HubModel(model_path, metadata=metadata, model_card=card)
 

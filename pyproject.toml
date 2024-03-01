@@ -180,10 +180,6 @@ select = [
     "RUF100",  # Report unused noqa directives
 ]
 ignore = [
-    # line too long -> we accept long comment lines; black gets rid of long code lines
-    "E501",
-    # Do not assign a lambda expression, use a def -> lambda expression assignments are convenient
-    "E731",
     # allow I, O, l as variable names -> I is the identity matrix
     "E741",
     # Missing docstring in public package
@@ -205,9 +201,16 @@ ignore = [
     "D203",
     # We want docstrings to start immediately after the opening triple quote
     "D213",
-    # Missing argument description in the docstring TODO: enable
-    "D417",
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"docs/*" = ["I", "BLE001"]
+"tests/*" = ["D"]
+"*/__init__.py" = ["F401"]
+"scvi/__init__.py" = ["I"]
 
 [tool.ruff.format]
 # Like Black, use double quotes for strings.
@@ -222,14 +225,7 @@ skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
 
-[tool.ruff.pydocstyle]
-convention = "numpy"
 
-[tool.ruff.per-file-ignores]
-"docs/*" = ["I", "BLE001"]
-"tests/*" = ["D"]
-"*/__init__.py" = ["F401"]
-"scvi/__init__.py" = ["I"]
 
 [tool.jupytext]
 formats = "ipynb,md"
