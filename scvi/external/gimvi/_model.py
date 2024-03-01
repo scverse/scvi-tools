@@ -50,9 +50,11 @@ class GIMVI(VAEMixin, BaseModelClass):
     n_hidden
         Number of nodes per hidden layer.
     generative_distributions
-        List of generative distribution for adata_seq data and adata_spatial data. Defaults to ['zinb', 'nb'].
+        List of generative distribution for adata_seq data and adata_spatial data. Defaults to
+        ['zinb', 'nb'].
     model_library_size
-        List of bool of whether to model library size for adata_seq and adata_spatial. Defaults to [True, False].
+        List of bool of whether to model library size for adata_seq and adata_spatial. Defaults to
+        [True, False].
     n_latent
         Dimensionality of the latent space.
     **model_kwargs
@@ -87,7 +89,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         if adata_seq is adata_spatial:
             raise ValueError(
                 "`adata_seq` and `adata_spatial` cannot point to the same object. "
-                "If you would really like to do this, make a copy of the object and pass it in as `adata_spatial`."
+                "If you would really like to do this, make a copy of the object and pass it in as "
+                "`adata_spatial`."
             )
         model_library_size = model_library_size or [True, False]
         generative_distributions = generative_distributions or ["zinb", "nb"]
@@ -189,8 +192,9 @@ class GIMVI(VAEMixin, BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs
@@ -327,7 +331,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         adatas
             List of adata seq and adata spatial
         deterministic
-            If true, use the mean of the encoder instead of a Gaussian sample for the latent vector.
+            If true, use the mean of the encoder instead of a Gaussian sample for the latent
+            vector.
         normalized
             Return imputed normalized values or not.
         decode_mode

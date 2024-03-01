@@ -28,7 +28,8 @@ class AutotuneExperiment:
         Model class on which to tune hyperparameters. Must implement a constructor and a ``train``
         method.
     adata
-        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with ``model_cls``.
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with
+        ``model_cls``.
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
         provided, the primary metric will be the first element in the list.
@@ -488,7 +489,8 @@ def _trainable(
     """Implements a Ray Tune trainable function for an :class:`~scvi.autotune.AutotuneExperiment`.
 
     Setup on the :class:`~anndata.AnnData` or :class:`~mudata.MuData` has to be performed since Ray
-    opens a new process per trial and thus the initial setup on the main process is not transferred.
+    opens a new process per trial and thus the initial setup on the main process is not
+    transferred.
 
     Parameters
     ----------
