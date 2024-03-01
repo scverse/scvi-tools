@@ -29,16 +29,17 @@ class Trainer(pl.Trainer):
     Parameters
     ----------
     accelerator
-        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
-        as well as custom accelerator instances.
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu", "mps,
+        "auto") as well as custom accelerator instances.
     devices
-        The devices to use. Can be set to a positive number (int or str), a sequence of device indices
-        (list or str), the value ``-1`` to indicate all available devices should be used, or ``"auto"`` for
-        automatic selection based on the chosen accelerator. Default: ``"auto"``.
+        The devices to use. Can be set to a positive number (int or str), a sequence of device
+        indices (list or str), the value ``-1`` to indicate all available devices should be used,
+        or ``"auto"`` for automatic selection based on the chosen accelerator. Default: ``"auto"``.
     benchmark
         If true enables cudnn.benchmark, which improves speed when inputs are fixed size
     check_val_every_n_epoch
-        Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
+        Check val every n train epochs. By default, val is not checked, unless `early_stopping` is
+        `True`.
     max_epochs
         Stop training once this number of epochs is reached.
     default_root_dir

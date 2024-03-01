@@ -76,9 +76,11 @@ class RNASeqMixin:
         truncation
             Whether importance weights should be truncated. If True, the importance weights are
             truncated as described in :cite:p:`Ionides2008`. In particular, the provided value
-            is used to threshold importance weights as a way to reduce the variance of the estimator.
+            is used to threshold importance weights as a way to reduce the variance of the
+            estimator.
         n_mc_samples
-            Number of Monte Carlo samples to use for estimating the importance weights, by default 500
+            Number of Monte Carlo samples to use for estimating the importance weights, by default
+            500
         n_mc_samples_per_pass
             Number of Monte Carlo samples to use for each pass, by default 250
 
@@ -193,11 +195,12 @@ class RNASeqMixin:
         return_mean
             Whether to return the mean of the samples.
         return_numpy
-            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
-            gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
-            Otherwise, it defaults to `True`.
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
+            includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
+            to `False`. Otherwise, it defaults to `True`.
         importance_weighting_kwargs
-            Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            Keyword arguments passed into
+            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
 
         Returns
         -------
@@ -243,7 +246,8 @@ class RNASeqMixin:
         store_distributions = weights == "importance"
         if store_distributions and len(transform_batch) > 1:
             raise NotImplementedError(
-                "Importance weights cannot be computed when expression levels are averaged across batches."
+                "Importance weights cannot be computed when expression levels are averaged across "
+                "batches."
             )
 
         exprs = []
@@ -356,9 +360,11 @@ class RNASeqMixin:
         weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
         filter_outlier_cells
-            Whether to filter outlier cells with :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
+            Whether to filter outlier cells with
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         importance_weighting_kwargs
-            Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            Keyword arguments passed into
+            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -424,8 +430,9 @@ class RNASeqMixin:
         Parameters
         ----------
         adata
-            :class:`~anndata.AnnData` object with an equivalent structure to the model's dataset. If
-            ``None``, defaults to the :class:`~anndata.AnnData` object used to initialize the model.
+            :class:`~anndata.AnnData` object with an equivalent structure to the model's dataset.
+            If ``None``, defaults to the :class:`~anndata.AnnData` object used to initialize the
+            model.
         indices
             Indices of the observations in ``adata`` to use. If ``None``, defaults to all the
             observations.
@@ -741,7 +748,8 @@ class RNASeqMixin:
                 if ql is None:
                     raise RuntimeError(
                         "The module for this model does not compute the posterior distribution "
-                        "for the library size. Set `give_mean` to False to use the observed library size instead."
+                        "for the library size. Set `give_mean` to False to use the observed "
+                        "library size instead."
                     )
                 library = torch.distributions.LogNormal(ql.loc, ql.scale).mean
             libraries += [library.cpu()]

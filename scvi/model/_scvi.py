@@ -224,7 +224,7 @@ class SCVI(
     def _get_fields_for_adata_minification(
         minified_data_type: MinifiedDataType,
     ) -> list[BaseAnnDataField]:
-        """Return the anndata fields required for adata minification of the given minified_data_type."""
+        """Return the fields required for adata minification of the given minified_data_type."""
         if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             fields = [
                 ObsmField(
@@ -260,7 +260,8 @@ class SCVI(
 
         Minifies the adata, and registers new anndata fields: latent qzm, latent qzv, adata uns
         containing minified-adata type, and library size.
-        This also sets the appropriate property on the module to indicate that the adata is minified.
+        This also sets the appropriate property on the module to indicate that the adata is
+        minified.
 
         Parameters
         ----------

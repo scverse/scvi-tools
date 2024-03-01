@@ -47,8 +47,8 @@ class AnnTorchDataset(Dataset):
         :class:`~np.float32` and discrete data will be returned as :class:`~np.int64`.
     load_sparse_tensor
         ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
-        :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to GPUs,
-        depending on the sparsity of the data.
+        :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
+        GPUs, depending on the sparsity of the data.
     """
 
     def __init__(

@@ -38,11 +38,12 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        single-cell AnnData object that has been registered via :meth:`~scvi.external.CellAssign.setup_anndata`.
-        The object should be subset to contain the same genes as the cell type marker dataframe.
+        single-cell AnnData object that has been registered via
+        :meth:`~scvi.external.CellAssign.setup_anndata`. The object should be subset to contain the
+        same genes as the cell type marker dataframe.
     cell_type_markers
-        Binary marker gene DataFrame of genes by cell types. Gene names corresponding to `adata.var_names`
-        should be in DataFrame index, and cell type labels should be the columns.
+        Binary marker gene DataFrame of genes by cell types. Gene names corresponding to
+        `adata.var_names` should be in DataFrame index, and cell type labels should be the columns.
     **model_kwargs
         Keyword args for :class:`~scvi.external.cellassign.CellAssignModule`
 
@@ -60,8 +61,9 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
 
     Notes
     -----
-    Size factors in the R implementation of CellAssign are computed using scran. An approximate approach
-    computes the sum of UMI counts (library size) over all genes and divides by the mean library size.
+    Size factors in the R implementation of CellAssign are computed using scran. An approximate
+    approach computes the sum of UMI counts (library size) over all genes and divides by the mean
+    library size.
 
     See further usage examples in the following tutorial:
 
@@ -160,8 +162,9 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs
