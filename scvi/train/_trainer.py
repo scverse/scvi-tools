@@ -8,13 +8,13 @@ from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import Logger
 
 from scvi import settings
-
-from ._callbacks import (
+from scvi.train.callbacks._callbacks import (
     LoudEarlyStopping,
     MetricCallable,
     MetricsCallback,
     SaveCheckpoint,
 )
+
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan

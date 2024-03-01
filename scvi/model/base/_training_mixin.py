@@ -124,6 +124,13 @@ class UnsupervisedTrainingMixin:
             )
 
         plan_kwargs = plan_kwargs or {}
+
+        callbacks = trainer_kwargs.get("callbacks", [])
+        if any(callback.__class__.__name__ == "ScibCallback" for callback in callbacks):
+            # need to check instances this way since scib-metrics is an optional dependency
+            trainer_kwargs["check_val_every_n_epoch"] = 1
+            plan_kwargs["store_validation_outputs"] = True
+
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"

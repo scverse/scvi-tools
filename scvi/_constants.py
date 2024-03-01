@@ -27,6 +27,7 @@ class _METRIC_KEYS_NT(NamedTuple):
     CLASSIFICATION_LOSS_KEY: str = "classification_loss"
     TRUE_LABELS_KEY: str = "true_labels"
     LOGITS_KEY: str = "logits"
+    LATENT_KEY: str = "latent"
 
 
 REGISTRY_KEYS = _REGISTRY_KEYS_NT()

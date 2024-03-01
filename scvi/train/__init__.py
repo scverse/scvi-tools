@@ -1,4 +1,4 @@
-from ._callbacks import JaxModuleInit, LoudEarlyStopping, SaveBestState, SaveCheckpoint
+from . import callbacks
 from ._trainer import Trainer
 from ._trainingplans import (
     AdversarialTrainingPlan,
@@ -10,6 +10,7 @@ from ._trainingplans import (
     TrainingPlan,
 )
 from ._trainrunner import TrainRunner
+from .callbacks import JaxModuleInit, LoudEarlyStopping, SaveBestState, SaveCheckpoint
 
 __all__ = [
     "TrainingPlan",
@@ -25,4 +26,5 @@ __all__ = [
     "SaveCheckpoint",
     "JaxModuleInit",
     "JaxTrainingPlan",
+    "callbacks",
 ]
