@@ -50,10 +50,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Flexibility of the dispersion parameter when ``gene_likelihood`` is either ``"nb"`` or
         ``"zinb"``. One of the following:
 
-        * ``"gene"``: dispersion parameter of NB is constant per gene across cells.
-        * ``"gene-batch"``: dispersion can differ between different batches.
-        * ``"gene-label"``: dispersion can differ between different labels.
-        * ``"gene-cell"``: dispersion can differ for every gene in every cell.
+        * ``"gene"``: parameter is constant per gene across cells.
+        * ``"gene-batch"``: parameter is constant per gene per batch.
+        * ``"gene-label"``: parameter is constant per gene per label.
+        * ``"gene-cell"``: parameter is constant per gene per cell.
     log_variational
         If ``True``, use :func:`~torch.log1p` on input data before encoding for numerical stability
         (not normalization).
@@ -168,18 +168,18 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         from scvi.nn import DecoderSCVI, Encoder
 
         super().__init__()
+
         self.dispersion = dispersion
         self.n_latent = n_latent
         self.log_variational = log_variational
         self.gene_likelihood = gene_likelihood
-        # Automatically deactivate if useless
         self.n_batch = n_batch
         self.n_labels = n_labels
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
-
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
+
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_vars is None:
                 raise ValueError(
