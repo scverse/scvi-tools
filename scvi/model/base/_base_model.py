@@ -128,14 +128,14 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """Manager instance associated with self.adata."""
         return self._adata_manager
 
-    def to_device(self, device: str | int):
+    @devices_dsp.dedent
+    def to_device(self, accelerator: str, device: int | str = "auto"):
         """Move model to device.
 
         Parameters
         ----------
-        device
-            Device to move model to. Options: 'cpu' for CPU, integer GPU index (eg. 0),
-            or 'cuda:X' where X is the GPU index (eg. 'cuda:0'). See torch.device for more info.
+        %(param_accelerator)s
+        %(param_device)s
 
         Examples
         --------
@@ -145,11 +145,16 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model.to_device('cuda:0')   # moves model to GPU 0
         >>> model.to_device(0)          # also moves model to GPU 0
         """
-        my_device = torch.device(device)
-        self.module.to(my_device)
+        torch_device = parse_device_args(
+            accelerator=accelerator,
+            devices=device,
+            validate_single_device=True,
+            return_device="torch",
+        )
+        self.module.to(torch_device)
 
     @property
-    def device(self) -> str:
+    def device(self) -> torch.device:
         """The current device that the module's params are on."""
         return self.module.device
 
