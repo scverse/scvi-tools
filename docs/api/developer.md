@@ -93,6 +93,7 @@ Parameterizable probability distributions.
    :toctree: reference/
    :nosignatures:
 
+   distributions.Poisson
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
@@ -221,6 +222,7 @@ Basic neural network building blocks.
    nn.FCLayers
    nn.Encoder
    nn.Decoder
+   nn.DecoderSCVI
    nn.one_hot
    nn.Embedding
 

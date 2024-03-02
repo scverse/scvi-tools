@@ -171,6 +171,8 @@ class VAEMixin:
         -------
         Low-dimensional representation for each cell or a tuple containing its mean and variance.
         """
+        from scvi.module._constants import MODULE_KEYS
+
         self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
@@ -181,10 +183,10 @@ class VAEMixin:
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
-            if "qz" in outputs:
-                qz = outputs["qz"]
+            if MODULE_KEYS.QZ_KEY in outputs:
+                qz = outputs[MODULE_KEYS.QZ_KEY]
             else:
-                qz_m, qz_v = outputs["qz_m"], outputs["qz_v"]
+                qz_m, qz_v = outputs[MODULE_KEYS.QZM_KEY], outputs[MODULE_KEYS.QZV_KEY]
                 qz = torch.distributions.Normal(qz_m, qz_v.sqrt())
             if give_mean:
                 # does each model need to have this latent distribution param?
@@ -195,7 +197,7 @@ class VAEMixin:
                 else:
                     z = qz.loc
             else:
-                z = outputs["z"]
+                z = outputs[MODULE_KEYS.Z_KEY]
 
             latent += [z.cpu()]
             latent_qzm += [qz.loc.cpu()]

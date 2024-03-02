@@ -16,7 +16,7 @@ from lightning.pytorch.strategies.ddp import DDPStrategy
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from scvi import METRIC_KEYS, REGISTRY_KEYS
+from scvi import REGISTRY_KEYS
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -26,6 +26,7 @@ from scvi.module.base import (
     TrainStateWithState,
 )
 from scvi.nn import one_hot
+from scvi.train._constants import METRIC_KEYS
 
 from ._metrics import ElboMetric
 

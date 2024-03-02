@@ -100,6 +100,10 @@ class SCVI(
     2. :doc:`/tutorials/notebooks/scrna/harmonization`
     3. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
     4. :doc:`/tutorials/notebooks/scrna/scvi_in_R`
+
+    See Also
+    --------
+    :class:`~scvi.module.VAE`
     """
 
     _module_cls = VAE

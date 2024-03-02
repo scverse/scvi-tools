@@ -378,6 +378,8 @@ def test_scvi(n_latent: int = 5):
 
 
 def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
+    from scvi.module._constants import MODULE_KEYS
+
     adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
@@ -391,8 +393,8 @@ def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
 
     def old_inference(*args, **kwargs):
         inf_outs = vae.inference(*args, **kwargs)
-        qz = inf_outs.pop("qz")
-        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
+        qz = inf_outs.pop(MODULE_KEYS.QZ_KEY)
+        inf_outs[MODULE_KEYS.QZM_KEY], inf_outs[MODULE_KEYS.QZV_KEY] = qz.loc, qz.scale**2
         return inf_outs
 
     vae_mock.inference.side_effect = old_inference
@@ -402,6 +404,8 @@ def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
 
 
 def test_scvi_get_feature_corr_backwards_compat(n_latent: int = 5):
+    from scvi.module._constants import MODULE_KEYS
+
     adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
@@ -415,9 +419,9 @@ def test_scvi_get_feature_corr_backwards_compat(n_latent: int = 5):
 
     def old_forward(*args, **kwargs):
         inf_outs, gen_outs = vae.forward(*args, **kwargs)
-        qz = inf_outs.pop("qz")
-        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
-        px = gen_outs.pop("px")
+        qz = inf_outs.pop(MODULE_KEYS.QZ_KEY)
+        inf_outs[MODULE_KEYS.QZM_KEY], inf_outs[MODULE_KEYS.QZV_KEY] = qz.loc, qz.scale**2
+        px = gen_outs.pop(MODULE_KEYS.PX_KEY)
         gen_outs["px_scale"], gen_outs["px_r"] = px.scale, px.theta
         return inf_outs, gen_outs
 
