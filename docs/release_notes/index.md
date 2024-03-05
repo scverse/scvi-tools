@@ -27,8 +27,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Deprecate {func}`scvi.data.cellxgene`, to be removed in v1.3. Please directly use the
     [cellxgene-census](https://chanzuckerberg.github.io/cellxgene-census/) instead {pr}`2542`.
 -   Deprecate `additional_val_metrics` argument in {class}`scvi.train.Trainer`, to be removed in
-    v1.3 {pr}`xxxx`.
--   Deprecate {class}`scvi.train._callbacks.MetricsCallback`, to be removed in v1.3 {pr}`xxxx`.
+    v1.3 {pr}`2599`.
+-   Deprecate {class}`scvi.train._callbacks.MetricsCallback`, to be removed in v1.3 {pr}`2599`.
 
 #### Removed
 
