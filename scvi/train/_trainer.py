@@ -73,7 +73,7 @@ class Trainer(pl.Trainer):
         In 'min' mode, training will stop when the quantity monitored has stopped decreasing
         and in 'max' mode it will stop when the quantity monitored has stopped increasing.
     additional_val_metrics
-        Additional validation metrics to compute and log. See
+        ``DEPRECATED`` Additional validation metrics to compute and log. See
         :class:`~scvi.train._callbacks.MetricsCallback` for more details.
     enable_progress_bar
         Whether to enable or disable the progress bar.
@@ -90,6 +90,10 @@ class Trainer(pl.Trainer):
         How often to log within steps. This does not affect epoch-level logging.
     **kwargs
         Other keyword args for :class:`~pytorch_lightning.trainer.Trainer`
+
+    Notes
+    -----
+    Lifecycle: `additional_val_metrics` is deprecated in v1.2, to be removed in v1.3.
     """
 
     def __init__(
@@ -156,6 +160,12 @@ class Trainer(pl.Trainer):
             callbacks.append(ProgressBar(refresh_rate=progress_bar_refresh_rate))
 
         if additional_val_metrics is not None:
+            warnings.warn(
+                "`additional_val_metrics` is deprecated in v1.2 and will be removed in v1.3.",
+                DeprecationWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+
             if check_val_every_n_epoch == sys.maxsize:
                 warnings.warn(
                     "`additional_val_metrics` was passed in but will not be computed "
