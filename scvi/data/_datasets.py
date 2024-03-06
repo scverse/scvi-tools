@@ -515,6 +515,7 @@ def synthetic_iid(
     n_labels: int = 3,
     dropout_ratio: float = 0.7,
     sparse_format: str | None = None,
+    generate_coordinates: bool = False,
     return_mudata: bool = False,
 ) -> AnnOrMuData:
     """Synthetic multimodal dataset.
@@ -551,6 +552,8 @@ def synthetic_iid(
         * `None`: Store as a dense :class:`numpy.ndarray`.
         * `"csr_matrix"`: Store as a :class:`scipy.sparse.csr_matrix`.
         * `"csc_matrix"`: Store as a :class:`scipy.sparse.csc_matrix`.
+    generate_coordinates
+        Whether to generate spatial coordinates for the cells.
     return_mudata
         Returns a :class:`~mudata.MuData` if `True`, else :class:`~anndata.AnnData`.
 
@@ -591,6 +594,7 @@ def synthetic_iid(
         n_labels=n_labels,
         dropout_ratio=dropout_ratio,
         sparse_format=sparse_format,
+        generate_coordinates=generate_coordinates,
         return_mudata=return_mudata,
     )
 

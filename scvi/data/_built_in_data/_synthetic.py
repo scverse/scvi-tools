@@ -22,6 +22,7 @@ def _generate_synthetic(
     n_labels: int,
     dropout_ratio: float,
     sparse_format: Optional[str],
+    generate_coordinates: bool,
     return_mudata: bool,
     batch_key: str = "batch",
     labels_key: str = "labels",
@@ -29,6 +30,7 @@ def _generate_synthetic(
     protein_expression_key: str = "protein_expression",
     protein_names_key: str = "protein_names",
     accessibility_key: str = "accessibility",
+    coordinates_key: str = "coordinates",
 ) -> AnnOrMuData:
     n_obs = batch_size * n_batches
 
@@ -61,6 +63,9 @@ def _generate_synthetic(
         labels = np.random.randint(0, n_labels, size=(n_obs,))
         labels = np.array([f"label_{i}" for i in labels])
 
+    if generate_coordinates:
+        coords = np.random.normal(size=(n_obs, 2))
+
     adata = AnnData(rna)
     if return_mudata:
         mod_dict = {rna_key: adata}
@@ -73,12 +78,17 @@ def _generate_synthetic(
             mod_dict[accessibility_key] = AnnData(accessibility)
 
         adata = MuData(mod_dict)
+
+        if generate_coordinates:
+            adata.obsm[coordinates_key] = coords
     else:
         if n_proteins > 0:
             adata.obsm[protein_expression_key] = protein
             adata.uns[protein_names_key] = protein_names
         if n_regions > 0:
             adata.obsm[accessibility_key] = accessibility
+        if generate_coordinates:
+            adata.obsm[coordinates_key] = coords
 
     adata.obs[batch_key] = pd.Categorical(batch)
     if n_labels > 0:
