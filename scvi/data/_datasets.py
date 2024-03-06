@@ -566,6 +566,8 @@ def synthetic_iid(
     * `.obsm["protein_expression"]`: Protein expression matrix.
     * `.uns["protein_names"]`: Array of protein names.
     * `.obsm["accessibility"]`: Accessibility expression matrix.
+    * `.obsm["coordinates"]`: Spatial coordinates for the cells if ``generate_coordinates`` is
+      ``True``.
 
     :class:`~mudata.MuData` (if `return_mudata=True`) with the following fields:
 
@@ -574,6 +576,8 @@ def synthetic_iid(
     * `.mod["rna"]`: RNA expression data.
     * `.mod["protein_expression"]`: Protein expression data.
     * `.mod["accessibility"]`: Accessibility expression data.
+    * `.obsm["coordinates"]`: Spatial coordinates for the cells if ``generate_coordinates`` is
+      ``True``.
 
     Examples
     --------
