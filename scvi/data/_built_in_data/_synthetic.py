@@ -78,20 +78,17 @@ def _generate_synthetic(
             mod_dict[accessibility_key] = AnnData(accessibility)
 
         adata = MuData(mod_dict)
-
-        if generate_coordinates:
-            adata.obsm[coordinates_key] = coords
     else:
         if n_proteins > 0:
             adata.obsm[protein_expression_key] = protein
             adata.uns[protein_names_key] = protein_names
         if n_regions > 0:
             adata.obsm[accessibility_key] = accessibility
-        if generate_coordinates:
-            adata.obsm[coordinates_key] = coords
 
     adata.obs[batch_key] = pd.Categorical(batch)
     if n_labels > 0:
         adata.obs[labels_key] = pd.Categorical(labels)
+    if generate_coordinates:
+        adata.obsm[coordinates_key] = coords
 
     return adata
