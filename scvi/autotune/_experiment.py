@@ -171,14 +171,14 @@ class AutotuneExperiment:
     def setup_method_name(self) -> str:
         """Either ``"setup_anndata"`` or ``"setup_mudata"``."""
         if not hasattr(self, "_setup_method_name"):
-            raise AttributeError("`setup_method_name` not yet available.")
+            raise AttributeError("`setup_method_name` not available.")
         return self._setup_method_name
 
     @property
     def setup_method_args(self) -> dict[str, Any]:
         """Keyword arguments for the setup method."""
         if not hasattr(self, "_setup_method_args"):
-            raise AttributeError("`setup_method_args` not yet available.")
+            raise AttributeError("`setup_method_args` not available.")
         return self._setup_method_args
 
     @property
