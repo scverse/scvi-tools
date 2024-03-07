@@ -23,6 +23,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     {class}`scvi.module.base.EmbeddingModuleMixin` {pr}`2576`.
 -   Add option to generate synthetic spatial coordinates in {func}`scvi.data.synthetic_iid` with
     argument `generate_coordinates` {pr}`2603`.
+-   Add experimental support for using custom {class}`lightning.pytorch.core.LightningDataModule`s
+    in {func}`scvi.autotune.run_autotune` {pr}`2605`.
 
 #### Changed
 
