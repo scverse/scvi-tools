@@ -3,9 +3,11 @@ from __future__ import annotations
 from os.path import join
 from typing import Any, Literal
 
+from anndata import AnnData
 from lightning.pytorch import LightningDataModule
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.loggers import TensorBoardLogger
+from mudata import MuData
 from ray.tune import ResultGrid, Tuner
 from ray.tune.schedulers import TrialScheduler
 from ray.tune.search import SearchAlgorithm
@@ -152,9 +154,6 @@ class AutotuneExperiment:
 
     @data.setter
     def data(self, value: AnnOrMuData | LightningDataModule) -> None:
-        from anndata import AnnData
-        from mudata import MuData
-
         from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 
         if hasattr(self, "_data"):
@@ -532,7 +531,7 @@ def _trainable(
     }
 
     settings.seed = experiment.seed
-    if isinstance(experiment.data, AnnOrMuData):
+    if isinstance(experiment.data, (AnnData, MuData)):
         getattr(experiment.model_cls, experiment.setup_method_name)(
             experiment.data,
             **experiment.setup_method_args,
