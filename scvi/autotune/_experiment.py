@@ -3,6 +3,7 @@ from __future__ import annotations
 from os.path import join
 from typing import Any, Literal
 
+from lightning.pytorch import LightningDataModule
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.loggers import TensorBoardLogger
 from ray.tune import ResultGrid, Tuner
@@ -27,9 +28,9 @@ class AutotuneExperiment:
     model_cls
         Model class on which to tune hyperparameters. Must implement a constructor and a ``train``
         method.
-    adata
-        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with
-        ``model_cls``.
+    data
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with `model_cls``,
+        or a :class:`~lightning.pytorch.core.LightningDataModule`.
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
         provided, the primary metric will be the first element in the list.
@@ -95,7 +96,7 @@ class AutotuneExperiment:
     def __init__(
         self,
         model_cls: BaseModelClass,
-        adata: AnnOrMuData,
+        data: AnnOrMuData | LightningDataModule,
         metrics: str | list[str],
         mode: Literal["min", "max"],
         search_space: dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]],
@@ -110,7 +111,7 @@ class AutotuneExperiment:
         searcher_kwargs: dict | None = None,
     ) -> None:
         self.model_cls = model_cls
-        self.adata = adata
+        self.data = data
         self.metrics = metrics
         self.mode = mode
         self.search_space = search_space
@@ -145,21 +146,26 @@ class AutotuneExperiment:
         self._model_cls = value
 
     @property
-    def adata(self) -> AnnOrMuData:
-        """:class:`~anndata.AnnData` or :class:`~mudata.MuData` for the experiment."""
-        return self._adata
+    def data(self) -> AnnOrMuData | LightningDataModule:
+        """Data on which to tune hyperparameters."""
+        return self._data
 
-    @adata.setter
-    def adata(self, value: AnnOrMuData) -> None:
+    @data.setter
+    def data(self, value: AnnOrMuData | LightningDataModule) -> None:
         from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 
-        if hasattr(self, "_adata"):
-            raise AttributeError("Cannot reassign `adata`")
+        if hasattr(self, "_data"):
+            raise AttributeError("Cannot reassign `data`")
 
-        data_manager = self.model_cls._get_most_recent_anndata_manager(value, required=True)
-        self._adata = value
-        self._setup_method_name = data_manager._registry.get(_SETUP_METHOD_NAME, "setup_anndata")
-        self._setup_method_args = data_manager._get_setup_method_args().get(_SETUP_ARGS_KEY, {})
+        self._data = value
+        if isinstance(value, AnnOrMuData):
+            data_manager = self.model_cls._get_most_recent_anndata_manager(value, required=True)
+            self._setup_method_name = data_manager._registry.get(
+                _SETUP_METHOD_NAME, "setup_anndata"
+            )
+            self._setup_method_args = data_manager._get_setup_method_args().get(
+                _SETUP_ARGS_KEY, {}
+            )
 
     @property
     def setup_method_name(self) -> str:
@@ -523,9 +529,13 @@ def _trainable(
     }
 
     settings.seed = experiment.seed
-    getattr(experiment.model_cls, experiment.setup_method_name)(
-        experiment.adata,
-        **experiment.setup_method_args,
-    )
-    model = experiment.model_cls(experiment.adata, **model_args)
-    model.train(**train_args)
+    if isinstance(experiment.data, AnnOrMuData):
+        getattr(experiment.model_cls, experiment.setup_method_name)(
+            experiment.data,
+            **experiment.setup_method_args,
+        )
+        model = experiment.model_cls(experiment.data, **model_args)
+        model.train(**train_args)
+    else:
+        model = experiment.model_cls(**model_args)
+        model.train(data_module=experiment.data, **train_args)
