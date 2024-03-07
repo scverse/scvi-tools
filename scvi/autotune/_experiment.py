@@ -30,7 +30,7 @@ class AutotuneExperiment:
         method.
     data
         :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with `model_cls``,
-        or a :class:`~lightning.pytorch.core.LightningDataModule`.
+        or a :class:`~lightning.pytorch.core.LightningDataModule` (``EXPERIMENTAL``).
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
         provided, the primary metric will be the first element in the list.
@@ -152,13 +152,16 @@ class AutotuneExperiment:
 
     @data.setter
     def data(self, value: AnnOrMuData | LightningDataModule) -> None:
+        from anndata import AnnData
+        from mudata import MuData
+
         from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 
         if hasattr(self, "_data"):
             raise AttributeError("Cannot reassign `data`")
 
         self._data = value
-        if isinstance(value, AnnOrMuData):
+        if isinstance(value, (AnnData, MuData)):
             data_manager = self.model_cls._get_most_recent_anndata_manager(value, required=True)
             self._setup_method_name = data_manager._registry.get(
                 _SETUP_METHOD_NAME, "setup_anndata"
