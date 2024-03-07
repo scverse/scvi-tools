@@ -31,8 +31,8 @@ class AutotuneExperiment:
         Model class on which to tune hyperparameters. Must implement a constructor and a ``train``
         method.
     data
-        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with `model_cls``,
-        or a :class:`~lightning.pytorch.core.LightningDataModule` (``EXPERIMENTAL``).
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with
+        ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule` (``EXPERIMENTAL``).
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
         provided, the primary metric will be the first element in the list.
