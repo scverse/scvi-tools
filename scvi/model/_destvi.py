@@ -22,12 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
-    """Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez22`. Most users will use the alternate constructor (see example).
+    """Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez22`.
+
+    Most users will use the alternate constructor (see example).
 
     Parameters
     ----------
     st_adata
-        spatial transcriptomics AnnData object that has been registered via :meth:`~scvi.model.DestVI.setup_anndata`.
+        spatial transcriptomics AnnData object that has been registered via
+        :meth:`~scvi.model.DestVI.setup_anndata`.
     cell_type_mapping
         mapping between numerals and cell type labels
     decoder_state_dict
@@ -170,11 +173,14 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         keep_noise
-            whether to account for the noise term as a standalone cell type in the proportion estimate.
+            whether to account for the noise term as a standalone cell type in the proportion
+            estimate.
         indices
-            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
+            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are
+            used.
         batch_size
-            Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into model. Only used if amortization. Defaults to
+            `scvi.settings.batch_size`.
         """
         self._check_if_trained()
 
@@ -198,7 +204,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         else:
             if indices is not None:
                 logger.info(
-                    "No amortization for proportions, ignoring indices and returning results for the full data"
+                    "No amortization for proportions, ignoring indices and returning results for "
+                    "the full data"
                 )
             data = self.module.get_proportions(keep_noise=keep_noise)
 
@@ -219,9 +226,11 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         indices
-            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
+            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are
+            used.
         batch_size
-            Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into model. Only used if amortization. Defaults to
+            `scvi.settings.batch_size`.
         return_numpy
             if activated, will return a numpy array of shape is n_spots x n_latent x n_labels.
         """
@@ -243,7 +252,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         else:
             if indices is not None:
                 logger.info(
-                    "No amortization for latent values, ignoring adata and returning results for the full data"
+                    "No amortization for latent values, ignoring adata and returning results for "
+                    "the full data"
                 )
             data = self.module.get_gamma()
 
@@ -333,8 +343,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         n_epochs_kl_warmup

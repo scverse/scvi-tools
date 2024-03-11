@@ -85,7 +85,8 @@ def registry_from_setup_dict(
     model_cls
         Model class used for setup.
     setup_dict
-        Setup dictionary created after registering an AnnData with former ``setup_anndata`` implementation.
+        Setup dictionary created after registering an AnnData with former ``setup_anndata``
+        implementation.
     unlabeled_category
         Unlabeled category value used in :class:`~scvi.model.SCANVI`.
     """

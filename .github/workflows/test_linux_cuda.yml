@@ -48,7 +48,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install ".[tests]"
+          python -m pip install --upgrade pip wheel uv
+          python -m uv pip install --system "scvi-tools[tests] @ ."
 
       - name: Test
         env:

@@ -20,14 +20,16 @@ logger = logging.getLogger(__name__)
 
 
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
-    """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    """Reimplementation of Stereoscope :cite:p:`Andersson20`.
 
-    Original implementation: https://github.com/almaan/stereoscope.
+    Deconvolution of spatial transcriptomics from single-cell transcriptomics. Original
+    implementation: https://github.com/almaan/stereoscope.
 
     Parameters
     ----------
     sc_adata
-        single-cell AnnData object that has been registered via :meth:`~scvi.external.RNAStereoscope.setup_anndata`.
+        single-cell AnnData object that has been registered via
+        :meth:`~scvi.external.RNAStereoscope.setup_anndata`.
     **model_kwargs
         Keyword args for :class:`~scvi.external.stereoscope.RNADeconv`
 
@@ -95,8 +97,9 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs
@@ -155,14 +158,16 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
 
 
 class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
-    """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    """Reimplementation of Stereoscope :cite:p:`Andersson20`.
 
-    Original implementation: https://github.com/almaan/stereoscope.
+    Deconvolution of spatial transcriptomics from single-cell transcriptomics. Original
+    implementation: https://github.com/almaan/stereoscope.
 
     Parameters
     ----------
     st_adata
-        spatial transcriptomics AnnData object that has been registered via :meth:`~scvi.external.SpatialStereoscope.setup_anndata`.
+        spatial transcriptomics AnnData object that has been registered via
+        :meth:`~scvi.external.SpatialStereoscope.setup_anndata`.
     sc_params
         parameters of the model learned from the single-cell RNA seq data for deconvolution.
     cell_type_mapping
@@ -251,7 +256,8 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         keep_noise
-            whether to account for the noise term as a standalone cell type in the proportion estimate.
+            whether to account for the noise term as a standalone cell type in the proportion
+            estimate.
         """
         self._check_if_trained()
 
@@ -283,7 +289,8 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         ind_y = np.array([np.where(ct == self.cell_type_mapping)[0][0] for ct in y])
         if ind_y.shape != y.shape:
             raise ValueError(
-                "Incorrect shape after matching cell types to reference mapping. Please check cell type query."
+                "Incorrect shape after matching cell types to reference mapping. Please check "
+                "cell type query."
             )
         px_scale = self.module.get_ct_specific_expression(torch.tensor(ind_y)[:, None])
         return np.array(px_scale.cpu())
@@ -312,8 +319,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         %(param_accelerator)s
         %(param_devices)s
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs

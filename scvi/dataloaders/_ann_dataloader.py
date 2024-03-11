@@ -35,9 +35,9 @@ class AnnDataLoader(DataLoader):
     shuffle
         Whether the dataset should be shuffled prior to sampling.
     sampler
-        Defines the strategy to draw samples from the dataset. Can be any Iterable with __len__ implemented.
-        If specified, shuffle must not be specified. By default, we use a custom sampler that is designed to
-        get a minibatch of data with one call to __getitem__.
+        Defines the strategy to draw samples from the dataset. Can be any Iterable with __len__
+        implemented. If specified, shuffle must not be specified. By default, we use a custom
+        sampler that is designed to get a minibatch of data with one call to __getitem__.
     drop_last
         If `True` and the dataset is not evenly divisible by `batch_size`, the last
         incomplete batch is dropped. If `False` and the dataset is not evenly divisible
@@ -59,8 +59,8 @@ class AnnDataLoader(DataLoader):
         sampler. If `True`, `sampler` must be `None`.
     load_sparse_tensor
         ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
-        :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to GPUs,
-        depending on the sparsity of the data.
+        :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
+        GPUs, depending on the sparsity of the data.
     **kwargs
         Additional keyword arguments passed into :class:`~torch.utils.data.DataLoader`.
 

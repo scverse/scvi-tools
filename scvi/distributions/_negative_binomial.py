@@ -49,7 +49,8 @@ def log_zinb_positive(
     -----
     We parametrize the bernoulli using the logits, hence the softplus functions appearing.
     """
-    # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless of batch or labels)
+    # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless
+    # of batch or labels)
     if theta.ndimension() == 1:
         theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
 
@@ -135,14 +136,17 @@ def log_mixture_nb(
     x
         Observed data
     mu_1
-        Mean of the first negative binomial component (has to be positive support) (shape: minibatch x features)
+        Mean of the first negative binomial component (has to be positive support) (shape:
+        minibatch x features)
     mu_2
-        Mean of the second negative binomial (has to be positive support) (shape: minibatch x features)
+        Mean of the second negative binomial (has to be positive support) (shape: minibatch x
+        features)
     theta_1
-        First inverse dispersion parameter (has to be positive support) (shape: minibatch x features)
+        First inverse dispersion parameter (has to be positive support) (shape: minibatch x
+        features)
     theta_2
-        Second inverse dispersion parameter (has to be positive support) (shape: minibatch x features)
-        If None, assume one shared inverse dispersion parameter.
+        Second inverse dispersion parameter (has to be positive support) (shape: minibatch x
+        features). If None, assume one shared inverse dispersion parameter.
     pi_logits
         Probability of belonging to mixture component 1 (logits scale)
     eps
@@ -277,7 +281,8 @@ class Poisson(PoissonTorch):
         param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
         args_string = ", ".join(
             [
-                f"{p}: {self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
+                f"{p}: "
+                f"{self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
                 for p in param_names
                 if self.__dict__[p] is not None
             ]
@@ -295,9 +300,11 @@ class NegativeBinomial(Distribution):
     parameterization, which is the one used by scvi-tools. These parameters respectively
     control the mean and inverse dispersion of the distribution.
 
-    In the (`mu`, `theta`) parameterization, samples from the negative binomial are generated as follows:
+    In the (`mu`, `theta`) parameterization, samples from the negative binomial are generated as
+    follows:
 
-    1. :math:`w \sim \textrm{Gamma}(\underbrace{\theta}_{\text{shape}}, \underbrace{\theta/\mu}_{\text{rate}})`
+    1. :math:`w \sim \textrm{Gamma}(\underbrace{\theta}_{\text{shape}},
+       \underbrace{\theta/\mu}_{\text{rate}})`
     2. :math:`x \sim \textrm{Poisson}(w)`
 
     Parameters
@@ -336,7 +343,8 @@ class NegativeBinomial(Distribution):
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
             raise ValueError(
-                "Please use one of the two possible parameterizations. Refer to the documentation for more information."
+                "Please use one of the two possible parameterizations. Refer to the documentation "
+                "for more information."
             )
 
         using_param_1 = total_count is not None and (logits is not None or probs is not None)
@@ -396,7 +404,8 @@ class NegativeBinomial(Distribution):
         param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
         args_string = ", ".join(
             [
-                f"{p}: {self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
+                f"{p}: "
+                f"{self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
                 for p in param_names
                 if self.__dict__[p] is not None
             ]
@@ -414,9 +423,11 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
     parameterization, which is the one used by scvi-tools. These parameters respectively
     control the mean and inverse dispersion of the distribution.
 
-    In the (`mu`, `theta`) parameterization, samples from the negative binomial are generated as follows:
+    In the (`mu`, `theta`) parameterization, samples from the negative binomial are generated as
+    follows:
 
-    1. :math:`w \sim \textrm{Gamma}(\underbrace{\theta}_{\text{shape}}, \underbrace{\theta/\mu}_{\text{rate}})`
+    1. :math:`w \sim \textrm{Gamma}(\underbrace{\theta}_{\text{shape}},
+       \underbrace{\theta/\mu}_{\text{rate}})`
     2. :math:`x \sim \textrm{Poisson}(w)`
 
     Parameters
@@ -620,7 +631,8 @@ class NegativeBinomialMixture(Distribution):
         param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
         args_string = ", ".join(
             [
-                f"{p}: {self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
+                f"{p}: "
+                f"{self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
                 for p in param_names
                 if self.__dict__[p] is not None
             ]

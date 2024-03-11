@@ -160,10 +160,11 @@ def test_scanvi_from_scvi(save_path):
 
     with pytest.raises(ValueError) as e:
         scvi.model.SCANVI.from_scvi_model(model, "label_0")
-    assert (
-        str(e.value)
-        == "We cannot use the given scvi model to initialize scanvi because it has a minified adata."
+
+    msg = (
+        "We cannot use the given scvi model to initialize scanvi because it has a minified adata."
     )
+    assert str(e.value) == msg
 
     # let's load scvi_model with a non-minified adata
     model.save(save_path, overwrite=True)

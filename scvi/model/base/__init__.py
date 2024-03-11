@@ -1,6 +1,7 @@
 from ._archesmixin import ArchesMixin
 from ._base_model import BaseMinifiedModeModelClass, BaseModelClass
 from ._differential import DifferentialComputation
+from ._embedding_mixin import EmbeddingMixin
 from ._jaxmixin import JaxTrainingMixin
 from ._pyromixin import (
     PyroJitGuideWarmup,
@@ -25,4 +26,5 @@ __all__ = [
     "DifferentialComputation",
     "JaxTrainingMixin",
     "BaseMinifiedModeModelClass",
+    "EmbeddingMixin",
 ]

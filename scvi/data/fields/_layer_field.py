@@ -103,7 +103,8 @@ class LayerField(BaseAnnDataField):
                 f"{logger_data_loc} does not contain fragment count data. "
                 "Are you sure this is what you want?. "
                 "Check that your data is not binarized and does not contain read counts. "
-                "You can approximate read counts to fragment counts using scvi.data.reads_to_fragments",
+                "You can approximate read counts to fragment counts using "
+                "scvi.data.reads_to_fragments",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )

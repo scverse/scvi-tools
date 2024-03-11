@@ -23,7 +23,8 @@ class BaseDataFrameField(BaseAnnDataField):
     registry_key
         Key to register field under in data registry.
     attr_key
-        Key to access the field in the AnnData obs or var mapping. If None, defaults to `registry_key`.
+        Key to access the field in the AnnData obs or var mapping. If None, defaults to
+        `registry_key`.
     field_type
         Type of field. Can be either "obs" or "var".
     required
@@ -78,7 +79,8 @@ class NumericalDataFrameField(BaseDataFrameField):
     registry_key
         Key to register field under in data registry.
     attr_key
-        Key to access the field in the AnnData obs or var mapping. If None, defaults to `registry_key`.
+        Key to access the field in the AnnData obs or var mapping. If None, defaults to
+        `registry_key`.
     """
 
     def validate_field(self, adata: AnnData) -> None:
@@ -131,7 +133,8 @@ class CategoricalDataFrameField(BaseDataFrameField):
     registry_key
         Key to register field under in data registry.
     attr_key
-        Key to access the field in the AnnData obs or var mapping. If None, defaults to `registry_key`.
+        Key to access the field in the AnnData obs or var mapping. If None, defaults to
+        `registry_key`.
     field_type
         Type of field. Can be either "obs" or "var".
     """

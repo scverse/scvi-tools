@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Literal
 
+from lightning.pytorch import LightningDataModule
+
 from scvi._types import AnnOrMuData
 from scvi.autotune._experiment import AutotuneExperiment
 from scvi.model.base import BaseModelClass
@@ -12,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def run_autotune(
     model_cls: BaseModelClass,
-    adata: AnnOrMuData,
+    data: AnnOrMuData | LightningDataModule,
     metrics: str | list[str],
     mode: Literal["min", "max"],
     search_space: dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]],
@@ -32,8 +34,9 @@ def run_autotune(
     ----------
     model_cls
         Model class on which to tune hyperparameters.
-    adata
-        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with ``model_cls``.
+    data
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with
+        ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule` (``EXPERIMENTAL``).
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
         provided, the primary metric will be the first element in the list.
@@ -106,7 +109,7 @@ def run_autotune(
 
     experiment = AutotuneExperiment(
         model_cls,
-        adata,
+        data,
         metrics,
         mode,
         search_space,

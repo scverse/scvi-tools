@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 def _load_retina(save_path: str = "data/") -> AnnData:
     """Loads retina dataset.
 
-    The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
-    13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author.
-    We also extract their normalized data with Combat and use it for benchmarking.
+    The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells
+    and 13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from
+    the author. We also extract their normalized data with Combat and use it for benchmarking.
     """
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/retina.loom"
@@ -52,7 +52,10 @@ def _load_retina(save_path: str = "data/") -> AnnData:
 
 
 def _load_prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
-    """Loads a starMAP dataset of 3,704 cells and 166 genes from the mouse pre-frontal cortex :cite:p:`Wang18`."""
+    """Loads a starMAP dataset from the mouse pre-frontal cortex :cite:p:`Wang18`.
+
+    Contains 3,704 cells and 166 genes.
+    """
     save_path = os.path.abspath(save_path)
     url = "https://github.com/YosefLab/scVI-data/raw/master/mpfc-starmap.loom"
     save_fn = "mpfc-starmap.loom"

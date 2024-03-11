@@ -47,11 +47,13 @@ def mde(
     accelerated. The appropriateness of use of visualization of high-dimensional spaces in single-
     cell omics remains an open research questions. See:
 
-    Chari, Tara, Joeyta Banerjee, and Lior Pachter. "The specious art of single-cell genomics." bioRxiv (2021).
+    Chari, Tara, Joeyta Banerjee, and Lior Pachter. "The specious art of single-cell genomics."
+    bioRxiv (2021).
 
     If you use this function in your research please cite:
 
-    Agrawal, Akshay, Alnur Ali, and Stephen Boyd. "Minimum-distortion embedding." arXiv preprint arXiv:2103.02559 (2021).
+    Agrawal, Akshay, Alnur Ali, and Stephen Boyd. "Minimum-distortion embedding." arXiv preprint
+    arXiv:2103.02559 (2021).
 
     Examples
     --------

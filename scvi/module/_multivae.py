@@ -255,10 +255,12 @@ class MULTIVAE(BaseModuleClass):
     encode_covariates
         If True, include covariates in the input to the encoder.
     use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional RNA distribution.
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
+        RNA distribution.
     """
 
-    # TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes first or that they're even contiguous)
+    # TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate
+    # which comes first or that they're even contiguous)
     def __init__(
         self,
         n_input_regions: int = 0,

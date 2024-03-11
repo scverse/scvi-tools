@@ -30,7 +30,8 @@ class DifferentialComputation:
     model_fn
         Callable in model API to get values from.
     representation_fn
-        Callable providing latent representations, e.g., :meth:`~scvi.model.SCVI.get_latent_representation`, for scVI.
+        Callable providing latent representations, e.g.,
+        :meth:`~scvi.model.SCVI.get_latent_representation`, for scVI.
     adata_manager
         AnnDataManager created by :meth:`~scvi.model.SCVI.setup_anndata`.
     """
@@ -86,7 +87,8 @@ class DifferentialComputation:
 
         Two modes coexist:
 
-        - The ``'vanilla'`` mode follows protocol described in :cite:p:`Lopez18` and :cite:p:`Xu21`.
+        - The ``'vanilla'`` mode follows protocol described in :cite:p:`Lopez18` and
+          :cite:p:`Xu21`.
 
             In this case, we perform hypothesis testing based on the hypotheses.
 
@@ -100,10 +102,10 @@ class DifferentialComputation:
 
         - The ``'change'`` mode (described in :cite:p:`Boyeau19`).
 
-            This mode consists of estimating an effect size random variable (e.g., log fold-change) and
-            performing Bayesian hypothesis testing on this variable. The `change_fn` function computes
-            the effect size variable :math:`r` based on two inputs corresponding to the posterior quantities
-            (e.g., normalized expression) in both populations.
+            This mode consists of estimating an effect size random variable (e.g., log fold-change)
+            and performing Bayesian hypothesis testing on this variable. The `change_fn` function
+            computes the effect size variable :math:`r` based on two inputs corresponding to the
+            posterior quantities (e.g., normalized expression) in both populations.
 
         Hypotheses:
 
@@ -116,7 +118,8 @@ class DifferentialComputation:
         To characterize the region :math:`R_1`, which induces DE, the user has two choices.
 
         1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
-           expression. If the user specifies a threshold delta, we suppose that :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
+           expression. If the user specifies a threshold delta, we suppose that
+           :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
         2. Specify an specific indicator function:
 
         .. math::
@@ -133,16 +136,19 @@ class DifferentialComputation:
         1. The posterior is sampled `n_samples` times for each subpopulation.
         2. For computational efficiency (posterior sampling is quite expensive), instead of
            comparing the obtained samples element-wise, we can permute posterior samples.
-           Remember that computing the Bayes Factor requires sampling :math:`q(z_A \mid x_A)` and :math:`q(z_B \mid x_B)`.
+           Remember that computing the Bayes Factor requires sampling :math:`q(z_A \mid x_A)` and
+           :math:`q(z_B \mid x_B)`.
 
         Currently, the code covers several batch handling configurations:
 
         1. If ``use_observed_batches=True``, then batch are considered as observations
            and cells' normalized means are conditioned on real batch observations.
         2. If case (cell group 1) and control (cell group 2) are conditioned on the same
-           batch ids. This requires ``set(batchid1) == set(batchid2)`` or ``batchid1 == batchid2 === None``.
+           batch ids. This requires ``set(batchid1) == set(batchid2)`` or
+           ``batchid1 == batchid2 === None``.
         3. If case and control are conditioned on different batch ids that do not intersect
-           i.e., ``set(batchid1) != set(batchid2)`` and ``len(set(batchid1).intersection(set(batchid2))) == 0``.
+           i.e., ``set(batchid1) != set(batchid2)`` and
+           ``len(set(batchid1).intersection(set(batchid2))) == 0``.
 
         This function does not cover other cases yet and will warn users in such cases.
 
@@ -182,9 +188,9 @@ class DifferentialComputation:
             inducing differential expression
         delta
             specific case of region inducing differential expression.
-            In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce differential expression
-            (LFC case). If the provided value is `None`, then a proper threshold is determined
-            from the distribution of LFCs accross genes.
+            In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce
+            differential expression (LFC case). If the provided value is `None`, then a proper
+            threshold is determined from the distribution of LFCs accross genes.
         pseudocounts
             pseudocount offset used for the mode `change`.
             When None, observations from non-expressed genes are used to estimate its value.
@@ -325,7 +331,8 @@ class DifferentialComputation:
             domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
             if (len(change_fn_specs.args) != 2) | (len(domain_fn_specs.args) != 1):
                 raise ValueError(
-                    "change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter."
+                    "change_fn should take exactly two parameters as inputs; m1_domain_fn one "
+                    "parameter."
                 )
             try:
                 change_distribution = change_fn(scales_1, scales_2)

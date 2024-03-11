@@ -99,9 +99,9 @@ class TrainRunner:
         self._update_history()
 
         # data splitter only gets these attrs after fit
-        self.model.train_indices = self.data_splitter.train_idx
-        self.model.test_indices = self.data_splitter.test_idx
-        self.model.validation_indices = self.data_splitter.val_idx
+        self.model.train_indices = getattr(self.data_splitter, "train_idx", None)
+        self.model.test_indices = getattr(self.data_splitter, "test_idx", None)
+        self.model.validation_indices = getattr(self.data_splitter, "val_idx", None)
 
         self.model.module.eval()
         self.model.is_trained_ = True

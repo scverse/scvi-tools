@@ -33,3 +33,38 @@ def test_run_autotune_scvi_basic(save_path: str):
     assert isinstance(experiment, AutotuneExperiment)
     assert hasattr(experiment, "result_grid")
     assert isinstance(experiment.result_grid, ResultGrid)
+
+
+def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
+    from scvi.dataloaders import DataSplitter
+
+    settings.logging_dir = save_path
+    adata = synthetic_iid(n_batches=n_batches)
+    SCVI.setup_anndata(adata, batch_key="batch")
+    manager = SCVI._get_most_recent_anndata_manager(adata)
+
+    data_module = DataSplitter(manager)
+    data_module.n_vars = adata.n_vars
+    data_module.n_batch = n_batches
+
+    experiment = run_autotune(
+        SCVI,
+        data_module,
+        metrics=["elbo_validation"],
+        mode="min",
+        search_space={
+            "model_args": {
+                "n_hidden": tune.choice([1, 2]),
+            },
+            "train_args": {
+                "max_epochs": 1,
+            },
+        },
+        num_samples=1,
+        seed=0,
+        scheduler="asha",
+        searcher="hyperopt",
+    )
+    assert isinstance(experiment, AutotuneExperiment)
+    assert hasattr(experiment, "result_grid")
+    assert isinstance(experiment.result_grid, ResultGrid)

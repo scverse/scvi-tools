@@ -1,10 +1,10 @@
 import pytest
 
 import scvi
-from scvi import METRIC_KEYS
 from scvi.data import synthetic_iid
 from scvi.model import SCVI, JaxSCVI
 from scvi.train import JaxTrainingPlan, TrainingPlan
+from scvi.train._constants import METRIC_KEYS
 from scvi.train._trainingplans import _compute_kl_weight
 
 

@@ -102,8 +102,9 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
             **model_kwargs,
         )
         self._model_summary_string = (
-            "LinearSCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
-            "{}, dispersion: {}, gene_likelihood: {}, latent_distribution: {}"
+            "LinearSCVI Model with the following params: \nn_hidden: {}, n_latent: {}, "
+            "n_layers: {}, dropout_rate: {}, dispersion: {}, gene_likelihood: {}, "
+            "latent_distribution: {}"
         ).format(
             n_hidden,
             n_latent,

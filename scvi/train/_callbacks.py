@@ -306,11 +306,12 @@ class SaveBestState(Callback):
 
 
 class LoudEarlyStopping(EarlyStopping):
-    """Wrapper of Pytorch Lightning EarlyStopping callback that prints the reason for stopping on teardown.
+    """Loud early stopping callback.
 
-    When the early stopping condition is met, the reason is saved to the callback instance,
-    then printed on teardown. By printing on teardown, we do not interfere with the progress
-    bar callback.
+    Wrapper of :class:`~lightning.pytorch.callbacks.early_stopping.EarlyStopping callback that
+    prints the reason for stopping on teardown. When the early stopping condition is met, the
+    reason is saved to the callback instance, then printed on teardown. By printing on teardown, we
+    do not interfere with the progress bar callback.
     """
 
     def __init__(self, **kwargs) -> None:

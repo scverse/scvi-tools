@@ -25,7 +25,9 @@ logger = logging.getLogger(__name__)
 
 
 class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez22`.
+    """Conditional version of single-cell Variational Inference.
+
+    Used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez22`.
 
     Parameters
     ----------
@@ -38,7 +40,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     n_layers
         Number of hidden layers used for encoder and decoder NNs.
     weight_obs
-        Whether to reweight observations by their inverse proportion (useful for lowly abundant cell types)
+        Whether to reweight observations by their inverse proportion (useful for lowly abundant
+        cell types)
     dropout_rate
         Dropout rate for neural networks.
     **module_kwargs
@@ -96,13 +99,16 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             **module_kwargs,
         )
         self._model_summary_string = (
-            "Conditional SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: {}, weight_obs: {}"
+            "Conditional SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, "
+            "n_layers: {}, dropout_rate: {}, weight_obs: {}"
         ).format(n_hidden, n_latent, n_layers, dropout_rate, weight_obs)
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
     def get_vamp_prior(self, adata: AnnData | None = None, p: int = 10) -> np.ndarray:
-        r"""Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
+        r"""Return an empirical prior over the cell-type specific latent space (vamp prior).
+
+        May be used for deconvolution.
 
         Parameters
         ----------
@@ -110,7 +116,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         p
-            number of clusters in kmeans clustering for cell-type sub-clustering for empirical prior
+            number of clusters in kmeans clustering for cell-type sub-clustering for empirical
+            prior
 
         Returns
         -------
@@ -172,7 +179,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             if n_labels_overclustering > p:
                 error_mess = """
                     Given cell type specific clustering contains more clusters than vamp_prior_p.
-                    Increase value of vamp_prior_p to largest number of cell type specific clusters."""
+                    Increase value of vamp_prior_p to largest number of cell type specific
+                    clusters."""
 
                 raise ValueError(error_mess)
 
@@ -229,8 +237,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs

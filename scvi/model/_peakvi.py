@@ -130,8 +130,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         self._model_summary_string = (
             "PeakVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
-            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
-            "encode_covariates: {}"
+            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, "
+            "deep injection: {}, encode_covariates: {}"
         ).format(
             self.module.n_hidden,
             self.module.n_latent,
@@ -184,8 +184,9 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         weight_decay
@@ -197,11 +198,11 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         early_stopping_patience
             How many epochs to wait for improvement before early stopping
         save_best
-            Save the best model state with respect to the validation loss (default), or use the final
-            state in the training procedure
+            Save the best model state with respect to the validation loss (default), or use the
+            final state in the training procedure
         check_val_every_n_epoch
-            Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
-            If so, val is checked every epoch.
+            Check val every n train epochs. By default, val is not checked, unless `early_stopping`
+            is `True`. If so, val is checked every epoch.
         n_steps_kl_warmup
             Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
             Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
@@ -309,8 +310,9 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     ) -> pd.DataFrame | np.ndarray | csr_matrix:
         """Impute the full accessibility matrix.
 
-        Returns a matrix of accessibility probabilities for each cell and genomic region in the input
-        (for return matrix A, A[i,j] is the probability that region j is accessible in cell i).
+        Returns a matrix of accessibility probabilities for each cell and genomic region in the
+        input (for return matrix A, A[i,j] is the probability that region j is accessible in cell
+        i).
 
         Parameters
         ----------
@@ -322,8 +324,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_samples_overall
             Number of samples to return in total
         region_list
-            Return accessibility estimates for this subset of regions. if `None`, all regions are used.
-            This can save memory when dealing with large datasets.
+            Return accessibility estimates for this subset of regions. if `None`, all regions are
+            used. This can save memory when dealing with large datasets.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -334,21 +336,22 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             If True (default), use the distribution mean. Otherwise, sample from the distribution.
         threshold
             If provided, values below the threshold are replaced with 0 and a sparse matrix
-            is returned instead. This is recommended for very large matrices. Must be between 0 and 1.
+            is returned instead. This is recommended for very large matrices. Must be between 0 and
+            1.
         normalize_cells
             Whether to reintroduce library size factors to scale the normalized probabilities.
             This makes the estimates closer to the input, but removes the library size correction.
             False by default.
         normalize_regions
             Whether to reintroduce region factors to scale the normalized probabilities. This makes
-            the estimates closer to the input, but removes the region-level bias correction. False by
-            default.
+            the estimates closer to the input, but removes the region-level bias correction. False
+            by default.
         batch_size
             Minibatch size for data loading into model
         return_numpy
-            If `True` and `threshold=None`, return :class:`~numpy.ndarray`. If `True` and `threshold` is
-            given, return :class:`~scipy.sparse.csr_matrix`. If `False`, return :class:`~pandas.DataFrame`.
-            DataFrame includes regions names as columns.
+            If `True` and `threshold=None`, return :class:`~numpy.ndarray`. If `True` and
+            `threshold` is given, return :class:`~scipy.sparse.csr_matrix`. If `False`, return
+            :class:`~pandas.DataFrame`. DataFrame includes regions names as columns.
         """
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata, required=True)
@@ -466,15 +469,16 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         prob_da
             the probability of the region being differentially accessible
         is_da_fdr
-            whether the region passes a multiple hypothesis correction procedure with the target_fdr
-            threshold
+            whether the region passes a multiple hypothesis correction procedure with the
+            target_fdr threshold
         bayes_factor
             Bayes Factor indicating the level of significance of the analysis
         effect_size
-            the effect size, computed as (accessibility in population 2) - (accessibility in population 1)
+            the effect size, computed as (accessibility in population 2) - (accessibility in
+            population 1)
         emp_effect
-            the empirical effect, based on observed detection rates instead of the estimated accessibility
-            scores from the PeakVI model
+            the empirical effect, based on observed detection rates instead of the estimated
+            accessibility scores from the PeakVI model
         est_prob1
             the estimated probability of accessibility in population 1
         est_prob2

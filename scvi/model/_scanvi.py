@@ -162,8 +162,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         self.semisupervised_history_ = None
 
         self._model_summary_string = (
-            "ScanVI Model with the following params: \nunlabeled_category: {}, n_hidden: {}, n_latent: {}"
-            ", n_layers: {}, dropout_rate: {}, dispersion: {}, gene_likelihood: {}"
+            "ScanVI Model with the following params: \nunlabeled_category: {}, n_hidden: {}, "
+            "n_latent: {}, n_layers: {}, dropout_rate: {}, dispersion: {}, gene_likelihood: {}"
         ).format(
             self.unlabeled_category_,
             n_hidden,
@@ -222,7 +222,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
         if scvi_model.minified_data_type is not None:
             raise ValueError(
-                "We cannot use the given scvi model to initialize scanvi because it has a minified adata."
+                "We cannot use the given scvi model to initialize scanvi because it has a "
+                "minified adata."
             )
 
         if adata is None:
@@ -381,8 +382,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         %(param_accelerator)s
@@ -391,8 +393,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             Additional keyword arguments passed into
             :class:`~scvi.dataloaders.SemiSupervisedDataSplitter`.
         plan_kwargs
-            Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword arguments passed to
-            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+            Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword arguments
+            passed to `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -485,7 +487,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
     def _get_fields_for_adata_minification(
         minified_data_type: MinifiedDataType,
     ) -> list[BaseAnnDataField]:
-        """Return the anndata fields required for adata minification of the given minified_data_type."""
+        """Return the fields required for adata minification of the given minified_data_type."""
         if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             fields = [
                 ObsmField(
@@ -521,7 +523,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
         Minifies the adata, and registers new anndata fields: latent qzm, latent qzv, adata uns
         containing minified-adata type, and library size.
-        This also sets the appropriate property on the module to indicate that the adata is minified.
+        This also sets the appropriate property on the module to indicate that the adata is
+        minified.
 
         Parameters
         ----------

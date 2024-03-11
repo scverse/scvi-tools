@@ -7,6 +7,7 @@ from ._base_module import (
     TrainStateWithState,
 )
 from ._decorators import auto_move_data, flax_configure
+from ._embedding_mixin import EmbeddingModuleMixin
 
 __all__ = [
     "BaseModuleClass",
@@ -17,4 +18,5 @@ __all__ = [
     "JaxBaseModuleClass",
     "TrainStateWithState",
     "BaseMinifiedModeModuleClass",
+    "EmbeddingModuleMixin",
 ]

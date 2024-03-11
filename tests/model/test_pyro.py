@@ -70,7 +70,7 @@ class BayesianRegressionPyroModel(PyroModule):
 
         A dictionary with:
         1. "name" - the name of observation/minibatch plate;
-        2. "in" - indexes of model args to provide to encoder network when using amortised inference;
+        2. "in" - indexes of model args to provide to encoder when using amortised inference;
         3. "sites" - dictionary with
             keys - names of variables that belong to the observation plate (used to recognise
              and merge posterior samples for minibatch variables)

@@ -51,9 +51,9 @@ def validate_data_split(
 
     if n_train == 0:
         raise ValueError(
-            f"With n_samples={n_samples}, train_size={train_size} and validation_size={validation_size}, the "
-            "resulting train set will be empty. Adjust any of the "
-            "aforementioned parameters."
+            f"With n_samples={n_samples}, train_size={train_size} and "
+            f"validation_size={validation_size}, the resulting train set will be empty. Adjust "
+            "any of the aforementioned parameters."
         )
 
     return n_train, n_val
@@ -73,8 +73,9 @@ class DataSplitter(pl.LightningDataModule):
     validation_size
         float, or None (default is None)
     shuffle_set_split
-        Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-        sequential order of the data according to `validation_size` and `train_size` percentages.
+        Whether to shuffle indices before splitting. If `False`, the val, train, and test set are
+        split in the sequential order of the data according to `validation_size` and `train_size`
+        percentages.
     load_sparse_tensor
         ``EXPERIMENTAL`` If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
         :class:`~torch.Tensor` with the same layout. Can lead to significant speedups in
@@ -205,8 +206,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     validation_size
         float, or None (default is None)
     shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+        Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+        are split in the sequential order of the data according to `validation_size` and
+        `train_size` percentages.
     n_samples_per_label
         Number of subsamples for each label class to sample per epoch
     pin_memory

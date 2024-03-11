@@ -18,7 +18,8 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
     Parameters
     ----------
     mod_key
-        Modality key where data is stored. If ``None``, uses the top level MuData object attributes.
+        Modality key where data is stored. If ``None``, uses the top level MuData object
+        attributes.
     mod_required
         If ``True``, raises ``ValueError`` when ``mod_key`` is ``None``.
     """
@@ -80,9 +81,10 @@ class BaseMuDataWrapperClass(BaseAnnDataField):
     def preregister(self, mdata: MuData) -> None:
         """Function that is called prior to registering fields.
 
-        Function that is be called at the beginning of :meth:`~scvi.data.fields.BaseMuDataWrapperClass.register_field`
-        and :meth:`~scvi.data.fields.BaseMuDataWrapperClass.transfer_field`.
-        Used when data manipulation is necessary across modalities.
+        Function that is be called at the beginning of
+        :meth:`~scvi.data.fields.BaseMuDataWrapperClass.register_field` and
+        :meth:`~scvi.data.fields.BaseMuDataWrapperClass.transfer_field`. Used when data
+        manipulation is necessary across modalities.
         """
         return self._preregister(self, mdata)
 
@@ -117,8 +119,9 @@ def MuDataWrapper(
     adata_field_cls
         AnnDataField class to wrap.
     preregister_fn
-        Function that will be called at the beginning of :meth:`~scvi.data.fields.BaseMuDataWrapperClass.register_field`
-        and :meth:`~scvi.data.fields.BaseMuDataWrapperClass.transfer_field`.
+        Function that will be called at the beginning of
+        :meth:`~scvi.data.fields.BaseMuDataWrapperClass.register_field` and
+        :meth:`~scvi.data.fields.BaseMuDataWrapperClass.transfer_field`.
     """
     if not isinstance(adata_field_cls, type):
         raise ValueError("`adata_field_cls` must be a class, not an instance.")

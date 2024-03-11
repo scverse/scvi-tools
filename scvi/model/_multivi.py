@@ -204,10 +204,11 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "MultiVI Model with INPUTS: n_genes:{}, n_regions:{}, n_proteins:{}\n"
+            "MultiVI Model with INPUTS: n_genes: {}, n_regions: {}, n_proteins: {}\n"
             "n_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
-            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, deep injection: {}, "
-            "gene_likelihood: {}, gene_dispersion:{}, Mod.Weights:{}, Mod.Penalty:{}, protein_dispersion:{}"
+            "n_layers_decoder: {}, dropout_rate: {}, latent_distribution: {}, "
+            "deep injection: {}, gene_likelihood: {}, gene_dispersion:{}, Mod.Weights: {}, "
+            "Mod.Penalty: {}, protein_dispersion: {}"
         ).format(
             n_genes,
             n_regions,
@@ -271,8 +272,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         weight_decay
@@ -285,8 +287,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Save the best model state with respect to the validation loss, or use the final
             state in the training procedure
         check_val_every_n_epoch
-            Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
-            If so, val is checked every epoch.
+            Check val every n train epochs. By default, val is not checked, unless `early_stopping`
+            is `True`. If so, val is checked every epoch.
         n_steps_kl_warmup
             Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
             Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
@@ -295,7 +297,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Number of epochs to scale weight on KL divergences from 0 to 1.
             Overrides `n_steps_kl_warmup` when both are not `None`.
         adversarial_mixing
-            Whether to use adversarial training to penalize the model for umbalanced mixing of modalities.
+            Whether to use adversarial training to penalize the model for umbalanced mixing of
+            modalities.
         datasplitter_kwargs
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
@@ -486,8 +489,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     ) -> np.ndarray | csr_matrix | pd.DataFrame:
         """Impute the full accessibility matrix.
 
-        Returns a matrix of accessibility probabilities for each cell and genomic region in the input
-        (for return matrix A, A[i,j] is the probability that region j is accessible in cell i).
+        Returns a matrix of accessibility probabilities for each cell and genomic region in the
+        input (for return matrix A, A[i,j] is the probability that region j is accessible in cell
+        i).
 
         Parameters
         ----------
@@ -510,15 +514,16 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             If True (default), use the distribution mean. Otherwise, sample from the distribution.
         threshold
             If provided, values below the threshold are replaced with 0 and a sparse matrix
-            is returned instead. This is recommended for very large matrices. Must be between 0 and 1.
+            is returned instead. This is recommended for very large matrices. Must be between 0 and
+            1.
         normalize_cells
             Whether to reintroduce library size factors to scale the normalized probabilities.
             This makes the estimates closer to the input, but removes the library size correction.
             False by default.
         normalize_regions
             Whether to reintroduce region factors to scale the normalized probabilities. This makes
-            the estimates closer to the input, but removes the region-level bias correction. False by
-            default.
+            the estimates closer to the input, but removes the region-level bias correction. False
+            by default.
         batch_size
             Minibatch size for data loading into model
         """
@@ -634,7 +639,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         Returns
         -------
         If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
-        Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        Otherwise, shape is `(cells, genes)`. In this case, return type is
+        :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
@@ -745,15 +751,16 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         prob_da
             the probability of the region being differentially accessible
         is_da_fdr
-            whether the region passes a multiple hypothesis correction procedure with the target_fdr
-            threshold
+            whether the region passes a multiple hypothesis correction procedure with the
+            target_fdr threshold
         bayes_factor
             Bayes Factor indicating the level of significance of the analysis
         effect_size
-            the effect size, computed as (accessibility in population 2) - (accessibility in population 1)
+            the effect size, computed as (accessibility in population 2) - (accessibility in
+            population 1)
         emp_effect
-            the empirical effect, based on observed detection rates instead of the estimated accessibility
-            scores from the PeakVI model
+            the empirical effect, based on observed detection rates instead of the estimated
+            accessibility scores from the PeakVI model
         est_prob1
             the estimated probability of accessibility in population 1
         est_prob2
@@ -935,8 +942,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If ``None``, defaults to the
-            AnnData object used to initialize the model.
+            AnnData object with equivalent structure to initial AnnData. If ``None``, defaults to
+            the AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         transform_batch
@@ -957,16 +964,17 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         return_mean
             Whether to return the mean of the samples.
         return_numpy
-            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
-            gene names as columns. If either ``n_samples=1`` or ``return_mean=True``, defaults to ``False``.
-            Otherwise, it defaults to `True`.
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
+            includes gene names as columns. If either ``n_samples=1`` or ``return_mean=True``,
+            defaults to ``False``. Otherwise, it defaults to `True`.
 
         Returns
         -------
         - **foreground_probability** - probability foreground for each protein
 
         If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
-        Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        Otherwise, shape is `(cells, genes)`. In this case, return type is
+        :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
         post = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
@@ -1065,8 +1073,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         protein_expression_obsm_key
             key in `adata.obsm` for protein expression data.
         protein_names_uns_key
-            key in `adata.uns` for protein names. If None, will use the column names of `adata.obsm[protein_expression_obsm_key]`
-            if it is a DataFrame, else will assign sequential names to proteins.
+            key in `adata.uns` for protein names. If None, will use the column names of
+            `adata.obsm[protein_expression_obsm_key]` if it is a DataFrame, else will assign
+            sequential names to proteins.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         adata.obs["_indices"] = np.arange(adata.n_obs)

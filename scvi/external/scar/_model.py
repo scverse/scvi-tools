@@ -28,7 +28,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """Ambient RNA removal in scRNA-seq data :cite:p:`Sheng22`.
 
     Original implementation: https://github.com/Novartis/scar.
-    The models are parameter matched in architecture, activations, dropout, sparsity, and batch normalization.
+    The models are parameter matched in architecture, activations, dropout, sparsity, and batch
+    normalization.
 
     Parameters
     ----------
@@ -112,7 +113,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 ambient_profile = np.nan_to_num(ambient_profile)
             else:
                 raise TypeError(
-                    f"Expecting str / np.array / None / pd.DataFrame, but get a {type(ambient_profile)}"
+                    "Expecting str / np.array / None / pd.DataFrame, but got a "
+                    f"{type(ambient_profile)}"
                 )
             ambient_profile = torch.from_numpy(np.asarray(ambient_profile)).float().reshape(1, -1)
 
@@ -133,8 +135,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "SCVI-AR Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
-            "{}, gene_likelihood: {}, latent_distribution: {}"
+            "SCVI-AR Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, "
+            "dropout_rate: {}, gene_likelihood: {}, latent_distribution: {}"
         ).format(
             n_hidden,
             n_latent,
@@ -185,26 +187,30 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     ):
         """Calculate ambient profile for relevant features.
 
-        Identify the cell-free droplets through a multinomial distribution. See EmptyDrops :cite:p:`Lun2019` for details.
+        Identify the cell-free droplets through a multinomial distribution. See EmptyDrops
+        :cite:p:`Lun2019` for details.
 
         Parameters
         ----------
         adata
-            A filtered adata object, loaded from filtered_feature_bc_matrix using `scanpy.read`, gene filtering is
-            recommended to save memory.
+            A filtered adata object, loaded from filtered_feature_bc_matrix using `scanpy.read`,
+            gene filtering is recommended to save memory.
         raw_adata
             A raw adata object, loaded from raw_feature_bc_matrix using :meth:`~scanpy.read`.
         prob
             The probability of each gene, considered as containing ambient RNA if greater than prob
             (joint prob euqals to the product of all genes for a droplet), by default 0.995.
         min_raw_counts
-            Total counts filter for raw_adata, filtering out low counts to save memory, by default 2.
+            Total counts filter for raw_adata, filtering out low counts to save memory, by default
+            2.
         iterations
             Total iterations, by default 3.
         n_batch
-            Total number of batches, set it to a bigger number when out of memory issue occurs, by default 1.
+            Total number of batches, set it to a bigger number when out of memory issue occurs, by
+            default 1.
         sample
-            Randomly sample droplets to test, if greater than total droplets, use all droplets, by default 50000.
+            Randomly sample droplets to test, if greater than total droplets, use all droplets, by
+            default 50000.
 
         Returns
         -------
