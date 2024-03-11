@@ -24,27 +24,26 @@ class DecoderVELOVI(nn.Module):
     Parameters
     ----------
     n_input
-        The dimensionality of the input (latent space)
+        The dimensionality of the input (latent space).
     n_output
-        The dimensionality of the output (data space)
+        The dimensionality of the output (data space).
     n_cat_list
-        A list containing the number of categories
-        for each category of interest. Each category will be
-        included using a one-hot encoding
+        A list containing the number of categories or each category of interest. Each category will
+        be included using a one-hot encoding.
     n_layers
-        The number of fully-connected hidden layers
+        The number of fully-connected hidden layers.
     n_hidden
-        The number of nodes per hidden layer
+        The number of nodes per hidden layer.
     dropout_rate
-        Dropout rate to apply to each of the hidden layers
+        Dropout rate to apply to each of the hidden layers.
     inject_covariates
         Whether to inject covariates in each layer, or just the first (default).
     use_batch_norm
-        Whether to use batch norm in layers
+        Whether to use batch norm in layers.
     use_layer_norm
-        Whether to use layer norm in layers
+        Whether to use layer norm in layers.
     linear_decoder
-        Whether to use linear decoder for time
+        Whether to use linear decoder for time.
     """
 
     def __init__(
@@ -114,15 +113,15 @@ class DecoderVELOVI(nn.Module):
 
         Parameters
         ----------
-        z :
-            tensor with shape ``(n_input,)``
+        z
+            tensor with shape ``(n_input,)``.
         cat_list
             list of category membership(s) for this sample
 
         Returns
         -------
-        4-tuple of :py:class:`torch.Tensor`
-            parameters for the ZINB distribution of expression
+        4-tuple of :class:`~torch.Tensor`
+            parameters for the ZINB distribution of expression.
 
         """
         z_in = z
@@ -155,34 +154,34 @@ class DecoderVELOVI(nn.Module):
 class VELOVAE(BaseModuleClass):
     """Variational auto-encoder model.
 
-    This is an implementation of the veloVI model descibed in :cite:p:`GayosoWeiler2022`
+    This is an implementation of the veloVI model descibed in :cite:p:`GayosoWeiler2023`.
 
     Parameters
     ----------
     n_input
-        Number of input genes
+        Number of input genes.
     n_hidden
-        Number of nodes per hidden layer
+        Number of nodes per hidden layer.
     n_latent
-        Dimensionality of the latent space
+        Dimensionality of the latent space.
     n_layers
-        Number of hidden layers used for encoder and decoder NNs
+        Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
-        Dropout rate for neural networks
+        Dropout rate for neural networks.
     log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization.
     latent_distribution
-        One of
+        One of the following:
 
-        * ``'normal'`` - Isotropic normal
-        * ``'ln'`` - Logistic normal with normal params N(0, 1)
+        * ``"normal"`` - Isotropic normal.
+        * ``"ln"`` - Logistic normal with normal params N(0, 1).
     use_layer_norm
-        Whether to use layer norm in layers
+        Whether to use layer norm in layers.
     use_observed_lib_size
-        Use observed library size for RNA as scaling factor in mean of conditional distribution
+        Use observed library size for RNA as scaling factor in mean of conditional distribution.
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
-        When `None`, defaults to `torch.exp`.
+        When ``None``, defaults to :func:`~torch.exp`.
     """
 
     def __init__(

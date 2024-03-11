@@ -14,7 +14,7 @@ def get_permutation_scores(save_path: str | Path = Path("data/")) -> pd.DataFram
     Parameters
     ----------
     save_path
-        path to save the csv file
+        Path to save the csv file.
     """
     from urllib.request import urlretrieve
 
@@ -50,9 +50,9 @@ def preprocess_data(
     unspliced_layer
         Name of the unspliced layer.
     min_max_scale
-        Min-max scale spliced and unspliced
+        Min-max scale spliced and unspliced.
     filter_on_r2
-        Filter out genes according to linear regression fit
+        Filter out genes according to linear regression fit.
 
     Returns
     -------
