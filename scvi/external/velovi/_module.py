@@ -154,7 +154,7 @@ class DecoderVELOVI(nn.Module):
 class VELOVAE(BaseModuleClass):
     """Variational auto-encoder model.
 
-    This is an implementation of the veloVI model descibed in :cite:p:`GayosoWeiler2023`.
+    This is an implementation of the veloVI model descibed in :cite:p:`GayosoWeiler23`.
 
     Parameters
     ----------
