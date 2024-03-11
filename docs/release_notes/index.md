@@ -25,6 +25,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     argument `generate_coordinates` {pr}`2603`.
 -   Add experimental support for using custom {class}`lightning.pytorch.core.LightningDataModule`s
     in {func}`scvi.autotune.run_autotune` {pr}`2605`.
+-   Add {class}`scvi.external.VELOVI` for RNA velocity estimation using variational inference
+    {pr}`2611`.
 
 #### Changed
 
